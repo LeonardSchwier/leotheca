@@ -6,7 +6,12 @@ import { linkIndex } from "../linking/store";
 
 afterEach(() => {
   cleanup();
-  linkIndex.value = { backlinksByPath: new Map(), pathsByNoteName: new Map() };
+  linkIndex.value = {
+    backlinksByPath: new Map(),
+    pathsByNoteName: new Map(),
+    pathsByAlias: new Map(),
+    aliasesByPath: new Map(),
+  };
 });
 
 describe("MarkdownPreview", () => {
@@ -32,6 +37,8 @@ describe("MarkdownPreview", () => {
     linkIndex.value = {
       backlinksByPath: new Map(),
       pathsByNoteName: new Map([["existing note", ["/vault/existing-note.md"]]]),
+      pathsByAlias: new Map(),
+      aliasesByPath: new Map(),
     };
     const { container } = render(<MarkdownPreview source="See [[Existing Note]] for details." />);
     const anchor = container.querySelector('a[href^="#leotheca-wikilink="]');
@@ -57,6 +64,8 @@ describe("MarkdownPreview", () => {
     linkIndex.value = {
       backlinksByPath: new Map(),
       pathsByNoteName: new Map([["existing note", ["/vault/existing-note.md"]]]),
+      pathsByAlias: new Map(),
+      aliasesByPath: new Map(),
     };
     const onOpenFile = vi.fn();
     const { container } = render(

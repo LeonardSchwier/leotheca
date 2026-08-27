@@ -35,6 +35,13 @@ export interface WorkspaceSettings {
    * scale would visually resize things without moving the layout boxes
    * pointer math reads from, breaking clicks in the scaled area. */
   uiZoom: number;
+  /** Whether `[[wikilink]]` resolution, autocomplete, and backlinks also
+   * consider a note's `aliases:` frontmatter field, not just its file
+   * name (see linking/frontmatter.ts). Defaults to on; this exists as an
+   * opt-out per CONSTITUTION.md's "Daily competitor feature scan" policy,
+   * which requires net-new functionality queued from that scan to ship
+   * toggleable rather than imposed unconditionally. */
+  frontmatterAliasesEnabled: boolean;
 }
 
 export const MIN_UI_ZOOM = 50;
@@ -55,6 +62,7 @@ export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   lastOpenPaths: [],
   lastActivePath: null,
   uiZoom: 100,
+  frontmatterAliasesEnabled: true,
 };
 
 // Plain string join is intentional here (not a path-resolution API call):

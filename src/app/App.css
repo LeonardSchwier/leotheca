@@ -230,6 +230,9 @@ button.icon-button.active {
   text-decoration: underline dashed;
   text-underline-offset: 2px;
 }
+.cm-live-list-bullet {
+  color: var(--text-faint);
+}
 
 .markdown-preview {
   padding: var(--space-6);

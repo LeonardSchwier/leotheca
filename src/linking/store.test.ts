@@ -32,7 +32,12 @@ describe("wikilink index", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     writeTextFile.mockResolvedValue(undefined);
-    linkIndex.value = { backlinksByPath: new Map(), pathsByNoteName: new Map() };
+    linkIndex.value = {
+      backlinksByPath: new Map(),
+      pathsByNoteName: new Map(),
+      pathsByAlias: new Map(),
+      aliasesByPath: new Map(),
+    };
     resetLinkIndexCache();
   });
 
@@ -108,7 +113,12 @@ describe("rebuildLinkIndex: mtime-based caching", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     writeTextFile.mockResolvedValue(undefined);
-    linkIndex.value = { backlinksByPath: new Map(), pathsByNoteName: new Map() };
+    linkIndex.value = {
+      backlinksByPath: new Map(),
+      pathsByNoteName: new Map(),
+      pathsByAlias: new Map(),
+      aliasesByPath: new Map(),
+    };
     resetLinkIndexCache();
   });
 
@@ -179,8 +189,8 @@ describe("rebuildLinkIndex: mtime-based caching", () => {
     readTextFile.mockImplementation(async (path: string) => {
       if (path === CACHE_PATH) {
         return JSON.stringify({
-          version: 1,
-          entries: { "/workspace/a.md": { mtime: 1000, wikilinks: ["b"] } },
+          version: 2,
+          entries: { "/workspace/a.md": { mtime: 1000, wikilinks: ["b"], aliases: [] } },
         });
       }
       throw new Error(`unexpected content read: ${path}`);
@@ -234,8 +244,8 @@ describe("rebuildLinkIndex: mtime-based caching", () => {
     const [savedPath, savedContent] = writeTextFile.mock.calls[0];
     expect(savedPath).toBe(CACHE_PATH);
     const saved = JSON.parse(savedContent);
-    expect(saved.version).toBe(1);
-    expect(saved.entries["/workspace/a.md"]).toEqual({ mtime: 1000, wikilinks: ["b"] });
+    expect(saved.version).toBe(2);
+    expect(saved.entries["/workspace/a.md"]).toEqual({ mtime: 1000, wikilinks: ["b"], aliases: [] });
   });
 
   it("prunes a note that no longer exists out of the cache on the next call", async () => {
@@ -274,5 +284,115 @@ describe("rebuildLinkIndex: mtime-based caching", () => {
 
     await expect(rebuildLinkIndex("/workspace")).resolves.toBeUndefined();
     expect(linkIndex.value.backlinksByPath.size).toBeGreaterThan(0);
+  });
+});
+
+describe("rebuildLinkIndex: aliases", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    writeTextFile.mockResolvedValue(undefined);
+    linkIndex.value = {
+      backlinksByPath: new Map(),
+      pathsByNoteName: new Map(),
+      pathsByAlias: new Map(),
+      aliasesByPath: new Map(),
+    };
+    resetLinkIndexCache();
+  });
+
+  function setupTwoNotes(betaFrontmatter: string, alphaBody: string) {
+    listDir.mockImplementation(async (path: string) =>
+      path === "/workspace"
+        ? [
+            { name: "Alpha.md", path: "/workspace/Alpha.md", isDir: false },
+            { name: "Beta.md", path: "/workspace/Beta.md", isDir: false },
+          ]
+        : [],
+    );
+    readTextFile.mockImplementation(async (path: string) => {
+      if (path === CACHE_PATH) throw new Error("no cache file yet");
+      if (path.endsWith("Beta.md")) return betaFrontmatter;
+      return alphaBody;
+    });
+  }
+
+  it("resolves a wikilink by another note's alias, not just its file name", async () => {
+    setupTwoNotes("---\naliases: [B, Second Letter]\n---\n", "[[Second Letter]]");
+
+    await rebuildLinkIndex("/workspace");
+
+    expect(resolveWikilink("second letter")).toBe("/workspace/Beta.md");
+  });
+
+  it("attributes a backlink to the note an alias resolves to (the two-pass fix)", async () => {
+    // Beta declares the alias "B" but is read concurrently with Alpha, so
+    // whichever finishes first can't yet know the other's aliases; this is
+    // exactly the race the second, in-memory-only pass exists to avoid.
+    setupTwoNotes("---\naliases: [B]\n---\n", "[[B]]");
+
+    await rebuildLinkIndex("/workspace");
+
+    expect(linkIndex.value.backlinksByPath.get("/workspace/Beta.md")).toEqual(["/workspace/Alpha.md"]);
+  });
+
+  it("populates aliasesByPath with the alias's original casing, for display", async () => {
+    setupTwoNotes("---\naliases: [Second Letter]\n---\n", "no links here");
+
+    await rebuildLinkIndex("/workspace");
+
+    expect(linkIndex.value.aliasesByPath.get("/workspace/Beta.md")).toEqual(["Second Letter"]);
+  });
+
+  it("prefers a real note name over a same-text alias declared by another note", async () => {
+    listDir.mockImplementation(async (path: string) =>
+      path === "/workspace"
+        ? [
+            { name: "Alpha.md", path: "/workspace/Alpha.md", isDir: false },
+            { name: "Beta.md", path: "/workspace/Beta.md", isDir: false },
+          ]
+        : [],
+    );
+    readTextFile.mockImplementation(async (path: string) => {
+      if (path === CACHE_PATH) throw new Error("no cache file yet");
+      // Beta claims "Alpha" as its own alias, colliding with Alpha's real name.
+      if (path.endsWith("Beta.md")) return "---\naliases: [Alpha]\n---\n";
+      return "";
+    });
+
+    await rebuildLinkIndex("/workspace");
+
+    expect(resolveWikilink("Alpha")).toBe("/workspace/Alpha.md");
+  });
+
+  it("does not resolve, autocomplete, or attribute backlinks by alias when the setting is off", async () => {
+    setupTwoNotes("---\naliases: [Second Letter]\n---\n", "[[Second Letter]]");
+
+    await rebuildLinkIndex("/workspace", false);
+
+    expect(resolveWikilink("second letter")).toBeNull();
+    expect(linkIndex.value.aliasesByPath.size).toBe(0);
+    expect(linkIndex.value.backlinksByPath.get("/workspace/Beta.md")).toEqual([]);
+    // Name-based resolution is unaffected by the setting.
+    expect(resolveWikilink("Beta")).toBe("/workspace/Beta.md");
+  });
+
+  it("caches aliases the same way it caches wikilinks (no re-read when mtime is unchanged)", async () => {
+    listDir.mockImplementation(async (path: string) =>
+      path === "/workspace"
+        ? [{ name: "a.md", path: "/workspace/a.md", isDir: false, mtime: 1000 }]
+        : [],
+    );
+    readTextFile.mockImplementation(async (path: string) => {
+      if (path === CACHE_PATH) throw new Error("no cache file yet");
+      return "---\naliases: [Foo]\n---\n";
+    });
+
+    await rebuildLinkIndex("/workspace");
+    expect(linkIndex.value.aliasesByPath.get("/workspace/a.md")).toEqual(["Foo"]);
+    readTextFile.mockClear();
+
+    await rebuildLinkIndex("/workspace");
+    expect(readTextFile).not.toHaveBeenCalledWith("/workspace/a.md");
+    expect(linkIndex.value.aliasesByPath.get("/workspace/a.md")).toEqual(["Foo"]);
   });
 });

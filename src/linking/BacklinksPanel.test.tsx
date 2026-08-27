@@ -6,7 +6,12 @@ import { linkIndex } from "./store";
 
 afterEach(() => {
   cleanup();
-  linkIndex.value = { backlinksByPath: new Map(), pathsByNoteName: new Map() };
+  linkIndex.value = {
+    backlinksByPath: new Map(),
+    pathsByNoteName: new Map(),
+    pathsByAlias: new Map(),
+    aliasesByPath: new Map(),
+  };
 });
 
 describe("BacklinksPanel", () => {
@@ -21,6 +26,8 @@ describe("BacklinksPanel", () => {
         ["/vault/note.md", ["/vault/a.md", "/vault/sub/b.md"]],
       ]),
       pathsByNoteName: new Map(),
+      pathsByAlias: new Map(),
+      aliasesByPath: new Map(),
     };
     const { getByText } = render(<BacklinksPanel path="/vault/note.md" onOpenFile={vi.fn()} />);
     expect(getByText("a.md")).toBeTruthy();
@@ -34,6 +41,8 @@ describe("BacklinksPanel", () => {
         ["/vault/other.md", ["/vault/z.md"]],
       ]),
       pathsByNoteName: new Map(),
+      pathsByAlias: new Map(),
+      aliasesByPath: new Map(),
     };
     const { getByText, queryByText } = render(
       <BacklinksPanel path="/vault/note.md" onOpenFile={vi.fn()} />,
@@ -46,6 +55,8 @@ describe("BacklinksPanel", () => {
     linkIndex.value = {
       backlinksByPath: new Map([["/vault/note.md", ["/vault/sub/a.md"]]]),
       pathsByNoteName: new Map(),
+      pathsByAlias: new Map(),
+      aliasesByPath: new Map(),
     };
     const onOpenFile = vi.fn();
     const { getByText } = render(<BacklinksPanel path="/vault/note.md" onOpenFile={onOpenFile} />);

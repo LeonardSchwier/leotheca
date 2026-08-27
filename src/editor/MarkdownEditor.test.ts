@@ -14,7 +14,12 @@ function contextAt(doc: string, pos: number): CompletionContext {
 function setNotes(names: string[]) {
   const pathsByNoteName = new Map<string, string[]>();
   for (const name of names) pathsByNoteName.set(name.toLowerCase(), [`/workspace/${name}.md`]);
-  linkIndex.value = { backlinksByPath: new Map(), pathsByNoteName };
+  linkIndex.value = {
+    backlinksByPath: new Map(),
+    pathsByNoteName,
+    pathsByAlias: new Map(),
+    aliasesByPath: new Map(),
+  };
 }
 
 describe("wikilinkCompletions", () => {
@@ -64,9 +69,44 @@ describe("wikilinkCompletions", () => {
     linkIndex.value = {
       backlinksByPath: new Map(),
       pathsByNoteName: new Map([["duplicate", ["/workspace/a/Duplicate.md", "/workspace/b/Duplicate.md"]]]),
+      pathsByAlias: new Map(),
+      aliasesByPath: new Map(),
     };
     const doc = "see [[dup";
     const result = wikilinkCompletions(contextAt(doc, doc.length));
     expect(result!.options.map((o) => o.label)).toEqual(["Duplicate"]);
+  });
+
+  it("also suggests a note's aliases, alongside its file name", () => {
+    setNotes(["Alpha"]);
+    linkIndex.value = {
+      ...linkIndex.value,
+      aliasesByPath: new Map([["/workspace/Alpha.md", ["Ay", "First Letter"]]]),
+    };
+    const doc = "see [[";
+    const result = wikilinkCompletions(contextAt(doc, doc.length));
+    expect(result!.options.map((o) => o.label).sort()).toEqual(["Alpha", "Ay", "First Letter"]);
+  });
+
+  it("applies an alias itself (not the note's file name) when that suggestion is accepted", () => {
+    setNotes(["Alpha"]);
+    linkIndex.value = {
+      ...linkIndex.value,
+      aliasesByPath: new Map([["/workspace/Alpha.md", ["Ay"]]]),
+    };
+    const doc = "see [[ay";
+    const result = wikilinkCompletions(contextAt(doc, doc.length));
+    expect(result!.options.map((o) => o.apply)).toEqual(["Ay]]"]);
+  });
+
+  it("does not duplicate a suggestion when an alias happens to match the file name of another note", () => {
+    setNotes(["Alpha", "Beta"]);
+    linkIndex.value = {
+      ...linkIndex.value,
+      aliasesByPath: new Map([["/workspace/Alpha.md", ["Beta"]]]),
+    };
+    const doc = "see [[";
+    const result = wikilinkCompletions(contextAt(doc, doc.length));
+    expect(result!.options.map((o) => o.label).sort()).toEqual(["Alpha", "Beta"]);
   });
 });

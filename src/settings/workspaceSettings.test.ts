@@ -33,6 +33,10 @@ describe("DEFAULT_WORKSPACE_SETTINGS", () => {
     expect(DEFAULT_WORKSPACE_SETTINGS.deleteBehavior).toBe("project-trash");
     expect(DEFAULT_WORKSPACE_SETTINGS.lastOpenPaths).toEqual([]);
   });
+
+  it("defaults frontmatter aliases to on, per the opt-out policy for queued features", () => {
+    expect(DEFAULT_WORKSPACE_SETTINGS.frontmatterAliasesEnabled).toBe(true);
+  });
 });
 
 describe("loadWorkspaceSettings", () => {
@@ -50,6 +54,7 @@ describe("loadWorkspaceSettings", () => {
     expect(settings.sortOrder).toBe("name-desc");
     expect(settings.uiZoom).toBe(DEFAULT_WORKSPACE_SETTINGS.uiZoom);
     expect(settings.lastOpenPaths).toEqual([]);
+    expect(settings.frontmatterAliasesEnabled).toBe(true);
   });
 
   it("keeps every field from a settings file that already has them all", async () => {

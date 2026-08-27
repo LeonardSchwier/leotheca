@@ -1,3 +1,4 @@
+/** @vitest-environment jsdom */
 import { beforeEach, describe, expect, it } from "vitest";
 import { EditorSelection, EditorState } from "@codemirror/state";
 import { linkIndex } from "../linking/store";
@@ -25,19 +26,23 @@ function stateFor(doc: string, selection?: { anchor: number; head?: number }): E
 }
 
 /** Collects the decoration ranges built for a state into a simpler,
- * assertion-friendly shape: which text is hidden (replaced with nothing)
- * vs. which text is marked with a class, both as substrings. */
+ * assertion-friendly shape: which text is hidden (replaced with nothing),
+ * which text is marked with a class, and which text is replaced with a
+ * widget (rendered to its DOM text so a test can assert on it), all keyed
+ * by the original substring they replace or style. */
 function summarize(state: EditorState) {
   const decorations = buildLiveDecorations(state);
   const hidden: string[] = [];
   const marked: { text: string; class: string }[] = [];
+  const widgets: { text: string; rendered: string }[] = [];
   decorations.between(0, state.doc.length, (from, to, value) => {
     const text = state.doc.sliceString(from, to);
-    const spec = value.spec as { class?: string };
+    const spec = value.spec as { class?: string; widget?: { toDOM(): HTMLElement } };
     if (spec.class) marked.push({ text, class: spec.class });
+    else if (spec.widget) widgets.push({ text, rendered: spec.widget.toDOM().textContent ?? "" });
     else hidden.push(text);
   });
-  return { hidden, marked };
+  return { hidden, marked, widgets };
 }
 
 describe("overlapsSelectedLines", () => {
@@ -108,11 +113,52 @@ describe("buildLiveDecorations: inline code", () => {
   });
 });
 
+describe("buildLiveDecorations: bullet lists", () => {
+  it("replaces a '-' marker with a bullet widget when not on that line", () => {
+    const state = stateFor("- one\n- two\n\nOther line.", { anchor: 20 });
+    const { hidden, widgets } = summarize(state);
+    expect(hidden).not.toContain("- ");
+    expect(widgets.map((w) => w.text)).toEqual(expect.arrayContaining(["- ", "- "]));
+    for (const w of widgets) expect(w.rendered).toBe("• ");
+  });
+
+  it("renders '*' and '+' markers as the same bullet glyph", () => {
+    const state = stateFor("* star\n+ plus\n\nOther line.", { anchor: 20 });
+    const { widgets } = summarize(state);
+    expect(widgets).toHaveLength(2);
+    expect(widgets.map((w) => w.rendered)).toEqual(["• ", "• "]);
+  });
+
+  it("keeps the raw marker visible while actively editing that line", () => {
+    const state = stateFor("- one\n- two", { anchor: 2 });
+    const { widgets } = summarize(state);
+    // Only "- two"'s marker (the line the cursor isn't on) becomes a widget.
+    expect(widgets).toHaveLength(1);
+  });
+
+  it("leaves ordered list markers alone (the number is meaningful content)", () => {
+    const state = stateFor("1. first\n2. second\n\nOther line.", { anchor: 30 });
+    const { hidden, widgets } = summarize(state);
+    expect(widgets).toHaveLength(0);
+    expect(hidden).not.toContain("1.");
+    expect(hidden).not.toContain("2.");
+  });
+
+  it("handles a nested bullet list under a non-active parent item", () => {
+    const doc = "- one\n  - nested\n\nOther line.";
+    const state = stateFor(doc, { anchor: doc.length });
+    const { widgets } = summarize(state);
+    expect(widgets).toHaveLength(2);
+  });
+});
+
 describe("buildLiveDecorations: wikilinks", () => {
   beforeEach(() => {
     linkIndex.value = {
       backlinksByPath: new Map(),
       pathsByNoteName: new Map([["beta", ["/workspace/Beta.md"]]]),
+      pathsByAlias: new Map(),
+      aliasesByPath: new Map(),
     };
   });
 

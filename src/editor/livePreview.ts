@@ -1,6 +1,13 @@
 import { syntaxTree } from "@codemirror/language";
 import type { EditorState } from "@codemirror/state";
-import { Decoration, type DecorationSet, EditorView, ViewPlugin, type ViewUpdate } from "@codemirror/view";
+import {
+  Decoration,
+  type DecorationSet,
+  EditorView,
+  ViewPlugin,
+  type ViewUpdate,
+  WidgetType,
+} from "@codemirror/view";
 import { resolveWikilink } from "../linking/store";
 
 /**
@@ -14,8 +21,9 @@ import { resolveWikilink } from "../linking/store";
  * view mode (see ROADMAP.md): it augments Source mode itself, Split and
  * Preview are unaffected.
  *
- * Covers headings, bold, italic, inline code, and wikilinks. Lists are
- * not covered by this pass, left as follow-up work.
+ * Covers headings, bold, italic, inline code, wikilinks, and bullet list
+ * markers. Ordered list markers are left as-is (the number is meaningful
+ * content, not pure decoration, unlike a heading's "#").
  *
  * Recomputes over the whole document on every selection change, not just
  * the visible viewport — fine for a single note's worth of text, but a
@@ -32,6 +40,23 @@ const WIKILINK_PATTERN = /\[\[([^[\]\n]+)\]\]/g;
 /** Node types whose content should never be reinterpreted as a wikilink,
  * so `` `[[not a link]]` `` inside a code span or block stays plain text. */
 const CODE_NODE_TYPES = new Set(["InlineCode", "FencedCode", "CodeBlock"]);
+
+/** Renders in place of a hidden bullet list marker ("-", "*", or "+"), so
+ * the line still visually reads as a list item instead of losing its
+ * marker entirely. All three bullet characters render identically, the
+ * same interaction Obsidian's own live preview uses. */
+class BulletWidget extends WidgetType {
+  toDOM(): HTMLElement {
+    const span = document.createElement("span");
+    span.className = "cm-live-list-bullet";
+    span.textContent = "• ";
+    return span;
+  }
+
+  eq(other: WidgetType): boolean {
+    return other instanceof BulletWidget;
+  }
+}
 
 const HEADING_NODE_CLASS: Record<string, string> = {
   ATXHeading1: "cm-live-heading-1",
@@ -77,6 +102,7 @@ export function buildLiveDecorations(state: EditorState): DecorationSet {
   const marks: { from: number; to: number; class: string }[] = [];
   const hidden: SimpleRange[] = [];
   const codeRanges: SimpleRange[] = [];
+  const widgetReplacements: { from: number; to: number; widget: WidgetType }[] = [];
 
   tree.iterate({
     enter: (node) => {
@@ -122,6 +148,22 @@ export function buildLiveDecorations(state: EditorState): DecorationSet {
         if (!active) {
           for (const mark of node.node.getChildren("CodeMark")) hide(hidden, mark.from, mark.to);
         }
+        return;
+      }
+
+      if (type === "ListMark") {
+        // ListMark also appears inside OrderedList ("1.", "2.", ...); its
+        // number is meaningful content, not pure markup, so it's left
+        // alone. Only a BulletList's "-"/"*"/"+" marker gets replaced.
+        const listType = node.node.parent?.parent?.type.name;
+        if (listType !== "BulletList") return;
+
+        const active = overlapsSelectedLines(state.doc, selectionRanges, node.from, node.to);
+        if (!active) {
+          let end = node.to;
+          if (state.doc.sliceString(end, end + 1) === " ") end += 1;
+          widgetReplacements.push({ from: node.from, to: end, widget: new BulletWidget() });
+        }
       }
     },
   });
@@ -151,6 +193,7 @@ export function buildLiveDecorations(state: EditorState): DecorationSet {
   const ranges = [
     ...marks.map(({ from, to, class: cls }) => Decoration.mark({ class: cls }).range(from, to)),
     ...hidden.map(({ from, to }) => Decoration.replace({}).range(from, to)),
+    ...widgetReplacements.map(({ from, to, widget }) => Decoration.replace({ widget }).range(from, to)),
   ];
   return Decoration.set(ranges, true);
 }

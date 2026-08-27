@@ -27,6 +27,7 @@ import {
   settingsPanelOpen,
   viewMode,
   workspacePath,
+  workspaceSettings,
 } from "../settings/store";
 import type { ViewMode } from "../settings/workspaceSettings";
 import { SettingsPanel } from "../settings/SettingsPanel";
@@ -136,7 +137,7 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    if (rootPath) void rebuildLinkIndex(rootPath);
+    if (rootPath) void rebuildLinkIndex(rootPath, workspaceSettings.value.frontmatterAliasesEnabled);
   }, [rootPath]);
 
   useEffect(() => {
@@ -286,7 +287,7 @@ export function App() {
         id: "graph-view",
         label: "Open graph view",
         run: () => {
-          void rebuildLinkIndex(rootPath);
+          void rebuildLinkIndex(rootPath, workspaceSettings.value.frontmatterAliasesEnabled);
           graphOpen.value = true;
         },
       });
@@ -416,7 +417,7 @@ export function App() {
               // The link index only rebuilds when the workspace first
               // opens; a note edited since then could have new links the
               // graph hasn't seen yet, so refresh right before showing it.
-              if (rootPath) void rebuildLinkIndex(rootPath);
+              if (rootPath) void rebuildLinkIndex(rootPath, workspaceSettings.value.frontmatterAliasesEnabled);
               graphOpen.value = true;
             }}
           >

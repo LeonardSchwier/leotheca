@@ -2,15 +2,26 @@ import { signal } from "@preact/signals";
 import { listDir, readTextFile, writeTextFile } from "../workspace/tauriBridge";
 import { mapWithConcurrency } from "../workspace/concurrency";
 import type { FsEntry } from "../workspace/types";
+import { extractAliases } from "./frontmatter";
 
 export interface LinkIndex {
   backlinksByPath: Map<string, string[]>;
   pathsByNoteName: Map<string, string[]>;
+  /** Lowercased alias -> the path(s) of the note(s) declaring it, for
+   * resolution (resolveWikilink) and backlink computation. Populated only
+   * when workspaceSettings.frontmatterAliasesEnabled is on. */
+  pathsByAlias: Map<string, string[]>;
+  /** Note path -> its own aliases, original casing, for display (the
+   * wikilink autocomplete in MarkdownEditor.tsx). Same on/off gating as
+   * pathsByAlias. */
+  aliasesByPath: Map<string, string[]>;
 }
 
 const emptyLinkIndex = (): LinkIndex => ({
   backlinksByPath: new Map(),
   pathsByNoteName: new Map(),
+  pathsByAlias: new Map(),
+  aliasesByPath: new Map(),
 });
 
 export const linkIndex = signal<LinkIndex>(emptyLinkIndex());
@@ -53,9 +64,13 @@ const LINK_INDEX_READ_CONCURRENCY = 8;
 interface CachedNote {
   mtime: number;
   wikilinks: string[];
+  aliases: string[];
 }
 
-const LINK_INDEX_CACHE_VERSION = 1;
+// Bumped from 1: cached entries now also carry aliases, so an old-shaped
+// cache file (aliases missing) must be treated as a miss and rebuilt from
+// a real read, not trusted with `aliases` silently undefined.
+const LINK_INDEX_CACHE_VERSION = 2;
 const LINK_INDEX_CACHE_FILENAME = ".leotheca/link-index-cache.json";
 
 /** path -> the wikilinks extracted from that note the last time it was
@@ -124,7 +139,15 @@ export function resetLinkIndexCache(): void {
   loadedCacheRoots.clear();
 }
 
-export async function rebuildLinkIndex(rootPath: string): Promise<void> {
+/** `aliasesEnabled` defaults to on, matching WorkspaceSettings' own default
+ * (see settings/workspaceSettings.ts): the caller (App.tsx) passes the
+ * live workspace setting explicitly so this module doesn't need to import
+ * settings/store.ts itself, which would pull in that module's top-level
+ * DOM/window side effects (it applies the theme and font-size CSS
+ * variables at import time) into every environment this module is used
+ * from, including this file's own tests, which intentionally run in the
+ * plain "node" test environment, not jsdom. */
+export async function rebuildLinkIndex(rootPath: string, aliasesEnabled = true): Promise<void> {
   linkIndexBuilding.value = true;
   try {
     await loadPersistedCacheIfNeeded(rootPath);
@@ -132,6 +155,8 @@ export async function rebuildLinkIndex(rootPath: string): Promise<void> {
     const noteEntries = await findMarkdownFiles(rootPath);
     const pathsByNoteName = new Map<string, string[]>();
     const backlinksByPath = new Map<string, string[]>();
+    const pathsByAlias = new Map<string, string[]>();
+    const aliasesByPath = new Map<string, string[]>();
 
     for (const entry of noteEntries) {
       const key = noteNameFromPath(entry.path).toLocaleLowerCase();
@@ -145,33 +170,55 @@ export async function rebuildLinkIndex(rootPath: string): Promise<void> {
     // wikilinkCache in place) so a note that's been renamed or deleted
     // since the last call doesn't linger in the cache forever.
     const freshCache = new Map<string, CachedNote>();
+    // Every note's own wikilinks, kept aside until every note's aliases
+    // are known (populated below, this same pass) so backlinks can be
+    // resolved in a second, purely in-memory pass afterward. Resolving a
+    // wikilink against pathsByAlias inside this same concurrent pass would
+    // race: the note the link targets by alias might not have been read
+    // yet, since which note gets read first isn't ordered.
+    const wikilinksByPath = new Map<string, string[]>();
 
     await mapWithConcurrency(noteEntries, LINK_INDEX_READ_CONCURRENCY, async (entry) => {
       const cached = wikilinkCache.get(entry.path);
       let wikilinks: string[];
+      let aliases: string[];
       if (cached && entry.mtime !== undefined && cached.mtime === entry.mtime) {
         wikilinks = cached.wikilinks;
+        aliases = cached.aliases;
       } else {
         const source = await readTextFile(entry.path);
         wikilinks = extractWikilinks(source);
+        aliases = extractAliases(source);
       }
       if (entry.mtime !== undefined) {
-        freshCache.set(entry.path, { mtime: entry.mtime, wikilinks });
+        freshCache.set(entry.path, { mtime: entry.mtime, wikilinks, aliases });
       }
+      wikilinksByPath.set(entry.path, wikilinks);
 
-      for (const targetName of wikilinks) {
-        const targetPaths =
-          pathsByNoteName.get(targetName.toLocaleLowerCase()) ?? [];
-        for (const targetPath of targetPaths) {
-          const backlinks = backlinksByPath.get(targetPath);
-          if (backlinks && !backlinks.includes(entry.path))
-            backlinks.push(entry.path);
+      if (aliasesEnabled && aliases.length > 0) {
+        aliasesByPath.set(entry.path, aliases);
+        for (const alias of aliases) {
+          const key = alias.toLocaleLowerCase();
+          const paths = pathsByAlias.get(key) ?? [];
+          paths.push(entry.path);
+          pathsByAlias.set(key, paths);
         }
       }
     });
 
+    for (const [path, wikilinks] of wikilinksByPath) {
+      for (const targetName of wikilinks) {
+        const key = targetName.toLocaleLowerCase();
+        const targetPaths = pathsByNoteName.get(key) ?? pathsByAlias.get(key) ?? [];
+        for (const targetPath of targetPaths) {
+          const backlinks = backlinksByPath.get(targetPath);
+          if (backlinks && !backlinks.includes(path)) backlinks.push(path);
+        }
+      }
+    }
+
     wikilinkCache = freshCache;
-    linkIndex.value = { backlinksByPath, pathsByNoteName };
+    linkIndex.value = { backlinksByPath, pathsByNoteName, pathsByAlias, aliasesByPath };
     await savePersistedCache(rootPath, freshCache);
   } finally {
     linkIndexBuilding.value = false;
@@ -179,10 +226,11 @@ export async function rebuildLinkIndex(rootPath: string): Promise<void> {
 }
 
 export function resolveWikilink(target: string): string | null {
+  const key = target.trim().toLocaleLowerCase();
   return (
-    linkIndex.value.pathsByNoteName.get(
-      target.trim().toLocaleLowerCase(),
-    )?.[0] ?? null
+    linkIndex.value.pathsByNoteName.get(key)?.[0] ??
+    linkIndex.value.pathsByAlias.get(key)?.[0] ??
+    null
   );
 }
 

@@ -23,6 +23,7 @@ import {
 import { getWorkspaceStats, pickWorkspaceFolder } from "../workspace/tauriBridge";
 import { VaultStatsPanel } from "./VaultStatsPanel";
 import { KEYBOARD_SHORTCUTS } from "../app/shortcuts";
+import { rebuildLinkIndex } from "../linking/store";
 
 const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
   { value: "system", label: "Follow System" },
@@ -39,6 +40,11 @@ const VIEW_MODE_OPTIONS: { value: ViewMode; label: string }[] = [
 const DELETE_BEHAVIOR_OPTIONS: { value: DeleteBehavior; label: string }[] = [
   { value: "project-trash", label: "Project Trash" },
   { value: "permanent", label: "Permanent" },
+];
+
+const FRONTMATTER_ALIASES_OPTIONS: { value: boolean; label: string }[] = [
+  { value: true, label: "On" },
+  { value: false, label: "Off" },
 ];
 
 export function SettingsPanel() {
@@ -82,6 +88,32 @@ export function SettingsPanel() {
                     key={option.value}
                     class={workspaceSettings.value.deleteBehavior === option.value ? "active" : ""}
                     onClick={() => void updateWorkspaceSettings({ deleteBehavior: option.value })}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {workspacePath.value && (
+            <div class="settings-row">
+              <div>
+                <div class="settings-label">Frontmatter aliases</div>
+                <div class="settings-hint">
+                  Resolve [[wikilinks]], autocomplete, and backlinks by a note's aliases: frontmatter field too, not
+                  just its file name
+                </div>
+              </div>
+              <div class="settings-switch">
+                {FRONTMATTER_ALIASES_OPTIONS.map((option) => (
+                  <button
+                    key={String(option.value)}
+                    class={workspaceSettings.value.frontmatterAliasesEnabled === option.value ? "active" : ""}
+                    onClick={() => {
+                      void updateWorkspaceSettings({ frontmatterAliasesEnabled: option.value });
+                      if (workspacePath.value) void rebuildLinkIndex(workspacePath.value, option.value);
+                    }}
                   >
                     {option.label}
                   </button>

@@ -21,10 +21,11 @@ export interface MarkdownEditorProps {
   onChange: (value: string) => void;
 }
 
-/** Suggests note names while typing `[[`, sourced from the same link index
- * the backlinks panel and preview link resolution already build (see
- * src/linking/store.ts). Only offers already-existing notes; there is no
- * "create a new note from here" affordance yet. */
+/** Suggests note names (and, when the setting is on, note aliases) while
+ * typing `[[`, sourced from the same link index the backlinks panel and
+ * preview link resolution already build (see src/linking/store.ts). Only
+ * offers already-existing notes; there is no "create a new note from
+ * here" affordance yet. */
 export function wikilinkCompletions(context: CompletionContext): CompletionResult | null {
   const match = context.matchBefore(/\[\[([^[\]\n]*)$/);
   if (!match) return null;
@@ -32,14 +33,20 @@ export function wikilinkCompletions(context: CompletionContext): CompletionResul
   const query = match.text.slice(2).toLowerCase();
   const from = match.from + 2;
 
-  const seenNames = new Set<string>();
-  const options = [];
+  const seenLabels = new Set<string>();
+  const options: { label: string; apply: string; type: string }[] = [];
+  const addOption = (label: string | undefined) => {
+    if (!label || seenLabels.has(label)) return;
+    if (!label.toLowerCase().includes(query)) return;
+    seenLabels.add(label);
+    options.push({ label, apply: `${label}]]`, type: "text" });
+  };
+
   for (const paths of linkIndex.value.pathsByNoteName.values()) {
-    const displayName = paths[0]?.split("/").pop()?.replace(/\.md$/i, "");
-    if (!displayName || seenNames.has(displayName)) continue;
-    if (!displayName.toLowerCase().includes(query)) continue;
-    seenNames.add(displayName);
-    options.push({ label: displayName, apply: `${displayName}]]`, type: "text" });
+    addOption(paths[0]?.split("/").pop()?.replace(/\.md$/i, ""));
+  }
+  for (const aliases of linkIndex.value.aliasesByPath.values()) {
+    for (const alias of aliases) addOption(alias);
   }
 
   if (options.length === 0) return null;
@@ -48,9 +55,9 @@ export function wikilinkCompletions(context: CompletionContext): CompletionResul
 
 /**
  * CodeMirror 6 source-mode editor with markdown syntax highlighting and
- * inline live-preview decorations (headings, bold, italic, inline code, and
- * wikilinks render in place; their markup hides except on the line being
- * edited, see livePreview.ts). Lists aren't covered by that yet.
+ * inline live-preview decorations (headings, bold, italic, inline code,
+ * wikilinks, and bullet list markers render in place; their markup hides
+ * except on the line being edited, see livePreview.ts).
  */
 export function MarkdownEditor({ path, value, onChange }: MarkdownEditorProps) {
   const hostRef = useRef<HTMLDivElement>(null);

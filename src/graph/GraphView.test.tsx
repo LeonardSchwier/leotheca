@@ -34,7 +34,12 @@ afterEach(() => {
   vi.unstubAllGlobals();
   if (originalClientWidth) Object.defineProperty(HTMLElement.prototype, "clientWidth", originalClientWidth);
   if (originalClientHeight) Object.defineProperty(HTMLElement.prototype, "clientHeight", originalClientHeight);
-  linkIndex.value = { backlinksByPath: new Map(), pathsByNoteName: new Map() };
+  linkIndex.value = {
+    backlinksByPath: new Map(),
+    pathsByNoteName: new Map(),
+    pathsByAlias: new Map(),
+    aliasesByPath: new Map(),
+  };
 });
 
 // A deterministic layout, one node at a known screen position, regardless
@@ -59,6 +64,8 @@ function withOneNode() {
       ["/vault/b.md", []],
     ]),
     pathsByNoteName: new Map(),
+    pathsByAlias: new Map(),
+    aliasesByPath: new Map(),
   };
 }
 
@@ -186,6 +193,8 @@ describe("GraphView: hides unconnected notes by default", () => {
         ["/vault/lonely-2.md", []],
       ]),
       pathsByNoteName: new Map(),
+      pathsByAlias: new Map(),
+      aliasesByPath: new Map(),
     };
   }
 
@@ -196,6 +205,8 @@ describe("GraphView: hides unconnected notes by default", () => {
         ["/vault/lonely-2.md", []],
       ]),
       pathsByNoteName: new Map(),
+      pathsByAlias: new Map(),
+      aliasesByPath: new Map(),
     };
     const { getByText, container } = render(<GraphView onOpenFile={vi.fn()} onClose={vi.fn()} />);
     expect(getByText(/No connected notes yet/)).toBeTruthy();
@@ -221,6 +232,8 @@ describe("GraphView: hides unconnected notes by default", () => {
         ["/vault/lonely-2.md", []],
       ]),
       pathsByNoteName: new Map(),
+      pathsByAlias: new Map(),
+      aliasesByPath: new Map(),
     };
     const { getByLabelText, container, queryByText } = render(
       <GraphView onOpenFile={vi.fn()} onClose={vi.fn()} />,

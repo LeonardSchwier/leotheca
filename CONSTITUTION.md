@@ -118,7 +118,7 @@ This runs as a scheduled cloud routine against the GitHub-hosted repo, so it nee
 
 ### Daily automated feature implementation
 
-Once per day, a scheduled cloud routine implements real work from `ROADMAP.md`, so the project keeps moving even on a day nobody is actively driving it. Every run:
+Four times a day (roughly every 6 hours, session 57), a scheduled cloud routine implements real work from `ROADMAP.md`, so the project keeps moving even when nobody is actively driving it. Every run:
 
 1. Reads this file in full, then `AGENTS.md`, then `PHILOSOPHY.md`, then `ROADMAP.md` — fresh each time, not from anything baked into the routine's own prompt, since all four can change between runs.
 2. Follows the standing work order from this file's Decisions Log (currently: v2, then v4, then the Joplin/Obsidian backlog, then "Moved from v1", falling through to v3, then v5, then v6+, then the "very late" backlog items only once that primary order is genuinely fully shipped — check the log for the current, possibly-revised order rather than trusting this summary). Picks the next not-yet-shipped item in that order. Does not jump ahead to a later wave or section while anything earlier in the order still has open items, even opportunistically.

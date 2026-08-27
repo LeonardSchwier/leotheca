@@ -1,0 +1,31 @@
+# Internal planning docs (private, not part of the public project history)
+/roadmap/
+
+# Private per-session agent activity audit trail (not the public release CHANGELOG.md)
+/agent-log/
+
+# Node / frontend
+/node_modules/
+/dist/
+
+# Rust / Tauri
+/src-tauri/target/
+
+# Android (Gradle/Capacitor build output and machine-local SDK path)
+/android/local.properties
+/android/build/
+/android/app/build/
+/android/.gradle/
+/android/capacitor-cordova-android-plugins/build/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+*.swp
+
+# Claude Code local session/tool state, not part of the project
+/.claude/

@@ -1,0 +1,116 @@
+name: Release
+
+# Builds and attaches installable artifacts to a GitHub Release whenever a
+# version tag is pushed, the mechanism Obtainium (Android) and the README's
+# "download from GitHub Releases" instructions (Linux) both depend on.
+#
+# Status: Linux (AppImage) is a real, signed-by-nobody-needed build, no
+# secrets required. Android currently only produces a debug-signed APK
+# (unsigned for real distribution purposes): a proper release needs a
+# signing keystore the maintainer generates and stores as repository
+# secrets, not something an agent should fabricate. Until that exists, the
+# release this workflow creates is a draft (not published automatically)
+# specifically so the maintainer reviews and relabels the Android asset
+# before anyone downloads it as if it were a real signed release.
+#
+# Flatpak uses the flatpak/flatpak-github-actions/flatpak-builder action
+# (session 55), which runs inside a container image that already bundles
+# flatpak-builder and the org.gnome.Sdk/Platform runtime as root — this
+# sidesteps a real blocker hit trying to do the equivalent test build on the
+# maintainer's own Fedora desktop in the same session: flatpak-builder run
+# as a Flatpak itself (org.flatpak.Builder, the only install path available
+# without root there) could not see a --user-installed org.gnome.Sdk via its
+# host-command mechanism, and Fedora's system `flathub` remote is filtered
+# to a curated subset that excludes it anyway, so a real system-wide install
+# would have needed `sudo`, which wasn't available non-interactively. None
+# of that applies on a GitHub Actions runner (full root, unfiltered
+# Flathub), so this job is the actual verification path for the manifest,
+# not the local desktop. Unverified until the first real CI run after a
+# push — the manifest and generated dependency source lists are believed
+# correct (see flatpak/README.md) but this hasn't executed for real yet.
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - name: Install Linux dependencies
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev libayatana-appindicator3-dev build-essential libssl-dev
+      - run: npm ci
+      - name: Build AppImage
+        run: npx tauri build --bundles appimage
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-appimage
+          path: src-tauri/target/release/bundle/appimage/*.AppImage
+
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: android-actions/setup-android@v3
+      - run: npm ci
+      - run: npx vite build
+      - run: npx cap sync android
+      - name: Build debug APK
+        working-directory: android
+        run: ./gradlew assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+
+  flatpak:
+    runs-on: ubuntu-latest
+    container:
+      image: bilelmoussaoui/flatpak-github-actions:gnome-46
+      options: --privileged
+    steps:
+      - uses: actions/checkout@v4
+      - uses: flatpak/flatpak-github-actions/flatpak-builder@v6
+        with:
+          bundle: leotheca.flatpak
+          manifest-path: flatpak/com.leonardschwier.leotheca.yml
+          cache-key: flatpak-builder-${{ github.sha }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: flatpak-bundle
+          path: leotheca.flatpak
+
+  publish:
+    needs: [linux, android, flatpak]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Rename Android artifact to make its debug/unsigned status unmistakable
+        run: mv artifacts/android-debug-apk/app-debug.apk "artifacts/android-debug-apk/leotheca-${{ github.ref_name }}-android-DEBUG-UNSIGNED.apk"
+      - uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          files: |
+            artifacts/linux-appimage/*.AppImage
+            artifacts/android-debug-apk/*.apk
+            artifacts/flatpak-bundle/*.flatpak

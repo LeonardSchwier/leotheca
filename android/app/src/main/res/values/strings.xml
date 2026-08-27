@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Leotheca</string>
+    <string name="title_activity_main">Leotheca</string>
+    <string name="package_name">com.leonardschwier.leotheca</string>
+    <string name="custom_url_scheme">com.leonardschwier.leotheca</string>
+</resources>

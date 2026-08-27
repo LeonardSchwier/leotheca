@@ -1,0 +1,103 @@
+/* Bundled, not a system font: relying on a font simply being "probably
+   installed" (as the previous stack did) silently falls all the way back
+   to the platform's generic serif on any machine that doesn't have it,
+   which read as an unintended Times New Roman. Source Code Pro is
+   SIL OFL 1.1 licensed, see assets/fonts/SourceCodePro-LICENSE.md. */
+@font-face {
+  font-family: "Source Code Pro";
+  src: url("../../assets/fonts/SourceCodePro-Regular.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Source Code Pro";
+  src: url("../../assets/fonts/SourceCodePro-Semibold.otf") format("opentype");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --font-ui: -apple-system, "Segoe UI", "Inter", "Noto Sans", sans-serif;
+  --font-reading: "Source Code Pro", ui-monospace, monospace;
+  --font-mono: "Source Code Pro", ui-monospace, monospace;
+  /* Default before any workspace is open or its settings have loaded;
+     kept in sync with the open workspace's fontSize setting afterward,
+     see the effect in settings/store.ts. */
+  --content-font-size: 15px;
+  /* Same idea, default before a workspace's uiZoom setting loads. A plain
+     multiplier, not a px/percent value: consumed by the CSS `zoom`
+     property on .app-shell (see App.css). */
+  --ui-zoom: 1;
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+
+  --bg-base: #faf9f6;
+  --bg-raised: #ffffff;
+  --bg-sunken: #f0eee8;
+  --bg-hover: #eae7de;
+  --bg-selected: #e4dfce;
+  --border: #ddd8ca;
+  --text-primary: #26241f;
+  --text-secondary: #6b6656;
+  --text-faint: #9a9584;
+  --accent: #6f5b3e;
+  --accent-strong: #4d3f2b;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg-base: #1c1b18;
+    --bg-raised: #232220;
+    --bg-sunken: #171614;
+    --bg-hover: #2c2a25;
+    --bg-selected: #3a3630;
+    --border: #37342c;
+    --text-primary: #ece8de;
+    --text-secondary: #ada791;
+    --text-faint: #726c58;
+    --accent: #c9a86a;
+    --accent-strong: #e0c088;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg-base: #1c1b18;
+  --bg-raised: #232220;
+  --bg-sunken: #171614;
+  --bg-hover: #2c2a25;
+  --bg-selected: #3a3630;
+  --border: #37342c;
+  --text-primary: #ece8de;
+  --text-secondary: #ada791;
+  --text-faint: #726c58;
+  --accent: #c9a86a;
+  --accent-strong: #e0c088;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}

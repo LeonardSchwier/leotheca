@@ -1,0 +1,331 @@
+import { Directory, Encoding, Filesystem } from "@capacitor/filesystem";
+import { App } from "@capacitor/app";
+import { Style, StatusBar } from "@capacitor/status-bar";
+import { registerPlugin } from "@capacitor/core";
+import type { FsEntry } from "./types";
+import type { WorkspaceStats } from "../settings/VaultStatsPanel";
+import { isImagePath } from "./types";
+import { mapWithConcurrency } from "./concurrency";
+
+/**
+ * Real Android workspace storage, via a small custom Capacitor plugin
+ * (android/app/src/main/java/.../FolderAccessPlugin.java) wrapping the
+ * Storage Access Framework: the user picks any folder with the system
+ * folder picker, we get a persistable content:// URI for it, and every
+ * file operation below goes through that. No mature Capacitor plugin for
+ * persistable SAF folder access exists as of this writing (Capacitor's
+ * own Filesystem plugin explicitly does not support it since Android 11),
+ * hence the small bespoke plugin rather than a dependency.
+ *
+ * SAF URIs are opaque: you cannot construct a child's URI from its
+ * parent's, you have to ask the OS to list a directory and read them off
+ * its response. The rest of this app still identifies files by plain path
+ * strings (dirname(), tab identity, the search index, etc. all assume
+ * that), so this module maintains a path -> URI cache, populated as
+ * directories get listed and self-healing (falls back to walking down
+ * from the nearest cached ancestor, re-listing as needed) for paths that
+ * were never listed in this process, e.g. right after an app restart.
+ */
+
+interface NativeEntry {
+  name: string;
+  uri: string;
+  isDir: boolean;
+  mtime?: number;
+}
+
+interface FolderAccessPlugin {
+  pickFolder(): Promise<{ uri: string | null }>;
+  listDir(options: { uri: string }): Promise<{ entries: NativeEntry[] }>;
+  readTextFile(options: { uri: string }): Promise<{ content: string }>;
+  writeTextFile(options: {
+    uri?: string;
+    parentUri?: string;
+    name?: string;
+    contents: string;
+  }): Promise<{ uri: string }>;
+  createDir(options: { parentUri: string; name: string }): Promise<{ uri: string }>;
+  renamePath(options: { uri: string; newName: string }): Promise<{ uri: string }>;
+  movePath(options: { uri: string; fromParentUri: string; toParentUri: string }): Promise<{ uri: string }>;
+  deletePath(options: { uri: string }): Promise<void>;
+  readFileAsDataUrl(options: { uri: string }): Promise<{ dataUrl: string }>;
+}
+
+const FolderAccess = registerPlugin<FolderAccessPlugin>("FolderAccess");
+
+// Small, always-available app-private storage (no permission prompt, no
+// SAF) for the tiny global pointer file only. Never used for workspace
+// content, that's SAF-backed below.
+const APP_DATA_ROOT = "/leotheca-appdata";
+// Synthetic root standing in for whatever real folder the user picked.
+export const WORKSPACE_ROOT = "/workspace";
+
+function isWorkspacePath(path: string): boolean {
+  return path === WORKSPACE_ROOT || path.startsWith(`${WORKSPACE_ROOT}/`);
+}
+
+function toAppDataRelative(path: string): string {
+  if (path === APP_DATA_ROOT) return "";
+  if (!path.startsWith(`${APP_DATA_ROOT}/`)) {
+    throw new Error(`Path "${path}" is outside the app data root.`);
+  }
+  return path.slice(APP_DATA_ROOT.length + 1);
+}
+
+function pathDirname(path: string): string {
+  const idx = path.lastIndexOf("/");
+  return idx > 0 ? path.slice(0, idx) : path;
+}
+
+function pathBasename(path: string): string {
+  return path.slice(path.lastIndexOf("/") + 1);
+}
+
+const pathToUri = new Map<string, string>();
+
+/** Resolves a workspace-relative path to its real content:// URI, walking
+ * down from the nearest cached ancestor (at worst, the workspace root)
+ * and listing directories as needed. Throws if the path truly does not
+ * exist, or if the workspace root has not been picked/restored yet. */
+async function resolveUri(path: string): Promise<string> {
+  const cached = pathToUri.get(path);
+  if (cached) return cached;
+  if (path === WORKSPACE_ROOT) {
+    throw new Error("No workspace folder has been selected yet.");
+  }
+  const parentUri = await resolveUri(pathDirname(path));
+  const name = pathBasename(path);
+  const { entries } = await FolderAccess.listDir({ uri: parentUri });
+  const match = entries.find((e) => e.name === name);
+  if (!match) throw new Error(`"${name}" was not found.`);
+  pathToUri.set(path, match.uri);
+  return match.uri;
+}
+
+/** Like resolveUri, but creates missing directories along the way instead
+ * of throwing, matching write_text_file's "create parent dirs" behavior
+ * on desktop. */
+async function ensureDirUri(path: string): Promise<string> {
+  const cached = pathToUri.get(path);
+  if (cached) return cached;
+  if (path === WORKSPACE_ROOT) {
+    throw new Error("No workspace folder has been selected yet.");
+  }
+  const parentUri = await ensureDirUri(pathDirname(path));
+  const name = pathBasename(path);
+  const { entries } = await FolderAccess.listDir({ uri: parentUri });
+  const existing = entries.find((e) => e.name === name && e.isDir);
+  if (existing) {
+    pathToUri.set(path, existing.uri);
+    return existing.uri;
+  }
+  const created = await FolderAccess.createDir({ parentUri, name });
+  pathToUri.set(path, created.uri);
+  return created.uri;
+}
+
+export async function pickWorkspaceFolder(): Promise<{ path: string; token?: string } | null> {
+  const result = await FolderAccess.pickFolder();
+  if (!result.uri) return null;
+  pathToUri.clear();
+  pathToUri.set(WORKSPACE_ROOT, result.uri);
+  return { path: WORKSPACE_ROOT, token: result.uri };
+}
+
+/** Re-seeds the path -> URI cache from a previously persisted SAF tree
+ * URI, so a restarted app doesn't need to re-prompt the folder picker.
+ * The permission itself was already made persistable at pick time; this
+ * just reconnects our in-memory cache to it. */
+export async function restoreWorkspaceAccess(path: string, token: string | undefined): Promise<void> {
+  if (path === WORKSPACE_ROOT && token) {
+    pathToUri.set(WORKSPACE_ROOT, token);
+  }
+}
+
+export async function listDir(path: string): Promise<FsEntry[]> {
+  if (!isWorkspacePath(path)) {
+    throw new Error(`listDir is only supported for workspace paths, got "${path}".`);
+  }
+  const uri = await resolveUri(path);
+  const { entries } = await FolderAccess.listDir({ uri });
+  const result: FsEntry[] = [];
+  for (const entry of entries) {
+    if (entry.name.startsWith(".")) continue;
+    const childPath = `${path}/${entry.name}`;
+    pathToUri.set(childPath, entry.uri);
+    result.push({ name: entry.name, path: childPath, isDir: entry.isDir, mtime: entry.mtime });
+  }
+  return result;
+}
+
+export async function readTextFile(path: string): Promise<string> {
+  if (isWorkspacePath(path)) {
+    const uri = await resolveUri(path);
+    const { content } = await FolderAccess.readTextFile({ uri });
+    return content;
+  }
+  const result = await Filesystem.readFile({
+    path: toAppDataRelative(path),
+    directory: Directory.Data,
+    encoding: Encoding.UTF8,
+  });
+  return typeof result.data === "string" ? result.data : await result.data.text();
+}
+
+export async function writeTextFile(path: string, contents: string): Promise<void> {
+  if (isWorkspacePath(path)) {
+    const existingUri = pathToUri.get(path);
+    if (existingUri) {
+      await FolderAccess.writeTextFile({ uri: existingUri, contents });
+      return;
+    }
+    const parentUri = await ensureDirUri(pathDirname(path));
+    const name = pathBasename(path);
+    const created = await FolderAccess.writeTextFile({ parentUri, name, contents });
+    pathToUri.set(path, created.uri);
+    return;
+  }
+  await Filesystem.writeFile({
+    path: toAppDataRelative(path),
+    directory: Directory.Data,
+    data: contents,
+    encoding: Encoding.UTF8,
+    recursive: true,
+  });
+}
+
+export async function createDir(path: string): Promise<void> {
+  if (isWorkspacePath(path)) {
+    await ensureDirUri(path);
+    return;
+  }
+  await Filesystem.mkdir({ path: toAppDataRelative(path), directory: Directory.Data, recursive: true });
+}
+
+/** Same-folder rename only, which is all the UI ever asks for (the
+ * NamePrompt-driven rename flow never changes an entry's parent). */
+export async function renamePath(from: string, to: string): Promise<void> {
+  const uri = await resolveUri(from);
+  const newName = pathBasename(to);
+  const renamed = await FolderAccess.renamePath({ uri, newName });
+  pathToUri.delete(from);
+  pathToUri.set(to, renamed.uri);
+}
+
+/** Mirrors the Rust `trash_path` command's behavior: move into
+ * `<workspaceRoot>/.trash/<relative-to-root>`, timestamp-prefixing the
+ * name on collision instead of overwriting. */
+export async function trashPath(workspaceRoot: string, path: string): Promise<void> {
+  if (!path.startsWith(`${workspaceRoot}/`)) {
+    throw new Error(`"${path}" is not inside workspace root "${workspaceRoot}".`);
+  }
+  const relativeToWorkspace = path.slice(workspaceRoot.length + 1);
+  const segments = relativeToWorkspace.split("/");
+  const name = segments.pop()!;
+  const trashParentPath = [workspaceRoot, ".trash", ...segments].join("/");
+  const trashParentUri = await ensureDirUri(trashParentPath);
+
+  const { entries } = await FolderAccess.listDir({ uri: trashParentUri });
+  const finalName = entries.some((e) => e.name === name) ? `${Date.now()}-${name}` : name;
+
+  const sourceUri = await resolveUri(path);
+  const sourceParentUri = await resolveUri(pathDirname(path));
+  const moved = await FolderAccess.movePath({ uri: sourceUri, fromParentUri: sourceParentUri, toParentUri: trashParentUri });
+  if (finalName !== name) {
+    await FolderAccess.renamePath({ uri: moved.uri, newName: finalName });
+  }
+  pathToUri.delete(path);
+}
+
+/** Deletes a workspace entry outright, no `.trash` involved, mirroring the
+ * Rust `delete_path_permanent` command's desktop behavior. */
+export async function deletePathPermanent(path: string): Promise<void> {
+  const uri = await resolveUri(path);
+  await FolderAccess.deletePath({ uri });
+  pathToUri.delete(path);
+}
+
+export async function getAppConfigFilePath(filename: string): Promise<string> {
+  return `${APP_DATA_ROOT}/${filename}`;
+}
+
+export async function getAppVersion(): Promise<string> {
+  const info = await App.getInfo();
+  return info.version;
+}
+
+export async function fileSrc(path: string): Promise<string> {
+  const uri = await resolveUri(path);
+  const { dataUrl } = await FolderAccess.readFileAsDataUrl({ uri });
+  return dataUrl;
+}
+
+/** Desktop computes this in one Rust filesystem traversal; there is no
+ * native command to call into on Android, so this walks the same tree
+ * through the plain `listDir`/`readTextFile` functions above instead.
+ * Note: oldest/newest note dates are not available here (SAF's directory
+ * listing does not surface a per-entry timestamp through this plugin
+ * today), unlike the desktop implementation. */
+// At most this many notes are read concurrently while computing workspace
+// statistics, same reasoning (and same helper) as the link index's own
+// concurrency cap: a fully-sequential one-file-at-a-time walk over a real
+// SAF-backed vault of ~580 notes measured at 90+ seconds in practice
+// (confirmed on-device, session 53), noticeably worse than opening the
+// same workspace (which already has this fix via rebuildLinkIndex).
+const WORKSPACE_STATS_READ_CONCURRENCY = 8;
+
+/** `deps` defaults to this module's own `listDir`/`readTextFile`; the
+ * parameter exists so tests can inject stand-ins without needing to mock
+ * this file's own exports out from under itself, which ESM makes awkward
+ * for same-file self-calls. */
+export async function getWorkspaceStats(
+  rootPath: string,
+  deps: { listDir: typeof listDir; readTextFile: typeof readTextFile } = { listDir, readTextFile },
+): Promise<WorkspaceStats> {
+  let folderCount = 0;
+  let imageCount = 0;
+  const notePaths: string[] = [];
+
+  // Phase 1: walk the tree collecting note paths (cheap listDir calls
+  // only, no content reads) — same two-phase shape as rebuildLinkIndex,
+  // so the expensive part (reading every note's content) can run with
+  // bounded concurrency instead of one file at a time.
+  async function walk(path: string): Promise<void> {
+    const entries = await deps.listDir(path);
+    for (const entry of entries) {
+      if (entry.isDir) {
+        folderCount++;
+        await walk(entry.path);
+      } else if (entry.name.toLowerCase().endsWith(".md")) {
+        notePaths.push(entry.path);
+      } else if (isImagePath(entry.path)) {
+        imageCount++;
+      }
+    }
+  }
+  await walk(rootPath);
+
+  // Phase 2: read every note's content, bounded concurrency.
+  let totalNoteLines = 0;
+  await mapWithConcurrency(notePaths, WORKSPACE_STATS_READ_CONCURRENCY, async (notePath) => {
+    const contents = await deps.readTextFile(notePath);
+    totalNoteLines += contents.length === 0 ? 0 : contents.split("\n").length;
+  });
+
+  return {
+    folderCount,
+    noteCount: notePaths.length,
+    imageCount,
+    averageLinesPerNote: notePaths.length === 0 ? 0 : totalNoteLines / notePaths.length,
+    oldestNoteDate: null,
+    newestNoteDate: null,
+  };
+}
+
+/** Keeps the system status bar's icons (clock, battery, etc.) legible
+ * against our own toolbar color, which the OS has no way to know about on
+ * its own. `Style.Dark` gives white icons (for a dark toolbar background),
+ * `Style.Light` gives dark icons (for a light one). */
+export async function setStatusBarAppearance(isDarkBackground: boolean): Promise<void> {
+  await StatusBar.setStyle({ style: isDarkBackground ? Style.Dark : Style.Light });
+}

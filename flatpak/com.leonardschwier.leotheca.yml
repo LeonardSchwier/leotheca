@@ -36,14 +36,23 @@ modules:
       # pre-generated source lists below, then a Tauri build without its
       # own bundling step (Flatpak does the bundling here instead).
       #
-      # `npm install --offline`, not `npm ci --offline`: found the hard way
-      # (session 57, a real CI failure) that `npm ci` doesn't reliably find
-      # packages flatpak-node-generator has pre-populated into npm's local
-      # cache (`_cacache`) the way `npm install` does — `flatpak-node-generator`'s
-      # own reference examples use `npm install --offline` for exactly this
-      # reason, not `npm ci`, despite `npm ci`'s stricter reproducibility
-      # guarantees being the normally-preferred choice for a sandboxed build.
-      - npm install --offline
+      # `npm ci --offline`, deliberately not `npm install --offline` (session
+      # 57 briefly tried the latter and it was the wrong fix — see
+      # ROADMAP.md/agent-log/CHANGELOG.md for the full story): `npm ci`
+      # trusts package-lock.json's already-resolved versions/URLs completely
+      # and never queries the registry for semver-range resolution, so it
+      # only ever needs the tarball fetches flatpak-node-generator's
+      # node-sources.json actually provides cache entries for. `npm install`
+      # re-resolves from package.json's ranges, which (confirmed by reading
+      # flatpak_node_generator/providers/npm.py directly) needs a *separate*
+      # kind of cache entry — one per bare package-metadata registry lookup,
+      # e.g. registry.npmjs.org/eslint with no version — that the generator
+      # does not produce at all. This project's eslint peer-dependency
+      # conflicts (see the ERESOLVE warnings in any `npm install` output)
+      # are exactly the kind of situation that forces `npm install` to hit
+      # the registry for real, which is why `eslint` specifically was the
+      # one that failed first.
+      - npm ci --offline
       - cargo --offline fetch --manifest-path src-tauri/Cargo.toml
       - npm run build
       - cargo build --release --manifest-path src-tauri/Cargo.toml --offline

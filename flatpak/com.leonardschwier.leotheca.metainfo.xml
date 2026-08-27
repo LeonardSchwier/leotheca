@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.leonardschwier.leotheca</id>
+  <name>Leotheca</name>
+  <summary>A free and open source markdown viewer and editor</summary>
+  <metadata_license>MIT</metadata_license>
+  <project_license>MIT</project_license>
+  <developer id="com.leonardschwier">
+    <name>Leonard Schwier</name>
+  </developer>
+
+  <description>
+    <p>
+      Leotheca is a free and open source markdown viewer and editor for a
+      local folder of plain text notes. No account, no telemetry, no
+      proprietary sync service. Point it at any folder of markdown files
+      and use whatever sync tool you already trust to keep it in sync
+      across devices, such as Syncthing or a cloud-synced folder.
+    </p>
+    <p>Features:</p>
+    <ul>
+      <li>File tree with create, rename, and delete (to a trash folder, not gone for good)</li>
+      <li>Tabs with autosave and session restore</li>
+      <li>Source, Split, and Preview editing modes with CodeMirror 6</li>
+      <li>[[wikilinks]] with autocomplete, backlinks, and a pannable graph view</li>
+      <li>Bookmarks, a command palette, and full-text search</li>
+      <li>A light and dark theme that follows your OS by default</li>
+    </ul>
+  </description>
+
+  <launchable type="desktop-id">com.leonardschwier.leotheca.desktop</launchable>
+
+  <screenshots>
+    <screenshot type="default">
+      <image>https://raw.githubusercontent.com/LeonardSchwier/leotheca/main/assets/screenshots/split-view.png</image>
+      <caption>Split view: source and rendered preview side by side, with wikilinks and backlinks</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/LeonardSchwier/leotheca/main/assets/screenshots/graph-view.png</image>
+      <caption>The graph view, showing how notes connect via wikilinks</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/LeonardSchwier/leotheca/main/assets/screenshots/settings.png</image>
+      <caption>Settings: theme, font size, zoom, workspace statistics, and keyboard shortcuts</caption>
+    </screenshot>
+  </screenshots>
+
+  <url type="homepage">https://github.com/LeonardSchwier/leotheca</url>
+  <url type="bugtracker">https://github.com/LeonardSchwier/leotheca/issues</url>
+  <url type="vcs-browser">https://github.com/LeonardSchwier/leotheca</url>
+
+  <content_rating type="oars-1.1" />
+
+  <releases>
+    <release version="1.0.0" date="2026-08-27">
+      <description>
+        <p>Initial release: local folder workspace, wikilinks with backlinks and a graph view, bookmarks, command palette, full-text search, and a light/dark theme.</p>
+      </description>
+    </release>
+  </releases>
+</component>

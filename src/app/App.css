@@ -189,6 +189,38 @@ button.icon-button.active {
   overflow: auto;
 }
 
+/* Inline live-preview styling for the editor's normal (source) mode, see
+   src/editor/livePreview.ts for which markup gets hidden and when. */
+.cm-live-heading-1 {
+  font-size: 1.7em;
+  font-weight: 700;
+}
+.cm-live-heading-2 {
+  font-size: 1.5em;
+  font-weight: 700;
+}
+.cm-live-heading-3 {
+  font-size: 1.3em;
+  font-weight: 700;
+}
+.cm-live-heading-4,
+.cm-live-heading-5,
+.cm-live-heading-6 {
+  font-size: 1.15em;
+  font-weight: 700;
+}
+.cm-live-strong {
+  font-weight: 700;
+}
+.cm-live-em {
+  font-style: italic;
+}
+.cm-live-code {
+  background: var(--bg-sunken);
+  border-radius: var(--radius-sm);
+  padding: 0 4px;
+}
+
 .markdown-preview {
   padding: var(--space-6);
   font-family: var(--font-reading);

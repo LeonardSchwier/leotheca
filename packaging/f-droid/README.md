@@ -24,5 +24,26 @@ Two caveats this research doesn't remove:
 
 1. ~~Resolve the npm-offline-build question.~~ Done, see above.
 2. Confirm the `output` glob path matches what a real `gradle assembleRelease` (unsigned) run actually produces.
-3. Decide on `AutoUpdateMode`/`UpdateCheckMode` properly, both are placeholder `None` values right now, F-Droid has tag-based and other automatic update-detection modes that are usually preferable once the project has real tagged releases.
-4. Submitting itself is a merge request to `fdroiddata` from the maintainer's own account, not something an agent should do unprompted.
+3. Decide on `AutoUpdateMode`/`UpdateCheckMode` properly, both are placeholder `None` values right now. Now that a real tagged release exists (or will shortly, see `ROADMAP.md`), switch these to F-Droid's tag-based detection — likely `UpdateCheckMode: Tags ^v[0-9]+\.[0-9]+\.[0-9]+$` (matching this repo's `v*` tag pattern from `release.yml`) paired with `AutoUpdateMode: Version` and a `Builds` commit template using F-Droid's `%v`/`%c` placeholders. Confirm the exact current syntax against F-Droid's [Build Metadata Reference](https://f-droid.org/docs/Build_Metadata_Reference/) before submitting — this area of their format has had revisions.
+4. Update `CurrentVersion`/`CurrentVersionCode` and add a matching entry under `Builds:` for the actual first tagged release (this draft still only has the `0.1.0`/`main`-commit placeholder from before any release existed).
+
+## Submitting
+
+1. Fork [`fdroid/fdroiddata`](https://gitlab.com/fdroid/fdroiddata) on **GitLab** (not GitHub — this is the one part of the process that lives somewhere else).
+2. Add this file as `metadata/com.leonardschwier.leotheca.yml` in that fork, updated per the "Before actually submitting" steps above.
+3. Open a merge request against `fdroiddata`'s default branch. Suggested MR title: `New app: Leotheca`. Suggested MR description:
+
+   ```markdown
+   ## Leotheca
+
+   A free and open source markdown viewer and editor for a local folder
+   of plain text notes. No account, no telemetry, no proprietary sync.
+
+   - Source: https://github.com/LeonardSchwier/leotheca
+   - License: MIT (full source, no proprietary components)
+   - Categories: Writing, Office
+   ```
+4. F-Droid's CI (`fdroidserver`'s automated checks) runs a real test build against the MR and reports back. Address whatever it finds — a `scanignore` entry for a specific package the source scanner flags, a build command tweak, etc. are all normal on a first submission; see this file's earlier research on why npm/Node.js dependency fetching itself is expected to be acceptable to F-Droid's scanner in principle, even if an individual package still needs flagging.
+5. Once a human reviewer merges it, the app enters F-Droid's build queue — their own infrastructure builds and signs it (F-Droid's key, not the maintainer's), which can take anywhere from days to a few weeks for a first-time submission. Subsequent releases build automatically once `AutoUpdateMode`/`UpdateCheckMode` are set correctly (step 3 above), without a new MR each time.
+
+This whole step — the actual MR, and any back-and-forth with F-Droid reviewers — needs the maintainer's own GitLab account, not something an agent should do unprompted.

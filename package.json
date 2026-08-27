@@ -34,6 +34,7 @@
     "@tauri-apps/plugin-dialog": "^2.0.1",
     "@tauri-apps/plugin-fs": "^2.0.2",
     "dompurify": "^3.2.3",
+    "katex": "^0.18.4",
     "marked": "^15.0.4",
     "preact": "^10.25.1"
   },

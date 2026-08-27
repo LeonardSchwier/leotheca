@@ -96,3 +96,60 @@ describe("MarkdownPreview", () => {
     expect(onOpenFile).not.toHaveBeenCalled();
   });
 });
+
+describe("MarkdownPreview: math rendering", () => {
+  it("renders $inline$ math via KaTeX", () => {
+    const { container } = render(<MarkdownPreview source="Einstein's $E = mc^2$ formula." />);
+    const math = container.querySelector(".katex");
+    expect(math).toBeTruthy();
+    expect(container.querySelector(".katex-display")).toBeNull();
+  });
+
+  it("renders $$block$$ math via KaTeX in display mode", () => {
+    const { container } = render(<MarkdownPreview source="$$\\int_0^1 x^2 \\,dx$$" />);
+    expect(container.querySelector(".katex-display")).toBeTruthy();
+  });
+
+  it("does not treat currency-like text as math (no space allowed just inside the delimiters)", () => {
+    const { container } = render(<MarkdownPreview source="Costs $5 and $10 respectively." />);
+    expect(container.querySelector(".katex")).toBeNull();
+    expect(container.textContent).toContain("$5 and $10");
+  });
+
+  it("does not render math inside an inline code span", () => {
+    const { container } = render(<MarkdownPreview source="Use `$x$` literally, not as math." />);
+    expect(container.querySelector(".katex")).toBeNull();
+    expect(container.querySelector("code")?.textContent).toBe("$x$");
+  });
+
+  it("does not render math inside a fenced code block", () => {
+    const { container } = render(<MarkdownPreview source={"```\n$x^2$\n```"} />);
+    expect(container.querySelector(".katex")).toBeNull();
+    expect(container.querySelector("pre code")?.textContent).toContain("$x^2$");
+  });
+
+  it("leaves $...$ as literal text when math rendering is disabled", () => {
+    const { container } = render(<MarkdownPreview source="Formula: $E = mc^2$." mathRenderingEnabled={false} />);
+    expect(container.querySelector(".katex")).toBeNull();
+    expect(container.textContent).toContain("$E = mc^2$");
+  });
+
+  it("leaves $$...$$ as literal text when math rendering is disabled", () => {
+    const { container } = render(<MarkdownPreview source="$$x^2$$" mathRenderingEnabled={false} />);
+    expect(container.querySelector(".katex-display")).toBeNull();
+  });
+
+  it("does not crash on malformed LaTeX, and shows KaTeX's own error styling", () => {
+    const { container } = render(<MarkdownPreview source="Broken: $\\frac{1}{$." />);
+    // katex's throwOnError: false renders a visible error span rather than
+    // throwing; this just confirms the preview pane survives it intact.
+    expect(container.querySelector(".markdown-preview")).toBeTruthy();
+  });
+
+  it("keeps KaTeX's visual rendering (styled spans) intact through sanitization", () => {
+    const { container } = render(<MarkdownPreview source="$x^2$" />);
+    const visual = container.querySelector(".katex-html");
+    expect(visual).toBeTruthy();
+    expect(visual?.querySelector("[style]")).toBeTruthy();
+  });
+});

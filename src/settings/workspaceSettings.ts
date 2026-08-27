@@ -42,6 +42,10 @@ export interface WorkspaceSettings {
    * which requires net-new functionality queued from that scan to ship
    * toggleable rather than imposed unconditionally. */
   frontmatterAliasesEnabled: boolean;
+  /** Whether $inline$ and $$block$$ LaTeX math renders via KaTeX in
+   * Preview (see editor/MarkdownPreview.tsx). Defaults to on; also an
+   * opt-out per CONSTITUTION.md's "Daily competitor feature scan" policy. */
+  mathRenderingEnabled: boolean;
 }
 
 export const MIN_UI_ZOOM = 50;
@@ -63,6 +67,7 @@ export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   lastActivePath: null,
   uiZoom: 100,
   frontmatterAliasesEnabled: true,
+  mathRenderingEnabled: true,
 };
 
 // Plain string join is intentional here (not a path-resolution API call):

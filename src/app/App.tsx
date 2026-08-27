@@ -524,6 +524,7 @@ export function App() {
                   <MarkdownPreview
                     source={current.content}
                     onOpenFile={handleOpenFile}
+                    mathRenderingEnabled={workspaceSettings.value.mathRenderingEnabled}
                   />
                 )}
               </div>

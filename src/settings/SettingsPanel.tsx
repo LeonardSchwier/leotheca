@@ -47,6 +47,11 @@ const FRONTMATTER_ALIASES_OPTIONS: { value: boolean; label: string }[] = [
   { value: false, label: "Off" },
 ];
 
+const MATH_RENDERING_OPTIONS: { value: boolean; label: string }[] = [
+  { value: true, label: "On" },
+  { value: false, label: "Off" },
+];
+
 export function SettingsPanel() {
   const [showLicense, setShowLicense] = useState(false);
   if (!settingsPanelOpen.value) return null;
@@ -114,6 +119,26 @@ export function SettingsPanel() {
                       void updateWorkspaceSettings({ frontmatterAliasesEnabled: option.value });
                       if (workspacePath.value) void rebuildLinkIndex(workspacePath.value, option.value);
                     }}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {workspacePath.value && (
+            <div class="settings-row">
+              <div>
+                <div class="settings-label">Math rendering</div>
+                <div class="settings-hint">Render $inline$ and $$block$$ LaTeX math in Preview, via KaTeX</div>
+              </div>
+              <div class="settings-switch">
+                {MATH_RENDERING_OPTIONS.map((option) => (
+                  <button
+                    key={String(option.value)}
+                    class={workspaceSettings.value.mathRenderingEnabled === option.value ? "active" : ""}
+                    onClick={() => void updateWorkspaceSettings({ mathRenderingEnabled: option.value })}
                   >
                     {option.label}
                   </button>

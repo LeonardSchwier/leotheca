@@ -1,0 +1,10 @@
+# Copied to $CARGO_HOME/config.toml during the Flatpak build (see the
+# manifest's build-commands), so `cargo fetch`/`cargo build --offline` reads
+# crates from the vendored sources flatpak-cargo-generator laid out under
+# $CARGO_HOME/vendor (see cargo-sources.json's "dest" paths) instead of
+# trying to reach crates.io, which the sandboxed build has no access to.
+[source.crates-io]
+replace-with = "vendored-sources"
+
+[source.vendored-sources]
+directory = "vendor"

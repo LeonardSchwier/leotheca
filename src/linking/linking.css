@@ -1,0 +1,31 @@
+.backlinks-panel {
+  flex-shrink: 0;
+  max-height: 200px;
+  overflow-y: auto;
+  padding: var(--space-2);
+  border-top: 1px solid var(--border);
+}
+
+.backlinks-heading {
+  margin: 0 0 var(--space-2);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.backlinks-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.markdown-preview a[href^="#leotheca-wikilink="] {
+  color: var(--text-secondary);
+  text-decoration: underline dashed;
+  text-underline-offset: 2px;
+}
+
+.markdown-preview a[href*="&resolved=1"] {
+  color: var(--accent);
+  text-decoration-style: solid;
+}

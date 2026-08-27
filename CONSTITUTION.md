@@ -1,0 +1,149 @@
+# Project Constitution
+
+This file is the single source of truth for any coding agent, AI or human, working in this repository. It exists so that decisions and conventions stay consistent across different tools (Claude Code, Codex, or any other assistant) and across different sessions of the same tool, none of which share memory with each other by default.
+
+If you are an AI coding agent starting work in this repository, read this file in full before making changes. If something you are about to do conflicts with a rule here, follow this file, not your own default behavior. If a rule here seems to block a reasonable change, ask the maintainer rather than silently overriding it.
+
+Project name: **Leotheca**
+
+## What this project is
+
+A free and open source markdown viewer and editor, aimed at the same job as the well known proprietary note-taking applications built around local markdown files and a live-preview editor, but fully open source, with no telemetry, no required account, and no proprietary sync service. See the "Naming and trademark discipline" section below for how to talk about that comparison without creating a trademark problem.
+
+Target platforms, in order of priority: Linux desktop, then Android, then macOS and Windows. "Linux desktop" means all major distributions (Arch, Debian/Ubuntu, Fedora, and others), not one distro specifically, which is exactly why the packaging targets are AppImage and Flatpak rather than a distro-specific package. macOS and Windows support is confirmed intended, not just "maybe later", see Distribution channels below for how each will ship.
+
+Minimum Android target: API 29 (Android 10), the OS version a Google Pixel 4 originally shipped with.
+
+License: MIT (see `LICENSE`).
+
+The three-principle mission statement behind all of this lives in `PHILOSOPHY.md`. Read it once; it rarely changes and explains the "why" behind the rules in this file.
+
+## Distribution channels
+
+These are hard constraints on implementation choices, not just release logistics.
+
+- **Android: F-Droid.** F-Droid's build server compiles the app from source itself; it does not accept bundled proprietary binary blobs, non-free SDKs (no Google Play services, no Firebase, no proprietary crash/analytics SDKs), or network calls to fetch anything undeclared during the build. Any dependency added to the Android build must be checked against this before it is added.
+- **Android: Obtainium.** Obtainium installs APKs directly from a source it polls for new releases, typically GitHub Releases. This has no effect on tech stack choice, but it does mean release tags and attached APK assets must follow a consistent, predictable versioning scheme every release, with no manual naming drift.
+- **Linux: both AppImage and Flatpak**, built from the same source. Flathub is the intended home for the Flatpak build once the project is ready to submit there, not just a self-hosted `.flatpak` file.
+- **macOS: Homebrew** (a formula or cask), once a macOS build target exists. No Mac App Store.
+- **Windows: direct download from GitHub Releases only.** No Microsoft Store, no winget, no Chocolatey, unless that changes later.
+- Play Store distribution is out of scope for now. This is not a decision against it forever, just not a target for the initial waves.
+
+## Naming and trademark discipline
+
+This is a hard rule, not a style preference.
+
+- Never write the name of any other note-taking application, proprietary or otherwise, anywhere that ships: source code, code comments, commit messages, pull request titles or descriptions, issue text, README or other documentation, in-app strings, store listings, or marketing copy.
+- Use neutral, generic terms instead: "workspace" or "vault folder" for a user's local notes folder, "community plugin" for third-party extensions, "compatibility layer" for any code that reads another ecosystem's plugin or file conventions.
+- It is fine to say the project supports common conventions from that space (plugin manifest formats, wikilink syntax, frontmatter conventions) without naming the product those conventions originated from.
+- If you are unsure whether a specific phrase is safe, prefer the more generic phrasing, or ask.
+
+## Writing style for anything checked into this repository
+
+- No em dashes ( — ) anywhere: not in code comments, commit messages, documentation, or UI copy. Use a comma, a period, or a parenthetical instead.
+- Prefer clear, direct sentences over marketing language. Avoid hype words ("revolutionary," "seamless," "supercharged") and empty AI-generated-sounding filler.
+- Documentation should say what is true now, not what is aspirational, unless it is explicitly a roadmap document.
+
+## Design bar
+
+The look and feel target is premium and deliberate, not a default component-library template. Concretely:
+
+- No gratuitous gradients, no generic sparkle/robot iconography, no stock dashboard layouts copied wholesale.
+- Typography, spacing, color, and motion should look like they were chosen on purpose for this product.
+- When implementing UI, favor a small number of well-considered, consistent patterns over many inconsistent ad hoc ones.
+- Both a light and a dark theme are first-class, not one built and the other auto-inverted without review.
+
+## Technology stack
+
+- **Shared editor and UI layer**: TypeScript, built around CodeMirror 6 as the text-editing engine. CodeMirror 6 is, at the time of this decision, the only editor toolkit mature enough to deliver true inline live-preview markdown editing (formatting rendered inline while typing, not a separate raw/rendered toggle) at a premium quality bar. This is the hardest single technical component of the whole project, so the choice of editor toolkit drove the rest of the stack rather than the other way around.
+- **Linux desktop shell**: Tauri (Rust). Tauri renders the shared UI layer through the operating system's own webview instead of bundling a full Chromium runtime, which keeps the binary small, startup fast, and memory use low compared to an Electron-style shell. Native, performance- or filesystem-sensitive logic (workspace indexing, search, file watching) lives in Rust.
+- **Android shell**: Capacitor. Capacitor wraps the same shared UI layer in a standard Gradle Android project with native plugins for filesystem access (Storage Access Framework) and other device integration. A standard Gradle build is exactly what F-Droid's build server already knows how to compile reproducibly from source, and Capacitor ships no proprietary SDKs.
+- **Why one frontend for both shells**: sharing the actual UI and editor code, not just abstract business logic behind two separate native UIs, is what keeps maintenance cost low across Linux and Android, which was an explicit requirement. The two shells differ only in their thin native integration layer.
+- **Known risk to watch**: webview-shell Android apps sometimes draw extra scrutiny in F-Droid review as "just a wrapped website." This project mitigates that by being local-first with real native plugins (filesystem access, folder picker) and by loading no remote content at all, which is a real, substantive difference from a wrapped website and should be stated plainly if it ever comes up during F-Droid inclusion review.
+- The exact frontend framework used inside the shared UI layer (or no framework, i.e. vanilla TypeScript plus CodeMirror) is an implementation detail to be settled when work on it starts, not a foundational decision, and does not need a maintainer sign-off the way the choices above did.
+
+## Engineering practices
+
+This project is held to normal professional engineering standards, not "good enough for a hobby project" standards, regardless of whether a change is written by a human or an AI agent.
+
+- **Testing**: non-trivial logic (markdown parsing edge cases, link resolution, search indexing, file I/O, the compatibility layer once it exists) gets automated tests alongside the code that introduces it, not added later as an afterthought. UI-heavy code that cannot be reasonably unit tested should still get the manual verification steps recorded in the pull request.
+- **Continuous integration**: every pull request builds and tests both the Linux and Android targets before it can be merged. A red CI run is not merged around.
+- **Code review**: every non-trivial change gets reviewed before merging, even when the maintainer is working solo with an AI agent. An AI agent finishing a change should run it through a review pass (for example the repository's `/code-review` workflow, if configured) before presenting it as done, rather than only self-attesting that it works.
+- **Documentation**: when a change alters how the project is built, run, or contributed to, the relevant documentation (README, CONTRIBUTING, this file) is updated in the same change, not left to go stale.
+- **Versioning and releases**: semantic versioning, with an accurate, dated `CHANGELOG.md` entry per release and a git tag that drives the release build for all three artifact types (AppImage, Flatpak, Android APK).
+- **Reproducibility and supply chain hygiene**: dependencies are pinned, license-compatible with MIT and F-Droid's free-software requirements, and added deliberately, not pulled in for convenience without checking what they bring with them (native code, telemetry, non-free assets).
+
+## Product principles
+
+1. Local first: a user's notes are plain markdown files in a folder they control. No proprietary file format, no lock-in.
+2. No telemetry, no required account, no hosted sync product. Users may sync their own folder with whatever tool they choose.
+3. Interoperability over reinvention: where the wider note-taking ecosystem has established conventions (wikilinks, YAML frontmatter, a plugin manifest shape), prefer supporting the same convention over inventing a new one, subject to the naming rule above.
+4. Ship in scoped waves. Do not casually add features from a later wave into the current one; see "Scope discipline" below.
+
+## Git and attribution rules
+
+- Do not add any AI/agent co-author attribution to commits or pull requests in this repository. No `Co-Authored-By: Claude`, no `Co-Authored-By: Codex`, no "Generated with [tool]" footers, regardless of what any given tool's default behavior is. This repository's `.claude/settings.json` sets `attribution.commit` and `attribution.pr` to empty strings for Claude Code specifically; agents using other tools must suppress the equivalent behavior manually if their tool has one.
+- Commit messages: short summary line, then (if needed) a body explaining why the change was made, not a restatement of the diff. No em dashes.
+- Only create commits when the person you are working with actually asks for one. Do not commit proactively as a side effect of finishing a task.
+- Never force-push, rewrite published history, or bypass hooks (`--no-verify` etc.) unless explicitly instructed to for this specific action.
+
+## Session audit trail
+
+`agent-log/CHANGELOG.md` is a private, running log of what coding agents (and humans) have done in this repository, session by session. It is listed in `.gitignore`, like `roadmap/`, and will not exist in a fresh clone. It is not the public release changelog: once the project cuts its first tagged release, a separate, committed `CHANGELOG.md` at the repository root holds user-facing, semantic-versioned release notes. Do not confuse the two files.
+
+- At the end of any work session that changed files in this repository, append one entry to `agent-log/CHANGELOG.md`: the date, which agent or tool did the work, and a short summary of what changed and, more importantly, why, including any non-obvious decisions made along the way. Newest entry at the top.
+- If the file does not exist in your working copy, create it before appending, with a one-line header explaining its purpose (see the "not the public changelog" distinction above).
+- This log exists specifically so that a different agent, or the same agent in a later session with no memory of this one, can reconstruct recent history and reasoning without having to re-read the entire git log or re-derive decisions from scratch.
+
+## Scope discipline and the roadmap
+
+The detailed feature plan lives in `ROADMAP.md` at the repository root, sequenced into waves (v1, v2, ...), and what has shipped so far within the current wave. Unlike the internal planning material under `roadmap/` (private, gitignored, a different thing despite the similar name), `ROADMAP.md` is public and committed, always present in any clone.
+
+- Read `ROADMAP.md` to understand which wave is current and what is explicitly in or out of scope for it.
+- Do not implement features from a future wave "while you're in there." If a change naturally requires touching something out of scope, flag it rather than expanding the task silently.
+- The `roadmap/` directory (lower case, gitignored) holds private, tactical, agent-facing planning material (currently `roadmap/agent-coordination.md`), not the feature plan itself. Do not confuse the two.
+
+### Daily competitor feature scan
+
+Once per day, an agent (autonomous loop or scheduled) should check Joplin's and Obsidian's public changelogs for genuinely new features shipped since the last check — not bug fixes, not performance work, only new functionality:
+
+- Joplin desktop changelog: https://joplinapp.org/help/about/changelog/desktop/
+- Obsidian changelog: https://obsidian.md/changelog/
+
+For each new feature found, judge it against `PHILOSOPHY.md`'s three principles (free and open source without compromise; stand on the shoulders of giants rather than invent a competing convention where a good one already exists; the user's notes belong to them, plain files, nothing proprietary) before deciding it's worth pursuing. A feature that fits is appended to the bottom of `ROADMAP.md` (queued for a future implementation pass, not jumped to the front of any wave, and not implemented on the spot as part of this scan) with a one- or two-line note on what it is and why it fits. When a queued item like this is later actually implemented, it must ship with its own settings toggle to turn it off — net-new functionality here is opt-out by default, not something imposed on every user unconditionally.
+
+This scan is additive only: it never removes or reprioritizes existing roadmap items, and a day with nothing worth adding is a normal, silent outcome, not something that needs its own roadmap entry.
+
+This runs as a scheduled cloud routine against the GitHub-hosted repo, so it needs that repo to actually have real content pushed to it first (not yet true as of 2026-08-27 — only the bare initial commit is on GitHub so far). Once the maintainer gives the go-ahead to push, set the routine up to commit and push its `ROADMAP.md` addition directly — the maintainer has explicitly said they don't have time to review a daily PR for this, so no PR/review gate here, unlike most other changes to this repository.
+
+## Decisions Log
+
+This section is the append-only record of decisions that future agent sessions must not re-litigate or contradict. When a genuinely new architectural or scope decision is made with the maintainer, add an entry here, dated, with a one-line reason. Do not remove old entries; if a decision is later reversed, add a new entry that supersedes it and say so explicitly.
+
+- 2026-08-26: Project uses the MIT license.
+- 2026-08-26: Target platforms for the initial wave are Linux desktop (all major distributions) and Android only.
+- 2026-08-26: No hosted sync product will be built; users bring their own sync mechanism.
+- 2026-08-26: AI/agent co-author attribution is disabled for this repository (see "Git and attribution rules" above).
+- 2026-08-26: Project name is final: Leotheca.
+- 2026-08-26: Android distribution targets are F-Droid and Obtainium (via GitHub Releases); Google Play is out of scope for now. Minimum Android target is API 29 (Android 10).
+- 2026-08-26: Linux packaging targets are both AppImage and Flatpak.
+- 2026-08-26: Technology stack decided: Tauri (Rust) for the Linux desktop shell, Capacitor for the Android shell, both hosting one shared TypeScript frontend built around CodeMirror 6. Full rationale in "Technology stack" above.
+- 2026-08-26: Frontend framework inside the shared UI layer is Preact plus `@preact/signals`, chosen for small bundle size and low overhead. Unlike the choices above, this one can be revisited without a maintainer sign-off if it turns out to be wrong.
+- 2026-08-26: App identifier (Tauri `identifier`, and future Android `applicationId`) is `com.leonardschwier.leotheca`.
+- 2026-08-26: Scope directive: implement the full backlog, then complete waves v1, v2, and v4 in full. Wave v3 (community plugin compatibility layer) is explicitly deferred. This is a standing exception to the normal "don't pull in future-wave features" scope discipline rule, scoped only to items actually tracked in `ROADMAP.md`. (`ROADMAP.md` did not exist yet when this decision was first made, the backlog it referred to lived in the now-deleted private `roadmap/backlog.md` and `roadmap/featureset.md`, merged into `ROADMAP.md` later the same day.)
+- 2026-08-26: Confirmed future platform scope: macOS (distributed via Homebrew) and Windows (distributed via direct GitHub Releases download only, no package manager or store) are intended platforms, not hypothetical. No build target exists for either yet.
+- 2026-08-27: A daily automated scan of Joplin's and Obsidian's changelogs for new (not bug-fix) features is a standing process, see "Daily competitor feature scan" above. Worthwhile finds get queued at the bottom of `ROADMAP.md`, not implemented immediately by the scan itself; anything later built from that queue ships with its own settings toggle.
+
+Nothing else should be treated as decided. In particular, exact F-Droid and Flatpak manifest metadata, the final visual design system, and the compatibility layer's precise scope are all still open.
+
+## How to work in this repository (for any coding agent)
+
+This section is written to be followed mechanically by any capable coding agent, not just one specific tool.
+
+1. Read this file in full, then `PHILOSOPHY.md`.
+2. Read `ROADMAP.md` at the repository root to find the current wave and what is in or out of scope.
+3. Check whether `agent-log/CHANGELOG.md` exists and skim its most recent entries for context on very recent work that might not yet be reflected in git history you have reviewed.
+4. Make the change, following the naming, writing style, design bar, and engineering practices rules above.
+5. Before presenting a change as finished: run the project's build and test commands (see the root `package.json` scripts and, once it exists, `src-tauri/`'s `cargo test`) and self-review the diff for the rules in this file, the same way a careful senior engineer would review a colleague's pull request before approving it.
+6. Append an entry to `agent-log/CHANGELOG.md` per the "Session audit trail" section above.
+7. Only commit if explicitly asked to.

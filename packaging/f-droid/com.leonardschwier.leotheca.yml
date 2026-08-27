@@ -1,0 +1,38 @@
+Categories:
+  - Writing
+  - Office
+License: MIT
+SourceCode: https://github.com/LeonardSchwier/leotheca
+IssueTracker: https://github.com/LeonardSchwier/leotheca/issues
+Changelog: https://github.com/LeonardSchwier/leotheca/blob/main/CHANGELOG.md
+AuthorName: Leonard Schwier
+AutoName: Leotheca
+Summary: A free and open source markdown viewer and editor
+Description: |
+  Leotheca is a free and open source markdown viewer and editor for a
+  local folder of plain text notes. No account, no telemetry, no
+  proprietary sync service. Point it at any folder of markdown files and
+  use whatever sync tool you already trust to keep it in sync across
+  devices.
+
+RepoType: git
+Repo: https://github.com/LeonardSchwier/leotheca.git
+
+Builds:
+  - versionName: "0.1.0"
+    versionCode: 1
+    commit: main
+    subdir: android
+    sudo:
+      - apt-get update
+      - apt-get install -y nodejs npm
+    init:
+      - cd .. && npm ci && npm run build && npx cap sync android
+    gradle:
+      - yes
+    output: app/build/outputs/apk/release/app-release-unsigned.apk
+
+AutoUpdateMode: None
+UpdateCheckMode: None
+CurrentVersion: "0.1.0"
+CurrentVersionCode: 1

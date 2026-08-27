@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { EditorSelection, EditorState } from "@codemirror/state";
+import { linkIndex } from "../linking/store";
 
 /** CodeMirror only tracks one selection range unless this facet is
  * explicitly enabled — without it, EditorState silently collapses any
@@ -104,6 +105,52 @@ describe("buildLiveDecorations: inline code", () => {
     const { hidden, marked } = summarize(state);
     expect(hidden).toContain("`");
     expect(marked).toContainEqual({ text: "`npm test`", class: "cm-live-code" });
+  });
+});
+
+describe("buildLiveDecorations: wikilinks", () => {
+  beforeEach(() => {
+    linkIndex.value = {
+      backlinksByPath: new Map(),
+      pathsByNoteName: new Map([["beta", ["/workspace/Beta.md"]]]),
+    };
+  });
+
+  it("hides the [[ ]] markers and styles a resolved link's target when not on that line", () => {
+    const state = stateFor("See [[Beta]] for details.\n\nOther line.", { anchor: 30 });
+    const { hidden, marked } = summarize(state);
+    expect(hidden).toContain("[[");
+    expect(hidden).toContain("]]");
+    expect(marked).toContainEqual({ text: "[[Beta]]", class: "cm-live-wikilink-resolved" });
+  });
+
+  it("styles an unresolved link's target with the broken class", () => {
+    const state = stateFor("See [[Nope]] for details.\n\nOther line.", { anchor: 30 });
+    const { marked } = summarize(state);
+    expect(marked).toContainEqual({ text: "[[Nope]]", class: "cm-live-wikilink-broken" });
+  });
+
+  it("keeps the [[ ]] markers visible while actively editing that line", () => {
+    const state = stateFor("See [[Beta]] for details.", { anchor: 8 });
+    const { hidden } = summarize(state);
+    expect(hidden).not.toContain("[[");
+    expect(hidden).not.toContain("]]");
+  });
+
+  it("does not treat [[...]] inside an inline code span as a wikilink", () => {
+    const state = stateFor("Use `[[Beta]]` literally.\n\nOther line.", { anchor: 30 });
+    const { hidden, marked } = summarize(state);
+    expect(hidden).not.toContain("[[");
+    expect(marked).not.toContainEqual({ text: "[[Beta]]", class: "cm-live-wikilink-resolved" });
+  });
+
+  it("does not match an unterminated [[ across the rest of the document", () => {
+    const doc = "Broken [[ marker with no close.\n\nSome **bold** text.";
+    const state = stateFor(doc, { anchor: doc.length });
+    const { marked } = summarize(state);
+    expect(marked.some((m) => m.class.startsWith("cm-live-wikilink"))).toBe(false);
+    // The rest of the document should still parse normally.
+    expect(marked).toContainEqual({ text: "**bold**", class: "cm-live-strong" });
   });
 });
 

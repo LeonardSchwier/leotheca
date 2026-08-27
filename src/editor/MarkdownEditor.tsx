@@ -48,9 +48,9 @@ export function wikilinkCompletions(context: CompletionContext): CompletionResul
 
 /**
  * CodeMirror 6 source-mode editor with markdown syntax highlighting and
- * inline live-preview decorations (headings, bold, italic, and inline code
- * render in place; their markup hides except on the line being edited, see
- * livePreview.ts). Lists and wikilinks aren't covered by that yet.
+ * inline live-preview decorations (headings, bold, italic, inline code, and
+ * wikilinks render in place; their markup hides except on the line being
+ * edited, see livePreview.ts). Lists aren't covered by that yet.
  */
 export function MarkdownEditor({ path, value, onChange }: MarkdownEditorProps) {
   const hostRef = useRef<HTMLDivElement>(null);

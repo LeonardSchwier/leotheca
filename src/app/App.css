@@ -220,6 +220,16 @@ button.icon-button.active {
   border-radius: var(--radius-sm);
   padding: 0 4px;
 }
+.cm-live-wikilink-resolved {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.cm-live-wikilink-broken {
+  color: var(--text-secondary);
+  text-decoration: underline dashed;
+  text-underline-offset: 2px;
+}
 
 .markdown-preview {
   padding: var(--space-6);

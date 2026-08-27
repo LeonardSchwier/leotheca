@@ -1,27 +1,37 @@
 import { syntaxTree } from "@codemirror/language";
 import type { EditorState } from "@codemirror/state";
 import { Decoration, type DecorationSet, EditorView, ViewPlugin, type ViewUpdate } from "@codemirror/view";
+import { resolveWikilink } from "../linking/store";
 
 /**
  * Inline live-preview decorations for the editor's normal (source) mode:
  * while a line isn't part of the current selection, its markup characters
- * (#, **, *, `) are hidden and the content is styled directly instead
- * (bold, italic, code font, larger heading text). As soon as the cursor or
- * selection touches that line, the raw markup reappears so it stays
- * editable — the same interaction Obsidian's own live preview uses. This
- * is deliberately not a separate view mode (see ROADMAP.md): it augments
- * Source mode itself, Split and Preview are unaffected.
+ * (#, **, *, `, [[ ]]) are hidden and the content is styled directly
+ * instead (bold, italic, code font, larger heading text, link-colored
+ * wikilink target). As soon as the cursor or selection touches that line,
+ * the raw markup reappears so it stays editable, the same interaction
+ * Obsidian's own live preview uses. This is deliberately not a separate
+ * view mode (see ROADMAP.md): it augments Source mode itself, Split and
+ * Preview are unaffected.
  *
- * Covers headings, bold, italic, and inline code — the common cases.
- * Lists and wikilinks are not covered by this first pass, left as
- * follow-up work (wikilinks already get their own syntax highlighting and
- * click-to-open behavior, just not markup-hiding yet).
+ * Covers headings, bold, italic, inline code, and wikilinks. Lists are
+ * not covered by this pass, left as follow-up work.
  *
  * Recomputes over the whole document on every selection change, not just
  * the visible viewport — fine for a single note's worth of text, but a
  * genuinely huge single document could make this noticeably slower on
  * every cursor move. Not optimized for that case yet.
  */
+
+/** Matches the same `[[target]]` shape the wikilink autocomplete and link
+ * index use (see wikilinkCompletions in MarkdownEditor.tsx and
+ * extractWikilinks in linking/store.ts), restricted to a single line so a
+ * stray unmatched `[[` doesn't swallow the rest of the document. */
+const WIKILINK_PATTERN = /\[\[([^[\]\n]+)\]\]/g;
+
+/** Node types whose content should never be reinterpreted as a wikilink,
+ * so `` `[[not a link]]` `` inside a code span or block stays plain text. */
+const CODE_NODE_TYPES = new Set(["InlineCode", "FencedCode", "CodeBlock"]);
 
 const HEADING_NODE_CLASS: Record<string, string> = {
   ATXHeading1: "cm-live-heading-1",
@@ -66,11 +76,16 @@ export function buildLiveDecorations(state: EditorState): DecorationSet {
   const selectionRanges = state.selection.ranges;
   const marks: { from: number; to: number; class: string }[] = [];
   const hidden: SimpleRange[] = [];
+  const codeRanges: SimpleRange[] = [];
 
   tree.iterate({
     enter: (node) => {
       const type = node.type.name;
       const headingClass = HEADING_NODE_CLASS[type];
+
+      if (CODE_NODE_TYPES.has(type)) {
+        codeRanges.push({ from: node.from, to: node.to });
+      }
 
       if (headingClass) {
         const active = overlapsSelectedLines(state.doc, selectionRanges, node.from, node.to);
@@ -110,6 +125,28 @@ export function buildLiveDecorations(state: EditorState): DecorationSet {
       }
     },
   });
+
+  const docText = state.doc.toString();
+  WIKILINK_PATTERN.lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = WIKILINK_PATTERN.exec(docText))) {
+    const from = match.index;
+    const to = from + match[0].length;
+    if (codeRanges.some((range) => from < range.to && to > range.from)) continue;
+
+    const target = match[1];
+    const resolved = resolveWikilink(target) !== null;
+    marks.push({
+      from,
+      to,
+      class: resolved ? "cm-live-wikilink-resolved" : "cm-live-wikilink-broken",
+    });
+
+    if (!overlapsSelectedLines(state.doc, selectionRanges, from, to)) {
+      hide(hidden, from, from + 2); // the opening "[["
+      hide(hidden, to - 2, to); // the closing "]]"
+    }
+  }
 
   const ranges = [
     ...marks.map(({ from, to, class: cls }) => Decoration.mark({ class: cls }).range(from, to)),

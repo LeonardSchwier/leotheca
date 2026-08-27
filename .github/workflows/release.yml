@@ -25,14 +25,22 @@ name: Release
 # would have needed `sudo`, which wasn't available non-interactively. None
 # of that applies on a GitHub Actions runner (full root, unfiltered
 # Flathub), so this job is the actual verification path for the manifest,
-# not the local desktop. Unverified until the first real CI run after a
-# push — the manifest and generated dependency source lists are believed
-# correct (see flatpak/README.md) but this hasn't executed for real yet.
+# not the local desktop.
+#
+# workflow_dispatch exists alongside the tag trigger specifically so this
+# workflow (the Flatpak job above all) can be re-run on demand while
+# iterating on a real bug, without needing to delete and recreate a tag
+# each time (see session 57's agent-log/CHANGELOG.md entry for the two real
+# bugs the tag-triggered run itself caught and how they were fixed). A
+# manual run still only uploads build artifacts to the Actions run itself —
+# `publish` needs `github.ref_name` to be a real tag to attach anything to
+# a GitHub Release, so a workflow_dispatch run intentionally can't publish.
 
 on:
   push:
     tags:
       - "v*"
+  workflow_dispatch: {}
 
 jobs:
   linux:
@@ -100,6 +108,7 @@ jobs:
 
   publish:
     needs: [linux, android, flatpak]
+    if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4

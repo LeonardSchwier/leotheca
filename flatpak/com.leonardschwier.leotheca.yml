@@ -35,7 +35,15 @@ modules:
       # Offline npm install and Rust dependency fetch, using the
       # pre-generated source lists below, then a Tauri build without its
       # own bundling step (Flatpak does the bundling here instead).
-      - npm ci --offline
+      #
+      # `npm install --offline`, not `npm ci --offline`: found the hard way
+      # (session 57, a real CI failure) that `npm ci` doesn't reliably find
+      # packages flatpak-node-generator has pre-populated into npm's local
+      # cache (`_cacache`) the way `npm install` does — `flatpak-node-generator`'s
+      # own reference examples use `npm install --offline` for exactly this
+      # reason, not `npm ci`, despite `npm ci`'s stricter reproducibility
+      # guarantees being the normally-preferred choice for a sandboxed build.
+      - npm install --offline
       - cargo --offline fetch --manifest-path src-tauri/Cargo.toml
       - npm run build
       - cargo build --release --manifest-path src-tauri/Cargo.toml --offline

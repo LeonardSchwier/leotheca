@@ -1,13 +1,13 @@
 # Flatpak packaging
 
-Status: manifest complete, including generated dependency source lists. A local `flatpak-builder` test build was attempted (session 55) and hit an environment-specific blocker rather than a manifest problem — see "Before actually submitting" below. The real verification path is now the `flatpak` job in `.github/workflows/release.yml`, which runs on a GitHub Actions runner (full root, unfiltered Flathub) and doesn't hit that blocker; it's unverified until the first tag push actually runs it.
+Status: manifest complete, including generated dependency source lists. A local `flatpak-builder` test build was attempted (session 55) and hit an environment-specific blocker rather than a manifest problem — see "Before actually submitting" below. The real verification path, the `flatpak` job in `.github/workflows/release.yml`, actually ran for the first time on the `v1.0.0` tag push (session 57) and **found a real bug**, since fixed — see "Known issue: the PyPI `flatpak-node-generator` package is broken for this lockfile" below before ever regenerating `node-sources.json` with `pip install`.
 
 ## What's here
 
 - `com.leonardschwier.leotheca.yml`, the Flatpak manifest.
 - `com.leonardschwier.leotheca.desktop`, the desktop entry installed into the sandbox (a separate file from any desktop entry used for a local dev install, that one needs an absolute path to a locally built binary instead of the sandboxed `leotheca` command).
 - `com.leonardschwier.leotheca.metainfo.xml`, the AppStream MetaInfo file Flathub requires for every submission (summary, description, screenshots, release notes — this is what populates the app's listing on flathub.org and in software centers). Its `<release>` entry's `version`/`date` need updating to match whatever the actual first tagged release turns out to be before submitting; `1.0.0` there now is a placeholder. Screenshot URLs point at `assets/screenshots/*.png` on `main` via `raw.githubusercontent.com`, so they only resolve once this repository is actually pushed (already true) and public.
-- `node-sources.json`, the npm dependency source list, generated from `package-lock.json` via [`flatpak-node-generator`](https://github.com/flatpak/flatpak-builder-tools/tree/master/node) (`pip install --user flatpak-node-generator`).
+- `node-sources.json`, the npm dependency source list, generated from `package-lock.json` via [`flatpak-node-generator`](https://github.com/flatpak/flatpak-builder-tools/tree/master/node) — run from a GitHub checkout of the tool, **not** the PyPI package, see the known-issue note below.
 - `cargo-sources.json`, the Cargo dependency source list, generated from `src-tauri/Cargo.lock` via [`flatpak-cargo-generator.py`](https://github.com/flatpak/flatpak-builder-tools/tree/master/cargo) (fetched directly, it isn't published as an installable package).
 - `cargo-config.toml`, copied to `$CARGO_HOME/config.toml` during the build (see the manifest's `build-commands`) so `cargo` reads the vendored crates `cargo-sources.json` lays out instead of trying to reach crates.io, which the sandboxed build has no network access to. Flatpak builds run fully offline, the same constraint F-Droid puts on the Android build, see `CONSTITUTION.md`.
 
@@ -16,8 +16,10 @@ Status: manifest complete, including generated dependency source lists. A local 
 Both files are generated, not hand-maintained. Regenerate them (from the repository root) whenever `package-lock.json` or `src-tauri/Cargo.lock` changes:
 
 ```sh
-pip install --user flatpak-node-generator
-flatpak-node-generator npm -o flatpak/node-sources.json package-lock.json
+git clone --depth 1 https://github.com/flatpak/flatpak-builder-tools.git /tmp/flatpak-builder-tools
+pip install --user aiohttp
+(cd /tmp/flatpak-builder-tools/node && python3 -m flatpak_node_generator npm \
+  -o "$OLDPWD/flatpak/node-sources.json" "$OLDPWD/package-lock.json")
 
 curl -sL -o /tmp/flatpak-cargo-generator.py \
   https://raw.githubusercontent.com/flatpak/flatpak-builder-tools/master/cargo/flatpak-cargo-generator.py
@@ -26,6 +28,12 @@ python3 /tmp/flatpak-cargo-generator.py src-tauri/Cargo.lock -o flatpak/cargo-so
 ```
 
 No `flatpak-builder` or GNOME runtime install is needed for this step, it only talks to the npm registry and crates.io to resolve download URLs and checksums.
+
+### Known issue: the PyPI `flatpak-node-generator` package is broken for this lockfile
+
+Found the hard way (session 57): `pip install flatpak-node-generator` installs PyPI's `0.1.1` release, which silently drops the vast majority of this project's real dependencies when run against `package-lock.json` (a modern, lockfile-version-3 file with 625 packages) — it wrote only 120 "sources," most of which were actually *every* `@esbuild/*` platform variant (Windows, every obscure Unix, `aix-ppc64`, `openharmony-arm64`, all of them) rather than just the one the sandboxed Linux x64 build needs, while dropping ~560 real, needed packages including plain `eslint` itself. This produced a `node-sources.json` that looked complete (valid JSON, non-trivial size) and was committed as such, and only actually failed once a real `flatpak-builder` run (the CI job's first real execution, on the `v1.0.0` tag push) tried `npm ci --offline` against it and hit `ENOTCACHED` trying to fetch `eslint` from the registry — a build the sandboxed job has no network access to do.
+
+Root cause isolated by running the same lockfile through a fresh `git clone` of the tool's GitHub repository (`flatpak/flatpak-builder-tools`, the `node/` directory, invoked as `python3 -m flatpak_node_generator` rather than the installed `flatpak-node-generator` console script) instead of the pip-installed copy: the GitHub version correctly produced all 560 needed sources (verified programmatically: every `resolved` URL in `package-lock.json`, excluding the platform-mismatched optional variants, is present in the regenerated file). Whatever bug PyPI's `0.1.1` release has isn't present on GitHub's current `master` — the two even report different self-versions (`0.1.1` vs. `0.1.0`), suggesting PyPI's copy predates a real fix rather than postdates it. **Always regenerate from a fresh GitHub checkout, per the command above, never `pip install flatpak-node-generator` directly** — that command is deliberately not in the regeneration steps above anymore for this reason.
 
 ## Before actually submitting
 

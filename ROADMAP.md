@@ -13,6 +13,12 @@ Leotheca ships in waves: coherent, demoable slices rather than a fixed calendar 
 
 Sync is intentionally absent from this table. Leotheca does not build or bundle a hosted sync product, see the README's Sync section.
 
+## Flagged bugs
+
+Bugs noticed during other work that were too large in scope to fix in passing (see `CONSTITUTION.md`'s "Daily automated feature implementation," step 8), logged here instead of fixed on the spot or silently ignored. Newest at the top. Fixing one of these is itself a work-order item once picked up: implement it with the same bar as any other roadmap item (real tests, full verification, self-review), then remove its entry here and note the fix in `agent-log/CHANGELOG.md`.
+
+*(none currently flagged)*
+
 ## v1: Core viewer and editor
 
 Goal: a single window application that opens a local folder of markdown files and lets someone comfortably read and write notes in it, with an editing experience that feels as good as a dedicated writing tool.

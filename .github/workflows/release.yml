@@ -1,8 +1,19 @@
 name: Release
 
-# Builds and attaches installable artifacts to a GitHub Release whenever a
-# version tag is pushed, the mechanism Obtainium (Android) and the README's
-# "download from GitHub Releases" instructions (Linux) both depend on.
+# Builds and attaches installable artifacts to a GitHub Release. Two
+# distinct release channels come out of this one workflow:
+#
+# - A version tag push (v*) publishes the real, versioned release: the
+#   mechanism Obtainium (Android) and the README's "download from GitHub
+#   Releases" instructions (Linux) both depend on. Still a draft, for the
+#   Android-signing reason explained below.
+# - Any other push to main updates a single rolling "dev-build" pre-release
+#   (not a draft, so it's actually visible without the maintainer manually
+#   publishing it) so freshly built artifacts are always available on the
+#   repository's Releases page without waiting for a version tag. It is
+#   recreated from scratch on every run rather than accumulating history,
+#   see the publish job below, and is clearly labeled as an unreviewed
+#   continuous build, never mistaken for a stable, versioned release.
 #
 # Status: Linux (AppImage) is a real, signed-by-nobody-needed build, no
 # secrets required. Android currently only produces a debug-signed APK
@@ -27,19 +38,21 @@ name: Release
 # Flathub), so this job is the actual verification path for the manifest,
 # not the local desktop.
 #
-# workflow_dispatch exists alongside the tag trigger specifically so this
+# workflow_dispatch exists alongside the push triggers specifically so this
 # workflow (the Flatpak job above all) can be re-run on demand while
 # iterating on a real bug, without needing to delete and recreate a tag
 # each time (see session 57's agent-log/CHANGELOG.md entry for the two real
 # bugs the tag-triggered run itself caught and how they were fixed). A
 # manual run still only uploads build artifacts to the Actions run itself —
-# `publish` needs `github.ref_name` to be a real tag to attach anything to
-# a GitHub Release, so a workflow_dispatch run intentionally can't publish.
+# `publish` only runs for a real `push` event (tag or main), so a
+# workflow_dispatch run intentionally can't publish either release channel.
 
 on:
   push:
     tags:
       - "v*"
+    branches:
+      - main
   workflow_dispatch: {}
 
 jobs:
@@ -108,17 +121,47 @@ jobs:
 
   publish:
     needs: [linux, android, flatpak]
-    if: startsWith(github.ref, 'refs/tags/')
+    # Real push events only, never workflow_dispatch (a manual run has no
+    # single unambiguous release identity to attach artifacts to, see the
+    # workflow_dispatch note above).
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
+      - name: Determine this run's release identity
+        id: release
+        run: |
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+            echo "name=Leotheca ${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+            echo "draft=true" >> "$GITHUB_OUTPUT"
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+            echo "body=" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=dev-build" >> "$GITHUB_OUTPUT"
+            echo "name=Development build ($(date -u +%Y-%m-%d), ${GITHUB_SHA::7})" >> "$GITHUB_OUTPUT"
+            echo "draft=false" >> "$GITHUB_OUTPUT"
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+            echo "body=Automatically rebuilt from the latest push to main (commit ${GITHUB_SHA}). Not a stable, reviewed release, see the versioned v* releases for those. The Android APK is debug-signed and unsigned, for testing only." >> "$GITHUB_OUTPUT"
+          fi
       - name: Rename Android artifact to make its debug/unsigned status unmistakable
-        run: mv artifacts/android-debug-apk/app-debug.apk "artifacts/android-debug-apk/leotheca-${{ github.ref_name }}-android-DEBUG-UNSIGNED.apk"
+        run: mv artifacts/android-debug-apk/app-debug.apk "artifacts/android-debug-apk/leotheca-${{ steps.release.outputs.tag }}-android-DEBUG-UNSIGNED.apk"
+      - name: Delete the previous dev-build release and tag, if any
+        if: steps.release.outputs.tag == 'dev-build'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release delete dev-build --yes --cleanup-tag --repo "${{ github.repository }}" || true
       - uses: softprops/action-gh-release@v2
         with:
-          draft: true
+          tag_name: ${{ steps.release.outputs.tag }}
+          name: ${{ steps.release.outputs.name }}
+          body: ${{ steps.release.outputs.body }}
+          draft: ${{ steps.release.outputs.draft }}
+          prerelease: ${{ steps.release.outputs.prerelease }}
           files: |
             artifacts/linux-appimage/*.AppImage
             artifacts/android-debug-apk/*.apk

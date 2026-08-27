@@ -60,6 +60,10 @@ Minimum Android version: API 29 (Android 10).
 
 Not yet available. macOS is planned via Homebrew, Windows via a direct download from GitHub Releases (no package manager or store for either). No build target exists for either platform yet, see [`ROADMAP.md`](ROADMAP.md).
 
+### Development builds
+
+Every push to `main` automatically rebuilds all three artifacts and republishes them to a single, always up to date [`dev-build` release](https://github.com/LeonardSchwier/leotheca/releases/tag/dev-build), separate from the versioned releases above. It's the freshest possible build, but unreviewed and marked as a prerelease on purpose, so Obtainium and F-Droid (which only track non-prerelease releases) never pick it up automatically. Use it if you want to try the latest changes; use a versioned release for anything else.
+
 ## 🔄 Sync
 
 Leotheca does not ship or bundle a sync service, and never will, see [`PHILOSOPHY.md`](PHILOSOPHY.md). Your notes are plain files in a folder, so point whatever sync tool you already use at that folder: [Syncthing](https://syncthing.net/), a WebDAV client, a generic cloud-synced folder, or anything else that syncs a directory. Leotheca does not need to know it is happening.

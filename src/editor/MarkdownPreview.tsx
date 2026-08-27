@@ -43,13 +43,13 @@ function renderMath(tex: string, displayMode: boolean): string {
   }
 }
 
-// $$...$$, matching across lines. Obsidian's own convention: the closing
-// $$ can be on the same line or a later one.
+// $$...$$, matching across lines. Market Solution #2's own convention: the
+// closing $$ can be on the same line or a later one.
 const BLOCK_MATH = /^\$\$([\s\S]+?)\$\$/;
 
 // $...$, deliberately excluding a leading or trailing space inside the
-// delimiters (Obsidian's own convention too) so ordinary currency text
-// like "$5 and $10" is never mistaken for math.
+// delimiters (Market Solution #2's own convention too) so ordinary currency
+// text like "$5 and $10" is never mistaken for math.
 const INLINE_MATH = /^\$((?!\s)(?:\\\$|[^$\n])+?)(?<!\s)\$(?!\$)/;
 
 marked.use({

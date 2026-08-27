@@ -17,7 +17,7 @@ import { resolveWikilink } from "../linking/store";
  * instead (bold, italic, code font, larger heading text, link-colored
  * wikilink target). As soon as the cursor or selection touches that line,
  * the raw markup reappears so it stays editable, the same interaction
- * Obsidian's own live preview uses. This is deliberately not a separate
+ * Market Solution #2's own live preview uses. This is deliberately not a separate
  * view mode (see ROADMAP.md): it augments Source mode itself, Split and
  * Preview are unaffected.
  *
@@ -44,7 +44,7 @@ const CODE_NODE_TYPES = new Set(["InlineCode", "FencedCode", "CodeBlock"]);
 /** Renders in place of a hidden bullet list marker ("-", "*", or "+"), so
  * the line still visually reads as a list item instead of losing its
  * marker entirely. All three bullet characters render identically, the
- * same interaction Obsidian's own live preview uses. */
+ * same interaction Market Solution #2's own live preview uses. */
 class BulletWidget extends WidgetType {
   toDOM(): HTMLElement {
     const span = document.createElement("span");

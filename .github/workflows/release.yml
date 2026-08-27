@@ -15,6 +15,13 @@ name: Release
 #   see the publish job below, and is clearly labeled as an unreviewed
 #   continuous build, never mistaken for a stable, versioned release.
 #
+# Both channels publish as long as the linux and android build jobs
+# succeed, even if flatpak doesn't: flatpak currently fails on every run
+# (a pre-existing, already-documented npm-cache bug, see ROADMAP.md), and a
+# release with two of three artifacts is far more useful than no release
+# at all while that's unresolved. The release body says plainly when the
+# Flatpak bundle was left out for this reason.
+#
 # Status: Linux (AppImage) is a real, signed-by-nobody-needed build, no
 # secrets required. Android currently only produces a debug-signed APK
 # (unsigned for real distribution purposes): a proper release needs a
@@ -123,8 +130,13 @@ jobs:
     needs: [linux, android, flatpak]
     # Real push events only, never workflow_dispatch (a manual run has no
     # single unambiguous release identity to attach artifacts to, see the
-    # workflow_dispatch note above).
-    if: github.event_name == 'push'
+    # workflow_dispatch note above). Only linux and android are required to
+    # actually succeed: flatpak has a known, already-documented (ROADMAP.md)
+    # npm-cache bug that currently fails it on every run, and a release
+    # missing just the Flatpak bundle is far more useful than no release at
+    # all. `always()` is needed here because a job's default condition
+    # skips it entirely once any of its `needs` fails.
+    if: always() && github.event_name == 'push' && needs.linux.result == 'success' && needs.android.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -140,14 +152,22 @@ jobs:
             echo "name=Leotheca ${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
             echo "draft=true" >> "$GITHUB_OUTPUT"
             echo "prerelease=false" >> "$GITHUB_OUTPUT"
-            echo "body=" >> "$GITHUB_OUTPUT"
+            body=""
           else
             echo "tag=dev-build" >> "$GITHUB_OUTPUT"
             echo "name=Development build ($(date -u +%Y-%m-%d), ${GITHUB_SHA::7})" >> "$GITHUB_OUTPUT"
             echo "draft=false" >> "$GITHUB_OUTPUT"
             echo "prerelease=true" >> "$GITHUB_OUTPUT"
-            echo "body=Automatically rebuilt from the latest push to main (commit ${GITHUB_SHA}). Not a stable, reviewed release, see the versioned v* releases for those. The Android APK is debug-signed and unsigned, for testing only." >> "$GITHUB_OUTPUT"
+            body="Automatically rebuilt from the latest push to main (commit ${GITHUB_SHA}). Not a stable, reviewed release, see the versioned v* releases for those. The Android APK is debug-signed and unsigned, for testing only."
           fi
+          if [ "${{ needs.flatpak.result }}" != "success" ]; then
+            body="${body}"$'\n\n'"Flatpak bundle not included in this run: the flatpak build job failed (see this commit's Actions run), a pre-existing issue already tracked in ROADMAP.md, not something this release broke."
+          fi
+          {
+            echo "body<<RELEASE_BODY_EOF"
+            echo "$body"
+            echo "RELEASE_BODY_EOF"
+          } >> "$GITHUB_OUTPUT"
       - name: Rename Android artifact to make its debug/unsigned status unmistakable
         run: mv artifacts/android-debug-apk/app-debug.apk "artifacts/android-debug-apk/leotheca-${{ steps.release.outputs.tag }}-android-DEBUG-UNSIGNED.apk"
       - name: Delete the previous dev-build release and tag, if any

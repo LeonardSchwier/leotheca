@@ -46,6 +46,21 @@ export interface WorkspaceSettings {
    * Preview (see editor/MarkdownPreview.tsx). Defaults to on; also an
    * opt-out per CONSTITUTION.md's "Daily competitor feature scan" policy. */
   mathRenderingEnabled: boolean;
+  /** Whether pasting or dropping an image into the editor saves it as a
+   * new attachment file and inserts a markdown link to it (see
+   * editor/attachments.ts and editor/MarkdownEditor.tsx). Defaults to
+   * on; also an opt-out per CONSTITUTION.md's "Daily competitor feature
+   * scan" policy, since this is net-new functionality, not existing
+   * behavior being made configurable. */
+  pasteImagesEnabled: boolean;
+  /** Where a new attachment saved by pasting/dropping an image goes:
+   * empty means next to the note that embeds it (this app's behavior
+   * before this setting existed), otherwise a path relative to the
+   * workspace root (e.g. "attachments"). Only affects where *new*
+   * attachments are saved; an existing image link anywhere in the
+   * workspace still resolves the same way it always has, relative to
+   * the note that embeds it. */
+  attachmentsFolder: string;
 }
 
 export const MIN_UI_ZOOM = 50;
@@ -68,6 +83,8 @@ export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   uiZoom: 100,
   frontmatterAliasesEnabled: true,
   mathRenderingEnabled: true,
+  pasteImagesEnabled: true,
+  attachmentsFolder: "",
 };
 
 // Plain string join is intentional here (not a path-resolution API call):

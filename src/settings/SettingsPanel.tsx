@@ -52,6 +52,11 @@ const MATH_RENDERING_OPTIONS: { value: boolean; label: string }[] = [
   { value: false, label: "Off" },
 ];
 
+const PASTE_IMAGES_OPTIONS: { value: boolean; label: string }[] = [
+  { value: true, label: "On" },
+  { value: false, label: "Off" },
+];
+
 export function SettingsPanel() {
   const [showLicense, setShowLicense] = useState(false);
   if (!settingsPanelOpen.value) return null;
@@ -143,6 +148,51 @@ export function SettingsPanel() {
                     {option.label}
                   </button>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {workspacePath.value && (
+            <div class="settings-row">
+              <div>
+                <div class="settings-label">Paste images as attachments</div>
+                <div class="settings-hint">
+                  Pasting or dropping an image into a note saves it as a file and inserts a link to it
+                </div>
+              </div>
+              <div class="settings-switch">
+                {PASTE_IMAGES_OPTIONS.map((option) => (
+                  <button
+                    key={String(option.value)}
+                    class={workspaceSettings.value.pasteImagesEnabled === option.value ? "active" : ""}
+                    onClick={() => void updateWorkspaceSettings({ pasteImagesEnabled: option.value })}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {workspacePath.value && (
+            <div class="settings-row">
+              <div>
+                <div class="settings-label">Attachments folder</div>
+                <div class="settings-hint">
+                  Where a pasted/dropped image is saved; empty means next to the note that embeds it
+                </div>
+              </div>
+              <div class="settings-value">
+                <input
+                  type="text"
+                  placeholder="next to the note"
+                  value={workspaceSettings.value.attachmentsFolder}
+                  onInput={(e) => {
+                    void updateWorkspaceSettings({
+                      attachmentsFolder: (e.target as HTMLInputElement).value,
+                    });
+                  }}
+                />
               </div>
             </div>
           )}

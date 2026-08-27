@@ -44,6 +44,12 @@ interface FolderAccessPlugin {
     name?: string;
     contents: string;
   }): Promise<{ uri: string }>;
+  writeBinaryFile(options: {
+    uri?: string;
+    parentUri?: string;
+    name?: string;
+    base64Data: string;
+  }): Promise<{ uri: string }>;
   createDir(options: { parentUri: string; name: string }): Promise<{ uri: string }>;
   renamePath(options: { uri: string; newName: string }): Promise<{ uri: string }>;
   movePath(options: { uri: string; fromParentUri: string; toParentUri: string }): Promise<{ uri: string }>;
@@ -190,6 +196,49 @@ export async function writeTextFile(path: string, contents: string): Promise<voi
     directory: Directory.Data,
     data: contents,
     encoding: Encoding.UTF8,
+    recursive: true,
+  });
+}
+
+// btoa() only accepts a "binary string" (one code unit per byte), and
+// String.fromCharCode(...bytes) over a whole image at once risks blowing
+// the call stack (spread arguments count against the engine's argument
+// limit), hence chunked conversion rather than one call over the whole
+// buffer.
+const BASE64_CHUNK_SIZE = 0x8000;
+
+export function bytesToBase64(bytes: Uint8Array): string {
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += BASE64_CHUNK_SIZE) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + BASE64_CHUNK_SIZE));
+  }
+  return btoa(binary);
+}
+
+/** Same shape as writeTextFile, for binary content (a pasted or dropped
+ * image attachment). Content crosses the Capacitor plugin call boundary
+ * as base64 (FolderAccessPlugin.java's writeBinaryFile decodes it back);
+ * Filesystem.writeFile's own `data` is base64 by default when no
+ * `encoding` is given, so the app-private branch needs no extra option
+ * either. */
+export async function writeBinaryFile(path: string, data: Uint8Array): Promise<void> {
+  const base64Data = bytesToBase64(data);
+  if (isWorkspacePath(path)) {
+    const existingUri = pathToUri.get(path);
+    if (existingUri) {
+      await FolderAccess.writeBinaryFile({ uri: existingUri, base64Data });
+      return;
+    }
+    const parentUri = await ensureDirUri(pathDirname(path));
+    const name = pathBasename(path);
+    const created = await FolderAccess.writeBinaryFile({ parentUri, name, base64Data });
+    pathToUri.set(path, created.uri);
+    return;
+  }
+  await Filesystem.writeFile({
+    path: toAppDataRelative(path),
+    directory: Directory.Data,
+    data: base64Data,
     recursive: true,
   });
 }

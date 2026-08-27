@@ -148,50 +148,89 @@ public class FolderAccessPlugin extends Plugin {
         }
     }
 
+    /**
+     * Resolves the target URI for a write call: either the `uri` param
+     * directly (an existing file already known to the caller), or, given
+     * `parentUri` and `name`, an existing child with that name or a newly
+     * created one. Shared by writeTextFile and writeBinaryFile, which
+     * only differ in what bytes they write once they have this target.
+     */
+    private Uri resolveOrCreateTargetUri(PluginCall call) throws Exception {
+        String uriStr = call.getString("uri");
+        if (uriStr != null) {
+            return Uri.parse(uriStr);
+        }
+        String parentUriStr = call.getString("parentUri");
+        String name = call.getString("name");
+        if (parentUriStr == null || name == null) {
+            throw new IllegalArgumentException("uri, or parentUri and name, is required");
+        }
+        DocumentFile parent = DocumentFile.fromTreeUri(getContext(), Uri.parse(parentUriStr));
+        if (parent == null) {
+            throw new IllegalArgumentException("Invalid parentUri: " + parentUriStr);
+        }
+        DocumentFile existing = parent.findFile(name);
+        // "application/octet-stream" is deliberate, not a placeholder: SAF
+        // providers resolve a canonical extension from the given mime type
+        // and silently append it to the display name if missing. That was
+        // "text/markdown" here, harmless for note names (already end in
+        // .md) but silently turned this app's own "settings.json" and
+        // "bookmarks.json" into "settings.json.md" on disk, and since a
+        // later write's findFile("settings.json") then never matched that,
+        // every save created a fresh duplicate instead of overwriting.
+        // octet-stream has no canonical extension, so the name we pass is
+        // created verbatim.
+        DocumentFile file = existing != null ? existing : parent.createFile("application/octet-stream", name);
+        if (file == null) {
+            throw new IllegalArgumentException("Could not create file: " + name);
+        }
+        return file.getUri();
+    }
+
     @PluginMethod
     public void writeTextFile(PluginCall call) {
         String contents = call.getString("contents", "");
         try {
-            Uri targetUri;
-            String uriStr = call.getString("uri");
-            if (uriStr != null) {
-                targetUri = Uri.parse(uriStr);
-            } else {
-                String parentUriStr = call.getString("parentUri");
-                String name = call.getString("name");
-                if (parentUriStr == null || name == null) {
-                    call.reject("uri, or parentUri and name, is required");
-                    return;
-                }
-                DocumentFile parent = DocumentFile.fromTreeUri(getContext(), Uri.parse(parentUriStr));
-                if (parent == null) {
-                    call.reject("Invalid parentUri: " + parentUriStr);
-                    return;
-                }
-                DocumentFile existing = parent.findFile(name);
-                // "application/octet-stream" is deliberate, not a placeholder: SAF
-                // providers resolve a canonical extension from the given mime type
-                // and silently append it to the display name if missing. That was
-                // "text/markdown" here, harmless for note names (already end in
-                // .md) but silently turned this app's own "settings.json" and
-                // "bookmarks.json" into "settings.json.md" on disk, and since a
-                // later write's findFile("settings.json") then never matched that,
-                // every save created a fresh duplicate instead of overwriting.
-                // octet-stream has no canonical extension, so the name we pass is
-                // created verbatim.
-                DocumentFile file = existing != null ? existing : parent.createFile("application/octet-stream", name);
-                if (file == null) {
-                    call.reject("Could not create file: " + name);
-                    return;
-                }
-                targetUri = file.getUri();
-            }
+            Uri targetUri = resolveOrCreateTargetUri(call);
             try (OutputStream out = getContext().getContentResolver().openOutputStream(targetUri, "wt")) {
                 if (out == null) {
                     call.reject("Could not open " + targetUri + " for writing");
                     return;
                 }
                 out.write(contents.getBytes(StandardCharsets.UTF_8));
+            }
+            JSObject ret = new JSObject();
+            ret.put("uri", targetUri.toString());
+            call.resolve(ret);
+        } catch (Exception e) {
+            call.reject(e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Same as writeTextFile, but for binary content (a pasted or dropped
+     * image attachment): the frontend base64-encodes the bytes to cross
+     * the Capacitor plugin call boundary (see
+     * src/workspace/capacitorBridgeImpl.ts's writeBinaryFile), and this
+     * decodes them back before writing, the same convention
+     * readFileAsDataUrl already uses in the opposite direction below.
+     */
+    @PluginMethod
+    public void writeBinaryFile(PluginCall call) {
+        String base64Data = call.getString("base64Data");
+        if (base64Data == null) {
+            call.reject("base64Data is required");
+            return;
+        }
+        try {
+            byte[] bytes = Base64.decode(base64Data, Base64.DEFAULT);
+            Uri targetUri = resolveOrCreateTargetUri(call);
+            try (OutputStream out = getContext().getContentResolver().openOutputStream(targetUri, "wt")) {
+                if (out == null) {
+                    call.reject("Could not open " + targetUri + " for writing");
+                    return;
+                }
+                out.write(bytes);
             }
             JSObject ret = new JSObject();
             ret.put("uri", targetUri.toString());

@@ -37,6 +37,14 @@ describe("DEFAULT_WORKSPACE_SETTINGS", () => {
   it("defaults frontmatter aliases to on, per the opt-out policy for queued features", () => {
     expect(DEFAULT_WORKSPACE_SETTINGS.frontmatterAliasesEnabled).toBe(true);
   });
+
+  it("defaults paste-to-attach images to on, per the opt-out policy for queued features", () => {
+    expect(DEFAULT_WORKSPACE_SETTINGS.pasteImagesEnabled).toBe(true);
+  });
+
+  it("defaults the attachments folder to empty, i.e. next to the note", () => {
+    expect(DEFAULT_WORKSPACE_SETTINGS.attachmentsFolder).toBe("");
+  });
 });
 
 describe("loadWorkspaceSettings", () => {

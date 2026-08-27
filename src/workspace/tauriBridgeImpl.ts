@@ -31,6 +31,15 @@ export async function writeTextFile(path: string, contents: string): Promise<voi
   return invoke("write_text_file", { path, contents });
 }
 
+/** `data` is sent as a plain array of byte values: Tauri's IPC already
+ * serializes a JS number array into Rust's `Vec<u8>` for free, so there
+ * is nothing to encode here (contrast capacitorBridgeImpl.ts's own
+ * writeBinaryFile, which does need to base64-encode for the Capacitor
+ * plugin call boundary). */
+export async function writeBinaryFile(path: string, data: Uint8Array): Promise<void> {
+  return invoke("write_binary_file", { path, data: Array.from(data) });
+}
+
 export async function createDir(path: string): Promise<void> {
   return invoke("create_dir", { path });
 }

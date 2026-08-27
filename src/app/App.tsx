@@ -518,6 +518,9 @@ export function App() {
                     path={current.path}
                     value={current.content}
                     onChange={(value) => handleChange(current.path, value)}
+                    workspaceRoot={rootPath ?? ""}
+                    attachmentsFolder={workspaceSettings.value.attachmentsFolder}
+                    pasteImagesEnabled={workspaceSettings.value.pasteImagesEnabled}
                   />
                 )}
                 {viewMode.value !== "source" && (
@@ -525,6 +528,7 @@ export function App() {
                     source={current.content}
                     onOpenFile={handleOpenFile}
                     mathRenderingEnabled={workspaceSettings.value.mathRenderingEnabled}
+                    notePath={current.path}
                   />
                 )}
               </div>

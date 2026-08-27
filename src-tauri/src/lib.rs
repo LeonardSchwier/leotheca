@@ -9,6 +9,7 @@ pub fn run() {
             commands::list_dir,
             commands::read_text_file,
             commands::write_text_file,
+            commands::write_binary_file,
             commands::create_dir,
             commands::rename_path,
             commands::trash_path,

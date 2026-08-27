@@ -1,8 +1,14 @@
 /** @vitest-environment jsdom */
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render } from "@testing-library/preact";
+import { cleanup, fireEvent, render, waitFor } from "@testing-library/preact";
+
+vi.mock("../workspace/tauriBridge", () => ({
+  fileSrc: vi.fn(),
+}));
+
 import { MarkdownPreview } from "./MarkdownPreview";
 import { linkIndex } from "../linking/store";
+import { fileSrc } from "../workspace/tauriBridge";
 
 afterEach(() => {
   cleanup();
@@ -12,6 +18,7 @@ afterEach(() => {
     pathsByAlias: new Map(),
     aliasesByPath: new Map(),
   };
+  vi.mocked(fileSrc).mockReset();
 });
 
 describe("MarkdownPreview", () => {
@@ -94,6 +101,66 @@ describe("MarkdownPreview", () => {
     const anchor = container.querySelector("a") as HTMLAnchorElement;
     fireEvent.click(anchor);
     expect(onOpenFile).not.toHaveBeenCalled();
+  });
+});
+
+describe("MarkdownPreview: local image attachments", () => {
+  it("leaves a local relative image unresolved when no notePath is given", () => {
+    const { container } = render(<MarkdownPreview source="![a cat](cat.png)" />);
+    const img = container.querySelector("img");
+    expect(img?.getAttribute("src")).toBe("cat.png");
+    expect(fileSrc).not.toHaveBeenCalled();
+  });
+
+  it("resolves a local relative image against the note's own folder", async () => {
+    vi.mocked(fileSrc).mockResolvedValue("asset://localhost/vault/notes/cat.png");
+    const { container } = render(
+      <MarkdownPreview source="![a cat](cat.png)" notePath="/vault/notes/today.md" />,
+    );
+
+    expect(fileSrc).toHaveBeenCalledWith("/vault/notes/cat.png");
+    await waitFor(() =>
+      expect(container.querySelector("img")?.getAttribute("src")).toBe(
+        "asset://localhost/vault/notes/cat.png",
+      ),
+    );
+  });
+
+  it("resolves a ../ image target relative to the note's folder, not the workspace root", async () => {
+    vi.mocked(fileSrc).mockResolvedValue("asset://localhost/vault/attachments/cat.png");
+    render(
+      <MarkdownPreview
+        source="![a cat](../attachments/cat.png)"
+        notePath="/vault/notes/today.md"
+      />,
+    );
+    expect(fileSrc).toHaveBeenCalledWith("/vault/attachments/cat.png");
+  });
+
+  it("preserves a title alongside a resolved local image", async () => {
+    vi.mocked(fileSrc).mockResolvedValue("asset://localhost/vault/notes/cat.png");
+    const { container } = render(
+      <MarkdownPreview source='![a cat](cat.png "My cat")' notePath="/vault/notes/today.md" />,
+    );
+    await waitFor(() => expect(container.querySelector("img")?.getAttribute("src")).not.toContain("#leotheca-attachment"));
+    expect(container.querySelector("img")?.getAttribute("title")).toBe("My cat");
+  });
+
+  it("does not resolve an absolute http(s) image link", () => {
+    const { container } = render(
+      <MarkdownPreview source="![remote](https://example.com/cat.png)" notePath="/vault/notes/today.md" />,
+    );
+    expect(fileSrc).not.toHaveBeenCalled();
+    expect(container.querySelector("img")?.getAttribute("src")).toBe("https://example.com/cat.png");
+  });
+
+  it("does not resolve a data: URI image link", () => {
+    const dataUri = "data:image/png;base64,AAAA";
+    const { container } = render(
+      <MarkdownPreview source={`![inline](${dataUri})`} notePath="/vault/notes/today.md" />,
+    );
+    expect(fileSrc).not.toHaveBeenCalled();
+    expect(container.querySelector("img")?.getAttribute("src")).toBe(dataUri);
   });
 });
 

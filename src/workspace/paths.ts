@@ -1,0 +1,68 @@
+/**
+ * Pure path-string helpers for absolute, forward-slash workspace paths
+ * (see workspaceSettings.ts's own comment on why a plain string join is
+ * fine here: both target platforms use forward slashes, and everything
+ * is always relative to a workspace path this app already owns). Kept
+ * separate from fileTreeStore.ts's own small path helpers (dirname,
+ * relativePath) so both the editor (inserting a link to a newly saved
+ * attachment) and the preview (resolving that link back to a real file)
+ * can share this logic without a new dependency between those two layers.
+ */
+
+function normalizeSegments(path: string): string[] {
+  const segments: string[] = [];
+  for (const part of path.split("/")) {
+    if (part === "" || part === ".") continue;
+    if (part === "..") {
+      if (segments.length > 0) segments.pop();
+      continue;
+    }
+    segments.push(part);
+  }
+  return segments;
+}
+
+/** Same logic as fileTreeStore.ts's own dirname, deliberately duplicated
+ * rather than imported: fileTreeStore.ts pulls in settings/store.ts (and
+ * its module-load-time `document` side effects) transitively, which
+ * would drag that whole chain into every place that just wants this one
+ * pure string operation, including test files (attachments.test.ts,
+ * paths.test.ts) that run outside jsdom and have no `document` at all. */
+export function dirname(path: string): string {
+  const idx = path.lastIndexOf("/");
+  return idx > 0 ? path.slice(0, idx) : path;
+}
+
+/** Resolves `target` against `baseDir` (an absolute path), the way a
+ * browser resolves a relative URL against its base: `..` climbs a
+ * directory, `.` is a no-op, and a `target` that is already absolute
+ * (starts with `/`) is returned untouched. */
+export function resolvePath(baseDir: string, target: string): string {
+  if (target.startsWith("/")) return target;
+  return "/" + normalizeSegments(`${baseDir}/${target}`).join("/");
+}
+
+/** The inverse of resolvePath: a relative path from `fromDir` to
+ * `toPath`, both absolute, e.g. `relativePathBetween("/a/b", "/a/c/d")`
+ * -> `"../c/d"`. Used to insert a working markdown link to a newly saved
+ * attachment regardless of where it was actually saved (next to the
+ * note, or in a configured attachments folder elsewhere in the
+ * workspace). */
+export function relativePathBetween(fromDir: string, toPath: string): string {
+  const fromSegments = normalizeSegments(fromDir);
+  const toSegments = normalizeSegments(toPath);
+
+  let common = 0;
+  while (
+    common < fromSegments.length &&
+    common < toSegments.length &&
+    fromSegments[common] === toSegments[common]
+  ) {
+    common++;
+  }
+
+  const ups = fromSegments.length - common;
+  const downs = toSegments.slice(common);
+  const parts = [...Array<string>(ups).fill(".."), ...downs];
+  return parts.length > 0 ? parts.join("/") : ".";
+}

@@ -15,6 +15,7 @@ export const restoreWorkspaceAccess = impl.restoreWorkspaceAccess;
 export const listDir = impl.listDir;
 export const readTextFile = impl.readTextFile;
 export const writeTextFile = impl.writeTextFile;
+export const writeBinaryFile = impl.writeBinaryFile;
 export const createDir = impl.createDir;
 export const renamePath = impl.renamePath;
 export const trashPath = impl.trashPath;

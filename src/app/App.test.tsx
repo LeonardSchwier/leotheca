@@ -2,6 +2,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render } from "@testing-library/preact";
 import { signal } from "@preact/signals";
+import { DEFAULT_WORKSPACE_SETTINGS } from "../settings/workspaceSettings";
 
 // A minimal, narrowly-scoped harness for one specific interaction (the
 // rename/autosave race documented in ROADMAP.md's "Still open for v1"),
@@ -15,6 +16,7 @@ vi.mock("../settings/store", () => ({
   settingsPanelOpen: signal(false),
   viewMode: signal("source"),
   initSettings: vi.fn(),
+  workspaceSettings: signal(DEFAULT_WORKSPACE_SETTINGS),
 }));
 
 const { readTextFile, writeTextFile } = vi.hoisted(() => ({

@@ -14,11 +14,21 @@ import {
 } from "@codemirror/autocomplete";
 import { linkIndex } from "../linking/store";
 import { livePreviewExtension } from "./livePreview";
+import { attachmentsInsertText, type PastedOrDroppedFile } from "./attachments";
 
 export interface MarkdownEditorProps {
   path: string;
   value: string;
   onChange: (value: string) => void;
+  /** The open workspace's root folder, needed to resolve a configured
+   * attachments folder (see attachments.ts's attachmentSaveDir). */
+  workspaceRoot: string;
+  /** Where a pasted/dropped image is saved; see
+   * WorkspaceSettings.attachmentsFolder. */
+  attachmentsFolder: string;
+  /** Whether pasting/dropping an image saves it as an attachment at all;
+   * see WorkspaceSettings.pasteImagesEnabled. */
+  pasteImagesEnabled: boolean;
 }
 
 /** Suggests note names (and, when the setting is on, note aliases) while
@@ -53,17 +63,109 @@ export function wikilinkCompletions(context: CompletionContext): CompletionResul
   return { from, options, filter: false };
 }
 
+async function fileToBytes(file: File): Promise<Uint8Array> {
+  return new Uint8Array(await file.arrayBuffer());
+}
+
+function pasteImageFiles(clipboardData: DataTransfer): File[] {
+  return Array.from(clipboardData.items)
+    .filter((item) => item.type.startsWith("image/"))
+    .map((item) => item.getAsFile())
+    .filter((file): file is File => file !== null);
+}
+
+function droppedImageFiles(dataTransfer: DataTransfer): File[] {
+  return Array.from(dataTransfer.files).filter((file) => file.type.startsWith("image/"));
+}
+
+interface AttachmentSettings {
+  workspaceRoot: string;
+  attachmentsFolder: string;
+  pasteImagesEnabled: boolean;
+}
+
+/**
+ * Paste/drop-to-attach an image: saves it via editor/attachments.ts and
+ * inserts a markdown link at the cursor (paste) or drop position (drop).
+ * `settingsRef` is read fresh on every paste/drop rather than captured
+ * once, since the editor extensions array (and this closure with it) is
+ * only rebuilt when `path` changes (see the useEffect below), but
+ * workspace settings can change while the same note stays open.
+ */
+function imageAttachmentExtension(path: string, settingsRef: { current: AttachmentSettings }) {
+  async function insertFiles(view: EditorView, files: File[], atPos: number) {
+    if (files.length === 0) return;
+    const { workspaceRoot, attachmentsFolder } = settingsRef.current;
+    const pastedFiles: PastedOrDroppedFile[] = await Promise.all(
+      files.map(async (file) => ({
+        bytes: await fileToBytes(file),
+        mimeType: file.type,
+        originalName: file.name,
+      })),
+    );
+    const insertText = await attachmentsInsertText(pastedFiles, {
+      notePath: path,
+      workspaceRoot,
+      attachmentsFolder,
+      now: Date.now(),
+    });
+    if (!insertText) return;
+
+    const pos = Math.min(atPos, view.state.doc.length);
+    view.dispatch({
+      changes: { from: pos, insert: insertText },
+      selection: { anchor: pos + insertText.length },
+    });
+  }
+
+  return EditorView.domEventHandlers({
+    paste(event, view) {
+      if (!settingsRef.current.pasteImagesEnabled || !event.clipboardData) return false;
+      const files = pasteImageFiles(event.clipboardData);
+      if (files.length === 0) return false;
+
+      event.preventDefault();
+      void insertFiles(view, files, view.state.selection.main.from);
+      return true;
+    },
+    drop(event, view) {
+      if (!settingsRef.current.pasteImagesEnabled || !event.dataTransfer) return false;
+      const files = droppedImageFiles(event.dataTransfer);
+      if (files.length === 0) return false;
+
+      event.preventDefault();
+      const pos =
+        view.posAtCoords({ x: event.clientX, y: event.clientY }) ?? view.state.selection.main.from;
+      void insertFiles(view, files, pos);
+      return true;
+    },
+  });
+}
+
 /**
  * CodeMirror 6 source-mode editor with markdown syntax highlighting and
  * inline live-preview decorations (headings, bold, italic, inline code,
  * wikilinks, and bullet list markers render in place; their markup hides
  * except on the line being edited, see livePreview.ts).
  */
-export function MarkdownEditor({ path, value, onChange }: MarkdownEditorProps) {
+export function MarkdownEditor({
+  path,
+  value,
+  onChange,
+  workspaceRoot,
+  attachmentsFolder,
+  pasteImagesEnabled,
+}: MarkdownEditorProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
+  const attachmentSettingsRef = useRef<AttachmentSettings>({
+    workspaceRoot,
+    attachmentsFolder,
+    pasteImagesEnabled,
+  });
+  attachmentSettingsRef.current = { workspaceRoot, attachmentsFolder, pasteImagesEnabled };
 
   useEffect(() => {
     if (!hostRef.current) return;
@@ -79,6 +181,7 @@ export function MarkdownEditor({ path, value, onChange }: MarkdownEditorProps) {
         markdown({ codeLanguages: languages }),
         syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
         livePreviewExtension,
+        imageAttachmentExtension(path, attachmentSettingsRef),
         EditorView.lineWrapping,
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {

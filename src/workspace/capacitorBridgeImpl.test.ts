@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { getWorkspaceStats } from "./capacitorBridgeImpl";
+import { bytesToBase64, getWorkspaceStats } from "./capacitorBridgeImpl";
 import type { FsEntry } from "./types";
 
 function entry(name: string, path: string, isDir = false): FsEntry {
@@ -66,5 +66,39 @@ describe("getWorkspaceStats (Android)", () => {
     // pre-fix sequential walk effectively did (maxInFlight === 1 there).
     expect(maxInFlight).toBeLessThanOrEqual(8);
     expect(maxInFlight).toBeGreaterThan(1);
+  });
+});
+
+/** Decodes base64 back to bytes via the platform's own atob, an
+ * independent implementation from bytesToBase64 under test, so a
+ * round-trip genuinely exercises correctness rather than checking the
+ * function against itself. */
+function base64ToBytes(base64: string): Uint8Array {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+describe("bytesToBase64", () => {
+  it("encodes an empty buffer as an empty string", () => {
+    expect(bytesToBase64(new Uint8Array())).toBe("");
+  });
+
+  it("matches a known base64 encoding for a small buffer", () => {
+    const bytes = new TextEncoder().encode("Hello, world! This is a paste-image test.");
+    expect(bytesToBase64(bytes)).toBe("SGVsbG8sIHdvcmxkISBUaGlzIGlzIGEgcGFzdGUtaW1hZ2UgdGVzdC4=");
+  });
+
+  it("round-trips a buffer exactly at the chunk boundary (0x8000 bytes)", () => {
+    const bytes = new Uint8Array(0x8000);
+    for (let i = 0; i < bytes.length; i++) bytes[i] = (i * 7) % 256;
+    expect(base64ToBytes(bytesToBase64(bytes))).toEqual(bytes);
+  });
+
+  it("round-trips a buffer spanning multiple chunks with an uneven remainder", () => {
+    const bytes = new Uint8Array(0x8000 * 2 + 137);
+    for (let i = 0; i < bytes.length; i++) bytes[i] = i % 256;
+    expect(base64ToBytes(bytesToBase64(bytes))).toEqual(bytes);
   });
 });

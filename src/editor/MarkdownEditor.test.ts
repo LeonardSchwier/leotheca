@@ -4,7 +4,11 @@ import { CompletionContext } from "@codemirror/autocomplete";
 import { wikilinkCompletions } from "./MarkdownEditor";
 import { linkIndex } from "../linking/store";
 
-vi.mock("../workspace/tauriBridge", () => ({ listDir: vi.fn(), readTextFile: vi.fn() }));
+vi.mock("../workspace/tauriBridge", () => ({
+  listDir: vi.fn(),
+  readTextFile: vi.fn(),
+  writeBinaryFile: vi.fn(),
+}));
 
 function contextAt(doc: string, pos: number): CompletionContext {
   const state = EditorState.create({ doc });

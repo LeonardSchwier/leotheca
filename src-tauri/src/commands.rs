@@ -212,6 +212,24 @@ pub fn write_text_file(path: String, contents: String) -> Result<(), String> {
     fs::write(target, contents).map_err(|e| e.to_string())
 }
 
+/// Writes raw bytes to `path`, creating any missing parent directories
+/// first, same as `write_text_file`. Used for saving a pasted or
+/// dropped image attachment (see the frontend's paste/drop handling in
+/// `editor/MarkdownEditor.tsx`); text notes never go through this
+/// command. `data` arrives as a plain array of bytes rather than
+/// base64: Tauri's IPC already serializes a `Vec<u8>` from a JS number
+/// array for free, so there is no need for either side to encode or
+/// decode anything (unlike the Android bridge, whose Capacitor plugin
+/// call boundary makes base64 the practical choice instead).
+#[tauri::command]
+pub fn write_binary_file(path: String, data: Vec<u8>) -> Result<(), String> {
+    let target = Path::new(&path);
+    if let Some(parent) = target.parent() {
+        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    fs::write(target, data).map_err(|e| e.to_string())
+}
+
 /// Creates `path` and any missing parent directories. Does not error if the
 /// directory already exists, matching `write_text_file`'s create-on-demand
 /// behavior.
@@ -343,6 +361,45 @@ mod tests {
 
         assert_eq!(fs::read_to_string(&nested).unwrap(), "{}");
         fs::remove_dir_all(&base).unwrap();
+    }
+
+    #[test]
+    fn write_binary_file_round_trips_bytes() {
+        let tmp =
+            std::env::temp_dir().join(format!("leotheca-test-binfile-{}", std::process::id()));
+        let path = tmp.to_string_lossy().to_string();
+        let bytes: Vec<u8> = vec![0, 1, 2, 255, 254, 253];
+
+        write_binary_file(path.clone(), bytes.clone()).unwrap();
+
+        assert_eq!(fs::read(&tmp).unwrap(), bytes);
+        fs::remove_file(&tmp).unwrap();
+    }
+
+    #[test]
+    fn write_binary_file_creates_missing_parent_directories() {
+        let base = std::env::temp_dir()
+            .join(format!("leotheca-test-binfile-mkdirp-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&base);
+        let nested = base.join("attachments").join("pasted.png");
+
+        write_binary_file(nested.to_string_lossy().to_string(), vec![1, 2, 3]).unwrap();
+
+        assert_eq!(fs::read(&nested).unwrap(), vec![1, 2, 3]);
+        fs::remove_dir_all(&base).unwrap();
+    }
+
+    #[test]
+    fn write_binary_file_overwrites_an_existing_file() {
+        let tmp = std::env::temp_dir()
+            .join(format!("leotheca-test-binfile-overwrite-{}", std::process::id()));
+        let path = tmp.to_string_lossy().to_string();
+
+        write_binary_file(path.clone(), vec![1, 2, 3, 4, 5]).unwrap();
+        write_binary_file(path.clone(), vec![9, 9]).unwrap();
+
+        assert_eq!(fs::read(&tmp).unwrap(), vec![9, 9]);
+        fs::remove_file(&tmp).unwrap();
     }
 
     #[test]

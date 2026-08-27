@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render } from "@testing-library/preact";
+import { cleanup, fireEvent, render, within } from "@testing-library/preact";
 import { signal } from "@preact/signals";
 import { DEFAULT_WORKSPACE_SETTINGS } from "./workspaceSettings";
 import type { ThemePreference } from "./globalConfig";
@@ -106,6 +106,8 @@ describe("SettingsPanel", () => {
     expect(queryByText("Font size")).toBeNull();
     expect(queryByText("Zoom")).toBeNull();
     expect(queryByText("Default view mode")).toBeNull();
+    expect(queryByText("Paste images as attachments")).toBeNull();
+    expect(queryByText("Attachments folder")).toBeNull();
   });
 
   it("shows and wires the delete behavior switch once a workspace is open", () => {
@@ -148,6 +150,24 @@ describe("SettingsPanel", () => {
     const zoomInput = inputs[1] as HTMLInputElement;
     fireEvent.input(zoomInput, { target: { value: "5" } });
     expect(updateWorkspaceSettings).toHaveBeenCalledWith({ uiZoom: 50 });
+  });
+
+  it("shows and wires the paste-images-as-attachments switch", () => {
+    workspacePath.value = "/vault";
+    workspaceSettings.value = { ...DEFAULT_WORKSPACE_SETTINGS, pasteImagesEnabled: true };
+    const { getByText } = render(<SettingsPanel />);
+    const row = getByText("Paste images as attachments").closest(".settings-row") as HTMLElement;
+    expect(within(row).getByText("On").className).toContain("active");
+    fireEvent.click(within(row).getByText("Off"));
+    expect(updateWorkspaceSettings).toHaveBeenCalledWith({ pasteImagesEnabled: false });
+  });
+
+  it("wires the attachments folder text input", () => {
+    workspacePath.value = "/vault";
+    const { getByPlaceholderText } = render(<SettingsPanel />);
+    const input = getByPlaceholderText("next to the note") as HTMLInputElement;
+    fireEvent.input(input, { target: { value: "attachments" } });
+    expect(updateWorkspaceSettings).toHaveBeenCalledWith({ attachmentsFolder: "attachments" });
   });
 
   it("wires the default view mode switch and marks the active option", () => {

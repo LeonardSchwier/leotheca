@@ -41,6 +41,7 @@ modules:
       - cargo build --release --manifest-path src-tauri/Cargo.toml --offline
       - install -Dm755 src-tauri/target/release/leotheca /app/bin/leotheca
       - install -Dm644 flatpak/com.leonardschwier.leotheca.desktop /app/share/applications/com.leonardschwier.leotheca.desktop
+      - install -Dm644 flatpak/com.leonardschwier.leotheca.metainfo.xml /app/share/metainfo/com.leonardschwier.leotheca.metainfo.xml
       - install -Dm644 src-tauri/icons/128x128.png /app/share/icons/hicolor/128x128/apps/com.leonardschwier.leotheca.png
       - install -Dm644 src-tauri/icons/icon.png /app/share/icons/hicolor/512x512/apps/com.leonardschwier.leotheca.png
     sources:

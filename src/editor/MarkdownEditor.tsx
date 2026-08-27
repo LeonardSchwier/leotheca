@@ -13,6 +13,7 @@ import {
   type CompletionResult,
 } from "@codemirror/autocomplete";
 import { linkIndex } from "../linking/store";
+import { livePreviewExtension } from "./livePreview";
 
 export interface MarkdownEditorProps {
   path: string;
@@ -46,10 +47,10 @@ export function wikilinkCompletions(context: CompletionContext): CompletionResul
 }
 
 /**
- * Baseline CodeMirror 6 source-mode editor with markdown syntax highlighting.
- * Inline live-preview decorations (hiding markup, rendering headings/bold/
- * lists/checkboxes in place) are a follow-up enhancement, tracked as the
- * first task for the editor workstream, not yet implemented here.
+ * CodeMirror 6 source-mode editor with markdown syntax highlighting and
+ * inline live-preview decorations (headings, bold, italic, and inline code
+ * render in place; their markup hides except on the line being edited, see
+ * livePreview.ts). Lists and wikilinks aren't covered by that yet.
  */
 export function MarkdownEditor({ path, value, onChange }: MarkdownEditorProps) {
   const hostRef = useRef<HTMLDivElement>(null);
@@ -70,6 +71,7 @@ export function MarkdownEditor({ path, value, onChange }: MarkdownEditorProps) {
         keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap, ...completionKeymap]),
         markdown({ codeLanguages: languages }),
         syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+        livePreviewExtension,
         EditorView.lineWrapping,
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {

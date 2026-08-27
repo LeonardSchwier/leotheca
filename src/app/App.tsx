@@ -6,6 +6,7 @@ import { Sidebar } from "../workspace/Sidebar";
 import { TabBar } from "../workspace/TabBar";
 import { MarkdownEditor } from "../editor/MarkdownEditor";
 import { MarkdownPreview } from "../editor/MarkdownPreview";
+import { FrontmatterPropertiesPanel } from "../editor/FrontmatterPropertiesPanel";
 import { ImageViewer } from "../editor/ImageViewer";
 import { isImagePath } from "../workspace/types";
 import {
@@ -511,27 +512,35 @@ export function App() {
             current.kind === "image" ? (
               <ImageViewer path={current.path} />
             ) : (
-              <div class={`editor-panes mode-${viewMode.value}`}>
-                {viewMode.value !== "preview" && (
-                  <MarkdownEditor
-                    key={current.path}
-                    path={current.path}
-                    value={current.content}
-                    onChange={(value) => handleChange(current.path, value)}
-                    workspaceRoot={rootPath ?? ""}
-                    attachmentsFolder={workspaceSettings.value.attachmentsFolder}
-                    pasteImagesEnabled={workspaceSettings.value.pasteImagesEnabled}
-                  />
-                )}
-                {viewMode.value !== "source" && (
-                  <MarkdownPreview
-                    source={current.content}
-                    onOpenFile={handleOpenFile}
-                    mathRenderingEnabled={workspaceSettings.value.mathRenderingEnabled}
-                    notePath={current.path}
-                  />
-                )}
-              </div>
+              <>
+                <FrontmatterPropertiesPanel
+                  key={current.path}
+                  source={current.content}
+                  onChange={(value) => handleChange(current.path, value)}
+                  enabled={workspaceSettings.value.frontmatterPropertiesEnabled}
+                />
+                <div class={`editor-panes mode-${viewMode.value}`}>
+                  {viewMode.value !== "preview" && (
+                    <MarkdownEditor
+                      key={current.path}
+                      path={current.path}
+                      value={current.content}
+                      onChange={(value) => handleChange(current.path, value)}
+                      workspaceRoot={rootPath ?? ""}
+                      attachmentsFolder={workspaceSettings.value.attachmentsFolder}
+                      pasteImagesEnabled={workspaceSettings.value.pasteImagesEnabled}
+                    />
+                  )}
+                  {viewMode.value !== "source" && (
+                    <MarkdownPreview
+                      source={current.content}
+                      onOpenFile={handleOpenFile}
+                      mathRenderingEnabled={workspaceSettings.value.mathRenderingEnabled}
+                      notePath={current.path}
+                    />
+                  )}
+                </div>
+              </>
             )
           ) : (
             <div class="empty-hint editor-empty">No file open.</div>

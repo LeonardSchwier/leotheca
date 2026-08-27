@@ -1,0 +1,103 @@
+.frontmatter-properties {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-sunken);
+}
+
+.frontmatter-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.frontmatter-key {
+  flex: 0 0 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.frontmatter-value,
+.frontmatter-key-input {
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.frontmatter-value:hover,
+.frontmatter-key-input:hover {
+  border-color: var(--border);
+}
+
+.frontmatter-value:focus,
+.frontmatter-key-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: var(--bg-raised);
+}
+
+.frontmatter-remove {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: transparent;
+  color: var(--text-faint);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+
+.frontmatter-remove:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.frontmatter-add-button {
+  align-self: flex-start;
+  padding: var(--space-1) var(--space-2);
+  border: none;
+  background: transparent;
+  color: var(--text-faint);
+  font-size: 12px;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+
+.frontmatter-add-button:hover {
+  color: var(--accent);
+  background: var(--bg-hover);
+}
+
+.frontmatter-properties-empty {
+  padding: var(--space-1) var(--space-4);
+}
+
+.frontmatter-add-confirm {
+  flex-shrink: 0;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-raised);
+  color: var(--text-primary);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.frontmatter-add-confirm:hover {
+  border-color: var(--accent);
+}

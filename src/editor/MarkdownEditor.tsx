@@ -15,6 +15,7 @@ import {
 import { linkIndex } from "../linking/store";
 import { livePreviewExtension } from "./livePreview";
 import { attachmentsInsertText, type PastedOrDroppedFile } from "./attachments";
+import { minimalChange } from "./textDiff";
 
 export interface MarkdownEditorProps {
   path: string;
@@ -204,9 +205,29 @@ export function MarkdownEditor({
       viewRef.current = null;
     };
     // Re-create the editor when switching files; content sync for the same
-    // file is handled by the caller diffing `value` if needed later.
+    // file is handled by the effect below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [path]);
+
+  // Syncs an external content change (currently only the Properties panel
+  // editing frontmatter, see FrontmatterPropertiesPanel.tsx) into the live
+  // document. A no-op on every render caused by the user's own typing:
+  // that already went view -> onChange -> parent state -> this `value`
+  // prop, so the view's document already matches `value` by the time this
+  // runs, and the comparison below skips the dispatch. minimalChange
+  // (not a whole-document replace) keeps the change confined to wherever
+  // the text actually differs, so CodeMirror can map the user's cursor
+  // and scroll position through unaffected when the edit came from
+  // somewhere else in the document (the common case: a frontmatter edit
+  // while the cursor is down in the body).
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    const current = view.state.doc.toString();
+    if (current === value) return;
+    const change = minimalChange(current, value);
+    view.dispatch({ changes: change });
+  }, [value]);
 
   return <div class="markdown-editor" ref={hostRef} />;
 }

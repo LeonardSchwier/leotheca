@@ -42,6 +42,10 @@ describe("DEFAULT_WORKSPACE_SETTINGS", () => {
     expect(DEFAULT_WORKSPACE_SETTINGS.pasteImagesEnabled).toBe(true);
   });
 
+  it("defaults the frontmatter Properties panel to on, per the opt-out policy for queued features", () => {
+    expect(DEFAULT_WORKSPACE_SETTINGS.frontmatterPropertiesEnabled).toBe(true);
+  });
+
   it("defaults the attachments folder to empty, i.e. next to the note", () => {
     expect(DEFAULT_WORKSPACE_SETTINGS.attachmentsFolder).toBe("");
   });

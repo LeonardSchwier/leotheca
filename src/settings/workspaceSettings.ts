@@ -61,6 +61,13 @@ export interface WorkspaceSettings {
    * workspace still resolves the same way it always has, relative to
    * the note that embeds it. */
   attachmentsFolder: string;
+  /** Whether a "Properties" panel above the editor shows a note's
+   * frontmatter fields (scalars and flat lists only, see
+   * linking/frontmatter.ts's parseFrontmatterFields) as editable rows.
+   * Defaults to on; also an opt-out per CONSTITUTION.md's "Daily
+   * competitor feature scan" policy. Off, frontmatter is only ever
+   * edited as raw text, same as before this feature existed. */
+  frontmatterPropertiesEnabled: boolean;
 }
 
 export const MIN_UI_ZOOM = 50;
@@ -85,6 +92,7 @@ export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   mathRenderingEnabled: true,
   pasteImagesEnabled: true,
   attachmentsFolder: "",
+  frontmatterPropertiesEnabled: true,
 };
 
 // Plain string join is intentional here (not a path-resolution API call):

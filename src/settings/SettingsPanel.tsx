@@ -57,6 +57,11 @@ const PASTE_IMAGES_OPTIONS: { value: boolean; label: string }[] = [
   { value: false, label: "Off" },
 ];
 
+const FRONTMATTER_PROPERTIES_OPTIONS: { value: boolean; label: string }[] = [
+  { value: true, label: "On" },
+  { value: false, label: "Off" },
+];
+
 export function SettingsPanel() {
   const [showLicense, setShowLicense] = useState(false);
   if (!settingsPanelOpen.value) return null;
@@ -193,6 +198,28 @@ export function SettingsPanel() {
                     });
                   }}
                 />
+              </div>
+            </div>
+          )}
+
+          {workspacePath.value && (
+            <div class="settings-row">
+              <div>
+                <div class="settings-label">Frontmatter properties panel</div>
+                <div class="settings-hint">
+                  Show a note's frontmatter fields above the editor as editable rows
+                </div>
+              </div>
+              <div class="settings-switch">
+                {FRONTMATTER_PROPERTIES_OPTIONS.map((option) => (
+                  <button
+                    key={String(option.value)}
+                    class={workspaceSettings.value.frontmatterPropertiesEnabled === option.value ? "active" : ""}
+                    onClick={() => void updateWorkspaceSettings({ frontmatterPropertiesEnabled: option.value })}
+                  >
+                    {option.label}
+                  </button>
+                ))}
               </div>
             </div>
           )}

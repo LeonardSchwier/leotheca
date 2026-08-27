@@ -50,7 +50,7 @@ vi.mock("./layout", () => ({
   computeLayout: () => new Map([["/vault/a.md", { x: 100, y: 100 }]]),
 }));
 
-const { GraphView, computeConnectedPaths } = await import("./GraphView");
+const { GraphView, computeConnectedPaths, computeLocalGraph } = await import("./GraphView");
 
 // /vault/a.md has an incoming link from /vault/b.md, so both count as
 // "connected" and remain visible under the new hide-isolated-notes default
@@ -244,5 +244,130 @@ describe("GraphView: hides unconnected notes by default", () => {
 
     expect(container.querySelector("canvas")).toBeTruthy();
     expect(queryByText(/No connected notes yet/)).toBeNull();
+  });
+});
+
+describe("computeLocalGraph", () => {
+  it("always includes the focus note itself, even with zero connections", () => {
+    const local = computeLocalGraph("/vault/lonely.md", new Map([["/vault/lonely.md", []]]));
+    expect(local.nodes).toEqual(new Set(["/vault/lonely.md"]));
+    expect(local.edges).toEqual([]);
+  });
+
+  it("includes a note that links to the focus note (incoming)", () => {
+    const local = computeLocalGraph(
+      "/vault/b.md",
+      new Map([
+        ["/vault/b.md", ["/vault/a.md"]],
+        ["/vault/a.md", []],
+      ]),
+    );
+    expect(local.nodes).toEqual(new Set(["/vault/b.md", "/vault/a.md"]));
+    expect(local.edges).toEqual([["/vault/a.md", "/vault/b.md"]]);
+  });
+
+  it("includes a note the focus note links to (outgoing)", () => {
+    const local = computeLocalGraph(
+      "/vault/a.md",
+      new Map([
+        ["/vault/a.md", []],
+        ["/vault/b.md", ["/vault/a.md"]],
+      ]),
+    );
+    expect(local.nodes).toEqual(new Set(["/vault/a.md", "/vault/b.md"]));
+    expect(local.edges).toEqual([["/vault/a.md", "/vault/b.md"]]);
+  });
+
+  it("does not include a note two hops away", () => {
+    const local = computeLocalGraph(
+      "/vault/a.md",
+      new Map([
+        ["/vault/a.md", []],
+        ["/vault/b.md", ["/vault/a.md"]],
+        ["/vault/c.md", ["/vault/b.md"]],
+      ]),
+    );
+    expect(local.nodes.has("/vault/c.md")).toBe(false);
+  });
+
+  it("combines incoming and outgoing neighbors without duplicating the focus note", () => {
+    const local = computeLocalGraph(
+      "/vault/hub.md",
+      new Map([
+        ["/vault/hub.md", ["/vault/in.md"]],
+        ["/vault/in.md", []],
+        ["/vault/out.md", ["/vault/hub.md"]],
+      ]),
+    );
+    expect(local.nodes).toEqual(new Set(["/vault/hub.md", "/vault/in.md", "/vault/out.md"]));
+    expect(local.edges).toEqual([
+      ["/vault/in.md", "/vault/hub.md"],
+      ["/vault/hub.md", "/vault/out.md"],
+    ]);
+  });
+});
+
+describe("GraphView: local (per-note) graph mode", () => {
+  function withThreeNotes() {
+    linkIndex.value = {
+      backlinksByPath: new Map([
+        ["/vault/b.md", ["/vault/a.md"]],
+        ["/vault/a.md", []],
+        ["/vault/c.md", []],
+      ]),
+      pathsByNoteName: new Map(),
+      pathsByAlias: new Map(),
+      aliasesByPath: new Map(),
+    };
+  }
+
+  it("does not show the mode switch when no note is open", () => {
+    withThreeNotes();
+    const { queryByText } = render(<GraphView onOpenFile={vi.fn()} onClose={vi.fn()} />);
+    expect(queryByText("This note")).toBeNull();
+  });
+
+  it("shows the mode switch, defaulted to Workspace, when a note is open", () => {
+    withThreeNotes();
+    const { getByText } = render(
+      <GraphView onOpenFile={vi.fn()} onClose={vi.fn()} focusPath="/vault/a.md" />,
+    );
+    expect(getByText("Workspace").className).toContain("active");
+    expect(getByText("This note").className).not.toContain("active");
+  });
+
+  it("switching to This note updates the title and hides the Show all notes toggle", () => {
+    withThreeNotes();
+    const { getByText, queryByLabelText } = render(
+      <GraphView onOpenFile={vi.fn()} onClose={vi.fn()} focusPath="/vault/a.md" />,
+    );
+
+    fireEvent.click(getByText("This note"));
+
+    expect(getByText("Local graph: a")).toBeTruthy();
+    expect(queryByLabelText("Show all notes")).toBeNull();
+  });
+
+  it("switching back to Workspace restores the whole-graph title", () => {
+    withThreeNotes();
+    const { getByText } = render(
+      <GraphView onOpenFile={vi.fn()} onClose={vi.fn()} focusPath="/vault/a.md" />,
+    );
+
+    fireEvent.click(getByText("This note"));
+    fireEvent.click(getByText("Workspace"));
+
+    expect(getByText("Graph")).toBeTruthy();
+  });
+
+  it("renders the canvas in local mode even when the focus note is otherwise isolated (Show all notes would be needed in Workspace mode)", () => {
+    withThreeNotes();
+    const { getByText, container } = render(
+      <GraphView onOpenFile={vi.fn()} onClose={vi.fn()} focusPath="/vault/c.md" />,
+    );
+
+    fireEvent.click(getByText("This note"));
+
+    expect(container.querySelector("canvas")).toBeTruthy();
   });
 });

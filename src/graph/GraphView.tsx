@@ -7,6 +7,12 @@ import "./graph.css";
 interface GraphViewProps {
   onOpenFile: (path: string, name: string) => void;
   onClose: () => void;
+  /** The currently open note, if any. Enables the "This note" mode switch
+   * below the header, showing just this note and its direct neighbors
+   * instead of the whole workspace. Purely additive: omitting it (or no
+   * note being open) leaves the existing whole-workspace behavior
+   * unchanged, "Workspace" mode stays the default either way. */
+  focusPath?: string;
 }
 
 const MIN_SCALE = 0.15;
@@ -33,12 +39,41 @@ export function computeConnectedPaths(backlinksByPath: Map<string, string[]>): S
   return connected;
 }
 
+/** `focusPath` plus every note directly connected to it, one hop either
+ * direction: notes that link to it (already available directly, as
+ * backlinksByPath's own entry for focusPath) and notes it links to
+ * (found by scanning for focusPath appearing as a source elsewhere,
+ * since backlinksByPath is keyed the other way around). Always includes
+ * focusPath itself, even with zero connections, so a note with no links
+ * yet still renders as a single node rather than an empty graph. */
+export function computeLocalGraph(
+  focusPath: string,
+  backlinksByPath: Map<string, string[]>,
+): { nodes: Set<string>; edges: [string, string][] } {
+  const nodes = new Set<string>([focusPath]);
+  const edges: [string, string][] = [];
+
+  for (const source of backlinksByPath.get(focusPath) ?? []) {
+    nodes.add(source);
+    edges.push([source, focusPath]);
+  }
+  for (const [target, sources] of backlinksByPath) {
+    if (target === focusPath) continue;
+    if (sources.includes(focusPath)) {
+      nodes.add(target);
+      edges.push([focusPath, target]);
+    }
+  }
+
+  return { nodes, edges };
+}
+
 function readCssVar(name: string, fallback: string): string {
   const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
   return value || fallback;
 }
 
-export function GraphView({ onOpenFile, onClose }: GraphViewProps) {
+export function GraphView({ onOpenFile, onClose, focusPath }: GraphViewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const positionsRef = useRef<Map<string, Point>>(new Map());
@@ -56,6 +91,8 @@ export function GraphView({ onOpenFile, onClose }: GraphViewProps) {
   } | null>(null);
   const lastTapRef = useRef<{ path: string; time: number } | null>(null);
   const [showAll, setShowAll] = useState(false);
+  const [mode, setMode] = useState<"workspace" | "local">("workspace");
+  const isLocal = mode === "local" && !!focusPath;
 
   // Canvas rendering is imperative on purpose: it should never depend on
   // Preact re-rendering the component to actually paint. A pan/zoom/resize
@@ -117,14 +154,22 @@ export function GraphView({ onOpenFile, onClose }: GraphViewProps) {
     canvas.height = height;
 
     const { backlinksByPath } = linkIndex.value;
-    const connected = computeConnectedPaths(backlinksByPath);
-    const nodePaths = showAll ? Array.from(backlinksByPath.keys()) : Array.from(connected);
-    // An edge's two endpoints are always in `connected` by construction
-    // (that's exactly what makes them connected), so unlike nodePaths,
-    // edges never need filtering for the showAll === false case.
-    const edges: [string, string][] = [];
-    for (const [target, sources] of backlinksByPath) {
-      for (const source of sources) edges.push([source, target]);
+    let nodePaths: string[];
+    let edges: [string, string][];
+    if (isLocal && focusPath) {
+      const local = computeLocalGraph(focusPath, backlinksByPath);
+      nodePaths = Array.from(local.nodes);
+      edges = local.edges;
+    } else {
+      const connected = computeConnectedPaths(backlinksByPath);
+      nodePaths = showAll ? Array.from(backlinksByPath.keys()) : Array.from(connected);
+      // An edge's two endpoints are always in `connected` by construction
+      // (that's exactly what makes them connected), so unlike nodePaths,
+      // edges never need filtering for the showAll === false case.
+      edges = [];
+      for (const [target, sources] of backlinksByPath) {
+        for (const source of sources) edges.push([source, target]);
+      }
     }
     edgesRef.current = edges;
     positionsRef.current = computeLayout(nodePaths, edges, width, height);
@@ -146,7 +191,7 @@ export function GraphView({ onOpenFile, onClose }: GraphViewProps) {
     observer.observe(container);
     return () => observer.disconnect();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showAll]);
+  }, [showAll, isLocal, focusPath]);
 
   function findNodeAt(clientX: number, clientY: number): string | null {
     const canvas = canvasRef.current;
@@ -247,21 +292,37 @@ export function GraphView({ onOpenFile, onClose }: GraphViewProps) {
 
   const { backlinksByPath } = linkIndex.value;
   const totalCount = backlinksByPath.size;
-  const nodeCount = showAll ? totalCount : computeConnectedPaths(backlinksByPath).size;
+  const nodeCount = isLocal && focusPath
+    ? computeLocalGraph(focusPath, backlinksByPath).nodes.size
+    : showAll
+      ? totalCount
+      : computeConnectedPaths(backlinksByPath).size;
 
   return (
     <div class="graph-view-overlay">
       <div class="graph-view-header">
-        <span class="graph-view-title">Graph</span>
+        <span class="graph-view-title">{isLocal ? `Local graph: ${noteName(focusPath!)}` : "Graph"}</span>
         <div class="graph-view-header-actions">
-          <label class="graph-view-toggle">
-            <input
-              type="checkbox"
-              checked={showAll}
-              onChange={(e) => setShowAll((e.target as HTMLInputElement).checked)}
-            />
-            Show all notes
-          </label>
+          {focusPath && (
+            <div class="settings-switch">
+              <button class={mode === "workspace" ? "active" : ""} onClick={() => setMode("workspace")}>
+                Workspace
+              </button>
+              <button class={mode === "local" ? "active" : ""} onClick={() => setMode("local")}>
+                This note
+              </button>
+            </div>
+          )}
+          {!isLocal && (
+            <label class="graph-view-toggle">
+              <input
+                type="checkbox"
+                checked={showAll}
+                onChange={(e) => setShowAll((e.target as HTMLInputElement).checked)}
+              />
+              Show all notes
+            </label>
+          )}
           <button class="icon-button" aria-label="Close graph" title="Close graph" onClick={onClose}>
             ×
           </button>

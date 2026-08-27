@@ -557,6 +557,7 @@ export function App() {
             void handleOpenFile(path, name);
           }}
           onClose={() => (graphOpen.value = false)}
+          focusPath={current?.kind === "text" ? current.path : undefined}
         />
       )}
       {markdownHelpOpen.value && (

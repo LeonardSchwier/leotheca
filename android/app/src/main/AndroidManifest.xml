@@ -35,7 +35,7 @@
         </provider>
     </application>
 
-    <!-- Permissions -->
-
-    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Leotheca is fully offline: no network permission is requested. See
+         CONSTITUTION.md's "Offline by design" section. Folder access uses
+         the Storage Access Framework, not the network. -->
 </manifest>

@@ -28,11 +28,11 @@ export function markTabSaved(path: string) {
   );
 }
 
-// batch() throughout this file's multi-signal writes for the same reason
-// closeAllTabs uses it (see its own comment): anything reacting to both
-// openTabs and activeTabPath, namely the tab-persistence effect in
-// settings/store.ts, should only ever see states that were real, not an
-// intermediate step of getting there.
+/** Uses `batch()` throughout this file's multi-signal writes for the same
+ * reason `closeAllTabs` does (see its own comment): anything reacting to
+ * both `openTabs` and `activeTabPath`, namely the tab-persistence effect in
+ * settings/store.ts, should only ever see states that were real, not an
+ * intermediate step of getting there. */
 export function closeTab(path: string) {
   batch(() => {
     openTabs.value = openTabs.value.filter((t) => t.path !== path);

@@ -4,7 +4,7 @@ Three principles govern every decision in this project, from architecture down t
 
 ## 1. Free and open source, without compromise
 
-The full source is open, under the MIT license, forever. No feature is held back for a paid tier. No telemetry phones home. No account is required to use the application. A user can read every line of code that touches their notes.
+The full source is open, under the MIT license, forever. No feature is held back for a paid tier. The app makes no network calls of any kind and runs fully offline, so nothing, telemetry included, ever phones home. No account is required to use the application. A user can read every line of code that touches their notes.
 
 Being open source is not a marketing label here. It is the reason the other two principles are even possible: a local-first tool that respects a user's data only stays honest if anyone can verify that it does.
 

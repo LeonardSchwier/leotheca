@@ -1,6 +1,6 @@
 # Leotheca
 
-A free and open source markdown viewer and editor for a local folder of plain text notes. No account, no telemetry, no proprietary sync.
+A free and open source markdown viewer and editor for a local folder of plain text notes. No account, no telemetry, no proprietary sync, and no network calls of any kind, it runs fully offline.
 
 [![License: MIT](https://img.shields.io/github/license/LeonardSchwier/leotheca)](LICENSE)
 [![CI](https://github.com/LeonardSchwier/leotheca/actions/workflows/ci.yml/badge.svg)](https://github.com/LeonardSchwier/leotheca/actions/workflows/ci.yml)
@@ -10,7 +10,7 @@ A free and open source markdown viewer and editor for a local folder of plain te
 
 Three principles govern every decision here, in order. Full detail in [`PHILOSOPHY.md`](PHILOSOPHY.md).
 
-1. 🔓 **Free and open source, without compromise.** The full source is open under the MIT license, forever. No paid tier, no telemetry, no required account.
+1. 🔓 **Free and open source, without compromise.** The full source is open under the MIT license, forever. No paid tier, no telemetry, no required account, no network calls at all, fully offline.
 2. 🤝 **Standing on the shoulders of giants.** Where the wider note-taking ecosystem already has a good convention (wikilinks, YAML frontmatter, a folder of plain files), this project adopts it instead of inventing a competing one.
 3. 📁 **Your notes belong to you.** Plain markdown files in a folder you control, not a database, not a proprietary format. Nothing about how a note is stored depends on this application continuing to exist.
 

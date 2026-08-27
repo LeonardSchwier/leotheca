@@ -11,9 +11,9 @@ export async function pickWorkspaceFolder(): Promise<{ path: string; token?: str
   return path ? { path } : null;
 }
 
-// No-op on desktop: the real folder path from pickWorkspaceFolder is
-// already everything needed to reopen a workspace, unlike Android's
-// opaque SAF URI, which does need to be restored into an in-memory cache.
+/** No-op on desktop: the real folder path from `pickWorkspaceFolder` is
+ * already everything needed to reopen a workspace, unlike Android's opaque
+ * SAF URI, which does need to be restored into an in-memory cache. */
 export async function restoreWorkspaceAccess(path: string, token: string | undefined): Promise<void> {
   void path;
   void token;
@@ -63,7 +63,7 @@ export async function getWorkspaceStats(path: string): Promise<WorkspaceStats> {
   return invoke<WorkspaceStats>("workspace_stats", { path });
 }
 
-// No-op on desktop: there is no OS status bar to color.
+/** No-op on desktop: there is no OS status bar to color. */
 export async function setStatusBarAppearance(isDarkBackground: boolean): Promise<void> {
   void isDarkBackground;
 }

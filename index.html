@@ -3,6 +3,19 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!-- Leotheca is fully offline, see CONSTITUTION.md's "Offline by design"
+         section: no remote network request is ever allowed from the running
+         app, including a remote image a note's own markdown might reference.
+         This single meta tag is the shared enforcement point for both
+         platform shells (Tauri desktop and Capacitor Android both load this
+         same built index.html into their webview), so it doesn't need to be
+         duplicated per platform. 'unsafe-inline' on style-src is required
+         for CodeMirror's runtime-injected <style> blocks and this app's own
+         inline style={} usage, neither of which fetch anything remote. -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' asset: https://asset.localhost data: blob:; font-src 'self' data:; connect-src 'self'; media-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'"
+    />
     <title>Leotheca</title>
   </head>
   <body>

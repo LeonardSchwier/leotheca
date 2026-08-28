@@ -26,6 +26,7 @@ import {
   initSettings,
   settingsLoaded,
   settingsPanelOpen,
+  updateWorkspaceSettings,
   viewMode,
   workspacePath,
   workspaceSettings,
@@ -45,6 +46,7 @@ import "./resizable-sidebar.css";
 import { GraphView } from "../graph/GraphView";
 import { MarkdownHelpDialog } from "./MarkdownHelpDialog";
 import { CommandPalette, type Command } from "./CommandPalette";
+import { nextUiZoom, zoomActionForKey, zoomActionForWheel } from "./zoomControls";
 
 // Plain inline SVG, not the 🔖 emoji this used to use: it rendered as an
 // unrelated (reportedly pepper-shaped) glyph on Android, the same class of
@@ -232,7 +234,13 @@ export function App() {
     function onKeyDown(e: KeyboardEvent) {
       if (!(e.ctrlKey || e.metaKey)) return;
       const key = e.key.toLowerCase();
-      if (key === "n" && rootPath) {
+      const zoomAction = zoomActionForKey(key);
+      if (zoomAction) {
+        if (!workspacePath.value) return;
+        e.preventDefault();
+        const next = nextUiZoom(workspaceSettings.value.uiZoom, zoomAction);
+        if (next !== workspaceSettings.value.uiZoom) void updateWorkspaceSettings({ uiZoom: next });
+      } else if (key === "n" && rootPath) {
         e.preventDefault();
         void createNoteQuick(selectedDir.value ?? rootPath).then(({ path, name }) =>
           handleOpenFile(path, name),
@@ -263,6 +271,20 @@ export function App() {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [rootPath, handleOpenFile, refresh, flushPendingAutosave]);
+
+  useEffect(() => {
+    function onWheel(e: WheelEvent) {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      if (!workspacePath.value) return;
+      const zoomAction = zoomActionForWheel(e.deltaY);
+      if (!zoomAction) return;
+      e.preventDefault();
+      const next = nextUiZoom(workspaceSettings.value.uiZoom, zoomAction);
+      if (next !== workspaceSettings.value.uiZoom) void updateWorkspaceSettings({ uiZoom: next });
+    }
+    window.addEventListener("wheel", onWheel, { passive: false });
+    return () => window.removeEventListener("wheel", onWheel);
+  }, []);
 
   const current = activeTab();
   const currentBookmark =

@@ -290,7 +290,9 @@ export function SettingsPanel() {
               <div class="settings-row">
                 <div>
                   <div class="settings-label">Zoom</div>
-                  <div class="settings-hint">Scales the whole app, not just note text</div>
+                  <div class="settings-hint">
+                    Scales the whole app; use Ctrl+Plus, Ctrl+Minus, or Ctrl+0
+                  </div>
                 </div>
                 <div class="settings-value">
                   <input

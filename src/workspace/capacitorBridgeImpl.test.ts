@@ -1,45 +1,92 @@
 import { describe, expect, it, vi } from "vitest";
-import { bytesToBase64, getWorkspaceStats } from "./capacitorBridgeImpl";
-import type { FsEntry } from "./types";
-import { MAX_WALK_DEPTH } from "./types";
+import { bytesToBase64, findMarkdownFiles, getWorkspaceStats } from "./capacitorBridgeImpl";
 
-function entry(name: string, path: string, isDir = false): FsEntry {
-  return { name, path, isDir };
+interface NativeMarkdownFile {
+  relativePath: string;
+  uri: string;
+  mtime?: number;
 }
 
+function walkResult(overrides: {
+  markdownFiles?: NativeMarkdownFile[];
+  folderCount?: number;
+  imageCount?: number;
+} = {}) {
+  return { markdownFiles: [], folderCount: 0, imageCount: 0, ...overrides };
+}
+
+describe("findMarkdownFiles (Android)", () => {
+  it("prefixes each discovered file's relative path with the walked root", async () => {
+    const walk = vi.fn(async () =>
+      walkResult({
+        markdownFiles: [
+          { relativePath: "a.md", uri: "content://a" },
+          { relativePath: "notes/b.md", uri: "content://b", mtime: 1234 },
+        ],
+      }),
+    );
+
+    const files = await findMarkdownFiles("/vault", { walk });
+
+    expect(files).toEqual([
+      { name: "a.md", path: "/vault/a.md", isDir: false },
+      { name: "b.md", path: "/vault/notes/b.md", isDir: false, mtime: 1234 },
+    ]);
+  });
+
+  it("returns an empty list for a workspace with no markdown files", async () => {
+    const walk = vi.fn(async () => walkResult());
+
+    expect(await findMarkdownFiles("/vault", { walk })).toEqual([]);
+  });
+});
+
 describe("getWorkspaceStats (Android)", () => {
-  it("counts folders, notes, and images across a nested tree", async () => {
-    const listDir = vi.fn(async (path: string): Promise<FsEntry[]> => {
-      if (path === "/vault") {
-        return [
-          entry("notes", "/vault/notes", true),
-          entry("a.md", "/vault/a.md"),
-          entry("photo.png", "/vault/photo.png"),
-        ];
-      }
-      if (path === "/vault/notes") {
-        return [entry("b.md", "/vault/notes/b.md")];
-      }
-      return [];
-    });
+  it("counts folders, notes, and images from a single native walk", async () => {
+    const walk = vi.fn(async () =>
+      walkResult({
+        markdownFiles: [
+          { relativePath: "a.md", uri: "content://a" },
+          { relativePath: "notes/b.md", uri: "content://b" },
+        ],
+        folderCount: 1,
+        imageCount: 1,
+      }),
+    );
     const readTextFile = vi.fn(async () => "one\ntwo\nthree");
 
-    const stats = await getWorkspaceStats("/vault", { listDir, readTextFile });
+    const stats = await getWorkspaceStats("/vault", { walk, readTextFile });
 
     expect(stats.folderCount).toBe(1);
     expect(stats.noteCount).toBe(2);
     expect(stats.imageCount).toBe(1);
   });
 
+  it("reads each note's content by its full workspace-relative path", async () => {
+    const walk = vi.fn(async () => walkResult({ markdownFiles: [{ relativePath: "notes/a.md", uri: "x" }] }));
+    const readTextFile = vi.fn(async () => "one\ntwo");
+
+    await getWorkspaceStats("/vault", { walk, readTextFile });
+
+    expect(readTextFile).toHaveBeenCalledWith("/vault/notes/a.md");
+  });
+
   it("computes the average lines per note, and 0 with no notes at all", async () => {
     const readTextFile = vi.fn(async (path: string) => (path.endsWith("a.md") ? "one\ntwo" : "one\ntwo\nthree\nfour"));
-    const listDir = vi.fn(async () => [entry("a.md", "/vault/a.md"), entry("b.md", "/vault/b.md")]);
+    const walk = vi.fn(async () =>
+      walkResult({
+        markdownFiles: [
+          { relativePath: "a.md", uri: "1" },
+          { relativePath: "b.md", uri: "2" },
+        ],
+      }),
+    );
 
-    const stats = await getWorkspaceStats("/vault", { listDir, readTextFile });
+    const stats = await getWorkspaceStats("/vault", { walk, readTextFile });
     expect(stats.averageLinesPerNote).toBe(3); // (2 + 4) / 2
 
     const emptyStats = await getWorkspaceStats("/empty", {
-      listDir: vi.fn(async () => []),
+      walk: vi.fn(async () => walkResult()),
       readTextFile: vi.fn(),
     });
     expect(emptyStats.averageLinesPerNote).toBe(0);
@@ -47,8 +94,8 @@ describe("getWorkspaceStats (Android)", () => {
   });
 
   it("never has more than a bounded number of note reads in flight at once", async () => {
-    const paths = Array.from({ length: 20 }, (_, i) => `/vault/note-${i}.md`);
-    const listDir = vi.fn(async () => paths.map((path, i) => entry(`note-${i}.md`, path)));
+    const markdownFiles = Array.from({ length: 20 }, (_, i) => ({ relativePath: `note-${i}.md`, uri: `${i}` }));
+    const walk = vi.fn(async () => walkResult({ markdownFiles }));
 
     let inFlight = 0;
     let maxInFlight = 0;
@@ -60,28 +107,12 @@ describe("getWorkspaceStats (Android)", () => {
       return "";
     });
 
-    await getWorkspaceStats("/vault", { listDir, readTextFile });
+    await getWorkspaceStats("/vault", { walk, readTextFile });
 
     // Loosely bounded (not coupled to the exact concurrency constant): just
-    // confirming this doesn't dispatch all 20 reads at once the way the
-    // pre-fix sequential walk effectively did (maxInFlight === 1 there).
+    // confirming this doesn't dispatch all 20 reads at once.
     expect(maxInFlight).toBeLessThanOrEqual(8);
     expect(maxInFlight).toBeGreaterThan(1);
-  });
-
-  it("stops descending at MAX_WALK_DEPTH instead of recursing forever through a directory that always reports one more subfolder", async () => {
-    // Simulates a workspace symlink cycle (a folder symlinked back to one
-    // of its own ancestors, see ROADMAP.md's "Symlink Cycle Handling"):
-    // every directory reports exactly one child folder, forever, the same
-    // shape a real cycle produces since SAF's directory listing has no
-    // concept of "already visited this real folder" either.
-    const listDir = vi.fn(async (path: string) => [entry("loop", `${path}/loop`, true)]);
-
-    const stats = await getWorkspaceStats("/vault", { listDir, readTextFile: vi.fn() });
-
-    // One folder counted at every depth from 0 through MAX_WALK_DEPTH
-    // inclusive, then the walk stops instead of continuing forever.
-    expect(stats.folderCount).toBe(MAX_WALK_DEPTH + 1);
   });
 });
 

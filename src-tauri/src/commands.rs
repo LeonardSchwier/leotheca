@@ -175,6 +175,56 @@ pub fn workspace_stats(path: String) -> Result<WorkspaceStats, String> {
     })
 }
 
+/// Recursively finds every markdown (`.md`) file under `path` in one native
+/// traversal, instead of one `list_dir` IPC round trip per directory the way
+/// `linking/store.ts`'s `findMarkdownFiles` used to walk it from the
+/// TypeScript side. That per-directory approach measured at ~83 seconds
+/// across ~514 `list_dir` calls on a real 580-note vault (see ROADMAP.md's
+/// "Directory Walk Caching"): each call's fixed IPC overhead dominated, not
+/// the underlying filesystem read, so batching the whole walk into one
+/// native call removes that overhead without introducing any caching or
+/// staleness assumption (this always does a full, fresh traversal, it just
+/// does it in Rust instead of round-tripping through JavaScript once per
+/// directory). Shares `workspace_stats`'s `MAX_WALK_DEPTH` symlink-cycle
+/// guard and its hidden-entry skip. Returned in filesystem discovery order,
+/// not sorted; the caller (`rebuildLinkIndex`) already sorts by path itself.
+#[tauri::command]
+pub fn find_markdown_files(path: String) -> Result<Vec<FsEntry>, String> {
+    fn walk(path: &Path, depth: usize, files: &mut Vec<FsEntry>) -> Result<(), String> {
+        for entry in fs::read_dir(path).map_err(|error| error.to_string())? {
+            let entry = entry.map_err(|error| error.to_string())?;
+            let entry_path = entry.path();
+            let name = entry.file_name();
+            let name_str = name.to_string_lossy().to_string();
+            if name_str.starts_with('.') {
+                continue;
+            }
+
+            if entry_path.is_dir() {
+                if depth < MAX_WALK_DEPTH {
+                    walk(&entry_path, depth + 1, files)?;
+                }
+            } else if entry_path
+                .extension()
+                .and_then(|extension| extension.to_str())
+                .is_some_and(|extension| extension.eq_ignore_ascii_case("md"))
+            {
+                files.push(FsEntry {
+                    name: name_str,
+                    path: entry_path.to_string_lossy().to_string(),
+                    is_dir: false,
+                    mtime: entry_mtime_ms(&entry_path),
+                });
+            }
+        }
+        Ok(())
+    }
+
+    let mut files = Vec::new();
+    walk(Path::new(&path), 0, &mut files)?;
+    Ok(files)
+}
+
 /// Lists the immediate children of `path`, directories first, both sorted
 /// alphabetically. Hidden entries (dotfiles) are skipped.
 #[tauri::command]
@@ -572,6 +622,92 @@ mod tests {
             stats.average_lines_per_note, 1.5,
             "3 lines from the readable file, averaged over both notes"
         );
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn find_markdown_files_collects_md_files_recursively_and_skips_others() {
+        let root = std::env::temp_dir().join(format!("leotheca-test-findmd-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        create_dir(root.join("notes").to_string_lossy().to_string()).unwrap();
+        create_dir(root.join(".leotheca").to_string_lossy().to_string()).unwrap();
+        fs::write(root.join("a.md"), "a").unwrap();
+        fs::write(root.join("notes").join("b.MD"), "b").unwrap();
+        fs::write(root.join("notes").join("c.txt"), "not markdown").unwrap();
+        File::create(root.join(".leotheca").join("ignored.md")).unwrap();
+        File::create(root.join(".hidden.md")).unwrap();
+
+        let files = find_markdown_files(root.to_string_lossy().to_string()).unwrap();
+        let mut names: Vec<_> = files.iter().map(|f| f.name.clone()).collect();
+        names.sort();
+
+        assert_eq!(names, vec!["a.md", "b.MD"], "only .md files outside hidden directories, case-insensitively");
+        assert!(files.iter().all(|f| !f.is_dir));
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn find_markdown_files_reports_a_real_mtime_for_every_file() {
+        let root =
+            std::env::temp_dir().join(format!("leotheca-test-findmd-mtime-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        create_dir(root.to_string_lossy().to_string()).unwrap();
+        fs::write(root.join("a.md"), "a").unwrap();
+
+        let files = find_markdown_files(root.to_string_lossy().to_string()).unwrap();
+
+        assert_eq!(files.len(), 1);
+        assert!(files[0].mtime.is_some());
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn find_markdown_files_returns_an_empty_list_for_a_workspace_with_no_notes() {
+        let root = std::env::temp_dir().join(format!(
+            "leotheca-test-findmd-empty-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        create_dir(root.to_string_lossy().to_string()).unwrap();
+        fs::write(root.join("not-a-note.txt"), "x").unwrap();
+
+        let files = find_markdown_files(root.to_string_lossy().to_string()).unwrap();
+
+        assert!(files.is_empty());
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn find_markdown_files_stops_at_a_bounded_depth_instead_of_recursing_forever_through_a_symlink_cycle() {
+        // Same shape as workspace_stats's own symlink-cycle test: a
+        // directory symlinked back at itself. The main thing this proves is
+        // that the call returns at all, in bounded work, instead of hanging
+        // or crashing; see that test's own comment for why an exact count
+        // isn't asserted (the OS's own ELOOP protection can independently
+        // stop the walk at or below MAX_WALK_DEPTH).
+        let root = std::env::temp_dir().join(format!(
+            "leotheca-test-findmd-cycle-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        create_dir(root.to_string_lossy().to_string()).unwrap();
+        fs::write(root.join("a.md"), "a").unwrap();
+        std::os::unix::fs::symlink(&root, root.join("loop")).unwrap();
+
+        let files = find_markdown_files(root.to_string_lossy().to_string()).unwrap();
+
+        // "a.md" is rediscovered once per depth level the cycle revisits
+        // (root's own content, seen again through each nested "loop"), so a
+        // correct depth cap bounds the count instead of it growing forever.
+        assert!(!files.is_empty(), "the walk should have found a.md at least once");
+        assert!(
+            files.len() <= MAX_WALK_DEPTH + 1,
+            "MAX_WALK_DEPTH should cap how many times a.md is rediscovered through the cycle, got {}",
+            files.len()
+        );
+
+        fs::remove_file(root.join("loop")).unwrap();
         fs::remove_dir_all(&root).unwrap();
     }
 

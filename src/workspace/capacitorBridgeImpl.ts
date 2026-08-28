@@ -4,7 +4,6 @@ import { Style, StatusBar } from "@capacitor/status-bar";
 import { registerPlugin } from "@capacitor/core";
 import type { FsEntry } from "./types";
 import type { WorkspaceStats } from "../settings/VaultStatsPanel";
-import { isImagePath, MAX_WALK_DEPTH } from "./types";
 import { mapWithConcurrency } from "./concurrency";
 
 /**
@@ -34,9 +33,26 @@ interface NativeEntry {
   mtime?: number;
 }
 
+/** One markdown file discovered by a native recursive workspace walk, see
+ * findMarkdownFiles below. `relativePath` is relative to the walked root
+ * (URI-joined with "/" by the native side), not yet prefixed with this
+ * app's own workspace-relative path string. */
+interface NativeMarkdownFile {
+  relativePath: string;
+  uri: string;
+  mtime?: number;
+}
+
+interface WorkspaceWalkResult {
+  markdownFiles: NativeMarkdownFile[];
+  folderCount: number;
+  imageCount: number;
+}
+
 interface FolderAccessPlugin {
   pickFolder(): Promise<{ uri: string | null }>;
   listDir(options: { uri: string }): Promise<{ entries: NativeEntry[] }>;
+  findMarkdownFiles(options: { uri: string }): Promise<WorkspaceWalkResult>;
   readTextFile(options: { uri: string }): Promise<{ content: string }>;
   writeTextFile(options: {
     uri?: string;
@@ -309,63 +325,68 @@ export async function fileSrc(path: string): Promise<string> {
   return dataUrl;
 }
 
-/** Desktop computes this in one Rust filesystem traversal; there is no
- * native command to call into on Android, so this walks the same tree
- * through the plain `listDir`/`readTextFile` functions above instead.
- * Note: oldest/newest note dates are not available here (SAF's directory
- * listing does not surface a per-entry timestamp through this plugin
- * today), unlike the desktop implementation. */
+/** Walks `rootPath`'s entire subtree in a single native call
+ * (FolderAccessPlugin.java's findMarkdownFiles), instead of one Capacitor
+ * plugin round trip per directory the way a naive recursive `listDir`-based
+ * walk would need. That per-directory approach measured at 90+ seconds on a
+ * real ~580-note SAF-backed vault (confirmed on-device, session 53): the
+ * JS/native bridge call itself is the dominant cost, not the underlying SAF
+ * queries, so this removes that overhead by doing the whole recursive walk
+ * (depth cap, dotfile skip, and all) on the native side in one round trip.
+ * Shared by both findMarkdownFiles and getWorkspaceStats below, since they
+ * need the same underlying walk and would otherwise duplicate it. */
+async function walkWorkspace(rootPath: string): Promise<WorkspaceWalkResult> {
+  const uri = await resolveUri(rootPath);
+  return FolderAccess.findMarkdownFiles({ uri });
+}
+
+/** Recursively finds every markdown file under `rootPath`. `deps.walk`
+ * defaults to the real native walk; tests inject a stand-in instead of
+ * mocking the underlying Capacitor plugin call, the same seam
+ * getWorkspaceStats below already used before this change. */
+export async function findMarkdownFiles(
+  rootPath: string,
+  deps: { walk: typeof walkWorkspace } = { walk: walkWorkspace },
+): Promise<FsEntry[]> {
+  const { markdownFiles } = await deps.walk(rootPath);
+  return markdownFiles.map(({ relativePath, uri, mtime }) => {
+    const path = `${rootPath}/${relativePath}`;
+    pathToUri.set(path, uri);
+    return { name: pathBasename(path), path, isDir: false, mtime };
+  });
+}
+
 // At most this many notes are read concurrently while computing workspace
 // statistics, same reasoning (and same helper) as the link index's own
-// concurrency cap: a fully-sequential one-file-at-a-time walk over a real
-// SAF-backed vault of ~580 notes measured at 90+ seconds in practice
-// (confirmed on-device, session 53), noticeably worse than opening the
-// same workspace (which already has this fix via rebuildLinkIndex).
+// concurrency cap: reading every note's content one at a time is still
+// real, separate work from the walk itself (see walkWorkspace above),
+// which this bounds instead of dispatching all reads at once.
 const WORKSPACE_STATS_READ_CONCURRENCY = 8;
 
-/** `deps` defaults to this module's own `listDir`/`readTextFile`; the
+/** `deps` defaults to this module's own `walkWorkspace`/`readTextFile`; the
  * parameter exists so tests can inject stand-ins without needing to mock
  * this file's own exports out from under itself, which ESM makes awkward
- * for same-file self-calls. */
+ * for same-file self-calls. Note: oldest/newest note dates are not
+ * available here (SAF's directory listing does not surface a per-entry
+ * creation timestamp through this plugin today), unlike the desktop
+ * implementation. */
 export async function getWorkspaceStats(
   rootPath: string,
-  deps: { listDir: typeof listDir; readTextFile: typeof readTextFile } = { listDir, readTextFile },
+  deps: { walk: typeof walkWorkspace; readTextFile: typeof readTextFile } = { walk: walkWorkspace, readTextFile },
 ): Promise<WorkspaceStats> {
-  let folderCount = 0;
-  let imageCount = 0;
-  const notePaths: string[] = [];
+  const { markdownFiles, folderCount, imageCount } = await deps.walk(rootPath);
 
-  // Phase 1: walk the tree collecting note paths (cheap listDir calls
-  // only, no content reads) — same two-phase shape as rebuildLinkIndex,
-  // so the expensive part (reading every note's content) can run with
-  // bounded concurrency instead of one file at a time.
-  async function walk(path: string, depth: number): Promise<void> {
-    const entries = await deps.listDir(path);
-    for (const entry of entries) {
-      if (entry.isDir) {
-        folderCount++;
-        if (depth < MAX_WALK_DEPTH) await walk(entry.path, depth + 1);
-      } else if (entry.name.toLowerCase().endsWith(".md")) {
-        notePaths.push(entry.path);
-      } else if (isImagePath(entry.path)) {
-        imageCount++;
-      }
-    }
-  }
-  await walk(rootPath, 0);
-
-  // Phase 2: read every note's content, bounded concurrency.
   let totalNoteLines = 0;
-  await mapWithConcurrency(notePaths, WORKSPACE_STATS_READ_CONCURRENCY, async (notePath) => {
-    const contents = await deps.readTextFile(notePath);
+  await mapWithConcurrency(markdownFiles, WORKSPACE_STATS_READ_CONCURRENCY, async (note) => {
+    const contents = await deps.readTextFile(`${rootPath}/${note.relativePath}`);
     totalNoteLines += contents.length === 0 ? 0 : contents.split("\n").length;
   });
 
   return {
     folderCount,
-    noteCount: notePaths.length,
+    noteCount: markdownFiles.length,
     imageCount,
-    averageLinesPerNote: notePaths.length === 0 ? 0 : totalNoteLines / notePaths.length,
+    averageLinesPerNote: markdownFiles.length === 0 ? 0 : totalNoteLines / markdownFiles.length,
     oldestNoteDate: null,
     newestNoteDate: null,
   };

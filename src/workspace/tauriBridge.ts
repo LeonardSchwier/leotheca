@@ -13,6 +13,7 @@ const impl = Capacitor.isNativePlatform() ? android : desktop;
 export const pickWorkspaceFolder = impl.pickWorkspaceFolder;
 export const restoreWorkspaceAccess = impl.restoreWorkspaceAccess;
 export const listDir = impl.listDir;
+export const findMarkdownFiles = impl.findMarkdownFiles;
 export const readTextFile = impl.readTextFile;
 export const writeTextFile = impl.writeTextFile;
 export const writeBinaryFile = impl.writeBinaryFile;

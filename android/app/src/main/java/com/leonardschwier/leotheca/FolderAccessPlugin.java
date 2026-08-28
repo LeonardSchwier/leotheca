@@ -122,6 +122,106 @@ public class FolderAccessPlugin extends Plugin {
         }
     }
 
+    /**
+     * A shared depth cap for the recursive walk below, matching
+     * MAX_WALK_DEPTH in src/workspace/types.ts and commands.rs (a constant
+     * can't cross the Capacitor bridge any more than it can cross Tauri's
+     * IPC boundary, hence three separate copies). Guards against a symlink
+     * inside a workspace pointing back at one of its own ancestors; SAF
+     * exposes no canonical-path/cycle-detection primitive to do better than
+     * a plain depth cap here either.
+     */
+    private static final int MAX_WALK_DEPTH = 40;
+
+    private static boolean isImageName(String name) {
+        String lower = name.toLowerCase();
+        return lower.endsWith(".png") || lower.endsWith(".jpg") || lower.endsWith(".jpeg")
+            || lower.endsWith(".gif") || lower.endsWith(".webp") || lower.endsWith(".svg")
+            || lower.endsWith(".bmp") || lower.endsWith(".ico");
+    }
+
+    private void walkForMarkdownFiles(
+        DocumentFile dir,
+        String relativePrefix,
+        int depth,
+        JSArray markdownFiles,
+        int[] folderCount,
+        int[] imageCount
+    ) {
+        for (DocumentFile child : dir.listFiles()) {
+            String name = child.getName();
+            if (name == null || name.startsWith(".")) continue;
+
+            if (child.isDirectory()) {
+                folderCount[0]++;
+                if (depth < MAX_WALK_DEPTH) {
+                    walkForMarkdownFiles(
+                        child,
+                        relativePrefix.isEmpty() ? name : relativePrefix + "/" + name,
+                        depth + 1,
+                        markdownFiles,
+                        folderCount,
+                        imageCount
+                    );
+                }
+            } else if (name.toLowerCase().endsWith(".md")) {
+                JSObject entry = new JSObject();
+                entry.put("relativePath", relativePrefix.isEmpty() ? name : relativePrefix + "/" + name);
+                entry.put("uri", child.getUri().toString());
+                long mtime = child.lastModified();
+                if (mtime > 0) {
+                    entry.put("mtime", mtime);
+                }
+                markdownFiles.put(entry);
+            } else if (isImageName(name)) {
+                imageCount[0]++;
+            }
+        }
+    }
+
+    /**
+     * Recursively finds every markdown file under `uri`, plus the folder
+     * and image counts along the way, in a single plugin call, instead of
+     * one `listDir` bridge round trip per directory. The JS/native
+     * Capacitor bridge call itself is the dominant cost of a naive
+     * recursive walk (confirmed on a real ~580-note SAF-backed vault,
+     * session 53: 90+ seconds for the old per-directory approach), not the
+     * underlying SAF queries, so batching the whole recursion into one
+     * native call removes that overhead. Backs both
+     * capacitorBridgeImpl.ts's findMarkdownFiles (used by
+     * linking/store.ts's rebuildLinkIndex) and its getWorkspaceStats.
+     */
+    @PluginMethod
+    public void findMarkdownFiles(PluginCall call) {
+        String uriStr = call.getString("uri");
+        if (uriStr == null) {
+            call.reject("uri is required");
+            return;
+        }
+        try {
+            DocumentFile dir = DocumentFile.fromTreeUri(getContext(), Uri.parse(uriStr));
+            if (dir == null || !dir.isDirectory()) {
+                dir = DocumentFile.fromSingleUri(getContext(), Uri.parse(uriStr));
+            }
+            if (dir == null || !dir.isDirectory()) {
+                call.reject("Not a directory: " + uriStr);
+                return;
+            }
+            JSArray markdownFiles = new JSArray();
+            int[] folderCount = { 0 };
+            int[] imageCount = { 0 };
+            walkForMarkdownFiles(dir, "", 0, markdownFiles, folderCount, imageCount);
+
+            JSObject ret = new JSObject();
+            ret.put("markdownFiles", markdownFiles);
+            ret.put("folderCount", folderCount[0]);
+            ret.put("imageCount", imageCount[0]);
+            call.resolve(ret);
+        } catch (Exception e) {
+            call.reject(e.getMessage(), e);
+        }
+    }
+
     @PluginMethod
     public void readTextFile(PluginCall call) {
         String uriStr = call.getString("uri");

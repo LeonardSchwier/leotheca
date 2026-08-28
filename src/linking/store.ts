@@ -1,7 +1,7 @@
 import { signal } from "@preact/signals";
-import { listDir, readTextFile, writeTextFile } from "../workspace/tauriBridge";
+import { findMarkdownFiles as walkMarkdownFiles, readTextFile, writeTextFile } from "../workspace/tauriBridge";
 import { mapWithConcurrency } from "../workspace/concurrency";
-import { MAX_WALK_DEPTH, type FsEntry } from "../workspace/types";
+import type { FsEntry } from "../workspace/types";
 import { extractAliases } from "./frontmatter";
 import { extractTags } from "../tags/tags";
 
@@ -52,22 +52,17 @@ function noteNameFromPath(path: string): string {
   return path.split("/").pop()?.replace(/\.md$/i, "") ?? path;
 }
 
+/** Delegates to a single native recursive walk (see tauriBridge.ts's
+ * findMarkdownFiles) instead of recursing here via repeated `listDir`
+ * calls, one per directory: that per-directory approach measured at ~83s
+ * across ~514 calls on a real 580-note vault (see ROADMAP.md's "Directory
+ * Walk Caching"), almost entirely IPC/bridge overhead rather than actual
+ * disk time. The depth cap against a workspace symlink cycle now lives
+ * natively too (commands.rs's MAX_WALK_DEPTH, FolderAccessPlugin.java's own
+ * copy), not here. */
 async function findMarkdownFiles(rootPath: string): Promise<FsEntry[]> {
-  const files: FsEntry[] = [];
-
-  async function walk(path: string, depth: number) {
-    const entries = await listDir(path);
-    for (const entry of entries) {
-      if (entry.isDir) {
-        if (depth < MAX_WALK_DEPTH) await walk(entry.path, depth + 1);
-      } else if (entry.name.toLowerCase().endsWith(".md")) {
-        files.push(entry);
-      }
-    }
-  }
-
-  await walk(rootPath, 0);
-  return files.sort((a, b) => a.path.localeCompare(b.path));
+  const files = await walkMarkdownFiles(rootPath);
+  return files.slice().sort((a, b) => a.path.localeCompare(b.path));
 }
 
 // At most this many notes are read concurrently while rebuilding the link

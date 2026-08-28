@@ -39,11 +39,15 @@ export function isImagePath(path: string): boolean {
   return !!ext && IMAGE_EXTENSIONS.has(ext);
 }
 
-/** A shared depth cap for every recursive directory walk over a workspace
- * (fileTreeStore.ts's expandAll/runSearch, linking/store.ts's
- * findMarkdownFiles, capacitorBridgeImpl.ts's getWorkspaceStats; the Rust
- * `workspace_stats` command has its own equivalent constant, since it
- * can't share this one across the IPC boundary). Guards against a symlink
+/** A shared depth cap for every recursive directory walk still done from
+ * the TypeScript side over a workspace (fileTreeStore.ts's
+ * expandAll/runSearch). `linking/store.ts`'s findMarkdownFiles and
+ * capacitorBridgeImpl.ts's getWorkspaceStats used to walk from here too,
+ * before both moved to a single native recursive call per platform
+ * (commands.rs's `find_markdown_files`/`workspace_stats`,
+ * FolderAccessPlugin.java's `findMarkdownFiles`) to avoid one IPC/bridge
+ * round trip per directory; those each keep their own equivalent constant,
+ * since it can't cross the IPC/bridge boundary. Guards against a symlink
  * inside a workspace pointing back at one of its own ancestors, which
  * would otherwise recurse forever: `listDir` (Rust `list_dir`, and
  * Android's SAF-backed equivalent) follows symlinks and none of these

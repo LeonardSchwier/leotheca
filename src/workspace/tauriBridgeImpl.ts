@@ -23,6 +23,16 @@ export async function listDir(path: string): Promise<FsEntry[]> {
   return invoke<FsEntry[]>("list_dir", { path });
 }
 
+/** Recursively finds every markdown file under `path` in a single native
+ * call, instead of one `listDir` round trip per directory (see
+ * commands.rs's `find_markdown_files` for why: ~83s across ~514 calls on a
+ * real 580-note vault, all IPC overhead rather than actual disk time). Used
+ * by linking/store.ts's rebuildLinkIndex; nothing else needs a full
+ * recursive walk of the whole workspace the way that does. */
+export async function findMarkdownFiles(path: string): Promise<FsEntry[]> {
+  return invoke<FsEntry[]>("find_markdown_files", { path });
+}
+
 export async function readTextFile(path: string): Promise<string> {
   return invoke<string>("read_text_file", { path });
 }

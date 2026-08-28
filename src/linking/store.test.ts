@@ -7,15 +7,14 @@ import {
   resetLinkIndexCache,
   resolveWikilink,
 } from "./store";
-import { MAX_WALK_DEPTH } from "../workspace/types";
 
-const { listDir, readTextFile, writeTextFile } = vi.hoisted(() => ({
-  listDir: vi.fn(),
+const { findMarkdownFiles, readTextFile, writeTextFile } = vi.hoisted(() => ({
+  findMarkdownFiles: vi.fn(),
   readTextFile: vi.fn(),
   writeTextFile: vi.fn(),
 }));
 
-vi.mock("../workspace/tauriBridge", () => ({ listDir, readTextFile, writeTextFile }));
+vi.mock("../workspace/tauriBridge", () => ({ findMarkdownFiles, readTextFile, writeTextFile }));
 
 const CACHE_PATH = "/workspace/.leotheca/link-index-cache.json";
 
@@ -49,15 +48,10 @@ describe("wikilink index", () => {
   });
 
   it("indexes case-insensitive links and backlinks", async () => {
-    listDir.mockImplementation(async (path: string) => {
-      if (path === "/workspace") {
-        return [
-          { name: "Notes", path: "/workspace/Notes", isDir: true },
-          { name: "Alpha.md", path: "/workspace/Alpha.md", isDir: false },
-        ];
-      }
-      return [{ name: "Beta.MD", path: "/workspace/Notes/Beta.MD", isDir: false }];
-    });
+    findMarkdownFiles.mockResolvedValue([
+      { name: "Alpha.md", path: "/workspace/Alpha.md", isDir: false },
+      { name: "Beta.MD", path: "/workspace/Notes/Beta.MD", isDir: false },
+    ]);
     readTextFile.mockImplementation(async (path: string) => {
       if (path === CACHE_PATH) throw new Error("no cache file yet");
       return path.endsWith("Alpha.md") ? "[[beta]] [[Missing]] [[Beta]]" : "[[ALPHA]]";
@@ -71,7 +65,7 @@ describe("wikilink index", () => {
   });
 
   it("sets linkIndexBuilding while rebuilding and clears it once done", async () => {
-    listDir.mockResolvedValueOnce([{ name: "Alpha.md", path: "/workspace/Alpha.md", isDir: false }]);
+    findMarkdownFiles.mockResolvedValueOnce([{ name: "Alpha.md", path: "/workspace/Alpha.md", isDir: false }]);
     // Call order: the cache-file load happens first, then the note read.
     readTextFile.mockImplementationOnce(async () => {
       throw new Error("no cache file yet");
@@ -87,7 +81,7 @@ describe("wikilink index", () => {
 
   it("clears linkIndexBuilding even if a read fails, and never has more than the concurrency cap in flight", async () => {
     const paths = Array.from({ length: 20 }, (_, i) => `/workspace/note-${i}.md`);
-    listDir.mockResolvedValueOnce(paths.map((path, i) => ({ name: `note-${i}.md`, path, isDir: false })));
+    findMarkdownFiles.mockResolvedValueOnce(paths.map((path, i) => ({ name: `note-${i}.md`, path, isDir: false })));
 
     let inFlight = 0;
     let maxInFlight = 0;
@@ -128,11 +122,7 @@ describe("rebuildLinkIndex: mtime-based caching", () => {
   });
 
   it("does not re-read a note's content on a second call when its mtime hasn't changed", async () => {
-    listDir.mockImplementation(async (path: string) =>
-      path === "/workspace"
-        ? [{ name: "a.md", path: "/workspace/a.md", isDir: false, mtime: 1000 }]
-        : [],
-    );
+    findMarkdownFiles.mockResolvedValue([{ name: "a.md", path: "/workspace/a.md", isDir: false, mtime: 1000 }]);
     rejectCacheLoad();
     readTextFile.mockImplementation(async (path: string) => {
       if (path === CACHE_PATH) throw new Error("no cache file yet");
@@ -151,11 +141,9 @@ describe("rebuildLinkIndex: mtime-based caching", () => {
 
   it("does re-read a note's content when its mtime has changed since the last call", async () => {
     let mtime = 1000;
-    listDir.mockImplementation(async (path: string) =>
-      path === "/workspace"
-        ? [{ name: "a.md", path: "/workspace/a.md", isDir: false, mtime }]
-        : [],
-    );
+    findMarkdownFiles.mockImplementation(async () => [
+      { name: "a.md", path: "/workspace/a.md", isDir: false, mtime },
+    ]);
     readTextFile.mockImplementation(async (path: string) => {
       if (path === CACHE_PATH) throw new Error("no cache file yet");
       return "content";
@@ -170,9 +158,7 @@ describe("rebuildLinkIndex: mtime-based caching", () => {
   });
 
   it("always re-reads a note with no mtime available, rather than risking a stale cache hit", async () => {
-    listDir.mockImplementation(async (path: string) =>
-      path === "/workspace" ? [{ name: "a.md", path: "/workspace/a.md", isDir: false }] : [],
-    );
+    findMarkdownFiles.mockResolvedValue([{ name: "a.md", path: "/workspace/a.md", isDir: false }]);
     readTextFile.mockImplementation(async (path: string) => {
       if (path === CACHE_PATH) throw new Error("no cache file yet");
       return "content";
@@ -186,11 +172,7 @@ describe("rebuildLinkIndex: mtime-based caching", () => {
   });
 
   it("loads a persisted cache file and uses it to skip a read on the very first call in a session", async () => {
-    listDir.mockImplementation(async (path: string) =>
-      path === "/workspace"
-        ? [{ name: "a.md", path: "/workspace/a.md", isDir: false, mtime: 1000 }]
-        : [],
-    );
+    findMarkdownFiles.mockResolvedValue([{ name: "a.md", path: "/workspace/a.md", isDir: false, mtime: 1000 }]);
     readTextFile.mockImplementation(async (path: string) => {
       if (path === CACHE_PATH) {
         return JSON.stringify({
@@ -211,11 +193,7 @@ describe("rebuildLinkIndex: mtime-based caching", () => {
   });
 
   it("ignores a persisted cache file from an incompatible version", async () => {
-    listDir.mockImplementation(async (path: string) =>
-      path === "/workspace"
-        ? [{ name: "a.md", path: "/workspace/a.md", isDir: false, mtime: 1000 }]
-        : [],
-    );
+    findMarkdownFiles.mockResolvedValue([{ name: "a.md", path: "/workspace/a.md", isDir: false, mtime: 1000 }]);
     readTextFile.mockImplementation(async (path: string) => {
       if (path === CACHE_PATH) {
         return JSON.stringify({
@@ -232,11 +210,7 @@ describe("rebuildLinkIndex: mtime-based caching", () => {
   });
 
   it("saves the rebuilt cache to disk after a successful call", async () => {
-    listDir.mockImplementation(async (path: string) =>
-      path === "/workspace"
-        ? [{ name: "a.md", path: "/workspace/a.md", isDir: false, mtime: 1000 }]
-        : [],
-    );
+    findMarkdownFiles.mockResolvedValue([{ name: "a.md", path: "/workspace/a.md", isDir: false, mtime: 1000 }]);
     rejectCacheLoad();
     readTextFile.mockImplementation(async (path: string) => {
       if (path === CACHE_PATH) throw new Error("no cache file yet");
@@ -263,7 +237,7 @@ describe("rebuildLinkIndex: mtime-based caching", () => {
       { name: "a.md", path: "/workspace/a.md", isDir: false, mtime: 1000 },
       { name: "b.md", path: "/workspace/b.md", isDir: false, mtime: 1000 },
     ];
-    listDir.mockImplementation(async (path: string) => (path === "/workspace" ? entries : []));
+    findMarkdownFiles.mockImplementation(async () => entries);
     readTextFile.mockImplementation(async (path: string) => {
       if (path === CACHE_PATH) throw new Error("no cache file yet");
       return "";
@@ -280,11 +254,7 @@ describe("rebuildLinkIndex: mtime-based caching", () => {
   });
 
   it("a failure to save the cache does not fail the whole rebuild", async () => {
-    listDir.mockImplementation(async (path: string) =>
-      path === "/workspace"
-        ? [{ name: "a.md", path: "/workspace/a.md", isDir: false, mtime: 1000 }]
-        : [],
-    );
+    findMarkdownFiles.mockResolvedValue([{ name: "a.md", path: "/workspace/a.md", isDir: false, mtime: 1000 }]);
     rejectCacheLoad();
     readTextFile.mockImplementation(async (path: string) => {
       if (path === CACHE_PATH) throw new Error("no cache file yet");
@@ -313,14 +283,10 @@ describe("rebuildLinkIndex: aliases", () => {
   });
 
   function setupTwoNotes(betaFrontmatter: string, alphaBody: string) {
-    listDir.mockImplementation(async (path: string) =>
-      path === "/workspace"
-        ? [
-            { name: "Alpha.md", path: "/workspace/Alpha.md", isDir: false },
-            { name: "Beta.md", path: "/workspace/Beta.md", isDir: false },
-          ]
-        : [],
-    );
+    findMarkdownFiles.mockResolvedValue([
+      { name: "Alpha.md", path: "/workspace/Alpha.md", isDir: false },
+      { name: "Beta.md", path: "/workspace/Beta.md", isDir: false },
+    ]);
     readTextFile.mockImplementation(async (path: string) => {
       if (path === CACHE_PATH) throw new Error("no cache file yet");
       if (path.endsWith("Beta.md")) return betaFrontmatter;
@@ -356,14 +322,10 @@ describe("rebuildLinkIndex: aliases", () => {
   });
 
   it("prefers a real note name over a same-text alias declared by another note", async () => {
-    listDir.mockImplementation(async (path: string) =>
-      path === "/workspace"
-        ? [
-            { name: "Alpha.md", path: "/workspace/Alpha.md", isDir: false },
-            { name: "Beta.md", path: "/workspace/Beta.md", isDir: false },
-          ]
-        : [],
-    );
+    findMarkdownFiles.mockResolvedValue([
+      { name: "Alpha.md", path: "/workspace/Alpha.md", isDir: false },
+      { name: "Beta.md", path: "/workspace/Beta.md", isDir: false },
+    ]);
     readTextFile.mockImplementation(async (path: string) => {
       if (path === CACHE_PATH) throw new Error("no cache file yet");
       // Beta claims "Alpha" as its own alias, colliding with Alpha's real name.
@@ -389,11 +351,7 @@ describe("rebuildLinkIndex: aliases", () => {
   });
 
   it("caches aliases the same way it caches wikilinks (no re-read when mtime is unchanged)", async () => {
-    listDir.mockImplementation(async (path: string) =>
-      path === "/workspace"
-        ? [{ name: "a.md", path: "/workspace/a.md", isDir: false, mtime: 1000 }]
-        : [],
-    );
+    findMarkdownFiles.mockResolvedValue([{ name: "a.md", path: "/workspace/a.md", isDir: false, mtime: 1000 }]);
     readTextFile.mockImplementation(async (path: string) => {
       if (path === CACHE_PATH) throw new Error("no cache file yet");
       return "---\naliases: [Foo]\n---\n";
@@ -425,14 +383,10 @@ describe("rebuildLinkIndex: tags", () => {
   });
 
   function setupTwoNotes(alphaBody: string, betaBody: string) {
-    listDir.mockImplementation(async (path: string) =>
-      path === "/workspace"
-        ? [
-            { name: "Alpha.md", path: "/workspace/Alpha.md", isDir: false },
-            { name: "Beta.md", path: "/workspace/Beta.md", isDir: false },
-          ]
-        : [],
-    );
+    findMarkdownFiles.mockResolvedValue([
+      { name: "Alpha.md", path: "/workspace/Alpha.md", isDir: false },
+      { name: "Beta.md", path: "/workspace/Beta.md", isDir: false },
+    ]);
     readTextFile.mockImplementation(async (path: string) => {
       if (path === CACHE_PATH) throw new Error("no cache file yet");
       if (path.endsWith("Alpha.md")) return alphaBody;
@@ -470,11 +424,7 @@ describe("rebuildLinkIndex: tags", () => {
   });
 
   it("caches tags the same way it caches wikilinks and aliases (no re-read when mtime is unchanged)", async () => {
-    listDir.mockImplementation(async (path: string) =>
-      path === "/workspace"
-        ? [{ name: "a.md", path: "/workspace/a.md", isDir: false, mtime: 1000 }]
-        : [],
-    );
+    findMarkdownFiles.mockResolvedValue([{ name: "a.md", path: "/workspace/a.md", isDir: false, mtime: 1000 }]);
     readTextFile.mockImplementation(async (path: string) => {
       if (path === CACHE_PATH) throw new Error("no cache file yet");
       return "#foo";
@@ -487,38 +437,5 @@ describe("rebuildLinkIndex: tags", () => {
     await rebuildLinkIndex("/workspace");
     expect(readTextFile).not.toHaveBeenCalledWith("/workspace/a.md");
     expect(linkIndex.value.tagsByPath.get("/workspace/a.md")).toEqual(["foo"]);
-  });
-});
-
-describe("rebuildLinkIndex: symlink cycle guard", () => {
-  beforeEach(() => {
-    vi.resetAllMocks();
-    writeTextFile.mockResolvedValue(undefined);
-    linkIndex.value = {
-      backlinksByPath: new Map(),
-      pathsByNoteName: new Map(),
-      pathsByAlias: new Map(),
-      aliasesByPath: new Map(),
-      pathsByTag: new Map(),
-      tagsByPath: new Map(),
-    };
-    resetLinkIndexCache();
-  });
-
-  it("stops descending at MAX_WALK_DEPTH instead of recursing forever through a directory that always reports one more subfolder", async () => {
-    // Simulates a workspace symlink cycle (a folder symlinked back to one
-    // of its own ancestors, see ROADMAP.md's "Symlink Cycle Handling"):
-    // every directory reports exactly one child folder, forever.
-    listDir.mockImplementation(async (path: string) => [
-      { name: "loop", path: `${path}/loop`, isDir: true },
-    ]);
-
-    await expect(rebuildLinkIndex("/workspace")).resolves.toBeUndefined();
-
-    // listDir is called once per directory level actually descended into
-    // (the root, plus one call per recursive step up to the depth cap),
-    // not the cache-file read (that goes through readTextFile, not
-    // listDir).
-    expect(listDir).toHaveBeenCalledTimes(MAX_WALK_DEPTH + 1);
   });
 });

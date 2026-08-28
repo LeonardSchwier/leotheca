@@ -110,6 +110,8 @@ describe("SettingsPanel", () => {
     expect(queryByText("Attachments folder")).toBeNull();
     expect(queryByText("Frontmatter properties panel")).toBeNull();
     expect(queryByText("Tags")).toBeNull();
+    expect(queryByText("Templates")).toBeNull();
+    expect(queryByText("Templates folder")).toBeNull();
   });
 
   it("shows and wires the delete behavior switch once a workspace is open", () => {
@@ -190,6 +192,24 @@ describe("SettingsPanel", () => {
     expect(within(row).getByText("On").className).toContain("active");
     fireEvent.click(within(row).getByText("Off"));
     expect(updateWorkspaceSettings).toHaveBeenCalledWith({ tagsEnabled: false });
+  });
+
+  it("shows and wires the templates switch", () => {
+    workspacePath.value = "/vault";
+    workspaceSettings.value = { ...DEFAULT_WORKSPACE_SETTINGS, templatesEnabled: true };
+    const { getByText } = render(<SettingsPanel />);
+    const row = getByText("Templates").closest(".settings-row") as HTMLElement;
+    expect(within(row).getByText("On").className).toContain("active");
+    fireEvent.click(within(row).getByText("Off"));
+    expect(updateWorkspaceSettings).toHaveBeenCalledWith({ templatesEnabled: false });
+  });
+
+  it("wires the templates folder text input", () => {
+    workspacePath.value = "/vault";
+    const { getByPlaceholderText } = render(<SettingsPanel />);
+    const input = getByPlaceholderText("Templates") as HTMLInputElement;
+    fireEvent.input(input, { target: { value: "Notes/Templates" } });
+    expect(updateWorkspaceSettings).toHaveBeenCalledWith({ templatesFolder: "Notes/Templates" });
   });
 
   it("wires the default view mode switch and marks the active option", () => {

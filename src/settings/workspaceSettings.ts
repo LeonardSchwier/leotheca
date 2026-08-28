@@ -95,6 +95,19 @@ export interface WorkspaceSettings {
    * policy. Off, the panel is empty and rebuildLinkIndex doesn't build
    * pathsByTag/tagsByPath at all, the same as before this feature existed. */
   tagsEnabled: boolean;
+  /** Whether the "New note from template" command (see
+   * workspace/fileTreeStore.ts's listTemplates/createNoteFromTemplate) is
+   * offered at all. Defaults to on; ships as its own opt-out toggle
+   * because this item's own ROADMAP.md entry requires "a separate
+   * opt-out setting for each new capability" it adds. Off, the command
+   * palette entry doesn't appear, the same as before this feature existed. */
+  templatesEnabled: boolean;
+  /** Where template notes are read from, as a path relative to the
+   * workspace root (see listTemplates). Every Markdown file directly
+   * inside this folder (not recursive, so the picker stays a flat list)
+   * is offered as a template; a missing folder just means no templates
+   * yet, not an error. */
+  templatesFolder: string;
 }
 
 export const MIN_UI_ZOOM = 50;
@@ -122,6 +135,8 @@ export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   frontmatterPropertiesEnabled: true,
   graphColorGroups: [],
   tagsEnabled: true,
+  templatesEnabled: true,
+  templatesFolder: "Templates",
 };
 
 // Plain string join is intentional here (not a path-resolution API call):

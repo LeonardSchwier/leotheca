@@ -61,6 +61,8 @@ const { renameEntry } = vi.hoisted(() => ({
 vi.mock("../workspace/fileTreeStore", () => ({
   renameEntry,
   createNoteQuick: vi.fn(),
+  createNoteFromTemplate: vi.fn(),
+  listTemplates: vi.fn(async () => []),
   runSearch: vi.fn(),
   selectedDir: signal<string | null>(null),
 }));

@@ -6,6 +6,7 @@ const {
   listDir,
   findAllFiles,
   findAllEntries,
+  readTextFile,
   readTextFilesBatch,
   writeTextFile,
   createDir,
@@ -16,6 +17,7 @@ const {
   listDir: vi.fn<(path: string) => Promise<FsEntry[]>>(async () => []),
   findAllFiles: vi.fn<(path: string) => Promise<FsEntry[]>>(async () => []),
   findAllEntries: vi.fn<(path: string) => Promise<FsEntry[]>>(async () => []),
+  readTextFile: vi.fn<(path: string) => Promise<string>>(async () => ""),
   readTextFilesBatch: vi.fn<(paths: string[]) => Promise<(string | null)[]>>(async (paths) => paths.map(() => null)),
   writeTextFile: vi.fn<(path: string, contents: string) => Promise<void>>(async () => {}),
   createDir: vi.fn<(path: string) => Promise<void>>(async () => {}),
@@ -28,6 +30,7 @@ vi.mock("./tauriBridge", () => ({
   listDir,
   findAllFiles,
   findAllEntries,
+  readTextFile,
   readTextFilesBatch,
   writeTextFile,
   createDir,
@@ -60,6 +63,8 @@ const {
   createNote,
   createNoteQuick,
   createFolder,
+  createNoteFromTemplate,
+  listTemplates,
   renameEntry,
   deleteEntry,
   runSearch,
@@ -182,6 +187,67 @@ describe("createFolder", () => {
     listDir.mockResolvedValue([entry("New Folder", true)]);
     await expect(createFolder("/workspace", "New Folder")).rejects.toThrow(/already exists/);
     expect(createDir).not.toHaveBeenCalled();
+  });
+});
+
+describe("listTemplates", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    workspaceSettings.value = DEFAULT_WORKSPACE_SETTINGS;
+  });
+
+  it("lists only Markdown files directly inside the configured templates folder", async () => {
+    listDir.mockResolvedValue([
+      entry("Meeting Notes.md"),
+      entry("Weekly Review.MD"),
+      entry("cover.png"),
+      entry("Nested", true),
+    ]);
+    const templates = await listTemplates("/workspace");
+    expect(listDir).toHaveBeenCalledWith("/workspace/Templates");
+    expect(templates).toEqual([
+      { name: "Meeting Notes.md", path: "/workspace/Meeting Notes.md" },
+      { name: "Weekly Review.MD", path: "/workspace/Weekly Review.MD" },
+    ]);
+  });
+
+  it("reads from the workspace's configured templates folder, not just the default", async () => {
+    workspaceSettings.value = { ...DEFAULT_WORKSPACE_SETTINGS, templatesFolder: "Notes/Snippets" };
+    listDir.mockResolvedValue([]);
+    await listTemplates("/workspace");
+    expect(listDir).toHaveBeenCalledWith("/workspace/Notes/Snippets");
+  });
+
+  it("returns an empty list rather than throwing when the templates folder doesn't exist", async () => {
+    listDir.mockRejectedValue(new Error("not found"));
+    await expect(listTemplates("/workspace")).resolves.toEqual([]);
+  });
+});
+
+describe("createNoteFromTemplate", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  const template = { name: "Meeting Notes.md", path: "/workspace/Templates/Meeting Notes.md" };
+
+  it("copies the template's content verbatim into a note named after it", async () => {
+    listDir.mockResolvedValue([]);
+    readTextFile.mockResolvedValue("---\nagenda: []\n---\n\n# Notes\n");
+    const result = await createNoteFromTemplate("/workspace", template);
+    expect(result).toEqual({ path: "/workspace/Meeting Notes.md", name: "Meeting Notes.md" });
+    expect(readTextFile).toHaveBeenCalledWith(template.path);
+    expect(writeTextFile).toHaveBeenCalledWith(
+      "/workspace/Meeting Notes.md",
+      "---\nagenda: []\n---\n\n# Notes\n",
+    );
+  });
+
+  it("counts up past an existing note with the template's name, the same way createNoteQuick does", async () => {
+    listDir.mockResolvedValue([entry("Meeting Notes.md"), entry("Meeting Notes 2.md")]);
+    readTextFile.mockResolvedValue("template body");
+    const result = await createNoteFromTemplate("/workspace", template);
+    expect(result).toEqual({ path: "/workspace/Meeting Notes 3.md", name: "Meeting Notes 3.md" });
   });
 });
 

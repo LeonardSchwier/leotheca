@@ -113,26 +113,37 @@ jobs:
       - run: npx vite build
       - run: npx cap sync android
       - name: Restore persisted debug keystore
-        # Every GitHub Actions run is a fresh VM with no ~/.android/debug.keystore,
-        # so without this, the Android Gradle Plugin silently generates a brand new
-        # one (same alias/password, different key material) on every single build.
-        # Each dev-build then carries a different signature, and Android refuses to
-        # install any of them as an update over the previous one
-        # (INSTALL_FAILED_UPDATE_INCOMPATIBLE), confirmed on-device 2026-08-28: every
-        # dev-build had to be uninstalled and reinstalled from scratch. A fixed cache
-        # key with no version-dependent parts means the same keystore is restored on
-        # every run once it exists; the one time it's genuinely missing (first run
-        # ever, or the cache entry expired from seven days of disuse), Gradle creates
-        # it as usual and actions/cache saves that one for next time.
+        # Every GitHub Actions run is a fresh VM with no debug.keystore yet,
+        # so without this, the Android Gradle Plugin silently generates a
+        # brand new one (same alias/password, different key material) on
+        # every single build. Each dev-build then carries a different
+        # signature, and Android refuses to install any of them as an
+        # update over the previous one (INSTALL_FAILED_UPDATE_INCOMPATIBLE),
+        # confirmed on-device 2026-08-28: every dev-build had to be
+        # uninstalled and reinstalled from scratch. A fixed cache key with
+        # no version-dependent parts means the same keystore is restored on
+        # every run once it exists; the one time it's genuinely missing
+        # (first run ever, or the cache entry expired from seven days of
+        # disuse), Gradle creates it as usual and actions/cache saves that
+        # one for next time.
+        #
+        # The path is ~/.config/.android/debug.keystore, not the older
+        # ~/.android/debug.keystore some AGP docs/tutorials still show:
+        # confirmed directly against this exact CI image (temurin 21 /
+        # android-actions/setup-android@v3, 2026-08-28) with a one-off
+        # `find $HOME -iname debug.keystore*` step, not assumed from an
+        # older AGP version's behavior. Caching the wrong path silently
+        # cost nothing at cache-restore time (actions/cache just no-ops on
+        # a miss) but also silently never saved anything either, so this
+        # step looked like it was working while doing nothing at all until
+        # checked on a real second build.
         uses: actions/cache@v4
         with:
-          path: ~/.android/debug.keystore
+          path: ~/.config/.android/debug.keystore
           key: android-debug-keystore
       - name: Build debug APK
         working-directory: android
         run: ./gradlew assembleDebug
-      - name: DIAGNOSTIC find debug.keystore
-        run: find "$HOME" -iname "debug.keystore*" 2>/dev/null; echo "HOME=$HOME"
       - uses: actions/upload-artifact@v4
         with:
           name: android-debug-apk

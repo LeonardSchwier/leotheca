@@ -40,7 +40,7 @@ export const readTextFile = impl.readTextFile;
 
 `desktop` is `tauriBridgeImpl.ts` (calls into the Rust commands in `src-tauri/src/commands.rs` via Tauri's `invoke`). `android` is `capacitorBridgeImpl.ts` (calls into the custom `FolderAccessPlugin` described below). Every other module in the frontend imports from `tauriBridge.ts` and is written as if there were one platform; the dispatcher is the only place that needs to know two exist. When adding a new file operation, add it to both `*Impl.ts` files and re-export it from `tauriBridge.ts`, not to call sites directly.
 
-This is why a third platform (macOS, Windows, once they exist) is expected to be a third `*Impl.ts` file plus a dispatcher branch, not a rewrite.
+macOS and Windows (both real build targets now, see "Desktop shell: Tauri" below) reuse `tauriBridgeImpl.ts` as-is, unlike Android: they're both still the same Tauri desktop shell talking to the same real filesystem via `std::fs`, just a different OS underneath, so no third `*Impl.ts` file was needed. The one real cross-platform wrinkle this surfaced: `Path::to_string_lossy()` returns backslash-separated paths on Windows, while every path this project already handles (`dirname`, `relativePath`, wikilink resolution, `workspace/paths.ts`) assumes a forward-slash string join is safe, true only while Linux and Android (both forward-slash) were the only targets. Fixed once, in `commands.rs`'s `path_to_string`, at the one place every path crosses on its way to the frontend, rather than teaching every consumer about `\`.
 
 ## Desktop shell: Tauri
 

@@ -1,12 +1,15 @@
 /**
- * Pure path-string helpers for absolute, forward-slash workspace paths
- * (see workspaceSettings.ts's own comment on why a plain string join is
- * fine here: both target platforms use forward slashes, and everything
- * is always relative to a workspace path this app already owns). Kept
- * separate from fileTreeStore.ts's own small path helpers (dirname,
- * relativePath) so both the editor (inserting a link to a newly saved
- * attachment) and the preview (resolving that link back to a real file)
- * can share this logic without a new dependency between those two layers.
+ * Pure path-string helpers for absolute, forward-slash workspace paths.
+ * A plain string join is safe here on every desktop platform, including
+ * Windows: `commands.rs`'s `path_to_string` normalizes every path to
+ * forward slashes at the one place a real filesystem path crosses into
+ * the frontend, specifically so this module (and fileTreeStore.ts's own
+ * small path helpers, dirname/relativePath) never needs to know Windows
+ * paths are natively backslash-separated. Kept separate from
+ * fileTreeStore.ts's helpers so both the editor (inserting a link to a
+ * newly saved attachment) and the preview (resolving that link back to a
+ * real file) can share this logic without a new dependency between those
+ * two layers.
  */
 
 function normalizeSegments(path: string): string[] {

@@ -44,7 +44,7 @@
 - ⬜ **F-Droid Submission**: Complete a real build and submission attempt using the existing draft metadata, then resolve any reproducibility or inclusion-policy findings.
 - ⬜ **Flathub Submission**: Complete domain verification, final metadata review, and the real submission using the already-green Flatpak CI artifact.
 - 🚧 **Expand-All Native Traversal** (claim: Claude-Code-cloud-20260828T1816Z, 2026-08-28T18:16Z, branch: agent/expand-all-native-traversal): Replace the remaining per-directory bridge calls in expand-all with the existing single native traversal pattern to remove avoidable latency on large workspaces.
-- ⬜ **Additional Desktop Platforms**: Add macOS and Windows build targets, then complete the prepared macOS package and direct Windows release packaging.
+- 🚧 **Additional Desktop Platforms** (claim: Claude-Code-cloud-20260828T1829Z, 2026-08-28T18:29Z, branch: agent/additional-desktop-platforms): Add macOS and Windows build targets, then complete the prepared macOS package and direct Windows release packaging.
 - ⬜ **Themes, Snippets, and Templates**: Add local extensibility for appearance and reusable note content, with a separate opt-out setting for each new capability.
 - ⬜ **Web Clipper**: Provide a local browser extension that saves selected web content into ordinary Markdown notes without adding an in-app network dependency.
 - ⬜ **Whiteboards and Canvas**: Add an infinite spatial view for notes, images, documents, and connected cards using an open, file-based canvas format.

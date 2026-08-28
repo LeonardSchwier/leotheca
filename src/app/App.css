@@ -787,3 +787,97 @@ button.icon-button.active {
   text-align: right;
   padding-left: var(--space-4);
 }
+
+@media (max-width: 720px) {
+  .toolbar {
+    flex-shrink: 0;
+    gap: var(--space-1);
+    padding-right: var(--space-2);
+    padding-left: var(--space-2);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .toolbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .toolbar > * {
+    flex-shrink: 0;
+  }
+
+  .app-title,
+  .app-title-hint {
+    display: none;
+  }
+
+  .toolbar-spacer {
+    min-width: var(--space-2);
+  }
+
+  .toolbar button.icon-button,
+  .view-mode-switch button {
+    width: 44px;
+    height: 44px;
+  }
+
+  .app-body {
+    position: relative;
+  }
+
+  .sidebar {
+    position: absolute;
+    inset: 0;
+    z-index: 10;
+    width: 100% !important;
+    border-right: none;
+  }
+
+  .sidebar-resize-handle {
+    display: none;
+  }
+
+  .sidebar-toolbar button.icon-button {
+    width: 44px;
+    height: 44px;
+  }
+
+  .sidebar-search input,
+  .file-tree-item,
+  .context-menu button {
+    min-height: 44px;
+  }
+
+  .sidebar-search input {
+    padding-right: 44px;
+  }
+
+  .search-clear,
+  .modal-close {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .search-clear {
+    right: 0;
+    font-size: 14px;
+  }
+
+  .file-tree-item {
+    padding-right: var(--space-3);
+    padding-left: var(--space-2);
+  }
+
+  .tab {
+    min-height: 44px;
+  }
+
+  .tab-close {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .markdown-preview {
+    padding: var(--space-4);
+  }
+}

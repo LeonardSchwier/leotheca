@@ -24,6 +24,7 @@
 - ✅ **Dependency Security Audit**: Remove the vulnerable nested build dependency chain and verify that the package audit reports no known vulnerabilities.
 - ✅ **Workspace Statistics Wording**: Distinguish an empty workspace from platforms that cannot provide file dates.
 - ✅ **Direct Interface Zoom**: Change the persisted workspace interface scale with Ctrl+Plus, Ctrl+Minus, Ctrl+0, or a Ctrl-modified wheel gesture while respecting the Settings limits.
+- ✅ **Mobile Navigation and Touch Targets**: Use a full-width narrow-screen file browser that closes after note navigation, keep toolbar actions horizontally reachable, and enlarge primary touch targets.
 - ✅ **Project Documentation and Screenshots**: Document setup, behavior, packaging, and current interface views.
 
 ## Open
@@ -43,7 +44,6 @@
 - ⬜ **F-Droid Submission**: Complete a real build and submission attempt using the existing draft metadata, then resolve any reproducibility or inclusion-policy findings.
 - ⬜ **Flathub Submission**: Complete domain verification, final metadata review, and the real submission using the already-green Flatpak CI artifact.
 - ⬜ **Expand-All Native Traversal**: Replace the remaining per-directory bridge calls in expand-all with the existing single native traversal pattern to remove avoidable latency on large workspaces.
-- 🚧 **Mobile Polish**: Improve narrow-screen navigation and touch interactions beyond the existing Android folder access and collapsible sidebar. (claim: Codex-cloud-20260828T1729Z, 2026-08-28T17:29Z, branch: agent/mobile-polish)
 - ⬜ **Additional Desktop Platforms**: Add macOS and Windows build targets, then complete the prepared macOS package and direct Windows release packaging.
 - ⬜ **Themes, Snippets, and Templates**: Add local extensibility for appearance and reusable note content, with a separate opt-out setting for each new capability.
 - ⬜ **Web Clipper**: Provide a local browser extension that saves selected web content into ordinary Markdown notes without adding an in-app network dependency.

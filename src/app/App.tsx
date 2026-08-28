@@ -47,6 +47,7 @@ import { GraphView } from "../graph/GraphView";
 import { MarkdownHelpDialog } from "./MarkdownHelpDialog";
 import { CommandPalette, type Command } from "./CommandPalette";
 import { nextUiZoom, zoomActionForKey, zoomActionForWheel } from "./zoomControls";
+import { isNarrowViewport } from "./responsiveLayout";
 
 // Plain inline SVG, not the 🔖 emoji this used to use: it rendered as an
 // unrelated (reportedly pepper-shaped) glyph on Android, the same class of
@@ -185,6 +186,7 @@ export function App() {
         const content = await readTextFile(path);
         openOrFocusTab(path, name, content, "text");
       }
+      if (isNarrowViewport(window.innerWidth)) sidebarOpen.value = false;
       refresh();
     },
     [refresh],

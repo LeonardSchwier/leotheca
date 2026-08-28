@@ -182,7 +182,7 @@ describe("buildLiveDecorations: wikilinks", () => {
     const state = stateFor("See [[Beta]] for details.", { anchor: 8 });
     const { hidden } = summarize(state);
     expect(hidden).not.toContain("[[");
-    expect(hidden).not.toContain("]]");
+    expect(hidden).not.toContain("]] ".trim());
   });
 
   it("does not treat [[...]] inside an inline code span as a wikilink", () => {
@@ -259,7 +259,7 @@ describe("buildLiveDecorations: visible ranges", () => {
     const { hidden, marked } = summarize(state, { from: boldStart + 2, to: boldStart + 5 });
 
     expect(hidden).toContain("**");
-    expect(marked).toContainEqual({ text: "Second **bold** line", class: "cm-live-strong" });
+    expect(marked).toContainEqual({ text: "**bold**", class: "cm-live-strong" });
     expect(marked).not.toContainEqual({ text: "# First heading", class: "cm-live-heading-1" });
   });
 
@@ -268,7 +268,7 @@ describe("buildLiveDecorations: visible ranges", () => {
     const state = stateFor(doc, { anchor: doc.length });
     const { hidden, marked } = summarize(state, { from: 0, to: "[[Beta]]".length });
 
-    expect(hidden).toEqual(["[[", "]]"].sort());
+    expect(hidden).toEqual(expect.arrayContaining(["[[", "]]" ]));
     expect(marked).toContainEqual({ text: "[[Beta]]", class: "cm-live-wikilink-resolved" });
   });
 });

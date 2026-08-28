@@ -169,6 +169,18 @@ describe("createNoteQuick", () => {
     expect(result.name).toBe("Untitled 4.md");
     expect(result.path).toBe("/workspace/Untitled 4.md");
   });
+
+  it("stamps the usual blank frontmatter when no content is given", async () => {
+    listDir.mockResolvedValue([]);
+    await createNoteQuick("/workspace");
+    expect(writeTextFile).toHaveBeenCalledWith("/workspace/Untitled.md", expect.stringContaining("created:"));
+  });
+
+  it("writes the given content verbatim instead, when provided", async () => {
+    listDir.mockResolvedValue([]);
+    await createNoteQuick("/workspace", "Clipped from an automation command");
+    expect(writeTextFile).toHaveBeenCalledWith("/workspace/Untitled.md", "Clipped from an automation command");
+  });
 });
 
 describe("createFolder", () => {

@@ -2,6 +2,8 @@ import { signal, useSignal } from "@preact/signals";
 import { useCallback, useEffect, useMemo, useRef, useState } from "preact/hooks";
 import type { ComponentType } from "preact";
 import { Capacitor } from "@capacitor/core";
+import { getCurrent as getCurrentDeepLinkUrls, onOpenUrl } from "@tauri-apps/plugin-deep-link";
+import { writeText as writeClipboardText } from "@tauri-apps/plugin-clipboard-manager";
 import { Sidebar } from "../workspace/Sidebar";
 import { TabBar } from "../workspace/TabBar";
 import { MarkdownEditor } from "../editor/MarkdownEditor";
@@ -50,6 +52,7 @@ import {
 } from "../workspace/fileTreeStore";
 import { NamePrompt } from "../workspace/NamePrompt";
 import { TemplatePicker } from "../workspace/TemplatePicker";
+import { parseAutomationUrl } from "./automationCommands";
 import { useResizableSidebar } from "./useResizableSidebar";
 import "./resizable-sidebar.css";
 import { GraphView } from "../graph/GraphView";
@@ -211,6 +214,49 @@ export function App() {
     setTemplatePicker(null);
     await handleOpenFile(path, name);
   };
+
+  const runAutomationUrl = useCallback(
+    async (url: string) => {
+      const command = parseAutomationUrl(url);
+      if (!command) return;
+      if (command.kind === "read-current-note") {
+        // Silently does nothing without an open text note: there is
+        // nothing sensible to copy, and this command has no channel back
+        // to whatever external tool triggered it to report an error.
+        const activeNote = activeTab();
+        if (activeNote?.kind === "text") void writeClipboardText(activeNote.content);
+        return;
+      }
+      // Same reasoning: a "new-note" command that arrives before any
+      // workspace is open has nowhere to create the note, so it's a
+      // silent no-op rather than a confusing error dialog for something
+      // an external tool triggered, not the user directly.
+      if (!workspacePath.value) return;
+      const targetDir = selectedDir.value ?? workspacePath.value;
+      const { path, name } = await createNoteQuick(targetDir, command.content);
+      await handleOpenFile(path, name);
+    },
+    [handleOpenFile],
+  );
+
+  // Local inter-application automation (see automationCommands.ts and
+  // ROADMAP.md's "Local Automation Commands"): registers this window to
+  // receive leotheca:// URLs. Desktop (Tauri) only, this plugin has no
+  // Android/Capacitor equivalent (see CONSTITUTION.md's "Technology
+  // stack"), so it's skipped entirely on Android rather than calling into
+  // a native bridge that isn't there.
+  useEffect(() => {
+    if (Capacitor.isNativePlatform()) return;
+    let cancelled = false;
+    void getCurrentDeepLinkUrls().then((urls) => {
+      if (!cancelled) urls?.forEach((url) => void runAutomationUrl(url));
+    });
+    const unlistenPromise = onOpenUrl((urls) => urls.forEach((url) => void runAutomationUrl(url)));
+    return () => {
+      cancelled = true;
+      void unlistenPromise.then((unlisten) => unlisten());
+    };
+  }, [runAutomationUrl]);
 
   const handleChange = useCallback(
     (path: string, content: string) => {

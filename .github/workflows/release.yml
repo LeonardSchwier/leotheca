@@ -131,6 +131,8 @@ jobs:
       - name: Build debug APK
         working-directory: android
         run: ./gradlew assembleDebug
+      - name: DIAGNOSTIC find debug.keystore
+        run: find "$HOME" -iname "debug.keystore*" 2>/dev/null; echo "HOME=$HOME"
       - uses: actions/upload-artifact@v4
         with:
           name: android-debug-apk

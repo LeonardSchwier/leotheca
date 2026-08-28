@@ -15,6 +15,7 @@ export const restoreWorkspaceAccess = impl.restoreWorkspaceAccess;
 export const listDir = impl.listDir;
 export const findMarkdownFiles = impl.findMarkdownFiles;
 export const findAllFiles = impl.findAllFiles;
+export const findAllEntries = impl.findAllEntries;
 export const readTextFile = impl.readTextFile;
 export const readTextFilesBatch = impl.readTextFilesBatch;
 export const writeTextFile = impl.writeTextFile;

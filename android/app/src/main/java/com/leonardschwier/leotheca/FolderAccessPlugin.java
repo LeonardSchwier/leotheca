@@ -303,6 +303,80 @@ public class FolderAccessPlugin extends Plugin {
         }
     }
 
+    /**
+     * Same one-native-call recursive walk as walkForAllFiles above, but
+     * also reports directory entries instead of silently walking through
+     * them, for fileTreeStore.ts's expandAll ("Expand All" in the file
+     * tree). findAllFiles cannot back that: it deliberately omits every
+     * directory entry (its only caller, runSearch, only needs files), so a
+     * directory with nothing directly inside it, or nested only under
+     * other empty directories, never appears in its output at all, and
+     * expandAll needs to expand and know about exactly those directories
+     * too, not just ones containing a file somewhere in their subtree.
+     */
+    private void walkForAllEntries(
+        DocumentFile dir,
+        String relativePrefix,
+        int depth,
+        JSArray entries
+    ) {
+        for (DocumentFile child : dir.listFiles()) {
+            String name = child.getName();
+            if (name == null || name.startsWith(".")) continue;
+
+            String childRelativePath = relativePrefix.isEmpty() ? name : relativePrefix + "/" + name;
+            boolean isDir = child.isDirectory();
+            JSObject entry = new JSObject();
+            entry.put("relativePath", childRelativePath);
+            entry.put("uri", child.getUri().toString());
+            entry.put("isDir", isDir);
+            if (!isDir) {
+                long mtime = child.lastModified();
+                if (mtime > 0) {
+                    entry.put("mtime", mtime);
+                }
+            }
+            entries.put(entry);
+
+            if (isDir && depth < MAX_WALK_DEPTH) {
+                walkForAllEntries(child, childRelativePath, depth + 1, entries);
+            }
+        }
+    }
+
+    /**
+     * Backs capacitorBridgeImpl.ts's findAllEntries, used by
+     * fileTreeStore.ts's expandAll. See walkForAllEntries above for why
+     * this is a separate native call from findAllFiles rather than an
+     * "include directories" option on it.
+     */
+    @PluginMethod
+    public void findAllEntries(PluginCall call) {
+        String uriStr = call.getString("uri");
+        if (uriStr == null) {
+            call.reject("uri is required");
+            return;
+        }
+        try {
+            DocumentFile dir = DocumentFile.fromTreeUri(getContext(), Uri.parse(uriStr));
+            if (dir == null || !dir.isDirectory()) {
+                dir = DocumentFile.fromSingleUri(getContext(), Uri.parse(uriStr));
+            }
+            if (dir == null || !dir.isDirectory()) {
+                call.reject("Not a directory: " + uriStr);
+                return;
+            }
+            JSArray entries = new JSArray();
+            walkForAllEntries(dir, "", 0, entries);
+
+            JSObject ret = new JSObject();
+            ret.put("entries", entries);
+            call.resolve(ret);
+        } catch (Exception e) {
+            call.reject(e.getMessage(), e);
+        }
+    }
+
     @PluginMethod
     public void readTextFile(PluginCall call) {
         String uriStr = call.getString("uri");

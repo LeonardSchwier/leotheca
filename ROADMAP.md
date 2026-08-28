@@ -13,6 +13,10 @@ Leotheca ships in waves: coherent, demoable slices rather than a fixed calendar 
 
 Sync is intentionally absent from this table. Leotheca does not build or bundle a hosted sync product, see the README's Sync section.
 
+## Parallel work states
+
+Open implementation work uses the tool-neutral ownership protocol in `CONSTITUTION.md`: `⬜` is open and unclaimed, `🚧` is claimed by one named Codex, Claude Code, or other session, and `✅` is verified and merged. An older open item without an icon is treated as `⬜` until first claimed. No session may implement a `🚧` item or an item whose expected touch set materially overlaps another active claim.
+
 ## Flagged bugs
 
 Bugs noticed during other work that were too large in scope to fix in passing (see `CONSTITUTION.md`'s "Daily automated feature implementation," step 8), logged here instead of fixed on the spot or silently ignored. Newest at the top. Fixing one of these is itself a work-order item once picked up: implement it with the same bar as any other roadmap item (real tests, full verification, self-review), then remove its entry here and note the fix in `agent-log/CHANGELOG.md`.

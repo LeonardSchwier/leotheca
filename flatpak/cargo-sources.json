@@ -4292,14 +4292,14 @@
     {
         "type": "archive",
         "archive-type": "tar-gzip",
-        "url": "https://static.crates.io/crates/toml_edit/toml_edit-0.25.13+spec-1.1.0.crate",
-        "sha256": "6975367e4d2ef766d86af01ffad14b622fecc8d4357a998fbc4deb6e9bacaf9b",
-        "dest": "cargo/vendor/toml_edit-0.25.13+spec-1.1.0"
+        "url": "https://static.crates.io/crates/toml_edit/toml_edit-0.25.5+spec-1.1.0.crate",
+        "sha256": "8ca1a40644a28bce036923f6a431df0b34236949d111cc07cb6dca830c9ef2e1",
+        "dest": "cargo/vendor/toml_edit-0.25.5+spec-1.1.0"
     },
     {
         "type": "inline",
-        "contents": "{\"package\": \"6975367e4d2ef766d86af01ffad14b622fecc8d4357a998fbc4deb6e9bacaf9b\", \"files\": {}}",
-        "dest": "cargo/vendor/toml_edit-0.25.13+spec-1.1.0",
+        "contents": "{\"package\": \"8ca1a40644a28bce036923f6a431df0b34236949d111cc07cb6dca830c9ef2e1\", \"files\": {}}",
+        "dest": "cargo/vendor/toml_edit-0.25.5+spec-1.1.0",
         "dest-filename": ".cargo-checksum.json"
     },
     {

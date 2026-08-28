@@ -1,13 +1,14 @@
 /**
- * Minimal frontmatter parsing, extracting only the `aliases` field, the
- * one frontmatter property anything in this app currently reads (see
- * fileTreeStore.ts's initialNoteContent for the one property it writes,
- * `created`, which nothing reads back yet). Deliberately not a general
- * YAML parser: pulling in a full YAML library for one optional field would
- * be exactly the "dependency for convenience" CONSTITUTION.md's
- * "Reproducibility and supply chain hygiene" rule warns against. The
- * shapes handled here cover both the common hand-written forms and what
- * this app's own frontmatter looks like.
+ * Minimal frontmatter parsing: two specific fields this app's linking and
+ * tagging features read (aliases, tags), plus a generic top-level-field
+ * reader backing the Properties panel (see fileTreeStore.ts's
+ * initialNoteContent for the one property it writes, `created`, which
+ * nothing reads back yet). Deliberately not a general YAML parser: pulling
+ * in a full YAML library for a handful of flat fields would be exactly the
+ * "dependency for convenience" CONSTITUTION.md's "Reproducibility and
+ * supply chain hygiene" rule warns against. The shapes handled here cover
+ * both the common hand-written forms and what this app's own frontmatter
+ * looks like.
  */
 
 const FRONTMATTER_BLOCK = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/;
@@ -26,7 +27,7 @@ function stripQuotes(value: string): string {
   return trimmed;
 }
 
-function parseInlineAliases(inline: string): string[] {
+function parseInlineList(inline: string): string[] {
   if (inline.startsWith("[") && inline.endsWith("]")) {
     return inline
       .slice(1, -1)
@@ -38,33 +39,60 @@ function parseInlineAliases(inline: string): string[] {
   return single ? [single] : [];
 }
 
-function parseBlockAliases(lines: string[], startIndex: number): string[] {
-  const aliases: string[] = [];
+function parseBlockList(lines: string[], startIndex: number): string[] {
+  const items: string[] = [];
   for (let i = startIndex; i < lines.length; i++) {
     const match = /^\s*-\s*(.*)$/.exec(lines[i]);
     if (!match) break;
-    const alias = stripQuotes(match[1]);
-    if (alias) aliases.push(alias);
+    const item = stripQuotes(match[1]);
+    if (item) items.push(item);
   }
-  return aliases;
+  return items;
 }
 
-/** Reads the `aliases:` frontmatter field, as either a single scalar
- * (`aliases: Foo`), an inline list (`aliases: [Foo, Bar]`), or a YAML
- * block list (`aliases:` followed by `  - Foo` lines). Returns an empty
- * array when there's no frontmatter block, or no `aliases` key in it. */
-export function extractAliases(source: string): string[] {
+/** Reads a single top-level list-shaped frontmatter field, as either a
+ * single scalar (`key: Foo`), an inline list (`key: [Foo, Bar]`), or a
+ * YAML block list (`key:` followed by `  - Foo` lines). Returns an empty
+ * array when there's no frontmatter block, or no `key` field in it. Shared
+ * by extractAliases and extractFrontmatterTags below, the only two fields
+ * this app reads this way outside of the generic Properties panel. */
+function extractListField(source: string, key: string): string[] {
   const block = FRONTMATTER_BLOCK.exec(source);
   if (!block) return [];
 
   const lines = block[1].split(/\r?\n/);
+  const pattern = new RegExp(`^${key}:\\s*(.*)$`);
   for (let i = 0; i < lines.length; i++) {
-    const match = /^aliases:\s*(.*)$/.exec(lines[i]);
+    const match = pattern.exec(lines[i]);
     if (!match) continue;
     const inline = match[1].trim();
-    return inline ? parseInlineAliases(inline) : parseBlockAliases(lines, i + 1);
+    return inline ? parseInlineList(inline) : parseBlockList(lines, i + 1);
   }
   return [];
+}
+
+/** Reads the `aliases:` frontmatter field. See extractListField above for
+ * the shapes this understands. */
+export function extractAliases(source: string): string[] {
+  return extractListField(source, "aliases");
+}
+
+/** Reads the `tags:` frontmatter field, the wider note-taking ecosystem's
+ * established convention for tagging a note outside of inline `#tag`
+ * syntax (see tags/tags.ts for that). See extractListField above for the
+ * shapes this understands. */
+export function extractFrontmatterTags(source: string): string[] {
+  return extractListField(source, "tags");
+}
+
+/** Returns `source` with any leading frontmatter block removed, or `source`
+ * unchanged if it doesn't start with one. Used by tags/tags.ts's inline
+ * `#tag` scan so a stray `#` inside the frontmatter block itself (there
+ * isn't normally one, but a `#` in a quoted scalar value is technically
+ * legal YAML) is never mistaken for one. */
+export function stripFrontmatterBlock(source: string): string {
+  const block = FRONTMATTER_BLOCK.exec(source);
+  return block ? source.slice(block[0].length) : source;
 }
 
 export interface ScalarFrontmatterField {
@@ -74,7 +102,7 @@ export interface ScalarFrontmatterField {
 }
 
 /** A list value's items are split on every comma in the source (see
- * parseInlineAliases below, reused here), without regard for quoting, so
+ * parseInlineList below, reused here), without regard for quoting, so
  * an item containing a literal comma does not round-trip correctly. Known,
  * pre-existing limitation of the same simplification extractAliases above
  * already has, not something specific to this generalized parser. */
@@ -140,7 +168,7 @@ export function parseFrontmatterFields(source: string): ParsedFrontmatter {
     const key = match[1];
     const inline = match[2].trim();
     if (inline.startsWith("[") && inline.endsWith("]")) {
-      fields.push({ kind: "list", key, value: parseInlineAliases(inline) });
+      fields.push({ kind: "list", key, value: parseInlineList(inline) });
       i++;
       continue;
     }
@@ -152,7 +180,7 @@ export function parseFrontmatterFields(source: string): ParsedFrontmatter {
 
     // `key:` with nothing inline: either a block list, a nested map this
     // parser doesn't understand, or a genuinely empty scalar.
-    const listItems = parseBlockAliases(lines, i + 1);
+    const listItems = parseBlockList(lines, i + 1);
     const consumedAsList = i + 1 + listItems.length;
     if (listItems.length > 0) {
       fields.push({ kind: "list", key, value: listItems });

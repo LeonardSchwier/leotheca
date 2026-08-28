@@ -54,6 +54,8 @@ afterEach(() => {
     pathsByNoteName: new Map(),
     pathsByAlias: new Map(),
     aliasesByPath: new Map(),
+    pathsByTag: new Map(),
+    tagsByPath: new Map(),
   };
   mockWorkspaceSettings.value = { graphColorGroups: [] };
   mockUpdateWorkspaceSettings.mockClear();
@@ -90,6 +92,8 @@ function withOneNode() {
     pathsByNoteName: new Map(),
     pathsByAlias: new Map(),
     aliasesByPath: new Map(),
+    pathsByTag: new Map(),
+    tagsByPath: new Map(),
   };
 }
 
@@ -219,6 +223,8 @@ describe("GraphView: hides unconnected notes by default", () => {
       pathsByNoteName: new Map(),
       pathsByAlias: new Map(),
       aliasesByPath: new Map(),
+      pathsByTag: new Map(),
+      tagsByPath: new Map(),
     };
   }
 
@@ -231,6 +237,8 @@ describe("GraphView: hides unconnected notes by default", () => {
       pathsByNoteName: new Map(),
       pathsByAlias: new Map(),
       aliasesByPath: new Map(),
+      pathsByTag: new Map(),
+      tagsByPath: new Map(),
     };
     const { getByText, container } = render(<GraphView onOpenFile={vi.fn()} onClose={vi.fn()} />);
     expect(getByText(/No connected notes yet/)).toBeTruthy();
@@ -258,6 +266,8 @@ describe("GraphView: hides unconnected notes by default", () => {
       pathsByNoteName: new Map(),
       pathsByAlias: new Map(),
       aliasesByPath: new Map(),
+      pathsByTag: new Map(),
+      tagsByPath: new Map(),
     };
     const { getByLabelText, container, queryByText } = render(
       <GraphView onOpenFile={vi.fn()} onClose={vi.fn()} />,
@@ -342,6 +352,8 @@ describe("GraphView: local (per-note) graph mode", () => {
       pathsByNoteName: new Map(),
       pathsByAlias: new Map(),
       aliasesByPath: new Map(),
+      pathsByTag: new Map(),
+      tagsByPath: new Map(),
     };
   }
 
@@ -521,6 +533,8 @@ describe("GraphView: filtering", () => {
       pathsByNoteName: new Map(),
       pathsByAlias: new Map(),
       aliasesByPath: new Map(),
+      pathsByTag: new Map(),
+      tagsByPath: new Map(),
     };
   }
 
@@ -592,6 +606,8 @@ describe("GraphView: color groups panel", () => {
       pathsByNoteName: new Map(),
       pathsByAlias: new Map(),
       aliasesByPath: new Map(),
+      pathsByTag: new Map(),
+      tagsByPath: new Map(),
     };
   }
 

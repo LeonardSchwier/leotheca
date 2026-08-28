@@ -89,6 +89,12 @@ export interface WorkspaceSettings {
    * group, so this doesn't change the graph's existing appearance for
    * anyone who never opens the new color-groups panel. */
   graphColorGroups: GraphColorGroup[];
+  /** Whether `#tag` syntax and the `tags:` frontmatter field feed the Tags
+   * panel (see tags/tags.ts and tags/TagsPanel.tsx). Defaults to on; also
+   * an opt-out per CONSTITUTION.md's "Daily competitor feature scan"
+   * policy. Off, the panel is empty and rebuildLinkIndex doesn't build
+   * pathsByTag/tagsByPath at all, the same as before this feature existed. */
+  tagsEnabled: boolean;
 }
 
 export const MIN_UI_ZOOM = 50;
@@ -115,6 +121,7 @@ export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   attachmentsFolder: "",
   frontmatterPropertiesEnabled: true,
   graphColorGroups: [],
+  tagsEnabled: true,
 };
 
 // Plain string join is intentional here (not a path-resolution API call):

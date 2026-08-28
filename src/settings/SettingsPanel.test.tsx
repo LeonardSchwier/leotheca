@@ -109,6 +109,7 @@ describe("SettingsPanel", () => {
     expect(queryByText("Paste images as attachments")).toBeNull();
     expect(queryByText("Attachments folder")).toBeNull();
     expect(queryByText("Frontmatter properties panel")).toBeNull();
+    expect(queryByText("Tags")).toBeNull();
   });
 
   it("shows and wires the delete behavior switch once a workspace is open", () => {
@@ -179,6 +180,16 @@ describe("SettingsPanel", () => {
     expect(within(row).getByText("On").className).toContain("active");
     fireEvent.click(within(row).getByText("Off"));
     expect(updateWorkspaceSettings).toHaveBeenCalledWith({ frontmatterPropertiesEnabled: false });
+  });
+
+  it("shows and wires the tags switch", () => {
+    workspacePath.value = "/vault";
+    workspaceSettings.value = { ...DEFAULT_WORKSPACE_SETTINGS, tagsEnabled: true };
+    const { getByText } = render(<SettingsPanel />);
+    const row = getByText("Tags").closest(".settings-row") as HTMLElement;
+    expect(within(row).getByText("On").className).toContain("active");
+    fireEvent.click(within(row).getByText("Off"));
+    expect(updateWorkspaceSettings).toHaveBeenCalledWith({ tagsEnabled: false });
   });
 
   it("wires the default view mode switch and marks the active option", () => {

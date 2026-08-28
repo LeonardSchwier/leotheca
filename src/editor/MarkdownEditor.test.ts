@@ -23,6 +23,8 @@ function setNotes(names: string[]) {
     pathsByNoteName,
     pathsByAlias: new Map(),
     aliasesByPath: new Map(),
+    pathsByTag: new Map(),
+    tagsByPath: new Map(),
   };
 }
 
@@ -75,6 +77,8 @@ describe("wikilinkCompletions", () => {
       pathsByNoteName: new Map([["duplicate", ["/workspace/a/Duplicate.md", "/workspace/b/Duplicate.md"]]]),
       pathsByAlias: new Map(),
       aliasesByPath: new Map(),
+      pathsByTag: new Map(),
+      tagsByPath: new Map(),
     };
     const doc = "see [[dup";
     const result = wikilinkCompletions(contextAt(doc, doc.length));

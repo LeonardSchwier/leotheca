@@ -17,6 +17,8 @@ afterEach(() => {
     pathsByNoteName: new Map(),
     pathsByAlias: new Map(),
     aliasesByPath: new Map(),
+    pathsByTag: new Map(),
+    tagsByPath: new Map(),
   };
   vi.mocked(fileSrc).mockReset();
 });
@@ -46,6 +48,8 @@ describe("MarkdownPreview", () => {
       pathsByNoteName: new Map([["existing note", ["/vault/existing-note.md"]]]),
       pathsByAlias: new Map(),
       aliasesByPath: new Map(),
+      pathsByTag: new Map(),
+      tagsByPath: new Map(),
     };
     const { container } = render(<MarkdownPreview source="See [[Existing Note]] for details." />);
     const anchor = container.querySelector('a[href^="#leotheca-wikilink="]');
@@ -73,6 +77,8 @@ describe("MarkdownPreview", () => {
       pathsByNoteName: new Map([["existing note", ["/vault/existing-note.md"]]]),
       pathsByAlias: new Map(),
       aliasesByPath: new Map(),
+      pathsByTag: new Map(),
+      tagsByPath: new Map(),
     };
     const onOpenFile = vi.fn();
     const { container } = render(

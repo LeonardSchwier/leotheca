@@ -3,6 +3,7 @@ import { listDir, readTextFile, writeTextFile } from "../workspace/tauriBridge";
 import { mapWithConcurrency } from "../workspace/concurrency";
 import type { FsEntry } from "../workspace/types";
 import { extractAliases } from "./frontmatter";
+import { extractTags } from "../tags/tags";
 
 export interface LinkIndex {
   backlinksByPath: Map<string, string[]>;
@@ -15,6 +16,13 @@ export interface LinkIndex {
    * wikilink autocomplete in MarkdownEditor.tsx). Same on/off gating as
    * pathsByAlias. */
   aliasesByPath: Map<string, string[]>;
+  /** Lowercased tag (see tags/tags.ts's extractTags) -> the notes carrying
+   * it, for the Tags panel. Populated only when
+   * workspaceSettings.tagsEnabled is on. */
+  pathsByTag: Map<string, string[]>;
+  /** Note path -> its own tags, for a note's own tag display. Same on/off
+   * gating as pathsByTag. */
+  tagsByPath: Map<string, string[]>;
 }
 
 const emptyLinkIndex = (): LinkIndex => ({
@@ -22,6 +30,8 @@ const emptyLinkIndex = (): LinkIndex => ({
   pathsByNoteName: new Map(),
   pathsByAlias: new Map(),
   aliasesByPath: new Map(),
+  pathsByTag: new Map(),
+  tagsByPath: new Map(),
 });
 
 export const linkIndex = signal<LinkIndex>(emptyLinkIndex());
@@ -65,12 +75,13 @@ interface CachedNote {
   mtime: number;
   wikilinks: string[];
   aliases: string[];
+  tags: string[];
 }
 
-// Bumped from 1: cached entries now also carry aliases, so an old-shaped
-// cache file (aliases missing) must be treated as a miss and rebuilt from
-// a real read, not trusted with `aliases` silently undefined.
-const LINK_INDEX_CACHE_VERSION = 2;
+// Bumped from 2: cached entries now also carry tags, so an old-shaped
+// cache file (tags missing) must be treated as a miss and rebuilt from a
+// real read, not trusted with `tags` silently undefined.
+const LINK_INDEX_CACHE_VERSION = 3;
 const LINK_INDEX_CACHE_FILENAME = ".leotheca/link-index-cache.json";
 
 /** path -> the wikilinks extracted from that note the last time it was
@@ -139,15 +150,19 @@ export function resetLinkIndexCache(): void {
   loadedCacheRoots.clear();
 }
 
-/** `aliasesEnabled` defaults to on, matching WorkspaceSettings' own default
- * (see settings/workspaceSettings.ts): the caller (App.tsx) passes the
- * live workspace setting explicitly so this module doesn't need to import
- * settings/store.ts itself, which would pull in that module's top-level
- * DOM/window side effects (it applies the theme and font-size CSS
- * variables at import time) into every environment this module is used
- * from, including this file's own tests, which intentionally run in the
- * plain "node" test environment, not jsdom. */
-export async function rebuildLinkIndex(rootPath: string, aliasesEnabled = true): Promise<void> {
+/** `aliasesEnabled`/`tagsEnabled` each default to on, matching
+ * WorkspaceSettings' own defaults (see settings/workspaceSettings.ts): the
+ * caller (App.tsx) passes the live workspace settings explicitly so this
+ * module doesn't need to import settings/store.ts itself, which would pull
+ * in that module's top-level DOM/window side effects (it applies the theme
+ * and font-size CSS variables at import time) into every environment this
+ * module is used from, including this file's own tests, which
+ * intentionally run in the plain "node" test environment, not jsdom. */
+export async function rebuildLinkIndex(
+  rootPath: string,
+  aliasesEnabled = true,
+  tagsEnabled = true,
+): Promise<void> {
   linkIndexBuilding.value = true;
   try {
     await loadPersistedCacheIfNeeded(rootPath);
@@ -157,6 +172,8 @@ export async function rebuildLinkIndex(rootPath: string, aliasesEnabled = true):
     const backlinksByPath = new Map<string, string[]>();
     const pathsByAlias = new Map<string, string[]>();
     const aliasesByPath = new Map<string, string[]>();
+    const pathsByTag = new Map<string, string[]>();
+    const tagsByPath = new Map<string, string[]>();
 
     for (const entry of noteEntries) {
       const key = noteNameFromPath(entry.path).toLocaleLowerCase();
@@ -182,16 +199,19 @@ export async function rebuildLinkIndex(rootPath: string, aliasesEnabled = true):
       const cached = wikilinkCache.get(entry.path);
       let wikilinks: string[];
       let aliases: string[];
+      let tags: string[];
       if (cached && entry.mtime !== undefined && cached.mtime === entry.mtime) {
         wikilinks = cached.wikilinks;
         aliases = cached.aliases;
+        tags = cached.tags;
       } else {
         const source = await readTextFile(entry.path);
         wikilinks = extractWikilinks(source);
         aliases = extractAliases(source);
+        tags = extractTags(source);
       }
       if (entry.mtime !== undefined) {
-        freshCache.set(entry.path, { mtime: entry.mtime, wikilinks, aliases });
+        freshCache.set(entry.path, { mtime: entry.mtime, wikilinks, aliases, tags });
       }
       wikilinksByPath.set(entry.path, wikilinks);
 
@@ -202,6 +222,15 @@ export async function rebuildLinkIndex(rootPath: string, aliasesEnabled = true):
           const paths = pathsByAlias.get(key) ?? [];
           paths.push(entry.path);
           pathsByAlias.set(key, paths);
+        }
+      }
+
+      if (tagsEnabled && tags.length > 0) {
+        tagsByPath.set(entry.path, tags);
+        for (const tag of tags) {
+          const paths = pathsByTag.get(tag) ?? [];
+          paths.push(entry.path);
+          pathsByTag.set(tag, paths);
         }
       }
     });
@@ -218,7 +247,14 @@ export async function rebuildLinkIndex(rootPath: string, aliasesEnabled = true):
     }
 
     wikilinkCache = freshCache;
-    linkIndex.value = { backlinksByPath, pathsByNoteName, pathsByAlias, aliasesByPath };
+    linkIndex.value = {
+      backlinksByPath,
+      pathsByNoteName,
+      pathsByAlias,
+      aliasesByPath,
+      pathsByTag,
+      tagsByPath,
+    };
     await savePersistedCache(rootPath, freshCache);
   } finally {
     linkIndexBuilding.value = false;

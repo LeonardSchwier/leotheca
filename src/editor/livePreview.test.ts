@@ -159,6 +159,8 @@ describe("buildLiveDecorations: wikilinks", () => {
       pathsByNoteName: new Map([["beta", ["/workspace/Beta.md"]]]),
       pathsByAlias: new Map(),
       aliasesByPath: new Map(),
+      pathsByTag: new Map(),
+      tagsByPath: new Map(),
     };
   });
 

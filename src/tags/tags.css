@@ -1,0 +1,60 @@
+.tags-list,
+.tags-children,
+.tags-notes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.tags-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.tags-chevron {
+  flex: 0 0 auto;
+  width: 16px;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0;
+}
+
+.tags-chevron:disabled {
+  cursor: default;
+}
+
+.tags-label {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-2);
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font: inherit;
+  text-align: left;
+  padding: 2px var(--space-2) 2px 2px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.tags-label:hover {
+  background: var(--bg-hover);
+}
+
+.tags-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tags-count {
+  flex: 0 0 auto;
+  color: var(--text-faint);
+  font-size: 11px;
+}

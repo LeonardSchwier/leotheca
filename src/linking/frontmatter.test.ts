@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   applyFrontmatterFields,
   extractAliases,
+  extractFrontmatterTags,
   parseFrontmatterFields,
   type FrontmatterField,
 } from "./frontmatter";
@@ -74,6 +75,41 @@ describe("extractAliases", () => {
   it("handles this app's own generated frontmatter shape unaffected", () => {
     const source = "---\ncreated: 2026-08-27T10:00:00.000Z\n---\n\n";
     expect(extractAliases(source)).toEqual([]);
+  });
+});
+
+// extractFrontmatterTags shares extractListField with extractAliases above
+// (same shapes, different key), so this only covers the shapes and the
+// aliases/tags distinction, not every edge case already exercised above.
+describe("extractFrontmatterTags", () => {
+  it("returns an empty array when there is no frontmatter block", () => {
+    expect(extractFrontmatterTags("# Just a note\n\nNo frontmatter here.")).toEqual([]);
+  });
+
+  it("parses a single scalar tag", () => {
+    expect(extractFrontmatterTags("---\ntags: project\n---\n\nBody.")).toEqual(["project"]);
+  });
+
+  it("parses an inline list", () => {
+    expect(extractFrontmatterTags("---\ntags: [work, journal]\n---\n\nBody.")).toEqual([
+      "work",
+      "journal",
+    ]);
+  });
+
+  it("parses a YAML block list", () => {
+    const source = "---\ntags:\n  - work\n  - journal\n---\n\nBody.";
+    expect(extractFrontmatterTags(source)).toEqual(["work", "journal"]);
+  });
+
+  it("reads tags independently of a note's own aliases field", () => {
+    const source = "---\naliases: [Foo]\ntags: [work]\n---\n\nBody.";
+    expect(extractFrontmatterTags(source)).toEqual(["work"]);
+    expect(extractAliases(source)).toEqual(["Foo"]);
+  });
+
+  it("returns an empty array when the frontmatter has no tags key", () => {
+    expect(extractFrontmatterTags("---\naliases: Foo\n---\n\nBody.")).toEqual([]);
   });
 });
 

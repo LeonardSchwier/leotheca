@@ -37,6 +37,7 @@ import { BacklinksPanel } from "../linking/BacklinksPanel";
 import { linkIndexBuilding, rebuildLinkIndex } from "../linking/store";
 import { BookmarksPanel } from "../bookmarks/BookmarksPanel";
 import { addFileBookmark, bookmarks, loadBookmarks, removeBookmark } from "../bookmarks/store";
+import { TagsPanel } from "../tags/TagsPanel";
 import { createNoteQuick, renameEntry, runSearch, selectedDir } from "../workspace/fileTreeStore";
 import { NamePrompt } from "../workspace/NamePrompt";
 import { useResizableSidebar } from "./useResizableSidebar";
@@ -53,6 +54,15 @@ function BookmarkIcon() {
   return (
     <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round">
       <path d="M5 3h10a1 1 0 0 1 1 1v13l-6-4-6 4V4a1 1 0 0 1 1-1z" />
+    </svg>
+  );
+}
+
+function TagIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M11 3h5a1 1 0 0 1 1 1v5l-8.3 8.3a1 1 0 0 1-1.4 0l-4.6-4.6a1 1 0 0 1 0-1.4L11 3z" />
+      <circle cx="14" cy="7" r="1.1" fill="currentColor" stroke="none" />
     </svg>
   );
 }
@@ -118,6 +128,7 @@ const VIEW_MODE_ICONS: Record<ViewMode, ComponentType> = {
 const AUTOSAVE_DELAY_MS = 400;
 
 const bookmarksOpen = signal(false);
+const tagsOpen = signal(false);
 const graphOpen = signal(false);
 const markdownHelpOpen = signal(false);
 const commandPaletteOpen = signal(false);
@@ -125,6 +136,19 @@ const commandPaletteOpen = signal(false);
 // most of a phone-width screen; open by default on desktop, unchanged from
 // before this toggle existed.
 const sidebarOpen = signal(!Capacitor.isNativePlatform());
+
+/** Bookmarks and Tags both replace the file tree in the sidebar's primary
+ * slot (see the `.sidebar-primary` render below), so opening one closes
+ * the other rather than leaving both toggled on at once, which would
+ * otherwise show two toolbar buttons as simultaneously "active" for a
+ * single visible panel. */
+function toggleSidebarPanel(panel: typeof bookmarksOpen): void {
+  const next = !panel.value;
+  bookmarksOpen.value = false;
+  tagsOpen.value = false;
+  panel.value = next;
+  if (next) sidebarOpen.value = true;
+}
 
 export function App() {
   const saveTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
@@ -138,7 +162,7 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    if (rootPath) void rebuildLinkIndex(rootPath, workspaceSettings.value.frontmatterAliasesEnabled);
+    if (rootPath) void rebuildLinkIndex(rootPath, workspaceSettings.value.frontmatterAliasesEnabled, workspaceSettings.value.tagsEnabled);
   }, [rootPath]);
 
   useEffect(() => {
@@ -253,6 +277,20 @@ export function App() {
     }
   };
 
+  const openTagsPanel = () => {
+    toggleSidebarPanel(tagsOpen);
+    // The link index only rebuilds when the workspace first opens or the
+    // graph view is shown; a note edited since then could have new tags
+    // the panel hasn't seen yet, so refresh right before showing it too.
+    if (tagsOpen.value && rootPath) {
+      void rebuildLinkIndex(
+        rootPath,
+        workspaceSettings.value.frontmatterAliasesEnabled,
+        workspaceSettings.value.tagsEnabled,
+      );
+    }
+  };
+
   const commands = useMemo<Command[]>(() => {
     const list: Command[] = [
       {
@@ -263,11 +301,17 @@ export function App() {
       {
         id: "toggle-bookmarks",
         label: bookmarksOpen.value ? "Hide bookmarks panel" : "Show bookmarks panel",
-        run: () => {
-          bookmarksOpen.value = !bookmarksOpen.value;
-          if (bookmarksOpen.value) sidebarOpen.value = true;
-        },
+        run: () => toggleSidebarPanel(bookmarksOpen),
       },
+      ...(workspaceSettings.value.tagsEnabled
+        ? [
+            {
+              id: "toggle-tags",
+              label: tagsOpen.value ? "Hide tags panel" : "Show tags panel",
+              run: openTagsPanel,
+            },
+          ]
+        : []),
       {
         id: "markdown-help",
         label: "Markdown formatting help",
@@ -288,7 +332,7 @@ export function App() {
         id: "graph-view",
         label: "Open graph view",
         run: () => {
-          void rebuildLinkIndex(rootPath, workspaceSettings.value.frontmatterAliasesEnabled);
+          void rebuildLinkIndex(rootPath, workspaceSettings.value.frontmatterAliasesEnabled, workspaceSettings.value.tagsEnabled);
           graphOpen.value = true;
         },
       });
@@ -333,7 +377,16 @@ export function App() {
       });
     }
     return list;
-  }, [rootPath, current, currentBookmark, sidebarOpen.value, bookmarksOpen.value, openTabs.value]);
+  }, [
+    rootPath,
+    current,
+    currentBookmark,
+    sidebarOpen.value,
+    bookmarksOpen.value,
+    tagsOpen.value,
+    workspaceSettings.value.tagsEnabled,
+    openTabs.value,
+  ]);
 
   const handleTabRenameSubmit = async (newName: string) => {
     if (!tabRename) return;
@@ -400,15 +453,20 @@ export function App() {
           class={`icon-button ${bookmarksOpen.value ? "active" : ""}`}
           aria-label="View bookmarks"
           title="View bookmarks"
-          onClick={() => {
-            bookmarksOpen.value = !bookmarksOpen.value;
-            // The bookmarks list lives inside the sidebar; toggling it
-            // while the sidebar is collapsed used to do nothing visible.
-            if (bookmarksOpen.value) sidebarOpen.value = true;
-          }}
+          onClick={() => toggleSidebarPanel(bookmarksOpen)}
         >
           <BookmarkIcon />
         </button>
+        {workspaceSettings.value.tagsEnabled && (
+          <button
+            class={`icon-button ${tagsOpen.value ? "active" : ""}`}
+            aria-label="View tags"
+            title="View tags"
+            onClick={openTagsPanel}
+          >
+            <TagIcon />
+          </button>
+        )}
         {rootPath && (
           <button
             class="icon-button"
@@ -418,7 +476,7 @@ export function App() {
               // The link index only rebuilds when the workspace first
               // opens; a note edited since then could have new links the
               // graph hasn't seen yet, so refresh right before showing it.
-              if (rootPath) void rebuildLinkIndex(rootPath, workspaceSettings.value.frontmatterAliasesEnabled);
+              if (rootPath) void rebuildLinkIndex(rootPath, workspaceSettings.value.frontmatterAliasesEnabled, workspaceSettings.value.tagsEnabled);
               graphOpen.value = true;
             }}
           >
@@ -457,7 +515,9 @@ export function App() {
               {rootPath ? (
                 <>
                   <div class="sidebar-primary">
-                    {bookmarksOpen.value ? (
+                    {tagsOpen.value && workspaceSettings.value.tagsEnabled ? (
+                      <TagsPanel onOpenFile={handleOpenFile} />
+                    ) : bookmarksOpen.value ? (
                       <BookmarksPanel
                         onOpenFile={handleOpenFile}
                         onRunSearch={(query) => runSearch(rootPath, query)}

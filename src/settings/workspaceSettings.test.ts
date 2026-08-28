@@ -53,6 +53,10 @@ describe("DEFAULT_WORKSPACE_SETTINGS", () => {
   it("defaults graph color groups to empty, so the graph looks unchanged until the user defines one", () => {
     expect(DEFAULT_WORKSPACE_SETTINGS.graphColorGroups).toEqual([]);
   });
+
+  it("defaults tags to on, per the opt-out policy for queued features", () => {
+    expect(DEFAULT_WORKSPACE_SETTINGS.tagsEnabled).toBe(true);
+  });
 });
 
 describe("loadWorkspaceSettings", () => {

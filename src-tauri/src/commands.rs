@@ -366,7 +366,7 @@ pub fn find_all_entries(path: String) -> Result<Vec<FsEntry>, String> {
             let mtime = if is_dir { None } else { entry_mtime_ms(&entry_path) };
             entries.push(FsEntry {
                 name: name_str,
-                path: entry_path.to_string_lossy().to_string(),
+                path: path_to_string(&entry_path),
                 is_dir,
                 mtime,
                 size: None,

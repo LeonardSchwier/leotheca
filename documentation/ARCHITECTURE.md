@@ -27,6 +27,10 @@ Leotheca is a local-first markdown editor with two native shells sharing one fro
 
 There is no backend, no server, no account system. A "workspace" is a folder of `.md` files the user points the app at; everything the app does is read/write operations against that folder plus a small amount of local app configuration. See `PHILOSOPHY.md` for why this is a hard constraint, not just a current implementation detail.
 
+## Optional Web Clipper
+
+`extensions/web-clipper/` is a standalone WebExtension, deliberately outside the application bundles and platform bridges. Its content script converts only the user's current selection into Markdown text, then asks the extension background worker to open the browser's normal save dialog for a `.md` download. The user chooses the workspace folder in that dialog. This keeps the extension from receiving broad filesystem access or any application-to-extension channel, and it adds no network call: it works with content the browser has already displayed. `clipperCore.js` owns the text conversion and has DOM-level tests for empty selections, unsafe links, and ordinary structure; the remaining scripts only connect that deterministic conversion to selection, popup, shortcut, and download APIs.
+
 ## The platform abstraction layer
 
 Every file operation in the frontend goes through `src/workspace/tauriBridge.ts`, a thin dispatcher:

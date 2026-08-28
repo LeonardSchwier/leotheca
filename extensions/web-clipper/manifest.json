@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "Leotheca Web Clipper",
+  "version": "0.1.0",
+  "description": "Save a selected page excerpt as an ordinary Markdown file.",
+  "permissions": ["activeTab", "downloads"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Clip selection"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["clipperCore.js", "content.js"]
+    }
+  ],
+  "commands": {
+    "clip-selection": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+L"
+      },
+      "description": "Clip the current selection"
+    }
+  }
+}

@@ -222,6 +222,78 @@ public class FolderAccessPlugin extends Plugin {
         }
     }
 
+    private void walkForAllFiles(
+        DocumentFile dir,
+        String relativePrefix,
+        int depth,
+        JSArray files
+    ) {
+        for (DocumentFile child : dir.listFiles()) {
+            String name = child.getName();
+            if (name == null || name.startsWith(".")) continue;
+
+            if (child.isDirectory()) {
+                if (depth < MAX_WALK_DEPTH) {
+                    walkForAllFiles(
+                        child,
+                        relativePrefix.isEmpty() ? name : relativePrefix + "/" + name,
+                        depth + 1,
+                        files
+                    );
+                }
+            } else {
+                JSObject entry = new JSObject();
+                entry.put("relativePath", relativePrefix.isEmpty() ? name : relativePrefix + "/" + name);
+                entry.put("uri", child.getUri().toString());
+                long mtime = child.lastModified();
+                if (mtime > 0) {
+                    entry.put("mtime", mtime);
+                }
+                files.put(entry);
+            }
+        }
+    }
+
+    /**
+     * Same one-native-call recursive walk as findMarkdownFiles above, but
+     * with no ".md" filter: every non-hidden file of any extension, for
+     * full-text search (fileTreeStore.ts's runSearch), which needs to match
+     * images and other attachments by name too, not just notes. Before this
+     * existed, runSearch did its own recursive walk via repeated listDir
+     * plugin calls, one per directory: on a real ~500-note SAF-backed
+     * vault this didn't just run slowly (the same per-directory IPC cost
+     * findMarkdownFiles's doc comment above measured), it actually crashed
+     * the app with an OutOfMemoryError partway through (confirmed
+     * on-device, 2026-08-28), which a single-call native walk avoids the
+     * same way findMarkdownFiles already does for the link index.
+     */
+    @PluginMethod
+    public void findAllFiles(PluginCall call) {
+        String uriStr = call.getString("uri");
+        if (uriStr == null) {
+            call.reject("uri is required");
+            return;
+        }
+        try {
+            DocumentFile dir = DocumentFile.fromTreeUri(getContext(), Uri.parse(uriStr));
+            if (dir == null || !dir.isDirectory()) {
+                dir = DocumentFile.fromSingleUri(getContext(), Uri.parse(uriStr));
+            }
+            if (dir == null || !dir.isDirectory()) {
+                call.reject("Not a directory: " + uriStr);
+                return;
+            }
+            JSArray files = new JSArray();
+            walkForAllFiles(dir, "", 0, files);
+
+            JSObject ret = new JSObject();
+            ret.put("files", files);
+            call.resolve(ret);
+        } catch (Exception e) {
+            call.reject(e.getMessage(), e);
+        }
+    }
+
     @PluginMethod
     public void readTextFile(PluginCall call) {
         String uriStr = call.getString("uri");

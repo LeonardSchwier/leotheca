@@ -3,9 +3,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { FsEntry } from "./types";
 import { MAX_WALK_DEPTH } from "./types";
 
-const { listDir, readTextFile, writeTextFile, createDir, renamePath, trashPath, deletePathPermanent } =
+const { listDir, findAllFiles, readTextFile, writeTextFile, createDir, renamePath, trashPath, deletePathPermanent } =
   vi.hoisted(() => ({
     listDir: vi.fn<(path: string) => Promise<FsEntry[]>>(async () => []),
+    findAllFiles: vi.fn<(path: string) => Promise<FsEntry[]>>(async () => []),
     readTextFile: vi.fn<(path: string) => Promise<string>>(async () => ""),
     writeTextFile: vi.fn<(path: string, contents: string) => Promise<void>>(async () => {}),
     createDir: vi.fn<(path: string) => Promise<void>>(async () => {}),
@@ -16,6 +17,7 @@ const { listDir, readTextFile, writeTextFile, createDir, renamePath, trashPath, 
 
 vi.mock("./tauriBridge", () => ({
   listDir,
+  findAllFiles,
   readTextFile,
   writeTextFile,
   createDir,
@@ -210,7 +212,7 @@ describe("runSearch", () => {
   });
 
   it("matches by file name without needing to read that file's content", async () => {
-    listDir.mockResolvedValue([entry("Groceries.md")]);
+    findAllFiles.mockResolvedValue([entry("Groceries.md")]);
     await runSearch("/workspace", "groc");
     expect(searchResults.value?.map((e) => e.name)).toEqual(["Groceries.md"]);
     // A name match short-circuits before the content-read fallback, see the
@@ -219,28 +221,38 @@ describe("runSearch", () => {
   });
 
   it("falls back to content when the name doesn't match", async () => {
-    listDir.mockResolvedValue([entry("Diary.md")]);
+    findAllFiles.mockResolvedValue([entry("Diary.md")]);
     readTextFile.mockResolvedValue("Bought some milk today.");
     await runSearch("/workspace", "milk");
     expect(searchResults.value?.map((e) => e.name)).toEqual(["Diary.md"]);
   });
 
-  it("skips hidden entries like .trash and .leotheca", async () => {
-    listDir.mockResolvedValue([entry(".trash", true), entry(".leotheca", true), entry("note.md")]);
+  it("gets the file list from one native walk, not a per-directory listDir recursion", async () => {
+    // Hidden-entry skipping and the MAX_WALK_DEPTH symlink-cycle guard both
+    // now live entirely in the native walk behind findAllFiles (see
+    // commands.rs/FolderAccessPlugin.java's own tests), not here: this
+    // mock stands in for that walk's already-filtered result. Before this
+    // fix, runSearch did its own recursive listDir walk, one bridge call
+    // per directory, which measured ~83s on a real 580-note vault and
+    // OutOfMemoryError-crashed the app outright on a real ~500-note
+    // Android vault (confirmed on-device, 2026-08-28).
+    findAllFiles.mockResolvedValue([entry("note.md")]);
     await runSearch("/workspace", "note");
-    expect(listDir).toHaveBeenCalledTimes(1);
+    expect(findAllFiles).toHaveBeenCalledTimes(1);
+    expect(findAllFiles).toHaveBeenCalledWith("/workspace");
+    expect(listDir).not.toHaveBeenCalled();
     expect(searchResults.value?.map((e) => e.name)).toEqual(["note.md"]);
   });
 
   it("does not try to read image files as text", async () => {
-    listDir.mockResolvedValue([entry("photo.png")]);
+    findAllFiles.mockResolvedValue([entry("photo.png")]);
     await runSearch("/workspace", "zzz");
     expect(readTextFile).not.toHaveBeenCalled();
     expect(searchResults.value).toEqual([]);
   });
 
   it("skips a file that fails to read instead of failing the whole search", async () => {
-    listDir.mockResolvedValue([entry("a.md"), entry("b.md")]);
+    findAllFiles.mockResolvedValue([entry("a.md"), entry("b.md")]);
     readTextFile.mockImplementation(async (path: string) => {
       if (path.endsWith("a.md")) throw new Error("permission denied");
       return "match this";
@@ -249,9 +261,10 @@ describe("runSearch", () => {
     expect(searchResults.value?.map((e) => e.name)).toEqual(["b.md"]);
   });
 
-  it("clears results for an empty query", async () => {
+  it("clears results for an empty query without walking the workspace at all", async () => {
     await runSearch("/workspace", "   ");
     expect(searchResults.value).toBeNull();
+    expect(findAllFiles).not.toHaveBeenCalled();
   });
 });
 
@@ -272,30 +285,29 @@ describe("runSearch: query operators", () => {
   });
 
   it("matches a tag: filter without reading any file content", async () => {
-    listDir.mockResolvedValue([entry("Project.md"), entry("Journal.md")]);
+    findAllFiles.mockResolvedValue([entry("Project.md"), entry("Journal.md")]);
     await runSearch("/workspace", "tag:work");
     expect(searchResults.value?.map((e) => e.name)).toEqual(["Project.md"]);
     expect(readTextFile).not.toHaveBeenCalled();
   });
 
   it("matches a path: filter as a substring of the path relative to the workspace root", async () => {
-    listDir.mockImplementation(async (path: string) =>
-      path === "/workspace"
-        ? [{ name: "Notes", path: "/workspace/Notes", isDir: true }, entry("Project.md")]
-        : [{ name: "Journal.md", path: "/workspace/Notes/Journal.md", isDir: false }],
-    );
+    findAllFiles.mockResolvedValue([
+      entry("Project.md"),
+      { name: "Journal.md", path: "/workspace/Notes/Journal.md", isDir: false },
+    ]);
     await runSearch("/workspace", "path:Notes");
     expect(searchResults.value?.map((e) => e.name)).toEqual(["Journal.md"]);
   });
 
   it("excludes a note matched by a negated tag: filter", async () => {
-    listDir.mockResolvedValue([entry("Project.md"), entry("Journal.md")]);
+    findAllFiles.mockResolvedValue([entry("Project.md"), entry("Journal.md")]);
     await runSearch("/workspace", "-tag:work");
     expect(searchResults.value?.map((e) => e.name)).toEqual(["Journal.md"]);
   });
 
   it("combines a tag: filter with a plain text term (AND)", async () => {
-    listDir.mockResolvedValue([entry("Project.md"), entry("Journal.md")]);
+    findAllFiles.mockResolvedValue([entry("Project.md"), entry("Journal.md")]);
     readTextFile.mockResolvedValue("some content, no keyword here");
     await runSearch("/workspace", "tag:work Project");
     expect(searchResults.value?.map((e) => e.name)).toEqual(["Project.md"]);
@@ -306,7 +318,7 @@ describe("runSearch: query operators", () => {
   });
 
   it("still falls back to content for the text half of a combined query", async () => {
-    listDir.mockResolvedValue([entry("Project.md")]);
+    findAllFiles.mockResolvedValue([entry("Project.md")]);
     readTextFile.mockResolvedValue("mentions a deadline");
     await runSearch("/workspace", "tag:work deadline");
     expect(searchResults.value?.map((e) => e.name)).toEqual(["Project.md"]);
@@ -317,20 +329,20 @@ describe("runSearch: query operators", () => {
       ...linkIndex.value,
       tagsByPath: new Map([["/workspace/Project.md", ["work/leotheca"]]]),
     };
-    listDir.mockResolvedValue([entry("Project.md")]);
+    findAllFiles.mockResolvedValue([entry("Project.md")]);
     await runSearch("/workspace", "tag:work");
     expect(searchResults.value?.map((e) => e.name)).toEqual(["Project.md"]);
   });
 
   it("never reads content for a tag/path-only query with no matches either", async () => {
-    listDir.mockResolvedValue([entry("Project.md"), entry("Journal.md")]);
+    findAllFiles.mockResolvedValue([entry("Project.md"), entry("Journal.md")]);
     await runSearch("/workspace", "tag:nonexistent");
     expect(searchResults.value).toEqual([]);
     expect(readTextFile).not.toHaveBeenCalled();
   });
 
   it("a failing tag: term skips the read a positive text term would otherwise need", async () => {
-    listDir.mockResolvedValue([entry("Journal.md")]);
+    findAllFiles.mockResolvedValue([entry("Journal.md")]);
     await runSearch("/workspace", "tag:work deadline");
     expect(searchResults.value).toEqual([]);
     expect(readTextFile).not.toHaveBeenCalled();
@@ -348,7 +360,7 @@ describe("runSearch: query operators", () => {
       ...linkIndex.value,
       tagsByPath: new Map([["/workspace/Project.md", ["work"]]]),
     };
-    listDir.mockResolvedValue([entry("Project.md")]);
+    findAllFiles.mockResolvedValue([entry("Project.md")]);
     readTextFile.mockResolvedValue("this mentions badword right here");
     await runSearch("/workspace", "tag:work -badword");
     expect(searchResults.value).toEqual([]);
@@ -362,13 +374,13 @@ describe("runSearch: query operators", () => {
         ["/workspace/Journal.md", ["personal"]],
       ]),
     };
-    listDir.mockResolvedValue([entry("Project.md"), entry("Journal.md"), entry("Other.md")]);
+    findAllFiles.mockResolvedValue([entry("Project.md"), entry("Journal.md"), entry("Other.md")]);
     await runSearch("/workspace", "tag:work OR tag:personal");
     expect(searchResults.value?.map((e) => e.name).sort()).toEqual(["Journal.md", "Project.md"]);
   });
 
   it("keeps a quoted phrase's spaces together as one term", async () => {
-    listDir.mockResolvedValue([entry("Notes.md")]);
+    findAllFiles.mockResolvedValue([entry("Notes.md")]);
     readTextFile.mockResolvedValue("a note about exact phrase matching");
     await runSearch("/workspace", '"exact phrase"');
     expect(searchResults.value?.map((e) => e.name)).toEqual(["Notes.md"]);
@@ -463,23 +475,3 @@ describe("expandAll: symlink cycle guard", () => {
   });
 });
 
-describe("runSearch: symlink cycle guard", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it("stops descending at MAX_WALK_DEPTH instead of recursing forever through a directory that always reports one more subfolder", async () => {
-    listDir.mockImplementation(async (path: string) => [
-      { name: "loop", path: `${path}/loop`, isDir: true },
-    ]);
-
-    // A plain query with no matches anywhere: this test is only about
-    // whether the walk itself terminates, not about matching.
-    await runSearch("/workspace", "nonexistent");
-
-    expect(searchResults.value).toEqual([]);
-    // listDir is called once per directory level actually descended into
-    // (the root, plus one call per recursive step up to the depth cap).
-    expect(listDir).toHaveBeenCalledTimes(MAX_WALK_DEPTH + 1);
-  });
-});

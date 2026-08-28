@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { bytesToBase64, findMarkdownFiles, getWorkspaceStats } from "./capacitorBridgeImpl";
+import { bytesToBase64, findAllFiles, findMarkdownFiles, getWorkspaceStats } from "./capacitorBridgeImpl";
 
 interface NativeMarkdownFile {
   relativePath: string;
@@ -38,6 +38,30 @@ describe("findMarkdownFiles (Android)", () => {
     const walk = vi.fn(async () => walkResult());
 
     expect(await findMarkdownFiles("/vault", { walk })).toEqual([]);
+  });
+});
+
+describe("findAllFiles (Android)", () => {
+  it("prefixes each discovered file's relative path with the walked root, any extension", async () => {
+    const walk = vi.fn(async () => ({
+      files: [
+        { relativePath: "a.md", uri: "content://a" },
+        { relativePath: "attachments/photo.png", uri: "content://photo", mtime: 1234 },
+      ],
+    }));
+
+    const files = await findAllFiles("/vault", { walk });
+
+    expect(files).toEqual([
+      { name: "a.md", path: "/vault/a.md", isDir: false },
+      { name: "photo.png", path: "/vault/attachments/photo.png", isDir: false, mtime: 1234 },
+    ]);
+  });
+
+  it("returns an empty list for an empty workspace", async () => {
+    const walk = vi.fn(async () => ({ files: [] }));
+
+    expect(await findAllFiles("/vault", { walk })).toEqual([]);
   });
 });
 

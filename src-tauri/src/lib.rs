@@ -8,6 +8,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::list_dir,
             commands::find_markdown_files,
+            commands::find_all_files,
             commands::read_text_file,
             commands::write_text_file,
             commands::write_binary_file,

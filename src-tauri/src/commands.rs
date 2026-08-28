@@ -225,6 +225,52 @@ pub fn find_markdown_files(path: String) -> Result<Vec<FsEntry>, String> {
     Ok(files)
 }
 
+/// Same one-native-call traversal as `find_markdown_files` above, but with
+/// no `.md` filter: every non-hidden file of any extension, for full-text
+/// search (`workspace/fileTreeStore.ts`'s `runSearch`), which needs to
+/// match images and other attachments by name, not just notes. Before this
+/// existed, `runSearch` did its own recursive walk via repeated `list_dir`
+/// IPC calls, one per directory, the exact pattern `find_markdown_files`'s
+/// doc comment above already measured at ~83 seconds on a real 580-note
+/// vault; on Android specifically this didn't just run slowly, it crashed
+/// the app with an `OutOfMemoryError` partway through a real ~500-note
+/// vault's search (confirmed on-device, session after 2026-08-28's CI
+/// signing fix). Splitting this into its own command rather than reusing
+/// `find_markdown_files` for search keeps the "notes only" contract that
+/// name promises intact for its other callers (`rebuildLinkIndex`).
+#[tauri::command]
+pub fn find_all_files(path: String) -> Result<Vec<FsEntry>, String> {
+    fn walk(path: &Path, depth: usize, files: &mut Vec<FsEntry>) -> Result<(), String> {
+        for entry in fs::read_dir(path).map_err(|error| error.to_string())? {
+            let entry = entry.map_err(|error| error.to_string())?;
+            let entry_path = entry.path();
+            let name = entry.file_name();
+            let name_str = name.to_string_lossy().to_string();
+            if name_str.starts_with('.') {
+                continue;
+            }
+
+            if entry_path.is_dir() {
+                if depth < MAX_WALK_DEPTH {
+                    walk(&entry_path, depth + 1, files)?;
+                }
+            } else {
+                files.push(FsEntry {
+                    name: name_str,
+                    path: entry_path.to_string_lossy().to_string(),
+                    is_dir: false,
+                    mtime: entry_mtime_ms(&entry_path),
+                });
+            }
+        }
+        Ok(())
+    }
+
+    let mut files = Vec::new();
+    walk(Path::new(&path), 0, &mut files)?;
+    Ok(files)
+}
+
 /// Lists the immediate children of `path`, directories first, both sorted
 /// alphabetically. Hidden entries (dotfiles) are skipped.
 #[tauri::command]
@@ -643,6 +689,70 @@ mod tests {
 
         assert_eq!(names, vec!["a.md", "b.MD"], "only .md files outside hidden directories, case-insensitively");
         assert!(files.iter().all(|f| !f.is_dir));
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn find_all_files_collects_every_extension_but_still_skips_hidden_entries() {
+        let root = std::env::temp_dir().join(format!("leotheca-test-findall-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        create_dir(root.join("notes").to_string_lossy().to_string()).unwrap();
+        create_dir(root.join(".leotheca").to_string_lossy().to_string()).unwrap();
+        fs::write(root.join("a.md"), "a").unwrap();
+        fs::write(root.join("notes").join("photo.png"), "not really a png").unwrap();
+        fs::write(root.join("notes").join("c.txt"), "plain text").unwrap();
+        File::create(root.join(".leotheca").join("ignored.md")).unwrap();
+        File::create(root.join(".hidden.md")).unwrap();
+
+        let files = find_all_files(root.to_string_lossy().to_string()).unwrap();
+        let mut names: Vec<_> = files.iter().map(|f| f.name.clone()).collect();
+        names.sort();
+
+        assert_eq!(
+            names,
+            vec!["a.md", "c.txt", "photo.png"],
+            "every extension outside hidden directories, unlike find_markdown_files"
+        );
+        assert!(files.iter().all(|f| !f.is_dir));
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn find_all_files_stops_at_a_bounded_depth_instead_of_recursing_forever_through_a_symlink_cycle() {
+        // Same shape and reasoning as find_markdown_files's own symlink-cycle
+        // test just above: this shares that function's walk logic and
+        // MAX_WALK_DEPTH cap verbatim, minus the .md filter. The bound below
+        // is one looser than that test's own (MAX_WALK_DEPTH + 2, not + 1):
+        // on this filesystem, real symlink resolution (Linux's own ELOOP
+        // limit, see workspace_stats's own symlink-cycle test comment)
+        // fails is_dir() for "loop" at the deepest level reached, so it
+        // falls into the non-directory branch and is collected once as a
+        // pseudo-file named "loop" alongside every "a.md" rediscovery,
+        // confirmed directly while writing this test (41 "a.md" plus one
+        // "loop"). find_markdown_files never shows this because "loop" has
+        // no ".md" extension to pass its filter; find_all_files has no
+        // filter to hide it behind.
+        let root = std::env::temp_dir().join(format!(
+            "leotheca-test-findall-cycle-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        create_dir(root.to_string_lossy().to_string()).unwrap();
+        fs::write(root.join("a.md"), "a").unwrap();
+        std::os::unix::fs::symlink(&root, root.join("loop")).unwrap();
+
+        let files = find_all_files(root.to_string_lossy().to_string()).unwrap();
+
+        assert!(!files.is_empty(), "the walk should have found a.md at least once");
+        assert!(
+            files.len() <= MAX_WALK_DEPTH + 2,
+            "MAX_WALK_DEPTH should cap how many times a.md is rediscovered through the cycle \
+             (plus at most one misclassified \"loop\" pseudo-file at the OS's own ELOOP boundary), got {}",
+            files.len()
+        );
+
+        fs::remove_file(root.join("loop")).unwrap();
         fs::remove_dir_all(&root).unwrap();
     }
 

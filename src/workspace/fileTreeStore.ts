@@ -4,6 +4,7 @@ import { isImagePath, MAX_WALK_DEPTH } from "./types";
 import {
   createDir,
   deletePathPermanent,
+  findAllFiles,
   listDir,
   readTextFile,
   renamePath,
@@ -180,9 +181,9 @@ export async function createFolder(dirPath: string, folderName: string): Promise
 
 /** Full-text search: matches by file name first (cheap), and for text
  * files that don't match by name, falls back to reading and checking their
- * content. Skips hidden entries (`.trash`, `.leotheca`, ...), the same
- * convention the Rust `workspace_stats` command already uses, and image
- * files, which have no text content to search.
+ * content. Skips hidden entries (`.trash`, `.leotheca`, ...) and, for
+ * content matching, image files, which have no text content to search
+ * (both handled natively, see findAllFiles).
  *
  * Also understands the query-syntax operators in workspace/searchQuery.ts
  * (`tag:`, `path:`, a leading `-` to negate, `"quoted phrases"`, ` OR `
@@ -193,6 +194,15 @@ export async function createFolder(dirPath: string, folderName: string): Promise
  * content is read at most once even if several clauses reference it: a
  * tag/path-only query, or a query a note's name alone already satisfies,
  * never reads that file at all.
+ *
+ * The file list itself comes from one native recursive walk (findAllFiles)
+ * rather than this function recursing via repeated listDir calls, one per
+ * directory: that per-directory approach used to run this exact walk here,
+ * and on a real ~500-note SAF-backed vault it didn't just run slowly, it
+ * crashed the app outright with an OutOfMemoryError partway through
+ * (confirmed on-device, 2026-08-28), the same per-directory-IPC-call cost
+ * already measured and fixed for the link index and workspace stats (see
+ * findAllFiles's own doc comment).
  */
 export async function runSearch(rootPath: string, query: string) {
   searchQuery.value = query;
@@ -201,37 +211,28 @@ export async function runSearch(rootPath: string, query: string) {
     searchResults.value = null;
     return;
   }
+  const entries = await findAllFiles(rootPath);
   const matches: FsEntry[] = [];
-  async function walk(path: string, depth: number) {
-    const entries = await listDir(path);
-    for (const entry of entries) {
-      if (entry.name.startsWith(".")) continue;
-      if (entry.isDir) {
-        if (depth < MAX_WALK_DEPTH) await walk(entry.path, depth + 1);
-        continue;
+  for (const entry of entries) {
+    let contentPromise: Promise<string | null> | null = null;
+    const getContentLower = () => {
+      if (!contentPromise) {
+        contentPromise = isImagePath(entry.path)
+          ? Promise.resolve(null)
+          : readTextFile(entry.path)
+              .then((content) => content.toLowerCase())
+              .catch(() => null); // Unreadable file: treat as no content, not a search failure.
       }
-
-      let contentPromise: Promise<string | null> | null = null;
-      const getContentLower = () => {
-        if (!contentPromise) {
-          contentPromise = isImagePath(entry.path)
-            ? Promise.resolve(null)
-            : readTextFile(entry.path)
-                .then((content) => content.toLowerCase())
-                .catch(() => null); // Unreadable file: treat as no content, not a search failure.
-        }
-        return contentPromise;
-      };
-      const isMatch = await matchesSearchQuery(parsed, {
-        nameLower: entry.name.toLowerCase(),
-        pathLower: relativePath(rootPath, entry.path).toLowerCase(),
-        tagsLower: linkIndex.value.tagsByPath.get(entry.path) ?? [],
-        getContentLower,
-      });
-      if (isMatch) matches.push(entry);
-    }
+      return contentPromise;
+    };
+    const isMatch = await matchesSearchQuery(parsed, {
+      nameLower: entry.name.toLowerCase(),
+      pathLower: relativePath(rootPath, entry.path).toLowerCase(),
+      tagsLower: linkIndex.value.tagsByPath.get(entry.path) ?? [],
+      getContentLower,
+    });
+    if (isMatch) matches.push(entry);
   }
-  await walk(rootPath, 0);
   searchResults.value = matches;
 }
 

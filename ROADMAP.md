@@ -17,7 +17,9 @@ Sync is intentionally absent from this table. Leotheca does not build or bundle 
 
 Bugs noticed during other work that were too large in scope to fix in passing (see `CONSTITUTION.md`'s "Daily automated feature implementation," step 8), logged here instead of fixed on the spot or silently ignored. Newest at the top. Fixing one of these is itself a work-order item once picked up: implement it with the same bar as any other roadmap item (real tests, full verification, self-review), then remove its entry here and note the fix in `agent-log/CHANGELOG.md`.
 
-*(none currently flagged)*
+- 🕸️ **Graph view: clicking a node's name should open it directly, not require a double-tap** (reported by the maintainer, 2026-08-28, on-device). `GraphView.tsx`'s `handlePointerDown` currently requires two taps on the same node within `DOUBLE_TAP_MS` (400ms) before it calls `onOpenFile`; a single tap only records `lastTapRef` and does nothing visible, which is exactly why it can feel like "nothing happens" or like there's a 1-2 second lag: that's a human missing the 400ms double-tap window on the first attempt (a small, precisely-placed target on a touchscreen), not an actual rendering delay. There is no competing single-tap gesture on a node to disambiguate from either: dragging/panning only starts when `findNodeAt` finds nothing under the pointer, so a single tap that lands on a node is currently free to open it immediately with no gesture conflict. The likely fix is to open on a single tap and drop `DOUBLE_TAP_MS`/`lastTapRef` entirely, which would resolve both the "should open on click" and the "feels laggy" reports at once, since there would be no tap-pairing window to wait through.
+
+*(none else currently flagged)*
 
 ## v1: Core viewer and editor
 

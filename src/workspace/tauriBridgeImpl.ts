@@ -33,6 +33,13 @@ export async function findMarkdownFiles(path: string): Promise<FsEntry[]> {
   return invoke<FsEntry[]>("find_markdown_files", { path });
 }
 
+/** Same one-native-call walk as findMarkdownFiles above, but every file
+ * regardless of extension, for full-text search (fileTreeStore.ts's
+ * runSearch), which also matches images and other attachments by name. */
+export async function findAllFiles(path: string): Promise<FsEntry[]> {
+  return invoke<FsEntry[]>("find_all_files", { path });
+}
+
 export async function readTextFile(path: string): Promise<string> {
   return invoke<string>("read_text_file", { path });
 }

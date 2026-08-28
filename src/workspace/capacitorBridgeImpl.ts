@@ -49,10 +49,19 @@ interface WorkspaceWalkResult {
   imageCount: number;
 }
 
+/** One file of any extension discovered by findAllFiles's native walk, the
+ * same shape as NativeMarkdownFile above minus the ".md"-only filter. */
+interface NativeFile {
+  relativePath: string;
+  uri: string;
+  mtime?: number;
+}
+
 interface FolderAccessPlugin {
   pickFolder(): Promise<{ uri: string | null }>;
   listDir(options: { uri: string }): Promise<{ entries: NativeEntry[] }>;
   findMarkdownFiles(options: { uri: string }): Promise<WorkspaceWalkResult>;
+  findAllFiles(options: { uri: string }): Promise<{ files: NativeFile[] }>;
   readTextFile(options: { uri: string }): Promise<{ content: string }>;
   writeTextFile(options: {
     uri?: string;
@@ -350,6 +359,38 @@ export async function findMarkdownFiles(
 ): Promise<FsEntry[]> {
   const { markdownFiles } = await deps.walk(rootPath);
   return markdownFiles.map(({ relativePath, uri, mtime }) => {
+    const path = `${rootPath}/${relativePath}`;
+    pathToUri.set(path, uri);
+    return { name: pathBasename(path), path, isDir: false, mtime };
+  });
+}
+
+/** Same reasoning as walkWorkspace above, but backing findAllFiles below:
+ * every file regardless of extension, not just markdown notes. Kept as a
+ * separate native call (FolderAccessPlugin.java's findAllFiles) rather
+ * than reusing walkWorkspace/findMarkdownFiles, which keeps its "notes
+ * only" contract intact for its other caller (rebuildLinkIndex). */
+async function walkWorkspaceAllFiles(rootPath: string): Promise<{ files: NativeFile[] }> {
+  const uri = await resolveUri(rootPath);
+  return FolderAccess.findAllFiles({ uri });
+}
+
+/** Recursively finds every file under `rootPath`, regardless of extension,
+ * for full-text search (fileTreeStore.ts's runSearch). Before this
+ * existed, runSearch walked the workspace itself via repeated listDir
+ * plugin calls, one per directory: on a real ~500-note SAF-backed vault
+ * that didn't just run slowly, it crashed the app with an
+ * OutOfMemoryError partway through the walk (confirmed on-device,
+ * 2026-08-28), the same per-directory-IPC-call problem findMarkdownFiles's
+ * own doc comment above already measured and fixed for the link index.
+ * `deps.walk` follows the same test seam as findMarkdownFiles and
+ * getWorkspaceStats. */
+export async function findAllFiles(
+  rootPath: string,
+  deps: { walk: typeof walkWorkspaceAllFiles } = { walk: walkWorkspaceAllFiles },
+): Promise<FsEntry[]> {
+  const { files } = await deps.walk(rootPath);
+  return files.map(({ relativePath, uri, mtime }) => {
     const path = `${rootPath}/${relativePath}`;
     pathToUri.set(path, uri);
     return { name: pathBasename(path), path, isDir: false, mtime };

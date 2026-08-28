@@ -1,97 +1,187 @@
 /**
  * The "operators" half of the market-solution-comparison backlog's
  * Advanced Full-Text Search item: `tag:` and `path:` filters, a leading
- * `-` to negate any term, and multiple space-separated terms combined
- * with AND. A bare term (no prefix) keeps this app's existing plain
- * filename-first-then-content-fallback substring behavior, unchanged for
- * anyone who never uses an operator.
+ * `-` to negate any term (including a quoted phrase), `"quoted phrases"`
+ * kept together as one term, and ` OR ` between groups of space-separated
+ * (implicitly AND'ed) terms. A bare term (no operator) keeps this app's
+ * existing plain filename-first-then-content-fallback substring behavior,
+ * unchanged for anyone who never uses an operator.
+ *
+ * Rewritten (session 61) after a real correctness bug was found in the
+ * first version of this file: it decided whether a note's content was
+ * even worth reading by first evaluating every term against `content:
+ * null`, and a *negated* text term against `null` content resolves to
+ * "true" (absence can't be disproven by nothing), so any query built
+ * entirely from negated text terms (or a mix where every other term was
+ * already satisfied by the name) matched every note whose *name* didn't
+ * contain the excluded word, without ever actually reading a single file
+ * to check whether its content did. `-badword` was effectively a no-op
+ * filter. Confirmed with a reproduction (fileTreeStore.test.ts's "a
+ * negated text term is checked against real content, not assumed absent"
+ * test) before this rewrite, and again after, now passing. The lazy,
+ * per-clause evaluation below (content is only ever read via
+ * `getContentLower()`, and only when a clause actually needs it, never
+ * assumed one way or the other) doesn't have anywhere for that class of
+ * bug to hide, unlike the previous two-phase "check with null, decide if
+ * a real read is worth it" heuristic.
  */
 
-export type SearchTermKind = "text" | "tag" | "path";
+export type SearchClauseKind = "text" | "path" | "tag";
 
-export interface SearchTerm {
-  kind: SearchTermKind;
+export interface SearchClause {
+  kind: SearchClauseKind;
   /** Already lowercased, matching this app's existing case-insensitive
-   * search convention. */
+   * search/tag conventions. */
   value: string;
   negate: boolean;
 }
 
-const TAG_PREFIX = "tag:";
-const PATH_PREFIX = "path:";
+/** OR of AND-groups: a note matches if it satisfies every clause in at
+ * least one group. An empty array (no groups at all) matches nothing;
+ * callers treat a blank query as "clear the search" before ever reaching
+ * this, see fileTreeStore.ts's runSearch. */
+export type SearchQuery = SearchClause[][];
 
-/** Splits a query on whitespace into terms, each read for a leading `-`
- * (negation) and a `tag:`/`path:` prefix. A prefix with nothing after it
- * (`tag:`, `path:` alone) or a lone `-` is treated as literal text instead
- * of an empty, meaningless filter. */
-export function parseSearchQuery(query: string): SearchTerm[] {
-  return query
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((token) => {
-      let negate = false;
-      let rest = token;
-      if (rest.startsWith("-") && rest.length > 1) {
-        negate = true;
-        rest = rest.slice(1);
-      }
+const PREFIX_PATTERN = /^(tag|path):/i;
 
-      const lower = rest.toLowerCase();
-      if (lower.startsWith(TAG_PREFIX) && rest.length > TAG_PREFIX.length) {
-        return { kind: "tag", value: lower.slice(TAG_PREFIX.length), negate };
+/** Splits one OR-group's text into tokens, keeping a `"quoted phrase"`
+ * (including any `-`/`tag:`/`path:` prefix immediately before its opening
+ * quote) together as a single token instead of splitting on the spaces
+ * inside it. */
+function tokenize(text: string): string[] {
+  const tokens: string[] = [];
+  let i = 0;
+  while (i < text.length) {
+    while (i < text.length && /\s/.test(text[i])) i++;
+    if (i >= text.length) break;
+    let token = "";
+    while (i < text.length && !/\s/.test(text[i])) {
+      if (text[i] === '"') {
+        const end = text.indexOf('"', i + 1);
+        const stop = end === -1 ? text.length : end + 1;
+        token += text.slice(i, stop);
+        i = stop;
+      } else {
+        token += text[i];
+        i++;
       }
-      if (lower.startsWith(PATH_PREFIX) && rest.length > PATH_PREFIX.length) {
-        return { kind: "path", value: lower.slice(PATH_PREFIX.length), negate };
-      }
-      return { kind: "text", value: lower, negate };
-    });
+    }
+    tokens.push(token);
+  }
+  return tokens;
 }
 
-/** Whether `term` can only be resolved by reading a note's content
- * (a plain text term whose name doesn't already match); `tag:` and
- * `path:` never need it. Used by workspace/fileTreeStore.ts's runSearch
- * to decide whether a file read can be skipped entirely. */
-export function needsContent(term: SearchTerm): boolean {
-  return term.kind === "text";
+/** A prefix with nothing after it (`tag:`, `path:` alone) or a lone `-`
+ * is treated as literal text instead of an empty, meaningless filter. */
+function parseToken(token: string): SearchClause | null {
+  let rest = token;
+  let negate = false;
+  if (rest.startsWith("-") && rest.length > 1) {
+    negate = true;
+    rest = rest.slice(1);
+  }
+
+  let kind: SearchClauseKind = "text";
+  const prefixMatch = PREFIX_PATTERN.exec(rest);
+  if (prefixMatch && rest.length > prefixMatch[0].length) {
+    kind = prefixMatch[1].toLowerCase() as SearchClauseKind;
+    rest = rest.slice(prefixMatch[0].length);
+  }
+
+  if (rest.startsWith('"')) {
+    const end = rest.indexOf('"', 1);
+    rest = end !== -1 ? rest.slice(1, end) : rest.slice(1);
+  }
+
+  const value = rest.toLowerCase();
+  if (!value) return null;
+  return { kind, value, negate };
 }
 
-export interface MatchableNote {
-  name: string;
-  path: string;
-  /** Lowercased already. `null` means unavailable (an image, or a read
-   * that failed): a text term not already satisfied by the name can never
-   * match through content in that case. */
-  content: string | null;
-  /** This note's own tags, lowercased (see tags/tags.ts's extractTags),
-   * empty when tagging is off or the note has none. */
-  tags: string[];
+/** Splits on a literal, whitespace-delimited `OR` (case-sensitive, the
+ * same convention the wider note-taking ecosystem's own search syntax
+ * uses) so an `OR` inside a quoted phrase isn't mistaken for the
+ * operator. */
+export function parseSearchQuery(raw: string): SearchQuery {
+  const trimmed = raw.trim();
+  if (!trimmed) return [];
+
+  const query: SearchQuery = [];
+  for (const group of trimmed.split(/\s+OR\s+/)) {
+    const clauses = tokenize(group)
+      .map(parseToken)
+      .filter((clause): clause is SearchClause => clause !== null);
+    if (clauses.length > 0) query.push(clauses);
+  }
+  return query;
 }
 
-function termMatches(term: SearchTerm, note: MatchableNote): boolean {
-  let raw: boolean;
-  switch (term.kind) {
+export interface SearchContext {
+  /** The note's file name, lowercased. */
+  nameLower: string;
+  /** The note's path, lowercased (fileTreeStore.ts passes the path
+   * relative to the workspace root, so a `path:` filter doesn't need the
+   * user to know the absolute filesystem path). */
+  pathLower: string;
+  /** The note's own tags (see linking/store.ts's LinkIndex.tagsByPath),
+   * already lowercased. */
+  tagsLower: string[];
+  /** Reads and lowercases the note's content, only when a clause actually
+   * needs it to decide a match; the caller (fileTreeStore.ts's runSearch)
+   * memoizes this so a note's content is read at most once even when
+   * several clauses reference it. Resolves to null for a file that can't
+   * or shouldn't be read as text (an image, a read error) - a plain
+   * (non-negated) text clause can never match through null content, and
+   * a negated one is only satisfied by a genuine, resolved absence, null
+   * included, never assumed before it's actually known. */
+  getContentLower: () => Promise<string | null>;
+}
+
+async function clauseMatches(clause: SearchClause, ctx: SearchContext): Promise<boolean> {
+  let matched: boolean;
+  switch (clause.kind) {
     case "tag":
-      // A tag: filter also matches a more specific nested tag ("work"
-      // matches a note tagged only "work/project"), the same convention
-      // the wider note-taking ecosystem's own tag search uses.
-      raw = note.tags.some((tag) => tag === term.value || tag.startsWith(`${term.value}/`));
+      // A parent tag query (tag:work) also matches a nested tag
+      // (work/project), the same aggregation the Tags panel already does
+      // (see tags/tags.ts's buildTagTree), so this filter agrees with
+      // what the panel shows under that tag.
+      matched = ctx.tagsLower.some((tag) => tag === clause.value || tag.startsWith(`${clause.value}/`));
       break;
     case "path":
-      raw = note.path.toLowerCase().includes(term.value);
+      matched = ctx.pathLower.includes(clause.value);
       break;
     case "text":
     default:
-      raw = note.name.toLowerCase().includes(term.value) || (note.content?.includes(term.value) ?? false);
+      matched = ctx.nameLower.includes(clause.value) || ((await ctx.getContentLower())?.includes(clause.value) ?? false);
       break;
   }
-  return term.negate ? !raw : raw;
+  return clause.negate ? !matched : matched;
 }
 
-/** Every term must match (AND), the same semantics a blank-separated
- * multi-word search already implies. An empty `terms` array (a blank
- * query) matches nothing here; callers treat a blank query as "clear the
- * search" before ever reaching this function, see runSearch. */
-export function matchesSearchQuery(terms: SearchTerm[], note: MatchableNote): boolean {
-  return terms.length > 0 && terms.every((term) => termMatches(term, note));
+/** `tag`/`path` clauses first, `text` last, stable within each: AND is
+ * commutative so this never changes which notes match, only the order
+ * clauses are checked in, so a group with any failing `tag:`/`path:`
+ * clause bails before ever considering a content read, regardless of
+ * which order the user actually typed the terms in. */
+function cheapestFirst(group: SearchClause[]): SearchClause[] {
+  return [...group].sort((a, b) => Number(a.kind === "text") - Number(b.kind === "text"));
+}
+
+/** A note matches if it satisfies every clause in at least one OR-group.
+ * Clauses within a group are evaluated cheapest-first and short-circuit
+ * (an unsatisfied clause skips the rest of the group), and content is
+ * only ever read via ctx.getContentLower() when a `text` clause is
+ * actually reached needing it, never assumed either way before that. */
+export async function matchesSearchQuery(query: SearchQuery, ctx: SearchContext): Promise<boolean> {
+  for (const group of query) {
+    let groupMatches = true;
+    for (const clause of cheapestFirst(group)) {
+      if (!(await clauseMatches(clause, ctx))) {
+        groupMatches = false;
+        break;
+      }
+    }
+    if (groupMatches) return true;
+  }
+  return false;
 }

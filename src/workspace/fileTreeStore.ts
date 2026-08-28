@@ -12,7 +12,7 @@ import {
 } from "./tauriBridge";
 import { updateWorkspaceSettings, workspaceSettings } from "../settings/store";
 import { linkIndex } from "../linking/store";
-import { matchesSearchQuery, needsContent, parseSearchQuery } from "./searchQuery";
+import { matchesSearchQuery, parseSearchQuery } from "./searchQuery";
 
 export const expandedDirs = signal<Set<string>>(new Set());
 export const dirChildren = signal<Map<string, FsEntry[]>>(new Map());
@@ -185,16 +185,19 @@ export async function createFolder(dirPath: string, folderName: string): Promise
  * files, which have no text content to search.
  *
  * Also understands the query-syntax operators in workspace/searchQuery.ts
- * (`tag:`, `path:`, a leading `-` to negate, multiple terms AND'd
- * together); a plain query with no operators behaves exactly as before
- * they existed. A tag/path-only query (no plain text term) never reads
- * any file content at all, since tags and paths are metadata this app
- * already has indexed (linkIndex.tagsByPath).
+ * (`tag:`, `path:`, a leading `-` to negate, `"quoted phrases"`, ` OR `
+ * between groups); a plain query with no operators behaves exactly as
+ * before they existed. Content is only ever read via
+ * matchesSearchQuery's lazy getContentLower callback, when a `text`
+ * clause genuinely needs it to decide a match, memoized here so a note's
+ * content is read at most once even if several clauses reference it: a
+ * tag/path-only query, or a query a note's name alone already satisfies,
+ * never reads that file at all.
  */
 export async function runSearch(rootPath: string, query: string) {
   searchQuery.value = query;
-  const terms = parseSearchQuery(query);
-  if (terms.length === 0) {
+  const parsed = parseSearchQuery(query);
+  if (parsed.length === 0) {
     searchResults.value = null;
     return;
   }
@@ -208,41 +211,24 @@ export async function runSearch(rootPath: string, query: string) {
         continue;
       }
 
-      const tags = linkIndex.value.tagsByPath.get(entry.path) ?? [];
-      const nonTextTerms = terms.filter((term) => !needsContent(term));
-      // A failing tag/path term (or a negated one that already fails)
-      // can never be rescued by reading the file, so check those first
-      // and bail before even considering a read.
-      if (
-        nonTextTerms.length > 0 &&
-        !matchesSearchQuery(nonTextTerms, { name: entry.name, path: entry.path, content: null, tags })
-      ) {
-        continue;
-      }
-
-      if (matchesSearchQuery(terms, { name: entry.name, path: entry.path, content: null, tags })) {
-        matches.push(entry);
-        continue;
-      }
-      // Every non-text term already holds; a null content couldn't
-      // satisfy every text term above. Reading is only worth it if some
-      // non-negated text term might still be found inside the file: a
-      // negated text term that already failed can't be rescued by
-      // content either, since it doesn't depend on it.
-      const nameLower = entry.name.toLowerCase();
-      const couldBeRescuedByContent = terms.some(
-        (term) => needsContent(term) && !term.negate && !nameLower.includes(term.value),
-      );
-      if (!couldBeRescuedByContent || isImagePath(entry.path)) continue;
-
-      try {
-        const content = (await readTextFile(entry.path)).toLowerCase();
-        if (matchesSearchQuery(terms, { name: entry.name, path: entry.path, content, tags })) {
-          matches.push(entry);
+      let contentPromise: Promise<string | null> | null = null;
+      const getContentLower = () => {
+        if (!contentPromise) {
+          contentPromise = isImagePath(entry.path)
+            ? Promise.resolve(null)
+            : readTextFile(entry.path)
+                .then((content) => content.toLowerCase())
+                .catch(() => null); // Unreadable file: treat as no content, not a search failure.
         }
-      } catch {
-        // Unreadable file, skip it rather than failing the whole search.
-      }
+        return contentPromise;
+      };
+      const isMatch = await matchesSearchQuery(parsed, {
+        nameLower: entry.name.toLowerCase(),
+        pathLower: relativePath(rootPath, entry.path).toLowerCase(),
+        tagsLower: linkIndex.value.tagsByPath.get(entry.path) ?? [],
+        getContentLower,
+      });
+      if (isMatch) matches.push(entry);
     }
   }
   await walk(rootPath, 0);

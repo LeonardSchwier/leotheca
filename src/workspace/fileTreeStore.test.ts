@@ -278,7 +278,7 @@ describe("runSearch: query operators", () => {
     expect(readTextFile).not.toHaveBeenCalled();
   });
 
-  it("matches a path: filter as a substring of the full path", async () => {
+  it("matches a path: filter as a substring of the path relative to the workspace root", async () => {
     listDir.mockImplementation(async (path: string) =>
       path === "/workspace"
         ? [{ name: "Notes", path: "/workspace/Notes", isDir: true }, entry("Project.md")]
@@ -334,6 +334,44 @@ describe("runSearch: query operators", () => {
     await runSearch("/workspace", "tag:work deadline");
     expect(searchResults.value).toEqual([]);
     expect(readTextFile).not.toHaveBeenCalled();
+  });
+
+  // Regression test for a real bug in the first version of this feature
+  // (found and fixed the same session): a negated text term was decided
+  // from `content: null` before ever actually reading the file, and null
+  // content can never disprove an excluded word's presence, so `-word`
+  // matched every note whose *name* didn't contain it, regardless of
+  // what its real content said. See searchQuery.ts's top-of-file comment
+  // for the full story.
+  it("excludes a note whose real content contains a negated term, even combined with an already-satisfied tag: filter", async () => {
+    linkIndex.value = {
+      ...linkIndex.value,
+      tagsByPath: new Map([["/workspace/Project.md", ["work"]]]),
+    };
+    listDir.mockResolvedValue([entry("Project.md")]);
+    readTextFile.mockResolvedValue("this mentions badword right here");
+    await runSearch("/workspace", "tag:work -badword");
+    expect(searchResults.value).toEqual([]);
+  });
+
+  it("matches if either side of an OR is satisfied", async () => {
+    linkIndex.value = {
+      ...linkIndex.value,
+      tagsByPath: new Map([
+        ["/workspace/Project.md", ["work"]],
+        ["/workspace/Journal.md", ["personal"]],
+      ]),
+    };
+    listDir.mockResolvedValue([entry("Project.md"), entry("Journal.md"), entry("Other.md")]);
+    await runSearch("/workspace", "tag:work OR tag:personal");
+    expect(searchResults.value?.map((e) => e.name).sort()).toEqual(["Journal.md", "Project.md"]);
+  });
+
+  it("keeps a quoted phrase's spaces together as one term", async () => {
+    listDir.mockResolvedValue([entry("Notes.md")]);
+    readTextFile.mockResolvedValue("a note about exact phrase matching");
+    await runSearch("/workspace", '"exact phrase"');
+    expect(searchResults.value?.map((e) => e.name)).toEqual(["Notes.md"]);
   });
 });
 

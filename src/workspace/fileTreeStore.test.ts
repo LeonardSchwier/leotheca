@@ -298,6 +298,36 @@ describe("runSearch", () => {
     expect(readTextFilesBatch.mock.calls.length).toBeLessThan(10);
   });
 
+  it("flushes a batch early once its combined size crosses SEARCH_BATCH_MAX_BYTES, even with few files", async () => {
+    // Regression coverage for the real on-device OutOfMemoryError found
+    // even after the call-count fix above: one native call's serialized
+    // JSON response was itself ~288MB because a batch was bounded only by
+    // file count, never by combined size. 3 files at 5MB each (15MB
+    // total) fit easily under SEARCH_CONTENT_READ_CONCURRENCY (40) by
+    // count alone, so if size didn't also bound a batch, all 3 would go
+    // out in one native call; splitting into at least 2 calls proves the
+    // size cap, not just the concurrency cap, is what's controlling this.
+    const bigFile = (name: string) => ({
+      name,
+      path: `/workspace/${name}`,
+      isDir: false,
+      size: 5 * 1024 * 1024,
+    });
+    const bigEntries = [bigFile("big1.md"), bigFile("big2.md"), bigFile("big3.md")];
+    findAllFiles.mockResolvedValue(bigEntries);
+    mockFileContents(Object.fromEntries(bigEntries.map((e) => [e.path, "no match"])));
+    await runSearch("/workspace", "zzz-nonexistent");
+    expect(searchResults.value).toEqual([]);
+    expect(readTextFilesBatch.mock.calls.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("never reads an exceptionally large file's content, the same as it skips an image", async () => {
+    findAllFiles.mockResolvedValue([{ name: "huge.md", path: "/workspace/huge.md", isDir: false, size: 100 * 1024 * 1024 }]);
+    await runSearch("/workspace", "zzz-nonexistent");
+    expect(readTextFilesBatch).not.toHaveBeenCalled();
+    expect(searchResults.value).toEqual([]);
+  });
+
   it("treats a whole failed batch call as no content for every file in it, not a search failure", async () => {
     findAllFiles.mockResolvedValue([entry("a.md"), entry("b.md")]);
     readTextFilesBatch.mockRejectedValue(new Error("bridge call failed"));

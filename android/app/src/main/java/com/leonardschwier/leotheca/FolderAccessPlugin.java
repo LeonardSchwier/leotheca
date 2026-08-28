@@ -250,6 +250,14 @@ public class FolderAccessPlugin extends Plugin {
                 if (mtime > 0) {
                     entry.put("mtime", mtime);
                 }
+                // For runSearch's content-read batching (see
+                // fileTreeStore.ts's SEARCH_BATCH_MAX_BYTES): a batch bounded
+                // only by file count still let a handful of unusually large
+                // files produce one native call's JSON response too large to
+                // allocate, confirmed by a real on-device OutOfMemoryError,
+                // 2026-08-28. child.length() is already a cheap DocumentFile
+                // field, not an extra query.
+                entry.put("size", child.length());
                 files.put(entry);
             }
         }

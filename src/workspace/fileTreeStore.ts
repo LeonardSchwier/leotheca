@@ -180,18 +180,48 @@ export async function createFolder(dirPath: string, folderName: string): Promise
   return path;
 }
 
+// A single content-read batch's combined file size is capped here, not
+// just its file count: a real on-device OutOfMemoryError (2026-08-28,
+// after SEARCH_CONTENT_READ_CONCURRENCY below already cut native call
+// count 31x) turned out to come from one batch's *serialized JSON
+// response* needing a single ~288MB allocation, on a vault (migrated from
+// Evernote/Joplin exports) with some individual files large enough that a
+// handful landing in the same up-to-40-file batch summed to that. Bytes,
+// not files, are what the native side actually has to allocate and
+// marshal in one shot, so bytes are what gets capped. 8MB leaves real
+// margin below any heap ceiling (including the un-largeHeap 256MB
+// default) even accounting for JSON string-escaping overhead roughly
+// doubling a UTF-8 payload's in-memory size.
+const SEARCH_BATCH_MAX_BYTES = 8 * 1024 * 1024;
+
+// A single file above this size is never read for content matching at
+// all (its name can still match), the same treatment isImagePath's
+// content-skip already gives an image: even alone, a file this large
+// risks the same single-allocation failure a same-size *batch* hit,
+// with no smaller grouping possible to fix it. Deliberately larger than
+// SEARCH_BATCH_MAX_BYTES: a lone file under this size but over the batch
+// cap still gets read, just in a batch of one (see readOne below), only
+// something genuinely far outside what a real note or export file needs
+// to be is skipped outright.
+const MAX_SEARCHABLE_FILE_BYTES = 50 * 1024 * 1024;
+
 /** One native call reads many files at once instead of one call per file
  * (see tauriBridge's readTextFilesBatch doc comment for why: a real
  * on-device OutOfMemoryError after ~1700 sequential single-file native
  * calls, 2026-08-28). Every getContentLower() call issued within the same
  * microtask tick lands in the same pending batch and goes out as one
- * native call; runSearch's own bounded concurrency (see
- * SEARCH_CONTENT_READ_CONCURRENCY below) is what makes multiple requests
- * actually land in the same tick, rather than one at a time. Scoped fresh
- * per runSearch call (not module-level) so two searches in flight at once
- * can never mix their batches. */
+ * native call, UNLESS the pending batch's combined size has already
+ * crossed SEARCH_BATCH_MAX_BYTES, in which case it flushes immediately
+ * instead of waiting for the tick to end, so one batch can never grow
+ * past that cap no matter how many requests land in the same tick.
+ * runSearch's own bounded concurrency (see SEARCH_CONTENT_READ_CONCURRENCY
+ * below) is what makes multiple requests actually land in the same tick,
+ * rather than one at a time. Scoped fresh per runSearch call (not
+ * module-level) so two searches in flight at once can never mix their
+ * batches. */
 function createBatchedContentReader() {
   let pending = new Map<string, Array<(content: string | null) => void>>();
+  let pendingBytes = 0;
   let flushScheduled = false;
 
   function scheduleFlush() {
@@ -204,6 +234,7 @@ function createBatchedContentReader() {
     flushScheduled = false;
     const batch = pending;
     pending = new Map();
+    pendingBytes = 0;
     const paths = Array.from(batch.keys());
     if (paths.length === 0) return;
     let contents: (string | null)[];
@@ -218,11 +249,16 @@ function createBatchedContentReader() {
     });
   }
 
-  return function readOne(path: string): Promise<string | null> {
+  return function readOne(path: string, size: number): Promise<string | null> {
     return new Promise((resolve) => {
       if (!pending.has(path)) pending.set(path, []);
       pending.get(path)!.push(resolve);
-      scheduleFlush();
+      pendingBytes += size;
+      if (pendingBytes >= SEARCH_BATCH_MAX_BYTES) {
+        flush(); // Over budget already: flush this batch now instead of waiting for the tick to end.
+      } else {
+        scheduleFlush();
+      }
     });
   };
 }
@@ -235,7 +271,9 @@ function createBatchedContentReader() {
 // real on-device crash this fixes came from ~1700 sequential native calls
 // piling up over the whole search, not from too much work in flight at any
 // one moment, so cutting total native call count matters more here than a
-// shallow queue does.
+// shallow queue does. SEARCH_BATCH_MAX_BYTES above is what actually bounds
+// any one native call's cost now; this just bounds how many requests can
+// land in the same tick to be grouped together in the first place.
 const SEARCH_CONTENT_READ_CONCURRENCY = 40;
 
 /** Full-text search: matches by file name first (cheap), and for text
@@ -266,7 +304,10 @@ const SEARCH_CONTENT_READ_CONCURRENCY = 40;
  * entry at a time, both for speed and because a genuinely large vault's
  * worth of content-fallback matching, run one call at a time, hit that
  * same class of crash again even after the walk itself was fixed (see
- * createBatchedContentReader above).
+ * createBatchedContentReader above). A file above MAX_SEARCHABLE_FILE_BYTES
+ * is treated like an image, matchable by name but never read for content:
+ * even alone, a file that large risks the same kind of single-allocation
+ * failure a same-size batch hit.
  */
 export async function runSearch(rootPath: string, query: string) {
   searchQuery.value = query;
@@ -281,9 +322,10 @@ export async function runSearch(rootPath: string, query: string) {
     let contentPromise: Promise<string | null> | null = null;
     const getContentLower = () => {
       if (!contentPromise) {
-        contentPromise = isImagePath(entry.path)
-          ? Promise.resolve(null)
-          : readContent(entry.path).then((content) => content?.toLowerCase() ?? null);
+        contentPromise =
+          isImagePath(entry.path) || (entry.size ?? 0) > MAX_SEARCHABLE_FILE_BYTES
+            ? Promise.resolve(null)
+            : readContent(entry.path, entry.size ?? 0).then((content) => content?.toLowerCase() ?? null);
       }
       return contentPromise;
     };

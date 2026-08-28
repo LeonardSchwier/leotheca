@@ -8,6 +8,14 @@ export interface FsEntry {
    * a given value). Undefined for a directory, or on a platform/entry
    * where the underlying listing call didn't have it cheaply available. */
   mtime?: number;
+  /** File size in bytes. Only populated by findAllFiles (fileTreeStore.ts's
+   * runSearch uses it to bound a content-read batch's combined size, see
+   * SEARCH_BATCH_MAX_BYTES: a batch bounded only by file count still let a
+   * handful of unusually large files produce a single native call's JSON
+   * response too large to allocate, confirmed by a real on-device
+   * OutOfMemoryError, 2026-08-28), not by any other call site. Undefined
+   * for a directory or wherever not populated. */
+  size?: number;
 }
 
 export type EditorMode = "live" | "source" | "reading";

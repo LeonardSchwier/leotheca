@@ -16,6 +16,11 @@ pub struct FsEntry {
     /// or if the OS call fails, never a fabricated/default value.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mtime: Option<u64>,
+    /// File size in bytes. Only populated by `find_all_files`, for
+    /// `runSearch`'s content-read batching (see its own `SEARCH_BATCH_MAX_BYTES`
+    /// in `fileTreeStore.ts`); `None` elsewhere, including for a directory.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub size: Option<u64>,
 }
 
 #[derive(Serialize)]
@@ -63,6 +68,25 @@ fn entry_mtime_ms(path: &Path) -> Option<u64> {
         .duration_since(UNIX_EPOCH)
         .ok()
         .map(|duration| duration.as_millis() as u64)
+}
+
+/// Same as `entry_mtime_ms`, but also returns the file's size in bytes,
+/// from the same `fs::metadata` call rather than a second stat syscall.
+/// Only `find_all_files` needs the size (for `runSearch`'s content-read
+/// batching), so this stays separate from `entry_mtime_ms` rather than
+/// changing that function's return type for every other caller too.
+fn entry_mtime_ms_and_size(path: &Path) -> (Option<u64>, Option<u64>) {
+    match fs::metadata(path) {
+        Ok(metadata) => {
+            let mtime = metadata
+                .modified()
+                .ok()
+                .and_then(|modified| modified.duration_since(UNIX_EPOCH).ok())
+                .map(|duration| duration.as_millis() as u64);
+            (mtime, Some(metadata.len()))
+        }
+        Err(_) => (None, None),
+    }
 }
 
 /// A shared depth cap for every recursive directory walk over a workspace
@@ -214,6 +238,7 @@ pub fn find_markdown_files(path: String) -> Result<Vec<FsEntry>, String> {
                     path: entry_path.to_string_lossy().to_string(),
                     is_dir: false,
                     mtime: entry_mtime_ms(&entry_path),
+                    size: None,
                 });
             }
         }
@@ -255,11 +280,13 @@ pub fn find_all_files(path: String) -> Result<Vec<FsEntry>, String> {
                     walk(&entry_path, depth + 1, files)?;
                 }
             } else {
+                let (mtime, size) = entry_mtime_ms_and_size(&entry_path);
                 files.push(FsEntry {
                     name: name_str,
                     path: entry_path.to_string_lossy().to_string(),
                     is_dir: false,
-                    mtime: entry_mtime_ms(&entry_path),
+                    mtime,
+                    size,
                 });
             }
         }
@@ -296,6 +323,7 @@ pub fn list_dir(path: String) -> Result<Vec<FsEntry>, String> {
             path: entry_path.to_string_lossy().to_string(),
             is_dir,
             mtime,
+            size: None,
         };
         if is_dir {
             dirs.push(fs_entry);
@@ -811,6 +839,26 @@ mod tests {
 
         assert_eq!(files.len(), 1);
         assert!(files[0].mtime.is_some());
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn find_all_files_reports_a_real_size_for_every_file() {
+        let root =
+            std::env::temp_dir().join(format!("leotheca-test-findall-size-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        create_dir(root.to_string_lossy().to_string()).unwrap();
+        fs::write(root.join("a.md"), "twelve bytes").unwrap();
+
+        let files = find_all_files(root.to_string_lossy().to_string()).unwrap();
+
+        assert_eq!(files.len(), 1);
+        assert_eq!(
+            files[0].size,
+            Some(12),
+            "size should be the real byte length, for runSearch's content-read batching"
+        );
+        assert!(files[0].mtime.is_some(), "size shouldn't come at the cost of losing mtime");
         fs::remove_dir_all(&root).unwrap();
     }
 

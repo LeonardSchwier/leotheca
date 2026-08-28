@@ -55,6 +55,7 @@ interface NativeFile {
   relativePath: string;
   uri: string;
   mtime?: number;
+  size?: number;
 }
 
 interface FolderAccessPlugin {
@@ -406,10 +407,10 @@ export async function findAllFiles(
   deps: { walk: typeof walkWorkspaceAllFiles } = { walk: walkWorkspaceAllFiles },
 ): Promise<FsEntry[]> {
   const { files } = await deps.walk(rootPath);
-  return files.map(({ relativePath, uri, mtime }) => {
+  return files.map(({ relativePath, uri, mtime, size }) => {
     const path = `${rootPath}/${relativePath}`;
     pathToUri.set(path, uri);
-    return { name: pathBasename(path), path, isDir: false, mtime };
+    return { name: pathBasename(path), path, isDir: false, mtime, size };
   });
 }
 

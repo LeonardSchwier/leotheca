@@ -58,6 +58,16 @@ describe("findAllFiles (Android)", () => {
     ]);
   });
 
+  it("carries each file's size through, for runSearch's content-read batching", async () => {
+    const walk = vi.fn(async () => ({
+      files: [{ relativePath: "big.md", uri: "content://big", size: 123456 }],
+    }));
+
+    const files = await findAllFiles("/vault", { walk });
+
+    expect(files).toEqual([{ name: "big.md", path: "/vault/big.md", isDir: false, size: 123456 }]);
+  });
+
   it("returns an empty list for an empty workspace", async () => {
     const walk = vi.fn(async () => ({ files: [] }));
 

@@ -100,6 +100,7 @@ Very late in this backlog, lower priority than everything above:
 
 - 🌐 **Web Clipper** — a browser extension, as both Market Solution #1 and Market Solution #2 ship. Not on any earlier version of this roadmap at all until now.
 - 🖱️ **Scroll-to-Zoom** — zoom/font-size controls that more closely match Market Solution #2's actual interaction model (e.g. Ctrl+scroll or Ctrl+Plus/Minus to zoom on the fly), not just the Settings-panel-only numeric fields Leotheca has today for font size and whole-UI zoom.
+- 🖼️ **Whiteboards / Canvas** (queued 2026-08-28 by the daily competitor changelog scan, Joplin 3.7): an infinite, pannable, zoomable canvas view for arranging notes, images, PDFs and cards spatially, connected with labelled arrows, rather than editing prose top-to-bottom. Fits well: it is stored as the open JSONCanvas format inside an ordinary note's fenced code block, not a proprietary database, so it needs no new file format of its own (JSONCanvas is also the format behind Market Solution #2's own Canvas feature), stays fully client-side with no network call, and is genuinely a new feature (not a bug fix).
 
 ## Contributing to the roadmap
 

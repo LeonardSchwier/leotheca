@@ -44,7 +44,7 @@
 - ⬜ **Expand-All Native Traversal**: Replace the remaining per-directory bridge calls in expand-all with the existing single native traversal pattern to remove avoidable latency on large workspaces.
 - ⬜ **Live-Preview Viewport Optimization**: Recompute editor decorations only for the visible region so exceptionally large notes remain responsive.
 - ⬜ **Mobile Polish**: Improve narrow-screen navigation and touch interactions beyond the existing Android folder access and collapsible sidebar.
-- ⬜ **Scroll-to-Zoom**: Add direct keyboard and pointer zoom controls while retaining the existing settings-based font and interface scaling.
+- 🚧 **Scroll-to-Zoom**: Add direct keyboard and pointer zoom controls while retaining the existing settings-based font and interface scaling. (claim: Codex-cloud-20260828T1703Z, 2026-08-28T17:03Z, branch: agent/scroll-to-zoom)
 - ⬜ **Additional Desktop Platforms**: Add macOS and Windows build targets, then complete the prepared macOS package and direct Windows release packaging.
 - ⬜ **Themes, Snippets, and Templates**: Add local extensibility for appearance and reusable note content, with a separate opt-out setting for each new capability.
 - ⬜ **Web Clipper**: Provide a local browser extension that saves selected web content into ordinary Markdown notes without adding an in-app network dependency.

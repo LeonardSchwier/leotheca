@@ -4,7 +4,7 @@ import { Style, StatusBar } from "@capacitor/status-bar";
 import { registerPlugin } from "@capacitor/core";
 import type { FsEntry } from "./types";
 import type { WorkspaceStats } from "../settings/VaultStatsPanel";
-import { isImagePath } from "./types";
+import { isImagePath, MAX_WALK_DEPTH } from "./types";
 import { mapWithConcurrency } from "./concurrency";
 
 /**
@@ -339,12 +339,12 @@ export async function getWorkspaceStats(
   // only, no content reads) — same two-phase shape as rebuildLinkIndex,
   // so the expensive part (reading every note's content) can run with
   // bounded concurrency instead of one file at a time.
-  async function walk(path: string): Promise<void> {
+  async function walk(path: string, depth: number): Promise<void> {
     const entries = await deps.listDir(path);
     for (const entry of entries) {
       if (entry.isDir) {
         folderCount++;
-        await walk(entry.path);
+        if (depth < MAX_WALK_DEPTH) await walk(entry.path, depth + 1);
       } else if (entry.name.toLowerCase().endsWith(".md")) {
         notePaths.push(entry.path);
       } else if (isImagePath(entry.path)) {
@@ -352,7 +352,7 @@ export async function getWorkspaceStats(
       }
     }
   }
-  await walk(rootPath);
+  await walk(rootPath, 0);
 
   // Phase 2: read every note's content, bounded concurrency.
   let totalNoteLines = 0;

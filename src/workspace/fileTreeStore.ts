@@ -1,6 +1,6 @@
 import { signal } from "@preact/signals";
 import type { FsEntry } from "./types";
-import { isImagePath } from "./types";
+import { isImagePath, MAX_WALK_DEPTH } from "./types";
 import {
   createDir,
   deletePathPermanent,
@@ -11,6 +11,8 @@ import {
   writeTextFile,
 } from "./tauriBridge";
 import { updateWorkspaceSettings, workspaceSettings } from "../settings/store";
+import { linkIndex } from "../linking/store";
+import { matchesSearchQuery, needsContent, parseSearchQuery } from "./searchQuery";
 
 export const expandedDirs = signal<Set<string>>(new Set());
 export const dirChildren = signal<Map<string, FsEntry[]>>(new Map());
@@ -112,14 +114,15 @@ export function collapseAll() {
 
 export async function expandAll(rootPath: string) {
   const next = new Set<string>();
-  async function walk(path: string) {
+  async function walk(path: string, depth: number) {
     const entries = await loadChildren(path);
     next.add(path);
+    if (depth >= MAX_WALK_DEPTH) return;
     for (const entry of entries) {
-      if (entry.isDir) await walk(entry.path);
+      if (entry.isDir) await walk(entry.path, depth + 1);
     }
   }
-  await walk(rootPath);
+  await walk(rootPath, 0);
   expandedDirs.value = next;
 }
 
@@ -179,37 +182,70 @@ export async function createFolder(dirPath: string, folderName: string): Promise
  * files that don't match by name, falls back to reading and checking their
  * content. Skips hidden entries (`.trash`, `.leotheca`, ...), the same
  * convention the Rust `workspace_stats` command already uses, and image
- * files, which have no text content to search. */
+ * files, which have no text content to search.
+ *
+ * Also understands the query-syntax operators in workspace/searchQuery.ts
+ * (`tag:`, `path:`, a leading `-` to negate, multiple terms AND'd
+ * together); a plain query with no operators behaves exactly as before
+ * they existed. A tag/path-only query (no plain text term) never reads
+ * any file content at all, since tags and paths are metadata this app
+ * already has indexed (linkIndex.tagsByPath).
+ */
 export async function runSearch(rootPath: string, query: string) {
   searchQuery.value = query;
-  const q = query.trim().toLowerCase();
-  if (!q) {
+  const terms = parseSearchQuery(query);
+  if (terms.length === 0) {
     searchResults.value = null;
     return;
   }
   const matches: FsEntry[] = [];
-  async function walk(path: string) {
+  async function walk(path: string, depth: number) {
     const entries = await listDir(path);
     for (const entry of entries) {
       if (entry.name.startsWith(".")) continue;
       if (entry.isDir) {
-        await walk(entry.path);
+        if (depth < MAX_WALK_DEPTH) await walk(entry.path, depth + 1);
         continue;
       }
-      if (entry.name.toLowerCase().includes(q)) {
+
+      const tags = linkIndex.value.tagsByPath.get(entry.path) ?? [];
+      const nonTextTerms = terms.filter((term) => !needsContent(term));
+      // A failing tag/path term (or a negated one that already fails)
+      // can never be rescued by reading the file, so check those first
+      // and bail before even considering a read.
+      if (
+        nonTextTerms.length > 0 &&
+        !matchesSearchQuery(nonTextTerms, { name: entry.name, path: entry.path, content: null, tags })
+      ) {
+        continue;
+      }
+
+      if (matchesSearchQuery(terms, { name: entry.name, path: entry.path, content: null, tags })) {
         matches.push(entry);
         continue;
       }
-      if (isImagePath(entry.path)) continue;
+      // Every non-text term already holds; a null content couldn't
+      // satisfy every text term above. Reading is only worth it if some
+      // non-negated text term might still be found inside the file: a
+      // negated text term that already failed can't be rescued by
+      // content either, since it doesn't depend on it.
+      const nameLower = entry.name.toLowerCase();
+      const couldBeRescuedByContent = terms.some(
+        (term) => needsContent(term) && !term.negate && !nameLower.includes(term.value),
+      );
+      if (!couldBeRescuedByContent || isImagePath(entry.path)) continue;
+
       try {
-        const content = await readTextFile(entry.path);
-        if (content.toLowerCase().includes(q)) matches.push(entry);
+        const content = (await readTextFile(entry.path)).toLowerCase();
+        if (matchesSearchQuery(terms, { name: entry.name, path: entry.path, content, tags })) {
+          matches.push(entry);
+        }
       } catch {
         // Unreadable file, skip it rather than failing the whole search.
       }
     }
   }
-  await walk(rootPath);
+  await walk(rootPath, 0);
   searchResults.value = matches;
 }
 

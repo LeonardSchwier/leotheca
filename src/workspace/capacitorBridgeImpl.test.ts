@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { bytesToBase64, getWorkspaceStats } from "./capacitorBridgeImpl";
 import type { FsEntry } from "./types";
+import { MAX_WALK_DEPTH } from "./types";
 
 function entry(name: string, path: string, isDir = false): FsEntry {
   return { name, path, isDir };
@@ -66,6 +67,21 @@ describe("getWorkspaceStats (Android)", () => {
     // pre-fix sequential walk effectively did (maxInFlight === 1 there).
     expect(maxInFlight).toBeLessThanOrEqual(8);
     expect(maxInFlight).toBeGreaterThan(1);
+  });
+
+  it("stops descending at MAX_WALK_DEPTH instead of recursing forever through a directory that always reports one more subfolder", async () => {
+    // Simulates a workspace symlink cycle (a folder symlinked back to one
+    // of its own ancestors, see ROADMAP.md's "Symlink Cycle Handling"):
+    // every directory reports exactly one child folder, forever, the same
+    // shape a real cycle produces since SAF's directory listing has no
+    // concept of "already visited this real folder" either.
+    const listDir = vi.fn(async (path: string) => [entry("loop", `${path}/loop`, true)]);
+
+    const stats = await getWorkspaceStats("/vault", { listDir, readTextFile: vi.fn() });
+
+    // One folder counted at every depth from 0 through MAX_WALK_DEPTH
+    // inclusive, then the walk stops instead of continuing forever.
+    expect(stats.folderCount).toBe(MAX_WALK_DEPTH + 1);
   });
 });
 

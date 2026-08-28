@@ -65,6 +65,20 @@ fn entry_mtime_ms(path: &Path) -> Option<u64> {
         .map(|duration| duration.as_millis() as u64)
 }
 
+/// A shared depth cap for every recursive directory walk over a workspace
+/// (this function's own `walk`; the TypeScript side has its own equivalent
+/// constant, `MAX_WALK_DEPTH` in `src/workspace/types.ts`, since a Rust
+/// constant can't be shared across the IPC boundary). Guards against a
+/// symlink inside a workspace pointing back at one of its own ancestors,
+/// which would otherwise recurse forever (`Path::is_dir` follows symlinks,
+/// and this walk doesn't track visited canonical paths, the only way to
+/// detect a true cycle). A plain depth cap isn't cycle detection, it just
+/// stops descending once nesting gets unreasonable, but that's a complete
+/// fix for the actual failure mode (unbounded recursion, here a real stack
+/// overflow since this walk is synchronous) since a workspace legitimately
+/// nested 40 folders deep isn't a realistic vault.
+const MAX_WALK_DEPTH: usize = 40;
+
 /// Computes workspace-wide counts in one filesystem traversal. Hidden
 /// directories are deliberately skipped so internal application data and the
 /// workspace trash do not appear in the user's note statistics.
@@ -79,6 +93,7 @@ pub fn workspace_stats(path: String) -> Result<WorkspaceStats, String> {
 
     fn walk(
         path: &Path,
+        depth: usize,
         folder_count: &mut usize,
         note_count: &mut usize,
         image_count: &mut usize,
@@ -96,15 +111,18 @@ pub fn workspace_stats(path: String) -> Result<WorkspaceStats, String> {
 
             if entry_path.is_dir() {
                 *folder_count += 1;
-                walk(
-                    &entry_path,
-                    folder_count,
-                    note_count,
-                    image_count,
-                    total_note_lines,
-                    oldest_note_date,
-                    newest_note_date,
-                )?;
+                if depth < MAX_WALK_DEPTH {
+                    walk(
+                        &entry_path,
+                        depth + 1,
+                        folder_count,
+                        note_count,
+                        image_count,
+                        total_note_lines,
+                        oldest_note_date,
+                        newest_note_date,
+                    )?;
+                }
             } else if entry_path
                 .extension()
                 .and_then(|extension| extension.to_str())
@@ -134,6 +152,7 @@ pub fn workspace_stats(path: String) -> Result<WorkspaceStats, String> {
 
     walk(
         Path::new(&path),
+        0,
         &mut folder_count,
         &mut note_count,
         &mut image_count,
@@ -553,6 +572,55 @@ mod tests {
             stats.average_lines_per_note, 1.5,
             "3 lines from the readable file, averaged over both notes"
         );
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn workspace_stats_stops_at_a_bounded_depth_instead_of_recursing_forever_through_a_symlink_cycle() {
+        // A directory symlinked back at itself is the simplest way to
+        // reproduce a workspace symlink cycle (a directory symlinked back
+        // to one of its own ancestors, see ROADMAP.md's "Symlink Cycle
+        // Handling"): every recursive step following the symlink lands
+        // back at the same real directory. The main thing this test
+        // proves is that the call returns at all, in bounded depth,
+        // instead of hanging or crashing.
+        //
+        // It does NOT assert an exact folder_count: each recursive step
+        // passes the whole accumulated path (".../loop/loop/loop") to a
+        // fresh `fs::read_dir` call, never a canonicalized one, so the
+        // OS's own per-lookup symlink-resolution limit (Linux's ELOOP,
+        // commonly 40) can independently stop the walk at a depth at or
+        // below MAX_WALK_DEPTH, observed directly while writing this test
+        // (folder_count came back as exactly MAX_WALK_DEPTH here, one
+        // short of this walk's own theoretical MAX_WALK_DEPTH + 1, because
+        // the OS's stat() call on the final entry silently reported "not
+        // a directory" once path resolution itself started failing).
+        // That's a real, useful backstop, not a reason to remove
+        // MAX_WALK_DEPTH: it's Linux-specific behavior this project
+        // can't assume on every future target (see CONSTITUTION.md's
+        // macOS/Windows plans), while MAX_WALK_DEPTH is an explicit,
+        // portable guarantee independent of any OS's symlink-resolution
+        // quirks.
+        let root = std::env::temp_dir().join(format!(
+            "leotheca-test-stats-cycle-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        create_dir(root.to_string_lossy().to_string()).unwrap();
+        std::os::unix::fs::symlink(&root, root.join("loop")).unwrap();
+
+        let stats = workspace_stats(root.to_string_lossy().to_string()).unwrap();
+
+        assert!(stats.folder_count > 0, "the walk should have descended at least once");
+        assert!(
+            stats.folder_count <= MAX_WALK_DEPTH + 1,
+            "MAX_WALK_DEPTH should cap this walk even if the OS's own symlink-loop \
+             protection doesn't kick in first, got {}",
+            stats.folder_count
+        );
+
+        fs::remove_file(root.join("loop")).unwrap();
         fs::remove_dir_all(&root).unwrap();
     }
 }

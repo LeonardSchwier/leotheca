@@ -156,6 +156,7 @@ export function Sidebar({ rootPath, onOpenFile, flushPendingAutosave }: SidebarP
         <input
           type="text"
           placeholder="Search notes..."
+          title="tag:name and path:name filter, a leading - negates any term"
           value={searchQuery.value}
           onInput={(e) => {
             const value = (e.target as HTMLInputElement).value;

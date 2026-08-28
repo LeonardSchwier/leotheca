@@ -1,6 +1,7 @@
 /** @vitest-environment jsdom */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { FsEntry } from "./types";
+import { MAX_WALK_DEPTH } from "./types";
 
 const { listDir, readTextFile, writeTextFile, createDir, renamePath, trashPath, deletePathPermanent } =
   vi.hoisted(() => ({
@@ -39,6 +40,7 @@ window.matchMedia = vi.fn().mockImplementation((query: string) => ({
 
 const { workspaceSettings } = await import("../settings/store");
 const { DEFAULT_WORKSPACE_SETTINGS } = await import("../settings/workspaceSettings");
+const { linkIndex } = await import("../linking/store");
 const {
   dirname,
   relativePath,
@@ -55,6 +57,7 @@ const {
   selectedDir,
   toggleExpanded,
   loadChildren,
+  expandAll,
 } = await import("./fileTreeStore");
 
 function entry(name: string, isDir = false): FsEntry {
@@ -252,6 +255,88 @@ describe("runSearch", () => {
   });
 });
 
+describe("runSearch: query operators", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    linkIndex.value = {
+      backlinksByPath: new Map(),
+      pathsByNoteName: new Map(),
+      pathsByAlias: new Map(),
+      aliasesByPath: new Map(),
+      pathsByTag: new Map(),
+      tagsByPath: new Map([
+        ["/workspace/Project.md", ["work"]],
+        ["/workspace/Journal.md", ["journal"]],
+      ]),
+    };
+  });
+
+  it("matches a tag: filter without reading any file content", async () => {
+    listDir.mockResolvedValue([entry("Project.md"), entry("Journal.md")]);
+    await runSearch("/workspace", "tag:work");
+    expect(searchResults.value?.map((e) => e.name)).toEqual(["Project.md"]);
+    expect(readTextFile).not.toHaveBeenCalled();
+  });
+
+  it("matches a path: filter as a substring of the full path", async () => {
+    listDir.mockImplementation(async (path: string) =>
+      path === "/workspace"
+        ? [{ name: "Notes", path: "/workspace/Notes", isDir: true }, entry("Project.md")]
+        : [{ name: "Journal.md", path: "/workspace/Notes/Journal.md", isDir: false }],
+    );
+    await runSearch("/workspace", "path:Notes");
+    expect(searchResults.value?.map((e) => e.name)).toEqual(["Journal.md"]);
+  });
+
+  it("excludes a note matched by a negated tag: filter", async () => {
+    listDir.mockResolvedValue([entry("Project.md"), entry("Journal.md")]);
+    await runSearch("/workspace", "-tag:work");
+    expect(searchResults.value?.map((e) => e.name)).toEqual(["Journal.md"]);
+  });
+
+  it("combines a tag: filter with a plain text term (AND)", async () => {
+    listDir.mockResolvedValue([entry("Project.md"), entry("Journal.md")]);
+    readTextFile.mockResolvedValue("some content, no keyword here");
+    await runSearch("/workspace", "tag:work Project");
+    expect(searchResults.value?.map((e) => e.name)).toEqual(["Project.md"]);
+    // Project.md resolves entirely from metadata (the tag matches and its
+    // own name already contains "Project"); Journal.md's tag term fails
+    // outright, so it's excluded before a read is ever considered either.
+    expect(readTextFile).not.toHaveBeenCalled();
+  });
+
+  it("still falls back to content for the text half of a combined query", async () => {
+    listDir.mockResolvedValue([entry("Project.md")]);
+    readTextFile.mockResolvedValue("mentions a deadline");
+    await runSearch("/workspace", "tag:work deadline");
+    expect(searchResults.value?.map((e) => e.name)).toEqual(["Project.md"]);
+  });
+
+  it("a tag: filter also matches a note tagged with a more specific nested tag", async () => {
+    linkIndex.value = {
+      ...linkIndex.value,
+      tagsByPath: new Map([["/workspace/Project.md", ["work/leotheca"]]]),
+    };
+    listDir.mockResolvedValue([entry("Project.md")]);
+    await runSearch("/workspace", "tag:work");
+    expect(searchResults.value?.map((e) => e.name)).toEqual(["Project.md"]);
+  });
+
+  it("never reads content for a tag/path-only query with no matches either", async () => {
+    listDir.mockResolvedValue([entry("Project.md"), entry("Journal.md")]);
+    await runSearch("/workspace", "tag:nonexistent");
+    expect(searchResults.value).toEqual([]);
+    expect(readTextFile).not.toHaveBeenCalled();
+  });
+
+  it("a failing tag: term skips the read a positive text term would otherwise need", async () => {
+    listDir.mockResolvedValue([entry("Journal.md")]);
+    await runSearch("/workspace", "tag:work deadline");
+    expect(searchResults.value).toEqual([]);
+    expect(readTextFile).not.toHaveBeenCalled();
+  });
+});
+
 // A folder that was expanded/selected when it got renamed or deleted used
 // to stay "expanded"/"selected" under a path that no longer meant
 // anything: the expand state silently didn't carry over to the entry's new
@@ -315,5 +400,48 @@ describe("toggleExpanded and loadChildren", () => {
     expect(expandedDirs.value.has("/workspace/folder")).toBe(true);
     toggleExpanded("/workspace/folder");
     expect(expandedDirs.value.has("/workspace/folder")).toBe(false);
+  });
+});
+
+describe("expandAll: symlink cycle guard", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("stops descending at MAX_WALK_DEPTH instead of recursing forever through a directory that always reports one more subfolder", async () => {
+    // Simulates a workspace symlink cycle (a folder symlinked back to one
+    // of its own ancestors, see ROADMAP.md's "Symlink Cycle Handling"):
+    // every directory reports exactly one child folder, forever.
+    listDir.mockImplementation(async (path: string) => [
+      { name: "loop", path: `${path}/loop`, isDir: true },
+    ]);
+
+    await expandAll("/workspace");
+
+    // One path added at every depth from 0 (the root itself) through
+    // MAX_WALK_DEPTH inclusive, then the walk stops instead of
+    // continuing forever.
+    expect(expandedDirs.value.size).toBe(MAX_WALK_DEPTH + 1);
+  });
+});
+
+describe("runSearch: symlink cycle guard", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("stops descending at MAX_WALK_DEPTH instead of recursing forever through a directory that always reports one more subfolder", async () => {
+    listDir.mockImplementation(async (path: string) => [
+      { name: "loop", path: `${path}/loop`, isDir: true },
+    ]);
+
+    // A plain query with no matches anywhere: this test is only about
+    // whether the walk itself terminates, not about matching.
+    await runSearch("/workspace", "nonexistent");
+
+    expect(searchResults.value).toEqual([]);
+    // listDir is called once per directory level actually descended into
+    // (the root, plus one call per recursive step up to the depth cap).
+    expect(listDir).toHaveBeenCalledTimes(MAX_WALK_DEPTH + 1);
   });
 });

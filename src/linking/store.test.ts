@@ -7,6 +7,7 @@ import {
   resetLinkIndexCache,
   resolveWikilink,
 } from "./store";
+import { MAX_WALK_DEPTH } from "../workspace/types";
 
 const { listDir, readTextFile, writeTextFile } = vi.hoisted(() => ({
   listDir: vi.fn(),
@@ -486,5 +487,38 @@ describe("rebuildLinkIndex: tags", () => {
     await rebuildLinkIndex("/workspace");
     expect(readTextFile).not.toHaveBeenCalledWith("/workspace/a.md");
     expect(linkIndex.value.tagsByPath.get("/workspace/a.md")).toEqual(["foo"]);
+  });
+});
+
+describe("rebuildLinkIndex: symlink cycle guard", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    writeTextFile.mockResolvedValue(undefined);
+    linkIndex.value = {
+      backlinksByPath: new Map(),
+      pathsByNoteName: new Map(),
+      pathsByAlias: new Map(),
+      aliasesByPath: new Map(),
+      pathsByTag: new Map(),
+      tagsByPath: new Map(),
+    };
+    resetLinkIndexCache();
+  });
+
+  it("stops descending at MAX_WALK_DEPTH instead of recursing forever through a directory that always reports one more subfolder", async () => {
+    // Simulates a workspace symlink cycle (a folder symlinked back to one
+    // of its own ancestors, see ROADMAP.md's "Symlink Cycle Handling"):
+    // every directory reports exactly one child folder, forever.
+    listDir.mockImplementation(async (path: string) => [
+      { name: "loop", path: `${path}/loop`, isDir: true },
+    ]);
+
+    await expect(rebuildLinkIndex("/workspace")).resolves.toBeUndefined();
+
+    // listDir is called once per directory level actually descended into
+    // (the root, plus one call per recursive step up to the depth cap),
+    // not the cache-file read (that goes through readTextFile, not
+    // listDir).
+    expect(listDir).toHaveBeenCalledTimes(MAX_WALK_DEPTH + 1);
   });
 });

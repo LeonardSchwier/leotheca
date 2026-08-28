@@ -1,7 +1,7 @@
 import { signal } from "@preact/signals";
 import { listDir, readTextFile, writeTextFile } from "../workspace/tauriBridge";
 import { mapWithConcurrency } from "../workspace/concurrency";
-import type { FsEntry } from "../workspace/types";
+import { MAX_WALK_DEPTH, type FsEntry } from "../workspace/types";
 import { extractAliases } from "./frontmatter";
 import { extractTags } from "../tags/tags";
 
@@ -55,15 +55,18 @@ function noteNameFromPath(path: string): string {
 async function findMarkdownFiles(rootPath: string): Promise<FsEntry[]> {
   const files: FsEntry[] = [];
 
-  async function walk(path: string) {
+  async function walk(path: string, depth: number) {
     const entries = await listDir(path);
     for (const entry of entries) {
-      if (entry.isDir) await walk(entry.path);
-      else if (entry.name.toLowerCase().endsWith(".md")) files.push(entry);
+      if (entry.isDir) {
+        if (depth < MAX_WALK_DEPTH) await walk(entry.path, depth + 1);
+      } else if (entry.name.toLowerCase().endsWith(".md")) {
+        files.push(entry);
+      }
     }
   }
 
-  await walk(rootPath);
+  await walk(rootPath, 0);
   return files.sort((a, b) => a.path.localeCompare(b.path));
 }
 

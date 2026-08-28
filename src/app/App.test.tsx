@@ -4,12 +4,11 @@ import { act, cleanup, fireEvent, render } from "@testing-library/preact";
 import { signal } from "@preact/signals";
 import { DEFAULT_WORKSPACE_SETTINGS } from "../settings/workspaceSettings";
 
-// A minimal, narrowly-scoped harness for one specific interaction (the
-// rename/autosave race documented in ROADMAP.md's "Still open for v1"),
-// not general App.tsx coverage. Everything not needed to reach
-// handleTabRenameSubmit is mocked away or simply never triggered. The zoom
-// tests open a minimal workspace, so Sidebar is replaced with a no-op below;
-// the other optional panels are never reached and don't need mocking.
+// A minimal, narrowly-scoped harness for App-level interactions that need
+// real window events or top-level state wiring, not general App.tsx coverage.
+// The zoom tests open a minimal workspace, so Sidebar is replaced with a
+// no-op below; the other optional panels are never reached and don't need
+// mocking.
 const { updateWorkspaceSettingsSpy } = vi.hoisted(() => ({
   updateWorkspaceSettingsSpy: vi.fn(),
 }));

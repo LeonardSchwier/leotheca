@@ -25,10 +25,10 @@ import { resolveWikilink } from "../linking/store";
  * markers. Ordered list markers are left as-is (the number is meaningful
  * content, not pure decoration, unlike a heading's "#").
  *
- * Recomputes over the whole document on every selection change, not just
- * the visible viewport — fine for a single note's worth of text, but a
- * genuinely huge single document could make this noticeably slower on
- * every cursor move. Not optimized for that case yet.
+ * Decoration computation is limited to the editor's visible ranges. The
+ * previous implementation rebuilt decorations for the whole document on
+ * every cursor move, which made one unusually large note unnecessarily
+ * expensive to edit or scroll through.
  */
 
 /** Matches the same `[[target]]` shape the wikilink autocomplete and link
@@ -96,97 +96,136 @@ function hide(ranges: SimpleRange[], from: number, to: number): void {
   if (to > from) ranges.push({ from, to });
 }
 
-export function buildLiveDecorations(state: EditorState): DecorationSet {
+function visibleLineRanges(
+  doc: EditorState["doc"],
+  visibleRanges: readonly SimpleRange[],
+): SimpleRange[] {
+  if (visibleRanges.length === 0) return [];
+
+  const ranges = visibleRanges.map(({ from, to }) => {
+    const start = doc.lineAt(from).from;
+    const end = doc.lineAt(Math.max(from, to - 1)).to;
+    return { from: start, to: end };
+  });
+  ranges.sort((a, b) => a.from - b.from);
+
+  const merged: SimpleRange[] = [];
+  for (const range of ranges) {
+    const previous = merged[merged.length - 1];
+    if (previous && range.from <= previous.to + 1) {
+      previous.to = Math.max(previous.to, range.to);
+    } else {
+      merged.push({ ...range });
+    }
+  }
+  return merged;
+}
+
+export function buildLiveDecorations(
+  state: EditorState,
+  visibleRanges: readonly SimpleRange[] = [{ from: 0, to: state.doc.length }],
+): DecorationSet {
   const tree = syntaxTree(state);
   const selectionRanges = state.selection.ranges;
+  const scanRanges = visibleLineRanges(state.doc, visibleRanges);
   const marks: { from: number; to: number; class: string }[] = [];
   const hidden: SimpleRange[] = [];
   const codeRanges: SimpleRange[] = [];
   const widgetReplacements: { from: number; to: number; widget: WidgetType }[] = [];
 
-  tree.iterate({
-    enter: (node) => {
-      const type = node.type.name;
-      const headingClass = HEADING_NODE_CLASS[type];
+  for (const range of scanRanges) {
+    tree.iterate({
+      from: range.from,
+      to: range.to,
+      enter: (node) => {
+        const type = node.type.name;
+        const headingClass = HEADING_NODE_CLASS[type];
 
-      if (CODE_NODE_TYPES.has(type)) {
-        codeRanges.push({ from: node.from, to: node.to });
-      }
+        if (CODE_NODE_TYPES.has(type)) {
+          codeRanges.push({ from: node.from, to: node.to });
+        }
 
-      if (headingClass) {
-        const active = overlapsSelectedLines(state.doc, selectionRanges, node.from, node.to);
-        marks.push({ from: node.from, to: node.to, class: headingClass });
-        if (!active) {
-          const mark = node.node.getChild("HeaderMark");
-          if (mark) {
-            // Also swallow the single space after the "#"s, so hiding
-            // them doesn't leave a stray leading space on the heading.
-            let end = mark.to;
+        if (headingClass) {
+          const active = overlapsSelectedLines(state.doc, selectionRanges, node.from, node.to);
+          marks.push({ from: node.from, to: node.to, class: headingClass });
+          if (!active) {
+            const mark = node.node.getChild("HeaderMark");
+            if (mark) {
+              // Also swallow the single space after the "#"s, so hiding
+              // them doesn't leave a stray leading space on the heading.
+              let end = mark.to;
+              if (state.doc.sliceString(end, end + 1) === " ") end += 1;
+              hide(hidden, mark.from, end);
+            }
+          }
+          return;
+        }
+
+        if (type === "StrongEmphasis" || type === "Emphasis") {
+          const active = overlapsSelectedLines(state.doc, selectionRanges, node.from, node.to);
+          marks.push({
+            from: node.from,
+            to: node.to,
+            class: type === "StrongEmphasis" ? "cm-live-strong" : "cm-live-em",
+          });
+          if (!active) {
+            for (const mark of node.node.getChildren("EmphasisMark")) hide(hidden, mark.from, mark.to);
+          }
+          return;
+        }
+
+        if (type === "InlineCode") {
+          const active = overlapsSelectedLines(state.doc, selectionRanges, node.from, node.to);
+          marks.push({ from: node.from, to: node.to, class: "cm-live-code" });
+          if (!active) {
+            for (const mark of node.node.getChildren("CodeMark")) hide(hidden, mark.from, mark.to);
+          }
+          return;
+        }
+
+        if (type === "ListMark") {
+          // ListMark also appears inside OrderedList ("1.", "2.", ...); its
+          // number is meaningful content, not pure markup, so it's left
+          // alone. Only a BulletList's "-"/"*"/"+" marker gets replaced.
+          const listType = node.node.parent?.parent?.type.name;
+          if (listType !== "BulletList") return;
+
+          const active = overlapsSelectedLines(state.doc, selectionRanges, node.from, node.to);
+          if (!active) {
+            let end = node.to;
             if (state.doc.sliceString(end, end + 1) === " ") end += 1;
-            hide(hidden, mark.from, end);
+            widgetReplacements.push({ from: node.from, to: end, widget: new BulletWidget() });
           }
         }
-        return;
-      }
-
-      if (type === "StrongEmphasis" || type === "Emphasis") {
-        const active = overlapsSelectedLines(state.doc, selectionRanges, node.from, node.to);
-        marks.push({
-          from: node.from,
-          to: node.to,
-          class: type === "StrongEmphasis" ? "cm-live-strong" : "cm-live-em",
-        });
-        if (!active) {
-          for (const mark of node.node.getChildren("EmphasisMark")) hide(hidden, mark.from, mark.to);
-        }
-        return;
-      }
-
-      if (type === "InlineCode") {
-        const active = overlapsSelectedLines(state.doc, selectionRanges, node.from, node.to);
-        marks.push({ from: node.from, to: node.to, class: "cm-live-code" });
-        if (!active) {
-          for (const mark of node.node.getChildren("CodeMark")) hide(hidden, mark.from, mark.to);
-        }
-        return;
-      }
-
-      if (type === "ListMark") {
-        // ListMark also appears inside OrderedList ("1.", "2.", ...); its
-        // number is meaningful content, not pure markup, so it's left
-        // alone. Only a BulletList's "-"/"*"/"+" marker gets replaced.
-        const listType = node.node.parent?.parent?.type.name;
-        if (listType !== "BulletList") return;
-
-        const active = overlapsSelectedLines(state.doc, selectionRanges, node.from, node.to);
-        if (!active) {
-          let end = node.to;
-          if (state.doc.sliceString(end, end + 1) === " ") end += 1;
-          widgetReplacements.push({ from: node.from, to: end, widget: new BulletWidget() });
-        }
-      }
-    },
-  });
+      },
+    });
+  }
 
   const docText = state.doc.toString();
-  WIKILINK_PATTERN.lastIndex = 0;
-  let match: RegExpExecArray | null;
-  while ((match = WIKILINK_PATTERN.exec(docText))) {
-    const from = match.index;
-    const to = from + match[0].length;
-    if (codeRanges.some((range) => from < range.to && to > range.from)) continue;
+  const matchedWikilinks = new Set<number>();
+  for (const range of scanRanges) {
+    WIKILINK_PATTERN.lastIndex = 0;
+    const text = docText.slice(range.from, range.to);
+    let match: RegExpExecArray | null;
+    while ((match = WIKILINK_PATTERN.exec(text))) {
+      const from = range.from + match.index;
+      const to = from + match[0].length;
+      if (matchedWikilinks.has(from)) continue;
+      matchedWikilinks.add(from);
+      if (codeRanges.some((codeRange) => from < codeRange.to && to > codeRange.from)) continue;
 
-    const target = match[1];
-    const resolved = resolveWikilink(target) !== null;
-    marks.push({
-      from,
-      to,
-      class: resolved ? "cm-live-wikilink-resolved" : "cm-live-wikilink-broken",
-    });
+      const target = match[1];
+      const resolved = resolveWikilink(target) !== null;
+      marks.push({
+        from,
+        to,
+        class: resolved ? "cm-live-wikilink-resolved" : "cm-live-wikilink-broken",
+      });
 
-    if (!overlapsSelectedLines(state.doc, selectionRanges, from, to)) {
-      hide(hidden, from, from + 2); // the opening "[["
-      hide(hidden, to - 2, to); // the closing "]]"
+      if (!overlapsSelectedLines(state.doc, selectionRanges, from, to)) {
+        hide(hidden, from, from + 2); // the opening "[["
+        hide(hidden, to - 2, to); // the closing "]]"
+      }
     }
   }
 
@@ -202,11 +241,11 @@ export const livePreviewExtension = ViewPlugin.fromClass(
   class {
     decorations: DecorationSet;
     constructor(view: EditorView) {
-      this.decorations = buildLiveDecorations(view.state);
+      this.decorations = buildLiveDecorations(view.state, view.visibleRanges);
     }
     update(update: ViewUpdate) {
-      if (update.docChanged || update.selectionSet) {
-        this.decorations = buildLiveDecorations(update.state);
+      if (update.docChanged || update.selectionSet || update.viewportChanged) {
+        this.decorations = buildLiveDecorations(update.view.state, update.view.visibleRanges);
       }
     }
   },

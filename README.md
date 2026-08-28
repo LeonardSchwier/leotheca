@@ -80,7 +80,7 @@ Full setup instructions (system dependencies per platform, running tests, the An
 ## 📚 More
 
 - [`PHILOSOPHY.md`](PHILOSOPHY.md), the three principles behind this project
-- [`ARCHITECTURE.md`](ARCHITECTURE.md), the solution architecture: how the two platform shells and the shared frontend fit together
+- [`documentation/ARCHITECTURE.md`](documentation/ARCHITECTURE.md), the solution architecture: how the two platform shells and the shared frontend fit together
 - [`ROADMAP.md`](ROADMAP.md), what's built, what's next
 - [`CONTRIBUTING.md`](CONTRIBUTING.md), how to set up a dev environment and submit a change
 - [`CHANGELOG.md`](CHANGELOG.md), released versions

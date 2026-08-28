@@ -1,6 +1,6 @@
 # Contributing to Leotheca
 
-Read [CONSTITUTION.md](CONSTITUTION.md) before opening an issue or pull request. It records the project rules, product principles, and coding conventions. See [ARCHITECTURE.md](ARCHITECTURE.md) for how the codebase is structured before making a non-trivial change.
+Read [CONSTITUTION.md](CONSTITUTION.md) before opening an issue or pull request. It records the project rules, product principles, and coding conventions. See [documentation/ARCHITECTURE.md](documentation/ARCHITECTURE.md) for how the codebase is structured before making a non-trivial change.
 
 ## Development setup
 

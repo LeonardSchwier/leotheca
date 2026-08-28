@@ -63,7 +63,7 @@ afterEach(() => {
 
 // A deterministic layout, one node at a known screen position, regardless
 // of the real force-directed layout's output — this test is about
-// GraphView's own interaction logic (double-tap, drag start), not the
+// GraphView's own interaction logic (node opening, drag start), not the
 // layout math itself (see layout.test.ts for that).
 vi.mock("./layout", () => ({
   computeLayout: () => new Map([["/vault/a.md", { x: 100, y: 100 }]]),
@@ -117,7 +117,7 @@ describe("GraphView", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it("double-tapping a node within the double-tap window opens it", () => {
+  it("a single tap on a node opens it", () => {
     withOneNode();
     const onOpenFile = vi.fn();
     const { container } = render(<GraphView onOpenFile={onOpenFile} onClose={vi.fn()} />);
@@ -127,22 +127,8 @@ describe("GraphView", () => {
     // default identity transform (offset 0, scale 1) and jsdom's default
     // zero-origin getBoundingClientRect, screen (100, 100) lands on it.
     fireEvent.pointerDown(canvas, { pointerId: 1, clientX: 100, clientY: 100 });
-    fireEvent.pointerUp(canvas, { pointerId: 1, clientX: 100, clientY: 100 });
-    fireEvent.pointerDown(canvas, { pointerId: 1, clientX: 100, clientY: 100 });
 
     expect(onOpenFile).toHaveBeenCalledWith("/vault/a.md", "a.md");
-  });
-
-  it("a single tap on a node does not open it", () => {
-    withOneNode();
-    const onOpenFile = vi.fn();
-    const { container } = render(<GraphView onOpenFile={onOpenFile} onClose={vi.fn()} />);
-    const canvas = container.querySelector("canvas")!;
-
-    fireEvent.pointerDown(canvas, { pointerId: 1, clientX: 100, clientY: 100 });
-    fireEvent.pointerUp(canvas, { pointerId: 1, clientX: 100, clientY: 100 });
-
-    expect(onOpenFile).not.toHaveBeenCalled();
   });
 
   it("tapping empty space (no node nearby) does not open anything", () => {
@@ -154,28 +140,10 @@ describe("GraphView", () => {
     // Far from the mocked node at (100, 100).
     fireEvent.pointerDown(canvas, { pointerId: 1, clientX: 350, clientY: 350 });
     fireEvent.pointerUp(canvas, { pointerId: 1, clientX: 350, clientY: 350 });
-    fireEvent.pointerDown(canvas, { pointerId: 1, clientX: 350, clientY: 350 });
 
     expect(onOpenFile).not.toHaveBeenCalled();
   });
 
-  it("two taps on the same node spaced beyond the double-tap window don't open it", () => {
-    withOneNode();
-    const onOpenFile = vi.fn();
-    const nowSpy = vi.spyOn(Date, "now");
-    nowSpy.mockReturnValue(1_000_000);
-    const { container } = render(<GraphView onOpenFile={onOpenFile} onClose={vi.fn()} />);
-    const canvas = container.querySelector("canvas")!;
-
-    fireEvent.pointerDown(canvas, { pointerId: 1, clientX: 100, clientY: 100 });
-    fireEvent.pointerUp(canvas, { pointerId: 1, clientX: 100, clientY: 100 });
-
-    nowSpy.mockReturnValue(1_000_000 + 500); // past DOUBLE_TAP_MS (400ms)
-    fireEvent.pointerDown(canvas, { pointerId: 1, clientX: 100, clientY: 100 });
-
-    expect(onOpenFile).not.toHaveBeenCalled();
-    nowSpy.mockRestore();
-  });
 });
 
 describe("computeConnectedPaths", () => {

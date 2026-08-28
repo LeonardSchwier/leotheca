@@ -39,8 +39,17 @@ import { linkIndexBuilding, rebuildLinkIndex } from "../linking/store";
 import { BookmarksPanel } from "../bookmarks/BookmarksPanel";
 import { addFileBookmark, bookmarks, loadBookmarks, removeBookmark } from "../bookmarks/store";
 import { TagsPanel } from "../tags/TagsPanel";
-import { createNoteQuick, renameEntry, runSearch, selectedDir } from "../workspace/fileTreeStore";
+import {
+  createNoteFromTemplate,
+  createNoteQuick,
+  listTemplates,
+  renameEntry,
+  runSearch,
+  selectedDir,
+  type NoteTemplate,
+} from "../workspace/fileTreeStore";
 import { NamePrompt } from "../workspace/NamePrompt";
+import { TemplatePicker } from "../workspace/TemplatePicker";
 import { useResizableSidebar } from "./useResizableSidebar";
 import "./resizable-sidebar.css";
 import { GraphView } from "../graph/GraphView";
@@ -159,6 +168,10 @@ export function App() {
   const rootPath = workspacePath.value;
   const [tabRename, setTabRename] = useState<{ path: string; name: string } | null>(null);
   const [tabRenameError, setTabRenameError] = useState<string | null>(null);
+  const [templatePicker, setTemplatePicker] = useState<{
+    targetDir: string;
+    templates: NoteTemplate[];
+  } | null>(null);
 
   useEffect(() => {
     initSettings();
@@ -191,6 +204,13 @@ export function App() {
     },
     [refresh],
   );
+
+  const handleSelectTemplate = async (template: NoteTemplate) => {
+    if (!templatePicker) return;
+    const { path, name } = await createNoteFromTemplate(templatePicker.targetDir, template);
+    setTemplatePicker(null);
+    await handleOpenFile(path, name);
+  };
 
   const handleChange = useCallback(
     (path: string, content: string) => {
@@ -344,6 +364,16 @@ export function App() {
       { id: "settings", label: "Open Settings", run: () => (settingsPanelOpen.value = true) },
     ];
     if (rootPath) {
+      if (workspaceSettings.value.templatesEnabled) {
+        list.unshift({
+          id: "new-note-from-template",
+          label: "New note from template",
+          run: () => {
+            const targetDir = selectedDir.value ?? rootPath;
+            void listTemplates(rootPath).then((templates) => setTemplatePicker({ targetDir, templates }));
+          },
+        });
+      }
       list.unshift({
         id: "new-note",
         label: "New note",
@@ -409,6 +439,7 @@ export function App() {
     bookmarksOpen.value,
     tagsOpen.value,
     workspaceSettings.value.tagsEnabled,
+    workspaceSettings.value.templatesEnabled,
     openTabs.value,
   ]);
 
@@ -659,6 +690,14 @@ export function App() {
       )}
       {markdownHelpOpen.value && (
         <MarkdownHelpDialog onClose={() => (markdownHelpOpen.value = false)} />
+      )}
+      {templatePicker && (
+        <TemplatePicker
+          templates={templatePicker.templates}
+          templatesFolder={workspaceSettings.value.templatesFolder}
+          onSelect={handleSelectTemplate}
+          onCancel={() => setTemplatePicker(null)}
+        />
       )}
       {commandPaletteOpen.value && (
         <CommandPalette commands={commands} onClose={() => (commandPaletteOpen.value = false)} />

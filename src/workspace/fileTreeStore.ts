@@ -7,6 +7,7 @@ import {
   findAllEntries,
   findAllFiles,
   listDir,
+  readTextFile,
   readTextFilesBatch,
   renamePath,
   trashPath,
@@ -174,6 +175,22 @@ export async function createNote(dirPath: string, fileName: string): Promise<str
   return path;
 }
 
+/** Finds a collision-free ".md" name in `existingNames`, starting from
+ * `baseName` and counting up ("Untitled", "Untitled 2", "Untitled 3", ...)
+ * the same way createNoteQuick has always named quick-captured notes.
+ * Shared with createNoteFromTemplate below so picking a template can reuse
+ * this exact auto-naming behavior (seeded from the template's own name)
+ * instead of a second dialog asking the user to type a name by hand. */
+function uniqueNoteName(existingNames: Set<string>, baseName: string): string {
+  let name = `${baseName}.md`;
+  let n = 2;
+  while (existingNames.has(name)) {
+    name = `${baseName} ${n}.md`;
+    n++;
+  }
+  return name;
+}
+
 /** Creates a note with an auto-generated, collision-free name ("Untitled",
  * "Untitled 2", ...) instead of prompting for one, for a quick-capture
  * shortcut (Ctrl+N) where interrupting with a naming dialog would defeat
@@ -181,13 +198,61 @@ export async function createNote(dirPath: string, fileName: string): Promise<str
 export async function createNoteQuick(dirPath: string): Promise<{ path: string; name: string }> {
   const existing = await listDir(dirPath);
   const existingNames = new Set(existing.map((e) => e.name));
-  let name = "Untitled.md";
-  let n = 2;
-  while (existingNames.has(name)) {
-    name = `Untitled ${n}.md`;
-    n++;
-  }
+  const name = uniqueNoteName(existingNames, "Untitled");
   const path = await createNote(dirPath, name);
+  return { path, name };
+}
+
+/** One Markdown file found directly inside the workspace's configured
+ * templates folder (see WorkspaceSettings.templatesFolder), offered by
+ * the "New note from template" command. */
+export interface NoteTemplate {
+  name: string;
+  path: string;
+}
+
+function stripMdExtension(name: string): string {
+  return name.toLowerCase().endsWith(".md") ? name.slice(0, -3) : name;
+}
+
+/** Lists the Markdown files directly inside the workspace's configured
+ * templates folder, for the "New note from template" picker. Not
+ * recursive: templates are meant to stay a flat, easy-to-browse list, not
+ * another nested tree to navigate. A missing folder (the common case:
+ * nobody has created one yet) is not an error, just an empty list, the
+ * same treatment loadWorkspaceSettings gives a missing settings.json. */
+export async function listTemplates(workspacePath: string): Promise<NoteTemplate[]> {
+  const dir = `${workspacePath}/${workspaceSettings.value.templatesFolder}`;
+  try {
+    const entries = await listDir(dir);
+    return entries
+      .filter((e) => !e.isDir && e.name.toLowerCase().endsWith(".md"))
+      .map((e) => ({ name: e.name, path: e.path }))
+      .sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
+  } catch {
+    return [];
+  }
+}
+
+/** Creates a note named after `template` (auto-uniquified the same way
+ * createNoteQuick names "Untitled", so picking a template is a single
+ * action, not a second naming prompt), with the template's own content
+ * copied in verbatim instead of the usual blank frontmatter stamp: a
+ * template's whole point is that its author already wrote the content
+ * (including any frontmatter of its own) they want every note created
+ * from it to start with. Returns the new path and the name actually
+ * used. */
+export async function createNoteFromTemplate(
+  dirPath: string,
+  template: NoteTemplate,
+): Promise<{ path: string; name: string }> {
+  const existing = await listDir(dirPath);
+  const existingNames = new Set(existing.map((e) => e.name));
+  const name = uniqueNoteName(existingNames, stripMdExtension(template.name));
+  const content = await readTextFile(template.path);
+  const path = `${dirPath}/${name}`;
+  await writeTextFile(path, content);
+  await loadChildren(dirPath);
   return { path, name };
 }
 

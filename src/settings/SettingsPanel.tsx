@@ -67,6 +67,11 @@ const TAGS_OPTIONS: { value: boolean; label: string }[] = [
   { value: false, label: "Off" },
 ];
 
+const TEMPLATES_OPTIONS: { value: boolean; label: string }[] = [
+  { value: true, label: "On" },
+  { value: false, label: "Off" },
+];
+
 export function SettingsPanel() {
   const [showLicense, setShowLicense] = useState(false);
   if (!settingsPanelOpen.value) return null;
@@ -247,6 +252,51 @@ export function SettingsPanel() {
                     {option.label}
                   </button>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {workspacePath.value && (
+            <div class="settings-row">
+              <div>
+                <div class="settings-label">Templates</div>
+                <div class="settings-hint">
+                  Offer a "New note from template" command that starts a note from a file in the templates folder
+                </div>
+              </div>
+              <div class="settings-switch">
+                {TEMPLATES_OPTIONS.map((option) => (
+                  <button
+                    key={String(option.value)}
+                    class={workspaceSettings.value.templatesEnabled === option.value ? "active" : ""}
+                    onClick={() => void updateWorkspaceSettings({ templatesEnabled: option.value })}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {workspacePath.value && (
+            <div class="settings-row">
+              <div>
+                <div class="settings-label">Templates folder</div>
+                <div class="settings-hint">
+                  Where template notes live, relative to the workspace root
+                </div>
+              </div>
+              <div class="settings-value">
+                <input
+                  type="text"
+                  placeholder="Templates"
+                  value={workspaceSettings.value.templatesFolder}
+                  onInput={(e) => {
+                    void updateWorkspaceSettings({
+                      templatesFolder: (e.target as HTMLInputElement).value,
+                    });
+                  }}
+                />
               </div>
             </div>
           )}

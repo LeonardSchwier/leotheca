@@ -30,8 +30,8 @@ function stateFor(doc: string, selection?: { anchor: number; head?: number }): E
  * which text is marked with a class, and which text is replaced with a
  * widget (rendered to its DOM text so a test can assert on it), all keyed
  * by the original substring they replace or style. */
-function summarize(state: EditorState) {
-  const decorations = buildLiveDecorations(state);
+function summarize(state: EditorState, visibleRanges?: { from: number; to: number }[]) {
+  const decorations = buildLiveDecorations(state, visibleRanges);
   const hidden: string[] = [];
   const marked: { text: string; class: string }[] = [];
   const widgets: { text: string; rendered: string }[] = [];
@@ -236,5 +236,39 @@ describe("buildLiveDecorations: multiple cursors", () => {
     ensureSyntaxTree(state, doc.length, 5000);
     const { hidden } = summarize(state);
     expect(hidden).toContain("# ");
+  });
+});
+
+describe("buildLiveDecorations: visible ranges", () => {
+  it("only decorates lines in the supplied visible range", () => {
+    const doc = "# First\n\n**middle**\n\n# Last";
+    const state = stateFor(doc, { anchor: doc.length });
+    const middleStart = doc.indexOf("**middle**");
+    const { hidden, marked } = summarize(state, { from: middleStart, to: middleStart + "**middle**".length });
+
+    expect(hidden).toContain("**");
+    expect(marked).toContainEqual({ text: "**middle**", class: "cm-live-strong" });
+    expect(marked).not.toContainEqual({ text: "# First", class: "cm-live-heading-1" });
+    expect(marked).not.toContainEqual({ text: "# Last", class: "cm-live-heading-1" });
+  });
+
+  it("includes the whole line when a visible range starts or ends mid-line", () => {
+    const doc = "# First heading\n\nSecond **bold** line";
+    const state = stateFor(doc, { anchor: 0 });
+    const boldStart = doc.indexOf("**bold**");
+    const { hidden, marked } = summarize(state, { from: boldStart + 2, to: boldStart + 5 });
+
+    expect(hidden).toContain("**");
+    expect(marked).toContainEqual({ text: "Second **bold** line", class: "cm-live-strong" });
+    expect(marked).not.toContainEqual({ text: "# First heading", class: "cm-live-heading-1" });
+  });
+
+  it("finds wikilinks within the visible lines without scanning the rest of the document", () => {
+    const doc = "[[Beta]]\n\nOther content";
+    const state = stateFor(doc, { anchor: doc.length });
+    const { hidden, marked } = summarize(state, { from: 0, to: "[[Beta]]".length });
+
+    expect(hidden).toEqual(["[[", "]]"].sort());
+    expect(marked).toContainEqual({ text: "[[Beta]]", class: "cm-live-wikilink-resolved" });
   });
 });

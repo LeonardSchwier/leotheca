@@ -10,6 +10,20 @@ export type ViewMode = "source" | "split" | "preview";
  * desktop only would make the setting behave differently per platform. */
 export type DeleteBehavior = "project-trash" | "permanent";
 
+/** One entry in the graph view's color-groups list (see
+ * graph/GraphView.tsx): every note whose display name contains `query`
+ * (case-insensitive substring, matching this app's existing search
+ * semantics) is drawn with `color` instead of the graph's default node
+ * color. Groups are matched in array order, first match wins, so the
+ * array's order is itself the group priority, not just insertion history. */
+export interface GraphColorGroup {
+  id: string;
+  query: string;
+  /** A CSS color string, always a `#rrggbb` hex value in practice since
+   * it's only ever written by an `<input type="color">`. */
+  color: string;
+}
+
 /** Settings scoped to one workspace folder, stored inside that folder
  * itself (`<workspace>/.leotheca/settings.json`) so the folder is
  * self-contained and portable, the same way a project-local config
@@ -68,6 +82,13 @@ export interface WorkspaceSettings {
    * competitor feature scan" policy. Off, frontmatter is only ever
    * edited as raw text, same as before this feature existed. */
   frontmatterPropertiesEnabled: boolean;
+  /** User-defined groups that color graph nodes matching a text query
+   * differently from the graph's default node color (see
+   * graph/GraphView.tsx). Empty by default, same as the graph view
+   * itself: nothing is colored differently until the user defines a
+   * group, so this doesn't change the graph's existing appearance for
+   * anyone who never opens the new color-groups panel. */
+  graphColorGroups: GraphColorGroup[];
 }
 
 export const MIN_UI_ZOOM = 50;
@@ -93,6 +114,7 @@ export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   pasteImagesEnabled: true,
   attachmentsFolder: "",
   frontmatterPropertiesEnabled: true,
+  graphColorGroups: [],
 };
 
 // Plain string join is intentional here (not a path-resolution API call):

@@ -49,6 +49,10 @@ describe("DEFAULT_WORKSPACE_SETTINGS", () => {
   it("defaults the attachments folder to empty, i.e. next to the note", () => {
     expect(DEFAULT_WORKSPACE_SETTINGS.attachmentsFolder).toBe("");
   });
+
+  it("defaults graph color groups to empty, so the graph looks unchanged until the user defines one", () => {
+    expect(DEFAULT_WORKSPACE_SETTINGS.graphColorGroups).toEqual([]);
+  });
 });
 
 describe("loadWorkspaceSettings", () => {

@@ -1,7 +1,22 @@
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { signal } from "@preact/signals";
 import { cleanup, fireEvent, render } from "@testing-library/preact";
 import { linkIndex } from "../linking/store";
+import type { GraphColorGroup, WorkspaceSettings } from "../settings/workspaceSettings";
+
+// vi.mock factories run lazily, after this file's own top-level imports and
+// consts are initialized (see workspace/Sidebar.test.tsx's identical note),
+// so plain module-scope consts closed over below are safe.
+const mockWorkspaceSettings = signal<Partial<WorkspaceSettings>>({ graphColorGroups: [] });
+const mockUpdateWorkspaceSettings = vi.fn(async (patch: Partial<WorkspaceSettings>) => {
+  mockWorkspaceSettings.value = { ...mockWorkspaceSettings.value, ...patch };
+});
+
+vi.mock("../settings/store", () => ({
+  workspaceSettings: mockWorkspaceSettings,
+  updateWorkspaceSettings: mockUpdateWorkspaceSettings,
+}));
 
 // GraphView's layout effect needs two things jsdom doesn't provide: a
 // ResizeObserver constructor at all, and non-zero clientWidth/clientHeight
@@ -40,6 +55,8 @@ afterEach(() => {
     pathsByAlias: new Map(),
     aliasesByPath: new Map(),
   };
+  mockWorkspaceSettings.value = { graphColorGroups: [] };
+  mockUpdateWorkspaceSettings.mockClear();
 });
 
 // A deterministic layout, one node at a known screen position, regardless
@@ -50,7 +67,14 @@ vi.mock("./layout", () => ({
   computeLayout: () => new Map([["/vault/a.md", { x: 100, y: 100 }]]),
 }));
 
-const { GraphView, computeConnectedPaths, computeLocalGraph } = await import("./GraphView");
+const {
+  GraphView,
+  computeConnectedPaths,
+  computeLocalGraph,
+  filterGraphByQuery,
+  colorForPath,
+  computeVisibleGraph,
+} = await import("./GraphView");
 
 // /vault/a.md has an incoming link from /vault/b.md, so both count as
 // "connected" and remain visible under the new hide-isolated-notes default
@@ -369,5 +393,267 @@ describe("GraphView: local (per-note) graph mode", () => {
     fireEvent.click(getByText("This note"));
 
     expect(container.querySelector("canvas")).toBeTruthy();
+  });
+});
+
+describe("filterGraphByQuery", () => {
+  const edges: [string, string][] = [
+    ["/vault/a.md", "/vault/b.md"],
+    ["/vault/b.md", "/vault/c.md"],
+  ];
+  const nodes = ["/vault/a.md", "/vault/b.md", "/vault/c.md"];
+
+  it("returns everything unchanged for a blank query", () => {
+    expect(filterGraphByQuery(nodes, edges, "")).toEqual({ nodes, edges });
+    expect(filterGraphByQuery(nodes, edges, "   ")).toEqual({ nodes, edges });
+  });
+
+  it("matches by display name, case-insensitively, substring", () => {
+    const result = filterGraphByQuery(nodes, edges, "B");
+    expect(result.nodes).toEqual(["/vault/b.md"]);
+  });
+
+  it("keeps only edges whose both endpoints survive the filter", () => {
+    const result = filterGraphByQuery(nodes, edges, "a");
+    expect(result.nodes).toEqual(["/vault/a.md"]);
+    expect(result.edges).toEqual([]);
+  });
+
+  it("keeps an edge when both endpoints match", () => {
+    // Both display names ("apple", "application") contain "app", unlike
+    // the "keeps only edges..." case above where only one endpoint matches.
+    const wideNodes = ["/vault/apple.md", "/vault/application.md"];
+    const wideEdges: [string, string][] = [["/vault/apple.md", "/vault/application.md"]];
+    const result = filterGraphByQuery(wideNodes, wideEdges, "app");
+    expect(result.nodes).toEqual(wideNodes);
+    expect(result.edges).toEqual(wideEdges);
+  });
+
+  it("returns no nodes when nothing matches", () => {
+    expect(filterGraphByQuery(nodes, edges, "nonexistent")).toEqual({ nodes: [], edges: [] });
+  });
+});
+
+describe("colorForPath", () => {
+  const FALLBACK = "#6f5b3e";
+
+  it("returns the fallback color when there are no groups", () => {
+    expect(colorForPath("/vault/project-plan.md", [], FALLBACK)).toBe(FALLBACK);
+  });
+
+  it("returns a matching group's color, matched case-insensitively", () => {
+    const groups: GraphColorGroup[] = [{ id: "1", query: "PROJECT", color: "#123456" }];
+    expect(colorForPath("/vault/project-plan.md", groups, FALLBACK)).toBe("#123456");
+  });
+
+  it("returns the fallback when no group matches", () => {
+    const groups: GraphColorGroup[] = [{ id: "1", query: "journal", color: "#123456" }];
+    expect(colorForPath("/vault/project-plan.md", groups, FALLBACK)).toBe(FALLBACK);
+  });
+
+  it("a group with a blank query never matches", () => {
+    const groups: GraphColorGroup[] = [{ id: "1", query: "   ", color: "#123456" }];
+    expect(colorForPath("/vault/anything.md", groups, FALLBACK)).toBe(FALLBACK);
+  });
+
+  it("the first matching group wins when more than one matches", () => {
+    const groups: GraphColorGroup[] = [
+      { id: "1", query: "project", color: "#111111" },
+      { id: "2", query: "plan", color: "#222222" },
+    ];
+    expect(colorForPath("/vault/project-plan.md", groups, FALLBACK)).toBe("#111111");
+  });
+});
+
+describe("computeVisibleGraph", () => {
+  const backlinksByPath = new Map([
+    ["/vault/a.md", ["/vault/b.md"]],
+    ["/vault/b.md", []],
+    ["/vault/lonely.md", []],
+  ]);
+
+  it("workspace mode, showAll off, hides unconnected notes (existing default behavior)", () => {
+    const result = computeVisibleGraph(backlinksByPath, {
+      isLocal: false,
+      showAll: false,
+      filterQuery: "",
+    });
+    expect(new Set(result.nodes)).toEqual(new Set(["/vault/a.md", "/vault/b.md"]));
+  });
+
+  it("workspace mode, showAll on, includes unconnected notes", () => {
+    const result = computeVisibleGraph(backlinksByPath, {
+      isLocal: false,
+      showAll: true,
+      filterQuery: "",
+    });
+    expect(new Set(result.nodes)).toEqual(new Set(["/vault/a.md", "/vault/b.md", "/vault/lonely.md"]));
+  });
+
+  it("local mode uses computeLocalGraph instead of the workspace/showAll logic", () => {
+    const result = computeVisibleGraph(backlinksByPath, {
+      isLocal: true,
+      focusPath: "/vault/lonely.md",
+      showAll: false,
+      filterQuery: "",
+    });
+    expect(result.nodes).toEqual(["/vault/lonely.md"]);
+  });
+
+  it("applies the filter query on top of whichever mode is selected", () => {
+    const result = computeVisibleGraph(backlinksByPath, {
+      isLocal: false,
+      showAll: true,
+      filterQuery: "lonely",
+    });
+    expect(result.nodes).toEqual(["/vault/lonely.md"]);
+  });
+});
+
+describe("GraphView: filtering", () => {
+  function withThreeNodes() {
+    linkIndex.value = {
+      backlinksByPath: new Map([
+        ["/vault/project.md", ["/vault/journal.md"]],
+        ["/vault/journal.md", []],
+        ["/vault/journal-2.md", ["/vault/project.md"]],
+      ]),
+      pathsByNoteName: new Map(),
+      pathsByAlias: new Map(),
+      aliasesByPath: new Map(),
+    };
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("does not filter until the debounce elapses", () => {
+    withThreeNodes();
+    const { getByLabelText, container } = render(<GraphView onOpenFile={vi.fn()} onClose={vi.fn()} />);
+    fireEvent.input(getByLabelText("Filter graph notes"), { target: { value: "project" } });
+
+    // Still showing the unfiltered graph (3 connected notes), not yet
+    // narrowed down, since the 200ms debounce hasn't elapsed.
+    expect(container.querySelector("canvas")).toBeTruthy();
+    expect(container.querySelector(".empty-hint")).toBeNull();
+  });
+
+  it("filters nodes by name after the debounce elapses", async () => {
+    withThreeNodes();
+    const { getByLabelText, container } = render(<GraphView onOpenFile={vi.fn()} onClose={vi.fn()} />);
+    fireEvent.input(getByLabelText("Filter graph notes"), { target: { value: "nonexistent-note" } });
+
+    // advanceTimersByTimeAsync (not the sync advanceTimersByTime) also
+    // flushes the microtask Preact schedules its re-render on, so the
+    // resulting setFilterQuery state update is actually reflected in the
+    // DOM by the time this resolves.
+    await vi.advanceTimersByTimeAsync(200);
+
+    expect(container.querySelector("canvas")).toBeNull();
+  });
+
+  it("shows a filter-specific empty message, not the generic connected-notes one", async () => {
+    withThreeNodes();
+    const { getByLabelText, getByText } = render(<GraphView onOpenFile={vi.fn()} onClose={vi.fn()} />);
+    fireEvent.input(getByLabelText("Filter graph notes"), { target: { value: "nonexistent-note" } });
+
+    await vi.advanceTimersByTimeAsync(200);
+
+    expect(getByText("No notes match your filter.")).toBeTruthy();
+  });
+
+  it("clearing the filter restores the full graph", async () => {
+    withThreeNodes();
+    const { getByLabelText, container } = render(<GraphView onOpenFile={vi.fn()} onClose={vi.fn()} />);
+    const input = getByLabelText("Filter graph notes");
+
+    fireEvent.input(input, { target: { value: "nonexistent-note" } });
+    await vi.advanceTimersByTimeAsync(200);
+    expect(container.querySelector("canvas")).toBeNull();
+
+    fireEvent.input(input, { target: { value: "" } });
+    await vi.advanceTimersByTimeAsync(200);
+    expect(container.querySelector("canvas")).toBeTruthy();
+  });
+});
+
+describe("GraphView: color groups panel", () => {
+  function withOneConnectedNode() {
+    linkIndex.value = {
+      backlinksByPath: new Map([
+        ["/vault/a.md", ["/vault/b.md"]],
+        ["/vault/b.md", []],
+      ]),
+      pathsByNoteName: new Map(),
+      pathsByAlias: new Map(),
+      aliasesByPath: new Map(),
+    };
+  }
+
+  it("the panel is closed by default", () => {
+    withOneConnectedNode();
+    const { queryByText } = render(<GraphView onOpenFile={vi.fn()} onClose={vi.fn()} />);
+    expect(queryByText("+ Add color group")).toBeNull();
+  });
+
+  it("the Colors button opens and closes the panel", () => {
+    withOneConnectedNode();
+    const { getByLabelText, queryByText } = render(<GraphView onOpenFile={vi.fn()} onClose={vi.fn()} />);
+
+    fireEvent.click(getByLabelText("Color groups"));
+    expect(queryByText("+ Add color group")).toBeTruthy();
+
+    fireEvent.click(getByLabelText("Color groups"));
+    expect(queryByText("+ Add color group")).toBeNull();
+  });
+
+  it("adding a group persists it via updateWorkspaceSettings with an empty query", () => {
+    withOneConnectedNode();
+    const { getByLabelText, getByText } = render(<GraphView onOpenFile={vi.fn()} onClose={vi.fn()} />);
+
+    fireEvent.click(getByLabelText("Color groups"));
+    fireEvent.click(getByText("+ Add color group"));
+
+    expect(mockUpdateWorkspaceSettings).toHaveBeenCalledTimes(1);
+    const patch = mockUpdateWorkspaceSettings.mock.calls[0][0];
+    expect(patch.graphColorGroups).toHaveLength(1);
+    expect(patch.graphColorGroups![0]).toMatchObject({ query: "" });
+  });
+
+  it("renders an existing group's query and color, editable", () => {
+    withOneConnectedNode();
+    mockWorkspaceSettings.value = {
+      graphColorGroups: [{ id: "g1", query: "journal", color: "#123456" }],
+    };
+    const { getByLabelText, getByDisplayValue } = render(
+      <GraphView onOpenFile={vi.fn()} onClose={vi.fn()} />,
+    );
+
+    fireEvent.click(getByLabelText("Color groups"));
+    expect(getByDisplayValue("journal")).toBeTruthy();
+
+    fireEvent.input(getByDisplayValue("journal"), { target: { value: "meeting" } });
+
+    const patch = mockUpdateWorkspaceSettings.mock.calls.at(-1)![0];
+    expect(patch.graphColorGroups![0]).toMatchObject({ id: "g1", query: "meeting", color: "#123456" });
+  });
+
+  it("removing a group drops it from the persisted list", () => {
+    withOneConnectedNode();
+    mockWorkspaceSettings.value = {
+      graphColorGroups: [{ id: "g1", query: "journal", color: "#123456" }],
+    };
+    const { getByLabelText } = render(<GraphView onOpenFile={vi.fn()} onClose={vi.fn()} />);
+
+    fireEvent.click(getByLabelText("Color groups"));
+    fireEvent.click(getByLabelText("Remove color group"));
+
+    const patch = mockUpdateWorkspaceSettings.mock.calls.at(-1)![0];
+    expect(patch.graphColorGroups).toEqual([]);
   });
 });

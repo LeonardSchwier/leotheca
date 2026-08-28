@@ -1,8 +1,21 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { linkIndex } from "../linking/store";
+import { updateWorkspaceSettings, workspaceSettings } from "../settings/store";
+import type { GraphColorGroup } from "../settings/workspaceSettings";
 import { computeLayout, type Point } from "./layout";
 import { computeZoomTransform, findNodeAtWorld, screenToWorld, type Transform } from "./transform";
 import "./graph.css";
+
+// A small, muted palette in the same earthy register as the app's own
+// --accent (see styles/theme.css), cycled through as new color groups are
+// added rather than picking a random hue, so a freshly-added group's color
+// is at least predictable and never clashes wildly with the ones before it.
+const COLOR_GROUP_PALETTE = ["#b3541e", "#3f6b4f", "#3f5a8a", "#8a6f1e", "#7a3f6f", "#2f7a7a"];
+// Matches workspace/Sidebar.tsx's own full-text-search debounce: without
+// it, every keystroke would reset the pan/zoom transform (see
+// layoutAndDraw below) and re-run the force-directed layout, which reads
+// as the view snapping around while the user is still typing.
+const FILTER_DEBOUNCE_MS = 200;
 
 interface GraphViewProps {
   onOpenFile: (path: string, name: string) => void;
@@ -68,6 +81,70 @@ export function computeLocalGraph(
   return { nodes, edges };
 }
 
+/** Notes whose display name contains `query` (case-insensitive substring,
+ * the same semantics as this app's existing full-text search, see
+ * workspace/fileTreeStore.ts's runSearch), plus every edge whose two
+ * endpoints both survive that filter. An edge's two endpoints are only
+ * ever a subset of `nodePaths`, so filtering nodes first and then edges
+ * against the filtered set (rather than filtering both independently) is
+ * enough to keep them consistent. A blank (or whitespace-only) query
+ * matches everything, leaving the graph exactly as it was before this
+ * feature existed. */
+export function filterGraphByQuery(
+  nodePaths: string[],
+  edges: [string, string][],
+  query: string,
+): { nodes: string[]; edges: [string, string][] } {
+  const q = query.trim().toLowerCase();
+  if (!q) return { nodes: nodePaths, edges };
+  const nodes = nodePaths.filter((path) => noteName(path).toLowerCase().includes(q));
+  const nodeSet = new Set(nodes);
+  return { nodes, edges: edges.filter(([a, b]) => nodeSet.has(a) && nodeSet.has(b)) };
+}
+
+/** The color `path`'s node should be drawn with: the first color group
+ * (in array order, first match wins, so a group's position in the array is
+ * its priority) whose query is a non-blank case-insensitive substring of
+ * the note's display name, or `fallback` otherwise. A group with a blank
+ * query never matches anything, so an empty "still being typed into" group
+ * can't accidentally recolor the entire graph. */
+export function colorForPath(path: string, groups: GraphColorGroup[], fallback: string): string {
+  const name = noteName(path).toLowerCase();
+  for (const group of groups) {
+    const q = group.query.trim().toLowerCase();
+    if (q && name.includes(q)) return group.color;
+  }
+  return fallback;
+}
+
+/** The single source of truth for "what does the graph show right now",
+ * shared by the imperative canvas layout pass and the render-time empty-
+ * state / node-count logic below, so the two can never drift apart on
+ * what counts as a visible node. */
+export function computeVisibleGraph(
+  backlinksByPath: Map<string, string[]>,
+  options: { isLocal: boolean; focusPath?: string; showAll: boolean; filterQuery: string },
+): { nodes: string[]; edges: [string, string][] } {
+  let nodePaths: string[];
+  let edges: [string, string][];
+  if (options.isLocal && options.focusPath) {
+    const local = computeLocalGraph(options.focusPath, backlinksByPath);
+    nodePaths = Array.from(local.nodes);
+    edges = local.edges;
+  } else {
+    const connected = computeConnectedPaths(backlinksByPath);
+    nodePaths = options.showAll ? Array.from(backlinksByPath.keys()) : Array.from(connected);
+    // An edge's two endpoints are always in `connected` by construction
+    // (that's exactly what makes them connected), so unlike nodePaths,
+    // edges never need filtering for the showAll === false case.
+    edges = [];
+    for (const [target, sources] of backlinksByPath) {
+      for (const source of sources) edges.push([source, target]);
+    }
+  }
+  return filterGraphByQuery(nodePaths, edges, options.filterQuery);
+}
+
 function readCssVar(name: string, fallback: string): string {
   const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
   return value || fallback;
@@ -92,7 +169,27 @@ export function GraphView({ onOpenFile, onClose, focusPath }: GraphViewProps) {
   const lastTapRef = useRef<{ path: string; time: number } | null>(null);
   const [showAll, setShowAll] = useState(false);
   const [mode, setMode] = useState<"workspace" | "local">("workspace");
+  // filterInput reflects every keystroke immediately (so the text box never
+  // feels laggy); filterQuery is the debounced value the graph is actually
+  // filtered by (see FILTER_DEBOUNCE_MS above).
+  const [filterInput, setFilterInput] = useState("");
+  const [filterQuery, setFilterQuery] = useState("");
+  const filterTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const [colorGroupsOpen, setColorGroupsOpen] = useState(false);
   const isLocal = mode === "local" && !!focusPath;
+  const colorGroups = workspaceSettings.value.graphColorGroups;
+
+  useEffect(() => {
+    return () => {
+      if (filterTimerRef.current) clearTimeout(filterTimerRef.current);
+    };
+  }, []);
+
+  const handleFilterInput = (value: string) => {
+    setFilterInput(value);
+    if (filterTimerRef.current) clearTimeout(filterTimerRef.current);
+    filterTimerRef.current = setTimeout(() => setFilterQuery(value), FILTER_DEBOUNCE_MS);
+  };
 
   // Canvas rendering is imperative on purpose: it should never depend on
   // Preact re-rendering the component to actually paint. A pan/zoom/resize
@@ -124,8 +221,8 @@ export function GraphView({ onOpenFile, onClose, focusPath }: GraphViewProps) {
     }
 
     const nodeColor = readCssVar("--accent", "#6f5b3e");
-    ctx.fillStyle = nodeColor;
-    for (const pos of positionsRef.current.values()) {
+    for (const [path, pos] of positionsRef.current) {
+      ctx.fillStyle = colorForPath(path, colorGroups, nodeColor);
       ctx.beginPath();
       ctx.arc(pos.x, pos.y, 5 / scale, 0, Math.PI * 2);
       ctx.fill();
@@ -154,23 +251,12 @@ export function GraphView({ onOpenFile, onClose, focusPath }: GraphViewProps) {
     canvas.height = height;
 
     const { backlinksByPath } = linkIndex.value;
-    let nodePaths: string[];
-    let edges: [string, string][];
-    if (isLocal && focusPath) {
-      const local = computeLocalGraph(focusPath, backlinksByPath);
-      nodePaths = Array.from(local.nodes);
-      edges = local.edges;
-    } else {
-      const connected = computeConnectedPaths(backlinksByPath);
-      nodePaths = showAll ? Array.from(backlinksByPath.keys()) : Array.from(connected);
-      // An edge's two endpoints are always in `connected` by construction
-      // (that's exactly what makes them connected), so unlike nodePaths,
-      // edges never need filtering for the showAll === false case.
-      edges = [];
-      for (const [target, sources] of backlinksByPath) {
-        for (const source of sources) edges.push([source, target]);
-      }
-    }
+    const { nodes: nodePaths, edges } = computeVisibleGraph(backlinksByPath, {
+      isLocal,
+      focusPath,
+      showAll,
+      filterQuery,
+    });
     edgesRef.current = edges;
     positionsRef.current = computeLayout(nodePaths, edges, width, height);
     transformRef.current = { offsetX: 0, offsetY: 0, scale: 1 };
@@ -191,7 +277,16 @@ export function GraphView({ onOpenFile, onClose, focusPath }: GraphViewProps) {
     observer.observe(container);
     return () => observer.disconnect();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showAll, isLocal, focusPath]);
+  }, [showAll, isLocal, focusPath, filterQuery]);
+
+  // A color-group edit changes only how existing nodes are painted, never
+  // which nodes are visible or where they sit, so this redraws in place
+  // rather than going through layoutAndDraw, which would also reset the
+  // pan/zoom transform back to identity on every color or query tweak.
+  useEffect(() => {
+    draw();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(colorGroups)]);
 
   function findNodeAt(clientX: number, clientY: number): string | null {
     const canvas = canvasRef.current;
@@ -292,17 +387,45 @@ export function GraphView({ onOpenFile, onClose, focusPath }: GraphViewProps) {
 
   const { backlinksByPath } = linkIndex.value;
   const totalCount = backlinksByPath.size;
-  const nodeCount = isLocal && focusPath
-    ? computeLocalGraph(focusPath, backlinksByPath).nodes.size
-    : showAll
-      ? totalCount
-      : computeConnectedPaths(backlinksByPath).size;
+  const nodeCount = computeVisibleGraph(backlinksByPath, {
+    isLocal,
+    focusPath,
+    showAll,
+    filterQuery,
+  }).nodes.length;
+
+  function addColorGroup() {
+    const next: GraphColorGroup = {
+      id: crypto.randomUUID(),
+      query: "",
+      color: COLOR_GROUP_PALETTE[colorGroups.length % COLOR_GROUP_PALETTE.length],
+    };
+    void updateWorkspaceSettings({ graphColorGroups: [...colorGroups, next] });
+  }
+
+  function updateColorGroup(id: string, patch: Partial<Pick<GraphColorGroup, "query" | "color">>) {
+    void updateWorkspaceSettings({
+      graphColorGroups: colorGroups.map((group) => (group.id === id ? { ...group, ...patch } : group)),
+    });
+  }
+
+  function removeColorGroup(id: string) {
+    void updateWorkspaceSettings({ graphColorGroups: colorGroups.filter((group) => group.id !== id) });
+  }
 
   return (
     <div class="graph-view-overlay">
       <div class="graph-view-header">
         <span class="graph-view-title">{isLocal ? `Local graph: ${noteName(focusPath!)}` : "Graph"}</span>
         <div class="graph-view-header-actions">
+          <input
+            class="graph-filter-input"
+            type="text"
+            placeholder="Filter notes…"
+            aria-label="Filter graph notes"
+            value={filterInput}
+            onInput={(e) => handleFilterInput((e.target as HTMLInputElement).value)}
+          />
           {focusPath && (
             <div class="settings-switch">
               <button class={mode === "workspace" ? "active" : ""} onClick={() => setMode("workspace")}>
@@ -323,17 +446,58 @@ export function GraphView({ onOpenFile, onClose, focusPath }: GraphViewProps) {
               Show all notes
             </label>
           )}
+          <button
+            class={colorGroupsOpen ? "graph-color-groups-toggle active" : "graph-color-groups-toggle"}
+            aria-label="Color groups"
+            title="Color groups"
+            onClick={() => setColorGroupsOpen((open) => !open)}
+          >
+            Colors
+          </button>
           <button class="icon-button" aria-label="Close graph" title="Close graph" onClick={onClose}>
             ×
           </button>
         </div>
       </div>
+      {colorGroupsOpen && (
+        <div class="graph-color-groups-panel">
+          {colorGroups.map((group) => (
+            <div class="graph-color-group-row" key={group.id}>
+              <input
+                type="color"
+                aria-label={group.query ? `Color for notes matching "${group.query}"` : "Color for new group"}
+                value={group.color}
+                onInput={(e) => updateColorGroup(group.id, { color: (e.target as HTMLInputElement).value })}
+              />
+              <input
+                type="text"
+                class="graph-color-group-query"
+                placeholder="Notes containing…"
+                value={group.query}
+                onInput={(e) => updateColorGroup(group.id, { query: (e.target as HTMLInputElement).value })}
+              />
+              <button
+                class="graph-color-group-remove"
+                aria-label="Remove color group"
+                onClick={() => removeColorGroup(group.id)}
+              >
+                ×
+              </button>
+            </div>
+          ))}
+          <button class="graph-color-group-add" onClick={addColorGroup}>
+            + Add color group
+          </button>
+        </div>
+      )}
       <div class="graph-view-canvas-wrap" ref={containerRef}>
         {nodeCount === 0 ? (
           <p class="empty-hint">
             {totalCount === 0
               ? "No notes to graph yet."
-              : "No connected notes yet — try “Show all notes”."}
+              : filterInput.trim()
+                ? "No notes match your filter."
+                : "No connected notes yet, try “Show all notes”."}
           </p>
         ) : (
           <canvas

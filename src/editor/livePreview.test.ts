@@ -30,8 +30,8 @@ function stateFor(doc: string, selection?: { anchor: number; head?: number }): E
  * which text is marked with a class, and which text is replaced with a
  * widget (rendered to its DOM text so a test can assert on it), all keyed
  * by the original substring they replace or style. */
-function summarize(state: EditorState, visibleRanges?: { from: number; to: number }[]) {
-  const decorations = buildLiveDecorations(state, visibleRanges);
+function summarize(state: EditorState, visibleRange?: { from: number; to: number }) {
+  const decorations = buildLiveDecorations(state, visibleRange ? [visibleRange] : undefined);
   const hidden: string[] = [];
   const marked: { text: string; class: string }[] = [];
   const widgets: { text: string; rendered: string }[] = [];
@@ -182,7 +182,7 @@ describe("buildLiveDecorations: wikilinks", () => {
     const state = stateFor("See [[Beta]] for details.", { anchor: 8 });
     const { hidden } = summarize(state);
     expect(hidden).not.toContain("[[");
-    expect(hidden).not.toContain("]] ".trim());
+    expect(hidden).not.toContain("]]");
   });
 
   it("does not treat [[...]] inside an inline code span as a wikilink", () => {

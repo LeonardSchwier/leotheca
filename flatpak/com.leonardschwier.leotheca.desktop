@@ -2,8 +2,9 @@
 Type=Application
 Name=Leotheca
 Comment=A free and open source markdown viewer and editor
-Exec=leotheca
+Exec=leotheca %u
 Icon=com.leonardschwier.leotheca
 Terminal=false
 Categories=Office;TextEditor;
 StartupWMClass=leotheca
+MimeType=x-scheme-handler/leotheca;

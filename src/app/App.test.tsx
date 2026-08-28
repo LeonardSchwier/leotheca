@@ -67,6 +67,19 @@ vi.mock("../workspace/fileTreeStore", () => ({
   selectedDir: signal<string | null>(null),
 }));
 
+// Real @tauri-apps/plugin-deep-link and plugin-clipboard-manager reach for
+// window.__TAURI_INTERNALS__, absent in jsdom; App.tsx's automation-command
+// effect (see automationCommands.ts) is exercised by automationCommands'
+// own unit tests, not by this file, so a plain no-op stand-in is enough here.
+vi.mock("@tauri-apps/plugin-deep-link", () => ({
+  getCurrent: vi.fn(async () => null),
+  onOpenUrl: vi.fn(async () => () => {}),
+}));
+
+vi.mock("@tauri-apps/plugin-clipboard-manager", () => ({
+  writeText: vi.fn(async () => {}),
+}));
+
 vi.mock("../workspace/Sidebar", () => ({
   Sidebar: ({ onOpenFile }: { onOpenFile: (path: string, name: string) => void }) => (
     <button onClick={() => onOpenFile("/vault/note.md", "note.md")}>Open mock note</button>

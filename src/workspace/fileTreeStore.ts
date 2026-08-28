@@ -193,13 +193,23 @@ function uniqueNoteName(existingNames: Set<string>, baseName: string): string {
 
 /** Creates a note with an auto-generated, collision-free name ("Untitled",
  * "Untitled 2", ...) instead of prompting for one, for a quick-capture
- * shortcut (Ctrl+N) where interrupting with a naming dialog would defeat
- * the point. Returns the new path and the name actually used. */
-export async function createNoteQuick(dirPath: string): Promise<{ path: string; name: string }> {
+ * shortcut (Ctrl+N, and the "new-note" automation command in
+ * app/automationCommands.ts) where interrupting with a naming dialog
+ * would defeat the point. `content` defaults to the usual blank
+ * frontmatter stamp, but the automation command passes real text through
+ * instead, so it doesn't also have to invent a note name for content it
+ * received from outside the app. Returns the new path and the name
+ * actually used. */
+export async function createNoteQuick(
+  dirPath: string,
+  content: string = initialNoteContent(),
+): Promise<{ path: string; name: string }> {
   const existing = await listDir(dirPath);
   const existingNames = new Set(existing.map((e) => e.name));
   const name = uniqueNoteName(existingNames, "Untitled");
-  const path = await createNote(dirPath, name);
+  const path = `${dirPath}/${name}`;
+  await writeTextFile(path, content);
+  await loadChildren(dirPath);
   return { path, name };
 }
 

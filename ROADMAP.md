@@ -3,7 +3,7 @@
 ## Implemented
 
 - ✅ **Local Folder Workspace**: Browse, create, rename, delete, and organize local Markdown files with tabs, autosave, workspace restoration, and configurable trash behavior.
-- ✅ **Editor and Preview**: Edit with syntax highlighting in Source, Split, or rendered Preview mode, including inline live-preview formatting for headings, emphasis, code, wikilinks, and bullet lists.
+- ✅ **Editor and Preview**: Edit with syntax highlighting in Source, Split, or rendered Preview mode, including viewport-scoped inline formatting for headings, emphasis, code, wikilinks, and bullet lists so large notes avoid whole-document decoration work.
 - ✅ **Wikilinks and Backlinks**: Resolve `[[wikilinks]]`, autocomplete link targets, navigate links, and inspect backlinks.
 - ✅ **Graph View**: Explore a pannable and zoomable workspace or per-note graph with first-tap node opening, isolated-note controls, filtering, and prioritized color groups.
 - ✅ **Full-Text Search**: Search file names and note contents with quoted phrases, negation, OR groups, and `tag:` and `path:` filters.
@@ -23,6 +23,7 @@
 - ✅ **Flatpak CI Build**: Build the Flatpak bundle with offline package sources and a current supported runtime in CI.
 - ✅ **Dependency Security Audit**: Remove the vulnerable nested build dependency chain and verify that the package audit reports no known vulnerabilities.
 - ✅ **Workspace Statistics Wording**: Distinguish an empty workspace from platforms that cannot provide file dates.
+- ✅ **Direct Interface Zoom**: Change the persisted workspace interface scale with Ctrl+Plus, Ctrl+Minus, Ctrl+0, or a Ctrl-modified wheel gesture while respecting the Settings limits.
 - ✅ **Project Documentation and Screenshots**: Document setup, behavior, packaging, and current interface views.
 
 ## Open
@@ -42,9 +43,7 @@
 - ⬜ **F-Droid Submission**: Complete a real build and submission attempt using the existing draft metadata, then resolve any reproducibility or inclusion-policy findings.
 - ⬜ **Flathub Submission**: Complete domain verification, final metadata review, and the real submission using the already-green Flatpak CI artifact.
 - ⬜ **Expand-All Native Traversal**: Replace the remaining per-directory bridge calls in expand-all with the existing single native traversal pattern to remove avoidable latency on large workspaces.
-- ⬜ **Live-Preview Viewport Optimization**: Recompute editor decorations only for the visible region so exceptionally large notes remain responsive.
 - ⬜ **Mobile Polish**: Improve narrow-screen navigation and touch interactions beyond the existing Android folder access and collapsible sidebar.
-- 🚧 **Scroll-to-Zoom**: Add direct keyboard and pointer zoom controls while retaining the existing settings-based font and interface scaling. (claim: Codex-cloud-20260828T1703Z, 2026-08-28T17:03Z, branch: agent/scroll-to-zoom)
 - ⬜ **Additional Desktop Platforms**: Add macOS and Windows build targets, then complete the prepared macOS package and direct Windows release packaging.
 - ⬜ **Themes, Snippets, and Templates**: Add local extensibility for appearance and reusable note content, with a separate opt-out setting for each new capability.
 - ⬜ **Web Clipper**: Provide a local browser extension that saves selected web content into ordinary Markdown notes without adding an in-app network dependency.

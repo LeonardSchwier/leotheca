@@ -7,17 +7,30 @@ import { DEFAULT_WORKSPACE_SETTINGS } from "../settings/workspaceSettings";
 // A minimal, narrowly-scoped harness for one specific interaction (the
 // rename/autosave race documented in ROADMAP.md's "Still open for v1"),
 // not general App.tsx coverage. Everything not needed to reach
-// handleTabRenameSubmit is mocked away or simply never triggered (no
-// workspace is opened, so Sidebar/BookmarksPanel/BacklinksPanel/GraphView/
-// WelcomeDialog are never even reached and don't need mocking).
-vi.mock("../settings/store", () => ({
-  workspacePath: signal<string | null>(null),
-  settingsLoaded: signal(false),
-  settingsPanelOpen: signal(false),
-  viewMode: signal("source"),
-  initSettings: vi.fn(),
-  workspaceSettings: signal(DEFAULT_WORKSPACE_SETTINGS),
+// handleTabRenameSubmit is mocked away or simply never triggered. The zoom
+// tests open a minimal workspace, so Sidebar is replaced with a no-op below;
+// the other optional panels are never reached and don't need mocking.
+const { updateWorkspaceSettingsSpy } = vi.hoisted(() => ({
+  updateWorkspaceSettingsSpy: vi.fn(),
 }));
+
+vi.mock("../settings/store", () => {
+  const workspacePath = signal<string | null>(null);
+  const workspaceSettings = signal(DEFAULT_WORKSPACE_SETTINGS);
+  return {
+    workspacePath,
+    settingsLoaded: signal(false),
+    settingsPanelOpen: signal(false),
+    viewMode: signal("source"),
+    initSettings: vi.fn(),
+    workspaceSettings,
+    updateWorkspaceSettings: async (patch: Partial<typeof DEFAULT_WORKSPACE_SETTINGS>) => {
+      if (!workspacePath.value) return;
+      updateWorkspaceSettingsSpy(patch);
+      workspaceSettings.value = { ...workspaceSettings.value, ...patch };
+    },
+  };
+});
 
 const { readTextFile, writeTextFile } = vi.hoisted(() => ({
   readTextFile: vi.fn<(path: string) => Promise<string>>(async () => ""),
@@ -30,6 +43,7 @@ vi.mock("../workspace/tauriBridge", () => ({
   pickWorkspaceFolder: vi.fn(),
   restoreWorkspaceAccess: vi.fn(),
   listDir: vi.fn(async () => []),
+  findMarkdownFiles: vi.fn(async () => []),
   createDir: vi.fn(),
   renamePath: vi.fn(),
   trashPath: vi.fn(),
@@ -52,6 +66,10 @@ vi.mock("../workspace/fileTreeStore", () => ({
   selectedDir: signal<string | null>(null),
 }));
 
+vi.mock("../workspace/Sidebar", () => ({
+  Sidebar: () => null,
+}));
+
 // Stand in for CodeMirror with a plain, interactive textarea: this test
 // exercises App.tsx's own handleChange/autosave logic, not the editor.
 vi.mock("../editor/MarkdownEditor", () => ({
@@ -70,7 +88,7 @@ vi.mock("../settings/SettingsPanel", () => ({
 
 const { App } = await import("./App");
 const { openOrFocusTab, openTabs, activeTabPath } = await import("../workspace/store");
-const { settingsPanelOpen } = await import("../settings/store");
+const { settingsPanelOpen, workspacePath, workspaceSettings } = await import("../settings/store");
 
 afterEach(() => {
   cleanup();
@@ -78,6 +96,9 @@ afterEach(() => {
   openTabs.value = [];
   activeTabPath.value = null;
   settingsPanelOpen.value = false;
+  workspacePath.value = null;
+  workspaceSettings.value = DEFAULT_WORKSPACE_SETTINGS;
+  updateWorkspaceSettingsSpy.mockClear();
   writeTextFile.mockClear();
   readTextFile.mockClear();
   renameEntry.mockReset();
@@ -198,5 +219,52 @@ describe("App: keyboard shortcuts", () => {
     fireEvent.keyDown(window, { key: ",", ctrlKey: true });
 
     expect(settingsPanelOpen.value).toBe(true);
+  });
+
+  it("Ctrl+Plus, Ctrl+Minus, and Ctrl+0 update the persisted UI zoom", () => {
+    workspacePath.value = "/vault";
+    workspaceSettings.value = { ...DEFAULT_WORKSPACE_SETTINGS, uiZoom: 100 };
+    render(<App />);
+
+    fireEvent.keyDown(window, { key: "=", ctrlKey: true });
+    expect(updateWorkspaceSettingsSpy).toHaveBeenLastCalledWith({ uiZoom: 110 });
+
+    fireEvent.keyDown(window, { key: "-", ctrlKey: true });
+    expect(updateWorkspaceSettingsSpy).toHaveBeenLastCalledWith({ uiZoom: 100 });
+
+    workspaceSettings.value = { ...workspaceSettings.value, uiZoom: 170 };
+    fireEvent.keyDown(window, { key: "0", ctrlKey: true });
+    expect(updateWorkspaceSettingsSpy).toHaveBeenLastCalledWith({ uiZoom: 100 });
+  });
+
+  it("leaves browser zoom available before a workspace is open", () => {
+    render(<App />);
+
+    const browserZoom = new KeyboardEvent("keydown", {
+      key: "=",
+      ctrlKey: true,
+      cancelable: true,
+    });
+    window.dispatchEvent(browserZoom);
+
+    expect(browserZoom.defaultPrevented).toBe(false);
+    expect(updateWorkspaceSettingsSpy).not.toHaveBeenCalled();
+  });
+
+  it("Ctrl+wheel zooms in or out, while an unmodified wheel is left alone", () => {
+    workspacePath.value = "/vault";
+    workspaceSettings.value = { ...DEFAULT_WORKSPACE_SETTINGS, uiZoom: 100 };
+    render(<App />);
+
+    const zoomIn = new WheelEvent("wheel", { deltaY: -1, ctrlKey: true, cancelable: true });
+    window.dispatchEvent(zoomIn);
+    expect(zoomIn.defaultPrevented).toBe(true);
+    expect(updateWorkspaceSettingsSpy).toHaveBeenLastCalledWith({ uiZoom: 110 });
+
+    const callCount = updateWorkspaceSettingsSpy.mock.calls.length;
+    const ordinaryScroll = new WheelEvent("wheel", { deltaY: 1, cancelable: true });
+    window.dispatchEvent(ordinaryScroll);
+    expect(ordinaryScroll.defaultPrevented).toBe(false);
+    expect(updateWorkspaceSettingsSpy).toHaveBeenCalledTimes(callCount);
   });
 });

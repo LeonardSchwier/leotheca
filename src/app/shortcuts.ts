@@ -13,5 +13,7 @@ export const KEYBOARD_SHORTCUTS: KeyboardShortcut[] = [
   { keys: "Ctrl+Tab", description: "Next tab" },
   { keys: "Ctrl+Shift+Tab", description: "Previous tab" },
   { keys: "Ctrl+S", description: "Save the current note now" },
+  { keys: "Ctrl++ / Ctrl+-", description: "Zoom in or out" },
+  { keys: "Ctrl+0", description: "Reset zoom" },
   { keys: "Ctrl+,", description: "Open Settings" },
 ];

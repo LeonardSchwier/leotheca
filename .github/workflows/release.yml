@@ -96,6 +96,55 @@ jobs:
           name: linux-appimage
           path: src-tauri/target/release/bundle/appimage/*.AppImage
 
+  macos:
+    # A universal binary (both Apple Silicon and Intel) rather than just
+    # whatever architecture the runner happens to be, matching the same
+    # "download one artifact that works" expectation the Linux AppImage and
+    # the Homebrew Cask draft (packaging/homebrew/README.md) already assume.
+    # Needs both Rust targets installed; a plain `tauri build` without
+    # --target would only produce a native build for the runner's own
+    # architecture.
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - run: npm ci
+      - name: Build universal DMG
+        run: npx tauri build --target universal-apple-darwin --bundles dmg
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-dmg
+          path: src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - run: npm ci
+      - name: Build MSI
+        run: npx tauri build --bundles msi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-msi
+          path: src-tauri/target/release/bundle/msi/*.msi
+
   android:
     runs-on: ubuntu-latest
     steps:
@@ -167,14 +216,16 @@ jobs:
           path: leotheca.flatpak
 
   publish:
-    needs: [linux, android, flatpak]
+    needs: [linux, android, flatpak, macos, windows]
     # Real push events only, never workflow_dispatch (a manual run has no
     # single unambiguous release identity to attach artifacts to, see the
     # workflow_dispatch note above). Only linux and android are required to
     # actually succeed: flatpak has a known, already-documented (ROADMAP.md)
-    # npm-cache bug that currently fails it on every run, and a release
-    # missing just the Flatpak bundle is far more useful than no release at
-    # all. `always()` is needed here because a job's default condition
+    # npm-cache bug that currently fails it on every run, and macos/windows
+    # are new build targets with no local way to test them before their
+    # first real CI run, so the same reasoning applies to both: a release
+    # missing one or more of those three is far more useful than no release
+    # at all. `always()` is needed here because a job's default condition
     # skips it entirely once any of its `needs` fails.
     if: always() && github.event_name == 'push' && needs.linux.result == 'success' && needs.android.result == 'success'
     runs-on: ubuntu-latest
@@ -198,10 +249,16 @@ jobs:
             echo "name=Development build ($(date -u +%Y-%m-%d), ${GITHUB_SHA::7})" >> "$GITHUB_OUTPUT"
             echo "draft=false" >> "$GITHUB_OUTPUT"
             echo "prerelease=true" >> "$GITHUB_OUTPUT"
-            body="Automatically rebuilt from the latest push to main (commit ${GITHUB_SHA}). Not a stable, reviewed release, see the versioned v* releases for those. The Android APK is debug-signed and unsigned, for testing only."
+            body="Automatically rebuilt from the latest push to main (commit ${GITHUB_SHA}). Not a stable, reviewed release, see the versioned v* releases for those. The Android APK is debug-signed and unsigned, for testing only. The macOS and Windows builds are unsigned and un-notarized (no code-signing certificate is configured yet): macOS will show an \"unidentified developer\" Gatekeeper warning on first open, and Windows may show a SmartScreen warning."
           fi
           if [ "${{ needs.flatpak.result }}" != "success" ]; then
             body="${body}"$'\n\n'"Flatpak bundle not included in this run: the flatpak build job failed (see this commit's Actions run), a pre-existing issue already tracked in ROADMAP.md, not something this release broke."
+          fi
+          if [ "${{ needs.macos.result }}" != "success" ]; then
+            body="${body}"$'\n\n'"macOS build not included in this run: the macos build job failed (see this commit's Actions run)."
+          fi
+          if [ "${{ needs.windows.result }}" != "success" ]; then
+            body="${body}"$'\n\n'"Windows build not included in this run: the windows build job failed (see this commit's Actions run)."
           fi
           {
             echo "body<<RELEASE_BODY_EOF"
@@ -226,3 +283,5 @@ jobs:
             artifacts/linux-appimage/*.AppImage
             artifacts/android-debug-apk/*.apk
             artifacts/flatpak-bundle/*.flatpak
+            artifacts/macos-dmg/*.dmg
+            artifacts/windows-msi/*.msi

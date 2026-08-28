@@ -125,7 +125,9 @@ export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
 };
 
 // Plain string join is intentional here (not a path-resolution API call):
-// both target platforms (Linux, Android) use forward slashes, and the
+// every workspace path this app hands back to the frontend, on every
+// platform including Windows, is already forward-slash-separated (see
+// workspace/paths.ts's own comment on where that's normalized), and the
 // result is always relative to a workspace path this app already owns.
 function workspaceSettingsPath(workspacePath: string): string {
   return `${workspacePath}/.leotheca/settings.json`;

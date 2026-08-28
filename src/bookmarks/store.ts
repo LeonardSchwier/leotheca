@@ -12,9 +12,11 @@ const EMPTY_BOOKMARKS: Bookmark[] = [];
 
 export const bookmarks = signal<Bookmark[]>(EMPTY_BOOKMARKS);
 
-// Plain string join, not a path-resolution API call: both target platforms
-// (Linux, Android) use forward slashes, and this is always relative to a
-// workspace path this app already owns. Matches the same pattern in
+// Plain string join, not a path-resolution API call: every workspace path
+// this app hands back to the frontend, on every platform including
+// Windows, is already forward-slash-separated (see workspace/paths.ts's
+// own comment on where that's normalized), and this is always relative to
+// a workspace path this app already owns. Matches the same pattern in
 // src/settings/workspaceSettings.ts.
 function bookmarksPath(rootPath: string): string {
   return `${rootPath}/.leotheca/bookmarks.json`;

@@ -34,6 +34,42 @@ pub struct WorkspaceStats {
     pub newest_note_date: Option<u64>,
 }
 
+/// Converts a filesystem path to the string form every `FsEntry.path` the
+/// frontend receives is expected to be in: forward-slash-separated,
+/// regardless of the OS. `workspace/paths.ts`'s own doc comment states the
+/// frontend's assumption plainly: "a plain string join is fine here: both
+/// target platforms use forward slashes." That was true when only Linux
+/// and Android existed; `Path::to_string_lossy()` on Windows returns
+/// backslash-separated paths (Windows' native separator), which would
+/// silently break every consumer of that assumption (`dirname`,
+/// `relativePath`'s prefix matching, wikilink resolution, the workspace
+/// path cache, ...) without ever raising an error, now that Windows is a
+/// real build target (see `.github/workflows/release.yml`'s `windows`
+/// job). Fixed once, here, at the boundary every path crosses on its way
+/// to the frontend, rather than teaching every consumer about `\`.
+///
+/// Non-Windows paths are returned untouched: a backslash is a legal, if
+/// unusual, filename character there, not a separator, so rewriting it
+/// would corrupt a real path instead of normalizing one. Windows itself
+/// does not have this problem in reverse: forward slashes are already a
+/// valid alternate path separator for ordinary file I/O there (this is a
+/// long-standing OS-level convention, not Rust- or Tauri-specific), so the
+/// frontend's own forward-slash-joined paths already round-trip correctly
+/// when sent back into `write_text_file`, `rename_path`, and the rest.
+fn path_to_string(path: &Path) -> String {
+    normalize_separators_for_platform(path.to_string_lossy().into_owned(), cfg!(windows))
+}
+
+/// The actual replacement logic behind `path_to_string` above, with "is
+/// this Windows" passed in explicitly rather than baked in via
+/// `#[cfg(windows)]`, so both branches are directly unit-testable
+/// regardless of which OS actually runs the test suite (this project's CI
+/// only runs `cargo test` on Linux, see `.github/workflows/ci.yml`'s
+/// `backend` job).
+fn normalize_separators_for_platform(path: String, is_windows: bool) -> String {
+    if is_windows { path.replace('\\', "/") } else { path }
+}
+
 fn is_image_path(path: &Path) -> bool {
     matches!(
         path.extension()
@@ -235,7 +271,7 @@ pub fn find_markdown_files(path: String) -> Result<Vec<FsEntry>, String> {
             {
                 files.push(FsEntry {
                     name: name_str,
-                    path: entry_path.to_string_lossy().to_string(),
+                    path: path_to_string(&entry_path),
                     is_dir: false,
                     mtime: entry_mtime_ms(&entry_path),
                     size: None,
@@ -283,7 +319,7 @@ pub fn find_all_files(path: String) -> Result<Vec<FsEntry>, String> {
                 let (mtime, size) = entry_mtime_ms_and_size(&entry_path);
                 files.push(FsEntry {
                     name: name_str,
-                    path: entry_path.to_string_lossy().to_string(),
+                    path: path_to_string(&entry_path),
                     is_dir: false,
                     mtime,
                     size,
@@ -320,7 +356,7 @@ pub fn list_dir(path: String) -> Result<Vec<FsEntry>, String> {
         let mtime = if is_dir { None } else { entry_mtime_ms(&entry_path) };
         let fs_entry = FsEntry {
             name,
-            path: entry_path.to_string_lossy().to_string(),
+            path: path_to_string(&entry_path),
             is_dir,
             mtime,
             size: None,
@@ -452,6 +488,27 @@ pub fn delete_path_permanent(path: String) -> Result<(), String> {
 mod tests {
     use super::*;
     use std::fs::File;
+
+    #[test]
+    fn normalize_separators_for_platform_rewrites_backslashes_only_when_windows() {
+        // The whole reason this takes "is Windows" as a parameter instead
+        // of an internal #[cfg(windows)] check: this project's CI only
+        // runs `cargo test` on Linux (ci.yml's `backend` job), so a
+        // #[cfg(windows)]-gated body would never actually compile into,
+        // let alone run in, this test suite. Passing it in explicitly lets
+        // both branches be exercised here regardless of host OS.
+        assert_eq!(
+            normalize_separators_for_platform("C:\\Users\\a\\vault\\notes\\b.md".to_string(), true),
+            "C:/Users/a/vault/notes/b.md",
+        );
+        // Not just gated off: a genuine backslash in a real Unix filename
+        // (rare, but legal) must survive untouched, not get silently
+        // rewritten into a different, likely nonexistent path.
+        assert_eq!(
+            normalize_separators_for_platform("/home/a/vault/weird\\name.md".to_string(), false),
+            "/home/a/vault/weird\\name.md",
+        );
+    }
 
     #[test]
     fn list_dir_sorts_directories_before_files_and_skips_dotfiles() {

@@ -58,11 +58,12 @@ Minimum Android version: API 29 (Android 10).
 
 ### macOS and Windows
 
-Not yet available. macOS is planned via Homebrew, Windows via a direct download from GitHub Releases (no package manager or store for either). No build target exists for either platform yet, see [`ROADMAP.md`](ROADMAP.md).
+- **macOS**: download the universal (Apple Silicon and Intel) DMG from [GitHub Releases](https://github.com/LeonardSchwier/leotheca/releases). Unsigned and un-notarized for now, so macOS shows an "unidentified developer" Gatekeeper warning on first open (right-click the app and choose Open, or run `xattr -cr` on it, to get past it). A Homebrew Cask is planned, not yet submitted, see `packaging/homebrew/README.md`.
+- **Windows**: download the MSI installer from [GitHub Releases](https://github.com/LeonardSchwier/leotheca/releases). Unsigned for now, so Windows SmartScreen may warn on first run ("More info" then "Run anyway" to proceed). No package manager or store distribution, by design, see [`CONSTITUTION.md`](CONSTITUTION.md).
 
 ### Development builds
 
-Every push to `main` automatically rebuilds all three artifacts and republishes them to a single, always up to date [`dev-build` release](https://github.com/LeonardSchwier/leotheca/releases/tag/dev-build), separate from the versioned releases above. It's the freshest possible build, but unreviewed and marked as a prerelease on purpose, so Obtainium and F-Droid (which only track non-prerelease releases) never pick it up automatically. Use it if you want to try the latest changes; use a versioned release for anything else.
+Every push to `main` automatically rebuilds every artifact (AppImage, Flatpak, Android APK, macOS DMG, Windows MSI) and republishes them to a single, always up to date [`dev-build` release](https://github.com/LeonardSchwier/leotheca/releases/tag/dev-build), separate from the versioned releases above. It's the freshest possible build, but unreviewed and marked as a prerelease on purpose, so Obtainium and F-Droid (which only track non-prerelease releases) never pick it up automatically. Use it if you want to try the latest changes; use a versioned release for anything else.
 
 ## 🔄 Sync
 

@@ -45,6 +45,17 @@ name: Release
 # Flathub), so this job is the actual verification path for the manifest,
 # not the local desktop.
 #
+# Container image tracks the manifest's runtime-version: GNOME 46's image
+# (bilelmoussaoui/flatpak-github-actions:gnome-46) had a Rust 1.81.0
+# toolchain frozen since ~August 2024 (GNOME 46 has been out of support for
+# a long time), which stopped satisfying this project's real Cargo.lock
+# (many transitive dependencies now require the `edition2024` Cargo
+# feature, needing Rust 1.85+) well before it stopped satisfying anything
+# npm-side. Moved to GNOME 50 (the current stable release as of this
+# change) and its actively maintained image at
+# ghcr.io/flathub-infra/flatpak-github-actions:gnome-50, matching
+# `runtime-version` in the manifest itself, so both stay in sync.
+#
 # workflow_dispatch exists alongside the push triggers specifically so this
 # workflow (the Flatpak job above all) can be re-run on demand while
 # iterating on a real bug, without needing to delete and recreate a tag
@@ -112,7 +123,7 @@ jobs:
   flatpak:
     runs-on: ubuntu-latest
     container:
-      image: bilelmoussaoui/flatpak-github-actions:gnome-46
+      image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-50
       options: --privileged
     steps:
       - uses: actions/checkout@v4

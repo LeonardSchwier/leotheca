@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { bytesToBase64, findAllFiles, findMarkdownFiles, getWorkspaceStats } from "./capacitorBridgeImpl";
+import { bytesToBase64, findAllEntries, findAllFiles, findMarkdownFiles, getWorkspaceStats } from "./capacitorBridgeImpl";
 
 interface NativeMarkdownFile {
   relativePath: string;
@@ -72,6 +72,32 @@ describe("findAllFiles (Android)", () => {
     const walk = vi.fn(async () => ({ files: [] }));
 
     expect(await findAllFiles("/vault", { walk })).toEqual([]);
+  });
+});
+
+describe("findAllEntries (Android)", () => {
+  it("prefixes each discovered entry's relative path with the walked root, files and directories alike", async () => {
+    const walk = vi.fn(async () => ({
+      entries: [
+        { relativePath: "notes", uri: "content://notes", isDir: true },
+        { relativePath: "notes/a.md", uri: "content://a", isDir: false, mtime: 1234 },
+        { relativePath: "notes/empty", uri: "content://empty", isDir: true },
+      ],
+    }));
+
+    const entries = await findAllEntries("/vault", { walk });
+
+    expect(entries).toEqual([
+      { name: "notes", path: "/vault/notes", isDir: true },
+      { name: "a.md", path: "/vault/notes/a.md", isDir: false, mtime: 1234 },
+      { name: "empty", path: "/vault/notes/empty", isDir: true },
+    ]);
+  });
+
+  it("returns an empty list for an empty workspace", async () => {
+    const walk = vi.fn(async () => ({ entries: [] }));
+
+    expect(await findAllEntries("/vault", { walk })).toEqual([]);
   });
 });
 

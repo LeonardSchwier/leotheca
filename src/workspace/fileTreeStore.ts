@@ -1,9 +1,10 @@
 import { signal } from "@preact/signals";
 import type { FsEntry } from "./types";
-import { isImagePath, MAX_WALK_DEPTH } from "./types";
+import { isImagePath } from "./types";
 import {
   createDir,
   deletePathPermanent,
+  findAllEntries,
   findAllFiles,
   listDir,
   readTextFilesBatch,
@@ -114,18 +115,39 @@ export function collapseAll() {
   expandedDirs.value = new Set();
 }
 
+/** Expands every directory under `rootPath`, including one with nothing
+ * directly inside it. Uses findAllEntries's single native recursive walk
+ * instead of one listDir bridge call per directory: that per-directory
+ * approach used to run this exact walk here, and on a real large
+ * SAF-backed vault it didn't just run slowly, the same per-directory-IPC
+ * cost already measured and fixed for the link index, workspace stats, and
+ * search (see findAllFiles's own doc comment). The native walk's own depth
+ * cap (commands.rs's/FolderAccessPlugin.java's MAX_WALK_DEPTH, the same
+ * constant findAllFiles's walk also uses) means a directory at that exact
+ * cutoff is still listed and expanded here, just
+ * with no children shown even if it genuinely has some beyond the cap:
+ * the same already-accepted tradeoff search and the link index make at
+ * that same boundary, for a workspace nested unrealistically deep. */
 export async function expandAll(rootPath: string) {
-  const next = new Set<string>();
-  async function walk(path: string, depth: number) {
-    const entries = await loadChildren(path);
-    next.add(path);
-    if (depth >= MAX_WALK_DEPTH) return;
-    for (const entry of entries) {
-      if (entry.isDir) await walk(entry.path, depth + 1);
+  const entries = await findAllEntries(rootPath);
+  const nextExpanded = new Set<string>([rootPath]);
+  const childrenByParent = new Map<string, FsEntry[]>([[rootPath, []]]);
+  for (const entry of entries) {
+    if (entry.isDir) {
+      nextExpanded.add(entry.path);
+      if (!childrenByParent.has(entry.path)) childrenByParent.set(entry.path, []);
     }
+    const parent = dirname(entry.path);
+    const siblings = childrenByParent.get(parent);
+    if (siblings) siblings.push(entry);
+    else childrenByParent.set(parent, [entry]);
   }
-  await walk(rootPath, 0);
-  expandedDirs.value = next;
+  expandedDirs.value = nextExpanded;
+  const nextChildren = new Map(dirChildren.value);
+  for (const [path, children] of childrenByParent) {
+    nextChildren.set(path, children);
+  }
+  dirChildren.value = nextChildren;
 }
 
 export function toggleSortOrder() {

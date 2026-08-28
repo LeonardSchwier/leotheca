@@ -298,6 +298,56 @@ pub fn find_all_files(path: String) -> Result<Vec<FsEntry>, String> {
     Ok(files)
 }
 
+/// Same one-native-call recursive walk as `find_all_files` above, but also
+/// reports directory entries instead of silently walking through them,
+/// for `workspace/fileTreeStore.ts`'s `expandAll` ("Expand All" in the file
+/// tree). `find_all_files` cannot back that: it deliberately omits every
+/// directory entry (its only caller, `runSearch`, only needs files), so a
+/// directory with nothing directly inside it, or nested only under other
+/// empty directories, never appears in its output at all, and `expandAll`
+/// needs to expand and know about exactly those directories too, not just
+/// ones containing a file somewhere in their subtree. Before this existed,
+/// `expandAll` walked the workspace itself via repeated `list_dir` IPC
+/// calls, one per directory, the same per-directory-round-trip cost
+/// `find_markdown_files`'s and `find_all_files`'s own doc comments above
+/// already measured and fixed for the link index and search. Kept as its
+/// own command rather than adding an "include directories" flag to
+/// `find_all_files`, so that command's existing "files only" contract
+/// stays exactly what `runSearch` already relies on.
+#[tauri::command]
+pub fn find_all_entries(path: String) -> Result<Vec<FsEntry>, String> {
+    fn walk(path: &Path, depth: usize, entries: &mut Vec<FsEntry>) -> Result<(), String> {
+        for entry in fs::read_dir(path).map_err(|error| error.to_string())? {
+            let entry = entry.map_err(|error| error.to_string())?;
+            let entry_path = entry.path();
+            let name = entry.file_name();
+            let name_str = name.to_string_lossy().to_string();
+            if name_str.starts_with('.') {
+                continue;
+            }
+
+            let is_dir = entry_path.is_dir();
+            let mtime = if is_dir { None } else { entry_mtime_ms(&entry_path) };
+            entries.push(FsEntry {
+                name: name_str,
+                path: entry_path.to_string_lossy().to_string(),
+                is_dir,
+                mtime,
+                size: None,
+            });
+
+            if is_dir && depth < MAX_WALK_DEPTH {
+                walk(&entry_path, depth + 1, entries)?;
+            }
+        }
+        Ok(())
+    }
+
+    let mut entries = Vec::new();
+    walk(Path::new(&path), 0, &mut entries)?;
+    Ok(entries)
+}
+
 /// Lists the immediate children of `path`, directories first, both sorted
 /// alphabetically. Hidden entries (dotfiles) are skipped.
 #[tauri::command]
@@ -821,6 +871,71 @@ mod tests {
             "MAX_WALK_DEPTH should cap how many times a.md is rediscovered through the cycle \
              (plus at most one misclassified \"loop\" pseudo-file at the OS's own ELOOP boundary), got {}",
             files.len()
+        );
+
+        fs::remove_file(root.join("loop")).unwrap();
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn find_all_entries_includes_directories_even_when_empty() {
+        // The exact case find_all_files cannot answer: a directory with
+        // nothing directly inside it (here, "empty") must still appear, so
+        // fileTreeStore.ts's expandAll can expand it and know it has no
+        // children, instead of silently never learning it exists.
+        let root = std::env::temp_dir().join(format!("leotheca-test-findallentries-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        create_dir(root.join("notes").to_string_lossy().to_string()).unwrap();
+        create_dir(root.join("empty").to_string_lossy().to_string()).unwrap();
+        create_dir(root.join(".leotheca").to_string_lossy().to_string()).unwrap();
+        fs::write(root.join("a.md"), "a").unwrap();
+        fs::write(root.join("notes").join("b.md"), "b").unwrap();
+        File::create(root.join(".leotheca").join("ignored.md")).unwrap();
+        File::create(root.join(".hidden.md")).unwrap();
+
+        let entries = find_all_entries(root.to_string_lossy().to_string()).unwrap();
+        let mut names: Vec<_> = entries.iter().map(|f| f.name.clone()).collect();
+        names.sort();
+
+        assert_eq!(
+            names,
+            vec!["a.md", "b.md", "empty", "notes"],
+            "both files and directories, including one with nothing inside it, outside hidden directories"
+        );
+        let empty_entry = entries.iter().find(|e| e.name == "empty").unwrap();
+        assert!(empty_entry.is_dir);
+        assert!(empty_entry.mtime.is_none(), "mtime is only meaningful for files, same as list_dir");
+        let notes_entry = entries.iter().find(|e| e.name == "notes").unwrap();
+        assert!(notes_entry.is_dir);
+        let a_entry = entries.iter().find(|e| e.name == "a.md").unwrap();
+        assert!(!a_entry.is_dir);
+        assert!(a_entry.mtime.is_some());
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn find_all_entries_stops_at_a_bounded_depth_instead_of_recursing_forever_through_a_symlink_cycle() {
+        // Same shape and reasoning as find_all_files's own symlink-cycle
+        // test above, adjusted for directory entries themselves now also
+        // being collected (not just files found through them).
+        let root = std::env::temp_dir().join(format!(
+            "leotheca-test-findallentries-cycle-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        create_dir(root.to_string_lossy().to_string()).unwrap();
+        fs::write(root.join("a.md"), "a").unwrap();
+        std::os::unix::fs::symlink(&root, root.join("loop")).unwrap();
+
+        let entries = find_all_entries(root.to_string_lossy().to_string()).unwrap();
+
+        assert!(!entries.is_empty(), "the walk should have found a.md and loop at least once");
+        assert!(
+            entries.len() <= (MAX_WALK_DEPTH + 2) * 2,
+            "MAX_WALK_DEPTH should cap how many times a.md and loop are rediscovered through the cycle \
+             (same +2 slack as find_all_files's own version of this test, for the OS's own ELOOP boundary), got {}",
+            entries.len()
         );
 
         fs::remove_file(root.join("loop")).unwrap();

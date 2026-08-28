@@ -1,11 +1,11 @@
 /** @vitest-environment jsdom */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { FsEntry } from "./types";
-import { MAX_WALK_DEPTH } from "./types";
 
 const {
   listDir,
   findAllFiles,
+  findAllEntries,
   readTextFilesBatch,
   writeTextFile,
   createDir,
@@ -15,6 +15,7 @@ const {
 } = vi.hoisted(() => ({
   listDir: vi.fn<(path: string) => Promise<FsEntry[]>>(async () => []),
   findAllFiles: vi.fn<(path: string) => Promise<FsEntry[]>>(async () => []),
+  findAllEntries: vi.fn<(path: string) => Promise<FsEntry[]>>(async () => []),
   readTextFilesBatch: vi.fn<(paths: string[]) => Promise<(string | null)[]>>(async (paths) => paths.map(() => null)),
   writeTextFile: vi.fn<(path: string, contents: string) => Promise<void>>(async () => {}),
   createDir: vi.fn<(path: string) => Promise<void>>(async () => {}),
@@ -26,6 +27,7 @@ const {
 vi.mock("./tauriBridge", () => ({
   listDir,
   findAllFiles,
+  findAllEntries,
   readTextFilesBatch,
   writeTextFile,
   createDir,
@@ -521,25 +523,47 @@ describe("toggleExpanded and loadChildren", () => {
   });
 });
 
-describe("expandAll: symlink cycle guard", () => {
+describe("expandAll", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("stops descending at MAX_WALK_DEPTH instead of recursing forever through a directory that always reports one more subfolder", async () => {
-    // Simulates a workspace symlink cycle (a folder symlinked back to one
-    // of its own ancestors, see ROADMAP.md's "Symlink Cycle Handling"):
-    // every directory reports exactly one child folder, forever.
-    listDir.mockImplementation(async (path: string) => [
-      { name: "loop", path: `${path}/loop`, isDir: true },
+  // The symlink-cycle depth guard itself (MAX_WALK_DEPTH) now lives
+  // entirely in the native walk behind findAllEntries (commands.rs,
+  // FolderAccessPlugin.java), not here: expandAll just consumes whatever
+  // flat, already-bounded list that walk returns. See commands.rs's
+  // find_all_entries_stops_at_a_bounded_depth_instead_of_recursing_forever_through_a_symlink_cycle
+  // for that guarantee's own test.
+
+  it("expands every directory the native walk found and reconstructs each directory's children, including one with nothing directly inside it", async () => {
+    findAllEntries.mockResolvedValue([
+      { name: "notes", path: "/workspace/notes", isDir: true },
+      { name: "a.md", path: "/workspace/notes/a.md", isDir: false },
+      { name: "empty", path: "/workspace/notes/empty", isDir: true },
+      { name: "b.md", path: "/workspace/b.md", isDir: false },
     ]);
 
     await expandAll("/workspace");
 
-    // One path added at every depth from 0 (the root itself) through
-    // MAX_WALK_DEPTH inclusive, then the walk stops instead of
-    // continuing forever.
-    expect(expandedDirs.value.size).toBe(MAX_WALK_DEPTH + 1);
+    expect(expandedDirs.value).toEqual(
+      new Set(["/workspace", "/workspace/notes", "/workspace/notes/empty"]),
+    );
+    expect(dirChildren.value.get("/workspace")?.map((e) => e.name).sort()).toEqual(["b.md", "notes"]);
+    expect(dirChildren.value.get("/workspace/notes")?.map((e) => e.name).sort()).toEqual(["a.md", "empty"]);
+    // The whole point of using findAllEntries over the old files-only walk:
+    // an empty directory still gets a real (empty) entry here, rather than
+    // never being discovered at all because it has no file anywhere
+    // beneath it to reveal its existence.
+    expect(dirChildren.value.get("/workspace/notes/empty")).toEqual([]);
+  });
+
+  it("expands a workspace with nothing in it at all to just the root, with no children", async () => {
+    findAllEntries.mockResolvedValue([]);
+
+    await expandAll("/workspace");
+
+    expect(expandedDirs.value).toEqual(new Set(["/workspace"]));
+    expect(dirChildren.value.get("/workspace")).toEqual([]);
   });
 });
 

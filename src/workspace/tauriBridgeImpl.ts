@@ -40,6 +40,15 @@ export async function findAllFiles(path: string): Promise<FsEntry[]> {
   return invoke<FsEntry[]>("find_all_files", { path });
 }
 
+/** Same one-native-call walk as findAllFiles above, but also reports
+ * directory entries (including an empty one), for fileTreeStore.ts's
+ * expandAll, which needs to expand and know about every directory in the
+ * subtree, not just files (see commands.rs's find_all_entries for why this
+ * is a separate command from findAllFiles rather than an option on it). */
+export async function findAllEntries(path: string): Promise<FsEntry[]> {
+  return invoke<FsEntry[]>("find_all_entries", { path });
+}
+
 export async function readTextFile(path: string): Promise<string> {
   return invoke<string>("read_text_file", { path });
 }

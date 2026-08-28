@@ -58,11 +58,24 @@ interface NativeFile {
   size?: number;
 }
 
+/** One entry (file or directory) discovered by findAllEntries's native
+ * walk: the same relativePath/uri shape as NativeFile above, but also
+ * covering directories, since expandAll (fileTreeStore.ts) needs to know
+ * about every directory in the subtree, including one with nothing
+ * directly inside it, which a files-only walk can never report. */
+interface NativeAllEntry {
+  relativePath: string;
+  uri: string;
+  isDir: boolean;
+  mtime?: number;
+}
+
 interface FolderAccessPlugin {
   pickFolder(): Promise<{ uri: string | null }>;
   listDir(options: { uri: string }): Promise<{ entries: NativeEntry[] }>;
   findMarkdownFiles(options: { uri: string }): Promise<WorkspaceWalkResult>;
   findAllFiles(options: { uri: string }): Promise<{ files: NativeFile[] }>;
+  findAllEntries(options: { uri: string }): Promise<{ entries: NativeAllEntry[] }>;
   readTextFile(options: { uri: string }): Promise<{ content: string }>;
   readTextFilesBatch(options: { uris: string[] }): Promise<{ contents: (string | null)[] }>;
   writeTextFile(options: {
@@ -411,6 +424,38 @@ export async function findAllFiles(
     const path = `${rootPath}/${relativePath}`;
     pathToUri.set(path, uri);
     return { name: pathBasename(path), path, isDir: false, mtime, size };
+  });
+}
+
+/** Same reasoning as walkWorkspaceAllFiles above, but backing
+ * findAllEntries below: every file and directory, not just files. */
+async function walkWorkspaceAllEntries(rootPath: string): Promise<{ entries: NativeAllEntry[] }> {
+  const uri = await resolveUri(rootPath);
+  return FolderAccess.findAllEntries({ uri });
+}
+
+/** Recursively finds every file and directory under `rootPath` in a single
+ * native call, for fileTreeStore.ts's expandAll ("Expand All" in the file
+ * tree). Before this existed, expandAll walked the workspace itself via
+ * repeated listDir plugin calls, one per directory, the same per-directory
+ * bridge-round-trip cost findMarkdownFiles's and findAllFiles's own doc
+ * comments above already measured and fixed for the link index and search.
+ * Kept as its own native call rather than teaching findAllFiles to also
+ * return directories: findAllFiles's only caller (runSearch) relies on it
+ * staying files-only, and a directory with nothing directly inside it (or
+ * nested only under other empty directories) would never appear in a
+ * files-only walk at all, which expandAll needs to know about, unlike
+ * runSearch. `deps.walk` follows the same test seam as findAllFiles and
+ * findMarkdownFiles. */
+export async function findAllEntries(
+  rootPath: string,
+  deps: { walk: typeof walkWorkspaceAllEntries } = { walk: walkWorkspaceAllEntries },
+): Promise<FsEntry[]> {
+  const { entries } = await deps.walk(rootPath);
+  return entries.map(({ relativePath, uri, isDir, mtime }) => {
+    const path = `${rootPath}/${relativePath}`;
+    pathToUri.set(path, uri);
+    return { name: pathBasename(path), path, isDir, mtime };
   });
 }
 

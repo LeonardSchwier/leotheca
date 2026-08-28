@@ -26,6 +26,7 @@
 - ✅ **Direct Interface Zoom**: Change the persisted workspace interface scale with Ctrl+Plus, Ctrl+Minus, Ctrl+0, or a Ctrl-modified wheel gesture while respecting the Settings limits.
 - ✅ **Mobile Navigation and Touch Targets**: Use a full-width narrow-screen file browser that closes after note navigation, keep toolbar actions horizontally reachable, and enlarge primary touch targets.
 - ✅ **Project Documentation and Screenshots**: Document setup, behavior, packaging, and current interface views.
+- ✅ **Expand-All Native Traversal**: Replace expand-all's per-directory bridge calls with a single native recursive walk (`find_all_entries` on desktop, `findAllEntries` on Android) covering both files and directories, so a directory with nothing directly inside it is still discovered and expanded, not just one containing a file somewhere in its subtree, which a files-only walk could never report. Verified with Rust unit tests (including one asserting an empty directory survives the walk) and TypeScript unit tests for the grouping logic, plus the full desktop verification suite. The Android-side walk mirrors the already-shipped `findAllFiles` pattern exactly (same `DocumentFile`/SAF APIs, same depth cap) but native Android code isn't unit-testable here; CI's Android build is this change's actual verification gate for that platform, no on-device confirmation is claimed.
 
 ## Open
 
@@ -43,7 +44,6 @@
 
 - ⬜ **F-Droid Submission**: Complete a real build and submission attempt using the existing draft metadata, then resolve any reproducibility or inclusion-policy findings.
 - ⬜ **Flathub Submission**: Complete domain verification, final metadata review, and the real submission using the already-green Flatpak CI artifact.
-- 🚧 **Expand-All Native Traversal** (claim: Claude-Code-cloud-20260828T1816Z, 2026-08-28T18:16Z, branch: agent/expand-all-native-traversal): Replace the remaining per-directory bridge calls in expand-all with the existing single native traversal pattern to remove avoidable latency on large workspaces.
 - ⬜ **Additional Desktop Platforms**: Add macOS and Windows build targets, then complete the prepared macOS package and direct Windows release packaging.
 - ⬜ **Themes, Snippets, and Templates**: Add local extensibility for appearance and reusable note content, with a separate opt-out setting for each new capability.
 - ⬜ **Web Clipper**: Provide a local browser extension that saves selected web content into ordinary Markdown notes without adding an in-app network dependency.

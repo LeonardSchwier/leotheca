@@ -315,6 +315,26 @@ pub fn read_text_file(path: String) -> Result<String, String> {
     fs::read_to_string(&path).map_err(|e| e.to_string())
 }
 
+/// Reads multiple files' contents in one native call, for full-text
+/// search's content-fallback (`workspace/fileTreeStore.ts`'s `runSearch`),
+/// which otherwise needs one native call per file whose name doesn't
+/// match the query. On a real ~500-note vault this call-per-file pattern
+/// still exhausted the Android app's Java heap after ~1700 sequential
+/// Capacitor plugin calls even once the separate directory-walk crash
+/// (`find_all_files`, added the same day) was fixed, confirmed on-device
+/// 2026-08-28: fewer, larger native calls bound the total call count
+/// regardless of vault size, the same reasoning as `find_all_files`
+/// itself, just applied to content reads instead of the walk. Each file
+/// is read independently and an unreadable one yields `None` in that
+/// position rather than failing the whole batch, since a batch of many
+/// files can't reasonably fail all-or-nothing over one bad one; the same
+/// tolerance `read_text_file`'s own callers already apply per-file is
+/// just centralized here.
+#[tauri::command]
+pub fn read_text_files_batch(paths: Vec<String>) -> Vec<Option<String>> {
+    paths.iter().map(|path| fs::read_to_string(path).ok()).collect()
+}
+
 /// Writes `contents` to `path`, creating any missing parent directories
 /// first (needed for first-run writes like the settings file, whose config
 /// directory may not exist yet).
@@ -463,6 +483,29 @@ mod tests {
 
         assert_eq!(contents, "# Hello\n\nBody text.");
         fs::remove_file(&tmp).unwrap();
+    }
+
+    #[test]
+    fn read_text_files_batch_reads_every_file_and_maps_a_missing_one_to_none() {
+        let root = std::env::temp_dir().join(format!("leotheca-test-batchread-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        create_dir(root.to_string_lossy().to_string()).unwrap();
+        fs::write(root.join("a.md"), "content a").unwrap();
+        fs::write(root.join("b.md"), "content b").unwrap();
+        let missing = root.join("does-not-exist.md");
+
+        let results = read_text_files_batch(vec![
+            root.join("a.md").to_string_lossy().to_string(),
+            missing.to_string_lossy().to_string(),
+            root.join("b.md").to_string_lossy().to_string(),
+        ]);
+
+        assert_eq!(
+            results,
+            vec![Some("content a".to_string()), None, Some("content b".to_string())],
+            "one missing file yields None in its own position, not a failure for the whole batch"
+        );
+        fs::remove_dir_all(&root).unwrap();
     }
 
     #[test]

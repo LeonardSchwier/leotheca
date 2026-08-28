@@ -6,7 +6,7 @@ import {
   deletePathPermanent,
   findAllFiles,
   listDir,
-  readTextFile,
+  readTextFilesBatch,
   renamePath,
   trashPath,
   writeTextFile,
@@ -14,6 +14,7 @@ import {
 import { updateWorkspaceSettings, workspaceSettings } from "../settings/store";
 import { linkIndex } from "../linking/store";
 import { matchesSearchQuery, parseSearchQuery } from "./searchQuery";
+import { mapWithConcurrency } from "./concurrency";
 
 export const expandedDirs = signal<Set<string>>(new Set());
 export const dirChildren = signal<Map<string, FsEntry[]>>(new Map());
@@ -179,6 +180,64 @@ export async function createFolder(dirPath: string, folderName: string): Promise
   return path;
 }
 
+/** One native call reads many files at once instead of one call per file
+ * (see tauriBridge's readTextFilesBatch doc comment for why: a real
+ * on-device OutOfMemoryError after ~1700 sequential single-file native
+ * calls, 2026-08-28). Every getContentLower() call issued within the same
+ * microtask tick lands in the same pending batch and goes out as one
+ * native call; runSearch's own bounded concurrency (see
+ * SEARCH_CONTENT_READ_CONCURRENCY below) is what makes multiple requests
+ * actually land in the same tick, rather than one at a time. Scoped fresh
+ * per runSearch call (not module-level) so two searches in flight at once
+ * can never mix their batches. */
+function createBatchedContentReader() {
+  let pending = new Map<string, Array<(content: string | null) => void>>();
+  let flushScheduled = false;
+
+  function scheduleFlush() {
+    if (flushScheduled) return;
+    flushScheduled = true;
+    queueMicrotask(flush);
+  }
+
+  async function flush() {
+    flushScheduled = false;
+    const batch = pending;
+    pending = new Map();
+    const paths = Array.from(batch.keys());
+    if (paths.length === 0) return;
+    let contents: (string | null)[];
+    try {
+      contents = await readTextFilesBatch(paths);
+    } catch {
+      contents = paths.map(() => null); // Whole batch unreadable: treat every entry as no content, not a search failure.
+    }
+    paths.forEach((path, i) => {
+      const content = contents[i] ?? null;
+      for (const resolve of batch.get(path) ?? []) resolve(content);
+    });
+  }
+
+  return function readOne(path: string): Promise<string | null> {
+    return new Promise((resolve) => {
+      if (!pending.has(path)) pending.set(path, []);
+      pending.get(path)!.push(resolve);
+      scheduleFlush();
+    });
+  };
+}
+
+// Entries matched concurrently while running a search, which bounds how
+// many getContentLower() calls land in the same content-read batch above.
+// Larger than the read concurrency used elsewhere (LINK_INDEX_READ_CONCURRENCY,
+// WORKSPACE_STATS_READ_CONCURRENCY, both 8 in their own files): those bound
+// queue depth so an unrelated user action can interleave promptly, but the
+// real on-device crash this fixes came from ~1700 sequential native calls
+// piling up over the whole search, not from too much work in flight at any
+// one moment, so cutting total native call count matters more here than a
+// shallow queue does.
+const SEARCH_CONTENT_READ_CONCURRENCY = 40;
+
 /** Full-text search: matches by file name first (cheap), and for text
  * files that don't match by name, falls back to reading and checking their
  * content. Skips hidden entries (`.trash`, `.leotheca`, ...) and, for
@@ -202,7 +261,12 @@ export async function createFolder(dirPath: string, folderName: string): Promise
  * crashed the app outright with an OutOfMemoryError partway through
  * (confirmed on-device, 2026-08-28), the same per-directory-IPC-call cost
  * already measured and fixed for the link index and workspace stats (see
- * findAllFiles's own doc comment).
+ * findAllFiles's own doc comment). Matching itself runs with bounded
+ * concurrency (see SEARCH_CONTENT_READ_CONCURRENCY above) rather than one
+ * entry at a time, both for speed and because a genuinely large vault's
+ * worth of content-fallback matching, run one call at a time, hit that
+ * same class of crash again even after the walk itself was fixed (see
+ * createBatchedContentReader above).
  */
 export async function runSearch(rootPath: string, query: string) {
   searchQuery.value = query;
@@ -212,28 +276,25 @@ export async function runSearch(rootPath: string, query: string) {
     return;
   }
   const entries = await findAllFiles(rootPath);
-  const matches: FsEntry[] = [];
-  for (const entry of entries) {
+  const readContent = createBatchedContentReader();
+  const matchFlags = await mapWithConcurrency(entries, SEARCH_CONTENT_READ_CONCURRENCY, async (entry) => {
     let contentPromise: Promise<string | null> | null = null;
     const getContentLower = () => {
       if (!contentPromise) {
         contentPromise = isImagePath(entry.path)
           ? Promise.resolve(null)
-          : readTextFile(entry.path)
-              .then((content) => content.toLowerCase())
-              .catch(() => null); // Unreadable file: treat as no content, not a search failure.
+          : readContent(entry.path).then((content) => content?.toLowerCase() ?? null);
       }
       return contentPromise;
     };
-    const isMatch = await matchesSearchQuery(parsed, {
+    return matchesSearchQuery(parsed, {
       nameLower: entry.name.toLowerCase(),
       pathLower: relativePath(rootPath, entry.path).toLowerCase(),
       tagsLower: linkIndex.value.tagsByPath.get(entry.path) ?? [],
       getContentLower,
     });
-    if (isMatch) matches.push(entry);
-  }
-  searchResults.value = matches;
+  });
+  searchResults.value = entries.filter((_, i) => matchFlags[i]);
 }
 
 export function clearSearch() {

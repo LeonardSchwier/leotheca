@@ -16,6 +16,7 @@ export const listDir = impl.listDir;
 export const findMarkdownFiles = impl.findMarkdownFiles;
 export const findAllFiles = impl.findAllFiles;
 export const readTextFile = impl.readTextFile;
+export const readTextFilesBatch = impl.readTextFilesBatch;
 export const writeTextFile = impl.writeTextFile;
 export const writeBinaryFile = impl.writeBinaryFile;
 export const createDir = impl.createDir;

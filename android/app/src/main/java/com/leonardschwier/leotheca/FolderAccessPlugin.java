@@ -17,6 +17,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
+import org.json.JSONObject;
 
 /**
  * Storage Access Framework bridge for the Android workspace folder. There is
@@ -314,6 +315,60 @@ public class FolderAccessPlugin extends Plugin {
             }
             JSObject ret = new JSObject();
             ret.put("content", buffer.toString("UTF-8"));
+            call.resolve(ret);
+        } catch (Exception e) {
+            call.reject(e.getMessage(), e);
+        }
+    }
+
+    /** Reads one file's content, or returns null instead of throwing on any
+     * failure (unreadable, deleted mid-batch, not valid UTF-8): shared by
+     * readTextFilesBatch below, where one bad file in a batch of many can't
+     * reasonably fail the whole batch, the same tolerance readTextFile's own
+     * callers already apply per-file one call at a time. */
+    private String readOneFileOrNull(String uriStr) {
+        try (InputStream input = getContext().getContentResolver().openInputStream(Uri.parse(uriStr))) {
+            if (input == null) return null;
+            ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+            byte[] chunk = new byte[8192];
+            int read;
+            while ((read = input.read(chunk)) != -1) {
+                buffer.write(chunk, 0, read);
+            }
+            return buffer.toString("UTF-8");
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * Reads multiple files' contents in one native call, for full-text
+     * search's content-fallback (fileTreeStore.ts's runSearch), which
+     * otherwise needs one native call per file whose name doesn't match
+     * the query. On a real ~500-note vault this call-per-file pattern
+     * exhausted the app's Java heap with an OutOfMemoryError after
+     * roughly 1700 sequential Capacitor plugin calls, confirmed
+     * on-device 2026-08-28, even after the separate directory-walk crash
+     * (findAllFiles, added the same day) was fixed: fewer, larger native
+     * calls bound the total call count regardless of vault size, the
+     * same reasoning as findAllFiles itself, just applied to content
+     * reads instead of the walk.
+     */
+    @PluginMethod
+    public void readTextFilesBatch(PluginCall call) {
+        JSArray uris = call.getArray("uris");
+        if (uris == null) {
+            call.reject("uris is required");
+            return;
+        }
+        try {
+            JSArray contents = new JSArray();
+            for (int i = 0; i < uris.length(); i++) {
+                String content = readOneFileOrNull(uris.getString(i));
+                contents.put(content == null ? JSONObject.NULL : content);
+            }
+            JSObject ret = new JSObject();
+            ret.put("contents", contents);
             call.resolve(ret);
         } catch (Exception e) {
             call.reject(e.getMessage(), e);

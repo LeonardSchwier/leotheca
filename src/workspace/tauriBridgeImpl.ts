@@ -44,6 +44,17 @@ export async function readTextFile(path: string): Promise<string> {
   return invoke<string>("read_text_file", { path });
 }
 
+/** Reads multiple files' contents in one native call, for full-text
+ * search's content-fallback (fileTreeStore.ts's runSearch): one native
+ * call per file whose name doesn't match the query exhausted the Android
+ * app's Java heap on a real large vault (see commands.rs's
+ * read_text_files_batch), so search batches its content reads through
+ * this instead. An unreadable file resolves to null in its position
+ * rather than failing the whole batch. */
+export async function readTextFilesBatch(paths: string[]): Promise<(string | null)[]> {
+  return invoke<(string | null)[]>("read_text_files_batch", { paths });
+}
+
 export async function writeTextFile(path: string, contents: string): Promise<void> {
   return invoke("write_text_file", { path, contents });
 }

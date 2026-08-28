@@ -3,22 +3,30 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { FsEntry } from "./types";
 import { MAX_WALK_DEPTH } from "./types";
 
-const { listDir, findAllFiles, readTextFile, writeTextFile, createDir, renamePath, trashPath, deletePathPermanent } =
-  vi.hoisted(() => ({
-    listDir: vi.fn<(path: string) => Promise<FsEntry[]>>(async () => []),
-    findAllFiles: vi.fn<(path: string) => Promise<FsEntry[]>>(async () => []),
-    readTextFile: vi.fn<(path: string) => Promise<string>>(async () => ""),
-    writeTextFile: vi.fn<(path: string, contents: string) => Promise<void>>(async () => {}),
-    createDir: vi.fn<(path: string) => Promise<void>>(async () => {}),
-    renamePath: vi.fn<(from: string, to: string) => Promise<void>>(async () => {}),
-    trashPath: vi.fn<(root: string, path: string) => Promise<void>>(async () => {}),
-    deletePathPermanent: vi.fn<(path: string) => Promise<void>>(async () => {}),
-  }));
+const {
+  listDir,
+  findAllFiles,
+  readTextFilesBatch,
+  writeTextFile,
+  createDir,
+  renamePath,
+  trashPath,
+  deletePathPermanent,
+} = vi.hoisted(() => ({
+  listDir: vi.fn<(path: string) => Promise<FsEntry[]>>(async () => []),
+  findAllFiles: vi.fn<(path: string) => Promise<FsEntry[]>>(async () => []),
+  readTextFilesBatch: vi.fn<(paths: string[]) => Promise<(string | null)[]>>(async (paths) => paths.map(() => null)),
+  writeTextFile: vi.fn<(path: string, contents: string) => Promise<void>>(async () => {}),
+  createDir: vi.fn<(path: string) => Promise<void>>(async () => {}),
+  renamePath: vi.fn<(from: string, to: string) => Promise<void>>(async () => {}),
+  trashPath: vi.fn<(root: string, path: string) => Promise<void>>(async () => {}),
+  deletePathPermanent: vi.fn<(path: string) => Promise<void>>(async () => {}),
+}));
 
 vi.mock("./tauriBridge", () => ({
   listDir,
   findAllFiles,
-  readTextFile,
+  readTextFilesBatch,
   writeTextFile,
   createDir,
   renamePath,
@@ -64,6 +72,15 @@ const {
 
 function entry(name: string, isDir = false): FsEntry {
   return { name, path: `/workspace/${name}`, isDir };
+}
+
+/** Configures readTextFilesBatch to answer per-path from a content map,
+ * regardless of which paths a given batch call groups together or what
+ * order it asks in (runSearch's own concurrency means that's not fixed) —
+ * a path missing from the map resolves to null, the same as a real
+ * unreadable file. */
+function mockFileContents(contentByPath: Record<string, string>) {
+  readTextFilesBatch.mockImplementation(async (paths: string[]) => paths.map((path) => contentByPath[path] ?? null));
 }
 
 describe("dirname", () => {
@@ -217,12 +234,12 @@ describe("runSearch", () => {
     expect(searchResults.value?.map((e) => e.name)).toEqual(["Groceries.md"]);
     // A name match short-circuits before the content-read fallback, see the
     // `continue` right after the name-match branch in runSearch.
-    expect(readTextFile).not.toHaveBeenCalled();
+    expect(readTextFilesBatch).not.toHaveBeenCalled();
   });
 
   it("falls back to content when the name doesn't match", async () => {
     findAllFiles.mockResolvedValue([entry("Diary.md")]);
-    readTextFile.mockResolvedValue("Bought some milk today.");
+    mockFileContents({ "/workspace/Diary.md": "Bought some milk today." });
     await runSearch("/workspace", "milk");
     expect(searchResults.value?.map((e) => e.name)).toEqual(["Diary.md"]);
   });
@@ -247,16 +264,16 @@ describe("runSearch", () => {
   it("does not try to read image files as text", async () => {
     findAllFiles.mockResolvedValue([entry("photo.png")]);
     await runSearch("/workspace", "zzz");
-    expect(readTextFile).not.toHaveBeenCalled();
+    expect(readTextFilesBatch).not.toHaveBeenCalled();
     expect(searchResults.value).toEqual([]);
   });
 
   it("skips a file that fails to read instead of failing the whole search", async () => {
     findAllFiles.mockResolvedValue([entry("a.md"), entry("b.md")]);
-    readTextFile.mockImplementation(async (path: string) => {
-      if (path.endsWith("a.md")) throw new Error("permission denied");
-      return "match this";
-    });
+    // a.md is missing from the content map, the same as readTextFilesBatch
+    // resolving it to null for an unreadable file (see its own doc
+    // comment: one bad file in a batch never fails the whole batch).
+    mockFileContents({ "/workspace/b.md": "match this" });
     await runSearch("/workspace", "match");
     expect(searchResults.value?.map((e) => e.name)).toEqual(["b.md"]);
   });
@@ -265,6 +282,27 @@ describe("runSearch", () => {
     await runSearch("/workspace", "   ");
     expect(searchResults.value).toBeNull();
     expect(findAllFiles).not.toHaveBeenCalled();
+  });
+
+  it("batches many files' content reads into far fewer native calls than one per file", async () => {
+    // Regression coverage for the real on-device OutOfMemoryError: a
+    // query that matches no filename forces every entry through the
+    // content-read fallback, which used to mean one native call per
+    // file. With bounded concurrency and batching, a 100-file vault
+    // should cost a small handful of readTextFilesBatch calls, not 100.
+    const entries = Array.from({ length: 100 }, (_, i) => entry(`note-${i}.md`));
+    findAllFiles.mockResolvedValue(entries);
+    mockFileContents(Object.fromEntries(entries.map((e) => [e.path, "no match here"])));
+    await runSearch("/workspace", "zzz-nonexistent");
+    expect(searchResults.value).toEqual([]);
+    expect(readTextFilesBatch.mock.calls.length).toBeLessThan(10);
+  });
+
+  it("treats a whole failed batch call as no content for every file in it, not a search failure", async () => {
+    findAllFiles.mockResolvedValue([entry("a.md"), entry("b.md")]);
+    readTextFilesBatch.mockRejectedValue(new Error("bridge call failed"));
+    await runSearch("/workspace", "anything");
+    expect(searchResults.value).toEqual([]);
   });
 });
 
@@ -288,7 +326,7 @@ describe("runSearch: query operators", () => {
     findAllFiles.mockResolvedValue([entry("Project.md"), entry("Journal.md")]);
     await runSearch("/workspace", "tag:work");
     expect(searchResults.value?.map((e) => e.name)).toEqual(["Project.md"]);
-    expect(readTextFile).not.toHaveBeenCalled();
+    expect(readTextFilesBatch).not.toHaveBeenCalled();
   });
 
   it("matches a path: filter as a substring of the path relative to the workspace root", async () => {
@@ -308,18 +346,18 @@ describe("runSearch: query operators", () => {
 
   it("combines a tag: filter with a plain text term (AND)", async () => {
     findAllFiles.mockResolvedValue([entry("Project.md"), entry("Journal.md")]);
-    readTextFile.mockResolvedValue("some content, no keyword here");
+    mockFileContents({ "/workspace/Project.md": "some content, no keyword here" });
     await runSearch("/workspace", "tag:work Project");
     expect(searchResults.value?.map((e) => e.name)).toEqual(["Project.md"]);
     // Project.md resolves entirely from metadata (the tag matches and its
     // own name already contains "Project"); Journal.md's tag term fails
     // outright, so it's excluded before a read is ever considered either.
-    expect(readTextFile).not.toHaveBeenCalled();
+    expect(readTextFilesBatch).not.toHaveBeenCalled();
   });
 
   it("still falls back to content for the text half of a combined query", async () => {
     findAllFiles.mockResolvedValue([entry("Project.md")]);
-    readTextFile.mockResolvedValue("mentions a deadline");
+    mockFileContents({ "/workspace/Project.md": "mentions a deadline" });
     await runSearch("/workspace", "tag:work deadline");
     expect(searchResults.value?.map((e) => e.name)).toEqual(["Project.md"]);
   });
@@ -338,14 +376,14 @@ describe("runSearch: query operators", () => {
     findAllFiles.mockResolvedValue([entry("Project.md"), entry("Journal.md")]);
     await runSearch("/workspace", "tag:nonexistent");
     expect(searchResults.value).toEqual([]);
-    expect(readTextFile).not.toHaveBeenCalled();
+    expect(readTextFilesBatch).not.toHaveBeenCalled();
   });
 
   it("a failing tag: term skips the read a positive text term would otherwise need", async () => {
     findAllFiles.mockResolvedValue([entry("Journal.md")]);
     await runSearch("/workspace", "tag:work deadline");
     expect(searchResults.value).toEqual([]);
-    expect(readTextFile).not.toHaveBeenCalled();
+    expect(readTextFilesBatch).not.toHaveBeenCalled();
   });
 
   // Regression test for a real bug in the first version of this feature
@@ -361,7 +399,7 @@ describe("runSearch: query operators", () => {
       tagsByPath: new Map([["/workspace/Project.md", ["work"]]]),
     };
     findAllFiles.mockResolvedValue([entry("Project.md")]);
-    readTextFile.mockResolvedValue("this mentions badword right here");
+    mockFileContents({ "/workspace/Project.md": "this mentions badword right here" });
     await runSearch("/workspace", "tag:work -badword");
     expect(searchResults.value).toEqual([]);
   });
@@ -381,7 +419,7 @@ describe("runSearch: query operators", () => {
 
   it("keeps a quoted phrase's spaces together as one term", async () => {
     findAllFiles.mockResolvedValue([entry("Notes.md")]);
-    readTextFile.mockResolvedValue("a note about exact phrase matching");
+    mockFileContents({ "/workspace/Notes.md": "a note about exact phrase matching" });
     await runSearch("/workspace", '"exact phrase"');
     expect(searchResults.value?.map((e) => e.name)).toEqual(["Notes.md"]);
   });

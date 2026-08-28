@@ -10,6 +10,7 @@ pub fn run() {
             commands::find_markdown_files,
             commands::find_all_files,
             commands::read_text_file,
+            commands::read_text_files_batch,
             commands::write_text_file,
             commands::write_binary_file,
             commands::create_dir,

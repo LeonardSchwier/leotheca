@@ -63,6 +63,7 @@ interface FolderAccessPlugin {
   findMarkdownFiles(options: { uri: string }): Promise<WorkspaceWalkResult>;
   findAllFiles(options: { uri: string }): Promise<{ files: NativeFile[] }>;
   readTextFile(options: { uri: string }): Promise<{ content: string }>;
+  readTextFilesBatch(options: { uris: string[] }): Promise<{ contents: (string | null)[] }>;
   writeTextFile(options: {
     uri?: string;
     parentUri?: string;
@@ -201,6 +202,21 @@ export async function readTextFile(path: string): Promise<string> {
     encoding: Encoding.UTF8,
   });
   return typeof result.data === "string" ? result.data : await result.data.text();
+}
+
+/** Reads multiple workspace files' contents in one native call, for
+ * full-text search's content-fallback (fileTreeStore.ts's runSearch):
+ * one call per file whose name doesn't match the query exhausted the
+ * app's Java heap on a real ~500-note vault, confirmed on-device
+ * 2026-08-28 (see FolderAccessPlugin.java's readTextFilesBatch). Only
+ * ever called with workspace paths, search's only real caller, unlike
+ * readTextFile above which also serves app-data paths. Each path's URI
+ * resolution is a pathToUri cache hit in practice, since these paths
+ * always came from a prior findAllFiles walk in the same search. */
+export async function readTextFilesBatch(paths: string[]): Promise<(string | null)[]> {
+  const uris = await Promise.all(paths.map((path) => resolveUri(path)));
+  const { contents } = await FolderAccess.readTextFilesBatch({ uris });
+  return contents;
 }
 
 export async function writeTextFile(path: string, contents: string): Promise<void> {

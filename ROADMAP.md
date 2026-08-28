@@ -71,7 +71,7 @@ Also added `workflow_dispatch` to `release.yml` (gated so only a real tag push c
 - 📝 **Templates, Snippets, Daily Notes** — deferred to v5.
 - 🖥️ **Platforms Beyond Linux Desktop and Android** — see "Beyond v1" below for macOS and Windows intent.
 - 📥 **Import From Proprietary Formats** — not supported, only plain markdown in, plain markdown out.
-- 🔏 **Android Release Signing** (maintainer's explicit call, session 55) — `release.yml` builds and attaches a debug-signed (unsigned for real distribution) Android APK to a draft GitHub Release on a tag push, and v1 ships with that. A real signed release needs a signing keystore generated and stored as a repository secret — the maintainer's own action, not gating v1.
+- 🔏 **Android Release Signing** (maintainer's explicit call, session 55) — `release.yml` builds and attaches a debug-signed (unsigned for real distribution) Android APK to a draft GitHub Release on a tag push, and v1 ships with that. A real signed release needs a signing keystore generated and stored as a repository secret — the maintainer's own action, not gating v1. Separate from this: as of 2026-08-28, `release.yml` now caches `~/.android/debug.keystore` across CI runs, so consecutive debug-signed builds (both `dev-build` and tag-triggered) share the same signature and install as an in-place update over each other. Before that fix, every fresh CI run signed with a brand new, randomly generated debug key, so Android refused every install-over-existing-app as `INSTALL_FAILED_UPDATE_INCOMPATIBLE`, confirmed on-device. This is orthogonal to the still-open item above: it makes debug builds internally consistent with each other, it does not make them a trusted release.
 
 ## Beyond v1
 

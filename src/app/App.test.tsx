@@ -66,7 +66,9 @@ vi.mock("../workspace/fileTreeStore", () => ({
 }));
 
 vi.mock("../workspace/Sidebar", () => ({
-  Sidebar: () => null,
+  Sidebar: ({ onOpenFile }: { onOpenFile: (path: string, name: string) => void }) => (
+    <button onClick={() => onOpenFile("/vault/note.md", "note.md")}>Open mock note</button>
+  ),
 }));
 
 // Stand in for CodeMirror with a plain, interactive textarea: this test
@@ -88,6 +90,7 @@ vi.mock("../settings/SettingsPanel", () => ({
 const { App } = await import("./App");
 const { openOrFocusTab, openTabs, activeTabPath } = await import("../workspace/store");
 const { settingsPanelOpen, workspacePath, workspaceSettings } = await import("../settings/store");
+const defaultViewportWidth = window.innerWidth;
 
 afterEach(() => {
   cleanup();
@@ -98,6 +101,7 @@ afterEach(() => {
   workspacePath.value = null;
   workspaceSettings.value = DEFAULT_WORKSPACE_SETTINGS;
   updateWorkspaceSettingsSpy.mockClear();
+  Object.defineProperty(window, "innerWidth", { configurable: true, value: defaultViewportWidth });
   writeTextFile.mockClear();
   readTextFile.mockClear();
   renameEntry.mockReset();
@@ -265,5 +269,29 @@ describe("App: keyboard shortcuts", () => {
     window.dispatchEvent(ordinaryScroll);
     expect(ordinaryScroll.defaultPrevented).toBe(false);
     expect(updateWorkspaceSettingsSpy).toHaveBeenCalledTimes(callCount);
+  });
+});
+
+describe("App: narrow-screen navigation", () => {
+  it("closes the file browser after opening a note", async () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 600 });
+    workspacePath.value = "/vault";
+    readTextFile.mockResolvedValue("note content");
+    const { getByRole } = render(<App />);
+
+    const fileBrowserToggle = getByRole("button", { name: "Toggle file browser" });
+    if (!fileBrowserToggle.classList.contains("active")) fireEvent.click(fileBrowserToggle);
+    expect(fileBrowserToggle.classList.contains("active")).toBe(true);
+
+    await act(async () => {
+      fireEvent.click(getByRole("button", { name: "Open mock note" }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(activeTabPath.value).toBe("/vault/note.md");
+    expect(fileBrowserToggle.classList.contains("active")).toBe(false);
+
+    fireEvent.click(fileBrowserToggle);
   });
 });

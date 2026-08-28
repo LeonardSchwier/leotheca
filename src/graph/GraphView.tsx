@@ -30,7 +30,6 @@ interface GraphViewProps {
 
 const MIN_SCALE = 0.15;
 const MAX_SCALE = 4;
-const DOUBLE_TAP_MS = 400;
 const NODE_HIT_RADIUS = 10;
 
 function noteName(path: string): string {
@@ -166,7 +165,6 @@ export function GraphView({ onOpenFile, onClose, focusPath }: GraphViewProps) {
     offsetX: number;
     offsetY: number;
   } | null>(null);
-  const lastTapRef = useRef<{ path: string; time: number } | null>(null);
   const [showAll, setShowAll] = useState(false);
   const [mode, setMode] = useState<"workspace" | "local">("workspace");
   // filterInput reflects every keystroke immediately (so the text box never
@@ -338,13 +336,7 @@ export function GraphView({ onOpenFile, onClose, focusPath }: GraphViewProps) {
 
     const node = findNodeAt(e.clientX, e.clientY);
     if (node) {
-      const now = Date.now();
-      if (lastTapRef.current?.path === node && now - lastTapRef.current.time < DOUBLE_TAP_MS) {
-        onOpenFile(node, noteName(node) + ".md");
-        lastTapRef.current = null;
-        return;
-      }
-      lastTapRef.current = { path: node, time: now };
+      onOpenFile(node, noteName(node) + ".md");
       return;
     }
     draggingRef.current = { x: e.clientX, y: e.clientY };

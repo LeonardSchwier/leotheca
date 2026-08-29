@@ -8,6 +8,15 @@
     return value.replace(/\s+/g, " ").trim();
   }
 
+  function cleanMultilineText(value) {
+    return value
+      .split("\n")
+      .map((line) => line.replace(/[ \t\r]+/g, " ").trim())
+      .join("\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+  }
+
   function markdownLink(text, href) {
     try {
       const url = new URL(href);
@@ -25,6 +34,7 @@
 
     const element = node;
     if (IGNORED_TAGS.has(element.tagName)) return "";
+    if (element.tagName === "BR") return "\n";
     const content = Array.from(element.childNodes, nodeToMarkdown).join("");
     const text = cleanText(content);
     if (!text) return "";
@@ -34,9 +44,8 @@
     if (element.tagName === "EM" || element.tagName === "I") return `*${text}*`;
     if (element.tagName === "CODE") return `\`${text}\``;
     if (element.tagName === "A") return markdownLink(text, element.getAttribute("href") ?? "");
-    if (element.tagName === "LI") return `- ${text}\n`;
-    if (element.tagName === "BR") return "\n";
-    if (BLOCK_TAGS.has(element.tagName)) return `${text}\n\n`;
+    if (element.tagName === "LI") return `- ${cleanMultilineText(content)}\n`;
+    if (BLOCK_TAGS.has(element.tagName)) return `${cleanMultilineText(content)}\n\n`;
     return content;
   }
 

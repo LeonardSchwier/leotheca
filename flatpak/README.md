@@ -1,6 +1,6 @@
 # Flatpak packaging
 
-Status: the manifest is prepared as a standalone stable-release submission and is verified in cloud CI. The app source is pinned to the `v1.0.0` commit instead of relying on a local checkout. The submission metadata, generated dependency source lists, and Cargo configuration can therefore be copied to an external submission repository without changing build paths.
+Status: the manifest is prepared as a standalone stable-release submission and has a dedicated cloud verification gate. The app source is pinned to the `v1.0.0` commit instead of relying on a local checkout. The submission metadata, generated dependency source lists, and Cargo configuration can therefore be copied to an external submission repository without changing build paths.
 
 ## Files
 

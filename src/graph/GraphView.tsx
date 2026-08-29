@@ -292,7 +292,22 @@ export function GraphView({ onOpenFile, onClose, focusPath }: GraphViewProps) {
     const rect = canvas.getBoundingClientRect();
     const { scale } = transformRef.current;
     const world = screenToWorld(clientX - rect.left, clientY - rect.top, transformRef.current);
-    return findNodeAtWorld(world.x, world.y, positionsRef.current, scale, NODE_HIT_RADIUS);
+    const node = findNodeAtWorld(world.x, world.y, positionsRef.current, scale, NODE_HIT_RADIUS);
+    if (node) return node;
+    // Labels are painted beside the dot, so they need their own hit area.
+    // Approximate canvas text width deliberately errs on the generous side:
+    // opening a note is preferable to treating a visible label as empty pan
+    // space, and the height remains tightly bounded around the baseline.
+    if (scale <= 0.6) return null;
+    for (const [path, position] of positionsRef.current) {
+      const label = noteName(path);
+      const left = position.x + 8 / scale;
+      const width = (label.length * 7.2) / scale;
+      const top = position.y - 10 / scale;
+      const bottom = position.y + 7 / scale;
+      if (world.x >= left && world.x <= left + width && world.y >= top && world.y <= bottom) return path;
+    }
+    return null;
   }
 
   function applyZoom(clientX: number, clientY: number, newScale: number, base: Transform) {

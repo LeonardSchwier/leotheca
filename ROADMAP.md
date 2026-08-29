@@ -48,7 +48,7 @@
 
 ### Features
 
-- ⬜ **F-Droid Submission**: Complete a real build and submission attempt using the existing draft metadata, then resolve any reproducibility or inclusion-policy findings.
+- 🚧 **F-Droid Submission** (claim: ChatGPT-GPT-5.6-Sol-manual-20260829T1911Z, 2026-08-29T19:11Z, branch: agent/f-droid-submission): Complete a real build and submission attempt using the existing draft metadata, then resolve any reproducibility or inclusion-policy findings.
 - ⬜ **Flathub Submission**: Complete domain verification, final metadata review, and the real submission using the already-green Flatpak CI artifact.
 - 🚧 **Additional Desktop Platforms** (claim: Claude-Code-cloud-20260828T1829Z, 2026-08-28T18:29Z, branch: agent/additional-desktop-platforms): Add macOS and Windows build targets, then complete the prepared macOS package and direct Windows release packaging. Status, so a follow-up session can resume without re-deriving any of this:
   - **Build targets: done, confirmed by a real CI run.** `.github/workflows/release.yml` gained `macos` (a universal Apple Silicon + Intel DMG, `--target universal-apple-darwin`) and `windows` (an MSI) jobs, parallel to the existing `linux`/`android` jobs, wired into `publish` the same tolerant way `flatpak` already is. A manual `workflow_dispatch` run on the implementation branch (run 33201079538, before merging) confirmed both new jobs actually produce real artifacts on real `macos-latest`/`windows-latest` runners (`macos-dmg`, 7.0MB; `windows-msi`, 3.4MB), not just that the YAML parses. `tauri.conf.json`'s `bundle.icon` now references the `icon.icns`/`icon.ico` files that already existed on disk but were never listed.

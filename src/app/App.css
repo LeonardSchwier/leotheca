@@ -791,9 +791,9 @@ button.icon-button.active {
 @media (max-width: 720px) {
   .toolbar {
     flex-shrink: 0;
-    gap: var(--space-1);
-    padding-right: var(--space-2);
-    padding-left: var(--space-2);
+    gap: 2px;
+    padding-right: var(--space-1);
+    padding-left: var(--space-1);
     overflow-x: auto;
     scrollbar-width: none;
   }
@@ -812,13 +812,42 @@ button.icon-button.active {
   }
 
   .toolbar-spacer {
-    min-width: var(--space-2);
+    flex: 0 0 var(--space-1);
+    min-width: 0;
   }
 
   .toolbar button.icon-button,
   .view-mode-switch button {
     width: 44px;
     height: 44px;
+    background: transparent;
+    border-color: transparent;
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+  }
+
+  .toolbar button.icon-button:hover,
+  .view-mode-switch button:hover {
+    background: var(--bg-hover);
+  }
+
+  .toolbar button.icon-button.active,
+  .view-mode-switch button.active {
+    background: var(--bg-selected);
+    border-color: var(--border);
+    color: var(--text-primary);
+  }
+
+  .view-mode-switch {
+    gap: 2px;
+    border: none;
+    border-radius: 0;
+    overflow: visible;
+  }
+
+  .view-mode-switch button,
+  .view-mode-switch button:last-child {
+    border: 1px solid transparent;
   }
 
   .app-body {

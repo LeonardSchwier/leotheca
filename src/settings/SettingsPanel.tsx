@@ -5,9 +5,11 @@ import {
   settingsPanelOpen,
   setTheme,
   setWorkspacePath,
+  retryWorkspaceSettingsSave,
   theme,
   updateWorkspaceSettings,
   workspacePath,
+  workspaceSettingsSaveError,
   workspaceSettings,
 } from "./store";
 import type { ThemePreference } from "./globalConfig";
@@ -115,6 +117,13 @@ export function SettingsPanel() {
             </div>
             <button onClick={handleChangeFolder}>Change Folder</button>
           </div>
+
+          {workspaceSettingsSaveError.value && (
+            <div class="settings-row" role="alert">
+              <div class="settings-hint">{workspaceSettingsSaveError.value}</div>
+              <button onClick={() => void retryWorkspaceSettingsSave()}>Retry</button>
+            </div>
+          )}
 
           {workspacePath.value && (
             <>

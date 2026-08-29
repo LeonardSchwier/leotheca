@@ -33,6 +33,7 @@ export const selectedDir = signal<string | null>(null);
 export const selectedPath = signal<string | null>(null);
 export const searchQuery = signal("");
 export const searchResults = signal<FsEntry[] | null>(null);
+export const searchInProgress = signal(false);
 
 export const contextMenuTarget = signal<FsEntry | null>(null);
 export const contextMenuPos = signal<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -428,6 +429,8 @@ export async function runSearch(rootPath: string, query: string) {
     searchResults.value = null;
     return;
   }
+  searchInProgress.value = true;
+  try {
   const entries = await findAllFiles(rootPath);
   const readContent = createBatchedContentReader();
   const matchFlags = await mapWithConcurrency(entries, SEARCH_CONTENT_READ_CONCURRENCY, async (entry) => {
@@ -449,6 +452,7 @@ export async function runSearch(rootPath: string, query: string) {
     });
   });
   searchResults.value = entries.filter((_, i) => matchFlags[i]);
+  } finally { searchInProgress.value = false; }
 }
 
 export function clearSearch() {

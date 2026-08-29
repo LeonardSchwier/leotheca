@@ -11,6 +11,7 @@ import {
   runSearch,
   searchQuery,
   searchResults,
+  searchInProgress,
   selectedDir,
   toggleSortOrder,
 } from "./fileTreeStore";
@@ -163,6 +164,12 @@ export function Sidebar({ rootPath, onOpenFile, flushPendingAutosave }: SidebarP
             searchQuery.value = value;
             handleSearchInput(value);
           }}
+          onKeyDown={(e) => {
+            if (e.key !== "Enter") return;
+            e.preventDefault();
+            if (searchTimer.current) clearTimeout(searchTimer.current);
+            void runSearch(rootPath, searchQuery.value);
+          }}
         />
         {searchQuery.value && (
           <button
@@ -180,6 +187,7 @@ export function Sidebar({ rootPath, onOpenFile, flushPendingAutosave }: SidebarP
           </button>
         )}
       </div>
+      {searchInProgress.value && <p class="search-progress" role="status">Searching notes…</p>}
       {searchResults.value ? (
         <ul class="search-results">
           {searchResults.value.length === 0 && <li class="empty-hint">No matches.</li>}

@@ -1,49 +1,42 @@
 # F-Droid packaging
 
-Status: a draft metadata file, structurally correct against F-Droid's current [Build Metadata Reference](https://f-droid.org/docs/Build_Metadata_Reference/). The npm-network question that used to block this (see below) is now resolved by research against F-Droid's own current policy; still not yet submitted or confirmed buildable by F-Droid's own build server, since only a real submission attempt can confirm that.
+Status: the metadata is pinned to the v1.0.0 release source and has a reproducible build recipe that is exercised by `.github/workflows/fdroid-submission-verify.yml`. The repository-side verification runs the official metadata tools and build-server image, and independently rebuilds and inspects the unsigned APK. A real submission to the separate metadata repository is still required before this roadmap item can be called complete.
 
 ## What's here
 
-`com.leonardschwier.leotheca.yml`, a draft of the file that would eventually need to be contributed to the separate [`fdroid/fdroiddata`](https://gitlab.com/fdroid/fdroiddata) repository (via a merge request there, F-Droid metadata does not live in the app's own repository for real submissions, this is a working draft only). Kept here so the maintainer or a future contributor has a starting point rather than nothing.
+`com.leonardschwier.leotheca.yml`, the metadata file intended to be contributed to the separate [`fdroid/fdroiddata`](https://gitlab.com/fdroid/fdroiddata) repository. It remains in this repository as the authoritative working copy so build fixes and future release updates can be reviewed alongside the application source.
 
-## Resolved: F-Droid's build server allows fetching npm/Node.js dependencies during a build
+## Node.js and npm dependencies
 
-This project's Android build depends on `npm ci` to populate `node_modules` before Capacitor/Gradle can build (see the `init` step in the draft metadata). Earlier sessions left open whether F-Droid's build server permits that to reach the npm registry, or whether it needs a fully vendored/offline approach instead (the way the Flatpak manifest needs, see `flatpak/README.md`).
+This project's Android build depends on `npm ci` to populate `node_modules` before Capacitor and Gradle can build. F-Droid's inclusion policy permits current Node.js build tooling and dependencies when needed, although Debian-packaged dependencies are preferred when an equivalent exists.
 
-Resolved by reading F-Droid's own [Inclusion Policy](https://f-droid.org/en/docs/Inclusion_Policy/) directly (not guessed at). Its "Build Transparency and Reproducibility" section states:
+The recipe pins the Node.js archive and verifies its SHA-256 before installation. After the shared frontend is built and synchronized into the Android project, the recipe removes the small set of frontend-only executable, archive, and WebAssembly files that the official source scanner rejects. Those files are not inputs to the native Gradle build at that point. The verification workflow reproduces the same cleanup and then builds the release APK, so the cleanup cannot silently remove a required native-build input.
 
-> The use of prebuilt FLOSS binaries from PyPI Wheels, Nix cache, Rust/Rustup, Golang and Node.js (current versions) and compilers or build tools which are not included in Debian can be acceptable.
+## Verified repository-side checks
 
-Node.js/npm is explicitly named alongside PyPI, Rust/Cargo, and Go as an acceptable source for prebuilt dependencies, in the same policy document real F-Droid submissions are reviewed against. Real precedent from apps already in F-Droid confirms this in practice too: React Native-based apps in `fdroiddata` fetch JavaScript engine binaries (JSC/Hermes) from npm at build time, `scanignore`'d rather than requiring an offline/vendored alternative. Nothing in the F-Droid Build Metadata Reference requires a special flag or opt-in for this, network access during the build appears to just be available.
+The submission verification workflow checks all of the following against the release recipe:
 
-Two caveats this research doesn't remove:
-- This confirms the *policy* permits it, not that this specific project's exact dependency tree (611 packages per `package-lock.json`, confirmed when `flatpak-node-generator` read it for the Flathub manifest this session) will sail through F-Droid's automated source/license scanner without any individual package needing a `scanignore` entry. That's only knowable from a real build attempt or a maintainer question to the F-Droid community, same as before.
-- "Whenever possible, Debian-packaged dependencies should be chosen above other options" is the policy's stated preference; npm/Node.js is acceptable, not the first choice the policy would nudge toward if a Debian-packaged equivalent existed (it doesn't, for a Node/Capacitor toolchain).
+1. The metadata parses, lints, and passes update checks with the official server tools.
+2. The metadata is pinned to the exact v1.0.0 source commit and pinned Node.js archive checksum.
+3. The historical release source has its obsolete unused network permission and services build-plugin entries removed before building.
+4. The shared frontend builds and synchronizes into the Android project.
+5. Frontend-only files rejected by the source scanner are removed before the native build.
+6. The unsigned release APK is rebuilt after that cleanup.
+7. The APK reports version name `1.0`, version code `1`, and no `android.permission.INTERNET` permission.
+8. The official build-server flow must produce `com.leonardschwier.leotheca_1.apk`; a failed or missing build is a hard workflow failure.
 
-## Before actually submitting
+A green workflow proves the repository-side recipe is buildable under that independent cloud environment. It is not a substitute for the separate repository's own review and submission CI.
 
-1. ~~Resolve the npm-offline-build question.~~ Done, see above.
-2. Confirm the `output` glob path matches what a real `gradle assembleRelease` (unsigned) run actually produces.
-3. Decide on `AutoUpdateMode`/`UpdateCheckMode` properly, both are placeholder `None` values right now. Now that a real tagged release exists (or will shortly, see `ROADMAP.md`), switch these to F-Droid's tag-based detection — likely `UpdateCheckMode: Tags ^v[0-9]+\.[0-9]+\.[0-9]+$` (matching this repo's `v*` tag pattern from `release.yml`) paired with `AutoUpdateMode: Version` and a `Builds` commit template using F-Droid's `%v`/`%c` placeholders. Confirm the exact current syntax against F-Droid's [Build Metadata Reference](https://f-droid.org/docs/Build_Metadata_Reference/) before submitting — this area of their format has had revisions.
-4. Update `CurrentVersion`/`CurrentVersionCode` and add a matching entry under `Builds:` for the actual first tagged release (this draft still only has the `0.1.0`/`main`-commit placeholder from before any release existed).
+## Release detection
+
+The metadata uses tag-based update detection for semantic-version tags matching `vX.Y.Z`, reads `versionCode` and `versionName` from `android/app/build.gradle`, and uses `AutoUpdateMode: Version`. `CurrentVersion` is `1.0` and `CurrentVersionCode` is `1`, matching the first tagged release.
 
 ## Submitting
 
-1. Fork [`fdroid/fdroiddata`](https://gitlab.com/fdroid/fdroiddata) on **GitLab** (not GitHub — this is the one part of the process that lives somewhere else).
-2. Add this file as `metadata/com.leonardschwier.leotheca.yml` in that fork, updated per the "Before actually submitting" steps above.
-3. Open a merge request against `fdroiddata`'s default branch. Suggested MR title: `New app: Leotheca`. Suggested MR description:
+1. Fork [`fdroid/fdroiddata`](https://gitlab.com/fdroid/fdroiddata) on GitLab.
+2. Add this repository's `com.leonardschwier.leotheca.yml` as `metadata/com.leonardschwier.leotheca.yml` in that fork.
+3. Open a merge request against `fdroiddata`'s default branch. A suitable title is `New app: Leotheca`. The description should state that Leotheca is a free and open source markdown viewer and editor for local plain-text notes, requires no account, includes no telemetry or proprietary sync, is MIT licensed, and belongs in the Writing category.
+4. Treat the separate repository's CI as another required verification environment. Address any build, reproducibility, source-scanner, or inclusion-policy findings on the claimed branch before calling the roadmap item complete.
+5. Once accepted, subsequent releases are detected through the configured tag-based update mode.
 
-   ```markdown
-   ## Leotheca
-
-   A free and open source markdown viewer and editor for a local folder
-   of plain text notes. No account, no telemetry, no proprietary sync.
-
-   - Source: https://github.com/LeonardSchwier/leotheca
-   - License: MIT (full source, no proprietary components)
-   - Categories: Writing, Office
-   ```
-4. F-Droid's CI (`fdroidserver`'s automated checks) runs a real test build against the MR and reports back. Address whatever it finds — a `scanignore` entry for a specific package the source scanner flags, a build command tweak, etc. are all normal on a first submission; see this file's earlier research on why npm/Node.js dependency fetching itself is expected to be acceptable to F-Droid's scanner in principle, even if an individual package still needs flagging.
-5. Once a human reviewer merges it, the app enters F-Droid's build queue — their own infrastructure builds and signs it (F-Droid's key, not the maintainer's), which can take anywhere from days to a few weeks for a first-time submission. Subsequent releases build automatically once `AutoUpdateMode`/`UpdateCheckMode` are set correctly (step 3 above), without a new MR each time.
-
-This whole step — the actual MR, and any back-and-forth with F-Droid reviewers — needs the maintainer's own GitLab account, not something an agent should do unprompted.
+The external merge request requires an authenticated GitLab account. An autonomous agent may perform that submission only when the cloud environment has authorized access to the maintainer's account. It must never fabricate credentials or treat repository-side verification as proof that an external submission occurred.

@@ -18,6 +18,7 @@ import {
   MIN_FONT_SIZE,
   MIN_UI_ZOOM,
   type DeleteBehavior,
+  type AccentColor,
   type ViewMode,
 } from "./workspaceSettings";
 import { getWorkspaceStats, pickWorkspaceFolder } from "../workspace/tauriBridge";
@@ -75,6 +76,16 @@ const TEMPLATES_OPTIONS: { value: boolean; label: string }[] = [
   { value: true, label: "On" },
   { value: false, label: "Off" },
 ];
+const OPTIONAL_FEATURE_OPTIONS: { value: boolean; label: string }[] = [
+  { value: true, label: "On" },
+  { value: false, label: "Off" },
+];
+const ACCENT_OPTIONS: { value: AccentColor; label: string }[] = [
+  { value: "warm", label: "Warm" },
+  { value: "ocean", label: "Ocean" },
+  { value: "forest", label: "Forest" },
+  { value: "plum", label: "Plum" },
+];
 
 export function SettingsPanel() {
   const [showLicense, setShowLicense] = useState(false);
@@ -104,6 +115,31 @@ export function SettingsPanel() {
             </div>
             <button onClick={handleChangeFolder}>Change Folder</button>
           </div>
+
+          {workspacePath.value && (
+            <>
+              <div class="settings-row">
+                <div><div class="settings-label">Accent themes</div><div class="settings-hint">Use this workspace's restrained accent color</div></div>
+                <div class="settings-switch">{OPTIONAL_FEATURE_OPTIONS.map((option) => <button key={String(option.value)} class={workspaceSettings.value.themesEnabled === option.value ? "active" : ""} onClick={() => void updateWorkspaceSettings({ themesEnabled: option.value })}>{option.label}</button>)}</div>
+              </div>
+              {workspaceSettings.value.themesEnabled && (
+                <div class="settings-row">
+                  <div><div class="settings-label">Accent color</div><div class="settings-hint">Changes highlights without replacing the light or dark palette</div></div>
+                  <div class="settings-switch">{ACCENT_OPTIONS.map((option) => <button key={option.value} class={workspaceSettings.value.accentColor === option.value ? "active" : ""} onClick={() => void updateWorkspaceSettings({ accentColor: option.value })}>{option.label}</button>)}</div>
+                </div>
+              )}
+              <div class="settings-row">
+                <div><div class="settings-label">Editor snippets</div><div class="settings-hint">Type ;trigger then Tab to expand a local writing shortcut</div></div>
+                <div class="settings-switch">{OPTIONAL_FEATURE_OPTIONS.map((option) => <button key={String(option.value)} class={workspaceSettings.value.snippetsEnabled === option.value ? "active" : ""} onClick={() => void updateWorkspaceSettings({ snippetsEnabled: option.value })}>{option.label}</button>)}</div>
+              </div>
+              {workspaceSettings.value.snippetsEnabled && (
+                <div class="settings-row">
+                  <div><div class="settings-label">Snippet definitions</div><div class="settings-hint">One per line: trigger, a tab, then replacement text</div></div>
+                  <div class="settings-value"><textarea value={workspaceSettings.value.snippets} onInput={(e) => void updateWorkspaceSettings({ snippets: (e.target as HTMLTextAreaElement).value })} /></div>
+                </div>
+              )}
+            </>
+          )}
 
           {workspacePath.value && (
             <div class="settings-row">

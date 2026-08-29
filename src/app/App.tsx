@@ -191,6 +191,15 @@ export function App() {
     if (workspacePath.value) void loadBookmarks(workspacePath.value);
   }, [workspacePath.value]);
 
+  useEffect(() => {
+    const root = document.documentElement;
+    if (!rootPath || !workspaceSettings.value.themesEnabled) {
+      root.removeAttribute("data-accent");
+      return;
+    }
+    root.setAttribute("data-accent", workspaceSettings.value.accentColor);
+  }, [rootPath, workspaceSettings.value.themesEnabled, workspaceSettings.value.accentColor]);
+
   const { width: sidebarWidth, onDragStart } = useResizableSidebar();
 
   const refresh = useCallback(() => {
@@ -713,6 +722,8 @@ export function App() {
                       workspaceRoot={rootPath ?? ""}
                       attachmentsFolder={workspaceSettings.value.attachmentsFolder}
                       pasteImagesEnabled={workspaceSettings.value.pasteImagesEnabled}
+                      snippetsEnabled={workspaceSettings.value.snippetsEnabled}
+                      snippets={workspaceSettings.value.snippets}
                     />
                   )}
                   {viewMode.value !== "source" && (

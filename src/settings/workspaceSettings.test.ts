@@ -57,6 +57,12 @@ describe("DEFAULT_WORKSPACE_SETTINGS", () => {
   it("defaults tags to on, per the opt-out policy for queued features", () => {
     expect(DEFAULT_WORKSPACE_SETTINGS.tagsEnabled).toBe(true);
   });
+
+  it("keeps accents and snippets enabled without changing an existing palette or note", () => {
+    expect(DEFAULT_WORKSPACE_SETTINGS.themesEnabled).toBe(true);
+    expect(DEFAULT_WORKSPACE_SETTINGS.accentColor).toBe("warm");
+    expect(DEFAULT_WORKSPACE_SETTINGS.snippetsEnabled).toBe(true);
+  });
 });
 
 describe("loadWorkspaceSettings", () => {

@@ -1,13 +1,12 @@
 Categories:
   - Writing
-  - Office
 License: MIT
 SourceCode: https://github.com/LeonardSchwier/leotheca
 IssueTracker: https://github.com/LeonardSchwier/leotheca/issues
 Changelog: https://github.com/LeonardSchwier/leotheca/blob/main/CHANGELOG.md
 AuthorName: Leonard Schwier
 AutoName: Leotheca
-Summary: A free and open source markdown viewer and editor
+Summary: Local markdown viewer and editor
 Description: |
   Leotheca is a free and open source markdown viewer and editor for a
   local folder of plain text notes. No account, no telemetry, no

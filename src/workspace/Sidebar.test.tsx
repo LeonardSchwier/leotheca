@@ -12,6 +12,7 @@ import type { FsEntry } from "./types";
 const runSearch = vi.fn<(rootPath: string, query: string) => Promise<void>>(async () => {});
 const searchQuery = signal("");
 const searchResults = signal<FsEntry[] | null>(null);
+const searchInProgress = signal(false);
 const clearSearch = vi.fn(() => {
   searchQuery.value = "";
   searchResults.value = null;
@@ -31,6 +32,7 @@ vi.mock("./fileTreeStore", () => ({
   clearSearch,
   searchQuery,
   searchResults,
+  searchInProgress,
   selectedDir,
   dirChildren,
   expandedDirs,
@@ -73,6 +75,7 @@ describe("Sidebar search debounce", () => {
     vi.useFakeTimers();
     searchQuery.value = "";
     searchResults.value = null;
+    searchInProgress.value = false;
     contextMenuTarget.value = null;
   });
 

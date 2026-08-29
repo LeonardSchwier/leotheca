@@ -115,15 +115,17 @@ jobs:
           git clone --depth 1 https://gitlab.com/fdroid/fdroiddata.git fdroiddata
           git clone --depth 1 https://gitlab.com/fdroid/fdroidserver.git fdroidserver
           cp submission/packaging/f-droid/com.leonardschwier.leotheca.yml fdroiddata/metadata/com.leonardschwier.leotheca.yml
+          sudo chown -R 1000:1000 fdroiddata fdroidserver
 
       - name: Run official metadata checks and build
         run: |
           docker run --rm \
+            -u vagrant \
             -v "$PWD/fdroiddata:/build" \
             -v "$PWD/fdroidserver:/home/vagrant/fdroidserver" \
             --entrypoint /bin/bash \
             registry.gitlab.com/fdroid/fdroidserver:buildserver \
-            -lc 'source /etc/profile && export PATH=/home/vagrant/fdroidserver:$PATH PYTHONPATH=/home/vagrant/fdroidserver && git config --global --add safe.directory /build && git config --global --add safe.directory /home/vagrant/fdroidserver && git -C /build rev-parse --is-inside-work-tree && git -C /home/vagrant/fdroidserver rev-parse --is-inside-work-tree && cd /build && fdroid readmeta && fdroid lint com.leonardschwier.leotheca && fdroid checkupdates --allow-dirty com.leonardschwier.leotheca && git status --short && fdroid build --verbose com.leonardschwier.leotheca'
+            -lc 'source /etc/profile && export PATH=/home/vagrant/fdroidserver:$PATH PYTHONPATH=/home/vagrant/fdroidserver && git config --global --add safe.directory /build && git config --global --add safe.directory /home/vagrant/fdroidserver && git -C /build rev-parse --is-inside-work-tree && git -C /home/vagrant/fdroidserver rev-parse --is-inside-work-tree && cd /build && fdroid readmeta && fdroid lint com.leonardschwier.leotheca && fdroid checkupdates --allow-dirty com.leonardschwier.leotheca && fdroid build --verbose --on-server --no-tarball com.leonardschwier.leotheca && find unsigned -maxdepth 1 -type f -name "com.leonardschwier.leotheca_1.apk" -print -quit | grep -q .'
 
       - name: Upload server-tools build output
         if: always()

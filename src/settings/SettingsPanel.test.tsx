@@ -14,9 +14,11 @@ vi.mock("./store", () => ({
   settingsPanelOpen: signal(true),
   setTheme: vi.fn(),
   setWorkspacePath: vi.fn(),
+  retryWorkspaceSettingsSave: vi.fn(),
   theme: signal<ThemePreference>("system"),
   updateWorkspaceSettings: vi.fn(),
   workspacePath: signal<string | null>(null),
+  workspaceSettingsSaveError: signal<string | null>(null),
   workspaceSettings: signal(DEFAULT_WORKSPACE_SETTINGS),
 }));
 vi.mock("../workspace/tauriBridge", () => ({
@@ -35,9 +37,11 @@ import {
   settingsPanelOpen,
   setTheme,
   setWorkspacePath,
+  retryWorkspaceSettingsSave,
   theme,
   updateWorkspaceSettings,
   workspacePath,
+  workspaceSettingsSaveError,
   workspaceSettings,
 } from "./store";
 import { pickWorkspaceFolder } from "../workspace/tauriBridge";
@@ -52,6 +56,8 @@ afterEach(() => {
   vi.mocked(setTheme).mockReset();
   vi.mocked(setWorkspacePath).mockReset();
   vi.mocked(updateWorkspaceSettings).mockReset();
+  vi.mocked(retryWorkspaceSettingsSave).mockReset();
+  workspaceSettingsSaveError.value = null;
   vi.mocked(pickWorkspaceFolder).mockReset();
 });
 

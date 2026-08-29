@@ -1,4 +1,4 @@
-import { effect, signal } from "@preact/signals";
+import { batch, effect, signal } from "@preact/signals";
 import { getAppVersion, listDir, readTextFile, restoreWorkspaceAccess, setStatusBarAppearance } from "../workspace/tauriBridge";
 import { loadGlobalConfig, saveGlobalConfig, type ThemePreference } from "./globalConfig";
 import { activeTabPath, closeAllTabs, openOrFocusTab, openTabs } from "../workspace/store";
@@ -18,6 +18,7 @@ export const workspacePath = signal<string | null>(null);
 const workspaceToken = signal<string | undefined>(undefined);
 export const workspaceSettings = signal<WorkspaceSettings>(DEFAULT_WORKSPACE_SETTINGS);
 export const settingsLoaded = signal(false);
+export const workspaceSettingsSaveError = signal<string | null>(null);
 export const settingsPanelOpen = signal(false);
 export const appVersion = signal("");
 export const theme = signal<ThemePreference>("system");
@@ -88,7 +89,7 @@ export async function restoreLastOpenTabs(): Promise<void> {
 // otherwise write this file on every keystroke.
 let lastPersistedTabsKey = "";
 effect(() => {
-  if (!workspacePath.value) return;
+  if (!workspacePath.value || !settingsLoaded.value) return;
   const paths = openTabs.value.map((t) => t.path);
   const key = JSON.stringify([paths, activeTabPath.value]);
   if (isRestoringTabs) return;
@@ -141,10 +142,15 @@ export async function initSettings(): Promise<void> {
       // then fails on, leaving the UI half-loaded instead of just asking
       // the user to pick a folder again.
       await listDir(global.lastWorkspacePath);
-      workspacePath.value = global.lastWorkspacePath;
-      workspaceToken.value = global.workspaceToken;
-      workspaceSettings.value = await loadWorkspaceSettings(global.lastWorkspacePath);
-      viewMode.value = workspaceSettings.value.defaultViewMode;
+      // Hydrate before publishing a workspace. Publishing first lets the tab
+      // persistence effect save its empty defaults over the real file.
+      const loadedWorkspaceSettings = await loadWorkspaceSettings(global.lastWorkspacePath);
+      batch(() => {
+        workspaceSettings.value = loadedWorkspaceSettings;
+        viewMode.value = loadedWorkspaceSettings.defaultViewMode;
+        workspacePath.value = global.lastWorkspacePath;
+        workspaceToken.value = global.workspaceToken;
+      });
       await restoreLastOpenTabs();
     } catch {
       workspacePath.value = null;
@@ -155,6 +161,10 @@ export async function initSettings(): Promise<void> {
 }
 
 export async function setWorkspacePath(path: string, token?: string): Promise<void> {
+  // A manually chosen workspace can be opened before initSettings finishes
+  // only in tests or an embedding shell. It is already fully interactive,
+  // so it must enable persistence after its settings are hydrated below.
+  settingsLoaded.value = true;
   // closeAllTabs() below clears the *outgoing* workspace's tabs so the
   // incoming one doesn't briefly show stale ones (a real bug fixed in an
   // earlier session), but that clearing is not something the user asked
@@ -170,11 +180,14 @@ export async function setWorkspacePath(path: string, token?: string): Promise<vo
   // openTabs/activeTabPath on any run that doesn't read them).
   lastPersistedTabsKey = JSON.stringify([[], null]);
   closeAllTabs();
-  workspacePath.value = path;
-  workspaceToken.value = token;
+  const loadedWorkspaceSettings = await loadWorkspaceSettings(path);
+  batch(() => {
+    workspaceSettings.value = loadedWorkspaceSettings;
+    viewMode.value = loadedWorkspaceSettings.defaultViewMode;
+    workspacePath.value = path;
+    workspaceToken.value = token;
+  });
   await saveGlobalConfig({ lastWorkspacePath: path, theme: theme.value, workspaceToken: token });
-  workspaceSettings.value = await loadWorkspaceSettings(path);
-  viewMode.value = workspaceSettings.value.defaultViewMode;
   await restoreLastOpenTabs();
 }
 
@@ -187,8 +200,60 @@ export async function setTheme(next: ThemePreference): Promise<void> {
   });
 }
 
+interface PendingWorkspaceSettingsWrite {
+  path: string;
+  settings: WorkspaceSettings;
+  resolvers: Array<{ resolve: () => void; reject: (error: unknown) => void }>;
+}
+
+let pendingWorkspaceSettingsWrite: PendingWorkspaceSettingsWrite | null = null;
+let workspaceSettingsWriteInFlight = false;
+
+function flushWorkspaceSettingsWrites(): void {
+  if (workspaceSettingsWriteInFlight || !pendingWorkspaceSettingsWrite) return;
+  const pending = pendingWorkspaceSettingsWrite;
+  pendingWorkspaceSettingsWrite = null;
+  workspaceSettingsWriteInFlight = true;
+  // Calling the native writer here, rather than from a promise continuation,
+  // preserves the existing immediate-save behavior while its completion still
+  // serializes every later revision.
+  void saveWorkspaceSettings(pending.path, pending.settings).then(
+    () => pending.resolvers.forEach(({ resolve }) => resolve()),
+    (error) => pending.resolvers.forEach(({ reject }) => reject(error)),
+  ).finally(() => {
+    workspaceSettingsWriteInFlight = false;
+    flushWorkspaceSettingsWrites();
+  });
+}
+
+function queueWorkspaceSettingsWrite(path: string, settings: WorkspaceSettings): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (pendingWorkspaceSettingsWrite?.path === path) {
+      pendingWorkspaceSettingsWrite.settings = settings;
+      pendingWorkspaceSettingsWrite.resolvers.push({ resolve, reject });
+      return;
+    }
+
+    const pending = { path, settings, resolvers: [{ resolve, reject }] };
+    pendingWorkspaceSettingsWrite = pending;
+    flushWorkspaceSettingsWrites();
+  });
+}
+
 export async function updateWorkspaceSettings(patch: Partial<WorkspaceSettings>): Promise<void> {
   if (!workspacePath.value) return;
   workspaceSettings.value = { ...workspaceSettings.value, ...patch };
-  await saveWorkspaceSettings(workspacePath.value, workspaceSettings.value);
+  const path = workspacePath.value;
+  try {
+    await queueWorkspaceSettingsWrite(path, workspaceSettings.value);
+    workspaceSettingsSaveError.value = null;
+  } catch (error) {
+    workspaceSettingsSaveError.value = "Could not save workspace settings. Retry to keep your latest changes.";
+    throw error;
+  }
+}
+
+export async function retryWorkspaceSettingsSave(): Promise<void> {
+  if (!workspacePath.value || !workspaceSettingsSaveError.value) return;
+  await updateWorkspaceSettings({});
 }

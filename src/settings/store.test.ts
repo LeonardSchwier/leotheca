@@ -45,7 +45,9 @@ window.matchMedia = vi.fn().mockImplementation((query: string) => ({
 
 const {
   restoreLastOpenTabs,
+  initSettings,
   setWorkspacePath,
+  settingsLoaded,
   workspacePath,
   workspaceSettings,
 } = await import("./store");
@@ -58,6 +60,12 @@ function writesTo(path: string): unknown[] {
   return writeTextFile.mock.calls.filter(([p]) => p === path).map(([, content]) => JSON.parse(content as string));
 }
 
+async function flushSettingsWrites(): Promise<void> {
+  await Promise.resolve();
+  await Promise.resolve();
+  await Promise.resolve();
+}
+
 describe("setWorkspacePath", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -65,6 +73,7 @@ describe("setWorkspacePath", () => {
 
   it("does not overwrite the outgoing workspace's remembered tabs with an empty list when switching away", async () => {
     await setWorkspacePath("/workspaceA");
+    await flushSettingsWrites();
     openOrFocusTab("/workspaceA/note1.md", "note1.md", "content", "text");
 
     const beforeSwitch = writesTo("/workspaceA/.leotheca/settings.json");
@@ -87,11 +96,37 @@ describe("setWorkspacePath", () => {
   it("still writes an empty tab list for a workspace whose tabs the user actually closed themselves", async () => {
     const { closeAllTabs } = await import("../workspace/store");
     await setWorkspacePath("/workspaceA");
+    await flushSettingsWrites();
     openOrFocusTab("/workspaceA/note1.md", "note1.md", "content", "text");
     closeAllTabs();
+    await flushSettingsWrites();
 
     const writes = writesTo("/workspaceA/.leotheca/settings.json");
     expect((writes.at(-1) as { lastOpenPaths: string[] }).lastOpenPaths).toEqual([]);
+  });
+});
+
+describe("settings hydration", () => {
+  it("does not persist default tabs before restored workspace settings are loaded", async () => {
+    vi.clearAllMocks();
+    closeAllTabs();
+    workspacePath.value = null;
+    settingsLoaded.value = false;
+    readTextFile.mockImplementation(async (path) => {
+      if (path === "/config/config.json") {
+        return JSON.stringify({ lastWorkspacePath: "/workspaceA", theme: "system" });
+      }
+      if (path === "/workspaceA/.leotheca/settings.json") {
+        return JSON.stringify({ ...DEFAULT_WORKSPACE_SETTINGS, lastOpenPaths: ["/workspaceA/note.md"] });
+      }
+      if (path === "/workspaceA/note.md") return "saved note";
+      throw new Error("not found");
+    });
+
+    await initSettings();
+
+    expect(writesTo("/workspaceA/.leotheca/settings.json")).toEqual([]);
+    expect(openTabs.value.map((tab) => tab.path)).toEqual(["/workspaceA/note.md"]);
   });
 });
 
@@ -179,10 +214,12 @@ describe("tab operations that change both openTabs and activeTabPath", () => {
 
   async function writesDuring(action: () => void): Promise<number> {
     await setWorkspacePath("/workspaceA");
+    await flushSettingsWrites();
     openOrFocusTab("/workspaceA/a.md", "a.md", "", "text");
     openOrFocusTab("/workspaceA/folder/b.md", "b.md", "", "text");
     vi.clearAllMocks();
     action();
+    await flushSettingsWrites();
     return writeTextFile.mock.calls.filter(([p]) => p === "/workspaceA/.leotheca/settings.json").length;
   }
 

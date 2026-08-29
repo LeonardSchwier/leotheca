@@ -13,15 +13,15 @@
     <p>
       Leotheca is a free and open source markdown viewer and editor for a
       local folder of plain text notes. No account, no telemetry, no
-      proprietary sync service. Point it at any folder of markdown files
-      and use whatever sync tool you already trust to keep it in sync
-      across devices, such as Syncthing or a cloud-synced folder.
+      proprietary sync service. Point it at any folder of markdown files and
+      use whatever folder sync tool you already trust to keep it in sync
+      across devices.
     </p>
     <p>Features:</p>
     <ul>
       <li>File tree with create, rename, and delete (to a trash folder, not gone for good)</li>
       <li>Tabs with autosave and session restore</li>
-      <li>Source, Split, and Preview editing modes with CodeMirror 6</li>
+      <li>Source, Split, and Preview editing modes with syntax highlighting and rendered Markdown</li>
       <li>[[wikilinks]] with autocomplete, backlinks, and a pannable graph view</li>
       <li>Bookmarks, a command palette, and full-text search</li>
       <li>A light and dark theme that follows your OS by default</li>

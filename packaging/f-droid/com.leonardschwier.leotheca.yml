@@ -36,6 +36,7 @@ Builds:
       - tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1
     init:
       - cd .. && npm ci && npm run build && npx cap sync android
+      - rm -f ../node_modules/esbuild/bin/esbuild ../node_modules/@esbuild/linux-x64/bin/esbuild ../node_modules/@capacitor/cli/assets/capacitor-cordova-ios-plugins.tar.gz ../node_modules/@capacitor/cli/assets/ios-pods-template.tar.gz ../node_modules/@capacitor/cli/assets/ios-spm-template.tar.gz ../node_modules/@capacitor/cli/assets/android-template.tar.gz ../node_modules/@capacitor/cli/assets/capacitor-cordova-android-plugins.tar.gz ../node_modules/source-map/lib/mappings.wasm
     prebuild:
       - sed -i '/com.google.gms:google-services/d' build.gradle
       - sed -i '/google-services/d' app/build.gradle

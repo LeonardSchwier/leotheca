@@ -97,6 +97,18 @@ let wikilinkCache = new Map<string, CachedNote>();
 // loaded into wikilinkCache this session, so a given root's file is only
 // ever read once per session, not once per rebuildLinkIndex call.
 const loadedCacheRoots = new Set<string>();
+// A workspace can change while a recursive walk is still in flight. Keep
+// only the newest request authoritative so an older workspace can neither
+// start unnecessary note reads nor replace the visible index when it ends.
+let latestIndexRequest = 0;
+
+function yieldForInitialWorkspacePaint(): Promise<void> {
+  // This module's pure-logic tests intentionally run without a DOM. In the
+  // app, one frame gives the direct folder listing a chance to render before
+  // the lower-priority, full-workspace metadata scan begins.
+  if (typeof window === "undefined") return Promise.resolve();
+  return new Promise((resolve) => window.requestAnimationFrame(() => resolve()));
+}
 
 function cacheFilePath(rootPath: string): string {
   return `${rootPath}/${LINK_INDEX_CACHE_FILENAME}`;
@@ -146,6 +158,7 @@ async function savePersistedCache(rootPath: string, entries: Map<string, CachedN
 export function resetLinkIndexCache(): void {
   wikilinkCache = new Map();
   loadedCacheRoots.clear();
+  latestIndexRequest = 0;
 }
 
 /** `aliasesEnabled`/`tagsEnabled` each default to on, matching
@@ -161,11 +174,18 @@ export async function rebuildLinkIndex(
   aliasesEnabled = true,
   tagsEnabled = true,
 ): Promise<void> {
+  const request = ++latestIndexRequest;
+  const isCurrentRequest = () => request === latestIndexRequest;
   linkIndexBuilding.value = true;
   try {
+    await yieldForInitialWorkspacePaint();
+    if (!isCurrentRequest()) return;
+
     await loadPersistedCacheIfNeeded(rootPath);
+    if (!isCurrentRequest()) return;
 
     const noteEntries = await findMarkdownFiles(rootPath);
+    if (!isCurrentRequest()) return;
     const pathsByNoteName = new Map<string, string[]>();
     const backlinksByPath = new Map<string, string[]>();
     const pathsByAlias = new Map<string, string[]>();
@@ -194,6 +214,7 @@ export async function rebuildLinkIndex(
     const wikilinksByPath = new Map<string, string[]>();
 
     await mapWithConcurrency(noteEntries, LINK_INDEX_READ_CONCURRENCY, async (entry) => {
+      if (!isCurrentRequest()) return;
       const cached = wikilinkCache.get(entry.path);
       let wikilinks: string[];
       let aliases: string[];
@@ -203,7 +224,14 @@ export async function rebuildLinkIndex(
         aliases = cached.aliases;
         tags = cached.tags;
       } else {
-        const source = await readTextFile(entry.path);
+        let source: string;
+        try {
+          source = await readTextFile(entry.path);
+        } catch (error) {
+          if (!isCurrentRequest()) return;
+          throw error;
+        }
+        if (!isCurrentRequest()) return;
         wikilinks = extractWikilinks(source);
         aliases = extractAliases(source);
         tags = extractTags(source);
@@ -233,6 +261,8 @@ export async function rebuildLinkIndex(
       }
     });
 
+    if (!isCurrentRequest()) return;
+
     for (const [path, wikilinks] of wikilinksByPath) {
       for (const targetName of wikilinks) {
         const key = targetName.toLocaleLowerCase();
@@ -255,7 +285,7 @@ export async function rebuildLinkIndex(
     };
     await savePersistedCache(rootPath, freshCache);
   } finally {
-    linkIndexBuilding.value = false;
+    if (isCurrentRequest()) linkIndexBuilding.value = false;
   }
 }
 

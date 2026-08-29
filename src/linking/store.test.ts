@@ -79,6 +79,32 @@ describe("wikilink index", () => {
     expect(linkIndexBuilding.value).toBe(false);
   });
 
+  it("keeps a completed newer workspace index when an older walk finishes later", async () => {
+    let finishOlderWalk!: (entries: Array<{ name: string; path: string; isDir: boolean }>) => void;
+    const olderWalk = new Promise<Array<{ name: string; path: string; isDir: boolean }>>((resolve) => {
+      finishOlderWalk = resolve;
+    });
+    findMarkdownFiles.mockImplementation((rootPath: string) => {
+      if (rootPath === "/older") return olderWalk;
+      return Promise.resolve([{ name: "newer.md", path: "/newer/newer.md", isDir: false }]);
+    });
+    readTextFile.mockImplementation(async (path: string) => {
+      if (path.endsWith("link-index-cache.json")) throw new Error("no cache file yet");
+      return "[[newer]]";
+    });
+
+    const olderRebuild = rebuildLinkIndex("/older");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await rebuildLinkIndex("/newer");
+    finishOlderWalk([{ name: "older.md", path: "/older/older.md", isDir: false }]);
+    await olderRebuild;
+
+    expect(linkIndex.value.pathsByNoteName.has("newer")).toBe(true);
+    expect(linkIndex.value.pathsByNoteName.has("older")).toBe(false);
+    expect(readTextFile).not.toHaveBeenCalledWith("/older/older.md");
+    expect(linkIndexBuilding.value).toBe(false);
+  });
+
   it("clears linkIndexBuilding even if a read fails, and never has more than the concurrency cap in flight", async () => {
     const paths = Array.from({ length: 20 }, (_, i) => `/workspace/note-${i}.md`);
     findMarkdownFiles.mockResolvedValueOnce(paths.map((path, i) => ({ name: `note-${i}.md`, path, isDir: false })));

@@ -83,6 +83,10 @@
   --accent-strong: #e0c088;
 }
 
+:root[data-accent="ocean"] { --accent: #216b8f; --accent-strong: #164d68; }
+:root[data-accent="forest"] { --accent: #3d7150; --accent-strong: #28513a; }
+:root[data-accent="plum"] { --accent: #76506f; --accent-strong: #563950; }
+
 * {
   box-sizing: border-box;
 }

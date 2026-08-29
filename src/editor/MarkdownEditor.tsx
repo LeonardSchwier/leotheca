@@ -16,6 +16,7 @@ import { linkIndex } from "../linking/store";
 import { livePreviewExtension } from "./livePreview";
 import { attachmentsInsertText, type PastedOrDroppedFile } from "./attachments";
 import { minimalChange } from "./textDiff";
+import { parseSnippets, snippetExpansion } from "./snippets";
 
 export interface MarkdownEditorProps {
   path: string;
@@ -30,6 +31,8 @@ export interface MarkdownEditorProps {
   /** Whether pasting/dropping an image saves it as an attachment at all;
    * see WorkspaceSettings.pasteImagesEnabled. */
   pasteImagesEnabled: boolean;
+  snippetsEnabled: boolean;
+  snippets: string;
 }
 
 /** Suggests note names (and, when the setting is on, note aliases) while
@@ -83,6 +86,29 @@ interface AttachmentSettings {
   workspaceRoot: string;
   attachmentsFolder: string;
   pasteImagesEnabled: boolean;
+}
+
+interface SnippetSettings {
+  enabled: boolean;
+  source: string;
+}
+
+function snippetKeymap(settingsRef: { current: SnippetSettings }) {
+  return keymap.of([{
+    key: "Tab",
+    run(view) {
+      if (!settingsRef.current.enabled || !view.state.selection.main.empty) return false;
+      const cursor = view.state.selection.main.from;
+      const expansion = snippetExpansion(view.state.doc.sliceString(0, cursor), parseSnippets(settingsRef.current.source));
+      if (!expansion) return false;
+      const from = expansion.from;
+      view.dispatch({
+        changes: { from, to: cursor, insert: expansion.replacement },
+        selection: { anchor: from + expansion.replacement.length },
+      });
+      return true;
+    },
+  }]);
 }
 
 /**
@@ -156,6 +182,8 @@ export function MarkdownEditor({
   workspaceRoot,
   attachmentsFolder,
   pasteImagesEnabled,
+  snippetsEnabled,
+  snippets,
 }: MarkdownEditorProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
@@ -167,6 +195,8 @@ export function MarkdownEditor({
     pasteImagesEnabled,
   });
   attachmentSettingsRef.current = { workspaceRoot, attachmentsFolder, pasteImagesEnabled };
+  const snippetSettingsRef = useRef<SnippetSettings>({ enabled: snippetsEnabled, source: snippets });
+  snippetSettingsRef.current = { enabled: snippetsEnabled, source: snippets };
 
   useEffect(() => {
     if (!hostRef.current) return;
@@ -183,6 +213,7 @@ export function MarkdownEditor({
         syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
         livePreviewExtension,
         imageAttachmentExtension(path, attachmentSettingsRef),
+        snippetKeymap(snippetSettingsRef),
         EditorView.lineWrapping,
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {

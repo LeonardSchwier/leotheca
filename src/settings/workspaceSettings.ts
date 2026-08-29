@@ -9,6 +9,7 @@ export type ViewMode = "source" | "split" | "preview";
  * equivalent concept for an arbitrary picked folder, and adding it for
  * desktop only would make the setting behave differently per platform. */
 export type DeleteBehavior = "project-trash" | "permanent";
+export type AccentColor = "warm" | "ocean" | "forest" | "plum";
 
 /** One entry in the graph view's color-groups list (see
  * graph/GraphView.tsx): every note whose display name contains `query`
@@ -110,6 +111,15 @@ export interface WorkspaceSettings {
   templatesFolder: string;
   /** Whether file-backed canvases can be created and opened. */
   canvasEnabled: boolean;
+  /** Whether the workspace-specific accent choice is applied. */
+  themesEnabled: boolean;
+  /** A restrained accent choice that leaves the light/dark palette intact. */
+  accentColor: AccentColor;
+  /** Whether typing a configured `;trigger` followed by Tab expands it. */
+  snippetsEnabled: boolean;
+  /** One snippet per line: `trigger<TAB>replacement`. Stored with the
+   * workspace so reusable local writing patterns travel with it. */
+  snippets: string;
 }
 
 export const MIN_UI_ZOOM = 50;
@@ -140,6 +150,10 @@ export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   templatesEnabled: true,
   templatesFolder: "Templates",
   canvasEnabled: true,
+  themesEnabled: true,
+  accentColor: "warm",
+  snippetsEnabled: true,
+  snippets: "todo\t- [ ] ",
 };
 
 // Plain string join is intentional here (not a path-resolution API call):

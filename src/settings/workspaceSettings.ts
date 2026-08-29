@@ -108,6 +108,8 @@ export interface WorkspaceSettings {
    * is offered as a template; a missing folder just means no templates
    * yet, not an error. */
   templatesFolder: string;
+  /** Whether file-backed canvases can be created and opened. */
+  canvasEnabled: boolean;
 }
 
 export const MIN_UI_ZOOM = 50;
@@ -137,6 +139,7 @@ export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   tagsEnabled: true,
   templatesEnabled: true,
   templatesFolder: "Templates",
+  canvasEnabled: true,
 };
 
 // Plain string join is intentional here (not a path-resolution API call):

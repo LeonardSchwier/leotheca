@@ -56,6 +56,10 @@ const PASTE_IMAGES_OPTIONS: { value: boolean; label: string }[] = [
   { value: true, label: "On" },
   { value: false, label: "Off" },
 ];
+const CANVAS_OPTIONS: { value: boolean; label: string }[] = [
+  { value: true, label: "On" },
+  { value: false, label: "Off" },
+];
 
 const FRONTMATTER_PROPERTIES_OPTIONS: { value: boolean; label: string }[] = [
   { value: true, label: "On" },
@@ -100,6 +104,13 @@ export function SettingsPanel() {
             </div>
             <button onClick={handleChangeFolder}>Change Folder</button>
           </div>
+
+          {workspacePath.value && (
+            <div class="settings-row">
+              <div><div class="settings-label">Canvas</div><div class="settings-hint">Allow creation and viewing of local canvas files</div></div>
+              <div class="settings-switch">{CANVAS_OPTIONS.map((option) => <button key={String(option.value)} class={workspaceSettings.value.canvasEnabled === option.value ? "active" : ""} onClick={() => void updateWorkspaceSettings({ canvasEnabled: option.value })}>{option.label}</button>)}</div>
+            </div>
+          )}
 
           {workspacePath.value && (
             <div class="settings-row">

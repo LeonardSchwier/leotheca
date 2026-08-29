@@ -1,0 +1,6 @@
+.canvas-view { display: flex; flex: 1; min-height: 0; flex-direction: column; background: var(--bg-base); overflow: auto; }
+.canvas-toolbar { padding: var(--space-2); border-bottom: 1px solid var(--border); }
+.canvas-viewport { position: relative; flex: 1; min-width: 720px; min-height: 520px; background-image: radial-gradient(var(--border) 1px, transparent 1px); background-size: 20px 20px; }
+.canvas-card { position: absolute; width: 180px; min-height: 80px; padding: var(--space-2); background: var(--bg-raised); border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: 0 2px 6px color-mix(in srgb, var(--text-primary) 12%, transparent); cursor: grab; }
+.canvas-card textarea { width: 100%; min-height: 64px; resize: none; border: 0; background: transparent; color: var(--text-primary); font: inherit; }
+.canvas-empty-hint { position: absolute; inset: 0; display: grid; place-items: center; color: var(--text-faint); }

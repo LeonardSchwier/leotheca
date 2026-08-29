@@ -10,7 +10,8 @@ import { MarkdownEditor } from "../editor/MarkdownEditor";
 import { MarkdownPreview } from "../editor/MarkdownPreview";
 import { FrontmatterPropertiesPanel } from "../editor/FrontmatterPropertiesPanel";
 import { ImageViewer } from "../editor/ImageViewer";
-import { isImagePath } from "../workspace/types";
+import { isCanvasPath, isImagePath } from "../workspace/types";
+import { CanvasView } from "../canvas/CanvasView";
 import {
   activeTab,
   activeTabPath,
@@ -43,6 +44,7 @@ import { addFileBookmark, bookmarks, loadBookmarks, removeBookmark } from "../bo
 import { TagsPanel } from "../tags/TagsPanel";
 import {
   createNoteFromTemplate,
+  createCanvasQuick,
   createNoteQuick,
   listTemplates,
   renameEntry,
@@ -200,7 +202,7 @@ export function App() {
         openOrFocusTab(path, name, "", "image");
       } else {
         const content = await readTextFile(path);
-        openOrFocusTab(path, name, content, "text");
+        openOrFocusTab(path, name, content, isCanvasPath(path) ? "canvas" : "text");
       }
       if (isNarrowViewport(window.innerWidth)) sidebarOpen.value = false;
       refresh();
@@ -428,6 +430,13 @@ export function App() {
             handleOpenFile(path, name),
           ),
       });
+      if (workspaceSettings.value.canvasEnabled) {
+        list.unshift({
+          id: "new-canvas",
+          label: "New canvas",
+          run: () => void createCanvasQuick(selectedDir.value ?? rootPath).then(({ path, name }) => handleOpenFile(path, name)),
+        });
+      }
       list.push({
         id: "graph-view",
         label: "Open graph view",
@@ -486,6 +495,7 @@ export function App() {
     tagsOpen.value,
     workspaceSettings.value.tagsEnabled,
     workspaceSettings.value.templatesEnabled,
+    workspaceSettings.value.canvasEnabled,
     openTabs.value,
   ]);
 
@@ -672,6 +682,8 @@ export function App() {
           {current ? (
             current.kind === "image" ? (
               <ImageViewer path={current.path} />
+            ) : current.kind === "canvas" ? (
+              <CanvasView source={current.content} onChange={(value) => handleChange(current.path, value)} />
             ) : (
               <>
                 <FrontmatterPropertiesPanel

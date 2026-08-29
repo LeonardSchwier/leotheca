@@ -66,6 +66,8 @@ jobs:
           grep -F 'commit: 516249983daf5fb3dc421f9a2ad436ed22a44ea8' packaging/f-droid/com.leonardschwier.leotheca.yml
           grep -F 'node-v22.23.2-linux-x64.tar.xz' packaging/f-droid/com.leonardschwier.leotheca.yml
           grep -F 'd60acfe00a2932254bb0ad20e01b0d74397a0875595de719654b214f4b03f307' packaging/f-droid/com.leonardschwier.leotheca.yml
+          grep -F 'node_modules/esbuild/bin/esbuild' packaging/f-droid/com.leonardschwier.leotheca.yml
+          grep -F 'node_modules/source-map/lib/mappings.wasm' packaging/f-droid/com.leonardschwier.leotheca.yml
 
       - name: Prepare historical source for offline-policy compliance
         working-directory: release-source/android
@@ -75,12 +77,21 @@ jobs:
           sed -i '/android.permission.INTERNET/d' app/src/main/AndroidManifest.xml
           ! grep -R -E 'com.google.gms:google-services|android.permission.INTERNET' build.gradle app/build.gradle app/src/main/AndroidManifest.xml
 
-      - name: Build shared assets
+      - name: Build shared assets and remove frontend-only artifacts
         working-directory: release-source
         run: |
           npm ci
           npm run build
           npx cap sync android
+          rm -f node_modules/esbuild/bin/esbuild node_modules/@esbuild/linux-x64/bin/esbuild node_modules/@capacitor/cli/assets/capacitor-cordova-ios-plugins.tar.gz node_modules/@capacitor/cli/assets/ios-pods-template.tar.gz node_modules/@capacitor/cli/assets/ios-spm-template.tar.gz node_modules/@capacitor/cli/assets/android-template.tar.gz node_modules/@capacitor/cli/assets/capacitor-cordova-android-plugins.tar.gz node_modules/source-map/lib/mappings.wasm
+          test ! -e node_modules/esbuild/bin/esbuild
+          test ! -e node_modules/@esbuild/linux-x64/bin/esbuild
+          test ! -e node_modules/@capacitor/cli/assets/capacitor-cordova-ios-plugins.tar.gz
+          test ! -e node_modules/@capacitor/cli/assets/ios-pods-template.tar.gz
+          test ! -e node_modules/@capacitor/cli/assets/ios-spm-template.tar.gz
+          test ! -e node_modules/@capacitor/cli/assets/android-template.tar.gz
+          test ! -e node_modules/@capacitor/cli/assets/capacitor-cordova-android-plugins.tar.gz
+          test ! -e node_modules/source-map/lib/mappings.wasm
 
       - name: Build unsigned release APK
         working-directory: release-source/android

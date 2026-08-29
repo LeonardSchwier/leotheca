@@ -2,6 +2,7 @@
 
 ## Implemented
 
+- ✅ **Mobile Workspace Opening Responsiveness**: Lets the direct folder listing render before background workspace indexing and prevents stale scans from replacing the current workspace index.
 - ✅ **Local Folder Workspace**: Browse, create, rename, delete, and organize local Markdown files with tabs, autosave, workspace restoration, and configurable trash behavior.
 - ✅ **Editor and Preview**: Edit with syntax highlighting in Source, Split, or rendered Preview mode, including viewport-scoped inline formatting for headings, emphasis, code, wikilinks, and bullet lists so large notes avoid whole-document decoration work.
 - ✅ **Wikilinks and Backlinks**: Resolve `[[wikilinks]]`, autocomplete link targets, navigate links, and inspect backlinks.
@@ -35,7 +36,6 @@
 ### Bugs
 
 - ⬜ **Android Long-Press Conflict**: Confirm or correct the candidate `user-select: none` fix so the file-tree context menu does not compete with native text selection; genuine finger-touch verification on a physical device is still required.
-- 🚧 **Mobile Workspace Opening Responsiveness** (claim: Codex-cloud-20260829T0018Z, 2026-08-29T00:18Z, branch: agent/mobile-workspace-opening): Let the direct file listing render before background workspace indexing and keep stale index work from replacing the current workspace state.
 - 🚧 **Search Content-Read Crash** (claim: Claude-Code-interactive-20260828T0945Z, 2026-08-28T09:45Z, direct-to-main, live maintainer-supervised session, no separate branch/PR). Status as of 2026-08-28T~23:15Z (corrected by a later scheduled session that found this entry had gone stale relative to already-merged code, see below), so a follow-up session can resume without re-deriving any of this:
   - **Layer 1, directory-walk crash: done, verified on-device.** `find_all_files` (Rust)/`findAllFiles` (Android) batch the whole recursive walk into one native call. Commit `ab4a74b`'s parent chain; confirmed no more crash from this specific layer via repeated real installs on the maintainer's ~500-note vault.
   - **Layer 2, one-native-call-per-file content reads: done, verified on-device.** `read_text_files_batch` (Rust)/`FolderAccessPlugin.readTextFilesBatch` (Android), driven by `runSearch`'s bounded concurrency (`SEARCH_CONTENT_READ_CONCURRENCY = 40`) and a microtask-coalescing batched reader (`createBatchedContentReader` in `fileTreeStore.ts`). Commit `ab4a74b`. Cut native calls on the maintainer's vault from ~1700 to 54, confirmed via on-device logcat call counts.

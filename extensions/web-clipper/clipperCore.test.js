@@ -30,6 +30,10 @@ describe("web clipper core", () => {
     expect(() => globalThis.LeothecaClipperCore.buildClip({ title: "Empty", fragment: fragment("  "), sourceUrl: "https://example.test", includeSource: true })).toThrow("Select some readable page content");
   });
 
+  it("preserves hard line breaks in selected content", () => {
+    expect(globalThis.LeothecaClipperCore.fragmentToMarkdown(fragment("<p>First line<br>Second line</p>"))).toBe("First line\nSecond line");
+  });
+
   it("creates a portable Markdown note with an optional safe source link", () => {
     const clip = globalThis.LeothecaClipperCore.buildClip({
       title: "A / useful clip",

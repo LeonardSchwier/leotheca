@@ -4,8 +4,33 @@ on:
   push:
     branches:
       - agent/f-droid-submission
+    paths:
+      - packaging/f-droid/com.leonardschwier.leotheca.yml
+      - .github/workflows/fdroid-submission-verify.yml
 
 jobs:
+  branch-quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - name: Install Linux dependencies
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev libayatana-appindicator3-dev build-essential libssl-dev
+      - run: npm ci
+      - run: npm run lint
+      - name: Lint backend
+        working-directory: src-tauri
+        run: cargo clippy
+
   verify-release-recipe:
     runs-on: ubuntu-latest
     steps:
@@ -76,3 +101,36 @@ jobs:
         with:
           name: mobile-distribution-unsigned-release-apk
           path: release-source/android/app/build/outputs/apk/release/app-release-unsigned.apk
+
+  server-tools-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out submission branch
+        uses: actions/checkout@v4
+        with:
+          path: submission
+
+      - name: Prepare official metadata workspace
+        run: |
+          git clone --depth 1 https://gitlab.com/fdroid/fdroiddata.git fdroiddata
+          git clone --depth 1 https://gitlab.com/fdroid/fdroidserver.git fdroidserver
+          cp submission/packaging/f-droid/com.leonardschwier.leotheca.yml fdroiddata/metadata/com.leonardschwier.leotheca.yml
+
+      - name: Run official metadata checks and build
+        run: |
+          docker run --rm \
+            -v "$PWD/fdroiddata:/build" \
+            -v "$PWD/fdroidserver:/home/vagrant/fdroidserver" \
+            --entrypoint /bin/bash \
+            registry.gitlab.com/fdroid/fdroidserver:buildserver \
+            -lc 'source /etc/profile && export PATH=/home/vagrant/fdroidserver:$PATH PYTHONPATH=/home/vagrant/fdroidserver && cd /build && fdroid readmeta && fdroid lint com.leonardschwier.leotheca && fdroid checkupdates --allow-dirty com.leonardschwier.leotheca && fdroid build --verbose com.leonardschwier.leotheca'
+
+      - name: Upload server-tools build output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-distribution-server-tools-output
+          path: |
+            fdroiddata/logs
+            fdroiddata/unsigned
+          if-no-files-found: ignore

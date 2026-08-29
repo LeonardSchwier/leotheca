@@ -8,6 +8,7 @@ const SCHEME = "leotheca:";
 
 export type AutomationCommand =
   | { kind: "read-current-note" }
+  | { kind: "open-favorites" }
   | { kind: "new-note"; content: string };
 
 /** Parses an incoming leotheca:// URL into a typed command, or null for
@@ -28,6 +29,8 @@ export function parseAutomationUrl(url: string): AutomationCommand | null {
       return { kind: "read-current-note" };
     case "new-note":
       return { kind: "new-note", content: parsed.searchParams.get("content") ?? "" };
+    case "open-favorites":
+      return { kind: "open-favorites" };
     default:
       return null;
   }

@@ -19,6 +19,10 @@ describe("parseAutomationUrl", () => {
     expect(parseAutomationUrl("leotheca://new-note")).toEqual({ kind: "new-note", content: "" });
   });
 
+  it("recognizes the command that opens favorites", () => {
+    expect(parseAutomationUrl("leotheca://open-favorites")).toEqual({ kind: "open-favorites" });
+  });
+
   it("ignores query params other than content", () => {
     expect(parseAutomationUrl("leotheca://new-note?content=Hi&extra=ignored")).toEqual({
       kind: "new-note",

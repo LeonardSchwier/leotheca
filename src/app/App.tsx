@@ -2,6 +2,7 @@ import { signal, useSignal } from "@preact/signals";
 import { useCallback, useEffect, useMemo, useRef, useState } from "preact/hooks";
 import type { ComponentType } from "preact";
 import { Capacitor } from "@capacitor/core";
+import { App as CapacitorApp } from "@capacitor/app";
 import { getCurrent as getCurrentDeepLinkUrls, onOpenUrl } from "@tauri-apps/plugin-deep-link";
 import { writeText as writeClipboardText } from "@tauri-apps/plugin-clipboard-manager";
 import { Sidebar } from "../workspace/Sidebar";
@@ -229,6 +230,11 @@ export function App() {
         if (activeNote?.kind === "text") void writeClipboardText(activeNote.content);
         return;
       }
+      if (command.kind === "open-favorites") {
+        bookmarksOpen.value = true;
+        tagsOpen.value = false;
+        return;
+      }
       // Same reasoning: a "new-note" command that arrives before any
       // workspace is open has nowhere to create the note, so it's a
       // silent no-op rather than a confusing error dialog for something
@@ -248,7 +254,12 @@ export function App() {
   // stack"), so it's skipped entirely on Android rather than calling into
   // a native bridge that isn't there.
   useEffect(() => {
-    if (Capacitor.isNativePlatform()) return;
+    if (Capacitor.isNativePlatform()) {
+      let listener: { remove: () => Promise<void> } | undefined;
+      void CapacitorApp.getLaunchUrl().then((result) => result?.url && void runAutomationUrl(result.url));
+      void CapacitorApp.addListener("appUrlOpen", ({ url }) => void runAutomationUrl(url)).then((next) => (listener = next));
+      return () => void listener?.remove();
+    }
     let cancelled = false;
     void getCurrentDeepLinkUrls().then((urls) => {
       if (!cancelled) urls?.forEach((url) => void runAutomationUrl(url));

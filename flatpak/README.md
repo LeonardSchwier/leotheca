@@ -57,4 +57,6 @@ The domain behind the application ID is reachable over HTTPS. Domain ownership s
 
 ## Permissions
 
-The application needs read-write access to user-selected workspace folders because its core storage model is an ordinary directory of Markdown files. The current manifest grants home-directory filesystem access for that purpose. Treat any linter or reviewer concern about this permission as a real review finding to resolve or justify; do not suppress it with a local linter exception.
+The manifest deliberately grants no broad filesystem permission. On Linux the locked dialog stack is `tauri-plugin-dialog` 2.7.2 with `rfd` 0.16.0's GTK3 backend, and that backend creates `GtkFileChooserNative` for folder selection. In a sandbox GTK routes this native chooser through the file-chooser portal, which makes the user-selected directory available to the application and keeps portal-managed selections accessible across sessions. Leotheca then performs its normal filesystem operations only through the path the user explicitly selected.
+
+This scoped access is required by the submission linter and is also a better fit for the application's local-first model than a blanket home-directory grant. The repository CI can prove the manifest lints and builds, but it cannot click a real desktop folder chooser. A real packaged-app smoke test should therefore confirm selecting a workspace, reopening it, and creating/editing a note before the submission is called complete.

@@ -191,6 +191,21 @@ function uniqueNoteName(existingNames: Set<string>, baseName: string): string {
   return name;
 }
 
+/** Creates a new, open-format canvas file without requiring a naming dialog. */
+export async function createCanvasQuick(
+  dirPath: string,
+): Promise<{ path: string; name: string }> {
+  const existing = await listDir(dirPath);
+  const existingNames = new Set(existing.map((e) => e.name));
+  let name = "Untitled canvas.canvas";
+  let n = 2;
+  while (existingNames.has(name)) name = `Untitled canvas ${n++}.canvas`;
+  const path = `${dirPath}/${name}`;
+  await writeTextFile(path, JSON.stringify({ nodes: [], edges: [] }, null, 2));
+  await loadChildren(dirPath);
+  return { path, name };
+}
+
 /** Creates a note with an auto-generated, collision-free name ("Untitled",
  * "Untitled 2", ...) instead of prompting for one, for a quick-capture
  * shortcut (Ctrl+N, and the "new-note" automation command in

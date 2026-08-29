@@ -20,7 +20,7 @@ export interface FsEntry {
 
 export type EditorMode = "live" | "source" | "reading";
 
-export type TabKind = "text" | "image";
+export type TabKind = "text" | "image" | "canvas";
 
 export interface OpenTab {
   path: string;
@@ -47,3 +47,6 @@ export function isImagePath(path: string): boolean {
   return !!ext && IMAGE_EXTENSIONS.has(ext);
 }
 
+export function isCanvasPath(path: string): boolean {
+  return path.toLowerCase().endsWith(".canvas");
+}

@@ -184,6 +184,9 @@ export async function pickWorkspaceFolder(): Promise<{ path: string; token?: str
  * just reconnects our in-memory cache to it. */
 export async function restoreWorkspaceAccess(path: string, token: string | undefined): Promise<void> {
   if (path === WORKSPACE_ROOT && token) {
+    // The same synthetic path can now point at a different SAF tree. Never
+    // let descendants resolved under the old grant survive that transition.
+    pathToUri.clear();
     pathToUri.set(WORKSPACE_ROOT, token);
   }
 }

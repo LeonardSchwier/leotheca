@@ -50,6 +50,7 @@ const {
   settingsLoaded,
   workspacePath,
   workspaceSettings,
+  workspaceSession,
 } = await import("./store");
 const { activeTabPath, closeAllTabs, openOrFocusTab, openTabs } = await import(
   "../workspace/store",
@@ -103,6 +104,16 @@ describe("setWorkspacePath", () => {
 
     const writes = writesTo("/workspaceA/.leotheca/settings.json");
     expect((writes.at(-1) as { lastOpenPaths: string[] }).lastOpenPaths).toEqual([]);
+  });
+
+  it("starts a fresh session when Android changes only its opaque folder token", async () => {
+    await setWorkspacePath("/workspace", "token-A");
+    const firstSession = workspaceSession.value;
+
+    await setWorkspacePath("/workspace", "token-B");
+
+    expect(workspacePath.value).toBe("/workspace");
+    expect(workspaceSession.value).toBe(firstSession + 1);
   });
 });
 

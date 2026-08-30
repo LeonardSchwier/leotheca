@@ -33,15 +33,17 @@ import {
   updateWorkspaceSettings,
   viewMode,
   workspacePath,
+  workspaceSession,
   workspaceSettings,
 } from "../settings/store";
 import type { ViewMode } from "../settings/workspaceSettings";
 import { SettingsPanel } from "../settings/SettingsPanel";
 import { WelcomeDialog } from "../settings/WelcomeDialog";
 import { BacklinksPanel } from "../linking/BacklinksPanel";
-import { linkIndexBuilding, rebuildLinkIndex } from "../linking/store";
+import { linkIndexBuilding, rebuildLinkIndex, resetLinkIndexCache } from "../linking/store";
 import { BookmarksPanel } from "../bookmarks/BookmarksPanel";
 import { addFileBookmark, bookmarks, loadBookmarks, removeBookmark } from "../bookmarks/store";
+import { resetWorkspaceTree } from "../workspace/fileTreeStore";
 import { TagsPanel } from "../tags/TagsPanel";
 import {
   createNoteFromTemplate,
@@ -172,6 +174,7 @@ export function App() {
   const saveTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
   const tick = useSignal(0);
   const rootPath = workspacePath.value;
+  const session = workspaceSession.value;
   const [tabRename, setTabRename] = useState<{ path: string; name: string } | null>(null);
   const [tabRenameError, setTabRenameError] = useState<string | null>(null);
   const [templatePicker, setTemplatePicker] = useState<{
@@ -184,12 +187,17 @@ export function App() {
   }, []);
 
   useEffect(() => {
+    resetWorkspaceTree();
+    resetLinkIndexCache();
+  }, [session]);
+
+  useEffect(() => {
     if (rootPath) void rebuildLinkIndex(rootPath, workspaceSettings.value.frontmatterAliasesEnabled, workspaceSettings.value.tagsEnabled);
-  }, [rootPath]);
+  }, [rootPath, session]);
 
   useEffect(() => {
     if (workspacePath.value) void loadBookmarks(workspacePath.value);
-  }, [workspacePath.value]);
+  }, [workspacePath.value, session]);
 
   useEffect(() => {
     const root = document.documentElement;

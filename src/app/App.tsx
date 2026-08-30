@@ -67,6 +67,14 @@ import { CommandPalette, type Command } from "./CommandPalette";
 import { nextUiZoom, zoomActionForKey, zoomActionForWheel } from "./zoomControls";
 import { isNarrowViewport } from "./responsiveLayout";
 import { createSaveCoordinator } from "../workspace/saveCoordinator";
+import { workspaceTransitions } from "../workspace/workspaceTransition";
+
+// Workspace-scoped stores participate in the same generation-authoritative
+// transition as settings and autosave. Registration is synchronous at module
+// initialization, before App's initSettings effect or any folder picker can
+// publish a workspace. This replaces the old post-render session effects.
+workspaceTransitions.registerReset(resetWorkspaceTree);
+workspaceTransitions.registerReset(resetLinkIndexCache);
 
 // Plain inline SVG, not the 🔖 emoji this used to use: it rendered as an
 // unrelated (reportedly pepper-shaped) glyph on Android, the same class of
@@ -101,10 +109,6 @@ function GraphIcon() {
   );
 }
 
-// Text labels ("Source"/"Split"/"Preview") don't fit at narrow mobile
-// widths (confirmed via screenshot, "Preview" clipped to "Previe"), same
-// class of problem the sidebar toolbar icons already hit. Small SVGs,
-// same reasoning as NewNoteIcon/NewFolderIcon in Sidebar.tsx.
 function SourceModeIcon() {
   return (
     <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -152,16 +156,8 @@ const tagsOpen = signal(false);
 const graphOpen = signal(false);
 const markdownHelpOpen = signal(false);
 const commandPaletteOpen = signal(false);
-// Collapsed by default on Android, where the sidebar would otherwise eat
-// most of a phone-width screen; open by default on desktop, unchanged from
-// before this toggle existed.
 const sidebarOpen = signal(!Capacitor.isNativePlatform());
 
-/** Bookmarks and Tags both replace the file tree in the sidebar's primary
- * slot (see the `.sidebar-primary` render below), so opening one closes
- * the other rather than leaving both toggled on at once, which would
- * otherwise show two toolbar buttons as simultaneously "active" for a
- * single visible panel. */
 function toggleSidebarPanel(panel: typeof bookmarksOpen): void {
   const next = !panel.value;
   bookmarksOpen.value = false;
@@ -185,50 +181,21 @@ export function App() {
     templates: NoteTemplate[];
   } | null>(null);
 
-  // Clear all pending/in-flight saves when the workspace session changes
-  // (Android SAF switch, desktop reload). This prevents writes from the old
-  // session from targeting the wrong folder or a file that was renamed.
   useEffect(() => {
-    save.resetForSession(session);
-  }, [session, save]);
-
-  useEffect(() => {
-    // Always ensure settingsLoaded becomes true even if initSettings() fails.
-    // A fresh install with no workspace will show the WelcomeDialog; if the
-    // version check or config read fails, we still want the UI to render.
     const p = initSettings();
     if (p) {
       p.catch(() => {
         settingsLoaded.value = true;
       });
     } else {
-      // In tests/initSettings is mocked to undefined; render immediately.
       settingsLoaded.value = true;
     }
   }, []);
 
   useEffect(() => {
-    resetWorkspaceTree();
-    resetLinkIndexCache();
-  }, [session]);
-
-  // Deferring rebuildLinkIndex until the user explicitly opens the Graph or
-  // Tags view. Building the link index on every workspace open adds 100-3000ms
-  // of native bridge calls (recursive file walk + per-note content reads)
-  // before the user needs it. The index is built on-demand by openGraphView
-  // and openTagsPanel, and manually via settings.
-
-  // Defer bookmarks loading until the user opens the Bookmarks panel.
-  // Reading bookmarks.json costs one native bridge call on startup that
-  // provides zero user value on first paint.
-  useEffect(() => {
     if (bookmarksOpen.value && workspacePath.value) void loadBookmarks(workspacePath.value);
   }, [bookmarksOpen.value, workspacePath.value]);
 
-  // Use effect() from @preact/signals (not useEffect) so changes to
-  // workspaceSettings.value.accentColor or themesEnabled are properly
-  // tracked reactively — Preact Signals only subscribes during render,
-  // not inside useEffect callbacks.
   effect(() => {
     const root = document.documentElement;
     if (!workspacePath.value || !workspaceSettings.value.themesEnabled) {
@@ -271,9 +238,6 @@ export function App() {
       const command = parseAutomationUrl(url);
       if (!command) return;
       if (command.kind === "read-current-note") {
-        // Silently does nothing without an open text note: there is
-        // nothing sensible to copy, and this command has no channel back
-        // to whatever external tool triggered it to report an error.
         const activeNote = activeTab();
         if (activeNote?.kind === "text") void writeClipboardText(activeNote.content);
         return;
@@ -284,10 +248,6 @@ export function App() {
         sidebarOpen.value = true;
         return;
       }
-      // Same reasoning: a "new-note" command that arrives before any
-      // workspace is open has nowhere to create the note, so it's a
-      // silent no-op rather than a confusing error dialog for something
-      // an external tool triggered, not the user directly.
       if (!workspacePath.value) return;
       const targetDir = selectedDir.value ?? workspacePath.value;
       const { path, name } = await createNoteQuick(targetDir, command.content);
@@ -296,12 +256,6 @@ export function App() {
     [handleOpenFile],
   );
 
-  // Local inter-application automation (see automationCommands.ts and
-  // ROADMAP.md's "Local Automation Commands"): registers this window to
-  // receive leotheca:// URLs. Desktop (Tauri) only, this plugin has no
-  // Android/Capacitor equivalent (see CONSTITUTION.md's "Technology
-  // stack"), so it's skipped entirely on Android rather than calling into
-  // a native bridge that isn't there.
   useEffect(() => {
     if (Capacitor.isNativePlatform()) {
       let listener: { remove: () => Promise<void> } | undefined;
@@ -328,14 +282,6 @@ export function App() {
     [session, save],
   );
 
-  // If a debounced autosave (see handleChange above) is still pending for
-  // `path`, its closure captured that path at schedule time: left alone,
-  // it would fire later against wherever `path` used to point, silently
-  // dropping the file's last edit if `path` gets renamed or moved out from
-  // under it in the meantime. Both places that can rename an open tab's
-  // file (this component's own tab-rename dialog, and Sidebar.tsx's
-  // file-tree rename) call this first, so neither can reintroduce the race
-  // independently of the other.
   const flushPendingAutosave = useCallback(async (path: string) => {
     await save.flush(session, path);
   }, [session, save]);
@@ -411,9 +357,6 @@ export function App() {
 
   const openTagsPanel = () => {
     toggleSidebarPanel(tagsOpen);
-    // The link index only rebuilds when the workspace first opens or the
-    // graph view is shown; a note edited since then could have new tags
-    // the panel hasn't seen yet, so refresh right before showing it too.
     if (tagsOpen.value && rootPath) {
       void rebuildLinkIndex(
         rootPath,
@@ -543,7 +486,6 @@ export function App() {
     if (!tabRename) return;
     try {
       await flushPendingAutosave(tabRename.path);
-
       const newPath = await renameEntry(tabRename.path, newName);
       renameOpenTab(tabRename.path, newPath, newName);
       setTabRename(null);
@@ -624,9 +566,6 @@ export function App() {
             aria-label="Graph view"
             title="Graph view"
             onClick={() => {
-              // The link index only rebuilds when the workspace first
-              // opens; a note edited since then could have new links the
-              // graph hasn't seen yet, so refresh right before showing it.
               if (rootPath) void rebuildLinkIndex(rootPath, workspaceSettings.value.frontmatterAliasesEnabled, workspaceSettings.value.tagsEnabled);
               graphOpen.value = true;
             }}

@@ -2,6 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
+  drainWorkspaceOperations,
   readTextFile,
   writeTextFile,
   getAppVersion,
@@ -10,6 +11,7 @@ const {
   setStatusBarAppearance,
   getAppConfigFilePath,
 } = vi.hoisted(() => ({
+  drainWorkspaceOperations: vi.fn(async () => {}),
   readTextFile: vi.fn<(path: string) => Promise<string>>(async () => {
     throw new Error("not found");
   }),
@@ -22,6 +24,7 @@ const {
 }));
 
 vi.mock("../workspace/tauriBridge", () => ({
+  drainWorkspaceOperations,
   readTextFile,
   writeTextFile,
   getAppVersion,
@@ -31,11 +34,6 @@ vi.mock("../workspace/tauriBridge", () => ({
   getAppConfigFilePath,
 }));
 
-// jsdom doesn't implement matchMedia; settings/store.ts calls it at module
-// load time (the "system theme" effects), so this has to be in place
-// before that module is ever imported, hence the dynamic import below
-// rather than a static one (static imports evaluate before any of this
-// file's own top-level code runs).
 window.matchMedia = vi.fn().mockImplementation((query: string) => ({
   matches: false,
   media: query,
@@ -85,9 +83,6 @@ describe("setWorkspacePath", () => {
 
     await setWorkspacePath("/workspaceB");
 
-    // The switch itself (closeAllTabs on the way out) must not have written
-    // an empty tab list back over workspace A's real one. If it did, this
-    // would be the exact regression session 22 found and fixed.
     const afterSwitch = writesTo("/workspaceA/.leotheca/settings.json");
     expect((afterSwitch.at(-1) as { lastOpenPaths: string[] }).lastOpenPaths).toEqual([
       "/workspaceA/note1.md",
@@ -209,15 +204,6 @@ describe("restoreLastOpenTabs", () => {
   });
 });
 
-// Each of these workspace/store.ts functions changes both openTabs and
-// activeTabPath in one call. Without batch() (see session 23's fix to
-// closeAllTabs, and this same treatment applied to these four functions
-// right after), each signal write fires the persistence effect separately,
-// producing an extra write with a state that was never real on its own.
-// Asserting exactly one write per operation is a direct check that the
-// batching is actually in effect, not just that the final state ends up
-// correct (which could pass even with two writes, the way closeAllTabs's
-// broken version happened to end up "correct" after its second write too).
 describe("tab operations that change both openTabs and activeTabPath", () => {
   beforeEach(() => {
     vi.clearAllMocks();

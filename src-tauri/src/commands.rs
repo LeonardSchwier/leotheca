@@ -148,23 +148,17 @@ const MAX_WALK_DEPTH: usize = 40;
 /// workspace trash do not appear in the user's note statistics.
 #[tauri::command]
 pub fn workspace_stats(path: String) -> Result<WorkspaceStats, String> {
-    let mut folder_count = 0;
-    let mut note_count = 0;
-    let mut image_count = 0;
-    let mut total_note_lines = 0;
-    let mut oldest_note_date = None;
-    let mut newest_note_date = None;
+    #[derive(Default)]
+    struct Accumulator {
+        folder_count: usize,
+        note_count: usize,
+        image_count: usize,
+        total_note_lines: usize,
+        oldest_note_date: Option<u64>,
+        newest_note_date: Option<u64>,
+    }
 
-    fn walk(
-        path: &Path,
-        depth: usize,
-        folder_count: &mut usize,
-        note_count: &mut usize,
-        image_count: &mut usize,
-        total_note_lines: &mut usize,
-        oldest_note_date: &mut Option<u64>,
-        newest_note_date: &mut Option<u64>,
-    ) -> Result<(), String> {
+    fn walk(path: &Path, depth: usize, stats: &mut Accumulator) -> Result<(), String> {
         for entry in fs::read_dir(path).map_err(|error| error.to_string())? {
             let entry = entry.map_err(|error| error.to_string())?;
             let entry_path = entry.path();
@@ -174,68 +168,57 @@ pub fn workspace_stats(path: String) -> Result<WorkspaceStats, String> {
             }
 
             if entry_path.is_dir() {
-                *folder_count += 1;
+                stats.folder_count += 1;
                 if depth < MAX_WALK_DEPTH {
-                    walk(
-                        &entry_path,
-                        depth + 1,
-                        folder_count,
-                        note_count,
-                        image_count,
-                        total_note_lines,
-                        oldest_note_date,
-                        newest_note_date,
-                    )?;
+                    walk(&entry_path, depth + 1, stats)?;
                 }
             } else if entry_path
                 .extension()
                 .and_then(|extension| extension.to_str())
                 .is_some_and(|extension| extension.eq_ignore_ascii_case("md"))
             {
-                *note_count += 1;
+                stats.note_count += 1;
                 // A single unreadable note (permission denied, invalid
                 // UTF-8, ...) shouldn't take down the whole statistics
                 // computation; skip its content, don't abort. It still
                 // counts as a note, same principle runSearch already
                 // follows on the frontend for the same class of failure.
                 if let Ok(contents) = fs::read_to_string(&entry_path) {
-                    *total_note_lines += contents.lines().count();
+                    stats.total_note_lines += contents.lines().count();
                 }
                 if let Some(timestamp) = note_timestamp(&entry_path) {
-                    *oldest_note_date =
-                        Some(oldest_note_date.map_or(timestamp, |oldest| oldest.min(timestamp)));
-                    *newest_note_date =
-                        Some(newest_note_date.map_or(timestamp, |newest| newest.max(timestamp)));
+                    stats.oldest_note_date = Some(
+                        stats
+                            .oldest_note_date
+                            .map_or(timestamp, |oldest| oldest.min(timestamp)),
+                    );
+                    stats.newest_note_date = Some(
+                        stats
+                            .newest_note_date
+                            .map_or(timestamp, |newest| newest.max(timestamp)),
+                    );
                 }
             } else if is_image_path(&entry_path) {
-                *image_count += 1;
+                stats.image_count += 1;
             }
         }
         Ok(())
     }
 
-    walk(
-        Path::new(&path),
-        0,
-        &mut folder_count,
-        &mut note_count,
-        &mut image_count,
-        &mut total_note_lines,
-        &mut oldest_note_date,
-        &mut newest_note_date,
-    )?;
+    let mut stats = Accumulator::default();
+    walk(Path::new(&path), 0, &mut stats)?;
 
     Ok(WorkspaceStats {
-        folder_count,
-        note_count,
-        image_count,
-        average_lines_per_note: if note_count == 0 {
+        folder_count: stats.folder_count,
+        note_count: stats.note_count,
+        image_count: stats.image_count,
+        average_lines_per_note: if stats.note_count == 0 {
             0.0
         } else {
-            total_note_lines as f64 / note_count as f64
+            stats.total_note_lines as f64 / stats.note_count as f64
         },
-        oldest_note_date,
-        newest_note_date,
+        oldest_note_date: stats.oldest_note_date,
+        newest_note_date: stats.newest_note_date,
     })
 }
 
@@ -430,8 +413,8 @@ pub fn list_dir(path: String) -> Result<Vec<FsEntry>, String> {
         }
     }
 
-    dirs.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
-    files.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+    dirs.sort_by_key(|entry| entry.name.to_lowercase());
+    files.sort_by_key(|entry| entry.name.to_lowercase());
     dirs.extend(files);
     Ok(dirs)
 }

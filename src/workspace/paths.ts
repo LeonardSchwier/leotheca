@@ -58,6 +58,16 @@ function isAbsoluteTarget(target: string): boolean {
   return forward.startsWith("/") || /^[A-Za-z]:\//.test(forward);
 }
 
+function pathIsWithin(root: AbsolutePathParts, candidate: AbsolutePathParts): boolean {
+  if (!sameVolume(root, candidate)) return false;
+  if (candidate.segments.length < root.segments.length) return false;
+  const caseInsensitive = root.prefix !== "";
+  return root.segments.every((segment, index) => {
+    const other = candidate.segments[index];
+    return caseInsensitive ? segment.toLowerCase() === other.toLowerCase() : segment === other;
+  });
+}
+
 /** Same logic as fileTreeStore.ts's own dirname, deliberately duplicated
  * rather than imported: fileTreeStore.ts pulls in settings/store.ts (and
  * its module-load-time `document` side effects) transitively, which
@@ -79,12 +89,12 @@ export function resolvePath(baseDir: string, target: string): string {
 }
 
 /**
- * Resolves a relative path only when the result stays inside `workspaceRoot`.
- * This is the frontend read-boundary check for user-authored relative paths
- * before they are sent to a native file-read bridge. Absolute targets and
- * traversal that escapes the workspace are rejected. Both slash forms are
- * treated as separators so a Windows-style traversal cannot bypass the same
- * lexical containment rule used by the normalized frontend paths.
+ * Resolves a relative path only when both its base and result stay inside
+ * `workspaceRoot`. This is the frontend read-boundary check for user-authored
+ * relative paths before they are sent to a native file-read bridge. Absolute
+ * targets and traversal that escapes the workspace are rejected. Both slash
+ * forms are treated as separators so a Windows-style traversal cannot bypass
+ * the same lexical containment rule used by the normalized frontend paths.
  */
 export function resolvePathWithinWorkspace(
   workspaceRoot: string,
@@ -95,7 +105,7 @@ export function resolvePathWithinWorkspace(
 
   const root = splitAbsolutePath(workspaceRoot);
   const base = splitAbsolutePath(baseDir);
-  if (!root || !base || !sameVolume(root, base)) return null;
+  if (!root || !base || !pathIsWithin(root, base)) return null;
 
   const targetSegments = target.replace(/\\/g, "/").split("/");
   const candidate: AbsolutePathParts = {
@@ -111,19 +121,7 @@ export function resolvePathWithinWorkspace(
     candidate.segments.push(part);
   }
 
-  const rootPath = joinAbsolutePath(root);
-  const normalizedRoot = rootPath.endsWith("/") ? rootPath : `${rootPath}/`;
-  const normalizedCandidate = joinAbsolutePath(candidate);
-  const comparableRoot = root.prefix ? normalizedRoot.toLowerCase() : normalizedRoot;
-  const comparableCandidate = root.prefix ? normalizedCandidate.toLowerCase() : normalizedCandidate;
-
-  if (
-    comparableCandidate !== comparableRoot.slice(0, -1) &&
-    !comparableCandidate.startsWith(comparableRoot)
-  ) {
-    return null;
-  }
-  return normalizedCandidate;
+  return pathIsWithin(root, candidate) ? joinAbsolutePath(candidate) : null;
 }
 
 /** The inverse of resolvePath: a relative path from `fromDir` to

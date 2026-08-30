@@ -163,8 +163,6 @@ jobs:
       - run: npm ci
       - run: npx vite build
       - run: npx cap sync android
-      - name: Create .android directory before cache restore
-        run: mkdir -p ~/.android
       - name: Restore persisted debug keystore
         # Every GitHub Actions run is a fresh VM with no debug.keystore yet,
         # so without this, the Android Gradle Plugin silently generates a
@@ -181,19 +179,14 @@ jobs:
         # one for next time.
         uses: actions/cache@v4
         with:
-          path: ~/.android/debug.keystore
+          path: ~/.android
           key: android-debug-keystore
-      - name: Symlink AGP alternate keystore path
-        run: |
-          mkdir -p ~/.android
-          if [ ! -f ~/.android/debug.keystore ] && [ -d ~/.config/.android ]; then
-            ln -sf ~/.config/.android/debug.keystore ~/.android/debug.keystore
-          fi
       - name: Generate debug keystore if missing
         # First run after cache reset has no keystore. Generate one with the
         # same alias/password as build.gradle expects so AGP's validate step
         # passes. Subsequent runs restore it from cache.
         run: |
+          mkdir -p ~/.android
           if [ ! -f ~/.android/debug.keystore ]; then
             keytool -genkeypair -v \
               -dname "CN=Android Debug, O=Android, C=US" \

@@ -38,6 +38,10 @@
 
 ## Open
 
+### Bugs and CI
+
+- ⬜ **Properly test full release and CI**: The release workflow has multiple failure modes that are not caught by CI checks: (1) AppImage bundling fails on newer Linux distributions due to outdated linuxdeploy; (2) Android APK signing cache does not persist between CI runs, causing `INSTALL_FAILED_UPDATE_INCOMPATIBLE` on device. Need: end-to-end release build tests that validate the AppImage can launch and the APK can install on actual devices before declaring CI green. Implement: add a post-CI test step that downloads artifacts and runs basic smoke tests (AppImage `--appimage-extract-and-run` success, APK `adb install` success).
+
 ### Bugs
 
 - ⬜ **Android Long-Press Conflict**: Confirm or correct the candidate `user-select: none` fix so the file-tree context menu does not compete with native text selection; genuine finger-touch verification on a physical device is still required.

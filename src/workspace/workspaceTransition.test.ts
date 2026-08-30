@@ -40,7 +40,10 @@ describe("workspace transition authority", () => {
     await expect(a).resolves.toBe(false);
 
     expect(published).toEqual(["B"]);
-    expect(reset).toHaveBeenCalledTimes(1);
+    // Each transition owns a pre-connect outgoing reset. A clears the old
+    // workspace before waiting on its settings load; B then supersedes A and
+    // clears that outgoing state again before connecting B. Only B publishes.
+    expect(reset).toHaveBeenCalledTimes(2);
   });
 
   it("prevents stale post-publish restoration from mutating after a newer request", async () => {

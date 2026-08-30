@@ -1,5 +1,5 @@
 import { signal, useSignal } from "@preact/signals";
-import { useCallback, useEffect, useMemo, useRef, useState } from "preact/hooks";
+import { useCallback, useEffect, useMemo, useState } from "preact/hooks";
 import type { ComponentType } from "preact";
 import { Capacitor } from "@capacitor/core";
 import { App as CapacitorApp } from "@capacitor/app";
@@ -20,12 +20,13 @@ import {
   closeOtherTabs,
   closeTab,
   markTabSaved,
+  markTabSaveError,
   openOrFocusTab,
   openTabs,
   renameOpenTab,
   updateTabContent,
 } from "../workspace/store";
-import { readTextFile, writeTextFile } from "../workspace/tauriBridge";
+import { readTextFile } from "../workspace/tauriBridge";
 import {
   initSettings,
   settingsLoaded,
@@ -65,6 +66,7 @@ import { MarkdownHelpDialog } from "./MarkdownHelpDialog";
 import { CommandPalette, type Command } from "./CommandPalette";
 import { nextUiZoom, zoomActionForKey, zoomActionForWheel } from "./zoomControls";
 import { isNarrowViewport } from "./responsiveLayout";
+import { createSaveCoordinator } from "../workspace/saveCoordinator";
 
 // Plain inline SVG, not the 🔖 emoji this used to use: it rendered as an
 // unrelated (reportedly pepper-shaped) glyph on Android, the same class of
@@ -145,8 +147,6 @@ const VIEW_MODE_ICONS: Record<ViewMode, ComponentType> = {
   preview: PreviewModeIcon,
 };
 
-const AUTOSAVE_DELAY_MS = 400;
-
 const bookmarksOpen = signal(false);
 const tagsOpen = signal(false);
 const graphOpen = signal(false);
@@ -171,16 +171,26 @@ function toggleSidebarPanel(panel: typeof bookmarksOpen): void {
 }
 
 export function App() {
-  const saveTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
   const tick = useSignal(0);
   const rootPath = workspacePath.value;
   const session = workspaceSession.value;
+  const save = useMemo(() => createSaveCoordinator({
+    onSaved: (path: string) => { markTabSaved(path); refresh(); },
+    onError: (path: string, error: string) => markTabSaveError(path, error),
+  }), []);
   const [tabRename, setTabRename] = useState<{ path: string; name: string } | null>(null);
   const [tabRenameError, setTabRenameError] = useState<string | null>(null);
   const [templatePicker, setTemplatePicker] = useState<{
     targetDir: string;
     templates: NoteTemplate[];
   } | null>(null);
+
+  // Clear all pending/in-flight saves when the workspace session changes
+  // (Android SAF switch, desktop reload). This prevents writes from the old
+  // session from targeting the wrong folder or a file that was renamed.
+  useEffect(() => {
+    save.resetForSession(session);
+  }, [session, save]);
 
   useEffect(() => {
     initSettings();
@@ -292,20 +302,9 @@ export function App() {
   const handleChange = useCallback(
     (path: string, content: string) => {
       updateTabContent(path, content);
-      const timers = saveTimers.current;
-      const existing = timers.get(path);
-      if (existing) clearTimeout(existing);
-      timers.set(
-        path,
-        setTimeout(() => {
-          writeTextFile(path, content).then(() => {
-            markTabSaved(path);
-            refresh();
-          });
-        }, AUTOSAVE_DELAY_MS),
-      );
+      save.change(session, path, content);
     },
-    [refresh],
+    [session, save],
   );
 
   // If a debounced autosave (see handleChange above) is still pending for
@@ -317,17 +316,8 @@ export function App() {
   // file-tree rename) call this first, so neither can reintroduce the race
   // independently of the other.
   const flushPendingAutosave = useCallback(async (path: string) => {
-    const timers = saveTimers.current;
-    const pendingTimer = timers.get(path);
-    if (!pendingTimer) return;
-    clearTimeout(pendingTimer);
-    timers.delete(path);
-    const tab = openTabs.value.find((t) => t.path === path);
-    if (tab) {
-      await writeTextFile(path, tab.content);
-      markTabSaved(path);
-    }
-  }, []);
+    await save.flush(session, path);
+  }, [session, save]);
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -528,7 +518,7 @@ export function App() {
     openTabs.value,
   ]);
 
-  const handleTabRenameSubmit = async (newName: string) => {
+  const handleTabRenameSubmit = useCallback(async (newName: string) => {
     if (!tabRename) return;
     try {
       await flushPendingAutosave(tabRename.path);
@@ -540,7 +530,7 @@ export function App() {
     } catch (e) {
       setTabRenameError(e instanceof Error ? e.message : String(e));
     }
-  };
+  }, [tabRename, flushPendingAutosave, renameEntry, renameOpenTab, setTabRename, setTabRenameError]);
 
   return (
     <div class="app-shell">

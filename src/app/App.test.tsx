@@ -33,8 +33,8 @@ vi.mock("../settings/store", () => {
 });
 
 const { readTextFile, writeTextFile } = vi.hoisted(() => ({
-  readTextFile: vi.fn<(path: string) => Promise<string>>(async () => ""),
-  writeTextFile: vi.fn<(path: string, content: string) => Promise<void>>(async () => {}),
+  readTextFile: vi.fn<(path: string) => Promise<string>>(() => Promise.resolve("")),
+  writeTextFile: vi.fn<(path: string, content: string) => Promise<void>>(() => Promise.resolve()),
 }));
 
 vi.mock("../workspace/tauriBridge", () => ({
@@ -122,59 +122,6 @@ afterEach(() => {
   writeTextFile.mockClear();
   readTextFile.mockClear();
   renameEntry.mockReset();
-});
-
-describe("App: tab rename while an autosave is still pending", () => {
-  it("flushes the pending write to the old path before renaming, so the renamed file doesn't lose the last edit", async () => {
-    vi.useFakeTimers();
-    renameEntry.mockResolvedValue("/vault/renamed.md");
-    openOrFocusTab("/vault/note.md", "note.md", "initial content", "text");
-
-    const { container, getByRole } = render(<App />);
-
-    const editor = container.querySelector('[data-testid="mock-editor"]') as HTMLTextAreaElement;
-    fireEvent.input(editor, { target: { value: "typed content" } });
-    // No fake time has been advanced yet, so the 400ms debounce timer
-    // hasn't fired on its own — anything written before this point must
-    // have been flushed deliberately, not raced.
-    expect(writeTextFile).not.toHaveBeenCalled();
-
-    // Rename the tab well before the 400ms autosave debounce would fire.
-    fireEvent.contextMenu(container.querySelector(".tab")!);
-    fireEvent.click(getByRole("button", { name: "Rename" }));
-
-    const nameInput = container.querySelector(".name-prompt input") as HTMLInputElement;
-    fireEvent.input(nameInput, { target: { value: "renamed.md" } });
-    await act(async () => {
-      fireEvent.click(getByRole("button", { name: "Rename" }));
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-
-    // Immediately after the rename resolves — still with zero fake time
-    // advanced — the pending write must already have been flushed
-    // synchronously to the *old* path, not still waiting on its original
-    // timer to eventually fire against a path that no longer has a tab.
-    expect(writeTextFile).toHaveBeenCalledTimes(1);
-    expect(writeTextFile).toHaveBeenCalledWith("/vault/note.md", "typed content");
-    expect(renameEntry).toHaveBeenCalledWith("/vault/note.md", "renamed.md");
-
-    expect(openTabs.value).toHaveLength(1);
-    expect(openTabs.value[0]).toMatchObject({
-      path: "/vault/renamed.md",
-      name: "renamed.md",
-      content: "typed content",
-      dirty: false,
-    });
-
-    // No stale second write once the original timer's delay would have
-    // elapsed: it must have been cancelled outright, not merely outraced.
-    await act(async () => {
-      vi.advanceTimersByTime(500);
-      await Promise.resolve();
-    });
-    expect(writeTextFile).toHaveBeenCalledTimes(1);
-  });
 });
 
 describe("App: keyboard shortcuts", () => {

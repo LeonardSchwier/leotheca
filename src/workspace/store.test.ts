@@ -22,7 +22,7 @@ describe("openOrFocusTab", () => {
   it("opens a new tab and makes it active", () => {
     openOrFocusTab("/a.md", "a.md", "content", "text");
     expect(openTabs.value).toEqual([
-      { path: "/a.md", name: "a.md", content: "content", kind: "text", dirty: false },
+      { path: "/a.md", name: "a.md", content: "content", kind: "text", dirty: false, saveError: null },
     ]);
     expect(activeTabPath.value).toBe("/a.md");
   });
@@ -179,7 +179,7 @@ describe("renameOpenTab", () => {
     renameOpenTab("/old.md", "/new.md", "new.md");
 
     expect(openTabs.value).toEqual([
-      { path: "/new.md", name: "new.md", content: "content", kind: "text", dirty: false },
+      { path: "/new.md", name: "new.md", content: "content", kind: "text", dirty: false, saveError: null },
     ]);
     expect(activeTabPath.value).toBe("/new.md");
   });

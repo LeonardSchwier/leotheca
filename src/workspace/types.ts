@@ -29,6 +29,9 @@ export interface OpenTab {
   /** Only meaningful for kind "text"; empty for images. */
   content: string;
   dirty: boolean;
+  /** Non-null when the last save attempt failed. The user can see this
+   * error and retry; the tab stays dirty until a successful write. */
+  saveError: string | null;
 }
 
 const IMAGE_EXTENSIONS = new Set([

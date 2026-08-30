@@ -9,7 +9,7 @@ afterEach(() => {
 });
 
 function tab(path: string, name: string, dirty = false): OpenTab {
-  return { path, name, content: "", kind: "text", dirty };
+  return { path, name, content: "", kind: "text", dirty, saveError: null };
 }
 
 function noop() {}

@@ -104,7 +104,9 @@ On a large workspace, especially over Android's SAF, filesystem work has to be b
 | macOS | Not yet built | Planned: Homebrew | Confirmed intended platform (see `CONSTITUTION.md`'s Decisions Log), no build target exists yet |
 | Windows | Not yet built | Planned: direct download from GitHub Releases only, no package manager/store | Confirmed intended platform, no build target exists yet |
 
-CI (`.github/workflows/`) builds and tests both the Linux and Android targets on every pull request; see `CONSTITUTION.md`'s Engineering practices for the standard this is held to.
+`.github/workflows/ci.yml` is the canonical validation contract for a commit. It is both the normal push/pull-request workflow and a reusable workflow called directly by `.github/workflows/release.yml`, so release publication depends on validation of the exact caller commit rather than a separate run that could describe another SHA. Its required jobs cover TypeScript checking, lint, frontend tests and production build; Rust formatting, Clippy with warnings denied, tests and `cargo check`; Android unit tests and a debug APK build; an Android emulator install of that APK; and an AppImage build, extraction, and headless process-launch smoke test. A final `validation` job runs with `always()` and succeeds only when every required job result is `success`, making skipped, cancelled, or failed prerequisites non-authoritative.
+
+The artifact smoke tests are intentionally narrower than physical-device or full desktop verification. The Android check proves that the produced debug APK installs and is registered in an emulator; it is not physical-device, SAF picker, touch, or large-vault verification. The AppImage check proves that the produced artifact extracts and its packaged application process remains alive under a headless X11 display long enough to count as a launch smoke; it does not prove pixels rendered correctly on a real desktop, Wayland behavior, URL-handler registration, or Fedora graphics compatibility. Those environment-specific checks remain manual/open where the roadmap says they do.
 
 ## Testing strategy
 

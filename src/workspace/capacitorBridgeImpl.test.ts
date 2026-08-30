@@ -1,5 +1,44 @@
-import { describe, expect, it, vi } from "vitest";
-import { bytesToBase64, findAllEntries, findAllFiles, findMarkdownFiles, getWorkspaceStats } from "./capacitorBridgeImpl";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+const { folderAccess } = vi.hoisted(() => ({
+  folderAccess: {
+    createDir: vi.fn(),
+    deletePath: vi.fn(),
+    findAllEntries: vi.fn(),
+    findAllFiles: vi.fn(),
+    findMarkdownFiles: vi.fn(),
+    listDir: vi.fn(),
+    movePath: vi.fn(),
+    pickFolder: vi.fn(),
+    readFileAsDataUrl: vi.fn(),
+    readTextFile: vi.fn(),
+    readTextFilesBatch: vi.fn(),
+    renamePath: vi.fn(),
+    writeBinaryFile: vi.fn(),
+    writeTextFile: vi.fn(),
+  },
+}));
+
+vi.mock("@capacitor/core", () => ({ registerPlugin: () => folderAccess }));
+
+import {
+  WORKSPACE_ROOT,
+  bytesToBase64,
+  deletePathPermanent,
+  findAllEntries,
+  findAllFiles,
+  findMarkdownFiles,
+  getWorkspaceStats,
+  readTextFile,
+  renamePath,
+  restoreWorkspaceAccess,
+  trashPath,
+} from "./capacitorBridgeImpl";
+
+afterEach(async () => {
+  await restoreWorkspaceAccess(WORKSPACE_ROOT, "content://workspace");
+  vi.clearAllMocks();
+});
 
 interface NativeMarkdownFile {
   relativePath: string;
@@ -207,5 +246,99 @@ describe("bytesToBase64", () => {
     const bytes = new Uint8Array(0x8000 * 2 + 137);
     for (let i = 0; i < bytes.length; i++) bytes[i] = i % 256;
     expect(base64ToBytes(bytesToBase64(bytes))).toEqual(bytes);
+  });
+});
+
+describe("Android URI cache mutations", () => {
+  async function seedNestedCache() {
+    await restoreWorkspaceAccess(WORKSPACE_ROOT, "content://workspace");
+    await findAllEntries(WORKSPACE_ROOT, {
+      walk: vi.fn(async () => ({
+        entries: [
+          { relativePath: "a", uri: "content://a", isDir: true },
+          { relativePath: "a/note.md", uri: "content://old-note", isDir: false },
+          { relativePath: "ab", uri: "content://ab", isDir: true },
+          { relativePath: "ab/note.md", uri: "content://ab-note", isDir: false },
+        ],
+      })),
+    });
+  }
+
+  it("evicts a renamed directory's descendants so a recreated path resolves from the current tree", async () => {
+    await seedNestedCache();
+    folderAccess.renamePath.mockResolvedValue({ uri: "content://b" });
+
+    await renamePath("/workspace/a", "/workspace/b");
+
+    folderAccess.listDir.mockImplementation(async ({ uri }: { uri: string }) => {
+      if (uri === "content://workspace") {
+        return {
+          entries: [
+            { name: "a", uri: "content://new-a", isDir: true },
+            { name: "ab", uri: "content://ab", isDir: true },
+            { name: "b", uri: "content://b", isDir: true },
+          ],
+        };
+      }
+      if (uri === "content://new-a") return { entries: [{ name: "note.md", uri: "content://new-note", isDir: false }] };
+      if (uri === "content://b") return { entries: [{ name: "note.md", uri: "content://moved-note", isDir: false }] };
+      throw new Error(`Unexpected URI: ${uri}`);
+    });
+    folderAccess.readTextFile.mockResolvedValue({ content: "current" });
+
+    await expect(readTextFile("/workspace/ab/note.md")).resolves.toBe("current");
+    await expect(readTextFile("/workspace/a/note.md")).resolves.toBe("current");
+    await expect(readTextFile("/workspace/b/note.md")).resolves.toBe("current");
+
+    expect(folderAccess.readTextFile).toHaveBeenNthCalledWith(1, { uri: "content://ab-note" });
+    expect(folderAccess.readTextFile).toHaveBeenNthCalledWith(2, { uri: "content://new-note" });
+    expect(folderAccess.readTextFile).toHaveBeenNthCalledWith(3, { uri: "content://moved-note" });
+  });
+
+  it("evicts complete subtrees after trash and permanent deletion without evicting sibling prefixes", async () => {
+    await seedNestedCache();
+    folderAccess.listDir.mockResolvedValue({ entries: [] });
+    folderAccess.createDir.mockResolvedValue({ uri: "content://trash" });
+    folderAccess.movePath.mockResolvedValue({ uri: "content://trashed-a" });
+    folderAccess.deletePath.mockResolvedValue(undefined);
+
+    await trashPath(WORKSPACE_ROOT, "/workspace/a");
+    await deletePathPermanent("/workspace/ab");
+    await expect(readTextFile("/workspace/a/note.md")).rejects.toThrow('"a" was not found.');
+    await expect(readTextFile("/workspace/ab/note.md")).rejects.toThrow('"ab" was not found.');
+
+    expect(folderAccess.deletePath).toHaveBeenCalledWith({ uri: "content://ab" });
+    expect(folderAccess.readTextFile).not.toHaveBeenCalled();
+  });
+
+  it("evicts both rename prefixes after a rejected native mutation", async () => {
+    await seedNestedCache();
+    folderAccess.renamePath.mockRejectedValue(new Error("provider failure"));
+    folderAccess.listDir.mockImplementation(async ({ uri }: { uri: string }) => {
+      if (uri === "content://workspace") return { entries: [{ name: "a", uri: "content://new-a", isDir: true }] };
+      if (uri === "content://new-a") return { entries: [{ name: "note.md", uri: "content://new-note", isDir: false }] };
+      throw new Error(`Unexpected URI: ${uri}`);
+    });
+    folderAccess.readTextFile.mockResolvedValue({ content: "current" });
+
+    await expect(renamePath("/workspace/a", "/workspace/b")).rejects.toThrow("provider failure");
+    await expect(readTextFile("/workspace/a/note.md")).resolves.toBe("current");
+
+    expect(folderAccess.readTextFile).toHaveBeenCalledWith({ uri: "content://new-note" });
+  });
+
+  it("clears cached descendants when a new workspace session restores the same synthetic root", async () => {
+    await seedNestedCache();
+    await restoreWorkspaceAccess(WORKSPACE_ROOT, "content://next-workspace");
+    folderAccess.listDir.mockImplementation(async ({ uri }: { uri: string }) => {
+      if (uri === "content://next-workspace") return { entries: [{ name: "a", uri: "content://next-a", isDir: true }] };
+      if (uri === "content://next-a") return { entries: [{ name: "note.md", uri: "content://next-note", isDir: false }] };
+      throw new Error(`Unexpected URI: ${uri}`);
+    });
+    folderAccess.readTextFile.mockResolvedValue({ content: "next" });
+
+    await expect(readTextFile("/workspace/a/note.md")).resolves.toBe("next");
+
+    expect(folderAccess.readTextFile).toHaveBeenCalledWith({ uri: "content://next-note" });
   });
 });

@@ -164,23 +164,10 @@ jobs:
       - run: npx vite build
       - run: npx cap sync android
       - name: Restore persisted debug keystore
-        # Every GitHub Actions run is a fresh VM with no debug.keystore yet,
-        # so without this, the Android Gradle Plugin silently generates a
-        # brand new one (same alias/password, different key material) on
-        # every single build. Each dev-build then carries a different
-        # signature, and Android refuses to install any of them as an
-        # update over the previous one (INSTALL_FAILED_UPDATE_INCOMPATIBLE),
-        # confirmed on-device 2026-08-28: every dev-build had to be
-        # uninstalled and reinstalled from scratch. A fixed cache key with
-        # no version-dependent parts means the same keystore is restored on
-        # every run once it exists; the one time it's genuinely missing
-        # (first run ever, or the cache entry expired from seven days of
-        # disuse), Gradle creates it as usual and actions/cache saves that
-        # one for next time.
         uses: actions/cache@v4
         with:
           path: ~/.android
-          key: android-debug-keystore
+          key: android-debug-keystore-v2
       - name: Generate debug keystore if missing
         # First run after cache reset has no keystore. Generate one with the
         # same alias/password as build.gradle expects so AGP's validate step

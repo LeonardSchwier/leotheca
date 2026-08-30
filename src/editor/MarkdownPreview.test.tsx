@@ -4,11 +4,12 @@ import { cleanup, fireEvent, render, waitFor } from "@testing-library/preact";
 
 vi.mock("../workspace/tauriBridge", () => ({
   fileSrc: vi.fn(),
-  getAppVersion: vi.fn(),
-  readTextFile: vi.fn(),
-  restoreWorkspaceAccess: vi.fn(),
-  setStatusBarAppearance: vi.fn(),
 }));
+
+vi.mock("../settings/store", async () => {
+  const { signal } = await import("@preact/signals");
+  return { workspacePath: signal<string | null>(null) };
+});
 
 import { MarkdownPreview } from "./MarkdownPreview";
 import { linkIndex } from "../linking/store";
@@ -247,8 +248,6 @@ describe("MarkdownPreview: math rendering", () => {
 
   it("does not crash on malformed LaTeX, and shows KaTeX's own error styling", () => {
     const { container } = render(<MarkdownPreview source="Broken: $\\frac{1}{$." />);
-    // katex's throwOnError: false renders a visible error span rather than
-    // throwing; this just confirms the preview pane survives it intact.
     expect(container.querySelector(".markdown-preview")).toBeTruthy();
   });
 

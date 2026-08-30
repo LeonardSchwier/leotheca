@@ -39,37 +39,37 @@ export const pickWorkspaceFolder = impl.pickWorkspaceFolder;
 // counted as an operation that waits for the transition to finish.
 export const restoreWorkspaceAccess = impl.restoreWorkspaceAccess;
 
-export const listDir: typeof impl.listDir = (path) =>
+export const listDir: typeof impl.listDir = (path: string) =>
   trackWorkspaceOperation(impl.listDir(path));
-export const findMarkdownFiles: typeof impl.findMarkdownFiles = (path) =>
+export const findMarkdownFiles: typeof impl.findMarkdownFiles = (path: string) =>
   trackWorkspaceOperation(impl.findMarkdownFiles(path));
-export const findAllFiles: typeof impl.findAllFiles = (path) =>
+export const findAllFiles: typeof impl.findAllFiles = (path: string) =>
   trackWorkspaceOperation(impl.findAllFiles(path));
-export const findAllEntries: typeof impl.findAllEntries = (path) =>
+export const findAllEntries: typeof impl.findAllEntries = (path: string) =>
   trackWorkspaceOperation(impl.findAllEntries(path));
-export const readTextFile: typeof impl.readTextFile = (path) =>
+export const readTextFile: typeof impl.readTextFile = (path: string) =>
   trackWorkspaceOperation(impl.readTextFile(path));
-export const readTextFilesBatch: typeof impl.readTextFilesBatch = (paths) =>
+export const readTextFilesBatch: typeof impl.readTextFilesBatch = (paths: string[]) =>
   trackWorkspaceOperation(impl.readTextFilesBatch(paths));
-export const writeTextFile: typeof impl.writeTextFile = (path, contents) =>
+export const writeTextFile: typeof impl.writeTextFile = (path: string, contents: string) =>
   trackWorkspaceOperation(impl.writeTextFile(path, contents));
-export const writeBinaryFile: typeof impl.writeBinaryFile = (path, data) =>
+export const writeBinaryFile: typeof impl.writeBinaryFile = (path: string, data: Uint8Array) =>
   trackWorkspaceOperation(impl.writeBinaryFile(path, data));
-export const createDir: typeof impl.createDir = (path) =>
+export const createDir: typeof impl.createDir = (path: string) =>
   trackWorkspaceOperation(impl.createDir(path));
-export const renamePath: typeof impl.renamePath = (from, to) =>
+export const renamePath: typeof impl.renamePath = (from: string, to: string) =>
   trackWorkspaceOperation(impl.renamePath(from, to));
-export const trashPath: typeof impl.trashPath = (workspaceRoot, path) =>
+export const trashPath: typeof impl.trashPath = (workspaceRoot: string, path: string) =>
   trackWorkspaceOperation(impl.trashPath(workspaceRoot, path));
-export const deletePathPermanent: typeof impl.deletePathPermanent = (path) =>
+export const deletePathPermanent: typeof impl.deletePathPermanent = (path: string) =>
   trackWorkspaceOperation(impl.deletePathPermanent(path));
 
 // App-private config, app metadata, and status-bar appearance are not bound to
 // a selected workspace grant and therefore do not participate in the drain.
 export const getAppConfigFilePath = impl.getAppConfigFilePath;
 export const getAppVersion = impl.getAppVersion;
-export const fileSrc: typeof impl.fileSrc = (path) =>
+export const fileSrc: typeof impl.fileSrc = (path: string) =>
   trackWorkspaceOperation(impl.fileSrc(path));
-export const getWorkspaceStats: typeof impl.getWorkspaceStats = (path) =>
+export const getWorkspaceStats: typeof impl.getWorkspaceStats = (path: string) =>
   trackWorkspaceOperation(impl.getWorkspaceStats(path));
 export const setStatusBarAppearance = impl.setStatusBarAppearance;

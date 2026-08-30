@@ -89,55 +89,37 @@ jobs:
       - name: Install Linux dependencies
         run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev libayatana-appindicator3-dev build-essential libssl-dev squashfs-tools p7zip-full
        - run: npm ci
-      - name: Force fresh Rust build
+      - name: Build Rust binary only
+        run: npx tauri build --no-bundle
+      - name: Create AppImage with linuxdeploy
+        # Tauri v2's bundled linuxdeploy can produce stale or broken AppImages
+        # when the gtk plugin isn't found. We build the AppImage manually with
+        # a fresh linuxdeploy to guarantee the correct binary is bundled.
         run: |
-          cd src-tauri
-          if [ -f target/release/deps/leotheca* ]; then
-            echo "Clearing stale Rust build cache to ensure main.rs changes are included..."
-            cargo clean
-          fi
-      - name: Build AppImage
-        run: npx tauri build --bundles appimage
-      - name: Fix AppImage if linuxdeploy failed
-        # Tauri v2's bundled linuxdeploy sometimes fails to find the gtk
-        # plugin on newer Ubuntu runners. If the AppImage was not created
-        # but the AppDir exists, create the AppImage manually.
-        run: |
-          APPDIR=$(find src-tauri/target/release/bundle/appimage/ -name "Leotheca.AppDir" -type d | head -1)
-          if [ -z "$APPDIR" ]; then
-            echo "No AppDir found — linuxdeploy did not run, exiting"
-            exit 1
-          fi
-          if ls src-tauri/target/release/bundle/appimage/*.AppImage 1>/dev/null 2>&1; then
-            echo "AppImage already exists — skipping manual creation"
-          else
-            echo "AppImage missing, creating manually with linuxdeploy..."
-            cd "$APPDIR"
-            # Download fresh linuxdeploy if not cached
-            if [ ! -f linuxdeploy-x86_64.AppImage ]; then
-              wget -q "https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage" -O linuxdeploy-x86_64.AppImage
-              chmod +x linuxdeploy-x86_64.AppImage
-            fi
-            # Find the .desktop file
-            DESKTOP=$(find . -name "*.desktop" -not -name "*.desktop.template" | head -1)
-            ICON=$(find . -name "leotheca.png" -o -name "icon.png" | head -1)
-            if [ -z "$DESKTOP" ]; then
-              echo "WARNING: No .desktop file found — AppImage may not register file associations"
-            fi
-            ./linuxdeploy-x86_64.AppImage \
-              --appdir . \
-              --desktop-file "$DESKTOP" \
-              --icon-file "$ICON" \
-              --executable AppRun \
-              --output appimage 2>&1
-            if ls *.AppImage 1>/dev/null 2>&1; then
-              cp *.AppImage ../
-              echo "AppImage created successfully"
-            else
-              echo "ERROR: Manual AppImage creation failed"
-              exit 1
-            fi
-          fi
+          mkdir -p AppDir/usr/bin
+          # Copy the freshly compiled binary
+          cp src-tauri/target/release/leotheca AppDir/usr/bin/leotheca
+          # Copy AppRun from Tauri's template
+          mkdir -p AppDir
+          # Download and run linuxdeploy to create the AppImage
+          wget -q "https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage" -O linuxdeploy-x86_64.AppImage
+          chmod +x linuxdeploy-x86_64.AppImage
+          
+          # Find desktop and icon files
+          DESKTOP=$(find src-tauri/gen/linux -name "*.desktop" 2>/dev/null | head -1)
+          ICON=$(find src-tauri/icons -name "icon.png" 2>/dev/null | head -1)
+          
+          ./linuxdeploy-x86_64.AppImage \
+            --appdir AppDir \
+            --desktop-file "$DESKTOP" \
+            --icon-file "$ICON" \
+            --executable AppDir/usr/bin/leotheca \
+            --output appimage
+          
+          # Move the result to the expected location
+          mkdir -p src-tauri/target/release/bundle/appimage
+          mv Leotheca*.AppImage src-tauri/target/release/bundle/appimage/
+          echo "AppImage created successfully"
       - name: Patch AppImage MIME type for URL scheme
         run: bash src-tauri/resources/patch-appimage-mime.sh src-tauri/target/release/bundle/appimage/*.AppImage
       - uses: actions/upload-artifact@v4

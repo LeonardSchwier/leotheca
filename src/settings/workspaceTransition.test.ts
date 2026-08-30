@@ -29,16 +29,23 @@ window.matchMedia = vi.fn().mockImplementation((query: string) => ({
   removeEventListener: vi.fn(),
 })) as unknown as typeof window.matchMedia;
 
-const { setWorkspacePath, workspacePath, workspaceSession } = await import("./store");
+const {
+  setWorkspacePath,
+  workspacePath,
+  workspaceSelectionError,
+  workspaceSession,
+} = await import("./store");
 const { createSaveCoordinator } = await import("../workspace/saveCoordinator");
 
 beforeEach(() => {
   vi.useRealTimers();
   readTextFile.mockReset();
   writeTextFile.mockReset();
-  restoreWorkspaceAccess.mockClear();
+  restoreWorkspaceAccess.mockReset();
+  restoreWorkspaceAccess.mockResolvedValue();
   readTextFile.mockRejectedValue(new Error("no settings yet"));
   writeTextFile.mockResolvedValue();
+  workspaceSelectionError.value = null;
 });
 
 describe("workspace transition integration", () => {
@@ -62,9 +69,6 @@ describe("workspace transition integration", () => {
     const switching = setWorkspacePath("/workspace", "token-B").then(() => { switched = true; });
     await Promise.resolve();
 
-    // The picker may already have pointed the bridge at token-B. The
-    // transition immediately rebinds token-A, then waits for the old native
-    // write. token-B must not become authoritative until that write settles.
     expect(restoreWorkspaceAccess.mock.calls).toEqual([["/workspace", "token-A"]]);
     expect(switched).toBe(false);
 
@@ -105,5 +109,21 @@ describe("workspace transition integration", () => {
     loadA.resolve("{}");
     await a;
     expect(workspacePath.value).toBe("/B");
+  });
+
+  it("fails closed when the incoming grant cannot be restored", async () => {
+    createSaveCoordinator();
+    await setWorkspacePath("/old", "old-token");
+    const previousSession = workspaceSession.value;
+    restoreWorkspaceAccess.mockImplementation(async (_path, token) => {
+      if (token === "bad-token") throw new Error("grant expired");
+    });
+
+    await expect(setWorkspacePath("/workspace", "bad-token")).rejects.toThrow("grant expired");
+
+    expect(workspacePath.value).toBeNull();
+    expect(workspaceSession.value).toBe(previousSession + 1);
+    expect(workspaceSelectionError.value).toContain("Could not open that workspace");
+    expect(workspaceSelectionError.value).not.toContain("bad-token");
   });
 });

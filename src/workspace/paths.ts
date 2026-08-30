@@ -25,6 +25,39 @@ function normalizeSegments(path: string): string[] {
   return segments;
 }
 
+interface AbsolutePathParts {
+  prefix: string;
+  segments: string[];
+}
+
+function splitAbsolutePath(path: string): AbsolutePathParts | null {
+  const forward = path.replace(/\\/g, "/");
+  const drive = /^([A-Za-z]:)\//.exec(forward);
+  if (drive) {
+    return {
+      prefix: drive[1].toUpperCase(),
+      segments: normalizeSegments(forward.slice(drive[0].length)),
+    };
+  }
+  if (!forward.startsWith("/")) return null;
+  return { prefix: "", segments: normalizeSegments(forward) };
+}
+
+function joinAbsolutePath(parts: AbsolutePathParts): string {
+  const suffix = parts.segments.join("/");
+  if (parts.prefix) return suffix ? `${parts.prefix}/${suffix}` : `${parts.prefix}/`;
+  return suffix ? `/${suffix}` : "/";
+}
+
+function sameVolume(a: AbsolutePathParts, b: AbsolutePathParts): boolean {
+  return a.prefix.toUpperCase() === b.prefix.toUpperCase();
+}
+
+function isAbsoluteTarget(target: string): boolean {
+  const forward = target.replace(/\\/g, "/");
+  return forward.startsWith("/") || /^[A-Za-z]:\//.test(forward);
+}
+
 /** Same logic as fileTreeStore.ts's own dirname, deliberately duplicated
  * rather than imported: fileTreeStore.ts pulls in settings/store.ts (and
  * its module-load-time `document` side effects) transitively, which
@@ -43,6 +76,53 @@ export function dirname(path: string): string {
 export function resolvePath(baseDir: string, target: string): string {
   if (target.startsWith("/")) return target;
   return "/" + normalizeSegments(`${baseDir}/${target}`).join("/");
+}
+
+/**
+ * Resolves a relative path only when the result stays inside `workspaceRoot`.
+ * This is the frontend read-boundary check for user-authored relative paths
+ * before they are sent to a native file-read bridge. Absolute targets and
+ * traversal that escapes the workspace are rejected. Both slash forms are
+ * treated as separators so a Windows-style traversal cannot bypass the same
+ * lexical containment rule used by the normalized frontend paths.
+ */
+export function resolvePathWithinWorkspace(
+  workspaceRoot: string,
+  baseDir: string,
+  target: string,
+): string | null {
+  if (!target || isAbsoluteTarget(target)) return null;
+
+  const root = splitAbsolutePath(workspaceRoot);
+  const base = splitAbsolutePath(baseDir);
+  if (!root || !base || !sameVolume(root, base)) return null;
+
+  const targetSegments = target.replace(/\\/g, "/").split("/");
+  const candidate: AbsolutePathParts = {
+    prefix: base.prefix,
+    segments: [...base.segments],
+  };
+  for (const part of targetSegments) {
+    if (part === "" || part === ".") continue;
+    if (part === "..") {
+      if (candidate.segments.length > 0) candidate.segments.pop();
+      continue;
+    }
+    candidate.segments.push(part);
+  }
+
+  const normalizedRoot = joinAbsolutePath(root).replace(/\/$/, "");
+  const normalizedCandidate = joinAbsolutePath(candidate);
+  const comparableRoot = root.prefix ? normalizedRoot.toLowerCase() : normalizedRoot;
+  const comparableCandidate = root.prefix ? normalizedCandidate.toLowerCase() : normalizedCandidate;
+
+  if (
+    comparableCandidate !== comparableRoot &&
+    !comparableCandidate.startsWith(`${comparableRoot}/`)
+  ) {
+    return null;
+  }
+  return normalizedCandidate;
 }
 
 /** The inverse of resolvePath: a relative path from `fromDir` to

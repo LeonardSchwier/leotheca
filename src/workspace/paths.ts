@@ -111,14 +111,15 @@ export function resolvePathWithinWorkspace(
     candidate.segments.push(part);
   }
 
-  const normalizedRoot = joinAbsolutePath(root).replace(/\/$/, "");
+  const rootPath = joinAbsolutePath(root);
+  const normalizedRoot = rootPath.endsWith("/") ? rootPath : `${rootPath}/`;
   const normalizedCandidate = joinAbsolutePath(candidate);
   const comparableRoot = root.prefix ? normalizedRoot.toLowerCase() : normalizedRoot;
   const comparableCandidate = root.prefix ? normalizedCandidate.toLowerCase() : normalizedCandidate;
 
   if (
-    comparableCandidate !== comparableRoot &&
-    !comparableCandidate.startsWith(`${comparableRoot}/`)
+    comparableCandidate !== comparableRoot.slice(0, -1) &&
+    !comparableCandidate.startsWith(comparableRoot)
   ) {
     return null;
   }

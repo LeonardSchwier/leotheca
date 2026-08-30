@@ -40,7 +40,7 @@ import type { ViewMode } from "../settings/workspaceSettings";
 import { SettingsPanel } from "../settings/SettingsPanel";
 import { WelcomeDialog } from "../settings/WelcomeDialog";
 import { BacklinksPanel } from "../linking/BacklinksPanel";
-import { linkIndexBuilding, rebuildLinkIndex } from "../linking/store";
+import { linkIndexBuilding, rebuildLinkIndex, resetLinkIndexCache } from "../linking/store";
 import { BookmarksPanel } from "../bookmarks/BookmarksPanel";
 import { addFileBookmark, bookmarks, loadBookmarks, removeBookmark } from "../bookmarks/store";
 import { resetWorkspaceTree } from "../workspace/fileTreeStore";
@@ -187,16 +187,17 @@ export function App() {
   }, []);
 
   useEffect(() => {
+    resetWorkspaceTree();
+    resetLinkIndexCache();
+  }, [session]);
+
+  useEffect(() => {
     if (rootPath) void rebuildLinkIndex(rootPath, workspaceSettings.value.frontmatterAliasesEnabled, workspaceSettings.value.tagsEnabled);
   }, [rootPath, session]);
 
   useEffect(() => {
     if (workspacePath.value) void loadBookmarks(workspacePath.value);
   }, [workspacePath.value, session]);
-
-  useEffect(() => {
-    resetWorkspaceTree();
-  }, [session]);
 
   useEffect(() => {
     const root = document.documentElement;

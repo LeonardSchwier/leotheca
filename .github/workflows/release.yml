@@ -166,34 +166,30 @@ jobs:
       - run: npm ci
       - run: npx vite build
       - run: npx cap sync android
-      - name: Prepare keystore directory
-        run: mkdir -p ~/.config/.android
       - name: Restore persisted debug keystore
         uses: actions/cache@v4
         with:
-          path: ~/.config/.android
-          key: android-debug-keystore-v4
+          path: ~/.android
+          key: android-debug-keystore-v5
       - name: Generate debug keystore if cache miss
-        # The debug keystore must have consistent key material across CI runs
-        # so Android accepts APK updates. We generate it with keytool pointing
-        # to JAVA_HOME (set by setup-java@v4) for reliability.
         run: |
-          mkdir -p ~/.config/.android
-          if [ ! -f ~/.config/.android/debug.keystore ]; then
-            echo "No cached keystore found. Generating with keytool..."
+          mkdir -p ~/.android
+          if [ ! -f ~/.android/debug.keystore ]; then
+            echo "No cached keystore found. Generating new debug keystore..."
             "${JAVA_HOME}/bin/keytool" -genkeypair \
               -dname "CN=Android Debug, O=Android, C=US" \
               -alias androiddebugkey \
-              -keystore ~/.config/.android/debug.keystore \
+              -keystore ~/.android/debug.keystore \
               -storepass android \
               -keypass android \
               -keysize 2048 \
               -keyalg RSA \
               -validity 10000 \
               -noprompt
-            echo "Keystore generated successfully"
+            echo "Keystore generated: $(md5sum ~/.android/debug.keystore)"
+          else
+            echo "Keystore restored from cache: $(md5sum ~/.android/debug.keystore)"
           fi
-          ls -la ~/.config/.android/debug.keystore
       - name: Build debug APK
         working-directory: android
         run: ./gradlew assembleDebug

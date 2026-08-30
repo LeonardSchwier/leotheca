@@ -21,9 +21,9 @@ export interface WorkspaceTransitionSteps<T> {
  * Serial authority for workspace changes. A newer request invalidates every
  * older request immediately, even while an older settings read is unresolved.
  * Only the current generation may clear outgoing stores or publish incoming
- * state. A failure from a superseded request is ignored; a failure from the
- * still-current request clears registered workspace stores before publishing
- * the caller's recoverable failure state.
+ * state. Outgoing stores are reset after their native work drains but before
+ * the incoming grant is activated, so a late completion cannot repopulate old
+ * state under the new Android `/workspace` identity.
  */
 export function createWorkspaceTransitionCoordinator() {
   let generation = 0;
@@ -46,13 +46,13 @@ export function createWorkspaceTransitionCoordinator() {
       await steps.prepareOutgoing();
       if (!isCurrent()) return false;
 
+      for (const reset of resets) reset();
+      if (!isCurrent()) return false;
+
       await steps.connectIncoming();
       if (!isCurrent()) return false;
 
       const loaded = await steps.loadIncoming();
-      if (!isCurrent()) return false;
-
-      for (const reset of resets) reset();
       if (!isCurrent()) return false;
 
       steps.publishIncoming(loaded);

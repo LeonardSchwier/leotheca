@@ -172,13 +172,20 @@ jobs:
           key: android-debug-keystore-v3
       - name: Generate debug keystore if missing
         run: |
+          mkdir -p ~/.config/.android
           if [ ! -f ~/.config/.android/debug.keystore ]; then
-            keytool -genkeypair -v \
+            echo "No cached keystore found. Generating new debug keystore..."
+            keytool -genkeypair \
               -dname "CN=Android Debug, O=Android, C=US" \
-              -alias androiddebugkey -keystore ~/.config/.android/debug.keystore \
-              -storepass android -keypass android \
-              -keysize 2048 -keyalg RSA -validity 10000 \
-              -noprompt 2>/dev/null
+              -alias androiddebugkey \
+              -keystore ~/.config/.android/debug.keystore \
+              -storepass android \
+              -keypass android \
+              -keysize 2048 \
+              -keyalg RSA \
+              -validity 10000 \
+              -noprompt
+            echo "Keystore generated at: $(ls -la ~/.config/.android/debug.keystore)"
           fi
       - name: Build debug APK
         working-directory: android

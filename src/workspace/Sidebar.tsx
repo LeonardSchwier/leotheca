@@ -170,7 +170,11 @@ export function Sidebar({ rootPath, onOpenFile, flushPendingAutosave }: SidebarP
           onClick={handleExpandAll}
           disabled={expandAllLoading}
         >
-          {expandAllLoading ? "⋯" : "▾▸"}
+          {expandAllLoading ? (
+            <span class="expand-all-spinner" title="Expanding all directories...">⏳</span>
+          ) : (
+            "▾▸"
+          )}
         </button>
       </div>
       <div class="sidebar-search">

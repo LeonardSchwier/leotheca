@@ -193,7 +193,18 @@ export function App() {
   }, [session, save]);
 
   useEffect(() => {
-    initSettings();
+    // Always ensure settingsLoaded becomes true even if initSettings() fails.
+    // A fresh install with no workspace will show the WelcomeDialog; if the
+    // version check or config read fails, we still want the UI to render.
+    const p = initSettings();
+    if (p) {
+      p.catch(() => {
+        settingsLoaded.value = true;
+      });
+    } else {
+      // In tests/initSettings is mocked to undefined; render immediately.
+      settingsLoaded.value = true;
+    }
   }, []);
 
   useEffect(() => {
@@ -270,6 +281,7 @@ export function App() {
       if (command.kind === "open-favorites") {
         bookmarksOpen.value = true;
         tagsOpen.value = false;
+        sidebarOpen.value = true;
         return;
       }
       // Same reasoning: a "new-note" command that arrives before any

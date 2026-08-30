@@ -179,7 +179,10 @@ export function MarkdownPreview({
   // desktop it's an asset:// URL, on Android it's a data: URL read off
   // disk. Both need an await, so the real src is filled in here, after
   // render, the same pattern ImageViewer.tsx already uses for a
-  // standalone image tab.
+  // standalone image tab. Using Promise.all() so all resolves fire in
+  // parallel rather than sequentially — on Android/SAF the native bridge
+  // queues them anyway, but starting them all at once avoids any
+  // per-image overhead from the JS side.
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -188,14 +191,17 @@ export function MarkdownPreview({
     const images = container.querySelectorAll<HTMLImageElement>(
       `img[src^="${ATTACHMENT_SRC_PREFIX}"]`,
     );
-    for (const img of Array.from(images)) {
+    const promises = Array.from(images).map((img) => {
       const absolutePath = decodeURIComponent(
         img.getAttribute("src")!.slice(ATTACHMENT_SRC_PREFIX.length),
       );
-      void fileSrc(absolutePath).then((resolved) => {
+      return fileSrc(absolutePath).then((resolved) => {
         if (!cancelled) img.src = resolved;
       });
-    }
+    });
+    // Fire all resolves in parallel; errors are silently ignored since
+    // the image will simply not load for that attachment.
+    Promise.allSettled(promises).catch(() => {});
 
     return () => {
       cancelled = true;

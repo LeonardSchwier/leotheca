@@ -96,18 +96,55 @@ jobs:
         # when the gtk plugin isn't found. We build the AppImage manually with
         # a fresh linuxdeploy to guarantee the correct binary is bundled.
         run: |
-          mkdir -p AppDir/usr/bin
+          mkdir -p AppDir/usr/bin AppDir/usr/share/applications AppDir/usr/share/icons/hicolor/256x256/apps
+          
           # Copy the freshly compiled binary
           cp src-tauri/target/release/leotheca AppDir/usr/bin/leotheca
-          # Copy AppRun from Tauri's template
-          mkdir -p AppDir
-          # Download and run linuxdeploy to create the AppImage
+          
+          # Copy AppRun from Tauri's built AppDir (if it exists from a prior run)
+          if [ -f src-tauri/target/release/bundle/appimage/Leotheca.AppDir/AppRun ]; then
+            cp src-tauri/target/release/bundle/appimage/Leotheca.AppDir/AppRun AppDir/
+          else
+            # Generate AppRun if not found
+            echo '#!/bin/sh\nDIR="$(dirname "$0")"\nexec "$DIR/usr/bin/leotheca" "$@"' > AppDir/AppRun
+            chmod +x AppDir/AppRun
+          fi
+          
+          # Copy desktop file from Tauri's bundle output
+          DESKTOP_FILE=$(find src-tauri/target -name "Leotheca.desktop" -not -path "*/bundle/*" 2>/dev/null | head -1)
+          if [ -z "$DESKTOP_FILE" ]; then
+            DESKTOP_FILE=$(find src-tauri/target -name "Leotheca.desktop" 2>/dev/null | head -1)
+          fi
+          if [ -n "$DESKTOP_FILE" ]; then
+            cp "$DESKTOP_FILE" AppDir/usr/share/applications/Leotheca.desktop
+          else
+            # Create a minimal desktop file
+            cat > AppDir/usr/share/applications/Leotheca.desktop << 'EOF'
+[Desktop Entry]
+Name=Leotheca
+Comment=Personal Knowledge Base
+Exec=leotheca %U
+Icon=leotheca
+Terminal=false
+Type=Application
+Categories=Office;TextEditor;
+MimeType=x-scheme-handler/leotheca;
+EOF
+          fi
+          
+          # Copy icon
+          ICON_FILE=$(find src-tauri/icons -name "icon.png" 2>/dev/null | head -1)
+          if [ -n "$ICON_FILE" ]; then
+            cp "$ICON_FILE" AppDir/usr/share/icons/hicolor/256x256/apps/leotheca.png
+            ln -sf usr/share/icons/hicolor/256x256/apps/leotheca.png AppDir/leotheca.png
+          fi
+          
+          # Download and run linuxdeploy
           wget -q "https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage" -O linuxdeploy-x86_64.AppImage
           chmod +x linuxdeploy-x86_64.AppImage
           
-          # Find desktop and icon files
-          DESKTOP=$(find src-tauri/gen/linux -name "*.desktop" 2>/dev/null | head -1)
-          ICON=$(find src-tauri/icons -name "icon.png" 2>/dev/null | head -1)
+          DESKTOP="AppDir/usr/share/applications/Leotheca.desktop"
+          ICON="AppDir/leotheca.png"
           
           ./linuxdeploy-x86_64.AppImage \
             --appdir AppDir \

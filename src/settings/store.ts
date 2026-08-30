@@ -12,6 +12,10 @@ import {
 } from "./workspaceSettings";
 
 export const workspacePath = signal<string | null>(null);
+// Android maps every SAF folder to the same display path (/workspace), so a
+// path alone cannot identify a workspace lifetime. Consumers that own
+// asynchronous state key off this monotonically increasing session instead.
+export const workspaceSession = signal(0);
 // Opaque, platform-specific (see GlobalConfig.workspaceToken); kept
 // alongside workspacePath purely so later saves (e.g. setTheme) don't
 // accidentally drop it.
@@ -150,6 +154,7 @@ export async function initSettings(): Promise<void> {
         viewMode.value = loadedWorkspaceSettings.defaultViewMode;
         workspacePath.value = global.lastWorkspacePath;
         workspaceToken.value = global.workspaceToken;
+        workspaceSession.value++;
       });
       await restoreLastOpenTabs();
     } catch {
@@ -186,6 +191,7 @@ export async function setWorkspacePath(path: string, token?: string): Promise<vo
     viewMode.value = loadedWorkspaceSettings.defaultViewMode;
     workspacePath.value = path;
     workspaceToken.value = token;
+    workspaceSession.value++;
   });
   await saveGlobalConfig({ lastWorkspacePath: path, theme: theme.value, workspaceToken: token });
   await restoreLastOpenTabs();

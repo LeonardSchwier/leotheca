@@ -38,6 +38,17 @@ export const searchInProgress = signal(false);
 export const contextMenuTarget = signal<FsEntry | null>(null);
 export const contextMenuPos = signal<{ x: number; y: number }>({ x: 0, y: 0 });
 
+export function resetWorkspaceTree(): void {
+  expandedDirs.value = new Set();
+  dirChildren.value = new Map();
+  selectedDir.value = null;
+  selectedPath.value = null;
+  searchQuery.value = "";
+  searchResults.value = null;
+  searchInProgress.value = false;
+  closeContextMenu();
+}
+
 export function openContextMenu(entry: FsEntry, x: number, y: number) {
   contextMenuTarget.value = entry;
   contextMenuPos.value = { x, y };

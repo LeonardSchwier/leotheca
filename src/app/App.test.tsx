@@ -18,6 +18,7 @@ vi.mock("../settings/store", () => {
   const workspaceSettings = signal(DEFAULT_WORKSPACE_SETTINGS);
   return {
     workspacePath,
+    workspaceSession: signal(0),
     settingsLoaded: signal(false),
     settingsPanelOpen: signal(false),
     viewMode: signal("source"),
@@ -64,6 +65,7 @@ vi.mock("../workspace/fileTreeStore", () => ({
   createNoteFromTemplate: vi.fn(),
   listTemplates: vi.fn(async () => []),
   runSearch: vi.fn(),
+  resetWorkspaceTree: vi.fn(),
   selectedDir: signal<string | null>(null),
 }));
 

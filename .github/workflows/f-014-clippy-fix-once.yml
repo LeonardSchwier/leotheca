@@ -1,0 +1,128 @@
+name: F-014 clippy fix once
+
+on:
+  push:
+    branches:
+      - agent/f-014-validation-gate
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt,clippy
+      - name: Refactor strict-Clippy findings
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          path = Path('src-tauri/src/commands.rs')
+          text = path.read_text()
+          replacement = '''pub fn workspace_stats(path: String) -> Result<WorkspaceStats, String> {
+              #[derive(Default)]
+              struct Accumulator {
+                  folder_count: usize,
+                  note_count: usize,
+                  image_count: usize,
+                  total_note_lines: usize,
+                  oldest_note_date: Option<u64>,
+                  newest_note_date: Option<u64>,
+              }
+
+              fn walk(path: &Path, depth: usize, stats: &mut Accumulator) -> Result<(), String> {
+                  for entry in fs::read_dir(path).map_err(|error| error.to_string())? {
+                      let entry = entry.map_err(|error| error.to_string())?;
+                      let entry_path = entry.path();
+                      let name = entry.file_name();
+                      if name.to_string_lossy().starts_with('.') {
+                          continue;
+                      }
+
+                      if entry_path.is_dir() {
+                          stats.folder_count += 1;
+                          if depth < MAX_WALK_DEPTH {
+                              walk(&entry_path, depth + 1, stats)?;
+                          }
+                      } else if entry_path
+                          .extension()
+                          .and_then(|extension| extension.to_str())
+                          .is_some_and(|extension| extension.eq_ignore_ascii_case("md"))
+                      {
+                          stats.note_count += 1;
+                          // A single unreadable note (permission denied, invalid
+                          // UTF-8, ...) shouldn't take down the whole statistics
+                          // computation; skip its content, don't abort. It still
+                          // counts as a note, same principle runSearch already
+                          // follows on the frontend for the same class of failure.
+                          if let Ok(contents) = fs::read_to_string(&entry_path) {
+                              stats.total_note_lines += contents.lines().count();
+                          }
+                          if let Some(timestamp) = note_timestamp(&entry_path) {
+                              stats.oldest_note_date = Some(
+                                  stats.oldest_note_date.map_or(timestamp, |oldest| oldest.min(timestamp)),
+                              );
+                              stats.newest_note_date = Some(
+                                  stats.newest_note_date.map_or(timestamp, |newest| newest.max(timestamp)),
+                              );
+                          }
+                      } else if is_image_path(&entry_path) {
+                          stats.image_count += 1;
+                      }
+                  }
+                  Ok(())
+              }
+
+              let mut stats = Accumulator::default();
+              walk(Path::new(&path), 0, &mut stats)?;
+
+              Ok(WorkspaceStats {
+                  folder_count: stats.folder_count,
+                  note_count: stats.note_count,
+                  image_count: stats.image_count,
+                  average_lines_per_note: if stats.note_count == 0 {
+                      0.0
+                  } else {
+                      stats.total_note_lines as f64 / stats.note_count as f64
+                  },
+                  oldest_note_date: stats.oldest_note_date,
+                  newest_note_date: stats.newest_note_date,
+              })
+          }
+
+          /// Recursively finds'''
+          text, count = re.subn(
+              r'pub fn workspace_stats\(path: String\) -> Result<WorkspaceStats, String> \{.*?\n\}\n\n/// Recursively finds',
+              replacement,
+              text,
+              count=1,
+              flags=re.S,
+          )
+          if count != 1:
+              raise SystemExit('workspace_stats replacement did not match exactly once')
+          text = text.replace(
+              'dirs.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));',
+              'dirs.sort_by_key(|entry| entry.name.to_lowercase());',
+          )
+          text = text.replace(
+              'files.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));',
+              'files.sort_by_key(|entry| entry.name.to_lowercase());',
+          )
+          path.write_text(text)
+          PY
+          cargo fmt --all --manifest-path src-tauri/Cargo.toml
+      - name: Verify strict Clippy
+        working-directory: src-tauri
+        run: cargo clippy --all-targets -- -D warnings
+      - name: Commit verified fixes
+        run: |
+          git config user.name "Leotheca CI"
+          git config user.email "actions@users.noreply.github.com"
+          git add src-tauri/src/commands.rs
+          git diff --cached --quiet && exit 1
+          git commit -m "Fix strict Clippy findings"
+          git push origin HEAD:agent/f-014-validation-gate

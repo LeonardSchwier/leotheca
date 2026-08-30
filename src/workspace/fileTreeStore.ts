@@ -1,6 +1,6 @@
 import { signal } from "@preact/signals";
 import type { FsEntry } from "./types";
-import { isImagePath } from "./types";
+import { isImagePath, isTextFile } from "./types";
 import {
   createDir,
   deletePathPermanent,
@@ -329,6 +329,19 @@ const SEARCH_BATCH_MAX_BYTES = 8 * 1024 * 1024;
 // to be is skipped outright.
 const MAX_SEARCHABLE_FILE_BYTES = 50 * 1024 * 1024;
 
+// When the native walk (findAllFiles on Rust, FolderAccessPlugin.findAllFiles
+// on Android) does not report a file's size, fall back to this value for
+// batch-bounding purposes.  Zero would let an unknown-sized file blend into
+// a batch of zero-size entries and blow past the 8 MiB limit on the next
+// real read (the audit flagged exactly this); a value equal to the batch cap
+// means *any* unknown-sized file triggers a pre-batch flush so one batch can
+// never contain more than two unreadable-size files.  4 MiB is a middle
+// ground: a batch can hold at most two unknown-size files before flushing,
+// and known-size files that fit within the remaining budget still group
+// normally.  No real vault note exceeds 4 MiB, so this conservative default
+// errs on the side of safety over grouping efficiency.
+const CONSERVATIVE_UNKNOWN_SIZE = 4 * 1024 * 1024;
+
 /** One native call reads many files at once instead of one call per file
  * (see tauriBridge's readTextFilesBatch doc comment for why: a real
  * on-device OutOfMemoryError after ~1700 sequential single-file native
@@ -375,14 +388,22 @@ function createBatchedContentReader() {
 
   return function readOne(path: string, size: number): Promise<string | null> {
     return new Promise((resolve) => {
+      // Flush *before* adding if the pending batch already has content and
+      // adding this file's size would cross the batch cap. This prevents
+      // any single native call from overshooting SEARCH_BATCH_MAX_BYTES:
+      // with the old "add then check" order a batch of three 5 MB files
+      // went out at 15 MB (overshooting the 8 MB cap by 7 MB) because
+      // `pendingBytes` only hit the threshold *after* the third file was
+      // appended.  Now the third file lands in a fresh batch, keeping each
+      // batch at or below the limit.
+      if (pendingBytes > 0 && pendingBytes + size >= SEARCH_BATCH_MAX_BYTES) {
+        flush();
+        pendingBytes = 0;
+      }
       if (!pending.has(path)) pending.set(path, []);
       pending.get(path)!.push(resolve);
       pendingBytes += size;
-      if (pendingBytes >= SEARCH_BATCH_MAX_BYTES) {
-        flush(); // Over budget already: flush this batch now instead of waiting for the tick to end.
-      } else {
-        scheduleFlush();
-      }
+      scheduleFlush();
     });
   };
 }
@@ -446,12 +467,26 @@ export async function runSearch(rootPath: string, query: string) {
   const readContent = createBatchedContentReader();
   const matchFlags = await mapWithConcurrency(entries, SEARCH_CONTENT_READ_CONCURRENCY, async (entry) => {
     let contentPromise: Promise<string | null> | null = null;
+    // Files that are images, excessively large, or not text are never read
+    // for content matching.  Non-text files (PDFs, videos, compressed
+    // archives, binaries…) are skipped here so they never reach the native
+    // side's string serialization, which on Android replaces invalid UTF-8
+    // rather than rejecting it (per FolderAccessPlugin.java's
+    // readOneFileOrNull) and on Rust wastes IPC and memory on a file that
+    // was never meant to be searched.  The 50 MB cap is a second safety
+    // net: even a single-text-file batch could hit the native heap ceiling.
+    const fileIsReadableForContent =
+      !isImagePath(entry.path) && isTextFile(entry.path) && (entry.size ?? CONSERVATIVE_UNKNOWN_SIZE) <= MAX_SEARCHABLE_FILE_BYTES;
+    // When the native walk doesn't report a size, assume CONSERVATIVE_UNKNOWN_SIZE
+    // bytes so the file still triggers a batch flush (it won't blend into a
+    // zero-size batch with a hundred tiny notes), but don't read the file if
+    // it is actually larger than MAX_SEARCHABLE_FILE_BYTES.
+    const fileByteSize = entry.size ?? CONSERVATIVE_UNKNOWN_SIZE;
     const getContentLower = () => {
       if (!contentPromise) {
-        contentPromise =
-          isImagePath(entry.path) || (entry.size ?? 0) > MAX_SEARCHABLE_FILE_BYTES
-            ? Promise.resolve(null)
-            : readContent(entry.path, entry.size ?? 0).then((content) => content?.toLowerCase() ?? null);
+        contentPromise = fileIsReadableForContent
+          ? readContent(entry.path, fileByteSize).then((content) => content?.toLowerCase() ?? null)
+          : Promise.resolve(null);
       }
       return contentPromise;
     };

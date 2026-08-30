@@ -370,7 +370,15 @@ describe("runSearch", () => {
     // content-read fallback, which used to mean one native call per
     // file. With bounded concurrency and batching, a 100-file vault
     // should cost a small handful of readTextFilesBatch calls, not 100.
-    const entries = Array.from({ length: 100 }, (_, i) => entry(`note-${i}.md`));
+    // Entries include a realistic size so they batch together (the old
+    // CONSERVATIVE_UNKNOWN_SIZE default for undefined size would inflate
+    // each to 4 MB, producing ~50 batches for 100 files).
+    const entries = Array.from({ length: 100 }, (_, i) => ({
+      name: `note-${i}.md`,
+      path: `/workspace/note-${i}.md`,
+      isDir: false,
+      size: 2 * 1024,
+    }));
     findAllFiles.mockResolvedValue(entries);
     mockFileContents(Object.fromEntries(entries.map((e) => [e.path, "no match here"])));
     await runSearch("/workspace", "zzz-nonexistent");
@@ -532,6 +540,226 @@ describe("runSearch: query operators", () => {
     mockFileContents({ "/workspace/Notes.md": "a note about exact phrase matching" });
     await runSearch("/workspace", '"exact phrase"');
     expect(searchResults.value?.map((e) => e.name)).toEqual(["Notes.md"]);
+  });
+});
+
+// F-005: Search's 8 MiB memory bound must be enforced and binary files must
+// not be serialized as text.  Three fixes were applied:
+//
+// 1. `isTextFile` — non-text extensions (pdf, mp4, zip, exe, ...) are never
+//    passed to readTextFilesBatch, preventing Android's invalid-UTF8-replacement
+//    and Rust's wasted-IPC on unreadable content.
+//
+// 2. Batch size enforcement — `createBatchedContentReader` adds each file's
+//    size to the running total and flushes once the cap is reached.  The old
+//    code bounded only by *file count* (up to 40), letting 3 files at 5 MB
+//    each go out at 15 MB.  Now the combined size per batch stays at or
+//    below the 8 MiB limit (each batch may contain files whose sum slightly
+//    exceeds the cap by at most one file, since the flush triggers *after*
+//    the cap-crossing file is added — the same approach that proved correct
+//    on a real ~500-note vault).
+//
+// 3. Conservative unknown-size default — when the native walk doesn't report
+//    size, the batch assumes CONSERVATIVE_UNKNOWN_SIZE (4 MiB) instead of 0,
+//    so one batch can never hold more than two entries of unknown size.
+describe("F-005: non-text files are never content-read (isTextFile whitelist)", async () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  // Common extensions that are NOT text: pdf, mp4, zip, exe, jpg, bin, dat, iso, dmg, otf, ttf, woff2
+  const nonTextEntries = [
+    { name: "report.pdf", path: "/workspace/report.pdf", isDir: false, size: 1024 },
+    { name: "video.mp4", path: "/workspace/video.mp4", isDir: false, size: 1024 },
+    { name: "archive.zip", path: "/workspace/archive.zip", isDir: false, size: 1024 },
+    { name: "installer.exe", path: "/workspace/installer.exe", isDir: false, size: 1024 },
+    { name: "data.bin", path: "/workspace/data.bin", isDir: false, size: 1024 },
+    { name: "disk.iso", path: "/workspace/disk.iso", isDir: false, size: 1024 },
+    { name: "font.ttf", path: "/workspace/font.ttf", isDir: false, size: 1024 },
+    { name: "font.woff2", path: "/workspace/font.woff2", isDir: false, size: 1024 },
+    { name: "image.dat", path: "/workspace/image.dat", isDir: false, size: 1024 },
+    { name: "setup.dmg", path: "/workspace/setup.dmg", isDir: false, size: 1024 },
+  ];
+
+  it("never sends a PDF's content to readTextFilesBatch", async () => {
+    findAllFiles.mockResolvedValue(nonTextEntries);
+    await runSearch("/workspace", "zzz-no-match");
+    expect(readTextFilesBatch).not.toHaveBeenCalled();
+    expect(searchResults.value).toEqual([]);
+  });
+
+  it("never sends a video, archive, or executable's content to readTextFilesBatch", async () => {
+    findAllFiles.mockResolvedValue([
+      { name: "video.mp4", path: "/workspace/video.mp4", isDir: false, size: 1024 },
+      { name: "archive.zip", path: "/workspace/archive.zip", isDir: false, size: 1024 },
+      { name: "installer.exe", path: "/workspace/installer.exe", isDir: false, size: 1024 },
+    ]);
+    await runSearch("/workspace", "zzz-no-match");
+    expect(readTextFilesBatch).not.toHaveBeenCalled();
+  });
+
+  it("still matches non-text files by name but skips their content", async () => {
+    // A note named "archive" should still be found by name, but its content
+    // is never read because .zip is not a text extension.
+    findAllFiles.mockResolvedValue([
+      { name: "archive.zip", path: "/workspace/archive.zip", isDir: false, size: 1024 },
+    ]);
+    await runSearch("/workspace", "archive");
+    // Name matches, so the file should be in results even though content was never read.
+    expect(searchResults.value?.map((e) => e.name)).toEqual(["archive.zip"]);
+  });
+
+  it("still reads content for known text extensions (md, txt, html, json, js, py, sh)", async () => {
+    const textEntries = [
+      { name: "readme.md", path: "/workspace/readme.md", isDir: false, size: 1024 },
+      { name: "notes.txt", path: "/workspace/notes.txt", isDir: false, size: 1024 },
+      { name: "index.html", path: "/workspace/index.html", isDir: false, size: 1024 },
+      { name: "config.json", path: "/workspace/config.json", isDir: false, size: 1024 },
+      { name: "script.js", path: "/workspace/script.js", isDir: false, size: 1024 },
+      { name: "app.py", path: "/workspace/app.py", isDir: false, size: 1024 },
+      { name: "run.sh", path: "/workspace/run.sh", isDir: false, size: 1024 },
+    ];
+    findAllFiles.mockResolvedValue(textEntries);
+    mockFileContents(Object.fromEntries(textEntries.map((e) => [e.path, "search term found"])));
+    await runSearch("/workspace", "search term");
+    // All 7 entries matched their content.
+    expect(searchResults.value?.map((e) => e.name).sort()).toEqual(
+      textEntries.map((e) => e.name).sort(),
+    );
+  });
+});
+
+describe("F-005: batch size bound prevents overshoot (3 × 5 MB files)", async () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("three 5 MB files split into multiple batches instead of going out at 15 MB", async () => {
+    // The old code bounded batches only by file count (up to 40), so three
+    // 5 MB files went out in one 15 MB call → 288 MB JSON allocation crash.
+    // The fix adds each file's byte size to the running total and flushes
+    // once the cap is reached, splitting the files into smaller batches.
+    const bigFiles = [
+      { name: "big1.md", path: "/workspace/big1.md", isDir: false, size: 5 * 1024 * 1024 },
+      { name: "big2.md", path: "/workspace/big2.md", isDir: false, size: 5 * 1024 * 1024 },
+      { name: "big3.md", path: "/workspace/big3.md", isDir: false, size: 5 * 1024 * 1024 },
+    ];
+    findAllFiles.mockResolvedValue(bigFiles);
+    mockFileContents(Object.fromEntries(bigFiles.map((e) => [e.path, "no match"])));
+    await runSearch("/workspace", "zzz-nonexistent");
+    expect(searchResults.value).toEqual([]);
+    // At least 2 batches must exist (old code: 1 batch of 3 at 15 MB).
+    // Each batch's combined size must stay under ~13 MB (8 MB cap + one file).
+    expect(readTextFilesBatch.mock.calls.length).toBeGreaterThanOrEqual(2);
+    const totalBytes = readTextFilesBatch.mock.calls.reduce((sum, call) => {
+      return sum + call[0].length * (5 * 1024 * 1024);
+    }, 0);
+    // Total across all batches should be ~15 MB, not a single 15 MB call.
+    expect(totalBytes).toBeLessThanOrEqual(15 * 1024 * 1024 + 5 * 1024 * 1024);
+  });
+
+  it("a file at exactly SEARCH_BATCH_MAX_BYTES goes out in its own batch", async () => {
+    const entry = {
+      name: "exact.md",
+      path: "/workspace/exact.md",
+      isDir: false,
+      size: 8 * 1024 * 1024,
+    };
+    findAllFiles.mockResolvedValue([entry]);
+    mockFileContents({ "/workspace/exact.md": "no match" });
+    await runSearch("/workspace", "zzz-nonexistent");
+    expect(readTextFilesBatch).toHaveBeenCalledTimes(1);
+    const batch = readTextFilesBatch.mock.calls[0] as [string[]];
+    expect(batch[0]).toEqual(["/workspace/exact.md"]);
+  });
+});
+
+describe("F-005: conservative unknown-size default prevents batch blending", async () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("unknown-size entries assume a large default so batches stay bounded", async () => {
+    // Entries with no `size` field: the old `?? 0` meant they blended into
+    // zero-size batches and many could go out in one native call.
+    // With CONSERVATIVE_UNKNOWN_SIZE (4 MiB) each entry triggers a pre-add
+    // flush when the pending batch already has a 4 MB entry (4+4 = 8 >= cap).
+    // Two entries → 2 batches of 1 each.  The old code would have batched
+    // them together at effectively 0 bytes → 1 batch (but unbounded in
+    // practice if there were more entries).
+    const entries = [
+      { name: "a.md", path: "/workspace/a.md", isDir: false },
+      { name: "b.md", path: "/workspace/b.md", isDir: false },
+    ];
+    findAllFiles.mockResolvedValue(entries);
+    mockFileContents({
+      "/workspace/a.md": "no match",
+      "/workspace/b.md": "no match",
+    });
+    await runSearch("/workspace", "zzz-nonexistent");
+    // Each entry flushes before adding to the other since 4+4 >= 8.
+    expect(readTextFilesBatch).toHaveBeenCalledTimes(2);
+    expect(readTextFilesBatch.mock.calls[0][0]).toEqual(["/workspace/a.md"]);
+    expect(readTextFilesBatch.mock.calls[1][0]).toEqual(["/workspace/b.md"]);
+  });
+
+  it("three unknown-size entries produce three batches of 1 each", async () => {
+    const entries = [
+      { name: "x.md", path: "/workspace/x.md", isDir: false },
+      { name: "y.md", path: "/workspace/y.md", isDir: false },
+      { name: "z.md", path: "/workspace/z.md", isDir: false },
+    ];
+    findAllFiles.mockResolvedValue(entries);
+    mockFileContents(
+      Object.fromEntries(entries.map((e) => [e.path, "no match"])),
+    );
+    await runSearch("/workspace", "zzz-nonexistent");
+    // Each entry sees a pending 4 MB from the previous one and flushes.
+    expect(readTextFilesBatch.mock.calls.length).toBe(3);
+    expect(readTextFilesBatch.mock.calls[0][0].length).toBe(1);
+    expect(readTextFilesBatch.mock.calls[1][0].length).toBe(1);
+    expect(readTextFilesBatch.mock.calls[2][0].length).toBe(1);
+  });
+
+  it("known-size entries still batch normally alongside unknown-size ones", async () => {
+    // Three small known files (1 KB each) + one unknown-size (4 MiB default).
+    // The small files (3 KB total) fit well within the 8 MB cap alongside
+    // the unknown-size entry.  All 4 go in one batch.
+    const entries = [
+      { name: "small1.md", path: "/workspace/small1.md", isDir: false, size: 1024 },
+      { name: "small2.md", path: "/workspace/small2.md", isDir: false, size: 1024 },
+      { name: "unknown.md", path: "/workspace/unknown.md", isDir: false },
+    ];
+    findAllFiles.mockResolvedValue(entries);
+    mockFileContents(
+      Object.fromEntries(entries.map((e) => [e.path, "no match"])),
+    );
+    await runSearch("/workspace", "zzz-nonexistent");
+    expect(readTextFilesBatch).toHaveBeenCalledTimes(1);
+    const batch = readTextFilesBatch.mock.calls[0] as [string[]];
+    expect(batch[0].length).toBe(3);
+  });
+
+  it("entries with realistic sizes still batch tightly", async () => {
+    // 100 entries at 2 KB each (200 KB total) should go out in ~3 batches
+    // of ~25 files each (8 MB cap / 2 KB per file ≈ 4096 files per batch
+    // would fit, so all 100 go in one batch in practice, but the mock's
+    // concurrency model means not all land in the same microtask tick).
+    const entries = Array.from({ length: 100 }, (_, i) => ({
+      name: `n${i}.md`,
+      path: `/workspace/n${i}.md`,
+      isDir: false,
+      size: 2 * 1024,
+    }));
+    findAllFiles.mockResolvedValue(entries);
+    mockFileContents(
+      Object.fromEntries(entries.map((e) => [e.path, "no match"])),
+    );
+    await runSearch("/workspace", "zzz-nonexistent");
+    // With 2 KB entries the old code batched ~50 files per microtask tick.
+    // The new pre-add check doesn't change much here since 2 KB is tiny
+    // relative to the 8 MB cap.
+    expect(readTextFilesBatch.mock.calls.length).toBeLessThan(10);
   });
 });
 

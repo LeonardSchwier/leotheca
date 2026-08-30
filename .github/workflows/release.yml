@@ -189,6 +189,19 @@ jobs:
           if [ ! -f ~/.android/debug.keystore ] && [ -d ~/.config/.android ]; then
             ln -sf ~/.config/.android/debug.keystore ~/.android/debug.keystore
           fi
+      - name: Generate debug keystore if missing
+        # First run after cache reset has no keystore. Generate one with the
+        # same alias/password as build.gradle expects so AGP's validate step
+        # passes. Subsequent runs restore it from cache.
+        run: |
+          if [ ! -f ~/.android/debug.keystore ]; then
+            keytool -genkeypair -v \
+              -dname "CN=Android Debug, O=Android, C=US" \
+              -alias androiddebugkey -keystore ~/.android/debug.keystore \
+              -storepass android -keypass android \
+              -keysize 2048 -keyalg RSA -validity 10000 \
+              -noprompt 2>/dev/null
+          fi
       - name: Build debug APK
         working-directory: android
         run: ./gradlew assembleDebug

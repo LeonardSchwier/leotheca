@@ -7,13 +7,23 @@ function deferred<T = void>() {
   return { promise, resolve };
 }
 
-const { readTextFile, writeTextFile, restoreWorkspaceAccess } = vi.hoisted(() => ({
+const {
+  drainWorkspaceOperations,
+  listDir,
+  readTextFile,
+  writeTextFile,
+  restoreWorkspaceAccess,
+} = vi.hoisted(() => ({
+  drainWorkspaceOperations: vi.fn<() => Promise<void>>(async () => {}),
+  listDir: vi.fn<(path: string) => Promise<unknown[]>>(async () => []),
   readTextFile: vi.fn<(path: string) => Promise<string>>(),
   writeTextFile: vi.fn<(path: string, contents: string) => Promise<void>>(),
   restoreWorkspaceAccess: vi.fn<(path: string, token?: string) => Promise<void>>(async () => {}),
 }));
 
 vi.mock("../workspace/tauriBridge", () => ({
+  drainWorkspaceOperations,
+  listDir,
   readTextFile,
   writeTextFile,
   restoreWorkspaceAccess,
@@ -39,6 +49,10 @@ const { createSaveCoordinator } = await import("../workspace/saveCoordinator");
 
 beforeEach(() => {
   vi.useRealTimers();
+  drainWorkspaceOperations.mockReset();
+  drainWorkspaceOperations.mockResolvedValue();
+  listDir.mockReset();
+  listDir.mockResolvedValue([]);
   readTextFile.mockReset();
   writeTextFile.mockReset();
   restoreWorkspaceAccess.mockReset();
@@ -60,6 +74,7 @@ describe("workspace transition integration", () => {
     await setWorkspacePath("/workspace", "token-A");
     const oldSession = workspaceSession.value;
     restoreWorkspaceAccess.mockClear();
+    drainWorkspaceOperations.mockClear();
 
     saves.change(oldSession, "/workspace/note.md", "old workspace edit");
     await vi.advanceTimersByTimeAsync(400);
@@ -75,6 +90,7 @@ describe("workspace transition integration", () => {
     oldWrite.resolve();
     await switching;
 
+    expect(drainWorkspaceOperations).toHaveBeenCalledTimes(1);
     expect(restoreWorkspaceAccess.mock.calls).toEqual([
       ["/workspace", "token-A"],
       ["/workspace", "token-B"],
@@ -125,5 +141,18 @@ describe("workspace transition integration", () => {
     expect(workspaceSession.value).toBe(previousSession + 1);
     expect(workspaceSelectionError.value).toContain("Could not open that workspace");
     expect(workspaceSelectionError.value).not.toContain("bad-token");
+  });
+
+  it("fails closed when the incoming root is no longer readable", async () => {
+    createSaveCoordinator();
+    await setWorkspacePath("/old", "old-token");
+    listDir.mockImplementation(async (path) => {
+      if (path === "/unreadable") throw new Error("permission denied");
+      return [];
+    });
+
+    await expect(setWorkspacePath("/unreadable", "new-token")).rejects.toThrow("permission denied");
+    expect(workspacePath.value).toBeNull();
+    expect(workspaceSelectionError.value).toContain("permission denied");
   });
 });

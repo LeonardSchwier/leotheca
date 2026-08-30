@@ -23,16 +23,38 @@ export interface SaveCoordinatorCallbacks {
   onError?: (path: string, error: string) => void;
 }
 
+export interface SaveCoordinator {
+  change(session: string | number | null, path: string, content: string): void;
+  flush(session: string | number | null, path: string): Promise<void>;
+  waitForInflight(session: string | number | null, path: string): Promise<void>;
+  prepareForTransition(session: string | number | null): Promise<void>;
+  resetForSession(currentSession: string | number | null): void;
+  retry(session: string | number | null, path: string): Promise<void>;
+  getError(session: string | number | null, path: string): string | null;
+  entryCount(): number;
+  debugEntries(): Array<{ key: string; entry: Omit<SaveEntry, "timer" | "waiters"> }>;
+}
+
+// App.tsx owns the editor coordinator instance. The settings transition layer
+// cannot import App without a cycle, so the factory registers the latest app
+// coordinator here. Tests that construct isolated coordinators still get fresh
+// instances; only the explicit transition helper uses the registered one.
+let activeCoordinator: SaveCoordinator | null = null;
+
+export async function prepareActiveSavesForTransition(
+  session: string | number | null,
+): Promise<void> {
+  await activeCoordinator?.prepareForTransition(session);
+}
+
 /**
  * Coordinates debounced note writes for one app lifetime.
  *
  * N-001/N-003 adds an explicit transition barrier: once a session is being
  * left, new edits for it are rejected, pending timers are cancelled, and
- * already-invoked native writes are drained before the caller is allowed to
- * change Android SAF access. Session ids are monotonic, so an invalidated
- * session never becomes writable again.
+ * already-invoked native writes are drained before Android SAF access changes.
  */
-export function createSaveCoordinator(cbs?: SaveCoordinatorCallbacks) {
+export function createSaveCoordinator(cbs?: SaveCoordinatorCallbacks): SaveCoordinator {
   const entries = new Map<string, SaveEntry>();
   const blockedSessions = new Set<string>();
 
@@ -105,9 +127,6 @@ export function createSaveCoordinator(cbs?: SaveCoordinatorCallbacks) {
     } finally {
       entry.inFlight = false;
       resolveWaiters(entry);
-      // A change may have arrived while this write was in flight. Preserve the
-      // debounce contract by scheduling that newer revision now rather than
-      // silently dropping it.
       if (!isBlocked(session) && entry.revision > revision && !entry.timer) {
         schedule(session, path, entry, entry.revision);
       }
@@ -141,17 +160,12 @@ export function createSaveCoordinator(cbs?: SaveCoordinatorCallbacks) {
     return entry ? waitForEntry(entry) : Promise.resolve();
   }
 
-  /**
-   * Invalidates an outgoing workspace session and resolves only after every
-   * native write already invoked for that session has settled. The caller can
-   * safely swap an Android SAF grant only after this promise resolves.
-   */
   async function prepareForTransition(session: string | number | null): Promise<void> {
-    const keyPrefix = `${sessionKey(session)}::`;
+    const prefix = `${sessionKey(session)}::`;
     blockedSessions.add(sessionKey(session));
     const waits: Promise<void>[] = [];
     for (const [key, entry] of entries) {
-      if (!key.startsWith(keyPrefix)) continue;
+      if (!key.startsWith(prefix)) continue;
       if (entry.timer) {
         clearTimeout(entry.timer);
         entry.timer = null;
@@ -160,17 +174,19 @@ export function createSaveCoordinator(cbs?: SaveCoordinatorCallbacks) {
     }
     await Promise.all(waits);
     for (const key of Array.from(entries.keys())) {
-      if (key.startsWith(keyPrefix)) entries.delete(key);
+      if (key.startsWith(prefix)) entries.delete(key);
     }
   }
 
-  /** Legacy synchronous invalidation kept for narrow callers/tests. New
-   * workspace transitions must use prepareForTransition() and await it. */
-  function resetForSession(session: string | number | null): void {
-    const keyPrefix = `${sessionKey(session)}::`;
-    blockedSessions.add(sessionKey(session));
+  /** Defensive cleanup after a new session publishes. The authoritative drain
+   * happened before publication; this only removes any non-current leftovers
+   * from legacy callers and never blocks the newly published session. */
+  function resetForSession(currentSession: string | number | null): void {
+    const currentPrefix = `${sessionKey(currentSession)}::`;
     for (const [key, entry] of entries) {
-      if (!key.startsWith(keyPrefix)) continue;
+      if (key.startsWith(currentPrefix)) continue;
+      const oldSession = key.slice(0, key.indexOf("::"));
+      blockedSessions.add(oldSession);
       if (entry.timer) clearTimeout(entry.timer);
       entry.timer = null;
       if (!entry.inFlight) entries.delete(key);
@@ -205,7 +221,7 @@ export function createSaveCoordinator(cbs?: SaveCoordinatorCallbacks) {
     });
   }
 
-  return {
+  const api: SaveCoordinator = {
     change,
     flush,
     waitForInflight,
@@ -216,4 +232,6 @@ export function createSaveCoordinator(cbs?: SaveCoordinatorCallbacks) {
     entryCount,
     debugEntries,
   };
+  activeCoordinator = api;
+  return api;
 }

@@ -19,6 +19,7 @@ build-options:
     CARGO_HOME: /run/build/leotheca/cargo
     npm_config_offline: "true"
     npm_config_cache: /run/build/leotheca/flatpak-node/npm-cache
+    ESBUILD_BINARY_PATH: /run/build/leotheca/flatpak-node/cache/esbuild/bin/esbuild-current
 
 modules:
   - name: leotheca

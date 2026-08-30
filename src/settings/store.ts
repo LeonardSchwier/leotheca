@@ -19,6 +19,7 @@ const workspaceToken = signal<string | undefined>(undefined);
 export const workspaceSettings = signal<WorkspaceSettings>(DEFAULT_WORKSPACE_SETTINGS);
 export const settingsLoaded = signal(false);
 export const workspaceSettingsSaveError = signal<string | null>(null);
+export const workspaceSelectionError = signal<string | null>(null);
 export const settingsPanelOpen = signal(false);
 export const appVersion = signal("");
 export const theme = signal<ThemePreference>("system");
@@ -142,44 +143,66 @@ export async function initSettings(): Promise<void> {
 /**
  * Performs one authoritative workspace transition. If Android's folder picker
  * already reseeded the synthetic `/workspace` cache, reconnect to the outgoing
- * token synchronously first, then block and drain old saves before activating
+ * token synchronously first, then block and drain old writes before activating
  * the incoming token. A later call invalidates this call at every async phase.
  */
 export async function setWorkspacePath(path: string, token?: string): Promise<void> {
   settingsLoaded.value = true;
+  workspaceSelectionError.value = null;
   const outgoingPath = workspacePath.value;
   const outgoingToken = workspaceToken.value;
   const outgoingSession = workspaceSession.value;
 
-  await workspaceTransitions.run({
-    prepareOutgoing: async () => {
-      // pickWorkspaceFolder() currently activates its picked SAF token before
-      // returning. Rebind the old grant immediately so a pending old-session
-      // resolveUri cannot accidentally finish against the newly picked tree.
-      if (outgoingPath) await restoreWorkspaceAccess(outgoingPath, outgoingToken);
-      await workspaceSaves.prepareForTransition(outgoingSession);
-    },
-    connectIncoming: () => restoreWorkspaceAccess(path, token),
-    loadIncoming: () => loadWorkspaceSettings(path),
-    publishIncoming: (loadedWorkspaceSettings) => {
-      // These tab clears are transition bookkeeping, not a user close action;
-      // prevent the outgoing settings persistence effect from recording them.
-      lastPersistedTabsKey = JSON.stringify([[], null]);
-      closeAllTabs();
-      batch(() => {
-        workspaceSettings.value = loadedWorkspaceSettings;
-        viewMode.value = loadedWorkspaceSettings.defaultViewMode;
-        workspacePath.value = path;
-        workspaceToken.value = token;
-        workspaceSession.value++;
-      });
-    },
-    afterPublish: async (isCurrent) => {
-      await saveGlobalConfigOrdered({ lastWorkspacePath: path, theme: theme.value, workspaceToken: token });
-      if (!isCurrent()) return;
-      await restoreLastOpenTabs(isCurrent);
-    },
-  });
+  try {
+    await workspaceTransitions.run({
+      prepareOutgoing: async () => {
+        // pickWorkspaceFolder() currently activates its picked SAF token before
+        // returning. Rebind the old grant immediately so pending old-session
+        // work cannot resolve against the newly picked tree while it drains.
+        if (outgoingPath) await restoreWorkspaceAccess(outgoingPath, outgoingToken);
+        await Promise.all([
+          workspaceSaves.prepareForTransition(outgoingSession),
+          drainWorkspaceSettingsWrites(),
+        ]);
+      },
+      connectIncoming: () => restoreWorkspaceAccess(path, token),
+      loadIncoming: () => loadWorkspaceSettings(path),
+      publishIncoming: (loadedWorkspaceSettings) => {
+        lastPersistedTabsKey = JSON.stringify([[], null]);
+        closeAllTabs();
+        batch(() => {
+          workspaceSettings.value = loadedWorkspaceSettings;
+          viewMode.value = loadedWorkspaceSettings.defaultViewMode;
+          workspacePath.value = path;
+          workspaceToken.value = token;
+          workspaceSession.value++;
+        });
+      },
+      publishFailure: (error) => {
+        lastPersistedTabsKey = JSON.stringify([[], null]);
+        closeAllTabs();
+        batch(() => {
+          workspaceSettings.value = DEFAULT_WORKSPACE_SETTINGS;
+          viewMode.value = DEFAULT_WORKSPACE_SETTINGS.defaultViewMode;
+          workspacePath.value = null;
+          workspaceToken.value = undefined;
+          workspaceSession.value++;
+          workspaceSelectionError.value =
+            error instanceof Error && error.message
+              ? `Could not open that workspace: ${error.message}`
+              : "Could not open that workspace. Choose the folder again or select another folder.";
+        });
+      },
+      afterPublish: async (isCurrent) => {
+        await saveGlobalConfigOrdered({ lastWorkspacePath: path, theme: theme.value, workspaceToken: token });
+        if (!isCurrent()) return;
+        await restoreLastOpenTabs(isCurrent);
+      },
+    });
+  } catch (error) {
+    await saveGlobalConfigOrdered({ lastWorkspacePath: null, theme: theme.value });
+    throw error;
+  }
 }
 
 export async function setTheme(next: ThemePreference): Promise<void> {
@@ -199,9 +222,24 @@ interface PendingWorkspaceSettingsWrite {
 
 let pendingWorkspaceSettingsWrite: PendingWorkspaceSettingsWrite | null = null;
 let workspaceSettingsWriteInFlight = false;
+const workspaceSettingsDrainWaiters = new Set<() => void>();
+
+function resolveWorkspaceSettingsDrainWaiters(): void {
+  if (workspaceSettingsWriteInFlight || pendingWorkspaceSettingsWrite) return;
+  for (const resolve of workspaceSettingsDrainWaiters) resolve();
+  workspaceSettingsDrainWaiters.clear();
+}
+
+function drainWorkspaceSettingsWrites(): Promise<void> {
+  if (!workspaceSettingsWriteInFlight && !pendingWorkspaceSettingsWrite) return Promise.resolve();
+  return new Promise((resolve) => workspaceSettingsDrainWaiters.add(resolve));
+}
 
 function flushWorkspaceSettingsWrites(): void {
-  if (workspaceSettingsWriteInFlight || !pendingWorkspaceSettingsWrite) return;
+  if (workspaceSettingsWriteInFlight || !pendingWorkspaceSettingsWrite) {
+    resolveWorkspaceSettingsDrainWaiters();
+    return;
+  }
   const pending = pendingWorkspaceSettingsWrite;
   pendingWorkspaceSettingsWrite = null;
   workspaceSettingsWriteInFlight = true;
@@ -211,6 +249,7 @@ function flushWorkspaceSettingsWrites(): void {
   ).finally(() => {
     workspaceSettingsWriteInFlight = false;
     flushWorkspaceSettingsWrites();
+    resolveWorkspaceSettingsDrainWaiters();
   });
 }
 

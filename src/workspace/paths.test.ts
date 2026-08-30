@@ -50,6 +50,10 @@ describe("resolvePathWithinWorkspace", () => {
     expect(resolvePathWithinWorkspace("/vault", "/vault/notes", "../../vault-other/cat.png")).toBeNull();
   });
 
+  it("rejects an out-of-workspace base even if its target would resolve back inside", () => {
+    expect(resolvePathWithinWorkspace("/vault", "/outside", "../vault/cat.png")).toBeNull();
+  });
+
   it("rejects absolute targets before resolution", () => {
     expect(resolvePathWithinWorkspace("/vault", "/vault/notes", "/outside/cat.png")).toBeNull();
     expect(resolvePathWithinWorkspace("C:/vault", "C:/vault/notes", "D:/outside/cat.png")).toBeNull();

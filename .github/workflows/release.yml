@@ -220,29 +220,6 @@ jobs:
             echo "Keystore generated successfully"
           fi
           ls -la ~/.config/.android/debug.keystore
-            OxDzDZEPXixE39MFL9UJXymbm1jGgNASSgQAdk3JompJr5tdYmwzYzdwaQtxPkDZQn
-            qx/k7c5GB3tWKml1Jt+QeyZfTNYRHaGWqsRNP3oY7fKzPeuBIa+d+6oR6DVNqv66Js
-            FWlluwyMlAn2NpWVQ1T3nnAendTrK2TjNNQqiFzWtLpVkZBrBb1QQ81Z5d/PX2KYaN
-            +XmeVYCwkBGuRlCtwq1dhes52kv/F+aM8E9AsiTEAXfaDrSNfkdpJpqO1eDvv3xlfrx
-            fCn6D9m5ZDAQw29mOzL6uWRJjYukisx/qBFPUNZPoShjfCGYYShCMFstDBwkkBSWFz
-            HVdEpLB7+nHyz+7g7NfGWgSNR710WPxvRmyLxzEmFwNyQsWW1rconKx7DOtZGYbZ/B
-            esyl+Eb2VG94Azms0TSb57DFt1o6D+CaCfAQSzopHGSaoxy1VIPKKD2oB4yaNCxYDf
-            UtMAYfPuG9neMQFILxmxex63dBmpGPcCQbjP6V/DOCCBhYoK9+I3YpOzWuvuoOA/W0
-            aOEQCw89ts2Um/x/sg5VXKUsl2Epaldb+R49e9RsiJ4SyrGiYtN8OLSekTRGYAoBDL
-            b02/1HalErM4MyWOwTQykcNGnhN8hGbeZFzyBsOx3GV5vXJCYvwwI17dAFj0lJ4fXH
-            WiVXtEFI39SB1PlUi0iIfA6EDparZB076cpgutyEpNypOjyB/yalcb1s8Z0XGsSX+/
-            ui6cJOGwNLmJntIq/vEYWDTiWXw8uGMXM2n+tg/eumurNe6ecG2MwZ/etax/CBfAf1/
-            lIVgktoqMetrjXKHdfhrUbhzt5YlVXrXcF9B5umbmPWMG/yfmQ3Z0edo4o1giJ+2gs
-            y0K8YFJXl+/1bJ0PTjWmlZ1+VUTleft4oEdqlXl3pz58L3Lpc6PDtjJSG6SdLGnyIu
-            hBezUpFJF53MnKLsmP0BX6loHXUhF1T7RQnV1YpSYZZWY2+EHz7hLgTFNdjYSVanXH
-            Tz10Sd0rhsS4w+PtXUy9xDwlyccuhNF1qfLkiJnyXbxtg2MzJvZY89w1KbCWZo7upl
-            7KgPwy4nA3bUOyN20FjgNgjajTo7Y5oCADcC5QzkiiWR7O2/AHRgxVra35wco8f9sj
-            ploDjBNMDEwDQYJYIZIAWUDBAIBBQAEINxuEepq+EQHBGehZAzY+n45gabgUOjrHN4
-            SoitRfkP3BBSTH5vPCo099eUbcw8pvmt/aeKOvwICJxA=
-            KEYSTORE_EOF
-            echo "Keystore decoded successfully"
-          fi
-          echo "Keystore available at: $(ls -la ~/.config/.android/debug.keystore)"
       - name: Build debug APK
         working-directory: android
         run: ./gradlew assembleDebug

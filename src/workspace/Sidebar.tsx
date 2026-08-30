@@ -7,6 +7,7 @@ import {
   createFolder,
   createNote,
   deleteEntry,
+  expandAll,
   renameEntry,
   runSearch,
   searchQuery,
@@ -66,6 +67,7 @@ interface RenamePromptState {
 export function Sidebar({ rootPath, onOpenFile, flushPendingAutosave }: SidebarProps) {
   const [createPrompt, setCreatePrompt] = useState<CreatePromptState | null>(null);
   const [renamePrompt, setRenamePrompt] = useState<RenamePromptState | null>(null);
+  const [expandAllLoading, setExpandAllLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const searchTimer = useRef<ReturnType<typeof setTimeout>>();
 
@@ -79,6 +81,15 @@ export function Sidebar({ rootPath, onOpenFile, flushPendingAutosave }: SidebarP
       if (searchTimer.current) clearTimeout(searchTimer.current);
     };
   }, [rootPath]);
+
+  const handleExpandAll = async () => {
+    setExpandAllLoading(true);
+    try {
+      await expandAll(rootPath);
+    } finally {
+      setExpandAllLoading(false);
+    }
+  };
 
   const handleCreate = async (name: string) => {
     if (!createPrompt) return;
@@ -151,6 +162,15 @@ export function Sidebar({ rootPath, onOpenFile, flushPendingAutosave }: SidebarP
         </button>
         <button class="icon-button" title="Toggle sort order" aria-label="Toggle sort order" onClick={toggleSortOrder}>
           {workspaceSettings.value.sortOrder === "name-asc" ? "↓" : "↑"}
+        </button>
+        <button
+          class="icon-button"
+          title="Expand all"
+          aria-label="Expand all"
+          onClick={handleExpandAll}
+          disabled={expandAllLoading}
+        >
+          {expandAllLoading ? "⋯" : "▾▸"}
         </button>
       </div>
       <div class="sidebar-search">

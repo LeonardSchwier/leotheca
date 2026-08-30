@@ -102,14 +102,6 @@ const loadedCacheRoots = new Set<string>();
 // start unnecessary note reads nor replace the visible index when it ends.
 let latestIndexRequest = 0;
 
-function yieldForInitialWorkspacePaint(): Promise<void> {
-  // This module's pure-logic tests intentionally run without a DOM. In the
-  // app, one frame gives the direct folder listing a chance to render before
-  // the lower-priority, full-workspace metadata scan begins.
-  if (typeof window === "undefined") return Promise.resolve();
-  return new Promise((resolve) => window.requestAnimationFrame(() => resolve()));
-}
-
 function cacheFilePath(rootPath: string): string {
   return `${rootPath}/${LINK_INDEX_CACHE_FILENAME}`;
 }
@@ -178,9 +170,6 @@ export async function rebuildLinkIndex(
   const isCurrentRequest = () => request === latestIndexRequest;
   linkIndexBuilding.value = true;
   try {
-    await yieldForInitialWorkspacePaint();
-    if (!isCurrentRequest()) return;
-
     await loadPersistedCacheIfNeeded(rootPath);
     if (!isCurrentRequest()) return;
 

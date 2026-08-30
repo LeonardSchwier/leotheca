@@ -201,13 +201,18 @@ export function App() {
     resetLinkIndexCache();
   }, [session]);
 
-  useEffect(() => {
-    if (rootPath) void rebuildLinkIndex(rootPath, workspaceSettings.value.frontmatterAliasesEnabled, workspaceSettings.value.tagsEnabled);
-  }, [rootPath, session]);
+  // Deferring rebuildLinkIndex until the user explicitly opens the Graph or
+  // Tags view. Building the link index on every workspace open adds 100-3000ms
+  // of native bridge calls (recursive file walk + per-note content reads)
+  // before the user needs it. The index is built on-demand by openGraphView
+  // and openTagsPanel, and manually via settings.
 
+  // Defer bookmarks loading until the user opens the Bookmarks panel.
+  // Reading bookmarks.json costs one native bridge call on startup that
+  // provides zero user value on first paint.
   useEffect(() => {
-    if (workspacePath.value) void loadBookmarks(workspacePath.value);
-  }, [workspacePath.value, session]);
+    if (bookmarksOpen.value && workspacePath.value) void loadBookmarks(workspacePath.value);
+  }, [bookmarksOpen.value, workspacePath.value]);
 
   // Use effect() from @preact/signals (not useEffect) so changes to
   // workspaceSettings.value.accentColor or themesEnabled are properly

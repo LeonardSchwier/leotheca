@@ -94,14 +94,20 @@ describe("SettingsPanel", () => {
 
   it("Change Folder opens the picked folder, and does nothing if cancelled", async () => {
     vi.mocked(pickWorkspaceFolder).mockResolvedValue({ path: "/vault", token: "tok" });
-    const { getByText } = render(<SettingsPanel />);
-    await fireEvent.click(getByText("Change Folder"));
+    const { container } = render(<SettingsPanel />);
+    const changeFolderBtn = container.querySelector("button") as HTMLButtonElement;
+    // First button in the "Root folder" row is "Change Folder"
+    const buttons = container.querySelectorAll("button");
+    // Find the "Change Folder" button by text content
+    const folderBtn = Array.from(buttons).find((b) => b.textContent?.trim() === "Change Folder");
+    expect(folderBtn).toBeTruthy();
+    await fireEvent.click(folderBtn!);
     await Promise.resolve();
     expect(setWorkspacePath).toHaveBeenCalledWith("/vault", "tok");
 
     vi.mocked(setWorkspacePath).mockClear();
     vi.mocked(pickWorkspaceFolder).mockResolvedValue(null);
-    await fireEvent.click(getByText("Change Folder"));
+    await fireEvent.click(folderBtn!);
     await Promise.resolve();
     expect(setWorkspacePath).not.toHaveBeenCalled();
   });

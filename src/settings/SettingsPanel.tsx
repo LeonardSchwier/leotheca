@@ -91,11 +91,17 @@ const ACCENT_OPTIONS: { value: AccentColor; label: string }[] = [
 
 export function SettingsPanel() {
   const [showLicense, setShowLicense] = useState(false);
+  const [folderPickerLoading, setFolderPickerLoading] = useState(false);
   if (!settingsPanelOpen.value) return null;
 
   const handleChangeFolder = async () => {
-    const folder = await pickWorkspaceFolder();
-    if (folder) await setWorkspacePath(folder.path, folder.token);
+    setFolderPickerLoading(true);
+    try {
+      const folder = await pickWorkspaceFolder();
+      if (folder) await setWorkspacePath(folder.path, folder.token);
+    } finally {
+      setFolderPickerLoading(false);
+    }
   };
 
   return (
@@ -115,7 +121,9 @@ export function SettingsPanel() {
               <div class="settings-label">Root folder</div>
               <div class="settings-value">{workspacePath.value ?? "Not set"}</div>
             </div>
-            <button onClick={handleChangeFolder}>Change Folder</button>
+            <button onClick={handleChangeFolder} disabled={folderPickerLoading}>
+              {folderPickerLoading ? "Opening folder picker…" : "Change Folder"}
+            </button>
           </div>
 
           {workspaceSettingsSaveError.value && (

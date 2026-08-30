@@ -1,4 +1,4 @@
-import { signal, useSignal } from "@preact/signals";
+import { effect, signal, useSignal } from "@preact/signals";
 import { useCallback, useEffect, useMemo, useState } from "preact/hooks";
 import type { ComponentType } from "preact";
 import { Capacitor } from "@capacitor/core";
@@ -209,14 +209,18 @@ export function App() {
     if (workspacePath.value) void loadBookmarks(workspacePath.value);
   }, [workspacePath.value, session]);
 
-  useEffect(() => {
+  // Use effect() from @preact/signals (not useEffect) so changes to
+  // workspaceSettings.value.accentColor or themesEnabled are properly
+  // tracked reactively — Preact Signals only subscribes during render,
+  // not inside useEffect callbacks.
+  effect(() => {
     const root = document.documentElement;
-    if (!rootPath || !workspaceSettings.value.themesEnabled) {
+    if (!workspacePath.value || !workspaceSettings.value.themesEnabled) {
       root.removeAttribute("data-accent");
       return;
     }
     root.setAttribute("data-accent", workspaceSettings.value.accentColor);
-  }, [rootPath, workspaceSettings.value.themesEnabled, workspaceSettings.value.accentColor]);
+  });
 
   const { width: sidebarWidth, onDragStart } = useResizableSidebar();
 

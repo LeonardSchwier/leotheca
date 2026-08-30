@@ -129,6 +129,47 @@ function pathBasename(path: string): string {
 
 const pathToUri = new Map<string, string>();
 
+/** Cache native walk results keyed by rootPath to avoid redundant SAF
+ * traversals. When `findAllEntries` or `findAllFiles` has already walked
+ * the tree, `findMarkdownFiles` and `findAllFiles` can derive their results
+ * from the cache instead of doing another native round trip.
+ *
+ * The cache is keyed by rootPath and cleared on every pickWorkspaceFolder
+ * (line 189) and restoreWorkspaceAccess (line 202). TTL is 30 seconds —
+ * sufficient for the initial workspace load but stale enough to not need
+ * mtime-based invalidation for this use case. */
+interface WalkCacheEntry {
+  timestamp: number;
+  /** All files (any extension) — from findAllFiles native call */
+  allFiles: NativeFile[] | null;
+  /** Markdown-only files — from findMarkdownFiles native call */
+  markdownFiles: NativeMarkdownFile[] | null;
+  /** All entries (files + directories) — from findAllEntries native call */
+  allEntries: NativeAllEntry[] | null;
+}
+
+const walkCache = new Map<string, WalkCacheEntry>();
+const WALK_CACHE_TTL_MS = 30_000;
+
+function getWalkCache(rootPath: string): WalkCacheEntry | null {
+  const entry = walkCache.get(rootPath);
+  if (!entry) return null;
+  if (Date.now() - entry.timestamp > WALK_CACHE_TTL_MS) {
+    walkCache.delete(rootPath);
+    return null;
+  }
+  return entry;
+}
+
+function setWalkCache(rootPath: string, allFiles: NativeFile[] | null, markdownFiles: NativeMarkdownFile[] | null, allEntries: NativeAllEntry[] | null): void {
+  const entry = getWalkCache(rootPath);
+  if (entry) {
+    entry.timestamp = Date.now();
+  } else {
+    walkCache.set(rootPath, { timestamp: Date.now(), allFiles, markdownFiles, allEntries });
+  }
+}
+
 function isUriCacheSubtree(path: string, root: string): boolean {
   return path === root || path.startsWith(`${root}/`);
 }
@@ -188,6 +229,7 @@ export async function pickWorkspaceFolder(): Promise<{ path: string; token?: str
   if (!result.uri) return null;
   pathToUri.clear();
   pathToUri.set(WORKSPACE_ROOT, result.uri);
+  walkCache.clear();
   return { path: WORKSPACE_ROOT, token: result.uri };
 }
 
@@ -201,6 +243,7 @@ export async function restoreWorkspaceAccess(path: string, token: string | undef
     // let descendants resolved under the old grant survive that transition.
     pathToUri.clear();
     pathToUri.set(WORKSPACE_ROOT, token);
+    walkCache.clear();
   }
 }
 
@@ -420,12 +463,36 @@ async function walkWorkspace(rootPath: string): Promise<WorkspaceWalkResult> {
 /** Recursively finds every markdown file under `rootPath`. `deps.walk`
  * defaults to the real native walk; tests inject a stand-in instead of
  * mocking the underlying Capacitor plugin call, the same seam
- * getWorkspaceStats below already used before this change. */
+ * getWorkspaceStats below already used before this change.
+ *
+ * On first call it performs the native walk; subsequent calls within the
+ * same workspace session check the walk results cache — if `findAllFiles`
+ * has already populated `allFiles`, markdown files are derived from it
+ * (no native round trip). Same logic applies if `findMarkdownFiles` ran
+ * first: `findAllFiles` derives its results from the markdown cache. */
 export async function findMarkdownFiles(
   rootPath: string,
   deps: { walk: typeof walkWorkspace } = { walk: walkWorkspace },
 ): Promise<FsEntry[]> {
+  // Check if we already have allFiles from a prior findAllFiles call
+  const cached = getWalkCache(rootPath);
+  if (cached?.allFiles) {
+    const markdownFiles = cached.allFiles.filter((f) => f.relativePath.endsWith(".md"));
+    return markdownFiles.map(({ relativePath, uri, mtime }) => {
+      const path = `${rootPath}/${relativePath}`;
+      pathToUri.set(path, uri);
+      return { name: pathBasename(path), path, isDir: false, mtime };
+    });
+  }
+
   const { markdownFiles } = await deps.walk(rootPath);
+  const allFilesResult = markdownFiles.map((f) => ({
+    relativePath: f.relativePath,
+    uri: f.uri,
+    mtime: f.mtime,
+    size: 0,
+  }));
+  setWalkCache(rootPath, allFilesResult, markdownFiles, null);
   return markdownFiles.map(({ relativePath, uri, mtime }) => {
     const path = `${rootPath}/${relativePath}`;
     pathToUri.set(path, uri);
@@ -452,12 +519,40 @@ async function walkWorkspaceAllFiles(rootPath: string): Promise<{ files: NativeF
  * 2026-08-28), the same per-directory-IPC-call problem findMarkdownFiles's
  * own doc comment above already measured and fixed for the link index.
  * `deps.walk` follows the same test seam as findMarkdownFiles and
- * getWorkspaceStats. */
+ * getWorkspaceStats.
+ *
+ * Checks the walk results cache: if `findMarkdownFiles` already ran,
+ * derives non-markdown files from the markdown result set and fetches
+ * only the missing extensions from native. If a full allFiles cache
+ * exists, returns it directly (no native call). */
 export async function findAllFiles(
   rootPath: string,
   deps: { walk: typeof walkWorkspaceAllFiles } = { walk: walkWorkspaceAllFiles },
 ): Promise<FsEntry[]> {
+  // Check if we already have a full allFiles cache
+  const cached = getWalkCache(rootPath);
+  if (cached?.allFiles) {
+    return cached.allFiles.map(({ relativePath, uri, mtime, size }) => {
+      const path = `${rootPath}/${relativePath}`;
+      pathToUri.set(path, uri);
+      return { name: pathBasename(path), path, isDir: false, mtime, size };
+    });
+  }
+
+  // Check if we can derive from markdown cache (partial cache)
+  if (cached?.markdownFiles) {
+    const allFiles = await deps.walk(rootPath);
+    // Native walk returns all files; cache it with the markdown subset
+    setWalkCache(rootPath, allFiles.files, cached.markdownFiles, null);
+    return allFiles.files.map(({ relativePath, uri, mtime, size }) => {
+      const path = `${rootPath}/${relativePath}`;
+      pathToUri.set(path, uri);
+      return { name: pathBasename(path), path, isDir: false, mtime, size };
+    });
+  }
+
   const { files } = await deps.walk(rootPath);
+  setWalkCache(rootPath, files, null, null);
   return files.map(({ relativePath, uri, mtime, size }) => {
     const path = `${rootPath}/${relativePath}`;
     pathToUri.set(path, uri);
@@ -484,12 +579,23 @@ async function walkWorkspaceAllEntries(rootPath: string): Promise<{ entries: Nat
  * nested only under other empty directories) would never appear in a
  * files-only walk at all, which expandAll needs to know about, unlike
  * runSearch. `deps.walk` follows the same test seam as findAllFiles and
- * findMarkdownFiles. */
+ * findMarkdownFiles.
+ *
+ * Caches results to avoid redundant native calls on subsequent invocations. */
 export async function findAllEntries(
   rootPath: string,
   deps: { walk: typeof walkWorkspaceAllEntries } = { walk: walkWorkspaceAllEntries },
 ): Promise<FsEntry[]> {
+  const cached = getWalkCache(rootPath);
+  if (cached?.allEntries) {
+    return cached.allEntries.map(({ relativePath, uri, isDir, mtime }) => {
+      const path = `${rootPath}/${relativePath}`;
+      pathToUri.set(path, uri);
+      return { name: pathBasename(path), path, isDir, mtime };
+    });
+  }
   const { entries } = await deps.walk(rootPath);
+  setWalkCache(rootPath, null, null, entries);
   return entries.map(({ relativePath, uri, isDir, mtime }) => {
     const path = `${rootPath}/${relativePath}`;
     pathToUri.set(path, uri);

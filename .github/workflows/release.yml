@@ -91,15 +91,22 @@ jobs:
       - run: npm ci
       - name: Build AppImage
         run: |
-          # Clean stale build cache to ensure main.rs changes are included
+          # Build a fresh AppDir. Fedora's bundled linuxdeploy can fail after
+          # producing it, so validate that usable output before continuing.
           cd src-tauri && cargo clean && cd ..
-          npx tauri build --bundles appimage
+          npx tauri build --bundles appimage || {
+            test -x src-tauri/target/release/bundle/appimage/Leotheca.AppDir/AppRun
+            test -x src-tauri/target/release/bundle/appimage/Leotheca.AppDir/usr/bin/leotheca
+          }
+          appdir=src-tauri/target/release/bundle/appimage/Leotheca.AppDir
+          ln -sf Leotheca.png "$appdir/leotheca.png"
+          ARCH=x86_64 "$HOME/.cache/tauri/linuxdeploy-plugin-appimage.AppImage" --appimage-extract-and-run --appdir="$appdir"
       - name: Patch AppImage MIME type for URL scheme
-        run: bash src-tauri/resources/patch-appimage-mime.sh src-tauri/target/release/bundle/appimage/*.AppImage || true
+        run: bash src-tauri/resources/patch-appimage-mime.sh Leotheca-x86_64.AppImage
       - uses: actions/upload-artifact@v4
         with:
           name: linux-appimage
-          path: src-tauri/target/release/bundle/appimage/*.AppImage
+          path: Leotheca-x86_64.AppImage
 
   macos:
     # A universal binary (both Apple Silicon and Intel) rather than just
@@ -166,40 +173,9 @@ jobs:
       - run: npm ci
       - run: npx vite build
       - run: npx cap sync android
-      - name: Restore persisted debug keystore
-        uses: actions/cache@v4
-        with:
-          path: ~/.android
-          key: android-debug-keystore-v6
-      - name: Generate debug keystore if cache miss
-        run: |
-          mkdir -p ~/.android
-          if [ ! -f ~/.android/debug.keystore ]; then
-            echo "No cached keystore found. Generating new debug keystore..."
-            "${JAVA_HOME}/bin/keytool" -genkeypair \
-              -dname "CN=Android Debug, O=Android, C=US" \
-              -alias androiddebugkey \
-              -keystore ~/.android/debug.keystore \
-              -storepass android \
-              -keypass android \
-              -keysize 2048 \
-              -keyalg RSA \
-              -validity 10000 \
-              -noprompt
-            echo "Keystore generated: $(md5sum ~/.android/debug.keystore)"
-          else
-            echo "Keystore restored from cache: $(md5sum ~/.android/debug.keystore)"
-          fi
       - name: Build debug APK
         working-directory: android
-        run: ./gradlew assembleDebug || true
-      - name: Upload APK even on build failure
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: android-debug-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: ignore
+        run: ./gradlew assembleDebug
       - uses: actions/upload-artifact@v4
         with:
           name: android-debug-apk

@@ -99,8 +99,8 @@ On a large workspace, especially over Android's SAF, filesystem work has to be b
 
 | Platform | Build tool | Artifact(s) | Status |
 |---|---|---|---|
-| Linux desktop | `npx tauri build` | AppImage, `.deb`, `.rpm` (configured in `tauri.conf.json`'s `bundle.targets`) | AppImage building works; Flathub manifest complete with generated dependency source lists, not yet test-built, see `flatpak/README.md` |
-| Android | Gradle via Capacitor (`npx cap sync android && ./gradlew assembleDebug`/`assembleRelease`) | APK | Debug builds verified on a real device throughout development; F-Droid packaging blocked on an open question about offline npm builds, see `packaging/f-droid/README.md` |
+| Linux desktop | `npx tauri build`, then the bundled appimagetool plugin packages its generated AppDir | AppImage, `.deb`, `.rpm` (configured in `tauri.conf.json`'s `bundle.targets`) | The release workflow packages the validated AppDir directly to avoid a linuxdeploy finalization failure; Flathub manifest complete with generated dependency source lists, not yet test-built, see `flatpak/README.md` |
+| Android | Gradle via Capacitor (`npx cap sync android && ./gradlew assembleDebug`/`assembleRelease`) | APK | Dev APKs use the repository's fixed `android/debug.keystore` so CI artifacts can update each other. This public debug key is not a release signing credential. F-Droid packaging blocked on an open question about offline npm builds, see `packaging/f-droid/README.md` |
 | macOS | Not yet built | Planned: Homebrew | Confirmed intended platform (see `CONSTITUTION.md`'s Decisions Log), no build target exists yet |
 | Windows | Not yet built | Planned: direct download from GitHub Releases only, no package manager/store | Confirmed intended platform, no build target exists yet |
 

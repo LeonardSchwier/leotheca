@@ -197,19 +197,49 @@ jobs:
       - name: Restore persisted debug keystore
         uses: actions/cache@v4
         with:
-          path: ~/.config/.android/debug.keystore
-          key: android-debug-keystore-v3
+          path: ~/.config/.android
+          key: android-debug-keystore-v4
       - name: Generate debug keystore if cache miss
-        # Embeds a known debug keystore (base64) so we always have the same
-        # signature across fresh CI runs. The keystore is NOT a release key
-        # — it's the standard Android debug keystore with well-known alias/
-        # password (androiddebugkey / android). Storing it in the repo is
-        # safe because it's public knowledge and only used for CI/debug APKs.
+        # The debug keystore must have consistent key material across CI runs
+        # so Android accepts APK updates. We generate it with keytool pointing
+        # to JAVA_HOME (set by setup-java@v4) for reliability.
         run: |
           mkdir -p ~/.config/.android
           if [ ! -f ~/.config/.android/debug.keystore ]; then
-            echo "No cached keystore found. Decoding embedded debug keystore..."
-            echo "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" | base64 -d > ~/.config/.android/debug.keystore
+            echo "No cached keystore found. Generating with keytool..."
+            "${JAVA_HOME}/bin/keytool" -genkeypair \
+              -dname "CN=Android Debug, O=Android, C=US" \
+              -alias androiddebugkey \
+              -keystore ~/.config/.android/debug.keystore \
+              -storepass android \
+              -keypass android \
+              -keysize 2048 \
+              -keyalg RSA \
+              -validity 10000 \
+              -noprompt
+            echo "Keystore generated successfully"
+          fi
+          ls -la ~/.config/.android/debug.keystore
+            OxDzDZEPXixE39MFL9UJXymbm1jGgNASSgQAdk3JompJr5tdYmwzYzdwaQtxPkDZQn
+            qx/k7c5GB3tWKml1Jt+QeyZfTNYRHaGWqsRNP3oY7fKzPeuBIa+d+6oR6DVNqv66Js
+            FWlluwyMlAn2NpWVQ1T3nnAendTrK2TjNNQqiFzWtLpVkZBrBb1QQ81Z5d/PX2KYaN
+            +XmeVYCwkBGuRlCtwq1dhes52kv/F+aM8E9AsiTEAXfaDrSNfkdpJpqO1eDvv3xlfrx
+            fCn6D9m5ZDAQw29mOzL6uWRJjYukisx/qBFPUNZPoShjfCGYYShCMFstDBwkkBSWFz
+            HVdEpLB7+nHyz+7g7NfGWgSNR710WPxvRmyLxzEmFwNyQsWW1rconKx7DOtZGYbZ/B
+            esyl+Eb2VG94Azms0TSb57DFt1o6D+CaCfAQSzopHGSaoxy1VIPKKD2oB4yaNCxYDf
+            UtMAYfPuG9neMQFILxmxex63dBmpGPcCQbjP6V/DOCCBhYoK9+I3YpOzWuvuoOA/W0
+            aOEQCw89ts2Um/x/sg5VXKUsl2Epaldb+R49e9RsiJ4SyrGiYtN8OLSekTRGYAoBDL
+            b02/1HalErM4MyWOwTQykcNGnhN8hGbeZFzyBsOx3GV5vXJCYvwwI17dAFj0lJ4fXH
+            WiVXtEFI39SB1PlUi0iIfA6EDparZB076cpgutyEpNypOjyB/yalcb1s8Z0XGsSX+/
+            ui6cJOGwNLmJntIq/vEYWDTiWXw8uGMXM2n+tg/eumurNe6ecG2MwZ/etax/CBfAf1/
+            lIVgktoqMetrjXKHdfhrUbhzt5YlVXrXcF9B5umbmPWMG/yfmQ3Z0edo4o1giJ+2gs
+            y0K8YFJXl+/1bJ0PTjWmlZ1+VUTleft4oEdqlXl3pz58L3Lpc6PDtjJSG6SdLGnyIu
+            hBezUpFJF53MnKLsmP0BX6loHXUhF1T7RQnV1YpSYZZWY2+EHz7hLgTFNdjYSVanXH
+            Tz10Sd0rhsS4w+PtXUy9xDwlyccuhNF1qfLkiJnyXbxtg2MzJvZY89w1KbCWZo7upl
+            7KgPwy4nA3bUOyN20FjgNgjajTo7Y5oCADcC5QzkiiWR7O2/AHRgxVra35wco8f9sj
+            ploDjBNMDEwDQYJYIZIAWUDBAIBBQAEINxuEepq+EQHBGehZAzY+n45gabgUOjrHN4
+            SoitRfkP3BBSTH5vPCo099eUbcw8pvmt/aeKOvwICJxA=
+            KEYSTORE_EOF
             echo "Keystore decoded successfully"
           fi
           echo "Keystore available at: $(ls -la ~/.config/.android/debug.keystore)"

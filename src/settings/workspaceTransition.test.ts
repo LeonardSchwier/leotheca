@@ -1,0 +1,109 @@
+/** @vitest-environment jsdom */
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+function deferred<T = void>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  const promise = new Promise<T>((res) => { resolve = res; });
+  return { promise, resolve };
+}
+
+const { readTextFile, writeTextFile, restoreWorkspaceAccess } = vi.hoisted(() => ({
+  readTextFile: vi.fn<(path: string) => Promise<string>>(),
+  writeTextFile: vi.fn<(path: string, contents: string) => Promise<void>>(),
+  restoreWorkspaceAccess: vi.fn<(path: string, token?: string) => Promise<void>>(async () => {}),
+}));
+
+vi.mock("../workspace/tauriBridge", () => ({
+  readTextFile,
+  writeTextFile,
+  restoreWorkspaceAccess,
+  getAppVersion: vi.fn(async () => "1.0"),
+  setStatusBarAppearance: vi.fn(async () => {}),
+  getAppConfigFilePath: vi.fn(async (name: string) => `/config/${name}`),
+}));
+
+window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+  matches: false,
+  media: query,
+  addEventListener: vi.fn(),
+  removeEventListener: vi.fn(),
+})) as unknown as typeof window.matchMedia;
+
+const { setWorkspacePath, workspacePath, workspaceSession } = await import("./store");
+const { createSaveCoordinator } = await import("../workspace/saveCoordinator");
+
+beforeEach(() => {
+  vi.useRealTimers();
+  readTextFile.mockReset();
+  writeTextFile.mockReset();
+  restoreWorkspaceAccess.mockClear();
+  readTextFile.mockRejectedValue(new Error("no settings yet"));
+  writeTextFile.mockResolvedValue();
+});
+
+describe("workspace transition integration", () => {
+  it("drains the outgoing write before activating a different Android token for /workspace", async () => {
+    vi.useFakeTimers();
+    const oldWrite = deferred<void>();
+    writeTextFile.mockImplementation((path) =>
+      path === "/workspace/note.md" ? oldWrite.promise : Promise.resolve(),
+    );
+    const saves = createSaveCoordinator();
+
+    await setWorkspacePath("/workspace", "token-A");
+    const oldSession = workspaceSession.value;
+    restoreWorkspaceAccess.mockClear();
+
+    saves.change(oldSession, "/workspace/note.md", "old workspace edit");
+    await vi.advanceTimersByTimeAsync(400);
+    expect(writeTextFile).toHaveBeenCalledWith("/workspace/note.md", "old workspace edit");
+
+    let switched = false;
+    const switching = setWorkspacePath("/workspace", "token-B").then(() => { switched = true; });
+    await Promise.resolve();
+
+    // The picker may already have pointed the bridge at token-B. The
+    // transition immediately rebinds token-A, then waits for the old native
+    // write. token-B must not become authoritative until that write settles.
+    expect(restoreWorkspaceAccess.mock.calls).toEqual([["/workspace", "token-A"]]);
+    expect(switched).toBe(false);
+
+    oldWrite.resolve();
+    await switching;
+
+    expect(restoreWorkspaceAccess.mock.calls).toEqual([
+      ["/workspace", "token-A"],
+      ["/workspace", "token-B"],
+    ]);
+    expect(workspacePath.value).toBe("/workspace");
+    expect(workspaceSession.value).toBe(oldSession + 1);
+    vi.useRealTimers();
+  });
+
+  it("keeps B authoritative when setWorkspacePath(A) finishes loading after B", async () => {
+    const loadA = deferred<string>();
+    const loadB = deferred<string>();
+    readTextFile.mockImplementation((path) => {
+      if (path === "/A/.leotheca/settings.json") return loadA.promise;
+      if (path === "/B/.leotheca/settings.json") return loadB.promise;
+      return Promise.reject(new Error("missing"));
+    });
+    createSaveCoordinator();
+
+    await setWorkspacePath("/start");
+    const a = setWorkspacePath("/A");
+    await Promise.resolve();
+    await Promise.resolve();
+    const b = setWorkspacePath("/B");
+    await Promise.resolve();
+    await Promise.resolve();
+
+    loadB.resolve("{}");
+    await b;
+    expect(workspacePath.value).toBe("/B");
+
+    loadA.resolve("{}");
+    await a;
+    expect(workspacePath.value).toBe("/B");
+  });
+});

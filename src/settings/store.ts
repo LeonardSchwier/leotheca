@@ -1,5 +1,12 @@
 import { batch, effect, signal } from "@preact/signals";
-import { getAppVersion, readTextFile, restoreWorkspaceAccess, setStatusBarAppearance } from "../workspace/tauriBridge";
+import {
+  drainWorkspaceOperations,
+  getAppVersion,
+  listDir,
+  readTextFile,
+  restoreWorkspaceAccess,
+  setStatusBarAppearance,
+} from "../workspace/tauriBridge";
 import { loadGlobalConfig, saveGlobalConfig, type GlobalConfig, type ThemePreference } from "./globalConfig";
 import { activeTabPath, closeAllTabs, openOrFocusTab, openTabs } from "../workspace/store";
 import { classifyWorkspaceResource } from "../workspace/types";
@@ -109,6 +116,7 @@ export async function initSettings(): Promise<void> {
   if (global.lastWorkspacePath) {
     try {
       await restoreWorkspaceAccess(global.lastWorkspacePath, global.workspaceToken);
+      await listDir(global.lastWorkspacePath);
       const loadedWorkspaceSettings = await loadWorkspaceSettings(global.lastWorkspacePath);
       const { lastOpenPaths, lastActivePath } = loadedWorkspaceSettings;
       lastPersistedTabsKey = JSON.stringify([lastOpenPaths, lastActivePath]);
@@ -143,8 +151,10 @@ export async function initSettings(): Promise<void> {
 /**
  * Performs one authoritative workspace transition. If Android's folder picker
  * already reseeded the synthetic `/workspace` cache, reconnect to the outgoing
- * token synchronously first, then block and drain old writes before activating
- * the incoming token. A later call invalidates this call at every async phase.
+ * token synchronously first. Then block new outgoing autosaves, drain queued
+ * settings writes plus every native workspace operation, clear outgoing UI
+ * stores, and only then activate and validate the incoming grant. A later call
+ * invalidates this call at every async phase.
  */
 export async function setWorkspacePath(path: string, token?: string): Promise<void> {
   settingsLoaded.value = true;
@@ -164,12 +174,23 @@ export async function setWorkspacePath(path: string, token?: string): Promise<vo
           workspaceSaves.prepareForTransition(outgoingSession),
           drainWorkspaceSettingsWrites(),
         ]);
-      },
-      connectIncoming: () => restoreWorkspaceAccess(path, token),
-      loadIncoming: () => loadWorkspaceSettings(path),
-      publishIncoming: (loadedWorkspaceSettings) => {
+        await drainWorkspaceOperations();
+
+        // Clear tabs before the new grant is active. Preseed the persistence
+        // key so this internal clear cannot overwrite the outgoing workspace's
+        // remembered tabs while the transition is in progress.
         lastPersistedTabsKey = JSON.stringify([[], null]);
         closeAllTabs();
+      },
+      connectIncoming: async () => {
+        await restoreWorkspaceAccess(path, token);
+        // A successful restore alone is not proof the root remains readable,
+        // especially for an expired Android persistable grant. Validate the
+        // root before publishing the incoming session.
+        await listDir(path);
+      },
+      loadIncoming: () => loadWorkspaceSettings(path),
+      publishIncoming: (loadedWorkspaceSettings) => {
         batch(() => {
           workspaceSettings.value = loadedWorkspaceSettings;
           viewMode.value = loadedWorkspaceSettings.defaultViewMode;

@@ -48,6 +48,7 @@
 
 ### Features
 
+- 🚧 **Codebase Audit Recommendations: Android URI Cache Invalidation (F-007)** (claim: OpenCode-GPT-5.6-terra-20260830T0950Z, 2026-08-30T09:50Z, branch: agent/android-uri-cache-invalidation): Evict Android SAF URI-cache subtrees after successful directory rename, trash, or permanent delete so stale descendants cannot resolve against moved, deleted, or recreated paths.
 - 🚧 **F-Droid Submission** (claim: ChatGPT-GPT-5.6-Sol-manual-20260829T1911Z, 2026-08-29T19:11Z, branch: agent/f-droid-submission): Complete a real build and submission attempt using the existing draft metadata, then resolve any reproducibility or inclusion-policy findings.
 - 🚧 **Flathub Submission** (claim: ChatGPT-GPT-5.6-Sol-manual-20260829T1911Z, 2026-08-29T21:36Z, branch: agent/flathub-submission): Complete domain verification, final metadata review, and the real submission using the already-green Flatpak CI artifact.
 - 🚧 **Additional Desktop Platforms** (claim: Claude-Code-cloud-20260828T1829Z, 2026-08-28T18:29Z, branch: agent/additional-desktop-platforms): Add macOS and Windows build targets, then complete the prepared macOS package and direct Windows release packaging. Status, so a follow-up session can resume without re-deriving any of this:

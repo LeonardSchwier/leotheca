@@ -71,29 +71,22 @@ jobs:
       - name: Build debug APK
         working-directory: android
         run: ./gradlew assembleDebug
-      - name: Install emulator system image
-        run: sdkmanager "system-images;android-35;default;x86_64"
-      - name: Create emulator
-        run: echo no | avdmanager create avd --force --name ci-api-35 --package "system-images;android-35;default;x86_64" --device pixel_2
-      - name: Install debug APK in emulator
+      - name: Enable KVM for emulator smoke test
         run: |
-          sudo chmod 666 /dev/kvm 2>/dev/null || true
-          emulator -avd ci-api-35 -no-window -noaudio -no-boot-anim -no-snapshot -gpu swiftshader_indirect > /tmp/leotheca-emulator.log 2>&1 &
-          adb wait-for-device
-          booted=0
-          for _ in $(seq 1 60); do
-            if [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ]; then
-              booted=1
-              break
-            fi
-            sleep 5
-          done
-          if [ "$booted" -ne 1 ]; then
-            cat /tmp/leotheca-emulator.log
-            exit 1
-          fi
-          adb install -r android/app/build/outputs/apk/debug/app-debug.apk
-          adb shell pm path com.leonardschwier.leotheca | grep -q '^package:'
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Install debug APK in emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: default
+          arch: x86_64
+          profile: pixel_2
+          disable-animations: true
+          script: |
+            adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+            adb shell pm path com.leonardschwier.leotheca | grep -q '^package:'
 
   appimage-smoke:
     runs-on: ubuntu-latest

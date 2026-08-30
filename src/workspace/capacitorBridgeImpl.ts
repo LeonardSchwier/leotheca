@@ -129,6 +129,19 @@ function pathBasename(path: string): string {
 
 const pathToUri = new Map<string, string>();
 
+function isUriCacheSubtree(path: string, root: string): boolean {
+  return path === root || path.startsWith(`${root}/`);
+}
+
+/** SAF document URIs are only valid at their current tree location. A
+ * directory mutation can invalidate every cached descendant, so eviction is
+ * safer than assuming a provider preserves URI identity across a move. */
+function evictUriSubtree(root: string): void {
+  for (const path of pathToUri.keys()) {
+    if (isUriCacheSubtree(path, root)) pathToUri.delete(path);
+  }
+}
+
 /** Resolves a workspace-relative path to its real content:// URI, walking
  * down from the nearest cached ancestor (at worst, the workspace root)
  * and listing directories as needed. Throws if the path truly does not
@@ -314,9 +327,18 @@ export async function createDir(path: string): Promise<void> {
 export async function renamePath(from: string, to: string): Promise<void> {
   const uri = await resolveUri(from);
   const newName = pathBasename(to);
-  const renamed = await FolderAccess.renamePath({ uri, newName });
-  pathToUri.delete(from);
-  pathToUri.set(to, renamed.uri);
+  try {
+    const renamed = await FolderAccess.renamePath({ uri, newName });
+    evictUriSubtree(from);
+    evictUriSubtree(to);
+    pathToUri.set(to, renamed.uri);
+  } catch (error) {
+    // SAF providers can fail after partially applying a mutation. Do not
+    // reuse either subtree until it has been resolved from the live tree.
+    evictUriSubtree(from);
+    evictUriSubtree(to);
+    throw error;
+  }
 }
 
 /** Mirrors the Rust `trash_path` command's behavior: move into
@@ -334,22 +356,35 @@ export async function trashPath(workspaceRoot: string, path: string): Promise<vo
 
   const { entries } = await FolderAccess.listDir({ uri: trashParentUri });
   const finalName = entries.some((e) => e.name === name) ? `${Date.now()}-${name}` : name;
+  const trashTargetPath = `${trashParentPath}/${finalName}`;
 
   const sourceUri = await resolveUri(path);
   const sourceParentUri = await resolveUri(pathDirname(path));
-  const moved = await FolderAccess.movePath({ uri: sourceUri, fromParentUri: sourceParentUri, toParentUri: trashParentUri });
-  if (finalName !== name) {
-    await FolderAccess.renamePath({ uri: moved.uri, newName: finalName });
+  try {
+    const moved = await FolderAccess.movePath({ uri: sourceUri, fromParentUri: sourceParentUri, toParentUri: trashParentUri });
+    if (finalName !== name) {
+      await FolderAccess.renamePath({ uri: moved.uri, newName: finalName });
+    }
+    evictUriSubtree(path);
+    evictUriSubtree(trashTargetPath);
+  } catch (error) {
+    evictUriSubtree(path);
+    evictUriSubtree(trashTargetPath);
+    throw error;
   }
-  pathToUri.delete(path);
 }
 
 /** Deletes a workspace entry outright, no `.trash` involved, mirroring the
  * Rust `delete_path_permanent` command's desktop behavior. */
 export async function deletePathPermanent(path: string): Promise<void> {
   const uri = await resolveUri(path);
-  await FolderAccess.deletePath({ uri });
-  pathToUri.delete(path);
+  try {
+    await FolderAccess.deletePath({ uri });
+    evictUriSubtree(path);
+  } catch (error) {
+    evictUriSubtree(path);
+    throw error;
+  }
 }
 
 export async function getAppConfigFilePath(filename: string): Promise<string> {

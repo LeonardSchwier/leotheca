@@ -7,12 +7,25 @@ import { createGraphLayoutCoordinator } from "./layoutCoordinator";
 import { computeZoomTransform, findNodeAtWorld, screenToWorld, type Transform } from "./transform";
 import "./graph.css";
 
+// A small, muted palette in the same earthy register as the app's own
+// --accent (see styles/theme.css), cycled through as new color groups are
+// added rather than picking a random hue, so a freshly-added group's color
+// is at least predictable and never clashes wildly with the ones before it.
 const COLOR_GROUP_PALETTE = ["#b3541e", "#3f6b4f", "#3f5a8a", "#8a6f1e", "#7a3f6f", "#2f7a7a"];
+// Matches workspace/Sidebar.tsx's own full-text-search debounce: without
+// it, every keystroke would reset the pan/zoom transform (see
+// layoutAndDraw below) and re-run the force-directed layout, which reads
+// as the view snapping around while the user is still typing.
 const FILTER_DEBOUNCE_MS = 200;
 
 interface GraphViewProps {
   onOpenFile: (path: string, name: string) => void;
   onClose: () => void;
+  /** The currently open note, if any. Enables the "This note" mode switch
+   * below the header, showing just this note and its direct neighbors
+   * instead of the whole workspace. Purely additive: omitting it (or no
+   * note being open) leaves the existing whole-workspace behavior
+   * unchanged, "Workspace" mode stays the default either way. */
   focusPath?: string;
 }
 
@@ -24,6 +37,11 @@ function noteName(path: string): string {
   return path.split("/").pop()?.replace(/\.md$/i, "") ?? path;
 }
 
+/** Every note that has at least one incoming or outgoing wikilink. A note
+ * with zero of either is a lone circle with its full filename floating in
+ * empty space once a vault has more than a handful of notes — real signal
+ * gets lost in noise, so these are hidden from the graph by default (the
+ * "Show all notes" toggle brings them back). */
 export function computeConnectedPaths(backlinksByPath: Map<string, string[]>): Set<string> {
   const connected = new Set<string>();
   for (const [target, sources] of backlinksByPath) {
@@ -34,12 +52,20 @@ export function computeConnectedPaths(backlinksByPath: Map<string, string[]>): S
   return connected;
 }
 
+/** `focusPath` plus every note directly connected to it, one hop either
+ * direction: notes that link to it (already available directly, as
+ * backlinksByPath's own entry for focusPath) and notes it links to
+ * (found by scanning for focusPath appearing as a source elsewhere,
+ * since backlinksByPath is keyed the other way around). Always includes
+ * focusPath itself, even with zero connections, so a note with no links
+ * yet still renders as a single node rather than an empty graph. */
 export function computeLocalGraph(
   focusPath: string,
   backlinksByPath: Map<string, string[]>,
 ): { nodes: Set<string>; edges: [string, string][] } {
   const nodes = new Set<string>([focusPath]);
   const edges: [string, string][] = [];
+
   for (const source of backlinksByPath.get(focusPath) ?? []) {
     nodes.add(source);
     edges.push([source, focusPath]);
@@ -51,9 +77,19 @@ export function computeLocalGraph(
       edges.push([focusPath, target]);
     }
   }
+
   return { nodes, edges };
 }
 
+/** Notes whose display name contains `query` (case-insensitive substring,
+ * the same semantics as this app's existing full-text search, see
+ * workspace/fileTreeStore.ts's runSearch), plus every edge whose two
+ * endpoints both survive that filter. An edge's two endpoints are only
+ * ever a subset of `nodePaths`, so filtering nodes first and then edges
+ * against the filtered set (rather than filtering both independently) is
+ * enough to keep them consistent. A blank (or whitespace-only) query
+ * matches everything, leaving the graph exactly as it was before this
+ * feature existed. */
 export function filterGraphByQuery(
   nodePaths: string[],
   edges: [string, string][],
@@ -66,6 +102,12 @@ export function filterGraphByQuery(
   return { nodes, edges: edges.filter(([a, b]) => nodeSet.has(a) && nodeSet.has(b)) };
 }
 
+/** The color `path`'s node should be drawn with: the first color group
+ * (in array order, first match wins, so a group's position in the array is
+ * its priority) whose query is a non-blank case-insensitive substring of
+ * the note's display name, or `fallback` otherwise. A group with a blank
+ * query never matches anything, so an empty "still being typed into" group
+ * can't accidentally recolor the entire graph. */
 export function colorForPath(path: string, groups: GraphColorGroup[], fallback: string): string {
   const name = noteName(path).toLowerCase();
   for (const group of groups) {
@@ -75,6 +117,10 @@ export function colorForPath(path: string, groups: GraphColorGroup[], fallback: 
   return fallback;
 }
 
+/** The single source of truth for "what does the graph show right now",
+ * shared by the imperative canvas layout pass and the render-time empty-
+ * state / node-count logic below, so the two can never drift apart on
+ * what counts as a visible node. */
 export function computeVisibleGraph(
   backlinksByPath: Map<string, string[]>,
   options: { isLocal: boolean; focusPath?: string; showAll: boolean; filterQuery: string },
@@ -88,6 +134,9 @@ export function computeVisibleGraph(
   } else {
     const connected = computeConnectedPaths(backlinksByPath);
     nodePaths = options.showAll ? Array.from(backlinksByPath.keys()) : Array.from(connected);
+    // An edge's two endpoints are always in `connected` by construction
+    // (that's exactly what makes them connected), so unlike nodePaths,
+    // edges never need filtering for the showAll === false case.
     edges = [];
     for (const [target, sources] of backlinksByPath) {
       for (const source of sources) edges.push([source, target]);
@@ -121,6 +170,9 @@ export function GraphView({ onOpenFile, onClose, focusPath }: GraphViewProps) {
   if (!layoutCoordinatorRef.current) layoutCoordinatorRef.current = createGraphLayoutCoordinator();
   const [showAll, setShowAll] = useState(false);
   const [mode, setMode] = useState<"workspace" | "local">("workspace");
+  // filterInput reflects every keystroke immediately (so the text box never
+  // feels laggy); filterQuery is the debounced value the graph is actually
+  // filtered by (see FILTER_DEBOUNCE_MS above).
   const [filterInput, setFilterInput] = useState("");
   const [filterQuery, setFilterQuery] = useState("");
   const filterTimerRef = useRef<ReturnType<typeof setTimeout>>();
@@ -141,17 +193,23 @@ export function GraphView({ onOpenFile, onClose, focusPath }: GraphViewProps) {
     filterTimerRef.current = setTimeout(() => setFilterQuery(value), FILTER_DEBOUNCE_MS);
   };
 
+  // Canvas rendering is imperative on purpose: it should never depend on
+  // Preact re-rendering the component to actually paint. A pan/zoom/resize
+  // just mutates the refs above and calls this directly.
   const draw = () => {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
     if (!canvas || !ctx) return;
+
     const { offsetX, offsetY, scale } = transformRef.current;
     ctx.save();
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = readCssVar("--bg-base", "#faf9f6");
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+
     ctx.translate(offsetX, offsetY);
     ctx.scale(scale, scale);
+
     ctx.strokeStyle = readCssVar("--border", "#ddd8ca");
     ctx.lineWidth = 1 / scale;
     for (const [a, b] of edgesRef.current) {
@@ -163,6 +221,7 @@ export function GraphView({ onOpenFile, onClose, focusPath }: GraphViewProps) {
       ctx.lineTo(pb.x, pb.y);
       ctx.stroke();
     }
+
     const nodeColor = readCssVar("--accent", "#6f5b3e");
     for (const [path, pos] of positionsRef.current) {
       ctx.fillStyle = colorForPath(path, colorGroups, nodeColor);
@@ -170,6 +229,7 @@ export function GraphView({ onOpenFile, onClose, focusPath }: GraphViewProps) {
       ctx.arc(pos.x, pos.y, 5 / scale, 0, Math.PI * 2);
       ctx.fill();
     }
+
     if (scale > 0.6) {
       ctx.fillStyle = readCssVar("--text-secondary", "#6b6656");
       ctx.font = `${12 / scale}px sans-serif`;
@@ -177,6 +237,7 @@ export function GraphView({ onOpenFile, onClose, focusPath }: GraphViewProps) {
         ctx.fillText(noteName(path), pos.x + 8 / scale, pos.y + 4 / scale);
       }
     }
+
     ctx.restore();
   };
 
@@ -191,11 +252,13 @@ export function GraphView({ onOpenFile, onClose, focusPath }: GraphViewProps) {
     const container = containerRef.current;
     const canvas = canvasRef.current;
     if (!container || !canvas) return;
+
     const width = container.clientWidth;
     const height = container.clientHeight;
     if (width === 0 || height === 0) return;
     canvas.width = width;
     canvas.height = height;
+
     const { backlinksByPath } = linkIndex.value;
     const { nodes, edges } = computeVisibleGraph(backlinksByPath, {
       isLocal,
@@ -219,6 +282,12 @@ export function GraphView({ onOpenFile, onClose, focusPath }: GraphViewProps) {
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
+
+    // A freshly-mounted full-screen overlay's container can report a
+    // zero-size layout box for a frame or two on some webviews, run once
+    // immediately for the common case, then keep watching so a resize (or
+    // a delayed first layout pass) still gets a correctly-sized canvas
+    // instead of a blank one.
     layoutAndDraw();
     const observer = new ResizeObserver(() => layoutAndDraw());
     observer.observe(container);
@@ -229,6 +298,10 @@ export function GraphView({ onOpenFile, onClose, focusPath }: GraphViewProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showAll, isLocal, focusPath, filterQuery]);
 
+  // A color-group edit changes only how existing nodes are painted, never
+  // which nodes are visible or where they sit, so this redraws in place
+  // rather than going through layoutAndDraw, which would also reset the
+  // pan/zoom transform back to identity on every color or query tweak.
   useEffect(() => {
     draw();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -242,6 +315,10 @@ export function GraphView({ onOpenFile, onClose, focusPath }: GraphViewProps) {
     const world = screenToWorld(clientX - rect.left, clientY - rect.top, transformRef.current);
     const node = findNodeAtWorld(world.x, world.y, positionsRef.current, scale, NODE_HIT_RADIUS);
     if (node) return node;
+    // Labels are painted beside the dot, so they need their own hit area.
+    // Approximate canvas text width deliberately errs on the generous side:
+    // opening a note is preferable to treating a visible label as empty pan
+    // space, and the height remains tightly bounded around the baseline.
     if (scale <= 0.6) return null;
     for (const [path, position] of positionsRef.current) {
       const label = noteName(path);
@@ -278,6 +355,7 @@ export function GraphView({ onOpenFile, onClose, focusPath }: GraphViewProps) {
   const handlePointerDown = (e: PointerEvent) => {
     canvasRef.current?.setPointerCapture(e.pointerId);
     activePointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
     if (activePointersRef.current.size === 2) {
       draggingRef.current = null;
       const pts = Array.from(activePointersRef.current.values());
@@ -291,6 +369,7 @@ export function GraphView({ onOpenFile, onClose, focusPath }: GraphViewProps) {
       };
       return;
     }
+
     const node = findNodeAt(e.clientX, e.clientY);
     if (node) {
       onOpenFile(node, noteName(node) + ".md");
@@ -300,7 +379,10 @@ export function GraphView({ onOpenFile, onClose, focusPath }: GraphViewProps) {
   };
 
   const handlePointerMove = (e: PointerEvent) => {
-    if (activePointersRef.current.has(e.pointerId)) activePointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (activePointersRef.current.has(e.pointerId)) {
+      activePointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    }
+
     if (activePointersRef.current.size === 2 && pinchStartRef.current) {
       const pts = Array.from(activePointersRef.current.values());
       const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y) || 1;
@@ -312,6 +394,7 @@ export function GraphView({ onOpenFile, onClose, focusPath }: GraphViewProps) {
       });
       return;
     }
+
     if (!draggingRef.current) return;
     const dx = e.clientX - draggingRef.current.x;
     const dy = e.clientY - draggingRef.current.y;
@@ -421,7 +504,11 @@ export function GraphView({ onOpenFile, onClose, focusPath }: GraphViewProps) {
                 value={group.query}
                 onInput={(e) => updateColorGroup(group.id, { query: (e.target as HTMLInputElement).value })}
               />
-              <button class="graph-color-group-remove" aria-label="Remove color group" onClick={() => removeColorGroup(group.id)}>
+              <button
+                class="graph-color-group-remove"
+                aria-label="Remove color group"
+                onClick={() => removeColorGroup(group.id)}
+              >
                 ×
               </button>
             </div>

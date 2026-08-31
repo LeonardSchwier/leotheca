@@ -13,7 +13,7 @@ import {
   trashPath,
   writeTextFile,
 } from "./tauriBridge";
-import { updateWorkspaceSettings, workspaceSettings } from "../settings/store";
+import { updateWorkspaceSettings, workspaceSession, workspaceSettings } from "../settings/store";
 import { linkIndex } from "../linking/store";
 import { matchesSearchQuery, parseSearchQuery } from "./searchQuery";
 import { mapWithConcurrency } from "./concurrency";
@@ -35,10 +35,38 @@ export const searchQuery = signal("");
 export const searchResults = signal<FsEntry[] | null>(null);
 export const searchInProgress = signal(false);
 
+// Search state is shared by every sidebar instance, while each search has
+// asynchronous enumeration and (often) asynchronous content batches. A
+// monotonically increasing request generation makes the newest user intent
+// authoritative. The workspace session is captured separately because all
+// Android SAF folders intentionally share the synthetic `/workspace` path;
+// a path comparison therefore cannot tell two grants apart.
+let searchGeneration = 0;
+interface SearchAuthority {
+  generation: number;
+  workspaceSession: number;
+}
+
+function beginSearchAuthority(): SearchAuthority {
+  return { generation: ++searchGeneration, workspaceSession: workspaceSession.value };
+}
+
+function isCurrentSearch(authority: SearchAuthority): boolean {
+  return authority.generation === searchGeneration && authority.workspaceSession === workspaceSession.value;
+}
+
+function invalidateSearchAuthority(): void {
+  searchGeneration++;
+}
+
 export const contextMenuTarget = signal<FsEntry | null>(null);
 export const contextMenuPos = signal<{ x: number; y: number }>({ x: 0, y: 0 });
 
 export function resetWorkspaceTree(): void {
+  // A workspace transition owns the visible empty search state from this
+  // point onward. Any enumeration or content batch started by the outgoing
+  // workspace may finish, but it must never republish into the new session.
+  invalidateSearchAuthority();
   expandedDirs.value = new Set();
   dirChildren.value = new Map();
   selectedDir.value = null;
@@ -355,8 +383,10 @@ const CONSERVATIVE_UNKNOWN_SIZE = 4 * 1024 * 1024;
  * below) is what makes multiple requests actually land in the same tick,
  * rather than one at a time. Scoped fresh per runSearch call (not
  * module-level) so two searches in flight at once can never mix their
- * batches. */
-function createBatchedContentReader() {
+ * batches. The current-authority predicate is checked both before a read
+ * is queued and after every native batch returns, so stale batches can
+ * finish safely without contributing data to an obsolete search. */
+function createBatchedContentReader(isCurrent: () => boolean) {
   let pending = new Map<string, Array<(content: string | null) => void>>();
   let pendingBytes = 0;
   let flushScheduled = false;
@@ -374,20 +404,31 @@ function createBatchedContentReader() {
     pendingBytes = 0;
     const paths = Array.from(batch.keys());
     if (paths.length === 0) return;
+    if (!isCurrent()) {
+      paths.forEach((path) => {
+        for (const resolve of batch.get(path) ?? []) resolve(null);
+      });
+      return;
+    }
     let contents: (string | null)[];
     try {
       contents = await readTextFilesBatch(paths);
     } catch {
       contents = paths.map(() => null); // Whole batch unreadable: treat every entry as no content, not a search failure.
     }
+    const stillCurrent = isCurrent();
     paths.forEach((path, i) => {
-      const content = contents[i] ?? null;
+      const content = stillCurrent ? contents[i] ?? null : null;
       for (const resolve of batch.get(path) ?? []) resolve(content);
     });
   }
 
   return function readOne(path: string, size: number): Promise<string | null> {
     return new Promise((resolve) => {
+      if (!isCurrent()) {
+        resolve(null);
+        return;
+      }
       // Flush *before* adding if the pending batch already has content and
       // adding this file's size would cross the batch cap. This prevents
       // any single native call from overshooting SEARCH_BATCH_MAX_BYTES:
@@ -437,73 +478,85 @@ const SEARCH_CONTENT_READ_CONCURRENCY = 40;
  * tag/path-only query, or a query a note's name alone already satisfies,
  * never reads that file at all.
  *
- * The file list itself comes from one native recursive walk (findAllFiles)
- * rather than this function recursing via repeated listDir calls, one per
- * directory: that per-directory approach used to run this exact walk here,
- * and on a real ~500-note SAF-backed vault it didn't just run slowly, it
- * crashed the app outright with an OutOfMemoryError partway through
- * (confirmed on-device, 2026-08-28), the same per-directory-IPC-call cost
- * already measured and fixed for the link index and workspace stats (see
- * findAllFiles's own doc comment). Matching itself runs with bounded
- * concurrency (see SEARCH_CONTENT_READ_CONCURRENCY above) rather than one
- * entry at a time, both for speed and because a genuinely large vault's
- * worth of content-fallback matching, run one call at a time, hit that
- * same class of crash again even after the walk itself was fixed (see
- * createBatchedContentReader above). A file above MAX_SEARCHABLE_FILE_BYTES
- * is treated like an image, matchable by name but never read for content:
- * even alone, a file that large risks the same kind of single-allocation
- * failure a same-size batch hit.
+ * Every request captures both a monotonically increasing request generation
+ * and the workspace session. Authority is rechecked after enumeration,
+ * around content batching, after matching, before result publication, and
+ * in finally cleanup. This is deliberately stronger than comparing
+ * rootPath: Android grants all use `/workspace`, so a same-path new grant
+ * is a different authority lifetime even though the display path is equal.
  */
 export async function runSearch(rootPath: string, query: string) {
+  const authority = beginSearchAuthority();
+  const isCurrent = () => isCurrentSearch(authority);
   searchQuery.value = query;
   const parsed = parseSearchQuery(query);
   if (parsed.length === 0) {
-    searchResults.value = null;
+    if (isCurrent()) {
+      searchResults.value = null;
+      searchInProgress.value = false;
+    }
     return;
   }
   searchInProgress.value = true;
   try {
-  const entries = await findAllFiles(rootPath);
-  const readContent = createBatchedContentReader();
-  const matchFlags = await mapWithConcurrency(entries, SEARCH_CONTENT_READ_CONCURRENCY, async (entry) => {
-    let contentPromise: Promise<string | null> | null = null;
-    // Files that are images, excessively large, or not text are never read
-    // for content matching.  Non-text files (PDFs, videos, compressed
-    // archives, binaries…) are skipped here so they never reach the native
-    // side's string serialization, which on Android replaces invalid UTF-8
-    // rather than rejecting it (per FolderAccessPlugin.java's
-    // readOneFileOrNull) and on Rust wastes IPC and memory on a file that
-    // was never meant to be searched.  The 50 MB cap is a second safety
-    // net: even a single-text-file batch could hit the native heap ceiling.
-    const fileIsReadableForContent =
-      !isImagePath(entry.path) && isTextFile(entry.path) && (entry.size ?? CONSERVATIVE_UNKNOWN_SIZE) <= MAX_SEARCHABLE_FILE_BYTES;
-    // When the native walk doesn't report a size, assume CONSERVATIVE_UNKNOWN_SIZE
-    // bytes so the file still triggers a batch flush (it won't blend into a
-    // zero-size batch with a hundred tiny notes), but don't read the file if
-    // it is actually larger than MAX_SEARCHABLE_FILE_BYTES.
-    const fileByteSize = entry.size ?? CONSERVATIVE_UNKNOWN_SIZE;
-    const getContentLower = () => {
-      if (!contentPromise) {
-        contentPromise = fileIsReadableForContent
-          ? readContent(entry.path, fileByteSize).then((content) => content?.toLowerCase() ?? null)
-          : Promise.resolve(null);
-      }
-      return contentPromise;
-    };
-    return matchesSearchQuery(parsed, {
-      nameLower: entry.name.toLowerCase(),
-      pathLower: relativePath(rootPath, entry.path).toLowerCase(),
-      tagsLower: linkIndex.value.tagsByPath.get(entry.path) ?? [],
-      getContentLower,
-    });
-  });
-  searchResults.value = entries.filter((_, i) => matchFlags[i]);
-  } finally { searchInProgress.value = false; }
+    const entries = await findAllFiles(rootPath);
+    if (!isCurrent()) return;
+    const readContent = createBatchedContentReader(isCurrent);
+    const matchFlags = await mapWithConcurrency(
+      entries,
+      SEARCH_CONTENT_READ_CONCURRENCY,
+      async (entry) => {
+        if (!isCurrent()) return false;
+        let contentPromise: Promise<string | null> | null = null;
+        // Files that are images, excessively large, or not text are never read
+        // for content matching. Non-text files (PDFs, videos, compressed
+        // archives, binaries…) are skipped here so they never reach the native
+        // side's string serialization, which on Android replaces invalid UTF-8
+        // rather than rejecting it (per FolderAccessPlugin.java's
+        // readOneFileOrNull) and on Rust wastes IPC and memory on a file that
+        // was never meant to be searched. The 50 MB cap is a second safety
+        // net: even a single-text-file batch could hit the native heap ceiling.
+        const fileIsReadableForContent =
+          !isImagePath(entry.path) &&
+          isTextFile(entry.path) &&
+          (entry.size ?? CONSERVATIVE_UNKNOWN_SIZE) <= MAX_SEARCHABLE_FILE_BYTES;
+        // When the native walk doesn't report a size, assume CONSERVATIVE_UNKNOWN_SIZE
+        // bytes so the file still triggers a batch flush (it won't blend into a
+        // zero-size batch with a hundred tiny notes), but don't read the file if
+        // it is actually larger than MAX_SEARCHABLE_FILE_BYTES.
+        const fileByteSize = entry.size ?? CONSERVATIVE_UNKNOWN_SIZE;
+        const getContentLower = () => {
+          if (!isCurrent()) return Promise.resolve(null);
+          if (!contentPromise) {
+            contentPromise = fileIsReadableForContent
+              ? readContent(entry.path, fileByteSize).then((content) =>
+                  isCurrent() ? content?.toLowerCase() ?? null : null,
+                )
+              : Promise.resolve(null);
+          }
+          return contentPromise;
+        };
+        const matched = await matchesSearchQuery(parsed, {
+          nameLower: entry.name.toLowerCase(),
+          pathLower: relativePath(rootPath, entry.path).toLowerCase(),
+          tagsLower: linkIndex.value.tagsByPath.get(entry.path) ?? [],
+          getContentLower,
+        });
+        return isCurrent() && matched;
+      },
+    );
+    if (!isCurrent()) return;
+    searchResults.value = entries.filter((_, i) => matchFlags[i]);
+  } finally {
+    if (isCurrent()) searchInProgress.value = false;
+  }
 }
 
 export function clearSearch() {
+  invalidateSearchAuthority();
   searchQuery.value = "";
   searchResults.value = null;
+  searchInProgress.value = false;
 }
 
 export async function renameEntry(oldPath: string, newName: string): Promise<string> {

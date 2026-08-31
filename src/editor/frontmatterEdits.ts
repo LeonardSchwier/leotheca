@@ -166,8 +166,6 @@ function quoteDouble(value: string): string {
 function serializeScalar(value: string, style: ScalarStyle): string {
   if (style === "double") return quoteDouble(value);
   if (style === "single") return `'${value.replace(/'/g, "''")}'`;
-  // Keep booleans, numbers, timestamps, and other safe plain scalars plain.
-  // Fall back to quoting when the edited text would acquire YAML syntax.
   if (value !== "" && !/^[-?:,\[\]{}#&*!|>'"%@`]|:\s|\s#|[\r\n]/.test(value)) return value;
   return quoteDouble(value);
 }
@@ -198,12 +196,13 @@ export function parseFrontmatterProperties(source: string): ParsedFrontmatterPro
     const key = match[1];
     const colon = line.text.indexOf(":");
     const afterColon = line.text.slice(colon + 1);
-    const leading = afterColon.length - afterColon.trimStart().length;
     const commentAt = inlineCommentStart(afterColon);
     const beforeComment = commentAt >= 0 ? afterColon.slice(0, commentAt) : afterColon;
-    const rawValue = beforeComment.trimEnd();
+    const trimmedEnd = beforeComment.trimEnd();
+    const leading = trimmedEnd.length - trimmedEnd.trimStart().length;
+    const rawValue = trimmedEnd.trimStart();
     const valueStart = line.start + colon + 1 + leading;
-    const valueEnd = line.start + colon + 1 + rawValue.length;
+    const valueEnd = valueStart + rawValue.length;
 
     if (rawValue === "") {
       let j = i + 1;

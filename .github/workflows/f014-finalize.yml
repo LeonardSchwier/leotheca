@@ -1,0 +1,70 @@
+name: F-014 repository finalizer
+
+on:
+  push:
+    branches:
+      - agent/f-014-validation-gate
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    if: github.event.head_commit.message == 'Add F-014 repository finalizer'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/f-014-validation-gate
+      - name: Record completed validation gate
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          roadmap = Path('ROADMAP.md')
+          text = roadmap.read_text()
+          lines = text.splitlines()
+          prefix = '- 🚧 **Audit follow-up F-014: Make one same-commit validation gate authoritative**'
+          matches = [i for i, line in enumerate(lines) if line.startswith(prefix)]
+          if len(matches) != 1:
+              raise SystemExit(f'expected one F-014 roadmap entry, found {len(matches)}')
+          del lines[matches[0]]
+          completed = (
+              '- ✅ **Audit follow-up F-014: Make one same-commit validation gate authoritative**: '
+              '`.github/workflows/ci.yml` is now the reusable canonical validation contract for an exact commit, requiring '
+              'TypeScript checking/lint/tests/build, Rust formatting/Clippy-with-warnings-denied/tests/check, Android JVM '
+              'tests and debug APK build plus emulator installation, and an AppImage build/extract/headless-launch smoke. '
+              '`.github/workflows/release.yml` calls that workflow for the same commit and publication requires its aggregate '
+              '`validation` result; the `always()` aggregate fails skipped, cancelled, or red required jobs. Integration run '
+              '`33408590042` on the current-main implementation head passed every required job after the new gate exposed and '
+              'fixed one pre-existing frontend lint defect plus a Java-source-level incompatibility in the widget resource '
+              'contract test. Emulator installation is not physical Android-device verification, and no physical-device '
+              'confirmation is claimed.'
+          )
+          marker = lines.index('## Implemented') + 1
+          while marker < len(lines) and lines[marker] == '':
+              marker += 1
+          lines.insert(marker, completed)
+          roadmap.write_text('\n'.join(lines) + '\n')
+
+          log = Path('agent-log/CHANGELOG.md')
+          log_text = log.read_text()
+          marker = '---\n\n'
+          if marker not in log_text:
+              raise SystemExit('agent log insertion marker missing')
+          entry = '''## 2026-08-31: ChatGPT (GPT-5.6 Sol), authoritative same-commit validation (F-014)
+
+Ran the repository-wide integration pass first. F-Droid PR #18 remains intentionally blocked on the required real external submission, and Flathub PR #19 remains blocked on its strict standalone submission build. PR #24's workspace-transition implementation was reviewed but remains draft because its diff contains unrelated explanatory-comment deletions and still needs current-main reconciliation, authoritative architecture/status/log updates, and a fresh exact-head gate.
+
+Reconciled F-014 PR #25 with current `main` using an ordinary two-parent merge and preserved newer architecture documentation. The newly-authoritative validation gate then surfaced two real integration defects that the older partial CI contract had missed: ESLint rejected the newer graph-layout coordinator test's unnecessary mutable declaration, and the Android JVM widget resource test used Java 11 `Files.readString`/`Path.of` APIs despite the Android module's older source compatibility. Fixed both narrowly, without altering the underlying product behavior.
+
+Canonical CI run `33408590042` on implementation head `92949d59` passed frontend typecheck/lint/tests/build, Rust formatting/Clippy with warnings denied/tests/check, Android JVM tests/debug APK build plus emulator installation, AppImage build/extraction/headless launch, and the aggregate `validation` job that rejects any skipped, cancelled, or red prerequisite. The emulator proves installability only; no physical Android-device, SAF-picker, touch, or large-vault verification is claimed.
+'''
+          log.write_text(log_text.replace(marker, marker + entry + '\n', 1))
+          PY
+          git config user.name "ChatGPT automation"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/f014-finalize.yml
+          git add ROADMAP.md agent-log/CHANGELOG.md
+          git commit -m "Finalize F-014 validation gate"
+          git push origin HEAD:agent/f-014-validation-gate

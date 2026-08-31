@@ -1,22 +1,22 @@
 import { useState } from "preact/hooks";
 import {
-  applyFrontmatterFields,
-  parseFrontmatterFields,
-  type FrontmatterField,
-} from "../linking/frontmatter";
+  addFrontmatterProperty,
+  parseFrontmatterProperties,
+  removeFrontmatterProperty,
+  updateFrontmatterProperty,
+  type EditableListProperty,
+  type EditableScalarProperty,
+} from "./frontmatterEdits";
 import "./frontmatterProperties.css";
 
 export interface FrontmatterPropertiesPanelProps {
   source: string;
   onChange: (newSource: string) => void;
   /** WorkspaceSettings.frontmatterPropertiesEnabled; when false, renders
-   * nothing, the note's frontmatter is edited as raw text same as before
-   * this feature existed. */
+   * nothing and the note's frontmatter is edited as raw text. */
   enabled: boolean;
 }
 
-// Matches frontmatter.ts's own TOP_LEVEL_KEY grammar, so a key typed here
-// is always one parseFrontmatterFields can read back correctly.
 const INVALID_KEY_CHARS = /[^A-Za-z0-9_.-]/g;
 
 function splitList(value: string): string[] {
@@ -27,16 +27,12 @@ function splitList(value: string): string[] {
 }
 
 /**
- * A generic "Properties" panel above the editor: every scalar or flat-
- * list frontmatter field (see linking/frontmatter.ts) as a plain label
- * plus a single free-text value input, with add/remove. Deliberately not
- * a type-specific editor (no date picker, no checkbox, no per-type
- * dropdown the way the wider note-taking ecosystem's own Properties view
- * has) and not a full YAML editor: every value is a string or a flat,
- * comma-joined list of strings, matching exactly what
- * parseFrontmatterFields can safely parse back. Frontmatter content the
- * parser doesn't understand (a nested map, a comment) is never shown
- * here, but is preserved untouched on disk, see applyFrontmatterFields.
+ * A deliberately small Properties view for safe top-level frontmatter.
+ * Simple scalar and list values are editable. Structures the lightweight
+ * parser cannot edit without risking a lossy rewrite stay visible but
+ * read-only. Every edit is applied to that property's original source
+ * range, so unrelated comments, ordering, quoting, line endings, and
+ * unsupported YAML remain byte-for-byte unchanged.
  */
 export function FrontmatterPropertiesPanel({
   source,
@@ -48,22 +44,18 @@ export function FrontmatterPropertiesPanel({
 
   if (!enabled) return null;
 
-  const { fields, rawLines } = parseFrontmatterFields(source);
+  const { properties } = parseFrontmatterProperties(source);
 
-  const commit = (nextFields: FrontmatterField[]) => {
-    onChange(applyFrontmatterFields(source, nextFields, rawLines));
-  };
-
-  const updateValue = (index: number, raw: string) => {
-    const field = fields[index];
-    const next = [...fields];
-    next[index] =
-      field.kind === "list" ? { ...field, value: splitList(raw) } : { ...field, value: raw };
-    commit(next);
+  const updateValue = (
+    property: EditableScalarProperty | EditableListProperty,
+    raw: string,
+  ) => {
+    const value = property.kind === "list" ? splitList(raw) : raw;
+    onChange(updateFrontmatterProperty(source, property, value));
   };
 
   const removeField = (index: number) => {
-    commit(fields.filter((_, i) => i !== index));
+    onChange(removeFrontmatterProperty(source, properties[index]));
   };
 
   const cancelAdd = () => {
@@ -73,13 +65,13 @@ export function FrontmatterPropertiesPanel({
 
   const confirmAdd = () => {
     const key = newKey.trim().replace(INVALID_KEY_CHARS, "-");
-    if (key && !fields.some((f) => f.key === key)) {
-      commit([...fields, { kind: "scalar", key, value: "" }]);
+    if (key && !properties.some((property) => property.key === key)) {
+      onChange(addFrontmatterProperty(source, key));
     }
     cancelAdd();
   };
 
-  if (fields.length === 0 && !adding) {
+  if (properties.length === 0 && !adding) {
     return (
       <div class="frontmatter-properties frontmatter-properties-empty">
         <button class="frontmatter-add-button" onClick={() => setAdding(true)}>
@@ -91,27 +83,37 @@ export function FrontmatterPropertiesPanel({
 
   return (
     <div class="frontmatter-properties">
-      {fields.map((field, index) => (
-        <div class="frontmatter-row" key={field.key}>
-          <span class="frontmatter-key">{field.key}</span>
-          <input
-            class="frontmatter-value"
-            type="text"
-            // A list value is edited as a single comma-joined string, and
-            // re-split on every keystroke (see splitList above), which
-            // can visibly renormalize spacing (e.g. "a,b" -> "a, b") mid-
-            // typing. A known, minor rough edge, not a data-loss risk:
-            // the underlying fields array is never corrupted by it.
-            value={field.kind === "list" ? field.value.join(", ") : field.value}
-            onInput={(e) => updateValue(index, (e.target as HTMLInputElement).value)}
-          />
-          <button
-            class="frontmatter-remove"
-            aria-label={`Remove ${field.key}`}
-            onClick={() => removeField(index)}
-          >
-            ×
-          </button>
+      {properties.map((property, index) => (
+        <div class="frontmatter-row" key={`${property.key}-${index}`}>
+          <span class="frontmatter-key">{property.key}</span>
+          {property.editable ? (
+            <input
+              class="frontmatter-value"
+              type="text"
+              value={property.kind === "list" ? property.value.join(", ") : property.value}
+              onInput={(event) =>
+                updateValue(property, (event.target as HTMLInputElement).value)
+              }
+            />
+          ) : (
+            <input
+              class="frontmatter-value"
+              type="text"
+              value={property.value}
+              readOnly
+              aria-label={`${property.key} read only`}
+              title="This property is preserved as raw frontmatter and can be edited in Source view."
+            />
+          )}
+          {property.editable ? (
+            <button
+              class="frontmatter-remove"
+              aria-label={`Remove ${property.key}`}
+              onClick={() => removeField(index)}
+            >
+              ×
+            </button>
+          ) : null}
         </div>
       ))}
       {adding ? (
@@ -121,10 +123,10 @@ export function FrontmatterPropertiesPanel({
             type="text"
             placeholder="Property name"
             value={newKey}
-            onInput={(e) => setNewKey((e.target as HTMLInputElement).value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") confirmAdd();
-              if (e.key === "Escape") cancelAdd();
+            onInput={(event) => setNewKey((event.target as HTMLInputElement).value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") confirmAdd();
+              if (event.key === "Escape") cancelAdd();
             }}
           />
           <button class="frontmatter-add-confirm" onClick={confirmAdd}>

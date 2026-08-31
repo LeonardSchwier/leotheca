@@ -148,7 +148,7 @@ describe("FrontmatterPropertiesPanel", () => {
     expect(queryByPlaceholderText("Property name")).toBeNull();
   });
 
-  it("editing a field leaves frontmatter content the panel doesn't understand untouched", () => {
+  it("editing a field leaves unsupported content in its original position", () => {
     const onChange = vi.fn();
     const source = '---\ncustom:\n  nested: value\ntitle: "Old"\n---\n\nBody.';
     const { getByDisplayValue } = render(
@@ -156,7 +156,18 @@ describe("FrontmatterPropertiesPanel", () => {
     );
     fireEvent.input(getByDisplayValue("Old"), { target: { value: "New" } });
     expect(onChange).toHaveBeenCalledWith(
-      '---\ntitle: "New"\ncustom:\n  nested: value\n---\n\nBody.',
+      '---\ncustom:\n  nested: value\ntitle: "New"\n---\n\nBody.',
     );
+  });
+
+  it("renders complex valid values read-only instead of normalizing them", () => {
+    const source = '---\naliases: ["Last, First", Simple]\nsummary: |\n  first\n  second\n---\n';
+    const { getByLabelText, queryByLabelText } = render(
+      <FrontmatterPropertiesPanel source={source} onChange={vi.fn()} enabled />,
+    );
+    expect((getByLabelText("aliases read only") as HTMLInputElement).readOnly).toBe(true);
+    expect((getByLabelText("summary read only") as HTMLInputElement).readOnly).toBe(true);
+    expect(queryByLabelText("Remove aliases")).toBeNull();
+    expect(queryByLabelText("Remove summary")).toBeNull();
   });
 });

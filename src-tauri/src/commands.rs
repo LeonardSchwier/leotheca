@@ -67,7 +67,11 @@ fn path_to_string(path: &Path) -> String {
 /// only runs `cargo test` on Linux, see `.github/workflows/ci.yml`'s
 /// `backend` job).
 fn normalize_separators_for_platform(path: String, is_windows: bool) -> String {
-    if is_windows { path.replace('\\', "/") } else { path }
+    if is_windows {
+        path.replace('\\', "/")
+    } else {
+        path
+    }
 }
 
 fn is_image_path(path: &Path) -> bool {
@@ -144,23 +148,17 @@ const MAX_WALK_DEPTH: usize = 40;
 /// workspace trash do not appear in the user's note statistics.
 #[tauri::command]
 pub fn workspace_stats(path: String) -> Result<WorkspaceStats, String> {
-    let mut folder_count = 0;
-    let mut note_count = 0;
-    let mut image_count = 0;
-    let mut total_note_lines = 0;
-    let mut oldest_note_date = None;
-    let mut newest_note_date = None;
+    #[derive(Default)]
+    struct Accumulator {
+        folder_count: usize,
+        note_count: usize,
+        image_count: usize,
+        total_note_lines: usize,
+        oldest_note_date: Option<u64>,
+        newest_note_date: Option<u64>,
+    }
 
-    fn walk(
-        path: &Path,
-        depth: usize,
-        folder_count: &mut usize,
-        note_count: &mut usize,
-        image_count: &mut usize,
-        total_note_lines: &mut usize,
-        oldest_note_date: &mut Option<u64>,
-        newest_note_date: &mut Option<u64>,
-    ) -> Result<(), String> {
+    fn walk(path: &Path, depth: usize, stats: &mut Accumulator) -> Result<(), String> {
         for entry in fs::read_dir(path).map_err(|error| error.to_string())? {
             let entry = entry.map_err(|error| error.to_string())?;
             let entry_path = entry.path();
@@ -170,68 +168,57 @@ pub fn workspace_stats(path: String) -> Result<WorkspaceStats, String> {
             }
 
             if entry_path.is_dir() {
-                *folder_count += 1;
+                stats.folder_count += 1;
                 if depth < MAX_WALK_DEPTH {
-                    walk(
-                        &entry_path,
-                        depth + 1,
-                        folder_count,
-                        note_count,
-                        image_count,
-                        total_note_lines,
-                        oldest_note_date,
-                        newest_note_date,
-                    )?;
+                    walk(&entry_path, depth + 1, stats)?;
                 }
             } else if entry_path
                 .extension()
                 .and_then(|extension| extension.to_str())
                 .is_some_and(|extension| extension.eq_ignore_ascii_case("md"))
             {
-                *note_count += 1;
+                stats.note_count += 1;
                 // A single unreadable note (permission denied, invalid
                 // UTF-8, ...) shouldn't take down the whole statistics
                 // computation; skip its content, don't abort. It still
                 // counts as a note, same principle runSearch already
                 // follows on the frontend for the same class of failure.
                 if let Ok(contents) = fs::read_to_string(&entry_path) {
-                    *total_note_lines += contents.lines().count();
+                    stats.total_note_lines += contents.lines().count();
                 }
                 if let Some(timestamp) = note_timestamp(&entry_path) {
-                    *oldest_note_date =
-                        Some(oldest_note_date.map_or(timestamp, |oldest| oldest.min(timestamp)));
-                    *newest_note_date =
-                        Some(newest_note_date.map_or(timestamp, |newest| newest.max(timestamp)));
+                    stats.oldest_note_date = Some(
+                        stats
+                            .oldest_note_date
+                            .map_or(timestamp, |oldest| oldest.min(timestamp)),
+                    );
+                    stats.newest_note_date = Some(
+                        stats
+                            .newest_note_date
+                            .map_or(timestamp, |newest| newest.max(timestamp)),
+                    );
                 }
             } else if is_image_path(&entry_path) {
-                *image_count += 1;
+                stats.image_count += 1;
             }
         }
         Ok(())
     }
 
-    walk(
-        Path::new(&path),
-        0,
-        &mut folder_count,
-        &mut note_count,
-        &mut image_count,
-        &mut total_note_lines,
-        &mut oldest_note_date,
-        &mut newest_note_date,
-    )?;
+    let mut stats = Accumulator::default();
+    walk(Path::new(&path), 0, &mut stats)?;
 
     Ok(WorkspaceStats {
-        folder_count,
-        note_count,
-        image_count,
-        average_lines_per_note: if note_count == 0 {
+        folder_count: stats.folder_count,
+        note_count: stats.note_count,
+        image_count: stats.image_count,
+        average_lines_per_note: if stats.note_count == 0 {
             0.0
         } else {
-            total_note_lines as f64 / note_count as f64
+            stats.total_note_lines as f64 / stats.note_count as f64
         },
-        oldest_note_date,
-        newest_note_date,
+        oldest_note_date: stats.oldest_note_date,
+        newest_note_date: stats.newest_note_date,
     })
 }
 
@@ -363,7 +350,11 @@ pub fn find_all_entries(path: String) -> Result<Vec<FsEntry>, String> {
             }
 
             let is_dir = entry_path.is_dir();
-            let mtime = if is_dir { None } else { entry_mtime_ms(&entry_path) };
+            let mtime = if is_dir {
+                None
+            } else {
+                entry_mtime_ms(&entry_path)
+            };
             entries.push(FsEntry {
                 name: name_str,
                 path: path_to_string(&entry_path),
@@ -403,7 +394,11 @@ pub fn list_dir(path: String) -> Result<Vec<FsEntry>, String> {
         }
         let entry_path = entry.path();
         let is_dir = entry_path.is_dir();
-        let mtime = if is_dir { None } else { entry_mtime_ms(&entry_path) };
+        let mtime = if is_dir {
+            None
+        } else {
+            entry_mtime_ms(&entry_path)
+        };
         let fs_entry = FsEntry {
             name,
             path: path_to_string(&entry_path),
@@ -418,8 +413,8 @@ pub fn list_dir(path: String) -> Result<Vec<FsEntry>, String> {
         }
     }
 
-    dirs.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
-    files.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+    dirs.sort_by_key(|entry| entry.name.to_lowercase());
+    files.sort_by_key(|entry| entry.name.to_lowercase());
     dirs.extend(files);
     Ok(dirs)
 }
@@ -446,7 +441,10 @@ pub fn read_text_file(path: String) -> Result<String, String> {
 /// just centralized here.
 #[tauri::command]
 pub fn read_text_files_batch(paths: Vec<String>) -> Vec<Option<String>> {
-    paths.iter().map(|path| fs::read_to_string(path).ok()).collect()
+    paths
+        .iter()
+        .map(|path| fs::read_to_string(path).ok())
+        .collect()
 }
 
 /// Writes `contents` to `path`, creating any missing parent directories
@@ -622,7 +620,8 @@ mod tests {
 
     #[test]
     fn read_text_files_batch_reads_every_file_and_maps_a_missing_one_to_none() {
-        let root = std::env::temp_dir().join(format!("leotheca-test-batchread-{}", std::process::id()));
+        let root =
+            std::env::temp_dir().join(format!("leotheca-test-batchread-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
         create_dir(root.to_string_lossy().to_string()).unwrap();
         fs::write(root.join("a.md"), "content a").unwrap();
@@ -637,7 +636,11 @@ mod tests {
 
         assert_eq!(
             results,
-            vec![Some("content a".to_string()), None, Some("content b".to_string())],
+            vec![
+                Some("content a".to_string()),
+                None,
+                Some("content b".to_string())
+            ],
             "one missing file yields None in its own position, not a failure for the whole batch"
         );
         fs::remove_dir_all(&root).unwrap();
@@ -671,8 +674,10 @@ mod tests {
 
     #[test]
     fn write_binary_file_creates_missing_parent_directories() {
-        let base = std::env::temp_dir()
-            .join(format!("leotheca-test-binfile-mkdirp-{}", std::process::id()));
+        let base = std::env::temp_dir().join(format!(
+            "leotheca-test-binfile-mkdirp-{}",
+            std::process::id()
+        ));
         let _ = fs::remove_dir_all(&base);
         let nested = base.join("attachments").join("pasted.png");
 
@@ -684,8 +689,10 @@ mod tests {
 
     #[test]
     fn write_binary_file_overwrites_an_existing_file() {
-        let tmp = std::env::temp_dir()
-            .join(format!("leotheca-test-binfile-overwrite-{}", std::process::id()));
+        let tmp = std::env::temp_dir().join(format!(
+            "leotheca-test-binfile-overwrite-{}",
+            std::process::id()
+        ));
         let path = tmp.to_string_lossy().to_string();
 
         write_binary_file(path.clone(), vec![1, 2, 3, 4, 5]).unwrap();
@@ -841,7 +848,10 @@ mod tests {
 
         let stats = workspace_stats(root.to_string_lossy().to_string()).unwrap();
 
-        assert_eq!(stats.note_count, 2, "the unreadable file still counts as a note");
+        assert_eq!(
+            stats.note_count, 2,
+            "the unreadable file still counts as a note"
+        );
         assert_eq!(
             stats.average_lines_per_note, 1.5,
             "3 lines from the readable file, averaged over both notes"
@@ -851,7 +861,8 @@ mod tests {
 
     #[test]
     fn find_markdown_files_collects_md_files_recursively_and_skips_others() {
-        let root = std::env::temp_dir().join(format!("leotheca-test-findmd-{}", std::process::id()));
+        let root =
+            std::env::temp_dir().join(format!("leotheca-test-findmd-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
         create_dir(root.join("notes").to_string_lossy().to_string()).unwrap();
         create_dir(root.join(".leotheca").to_string_lossy().to_string()).unwrap();
@@ -865,14 +876,19 @@ mod tests {
         let mut names: Vec<_> = files.iter().map(|f| f.name.clone()).collect();
         names.sort();
 
-        assert_eq!(names, vec!["a.md", "b.MD"], "only .md files outside hidden directories, case-insensitively");
+        assert_eq!(
+            names,
+            vec!["a.md", "b.MD"],
+            "only .md files outside hidden directories, case-insensitively"
+        );
         assert!(files.iter().all(|f| !f.is_dir));
         fs::remove_dir_all(&root).unwrap();
     }
 
     #[test]
     fn find_all_files_collects_every_extension_but_still_skips_hidden_entries() {
-        let root = std::env::temp_dir().join(format!("leotheca-test-findall-{}", std::process::id()));
+        let root =
+            std::env::temp_dir().join(format!("leotheca-test-findall-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
         create_dir(root.join("notes").to_string_lossy().to_string()).unwrap();
         create_dir(root.join(".leotheca").to_string_lossy().to_string()).unwrap();
@@ -897,7 +913,8 @@ mod tests {
 
     #[test]
     #[cfg(unix)]
-    fn find_all_files_stops_at_a_bounded_depth_instead_of_recursing_forever_through_a_symlink_cycle() {
+    fn find_all_files_stops_at_a_bounded_depth_instead_of_recursing_forever_through_a_symlink_cycle(
+    ) {
         // Same shape and reasoning as find_markdown_files's own symlink-cycle
         // test just above: this shares that function's walk logic and
         // MAX_WALK_DEPTH cap verbatim, minus the .md filter. The bound below
@@ -922,7 +939,10 @@ mod tests {
 
         let files = find_all_files(root.to_string_lossy().to_string()).unwrap();
 
-        assert!(!files.is_empty(), "the walk should have found a.md at least once");
+        assert!(
+            !files.is_empty(),
+            "the walk should have found a.md at least once"
+        );
         assert!(
             files.len() <= MAX_WALK_DEPTH + 2,
             "MAX_WALK_DEPTH should cap how many times a.md is rediscovered through the cycle \
@@ -940,7 +960,10 @@ mod tests {
         // nothing directly inside it (here, "empty") must still appear, so
         // fileTreeStore.ts's expandAll can expand it and know it has no
         // children, instead of silently never learning it exists.
-        let root = std::env::temp_dir().join(format!("leotheca-test-findallentries-{}", std::process::id()));
+        let root = std::env::temp_dir().join(format!(
+            "leotheca-test-findallentries-{}",
+            std::process::id()
+        ));
         let _ = fs::remove_dir_all(&root);
         create_dir(root.join("notes").to_string_lossy().to_string()).unwrap();
         create_dir(root.join("empty").to_string_lossy().to_string()).unwrap();
@@ -961,7 +984,10 @@ mod tests {
         );
         let empty_entry = entries.iter().find(|e| e.name == "empty").unwrap();
         assert!(empty_entry.is_dir);
-        assert!(empty_entry.mtime.is_none(), "mtime is only meaningful for files, same as list_dir");
+        assert!(
+            empty_entry.mtime.is_none(),
+            "mtime is only meaningful for files, same as list_dir"
+        );
         let notes_entry = entries.iter().find(|e| e.name == "notes").unwrap();
         assert!(notes_entry.is_dir);
         let a_entry = entries.iter().find(|e| e.name == "a.md").unwrap();
@@ -972,7 +998,8 @@ mod tests {
 
     #[test]
     #[cfg(unix)]
-    fn find_all_entries_stops_at_a_bounded_depth_instead_of_recursing_forever_through_a_symlink_cycle() {
+    fn find_all_entries_stops_at_a_bounded_depth_instead_of_recursing_forever_through_a_symlink_cycle(
+    ) {
         // Same shape and reasoning as find_all_files's own symlink-cycle
         // test above, adjusted for directory entries themselves now also
         // being collected (not just files found through them).
@@ -987,7 +1014,10 @@ mod tests {
 
         let entries = find_all_entries(root.to_string_lossy().to_string()).unwrap();
 
-        assert!(!entries.is_empty(), "the walk should have found a.md and loop at least once");
+        assert!(
+            !entries.is_empty(),
+            "the walk should have found a.md and loop at least once"
+        );
         assert!(
             entries.len() <= (MAX_WALK_DEPTH + 2) * 2,
             "MAX_WALK_DEPTH should cap how many times a.md and loop are rediscovered through the cycle \
@@ -1030,16 +1060,17 @@ mod tests {
             Some(12),
             "size should be the real byte length, for runSearch's content-read batching"
         );
-        assert!(files[0].mtime.is_some(), "size shouldn't come at the cost of losing mtime");
+        assert!(
+            files[0].mtime.is_some(),
+            "size shouldn't come at the cost of losing mtime"
+        );
         fs::remove_dir_all(&root).unwrap();
     }
 
     #[test]
     fn find_markdown_files_returns_an_empty_list_for_a_workspace_with_no_notes() {
-        let root = std::env::temp_dir().join(format!(
-            "leotheca-test-findmd-empty-{}",
-            std::process::id()
-        ));
+        let root =
+            std::env::temp_dir().join(format!("leotheca-test-findmd-empty-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
         create_dir(root.to_string_lossy().to_string()).unwrap();
         fs::write(root.join("not-a-note.txt"), "x").unwrap();
@@ -1052,17 +1083,16 @@ mod tests {
 
     #[test]
     #[cfg(unix)]
-    fn find_markdown_files_stops_at_a_bounded_depth_instead_of_recursing_forever_through_a_symlink_cycle() {
+    fn find_markdown_files_stops_at_a_bounded_depth_instead_of_recursing_forever_through_a_symlink_cycle(
+    ) {
         // Same shape as workspace_stats's own symlink-cycle test: a
         // directory symlinked back at itself. The main thing this proves is
         // that the call returns at all, in bounded work, instead of hanging
         // or crashing; see that test's own comment for why an exact count
         // isn't asserted (the OS's own ELOOP protection can independently
         // stop the walk at or below MAX_WALK_DEPTH).
-        let root = std::env::temp_dir().join(format!(
-            "leotheca-test-findmd-cycle-{}",
-            std::process::id()
-        ));
+        let root =
+            std::env::temp_dir().join(format!("leotheca-test-findmd-cycle-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
         create_dir(root.to_string_lossy().to_string()).unwrap();
         fs::write(root.join("a.md"), "a").unwrap();
@@ -1073,7 +1103,10 @@ mod tests {
         // "a.md" is rediscovered once per depth level the cycle revisits
         // (root's own content, seen again through each nested "loop"), so a
         // correct depth cap bounds the count instead of it growing forever.
-        assert!(!files.is_empty(), "the walk should have found a.md at least once");
+        assert!(
+            !files.is_empty(),
+            "the walk should have found a.md at least once"
+        );
         assert!(
             files.len() <= MAX_WALK_DEPTH + 1,
             "MAX_WALK_DEPTH should cap how many times a.md is rediscovered through the cycle, got {}",
@@ -1086,7 +1119,8 @@ mod tests {
 
     #[test]
     #[cfg(unix)]
-    fn workspace_stats_stops_at_a_bounded_depth_instead_of_recursing_forever_through_a_symlink_cycle() {
+    fn workspace_stats_stops_at_a_bounded_depth_instead_of_recursing_forever_through_a_symlink_cycle(
+    ) {
         // A directory symlinked back at itself is the simplest way to
         // reproduce a workspace symlink cycle (a directory symlinked back
         // to one of its own ancestors, see ROADMAP.md's "Symlink Cycle
@@ -1111,17 +1145,18 @@ mod tests {
         // macOS/Windows plans), while MAX_WALK_DEPTH is an explicit,
         // portable guarantee independent of any OS's symlink-resolution
         // quirks.
-        let root = std::env::temp_dir().join(format!(
-            "leotheca-test-stats-cycle-{}",
-            std::process::id()
-        ));
+        let root =
+            std::env::temp_dir().join(format!("leotheca-test-stats-cycle-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
         create_dir(root.to_string_lossy().to_string()).unwrap();
         std::os::unix::fs::symlink(&root, root.join("loop")).unwrap();
 
         let stats = workspace_stats(root.to_string_lossy().to_string()).unwrap();
 
-        assert!(stats.folder_count > 0, "the walk should have descended at least once");
+        assert!(
+            stats.folder_count > 0,
+            "the walk should have descended at least once"
+        );
         assert!(
             stats.folder_count <= MAX_WALK_DEPTH + 1,
             "MAX_WALK_DEPTH should cap this walk even if the OS's own symlink-loop \

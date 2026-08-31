@@ -166,7 +166,7 @@ function quoteDouble(value: string): string {
 function serializeScalar(value: string, style: ScalarStyle): string {
   if (style === "double") return quoteDouble(value);
   if (style === "single") return `'${value.replace(/'/g, "''")}'`;
-  if (value !== "" && !/^[-?:,\[\]{}#&*!|>'"%@`]|:\s|\s#|[\r\n]/.test(value)) return value;
+  if (value !== "" && !/^[-?:,[\]{}#&*!|>'"%@`]|:\s|\s#|[\r\n]/.test(value)) return value;
   return quoteDouble(value);
 }
 

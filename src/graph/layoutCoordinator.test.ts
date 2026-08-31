@@ -28,14 +28,13 @@ describe("graph layout request coordinator", () => {
 
   it("does not publish a result invalidated by a newer re-entrant request", async () => {
     const published: string[] = [];
-    let coordinator: ReturnType<typeof createGraphLayoutCoordinator>;
     const compute = vi.fn((nodes: string[]) => {
       if (nodes[0] === "old") {
         coordinator.request(request("new"), (result) => published.push([...result.keys()][0]));
       }
       return positions(nodes[0]);
     });
-    coordinator = createGraphLayoutCoordinator(compute);
+    const coordinator = createGraphLayoutCoordinator(compute);
 
     coordinator.request(request("old"), (result) => published.push([...result.keys()][0]));
     await Promise.resolve();

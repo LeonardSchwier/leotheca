@@ -361,7 +361,13 @@ export function createSaveCoordinator(cbs?: SaveCoordinatorCallbacks) {
   function debugEntries(): Array<{ key: string; entry: Omit<SaveEntry, "timer" | "writeDone"> }> {
     const result: Array<{ key: string; entry: Omit<SaveEntry, "timer" | "writeDone"> }> = [];
     for (const [key, entry] of entries) {
-      const { timer, writeDone, ...rest } = entry;
+      const rest: Omit<SaveEntry, "timer" | "writeDone"> = {
+        revision: entry.revision,
+        latestContent: entry.latestContent,
+        inFlight: entry.inFlight,
+        savedRevision: entry.savedRevision,
+        lastError: entry.lastError,
+      };
       result.push({ key, entry: rest });
     }
     return result;

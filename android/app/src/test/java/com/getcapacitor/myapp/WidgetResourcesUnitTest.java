@@ -4,13 +4,15 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.Path;
+import java.nio.file.Paths;
 import org.junit.Test;
 
 public class WidgetResourcesUnitTest {
     private static String source(String relativePath) throws IOException {
-        return Files.readString(Path.of("src/main", relativePath));
+        return new String(
+                Files.readAllBytes(Paths.get("src/main", relativePath)), StandardCharsets.UTF_8);
     }
 
     @Test

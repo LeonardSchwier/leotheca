@@ -15,12 +15,12 @@ name: Release
 #   see the publish job below, and is clearly labeled as an unreviewed
 #   continuous build, never mistaken for a stable, versioned release.
 #
-# Both channels publish as long as the linux and android build jobs
-# succeed, even if flatpak doesn't: flatpak currently fails on every run
-# (a pre-existing, already-documented npm-cache bug, see ROADMAP.md), and a
-# release with two of three artifacts is far more useful than no release
-# at all while that's unresolved. The release body says plainly when the
-# Flatpak bundle was left out for this reason.
+# Publication is gated by the reusable CI workflow for this exact commit.
+# The artifact build jobs below do not substitute for that validation: CI
+# must report its final validation job as successful before publish can run.
+# Linux and Android artifact builds are additionally required to succeed.
+# Flatpak, macOS, and Windows artifacts are included when their own build
+# jobs succeed; their absence is recorded in the release body.
 #
 # Status: Linux (AppImage) is a real, signed-by-nobody-needed build, no
 # secrets required. Android currently only produces a debug-signed APK
@@ -74,6 +74,9 @@ on:
   workflow_dispatch: {}
 
 jobs:
+  validation:
+    uses: ./.github/workflows/ci.yml
+
   linux:
     runs-on: ubuntu-latest
     steps:
@@ -199,18 +202,14 @@ jobs:
           path: leotheca.flatpak
 
   publish:
-    needs: [linux, android, flatpak, macos, windows]
+    needs: [validation, linux, android, flatpak, macos, windows]
     # Real push events only, never workflow_dispatch (a manual run has no
     # single unambiguous release identity to attach artifacts to, see the
-    # workflow_dispatch note above). Only linux and android are required to
-    # actually succeed: flatpak has a known, already-documented (ROADMAP.md)
-    # npm-cache bug that currently fails it on every run, and macos/windows
-    # are new build targets with no local way to test them before their
-    # first real CI run, so the same reasoning applies to both: a release
-    # missing one or more of those three is far more useful than no release
-    # at all. `always()` is needed here because a job's default condition
-    # skips it entirely once any of its `needs` fails.
-    if: always() && github.event_name == 'push' && needs.linux.result == 'success' && needs.android.result == 'success'
+    # workflow_dispatch note above). The same-commit canonical validation,
+    # Linux artifact, and Android artifact must all succeed. `always()` is
+    # needed so this job can make the result check explicit when an optional
+    # artifact job fails rather than being skipped by dependency semantics.
+    if: always() && github.event_name == 'push' && needs.validation.result == 'success' && needs.linux.result == 'success' && needs.android.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: write

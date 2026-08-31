@@ -10,6 +10,43 @@ import type { Bookmark } from "./types";
 
 const EMPTY_BOOKMARKS: Bookmark[] = [];
 
+function isValidBookmark(entry: unknown): entry is Bookmark {
+  if (typeof entry !== "object" || entry === null) return false;
+  const candidate = entry as Record<string, unknown>;
+  if (typeof candidate.id !== "string" || candidate.id === "") return false;
+  if (typeof candidate.label !== "string") return false;
+  if (candidate.kind === "file") return typeof candidate.path === "string";
+  if (candidate.kind === "search") return typeof candidate.query === "string";
+  return false;
+}
+
+/** Audit follow-up F-008: `JSON.parse(raw) as Bookmark[]` used to trust
+ * every array entry's shape outright, including a missing `id` (breaking
+ * `removeBookmark`'s own `id` match) or an unrecognized `kind`. A
+ * malformed individual entry is dropped rather than discarding the whole
+ * list alongside it, since the other bookmarks in the same file are
+ * still perfectly good, real user data; there is no way to "recover" a
+ * bookmark missing its own id, so there is nothing to preserve for that
+ * one entry either, unlike a rejected settings *value* which still has
+ * an obvious safe default to fall back to. Exported so its fixtures can
+ * exercise it directly, without a native file read in the way. */
+export function decodeBookmarks(raw: string): {
+  bookmarks: Bookmark[];
+  corrupt: boolean;
+} {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return { bookmarks: EMPTY_BOOKMARKS, corrupt: true };
+  }
+  if (!Array.isArray(parsed)) {
+    return { bookmarks: EMPTY_BOOKMARKS, corrupt: true };
+  }
+  const kept = parsed.filter(isValidBookmark);
+  return { bookmarks: kept, corrupt: kept.length !== parsed.length };
+}
+
 export const bookmarks = signal<Bookmark[]>(EMPTY_BOOKMARKS);
 
 // Plain string join, not a path-resolution API call: every workspace path
@@ -46,11 +83,8 @@ export async function loadBookmarks(rootPath: string): Promise<void> {
   bookmarks.value = EMPTY_BOOKMARKS;
   try {
     const raw = await readTextFile(bookmarksPath(rootPath));
-    const parsed: unknown = JSON.parse(raw);
     if (sequence !== loadSequence) return;
-    bookmarks.value = Array.isArray(parsed)
-      ? (parsed as Bookmark[])
-      : EMPTY_BOOKMARKS;
+    bookmarks.value = decodeBookmarks(raw).bookmarks;
   } catch {
     if (sequence !== loadSequence) return;
     bookmarks.value = EMPTY_BOOKMARKS;

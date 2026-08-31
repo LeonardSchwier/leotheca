@@ -33,6 +33,7 @@ window.matchMedia = vi.fn().mockImplementation((query: string) => ({
 const { workspacePath } = await import("../settings/store");
 const {
   bookmarks,
+  decodeBookmarks,
   loadBookmarks,
   addFileBookmark,
   addSearchBookmark,
@@ -172,5 +173,75 @@ describe("bookmarks store", () => {
     // existing behavior: only the persistence step is guarded), but
     // nothing should be written with no workspace to write it into.
     expect(writeWorkspaceTextFile).not.toHaveBeenCalled();
+  });
+});
+
+// Audit follow-up F-008.
+describe("decodeBookmarks", () => {
+  it("treats a JSON syntax error as corrupt and falls back to an empty list", () => {
+    const { bookmarks: decoded, corrupt } = decodeBookmarks("{ not valid json");
+    expect(decoded).toEqual([]);
+    expect(corrupt).toBe(true);
+  });
+
+  it("treats non-array top-level content as corrupt", () => {
+    const { bookmarks: decoded, corrupt } = decodeBookmarks(
+      JSON.stringify({ not: "an array" }),
+    );
+    expect(decoded).toEqual([]);
+    expect(corrupt).toBe(true);
+  });
+
+  it("keeps a well-formed list as not corrupt", () => {
+    const saved = [
+      { id: "1", kind: "file", label: "Note", path: "/workspace/note.md" },
+      { id: "2", kind: "search", label: "Todos", query: "todo" },
+    ];
+    const { bookmarks: decoded, corrupt } = decodeBookmarks(
+      JSON.stringify(saved),
+    );
+    expect(decoded).toEqual(saved);
+    expect(corrupt).toBe(false);
+  });
+
+  it("drops an entry missing its id, keeping the other valid entries", () => {
+    const valid = {
+      id: "1",
+      kind: "file",
+      label: "Note",
+      path: "/workspace/note.md",
+    };
+    const { bookmarks: decoded, corrupt } = decodeBookmarks(
+      JSON.stringify([
+        valid,
+        { kind: "file", label: "No id", path: "/workspace/other.md" },
+      ]),
+    );
+    expect(decoded).toEqual([valid]);
+    expect(corrupt).toBe(true);
+  });
+
+  it("drops a file bookmark missing its path", () => {
+    const { bookmarks: decoded, corrupt } = decodeBookmarks(
+      JSON.stringify([{ id: "1", kind: "file", label: "No path" }]),
+    );
+    expect(decoded).toEqual([]);
+    expect(corrupt).toBe(true);
+  });
+
+  it("drops a search bookmark missing its query", () => {
+    const { bookmarks: decoded, corrupt } = decodeBookmarks(
+      JSON.stringify([{ id: "1", kind: "search", label: "No query" }]),
+    );
+    expect(decoded).toEqual([]);
+    expect(corrupt).toBe(true);
+  });
+
+  it("drops an entry with an unrecognized kind", () => {
+    const { bookmarks: decoded, corrupt } = decodeBookmarks(
+      JSON.stringify([{ id: "1", kind: "folder", label: "Unknown kind" }]),
+    );
+    expect(decoded).toEqual([]);
+    expect(corrupt).toBe(true);
   });
 });

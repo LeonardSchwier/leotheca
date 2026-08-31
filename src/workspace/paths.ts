@@ -45,7 +45,8 @@ function splitAbsolutePath(path: string): AbsolutePathParts | null {
 
 function joinAbsolutePath(parts: AbsolutePathParts): string {
   const suffix = parts.segments.join("/");
-  if (parts.prefix) return suffix ? `${parts.prefix}/${suffix}` : `${parts.prefix}/`;
+  if (parts.prefix)
+    return suffix ? `${parts.prefix}/${suffix}` : `${parts.prefix}/`;
   return suffix ? `/${suffix}` : "/";
 }
 
@@ -58,13 +59,18 @@ function isAbsoluteTarget(target: string): boolean {
   return forward.startsWith("/") || /^[A-Za-z]:\//.test(forward);
 }
 
-function pathIsWithin(root: AbsolutePathParts, candidate: AbsolutePathParts): boolean {
+function pathIsWithin(
+  root: AbsolutePathParts,
+  candidate: AbsolutePathParts,
+): boolean {
   if (!sameVolume(root, candidate)) return false;
   if (candidate.segments.length < root.segments.length) return false;
   const caseInsensitive = root.prefix !== "";
   return root.segments.every((segment, index) => {
     const other = candidate.segments[index];
-    return caseInsensitive ? segment.toLowerCase() === other.toLowerCase() : segment === other;
+    return caseInsensitive
+      ? segment.toLowerCase() === other.toLowerCase()
+      : segment === other;
   });
 }
 
@@ -77,6 +83,23 @@ function pathIsWithin(root: AbsolutePathParts, candidate: AbsolutePathParts): bo
 export function dirname(path: string): string {
   const idx = path.lastIndexOf("/");
   return idx > 0 ? path.slice(0, idx) : path;
+}
+
+/**
+ * Whether an already-absolute `path` sits inside `workspaceRoot`, purely
+ * lexically (no filesystem access, so this is safe to run on untrusted
+ * persisted data before anything is read from disk). Used by audit
+ * follow-up F-008's settings decoder to reject a `lastOpenPaths`/
+ * `lastActivePath` entry that a corrupted or hand-edited settings file
+ * points outside the workspace, rather than trying to open it on restore.
+ */
+export function isPathWithinWorkspace(
+  workspaceRoot: string,
+  path: string,
+): boolean {
+  const root = splitAbsolutePath(workspaceRoot);
+  const candidate = splitAbsolutePath(path);
+  return root !== null && candidate !== null && pathIsWithin(root, candidate);
 }
 
 /** Resolves `target` against `baseDir` (an absolute path), the way a

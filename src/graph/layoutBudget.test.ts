@@ -27,6 +27,13 @@ describe("graph layout work budget", () => {
     }
   });
 
+  it("keeps the interaction cap true even when one pass over every node would exceed it", () => {
+    const budget = layoutWorkBudget(1_000_000, 2_000_000);
+    expect(budget.mode).toBe("sampled");
+    expect(budget.repulsionSourcesPerIteration).toBeLessThan(1_000_000);
+    expect(budget.estimatedInteractions).toBeLessThanOrEqual(500_000);
+  });
+
   it("lays out a 2,000-note representative graph within a generous CI responsiveness budget", () => {
     const graphNodes = nodes(2_000);
     const graphEdges = chainEdges(2_000);

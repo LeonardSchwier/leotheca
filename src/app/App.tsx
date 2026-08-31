@@ -723,7 +723,7 @@ export function App() {
             current.kind === "image" ? (
               <ImageViewer path={current.path} />
             ) : current.kind === "canvas" ? (
-              <CanvasView source={current.content} onChange={(value) => handleChange(current.path, value)} onOpenFile={(path) => void handleOpenFile(path, path.split("/").pop() ?? path)} />
+              <CanvasView path={current.path} source={current.content} onChange={(value) => handleChange(current.path, value)} onOpenFile={(path) => void handleOpenFile(path, path.split("/").pop() ?? path)} />
             ) : (
               <>
                 <FrontmatterPropertiesPanel

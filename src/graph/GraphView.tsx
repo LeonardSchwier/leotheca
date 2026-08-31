@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { linkIndex } from "../linking/store";
 import { updateWorkspaceSettings, workspaceSettings } from "../settings/store";
 import type { GraphColorGroup } from "../settings/workspaceSettings";
-import type { Point } from "./layout";
+import { computeLayout, type Point } from "./layout";
 import { createGraphLayoutCoordinator } from "./layoutCoordinator";
 import { computeZoomTransform, findNodeAtWorld, screenToWorld, type Transform } from "./transform";
 import "./graph.css";
@@ -180,6 +180,13 @@ export function GraphView({ onOpenFile, onClose, focusPath }: GraphViewProps) {
     ctx.restore();
   };
 
+  const publishLayout = (edges: [string, string][], positions: Map<string, Point>) => {
+    edgesRef.current = edges;
+    positionsRef.current = positions;
+    transformRef.current = { offsetX: 0, offsetY: 0, scale: 1 };
+    draw();
+  };
+
   const layoutAndDraw = () => {
     const container = containerRef.current;
     const canvas = canvasRef.current;
@@ -196,11 +203,16 @@ export function GraphView({ onOpenFile, onClose, focusPath }: GraphViewProps) {
       showAll,
       filterQuery,
     });
+
+    // The first visible layout remains synchronous so the canvas is immediately
+    // interactive when it appears. The bounded algorithm makes that work safe.
+    // Subsequent resize/filter requests are coalesced and generation-owned.
+    if (positionsRef.current.size === 0) {
+      publishLayout(edges, computeLayout(nodes, edges, width, height));
+      return;
+    }
     layoutCoordinatorRef.current!.request({ nodes, edges, width, height }, (positions) => {
-      edgesRef.current = edges;
-      positionsRef.current = positions;
-      transformRef.current = { offsetX: 0, offsetY: 0, scale: 1 };
-      draw();
+      publishLayout(edges, positions);
     });
   };
 

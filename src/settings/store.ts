@@ -313,11 +313,21 @@ function queueWorkspaceSettingsWrite(
   });
 }
 
+/** Applies `patch` to the in-memory settings, then persists unless the
+ * currently loaded file is marked corrupted (see workspaceSettingsCorrupted
+ * above). The in-memory value still updates so the session stays usable
+ * (font size, theme toggles, tab restoration bookkeeping) even before the
+ * user repairs the file, but nothing reaches disk on its own: an ordinary
+ * action like switching tabs must not silently replace the corrupt file's
+ * real bytes with the defaulted values that produced this session's state.
+ * Only repairWorkspaceSettingsFile's explicit recovery action, which clears
+ * the flag before calling this, is allowed to write while corrupted. */
 export async function updateWorkspaceSettings(
   patch: Partial<WorkspaceSettings>,
 ): Promise<void> {
   if (!workspacePath.value) return;
   workspaceSettings.value = { ...workspaceSettings.value, ...patch };
+  if (workspaceSettingsCorrupted.value) return;
   const path = workspacePath.value;
   try {
     await queueWorkspaceSettingsWrite(path, workspaceSettings.value);
@@ -340,9 +350,12 @@ export async function retryWorkspaceSettingsSave(): Promise<void> {
  * was there, and only then clears the corrupted flag. Never called
  * automatically just because a load happened to be corrupt; a user who
  * wants to inspect or hand-recover the original file first can do so
- * right up until they choose this. */
+ * right up until they choose this. Clears the flag *before* calling
+ * updateWorkspaceSettings so that call isn't itself skipped by the guard
+ * above, which exists specifically to stop every other, non-explicit
+ * caller from writing while corrupted. */
 export async function repairWorkspaceSettingsFile(): Promise<void> {
   if (!workspacePath.value || !workspaceSettingsCorrupted.value) return;
-  await updateWorkspaceSettings({});
   workspaceSettingsCorrupted.value = false;
+  await updateWorkspaceSettings({});
 }

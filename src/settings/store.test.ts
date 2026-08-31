@@ -58,6 +58,7 @@ const {
   repairWorkspaceSettingsFile,
   setWorkspacePath,
   settingsLoaded,
+  updateWorkspaceSettings,
   workspacePath,
   workspaceSettings,
   workspaceSettingsCorrupted,
@@ -244,6 +245,15 @@ describe("restoreLastOpenTabs", () => {
 describe("tab operations that change both openTabs and activeTabPath", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // vi.clearAllMocks() clears call history but not a mockImplementation
+    // set by an earlier describe block (e.g. "restoreLastOpenTabs"'s own
+    // readTextFile stub), so restore the module-level default explicitly
+    // rather than depend on load order: these tests need workspace settings
+    // to load as an ordinary, non-corrupt default, not whatever the
+    // previous block's readTextFile mock happened to return.
+    readTextFile.mockImplementation(async () => {
+      throw new Error("not found");
+    });
   });
 
   async function writesDuring(action: () => void): Promise<number> {
@@ -367,5 +377,61 @@ describe("workspace settings corruption recovery", () => {
     await repairWorkspaceSettingsFile();
 
     expect(writeWorkspaceTextFile).not.toHaveBeenCalled();
+  });
+
+  it("does not let an unrelated update (e.g. the tab-persistence effect) write over a corrupt file", async () => {
+    readTextFile.mockImplementation(async (path: string) => {
+      if (path === "/workspaceA/.leotheca/settings.json")
+        return "{ not valid json";
+      throw new Error("not found");
+    });
+
+    await setWorkspacePath("/workspaceA");
+    await flushSettingsWrites();
+    expect(workspaceSettingsCorrupted.value).toBe(true);
+    vi.clearAllMocks();
+
+    // Simulates what the tab-persistence effect (or any other Settings
+    // Panel control) does on an ordinary, non-recovery action: neither
+    // switching notes nor changing an unrelated setting is the explicit
+    // recovery action, so it must not be the thing that finally writes the
+    // defaulted values over the still-corrupt file on disk.
+    await updateWorkspaceSettings({
+      lastActivePath: "/workspaceA/note.md",
+      fontSize: 18,
+    });
+    await flushSettingsWrites();
+
+    expect(writesTo("/workspaceA/.leotheca/settings.json")).toEqual([]);
+    // The in-memory session still reflects the change, so the app stays
+    // usable while the corrupted file awaits an explicit repair.
+    expect(workspaceSettings.value.lastActivePath).toBe(
+      "/workspaceA/note.md",
+    );
+    expect(workspaceSettings.value.fontSize).toBe(18);
+    expect(workspaceSettingsCorrupted.value).toBe(true);
+  });
+
+  it("resumes normal persistence for later updates once repaired", async () => {
+    readTextFile.mockImplementation(async (path: string) => {
+      if (path === "/workspaceA/.leotheca/settings.json")
+        return "{ not valid json";
+      throw new Error("not found");
+    });
+
+    await setWorkspacePath("/workspaceA");
+    await flushSettingsWrites();
+    await repairWorkspaceSettingsFile();
+    await flushSettingsWrites();
+    vi.clearAllMocks();
+
+    await updateWorkspaceSettings({ fontSize: 20 });
+    await flushSettingsWrites();
+
+    expect(
+      (writesTo("/workspaceA/.leotheca/settings.json").at(-1) as {
+        fontSize: number;
+      }).fontSize,
+    ).toBe(20);
   });
 });

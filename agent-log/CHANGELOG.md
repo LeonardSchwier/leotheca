@@ -6,6 +6,12 @@ Append one entry per work session, newest at the top. Each entry: date, which ag
 
 ---
 
+## 2026-08-30: ChatGPT (GPT-5.6 Sol), Markdown attachment read containment (N-004)
+
+Claimed N-004 after the integration pass found F-014 actively owned and the earlier release items overlapping its workflow touch set. Added one workspace-aware lexical containment helper for user-authored preview attachment paths and required Markdown preview to pass local image targets through it before `fileSrc()`. Absolute targets, traversal outside the workspace, prefix-boundary confusion, an out-of-workspace base directory, and Windows-style traversal are rejected without scheduling a native read; valid nested and sibling attachments remain supported.
+
+The negative-control CI on the pre-fix claim commit failed because `../../outside.png` still reached `fileSrc()`. Final implementation CI run `33337102170` passed frontend typechecking, tests, and production build, Rust check/tests, Capacitor sync, and the Android debug APK build. The cloud sandbox could not clone the repository because DNS could not resolve the Git host, so repository CI was the authoritative executable verification environment. No Android on-device verification is claimed, and asset-protocol breadth is not relied on for containment.
+
 ## 2026-08-30 — OpenCode (qwen3.6-35b-a3b), 4 critical UX bugfixes — AppImage blank screen, widget hamburger, Expand All spinner, parallel image loading
 
 Fixed four critical bugs reported by the maintainer:
@@ -275,7 +281,7 @@ Two shipped features this iteration, running alongside a background on-device ve
 
 Also updated `ROADMAP.md`'s shipped list for both features and removed the now-substantially-addressed "more keyboard shortcuts" open item.
 
-Verified: `npx tsc -p tsconfig.json --noEmit` clean, `npx eslint .` clean (0 errors, same 2 pre-existing unrelated warnings), `npx vitest run` (234/234: 11 new here, 223 pre-existing), `cargo test` (10/10, unchanged, no Rust touched), `npx vite build` clean, `cargo tauri dev` relaunched clean, no lingering background processes.
+Verified: `npx tsc -p tsconfig.json --noEmit` clean, `npx eslint .` clean (0 errors, same 2 pre-existing warnings), `npx vitest run` (234/234: 11 new here, 223 pre-existing), `cargo test` (10/10, unchanged), `npx vite build` clean, `cargo tauri dev` relaunched clean, no lingering background processes.
 
 ## 2026-08-27 — Maintainer decision
 
@@ -352,7 +358,7 @@ Added `src/app/useResizableSidebar.test.ts` (8 tests) for the sidebar-resize poi
 
 All 8 passed against the unmodified hook on the first run: no bug found, pure coverage-adding.
 
-Verified: `npx tsc -p tsconfig.json --noEmit` clean, `npx eslint .` clean (0 errors, same 2 pre-existing unrelated warnings), `npx vitest run` (185/185: 8 new here, 177 pre-existing), `cargo test` (9/9), `npx vite build` clean, `cargo tauri dev` relaunched clean, no lingering background processes.
+Verified: `npx tsc -p tsconfig.json --noEmit` clean, `npx eslint .` clean (0 errors, same 2 pre-existing warnings), `npx vitest run` (185/185: 8 new here, 177 pre-existing), `cargo test` (9/9), `npx vite build` clean, `cargo tauri dev` relaunched clean, no lingering background processes.
 
 ## 2026-08-27 (session 44) — Claude Code (Sonnet 5)
 
@@ -411,7 +417,7 @@ Added `src/settings/SettingsPanel.test.tsx` (15 tests): panel open/closed render
 
 **Own test-writing mistake caught along the way, not shipped**: an early draft tried to test that a non-numeric font-size input is ignored (the code has a `!Number.isFinite(raw)` guard). First attempt used an empty string, which coerces to `0` via `Number("")` — finite, so it doesn't exercise the guard at all. Second attempt used `"abc"`, but confirmed via a quick standalone jsdom check (`input.value = "abc"` on a real `<input type="number">`) that jsdom enforces the same native sanitization real browsers do: a non-numeric string assigned to a number input's value is rejected down to `""`, never surfacing as a literal `NaN` through `Number(value)`. That guard is therefore unreachable through any real user interaction with this control — dead code, not a bug — so the test was removed rather than forced into something artificial that wouldn't reflect real behavior.
 
-Verified: `npx tsc -p tsconfig.json --noEmit` clean, `npx eslint .` clean (0 errors, same 2 pre-existing unrelated warnings), `npx vitest run` (153/153: 15 new here, 138 pre-existing), `cargo test` (9/9), `npx vite build` clean, `cargo tauri dev` relaunched clean, no lingering background processes.
+Verified: `npx tsc -p tsconfig.json --noEmit` clean, `npx eslint .` clean (0 errors, same 2 pre-existing warnings), `npx vitest run` (153/153: 15 new here, 138 pre-existing), `cargo test` (9/9), `npx vite build` clean, `cargo tauri dev` relaunched clean, no lingering background processes.
 
 ## 2026-08-27 (session 38) — Claude Code (Sonnet 5)
 
@@ -430,7 +436,7 @@ Two small, self-contained coverage additions:
 
 Both were pure coverage-adding; all 6 tests passed against the unmodified components on the first run, no bugs found.
 
-Verified: `npx tsc -p tsconfig.json --noEmit` clean, `npx eslint .` clean (0 errors, same 2 pre-existing unrelated warnings), `npx vitest run` (129/129: 6 new here, 123 pre-existing), `cargo test` (9/9), `npx vite build` clean, `cargo tauri dev` relaunched clean, no lingering background processes.
+Verified: `npx tsc -p tsconfig.json --noEmit` clean, `npx eslint .` clean (0 errors, same 2 pre-existing warnings), `npx vitest run` (129/129: 6 new here, 123 pre-existing), `cargo test` (9/9), `npx vite build` clean, `cargo tauri dev` relaunched clean, no lingering background processes.
 
 ## 2026-08-27 (session 36) — Claude Code (Sonnet 5)
 
@@ -446,7 +452,7 @@ Added `src/workspace/FileContextMenu.test.tsx` (9 tests): renders nothing with n
 
 Own test-writing mistake caught before it shipped: an early draft reused one `render()` across two button clicks in the same test, reassigning `contextMenuTarget.value` mid-test to reopen the menu for a second assertion. That reassignment happens outside any event handler, and without an explicit `act()`-style flush the second render doesn't land before the next `getByText` query runs, so the test failed against completely correct component code. Fixed by splitting into two independent tests, each with its own `render()` — not a signals bug, just a test needing its own isolated render per assertion, matching the pattern already used everywhere else in the suite. All 9 passed against the unmodified component once fixed: no real bug found, pure coverage-adding, same as `TabBar.test.tsx` and `CommandPalette.test.tsx`.
 
-Verified: `npx tsc -p tsconfig.json --noEmit` clean, `npx eslint .` clean (0 errors, same 2 pre-existing unrelated warnings), `npx vitest run` (119/119: 9 new here, 110 pre-existing), `cargo test` (9/9), `npx vite build` clean, `cargo tauri dev` relaunched clean, no lingering background processes.
+Verified: `npx tsc -p tsconfig.json --noEmit` clean, `npx eslint src/workspace/FileContextMenu.test.tsx` (clean), `npx vitest run` (119/119: 9 new here, 110 pre-existing), `cargo test` (9/9), `npx vite build` clean, `cargo tauri dev` relaunched clean, no lingering background processes.
 
 ## 2026-08-27 (session 34) — Claude Code (Sonnet 5)
 
@@ -800,7 +806,7 @@ Completed the three later Codex packages assigned on the live coordination board
 - Added a signal-backed, pointer-event sidebar resizing hook and matching token-based handle styles. It deliberately documents, rather than edits, the requested App integration point to keep the package self-contained.
 - Added the wikilink and backlink engine, preview navigation, clickable backlinks panel, and focused Vitest coverage. Link resolution is case-insensitive by filename without the markdown extension, and unresolved links are visibly dashed rather than silently rendered as ordinary links.
 
-Verified TypeScript checking, Prettier for the changed files, `git diff --check`, the linking test suite (2 passing), and Rust tests (8 passing). A later full ESLint run is blocked by generated Android asset files, while the changed source files have no ESLint errors. `cargo clippy -- -D warnings` still stops only at two existing `unnecessary_sort_by` findings in `commands.rs`, already recorded by the prior Codex session; no suppression or unrelated change was added.
+Verified TypeScript checking, Prettier for the changed files, `git diff --check`, the linking test suite (2 passing), and Rust tests (8 passing). A later full ESLint run is blocked by generated Android asset files, while the changed source files have no ESLint errors. `cargo clippy -- -D warnings` still stops only at two existing `unnecessary_sort_by` findings in `src-tauri/src/commands.rs`, already recorded by the prior Codex session; no suppression or unrelated change was added.
 
 ## 2026-08-26 (session 4) - Codex
 

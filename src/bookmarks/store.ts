@@ -5,7 +5,7 @@
  */
 import { signal } from "@preact/signals";
 import { workspacePath } from "../settings/store";
-import { readTextFile, writeTextFile } from "../workspace/tauriBridge";
+import { readTextFile, writeWorkspaceTextFile } from "../workspace/tauriBridge";
 import type { Bookmark } from "./types";
 
 const EMPTY_BOOKMARKS: Bookmark[] = [];
@@ -24,8 +24,9 @@ function bookmarksPath(rootPath: string): string {
 
 async function saveBookmarks(): Promise<void> {
   if (!workspacePath.value) return;
-  await writeTextFile(
-    bookmarksPath(workspacePath.value),
+  await writeWorkspaceTextFile(
+    workspacePath.value,
+    ".leotheca/bookmarks.json",
     JSON.stringify(bookmarks.value, null, 2),
   );
 }

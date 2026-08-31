@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Creating, renaming, deleting, and saving attachments now verify the target stays inside the open workspace before touching disk on desktop, closing a gap where a native command trusted an already-computed path with no server-side check. Note-content autosave itself is not yet covered by this change; that's tracked as follow-up work.
 - The project's version number now has one canonical source (the root `VERSION` file), validated across every platform's build metadata in CI; a real release can no longer be tagged if the tag or the changelog has drifted from it.
 - CI now uses one same-commit validation gate for frontend, Rust, Android emulator installation, and AppImage launch checks, and release publication requires that gate to pass.
 - Android now exposes New note and Favorites as separate home-screen widgets instead of combining both actions in one widget.

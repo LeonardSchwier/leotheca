@@ -5,7 +5,10 @@ import { getVersion } from "@tauri-apps/api/app";
 import type { FsEntry } from "./types";
 import type { WorkspaceStats } from "../settings/VaultStatsPanel";
 
-export async function pickWorkspaceFolder(): Promise<{ path: string; token?: string } | null> {
+export async function pickWorkspaceFolder(): Promise<{
+  path: string;
+  token?: string;
+} | null> {
   const selected = await open({ directory: true, multiple: false });
   const path = Array.isArray(selected) ? (selected[0] ?? null) : selected;
   return path ? { path } : null;
@@ -14,7 +17,10 @@ export async function pickWorkspaceFolder(): Promise<{ path: string; token?: str
 /** No-op on desktop: the real folder path from `pickWorkspaceFolder` is
  * already everything needed to reopen a workspace, unlike Android's opaque
  * SAF URI, which does need to be restored into an in-memory cache. */
-export async function restoreWorkspaceAccess(path: string, token: string | undefined): Promise<void> {
+export async function restoreWorkspaceAccess(
+  path: string,
+  token: string | undefined,
+): Promise<void> {
   void path;
   void token;
 }
@@ -60,11 +66,16 @@ export async function readTextFile(path: string): Promise<string> {
  * read_text_files_batch), so search batches its content reads through
  * this instead. An unreadable file resolves to null in its position
  * rather than failing the whole batch. */
-export async function readTextFilesBatch(paths: string[]): Promise<(string | null)[]> {
+export async function readTextFilesBatch(
+  paths: string[],
+): Promise<(string | null)[]> {
   return invoke<(string | null)[]>("read_text_files_batch", { paths });
 }
 
-export async function writeTextFile(path: string, contents: string): Promise<void> {
+export async function writeTextFile(
+  path: string,
+  contents: string,
+): Promise<void> {
   return invoke("write_text_file", { path, contents });
 }
 
@@ -73,7 +84,10 @@ export async function writeTextFile(path: string, contents: string): Promise<voi
  * is nothing to encode here (contrast capacitorBridgeImpl.ts's own
  * writeBinaryFile, which does need to base64-encode for the Capacitor
  * plugin call boundary). */
-export async function writeBinaryFile(path: string, data: Uint8Array): Promise<void> {
+export async function writeBinaryFile(
+  path: string,
+  data: Uint8Array,
+): Promise<void> {
   return invoke("write_binary_file", { path, data: Array.from(data) });
 }
 
@@ -85,12 +99,74 @@ export async function renamePath(from: string, to: string): Promise<void> {
   return invoke("rename_path", { from, to });
 }
 
-export async function trashPath(workspaceRoot: string, path: string): Promise<void> {
+export async function trashPath(
+  workspaceRoot: string,
+  path: string,
+): Promise<void> {
   return invoke("trash_path", { workspaceRoot, path });
 }
 
 export async function deletePathPermanent(path: string): Promise<void> {
   return invoke("delete_path_permanent", { path });
+}
+
+/** Audit follow-up F-004: the workspace-scoped counterpart to
+ * `writeTextFile` above. `relativePath` is resolved and verified against
+ * `workspaceRoot` on the Rust side (`resolve_within_workspace` in
+ * `commands.rs`) before anything is written, rather than trusting an
+ * already-joined absolute path computed here. Callers that already have an
+ * absolute path can derive `relativePath` with `relativePathBetween` from
+ * `workspace/paths.ts`. */
+export async function writeWorkspaceTextFile(
+  workspaceRoot: string,
+  relativePath: string,
+  contents: string,
+): Promise<void> {
+  return invoke("write_workspace_text_file", {
+    workspaceRoot,
+    relativePath,
+    contents,
+  });
+}
+
+/** Same containment guarantee as writeWorkspaceTextFile, for binary
+ * attachment content. See writeBinaryFile above for the byte-array IPC
+ * encoding note; unchanged here. */
+export async function writeWorkspaceBinaryFile(
+  workspaceRoot: string,
+  relativePath: string,
+  data: Uint8Array,
+): Promise<void> {
+  return invoke("write_workspace_binary_file", {
+    workspaceRoot,
+    relativePath,
+    data: Array.from(data),
+  });
+}
+
+export async function createWorkspaceDir(
+  workspaceRoot: string,
+  relativePath: string,
+): Promise<void> {
+  return invoke("create_workspace_dir", { workspaceRoot, relativePath });
+}
+
+export async function renameWorkspacePath(
+  workspaceRoot: string,
+  from: string,
+  to: string,
+): Promise<void> {
+  return invoke("rename_workspace_path", { workspaceRoot, from, to });
+}
+
+export async function deleteWorkspacePathPermanent(
+  workspaceRoot: string,
+  relativePath: string,
+): Promise<void> {
+  return invoke("delete_workspace_path_permanent", {
+    workspaceRoot,
+    relativePath,
+  });
 }
 
 export async function getAppConfigFilePath(filename: string): Promise<string> {
@@ -110,6 +186,8 @@ export async function getWorkspaceStats(path: string): Promise<WorkspaceStats> {
 }
 
 /** No-op on desktop: there is no OS status bar to color. */
-export async function setStatusBarAppearance(isDarkBackground: boolean): Promise<void> {
+export async function setStatusBarAppearance(
+  isDarkBackground: boolean,
+): Promise<void> {
   void isDarkBackground;
 }

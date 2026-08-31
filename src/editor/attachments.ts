@@ -1,5 +1,5 @@
 import { dirname, relativePathBetween } from "../workspace/paths";
-import { writeBinaryFile } from "../workspace/tauriBridge";
+import { writeWorkspaceBinaryFile } from "../workspace/tauriBridge";
 
 const EXTENSION_BY_MIME: Record<string, string> = {
   "image/png": "png",
@@ -20,7 +20,9 @@ function randomSuffix(): string {
 
 function withSuffix(name: string, suffix: string): string {
   const dot = name.lastIndexOf(".");
-  return dot > 0 ? `${name.slice(0, dot)}-${suffix}${name.slice(dot)}` : `${name}-${suffix}`;
+  return dot > 0
+    ? `${name.slice(0, dot)}-${suffix}${name.slice(dot)}`
+    : `${name}-${suffix}`;
 }
 
 /**
@@ -35,7 +37,11 @@ function withSuffix(name: string, suffix: string): string {
  * already exist" check, so collision-avoidance here is generative, not
  * checked.
  */
-export function attachmentFileName(mimeType: string, now: number, originalName?: string): string {
+export function attachmentFileName(
+  mimeType: string,
+  now: number,
+  originalName?: string,
+): string {
   const suffix = randomSuffix();
   const cleanOriginal = originalName?.trim().replace(UNSAFE_NAME_CHARS, "-");
   const hasRealName = cleanOriginal && !/^image(\.\w+)?$/i.test(cleanOriginal);
@@ -80,12 +86,26 @@ export interface SaveAttachmentOptions {
  * (see attachmentSaveDir), since Preview resolves relative image links
  * the same way it always has, against the embedding note's own folder.
  */
-export async function saveAttachment(options: SaveAttachmentOptions): Promise<string> {
-  const { bytes, mimeType, notePath, workspaceRoot, attachmentsFolder, now, originalName } = options;
+export async function saveAttachment(
+  options: SaveAttachmentOptions,
+): Promise<string> {
+  const {
+    bytes,
+    mimeType,
+    notePath,
+    workspaceRoot,
+    attachmentsFolder,
+    now,
+    originalName,
+  } = options;
   const dir = attachmentSaveDir(workspaceRoot, notePath, attachmentsFolder);
   const name = attachmentFileName(mimeType, now, originalName);
   const fullPath = `${dir}/${name}`;
-  await writeBinaryFile(fullPath, bytes);
+  await writeWorkspaceBinaryFile(
+    workspaceRoot,
+    relativePathBetween(workspaceRoot, fullPath),
+    bytes,
+  );
   return relativePathBetween(dirname(notePath), fullPath);
 }
 

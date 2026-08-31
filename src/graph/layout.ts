@@ -14,6 +14,8 @@ export interface LayoutWorkBudget {
   mode: "exhaustive" | "sampled";
   iterations: number;
   repulsionPairsPerIteration: number;
+  repulsionSourcesPerIteration: number;
+  repulsionNeighborsPerSource: number;
   attractionEdgesPerIteration: number;
   estimatedInteractions: number;
 }
@@ -28,6 +30,8 @@ export function layoutWorkBudget(nodeCount: number, edgeCount = 0): LayoutWorkBu
       mode: "exhaustive",
       iterations: 0,
       repulsionPairsPerIteration: 0,
+      repulsionSourcesPerIteration: 0,
+      repulsionNeighborsPerSource: 0,
       attractionEdgesPerIteration: 0,
       estimatedInteractions: 0,
     };
@@ -41,20 +45,30 @@ export function layoutWorkBudget(nodeCount: number, edgeCount = 0): LayoutWorkBu
       mode: "exhaustive",
       iterations: baseIterations,
       repulsionPairsPerIteration: exhaustivePairs,
+      repulsionSourcesPerIteration: nodeCount,
+      repulsionNeighborsPerSource: nodeCount - 1,
       attractionEdgesPerIteration: edgeCount,
       estimatedInteractions: exhaustivePerIteration * baseIterations,
     };
   }
 
-  const sampledNeighbors = Math.min(MAX_SAMPLED_NEIGHBORS, nodeCount - 1);
-  const sampledRepulsion = nodeCount * sampledNeighbors;
   const sampledAttraction = Math.min(edgeCount, MAX_ATTRACTION_EDGES_PER_ITERATION);
+  const repulsionRoom = MAX_LAYOUT_INTERACTIONS - sampledAttraction;
+  const initialSources = Math.min(nodeCount, repulsionRoom);
+  const sampledNeighbors = Math.max(
+    1,
+    Math.min(MAX_SAMPLED_NEIGHBORS, nodeCount - 1, Math.floor(repulsionRoom / initialSources)),
+  );
+  const sampledSources = Math.min(initialSources, Math.floor(repulsionRoom / sampledNeighbors));
+  const sampledRepulsion = sampledSources * sampledNeighbors;
   const perIteration = Math.max(1, sampledRepulsion + sampledAttraction);
   const iterations = Math.max(1, Math.min(baseIterations, Math.floor(MAX_LAYOUT_INTERACTIONS / perIteration)));
   return {
     mode: "sampled",
     iterations,
     repulsionPairsPerIteration: sampledRepulsion,
+    repulsionSourcesPerIteration: sampledSources,
+    repulsionNeighborsPerSource: sampledNeighbors,
     attractionEdgesPerIteration: sampledAttraction,
     estimatedInteractions: perIteration * iterations,
   };
@@ -114,8 +128,11 @@ export function computeLayout(
         for (let j = i + 1; j < n; j++) applyRepulsion(disp, i, j);
       }
     } else {
-      const neighbors = Math.min(MAX_SAMPLED_NEIGHBORS, n - 1);
-      for (let i = 0; i < n; i++) {
+      const sourceCount = budget.repulsionSourcesPerIteration;
+      const neighbors = budget.repulsionNeighborsPerSource;
+      const sourceStart = (iter * sourceCount) % n;
+      for (let source = 0; source < sourceCount; source++) {
+        const i = (sourceStart + source) % n;
         for (let sample = 1; sample <= neighbors; sample++) {
           const offset = Math.max(1, Math.floor((sample * n) / (neighbors + 1)));
           const j = (i + offset) % n;

@@ -1,0 +1,42 @@
+name: F-012 Agent Log Blob
+
+on:
+  push:
+    branches:
+      - audit/f-012-negative-control
+    paths:
+      - .github/workflows/f012-agent-log-blob.yml
+
+permissions:
+  contents: write
+
+jobs:
+  create-blob:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create updated private audit-log blob
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY' > /tmp/blob.json
+          import json
+          from pathlib import Path
+
+          path = Path("agent-log/CHANGELOG.md")
+          text = path.read_text()
+          entry = """## 2026-08-31: ChatGPT (GPT-5.6 Sol), link-index cache freshness and failure isolation (F-012)
+
+Ran the repository-wide integration pass before implementation. F-Droid PR #18 remains blocked on its required real external submission, Flathub PR #19 remains blocked by its strict standalone build gate, and N-001/N-003 PR #24 remains draft and repository-incomplete despite green implementation CI. The existing F-012 claim-only commit `5fbea3e8` and branch `agent/f-012-link-index-freshness` were still untouched, so this run continued that exact claim instead of creating an overlapping lock.
+
+A tests-only negative-control PR #40 on the untouched claim head produced CI run `33415854561`; TypeScript checking and lint passed, then both intended regressions failed: one unreadable note rejected the entire workspace index, and resetting cache authority to zero allowed an older pre-reset rebuild to overwrite a newer workspace. The implementation strengthens reusable cache identity to `{mtime, size}` when size is available, falls back to a real read when mtime is unavailable, and records successful Markdown writes plus rename/trash/delete subtrees at the platform-dispatch boundary so app-owned mutations cannot reuse stale extraction data even when filesystem metadata collides. Reset advances request authority rather than reusing a generation, and invalidations are cleared only through the generation consumed by the authoritative rebuild.
+
+Unreadable notes are now isolated per note: readable notes continue indexing, skipped paths remain in `linkIndexErrors`, and the Backlinks panel shows an `Index incomplete` status instead of presenting partial metadata as fully successful. The link index still performs one recursive native metadata walk, filters non-Markdown entries before content reads, and keeps note-read concurrency bounded at eight. Focused tests cover size-only identity changes, mutation invalidation success/failure boundaries, subtree invalidation, unreadable-note isolation, stale reset ownership, and generation clearing. Local Node was available, but stable Rust bootstrap and the CI Linux package path were genuinely attempted and blocked by sandbox DNS/network access, so GitHub Actions is the authoritative full validation environment. No Android on-device verification is claimed."""
+          marker = "\n---\n"
+          if marker not in text:
+              raise SystemExit("agent-log marker missing")
+          updated = text.replace(marker, marker + "\n" + entry + "\n", 1)
+          print(json.dumps({"content": updated, "encoding": "utf-8"}))
+          PY
+          sha=$(gh api --method POST "repos/${GITHUB_REPOSITORY}/git/blobs" --input /tmp/blob.json --jq .sha)
+          echo "AGENT_LOG_BLOB=$sha"

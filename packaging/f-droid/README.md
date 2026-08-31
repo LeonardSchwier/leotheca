@@ -25,7 +25,7 @@ Two caveats this research doesn't remove:
 1. ~~Resolve the npm-offline-build question.~~ Done, see above.
 2. Confirm the `output` glob path matches what a real `gradle assembleRelease` (unsigned) run actually produces.
 3. Decide on `AutoUpdateMode`/`UpdateCheckMode` properly, both are placeholder `None` values right now. Now that a real tagged release exists (or will shortly, see `ROADMAP.md`), switch these to F-Droid's tag-based detection — likely `UpdateCheckMode: Tags ^v[0-9]+\.[0-9]+\.[0-9]+$` (matching this repo's `v*` tag pattern from `release.yml`) paired with `AutoUpdateMode: Version` and a `Builds` commit template using F-Droid's `%v`/`%c` placeholders. Confirm the exact current syntax against F-Droid's [Build Metadata Reference](https://f-droid.org/docs/Build_Metadata_Reference/) before submitting — this area of their format has had revisions.
-4. Update `CurrentVersion`/`CurrentVersionCode` and add a matching entry under `Builds:` for the actual first tagged release (this draft still only has the `0.1.0`/`main`-commit placeholder from before any release existed).
+4. Update `CurrentVersion`/`CurrentVersionCode` and add a matching entry under `Builds:` for the actual first tagged release (this draft's `Builds:` entry already points at the future `v0.1.0` tag rather than `main`, per audit follow-up F-015's requirement that a build recipe reference an immutable ref, but that tag does not exist yet; if the version changes again before it is cut, `versionName`/`versionCode`/`commit` here need to move together, kept honest by `npm run check-version`).
 
 ## Submitting
 

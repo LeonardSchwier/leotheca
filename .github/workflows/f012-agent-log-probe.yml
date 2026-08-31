@@ -1,0 +1,9 @@
+name: F012 Agent Log Probe
+on: push
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - run: echo helper-ok

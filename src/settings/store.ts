@@ -1,7 +1,21 @@
 import { batch, effect, signal } from "@preact/signals";
-import { getAppVersion, readTextFile, restoreWorkspaceAccess, setStatusBarAppearance } from "../workspace/tauriBridge";
-import { loadGlobalConfig, saveGlobalConfig, type ThemePreference } from "./globalConfig";
-import { activeTabPath, closeAllTabs, openOrFocusTab, openTabs } from "../workspace/store";
+import {
+  getAppVersion,
+  readTextFile,
+  restoreWorkspaceAccess,
+  setStatusBarAppearance,
+} from "../workspace/tauriBridge";
+import {
+  loadGlobalConfig,
+  saveGlobalConfig,
+  type ThemePreference,
+} from "./globalConfig";
+import {
+  activeTabPath,
+  closeAllTabs,
+  openOrFocusTab,
+  openTabs,
+} from "../workspace/store";
 import { classifyWorkspaceResource } from "../workspace/types";
 import {
   DEFAULT_WORKSPACE_SETTINGS,
@@ -20,16 +34,30 @@ export const workspaceSession = signal(0);
 // alongside workspacePath purely so later saves (e.g. setTheme) don't
 // accidentally drop it.
 const workspaceToken = signal<string | undefined>(undefined);
-export const workspaceSettings = signal<WorkspaceSettings>(DEFAULT_WORKSPACE_SETTINGS);
+export const workspaceSettings = signal<WorkspaceSettings>(
+  DEFAULT_WORKSPACE_SETTINGS,
+);
 export const settingsLoaded = signal(false);
 export const workspaceSettingsSaveError = signal<string | null>(null);
+// Set when the workspace's settings.json existed but didn't fully decode as
+// written (see workspaceSettings.ts's decodeWorkspaceSettings): a JSON
+// syntax error, a wrong-typed or out-of-range field, an unrecognized enum
+// value, a lastOpenPaths/lastActivePath entry escaping the workspace, or an
+// unrecognized version. Never cleared by simply saving again from the
+// current in-memory (already-defaulted) state; only an explicit user
+// action (SettingsPanel's "Rewrite settings file" button) does that, so a
+// corrupt file is never silently overwritten just because the app happened
+// to load it.
+export const workspaceSettingsCorrupted = signal(false);
 export const settingsPanelOpen = signal(false);
 export const appVersion = signal("");
 export const theme = signal<ThemePreference>("system");
 // Applied from workspaceSettings.defaultViewMode whenever a workspace is
 // (re)opened, see setWorkspacePath/initSettings below; free to change
 // during the session afterward without touching that setting.
-export const viewMode = signal<ViewMode>(DEFAULT_WORKSPACE_SETTINGS.defaultViewMode);
+export const viewMode = signal<ViewMode>(
+  DEFAULT_WORKSPACE_SETTINGS.defaultViewMode,
+);
 
 // Keeps the editor and reading font size (see MarkdownEditor.tsx's CodeMirror
 // theme and .markdown-preview in App.css, both reference this variable) in
@@ -76,7 +104,7 @@ export async function restoreLastOpenTabs(): Promise<void> {
     activeTabPath.value =
       lastActivePath && restoredPaths.has(lastActivePath)
         ? lastActivePath
-        : openTabs.value.at(-1)?.path ?? null;
+        : (openTabs.value.at(-1)?.path ?? null);
     lastPersistedTabsKey = JSON.stringify([
       openTabs.value.map((tab) => tab.path),
       activeTabPath.value,
@@ -99,7 +127,10 @@ effect(() => {
   if (isRestoringTabs) return;
   if (key === lastPersistedTabsKey) return;
   lastPersistedTabsKey = key;
-  void updateWorkspaceSettings({ lastOpenPaths: paths, lastActivePath: activeTabPath.value });
+  void updateWorkspaceSettings({
+    lastOpenPaths: paths,
+    lastActivePath: activeTabPath.value,
+  });
 });
 
 function resolvesToDarkBackground(pref: ThemePreference): boolean {
@@ -125,11 +156,13 @@ effect(() => {
 
 // "system" theme also needs to react to the OS scheme changing while the
 // app is open, not just to our own theme signal changing.
-window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
-  if (theme.value === "system") {
-    void setStatusBarAppearance(resolvesToDarkBackground("system"));
-  }
-});
+window
+  .matchMedia("(prefers-color-scheme: dark)")
+  .addEventListener("change", () => {
+    if (theme.value === "system") {
+      void setStatusBarAppearance(resolvesToDarkBackground("system"));
+    }
+  });
 
 export async function initSettings(): Promise<void> {
   appVersion.value = await getAppVersion();
@@ -137,17 +170,22 @@ export async function initSettings(): Promise<void> {
   theme.value = global.theme;
   if (global.lastWorkspacePath) {
     try {
-      await restoreWorkspaceAccess(global.lastWorkspacePath, global.workspaceToken);
+      await restoreWorkspaceAccess(
+        global.lastWorkspacePath,
+        global.workspaceToken,
+      );
       // Skip the listDir probe — if the path is invalid, the first real
       // file operation will fail with a clear error. This saves ~20-100ms
       // on startup by avoiding one unnecessary SAF round trip.
-      const loadedWorkspaceSettings = await loadWorkspaceSettings(global.lastWorkspacePath);
+      const { settings: loadedWorkspaceSettings, corrupt } =
+        await loadWorkspaceSettings(global.lastWorkspacePath);
       const { lastOpenPaths, lastActivePath } = loadedWorkspaceSettings;
       lastPersistedTabsKey = JSON.stringify([lastOpenPaths, lastActivePath]);
       isRestoringTabs = true;
       try {
         batch(() => {
           workspaceSettings.value = loadedWorkspaceSettings;
+          workspaceSettingsCorrupted.value = corrupt;
           viewMode.value = loadedWorkspaceSettings.defaultViewMode;
           workspacePath.value = global.lastWorkspacePath;
           workspaceToken.value = global.workspaceToken;
@@ -161,7 +199,10 @@ export async function initSettings(): Promise<void> {
           openOrFocusTab(active, name, content, kind);
           // Update lastPersistedTabsKey after opening the tab so the effect
           // does not see a diff and trigger a write.
-          lastPersistedTabsKey = JSON.stringify([openTabs.value.map((t) => t.path), activeTabPath.value]);
+          lastPersistedTabsKey = JSON.stringify([
+            openTabs.value.map((t) => t.path),
+            activeTabPath.value,
+          ]);
         }
       } finally {
         isRestoringTabs = false;
@@ -177,7 +218,10 @@ export async function initSettings(): Promise<void> {
   settingsLoaded.value = true;
 }
 
-export async function setWorkspacePath(path: string, token?: string): Promise<void> {
+export async function setWorkspacePath(
+  path: string,
+  token?: string,
+): Promise<void> {
   // A manually chosen workspace can be opened before initSettings finishes
   // only in tests or an embedding shell. It is already fully interactive,
   // so it must enable persistence after its settings are hydrated below.
@@ -197,15 +241,21 @@ export async function setWorkspacePath(path: string, token?: string): Promise<vo
   // openTabs/activeTabPath on any run that doesn't read them).
   lastPersistedTabsKey = JSON.stringify([[], null]);
   closeAllTabs();
-  const loadedWorkspaceSettings = await loadWorkspaceSettings(path);
+  const { settings: loadedWorkspaceSettings, corrupt } =
+    await loadWorkspaceSettings(path);
   batch(() => {
     workspaceSettings.value = loadedWorkspaceSettings;
+    workspaceSettingsCorrupted.value = corrupt;
     viewMode.value = loadedWorkspaceSettings.defaultViewMode;
     workspacePath.value = path;
     workspaceToken.value = token;
     workspaceSession.value++;
   });
-  await saveGlobalConfig({ lastWorkspacePath: path, theme: theme.value, workspaceToken: token });
+  await saveGlobalConfig({
+    lastWorkspacePath: path,
+    theme: theme.value,
+    workspaceToken: token,
+  });
   await restoreLastOpenTabs();
 }
 
@@ -235,16 +285,21 @@ function flushWorkspaceSettingsWrites(): void {
   // Calling the native writer here, rather than from a promise continuation,
   // preserves the existing immediate-save behavior while its completion still
   // serializes every later revision.
-  void saveWorkspaceSettings(pending.path, pending.settings).then(
-    () => pending.resolvers.forEach(({ resolve }) => resolve()),
-    (error) => pending.resolvers.forEach(({ reject }) => reject(error)),
-  ).finally(() => {
-    workspaceSettingsWriteInFlight = false;
-    flushWorkspaceSettingsWrites();
-  });
+  void saveWorkspaceSettings(pending.path, pending.settings)
+    .then(
+      () => pending.resolvers.forEach(({ resolve }) => resolve()),
+      (error) => pending.resolvers.forEach(({ reject }) => reject(error)),
+    )
+    .finally(() => {
+      workspaceSettingsWriteInFlight = false;
+      flushWorkspaceSettingsWrites();
+    });
 }
 
-function queueWorkspaceSettingsWrite(path: string, settings: WorkspaceSettings): Promise<void> {
+function queueWorkspaceSettingsWrite(
+  path: string,
+  settings: WorkspaceSettings,
+): Promise<void> {
   return new Promise((resolve, reject) => {
     if (pendingWorkspaceSettingsWrite?.path === path) {
       pendingWorkspaceSettingsWrite.settings = settings;
@@ -258,7 +313,9 @@ function queueWorkspaceSettingsWrite(path: string, settings: WorkspaceSettings):
   });
 }
 
-export async function updateWorkspaceSettings(patch: Partial<WorkspaceSettings>): Promise<void> {
+export async function updateWorkspaceSettings(
+  patch: Partial<WorkspaceSettings>,
+): Promise<void> {
   if (!workspacePath.value) return;
   workspaceSettings.value = { ...workspaceSettings.value, ...patch };
   const path = workspacePath.value;
@@ -266,7 +323,8 @@ export async function updateWorkspaceSettings(patch: Partial<WorkspaceSettings>)
     await queueWorkspaceSettingsWrite(path, workspaceSettings.value);
     workspaceSettingsSaveError.value = null;
   } catch (error) {
-    workspaceSettingsSaveError.value = "Could not save workspace settings. Retry to keep your latest changes.";
+    workspaceSettingsSaveError.value =
+      "Could not save workspace settings. Retry to keep your latest changes.";
     throw error;
   }
 }
@@ -274,4 +332,17 @@ export async function updateWorkspaceSettings(patch: Partial<WorkspaceSettings>)
 export async function retryWorkspaceSettingsSave(): Promise<void> {
   if (!workspacePath.value || !workspaceSettingsSaveError.value) return;
   await updateWorkspaceSettings({});
+}
+
+/** The explicit user recovery action for a corrupt settings.json (see
+ * workspaceSettingsCorrupted above): writes the current, already-decoded
+ * in-memory settings back to disk, replacing whatever malformed content
+ * was there, and only then clears the corrupted flag. Never called
+ * automatically just because a load happened to be corrupt; a user who
+ * wants to inspect or hand-recover the original file first can do so
+ * right up until they choose this. */
+export async function repairWorkspaceSettingsFile(): Promise<void> {
+  if (!workspacePath.value || !workspaceSettingsCorrupted.value) return;
+  await updateWorkspaceSettings({});
+  workspaceSettingsCorrupted.value = false;
 }

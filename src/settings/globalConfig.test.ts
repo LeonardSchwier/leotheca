@@ -1,13 +1,24 @@
 import { describe, expect, it, vi } from "vitest";
-import { loadGlobalConfig, saveGlobalConfig, type GlobalConfig } from "./globalConfig";
+import {
+  decodeGlobalConfig,
+  loadGlobalConfig,
+  saveGlobalConfig,
+  type GlobalConfig,
+} from "./globalConfig";
 
-const { readTextFile, writeTextFile, getAppConfigFilePath } = vi.hoisted(() => ({
-  readTextFile: vi.fn(),
-  writeTextFile: vi.fn(),
-  getAppConfigFilePath: vi.fn(async (name: string) => `/config/${name}`),
+const { readTextFile, writeTextFile, getAppConfigFilePath } = vi.hoisted(
+  () => ({
+    readTextFile: vi.fn(),
+    writeTextFile: vi.fn(),
+    getAppConfigFilePath: vi.fn(async (name: string) => `/config/${name}`),
+  }),
+);
+
+vi.mock("../workspace/tauriBridge", () => ({
+  readTextFile,
+  writeTextFile,
+  getAppConfigFilePath,
 }));
-
-vi.mock("../workspace/tauriBridge", () => ({ readTextFile, writeTextFile, getAppConfigFilePath }));
 
 describe("loadGlobalConfig", () => {
   it("falls back to defaults when the config file doesn't exist yet", async () => {
@@ -37,9 +48,64 @@ describe("loadGlobalConfig", () => {
 
 describe("saveGlobalConfig", () => {
   it("writes to the app config directory's config.json", async () => {
-    const config: GlobalConfig = { lastWorkspacePath: "/vault", theme: "system" };
+    const config: GlobalConfig = {
+      lastWorkspacePath: "/vault",
+      theme: "system",
+    };
     await saveGlobalConfig(config);
     expect(getAppConfigFilePath).toHaveBeenCalledWith("config.json");
-    expect(writeTextFile).toHaveBeenCalledWith("/config/config.json", JSON.stringify(config, null, 2));
+    expect(writeTextFile).toHaveBeenCalledWith(
+      "/config/config.json",
+      JSON.stringify(config, null, 2),
+    );
+  });
+});
+
+// Audit follow-up F-008.
+describe("decodeGlobalConfig", () => {
+  it("treats a JSON syntax error as corrupt and falls back to defaults", () => {
+    const { config, corrupt } = decodeGlobalConfig("{ not valid json");
+    expect(config).toEqual({ lastWorkspacePath: null, theme: "system" });
+    expect(corrupt).toBe(true);
+  });
+
+  it("treats a top-level JSON array as corrupt", () => {
+    const { corrupt } = decodeGlobalConfig("[1, 2, 3]");
+    expect(corrupt).toBe(true);
+  });
+
+  it("rejects an unrecognized theme value", () => {
+    const { config, corrupt } = decodeGlobalConfig(
+      JSON.stringify({ theme: "rainbow" }),
+    );
+    expect(config.theme).toBe("system");
+    expect(corrupt).toBe(true);
+  });
+
+  it("rejects a wrong-typed lastWorkspacePath", () => {
+    const { config, corrupt } = decodeGlobalConfig(
+      JSON.stringify({ lastWorkspacePath: 42 }),
+    );
+    expect(config.lastWorkspacePath).toBeNull();
+    expect(corrupt).toBe(true);
+  });
+
+  it("rejects a wrong-typed workspaceToken", () => {
+    const { config, corrupt } = decodeGlobalConfig(
+      JSON.stringify({ workspaceToken: 12345 }),
+    );
+    expect(config.workspaceToken).toBeUndefined();
+    expect(corrupt).toBe(true);
+  });
+
+  it("keeps a valid, fully-populated config as not corrupt", () => {
+    const saved: GlobalConfig = {
+      lastWorkspacePath: "/vault",
+      theme: "dark",
+      workspaceToken: "content://x",
+    };
+    const { config, corrupt } = decodeGlobalConfig(JSON.stringify(saved));
+    expect(config).toEqual(saved);
+    expect(corrupt).toBe(false);
   });
 });

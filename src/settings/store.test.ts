@@ -55,10 +55,12 @@ window.matchMedia = vi.fn().mockImplementation((query: string) => ({
 const {
   restoreLastOpenTabs,
   initSettings,
+  repairWorkspaceSettingsFile,
   setWorkspacePath,
   settingsLoaded,
   workspacePath,
   workspaceSettings,
+  workspaceSettingsCorrupted,
   workspaceSession,
 } = await import("./store");
 const { activeTabPath, closeAllTabs, openOrFocusTab, openTabs } =
@@ -288,5 +290,82 @@ describe("tab operations that change both openTabs and activeTabPath", () => {
       ),
     );
     expect(count).toBe(1);
+  });
+});
+
+// Audit follow-up F-008: a corrupt settings.json must never be silently
+// replaced by the defaulted values loading it produced, only by an
+// explicit user action (SettingsPanel's "Rewrite settings file", wired to
+// repairWorkspaceSettingsFile below).
+describe("workspace settings corruption recovery", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    workspaceSettingsCorrupted.value = false;
+  });
+
+  it("does not write back to disk merely from loading a corrupt settings file", async () => {
+    readTextFile.mockImplementation(async (path: string) => {
+      if (path === "/workspaceA/.leotheca/settings.json")
+        return "{ not valid json";
+      throw new Error("not found");
+    });
+
+    await setWorkspacePath("/workspaceA");
+    await flushSettingsWrites();
+
+    expect(workspaceSettingsCorrupted.value).toBe(true);
+    expect(writesTo("/workspaceA/.leotheca/settings.json")).toEqual([]);
+  });
+
+  it("does not mark settings corrupted after loading an already-valid file", async () => {
+    readTextFile.mockImplementation(async (path: string) => {
+      if (path === "/workspaceA/.leotheca/settings.json") {
+        return JSON.stringify(DEFAULT_WORKSPACE_SETTINGS);
+      }
+      throw new Error("not found");
+    });
+
+    await setWorkspacePath("/workspaceA");
+    await flushSettingsWrites();
+
+    expect(workspaceSettingsCorrupted.value).toBe(false);
+  });
+
+  it("repairWorkspaceSettingsFile writes the current settings and clears the corrupted flag", async () => {
+    readTextFile.mockImplementation(async (path: string) => {
+      if (path === "/workspaceA/.leotheca/settings.json")
+        return "{ not valid json";
+      throw new Error("not found");
+    });
+
+    await setWorkspacePath("/workspaceA");
+    await flushSettingsWrites();
+    expect(workspaceSettingsCorrupted.value).toBe(true);
+    expect(writesTo("/workspaceA/.leotheca/settings.json")).toEqual([]);
+
+    await repairWorkspaceSettingsFile();
+    await flushSettingsWrites();
+
+    expect(workspaceSettingsCorrupted.value).toBe(false);
+    expect(
+      writesTo("/workspaceA/.leotheca/settings.json").length,
+    ).toBeGreaterThan(0);
+  });
+
+  it("does nothing when called while settings are not actually marked corrupted", async () => {
+    readTextFile.mockImplementation(async (path: string) => {
+      if (path === "/workspaceA/.leotheca/settings.json") {
+        return JSON.stringify(DEFAULT_WORKSPACE_SETTINGS);
+      }
+      throw new Error("not found");
+    });
+
+    await setWorkspacePath("/workspaceA");
+    await flushSettingsWrites();
+    vi.clearAllMocks();
+
+    await repairWorkspaceSettingsFile();
+
+    expect(writeWorkspaceTextFile).not.toHaveBeenCalled();
   });
 });

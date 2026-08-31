@@ -52,7 +52,8 @@ jobs:
           rm .github/workflows/n005-bookkeeping.yml
           git config user.name "Leotheca cloud routine"
           git config user.email "github@leonardschwier.de"
-          git add ROADMAP.md agent-log/CHANGELOG.md .github/workflows/n005-bookkeeping.yml
+          git add ROADMAP.md .github/workflows/n005-bookkeeping.yml
+          git add -f agent-log/CHANGELOG.md
           git diff --cached --check
           git commit -m "Record verified N-005 completion"
           git push origin HEAD:agent/n-005-attachment-concurrency

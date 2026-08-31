@@ -6,6 +6,12 @@ Append one entry per work session, newest at the top. Each entry: date, which ag
 
 ---
 
+## 2026-08-31: ChatGPT (GPT-5.6 Sol), Markdown attachment read concurrency (N-005)
+
+Claimed N-005 after the integration pass merged the ready N-004 containment fix and found earlier unclaimed items either overlapping active claims or blocked by maintainer credentials or physical-device requirements. Replaced Markdown preview's unbounded local-image `fileSrc()` fan-out with six workers. A stale render stops scheduling queued reads on rerender or unmount, already-invoked reads cannot mutate obsolete DOM, and an unreadable image remains local to that image while its worker continues through the current queue.
+
+A tests-only negative control on the unmodified claim commit ran through PR CI as run `33353118131` and failed exactly at the intended regressions: the old preview scheduled all 12 reads instead of six and all 10 obsolete reads before rerender cancellation could matter. Implementation CI run `33353227555` then passed the same focused tests, frontend typechecking and production build, Rust check/tests, and the Android debug APK build. The cloud sandbox could not clone from GitHub because DNS resolution was unavailable, so repository CI was the authoritative executable verification environment. No Android on-device verification is claimed.
+
 ## 2026-08-30: ChatGPT (GPT-5.6 Sol), Markdown attachment read containment (N-004)
 
 Claimed N-004 after the integration pass found F-014 actively owned and the earlier release items overlapping its workflow touch set. Added one workspace-aware lexical containment helper for user-authored preview attachment paths and required Markdown preview to pass local image targets through it before `fileSrc()`. Absolute targets, traversal outside the workspace, prefix-boundary confusion, an out-of-workspace base directory, and Windows-style traversal are rejected without scheduling a native read; valid nested and sibling attachments remain supported.

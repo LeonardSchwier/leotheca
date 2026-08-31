@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- The project's version number now has one canonical source (the root `VERSION` file), validated across every platform's build metadata in CI; a real release can no longer be tagged if the tag or the changelog has drifted from it.
 - CI now uses one same-commit validation gate for frontend, Rust, Android emulator installation, and AppImage launch checks, and release publication requires that gate to pass.
 - Android now exposes New note and Favorites as separate home-screen widgets instead of combining both actions in one widget.
 - Frontmatter property edits now preserve unrelated comments, ordering, line endings, scalar types, and unsupported structures instead of rebuilding the entire frontmatter block. Complex values that cannot be edited losslessly in the Properties panel are shown read-only and remain editable in Source view.

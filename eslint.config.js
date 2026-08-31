@@ -27,4 +27,17 @@ export default tseslint.config(
       "react-hooks/exhaustive-deps": "warn",
     },
   },
+  {
+    // Plain Node scripts (release tooling, not the shared frontend bundle),
+    // so they need Node's own globals rather than the browser ones the rest
+    // of this config never had to declare because tseslint's TS-aware rules
+    // cover src/**/*.{ts,tsx} instead of relying on eslint's no-undef there.
+    files: ["scripts/**/*.js"],
+    languageOptions: {
+      globals: {
+        console: "readonly",
+        process: "readonly",
+      },
+    },
+  },
 );

@@ -44,6 +44,7 @@ vi.mock("./fileTreeStore", () => ({
   renameEntry,
   toggleSortOrder: vi.fn(),
   loadChildren: vi.fn(async () => []),
+  expandFirstLevel: vi.fn(async () => {}),
   openContextMenu: vi.fn(),
   closeContextMenu: vi.fn(() => {
     contextMenuTarget.value = null;

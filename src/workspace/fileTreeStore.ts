@@ -218,6 +218,25 @@ export async function expandAll(rootPath: string) {
   dirChildren.value = nextChildren;
 }
 
+/** Loads `rootPath`'s own listing, then auto-expands its immediate
+ * subdirectories so a newly opened workspace shows one level of structure
+ * without an explicit "Expand all" tap. Deliberately one level, not
+ * `expandAll`'s full recursive native walk: bounded to however many
+ * top-level directories the root actually has, rather than the whole
+ * tree, so opening a large vault doesn't pay that walk's cost just to
+ * render the first screen. A subdirectory whose own listing fails to load
+ * doesn't block the others: it stays marked expanded but shows no
+ * children, the same recoverable state a manually toggled folder would be
+ * left in if `listDir` rejected for it, and collapsing then re-expanding
+ * it retries the load like any other folder. */
+export async function expandFirstLevel(rootPath: string): Promise<void> {
+  const entries = await loadChildren(rootPath);
+  const dirs = entries.filter((entry) => entry.isDir);
+  if (dirs.length === 0) return;
+  expandedDirs.value = new Set(dirs.map((dir) => dir.path));
+  await Promise.allSettled(dirs.map((dir) => loadChildren(dir.path)));
+}
+
 export function toggleSortOrder() {
   const next =
     workspaceSettings.value.sortOrder === "name-asc" ? "name-desc" : "name-asc";

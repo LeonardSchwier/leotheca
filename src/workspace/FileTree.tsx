@@ -3,6 +3,7 @@ import {
   dirChildren,
   dirname,
   expandedDirs,
+  expandFirstLevel,
   loadChildren,
   openContextMenu,
   selectedDir,
@@ -19,7 +20,7 @@ interface FileTreeProps {
 
 export function FileTree({ rootPath, onOpenFile }: FileTreeProps) {
   useEffect(() => {
-    loadChildren(rootPath);
+    void expandFirstLevel(rootPath);
   }, [rootPath]);
 
   const entries = dirChildren.value.get(rootPath);

@@ -93,6 +93,7 @@ const {
   toggleExpanded,
   loadChildren,
   expandAll,
+  expandFirstLevel,
 } = await import("./fileTreeStore");
 
 function entry(name: string, isDir = false): FsEntry {
@@ -1103,5 +1104,72 @@ describe("expandAll", () => {
 
     expect(expandedDirs.value).toEqual(new Set(["/workspace"]));
     expect(dirChildren.value.get("/workspace")).toEqual([]);
+  });
+});
+
+describe("expandFirstLevel", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    expandedDirs.value = new Set();
+    dirChildren.value = new Map();
+  });
+
+  it("loads the root and expands each of its immediate subdirectories, but not their own children", async () => {
+    const nested: FsEntry = {
+      name: "nested",
+      path: "/workspace/notes/nested",
+      isDir: true,
+    };
+    listDir.mockImplementation(async (path: string) => {
+      if (path === "/workspace") return [entry("notes", true), entry("a.md")];
+      if (path === "/workspace/notes") return [nested];
+      return [];
+    });
+
+    await expandFirstLevel("/workspace");
+
+    expect(expandedDirs.value).toEqual(new Set(["/workspace/notes"]));
+    expect(dirChildren.value.get("/workspace")?.map((e) => e.name)).toEqual([
+      "notes",
+      "a.md",
+    ]);
+    expect(
+      dirChildren.value.get("/workspace/notes")?.map((e) => e.name),
+    ).toEqual(["nested"]);
+    // The second level itself is never fetched: bounded to one level, not
+    // expandAll's full recursive walk.
+    expect(dirChildren.value.has("/workspace/notes/nested")).toBe(false);
+    expect(listDir).toHaveBeenCalledTimes(2);
+  });
+
+  it("does nothing beyond loading the root when it has no subdirectories", async () => {
+    listDir.mockImplementation(async (path: string) =>
+      path === "/workspace" ? [entry("a.md"), entry("b.md")] : [],
+    );
+
+    await expandFirstLevel("/workspace");
+
+    expect(expandedDirs.value).toEqual(new Set());
+    expect(listDir).toHaveBeenCalledTimes(1);
+  });
+
+  it("still expands the subdirectories whose listing succeeds when another one's listing rejects", async () => {
+    listDir.mockImplementation(async (path: string) => {
+      if (path === "/workspace")
+        return [entry("good", true), entry("bad", true)];
+      if (path === "/workspace/bad") throw new Error("permission denied");
+      return [];
+    });
+
+    await expandFirstLevel("/workspace");
+
+    expect(expandedDirs.value).toEqual(
+      new Set(["/workspace/good", "/workspace/bad"]),
+    );
+    expect(dirChildren.value.get("/workspace/good")).toEqual([]);
+    // The failed one is still marked expanded (so collapsing and
+    // re-expanding it retries the load, like any manually toggled
+    // folder), it just has no cached children to show yet.
+    expect(dirChildren.value.has("/workspace/bad")).toBe(false);
   });
 });

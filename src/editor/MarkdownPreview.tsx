@@ -109,6 +109,7 @@ interface MarkdownPreviewProps {
 // Android, see workspace/tauriBridge.ts's fileSrc) can only be obtained
 // asynchronously, which a synchronous marked.parse call cannot wait on.
 const ATTACHMENT_SRC_PREFIX = "#leotheca-attachment=";
+const ATTACHMENT_READ_CONCURRENCY = 6;
 
 // Any URI with a scheme (http:, https:, data:, etc.) is left for marked's
 // own default image rendering: an absolute remote URL is exactly what
@@ -183,33 +184,42 @@ export function MarkdownPreview({
   }, [source, mathRenderingEnabled, noteDir, workspaceRoot]);
 
   // marked.parse is synchronous, but resolving a placeholder src into a
-  // real, loadable one (fileSrc, see workspace/tauriBridge.ts) is not: on
-  // desktop it's an asset:// URL, on Android it's a data: URL read off
-  // disk. Both need an await, so the real src is filled in here, after
-  // render, the same pattern ImageViewer.tsx already uses for a
-  // standalone image tab. Using Promise.all() so all resolves fire in
-  // parallel rather than sequentially — on Android/SAF the native bridge
-  // queues them anyway, but starting them all at once avoids any
-  // per-image overhead from the JS side.
+  // real, loadable one (fileSrc, see workspace/tauriBridge.ts) is not. A
+  // small worker queue bounds native reads on both desktop and Android.
+  // Cancelling a stale render stops its workers before they schedule any
+  // more queued reads; already-invoked reads may finish but cannot update
+  // the obsolete DOM.
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
     let cancelled = false;
 
-    const images = container.querySelectorAll<HTMLImageElement>(
-      `img[src^="${ATTACHMENT_SRC_PREFIX}"]`,
+    const images = Array.from(
+      container.querySelectorAll<HTMLImageElement>(`img[src^="${ATTACHMENT_SRC_PREFIX}"]`),
     );
-    const promises = Array.from(images).map((img) => {
-      const absolutePath = decodeURIComponent(
-        img.getAttribute("src")!.slice(ATTACHMENT_SRC_PREFIX.length),
-      );
-      return fileSrc(absolutePath).then((resolved) => {
-        if (!cancelled) img.src = resolved;
-      });
-    });
-    // Fire all resolves in parallel; errors are silently ignored since
-    // the image will simply not load for that attachment.
-    Promise.allSettled(promises).catch(() => {});
+    let nextImageIndex = 0;
+
+    const resolveNext = async () => {
+      while (!cancelled) {
+        const img = images[nextImageIndex];
+        if (!img) return;
+        nextImageIndex += 1;
+
+        const absolutePath = decodeURIComponent(
+          img.getAttribute("src")!.slice(ATTACHMENT_SRC_PREFIX.length),
+        );
+        try {
+          const resolved = await fileSrc(absolutePath);
+          if (!cancelled) img.src = resolved;
+        } catch {
+          // Keep one unreadable attachment local to that image. The worker
+          // continues with the rest of the current queue.
+        }
+      }
+    };
+
+    const workerCount = Math.min(ATTACHMENT_READ_CONCURRENCY, images.length);
+    void Promise.allSettled(Array.from({ length: workerCount }, () => resolveNext()));
 
     return () => {
       cancelled = true;

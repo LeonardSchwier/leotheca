@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { relativePathBetween, resolvePath } from "./paths";
+import { relativePathBetween, resolvePath, resolvePathWithinWorkspace } from "./paths";
 
 describe("resolvePath", () => {
   it("resolves a plain relative target against the base directory", () => {
@@ -26,6 +26,47 @@ describe("resolvePath", () => {
 
   it("collapses repeated slashes and trailing segments", () => {
     expect(resolvePath("/vault/notes/", "sub/../image.png")).toBe("/vault/notes/image.png");
+  });
+});
+
+describe("resolvePathWithinWorkspace", () => {
+  it("keeps a nested relative target inside the workspace", () => {
+    expect(resolvePathWithinWorkspace("/vault", "/vault/notes", "images/cat.png")).toBe(
+      "/vault/notes/images/cat.png",
+    );
+  });
+
+  it("allows a sibling attachment that remains inside the workspace", () => {
+    expect(resolvePathWithinWorkspace("/vault", "/vault/notes", "../attachments/cat.png")).toBe(
+      "/vault/attachments/cat.png",
+    );
+  });
+
+  it("rejects traversal that escapes the workspace root", () => {
+    expect(resolvePathWithinWorkspace("/vault", "/vault/notes", "../../outside.png")).toBeNull();
+  });
+
+  it("uses a component boundary rather than a string prefix", () => {
+    expect(resolvePathWithinWorkspace("/vault", "/vault/notes", "../../vault-other/cat.png")).toBeNull();
+  });
+
+  it("rejects an out-of-workspace base even if its target would resolve back inside", () => {
+    expect(resolvePathWithinWorkspace("/vault", "/outside", "../vault/cat.png")).toBeNull();
+  });
+
+  it("rejects absolute targets before resolution", () => {
+    expect(resolvePathWithinWorkspace("/vault", "/vault/notes", "/outside/cat.png")).toBeNull();
+    expect(resolvePathWithinWorkspace("C:/vault", "C:/vault/notes", "D:/outside/cat.png")).toBeNull();
+  });
+
+  it("treats backslashes as separators so Windows traversal cannot escape", () => {
+    expect(resolvePathWithinWorkspace("C:/vault", "C:/vault/notes", "..\\..\\outside.png")).toBeNull();
+  });
+
+  it("preserves a valid Windows-style workspace path", () => {
+    expect(resolvePathWithinWorkspace("C:/vault", "C:/vault/notes", "..\\attachments\\cat.png")).toBe(
+      "C:/vault/attachments/cat.png",
+    );
   });
 });
 

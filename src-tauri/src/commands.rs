@@ -1,6 +1,6 @@
 use serde::Serialize;
 use std::fs;
-use std::path::Path;
+use std::path::{Component, Path, PathBuf};
 use std::time::UNIX_EPOCH;
 
 #[derive(Serialize)]
@@ -447,6 +447,214 @@ pub fn read_text_files_batch(paths: Vec<String>) -> Vec<Option<String>> {
         .collect()
 }
 
+/// Walks upward from `path` until it finds a real, existing ancestor,
+/// returning that ancestor plus the not-yet-existing remainder as a plain,
+/// non-canonicalized suffix. A brand-new nested note or folder has no
+/// canonical form of its own (`fs::canonicalize` requires the path to
+/// exist), so `resolve_within_workspace` below canonicalizes only the part
+/// of the path that can be, then reattaches the rest lexically. The
+/// reattached suffix cannot itself hide a symlink escape: nothing exists
+/// there yet for a symlink to have been planted at.
+fn nearest_existing_ancestor(path: &Path) -> (PathBuf, PathBuf) {
+    let mut existing = path.to_path_buf();
+    let mut suffix_components: Vec<std::ffi::OsString> = Vec::new();
+    while !existing.exists() {
+        let name = existing.file_name().map(|name| name.to_os_string());
+        match existing.parent() {
+            Some(parent) => {
+                if let Some(name) = name {
+                    suffix_components.push(name);
+                }
+                existing = parent.to_path_buf();
+            }
+            None => break,
+        }
+    }
+    suffix_components.reverse();
+    let mut suffix = PathBuf::new();
+    for component in suffix_components {
+        suffix.push(component);
+    }
+    (existing, suffix)
+}
+
+/// Audit follow-up F-004: resolves `relative_path` against `workspace_root`,
+/// the one canonical containment boundary every workspace-scoped mutation
+/// (create, write, rename, delete) is required to pass through before
+/// touching the filesystem. Before this, desktop commands accepted an
+/// already-joined absolute path straight from the frontend with no
+/// server-side check at all, trusting the caller's own arithmetic as the
+/// only thing keeping a write inside the workspace.
+///
+/// Rejected before any filesystem access, regardless of what exists on
+/// disk: an empty path, an absolute `relative_path` (it must be relative
+/// to `workspace_root`, not a second full path), and any lexical `..`
+/// component (parent-directory traversal). `Path::is_absolute` already
+/// covers a Windows drive-letter or UNC prefix on that platform; this adds
+/// an explicit check for a bare root/prefix component too, as defense in
+/// depth against a future caller constructing `relative_path` in a way
+/// `is_absolute` alone wouldn't catch on every platform.
+///
+/// Symlink policy: once the lexical checks pass, the resolver canonicalizes
+/// the nearest existing ancestor of the target (see `nearest_existing_ancestor`)
+/// and requires that canonical form to sit inside the canonicalized
+/// workspace root, using component-wise comparison (`Path::starts_with`),
+/// not a raw string prefix, so a sibling directory whose name merely starts
+/// with the workspace root's name (e.g. a workspace at `/vault` and a
+/// symlink target of `/vault-evil`) is correctly rejected rather than
+/// accepted by accident. A symlink anywhere in that ancestor chain whose
+/// real target resolves outside the workspace is therefore rejected; one
+/// that stays inside the workspace (a note symlinked to another location in
+/// the same vault) is allowed, since canonicalization only cares about
+/// where a path actually leads. If the exact target itself is already a
+/// symlink (dangling or not), it is resolved and checked directly first,
+/// rather than being treated as "doesn't exist yet" by the ancestor walk:
+/// a dangling symlink still has no canonical form, so `fs::canonicalize`
+/// naturally fails it, and a non-dangling one is checked the same way as
+/// any other target.
+fn resolve_within_workspace(workspace_root: &str, relative_path: &str) -> Result<PathBuf, String> {
+    let relative = Path::new(relative_path);
+    if relative.as_os_str().is_empty() {
+        return Err("a workspace-relative path may not be empty".to_string());
+    }
+    if relative.is_absolute()
+        || relative
+            .components()
+            .any(|component| matches!(component, Component::RootDir | Component::Prefix(_)))
+    {
+        return Err(format!(
+            "\"{relative_path}\" must be relative to the workspace, not an absolute path"
+        ));
+    }
+    if relative
+        .components()
+        .any(|component| matches!(component, Component::ParentDir))
+    {
+        return Err(format!(
+            "\"{relative_path}\" may not contain \"..\" path segments"
+        ));
+    }
+
+    let root = Path::new(workspace_root);
+    let canonical_root = fs::canonicalize(root)
+        .map_err(|e| format!("workspace root \"{workspace_root}\" is not accessible: {e}"))?;
+
+    let joined = root.join(relative);
+
+    if let Ok(link_metadata) = fs::symlink_metadata(&joined) {
+        if link_metadata.file_type().is_symlink() {
+            let canonical_target = fs::canonicalize(&joined).map_err(|_| {
+                format!("\"{relative_path}\" is a symlink that does not resolve to a real location")
+            })?;
+            return if canonical_target.starts_with(&canonical_root) {
+                Ok(canonical_target)
+            } else {
+                Err(format!(
+                    "\"{relative_path}\" is a symlink resolving outside the workspace"
+                ))
+            };
+        }
+    }
+
+    let (existing_ancestor, remaining_suffix) = nearest_existing_ancestor(&joined);
+    let canonical_ancestor = fs::canonicalize(&existing_ancestor)
+        .map_err(|e| format!("\"{relative_path}\" is not accessible: {e}"))?;
+    if !canonical_ancestor.starts_with(&canonical_root) {
+        return Err(format!(
+            "\"{relative_path}\" resolves outside the workspace root"
+        ));
+    }
+
+    // `PathBuf::join` with an empty path still appends a trailing
+    // separator (observed directly: joining "/a/b" with "" produced
+    // "/a/b/", not "/a/b"), which then makes `fs::rename`/`fs::remove_file`
+    // fail with ENOTDIR on a non-directory target since a trailing
+    // separator asserts "this must be a directory" at the OS level. An
+    // empty suffix means the target already existed and was canonicalized
+    // directly, so there is nothing to append at all.
+    if remaining_suffix.as_os_str().is_empty() {
+        Ok(canonical_ancestor)
+    } else {
+        Ok(canonical_ancestor.join(remaining_suffix))
+    }
+}
+
+/// Writes `contents` to a workspace-relative path, after verifying with
+/// `resolve_within_workspace` that it cannot escape `workspace_root`. This
+/// is the workspace-scoped counterpart to `write_text_file` below, which
+/// still exists unchanged for the one caller that genuinely has no
+/// workspace to contain against (the global app config file, written
+/// before any workspace is ever opened).
+#[tauri::command]
+pub fn write_workspace_text_file(
+    workspace_root: String,
+    relative_path: String,
+    contents: String,
+) -> Result<(), String> {
+    let target = resolve_within_workspace(&workspace_root, &relative_path)?;
+    if let Some(parent) = target.parent() {
+        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    fs::write(&target, contents).map_err(|e| e.to_string())
+}
+
+/// Same containment guarantee as `write_workspace_text_file`, for binary
+/// attachment content. See `write_binary_file` below for the byte-array
+/// IPC encoding note; unchanged here.
+#[tauri::command]
+pub fn write_workspace_binary_file(
+    workspace_root: String,
+    relative_path: String,
+    data: Vec<u8>,
+) -> Result<(), String> {
+    let target = resolve_within_workspace(&workspace_root, &relative_path)?;
+    if let Some(parent) = target.parent() {
+        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    fs::write(&target, data).map_err(|e| e.to_string())
+}
+
+/// Creates a workspace-relative directory (and any missing intermediate
+/// directories), after verifying containment. Counterpart to `create_dir`
+/// below.
+#[tauri::command]
+pub fn create_workspace_dir(workspace_root: String, relative_path: String) -> Result<(), String> {
+    let target = resolve_within_workspace(&workspace_root, &relative_path)?;
+    fs::create_dir_all(&target).map_err(|e| e.to_string())
+}
+
+/// Renames/moves a workspace-relative path to another workspace-relative
+/// path within the same workspace, after verifying both ends independently
+/// with `resolve_within_workspace`. Counterpart to `rename_path` below.
+#[tauri::command]
+pub fn rename_workspace_path(
+    workspace_root: String,
+    from: String,
+    to: String,
+) -> Result<(), String> {
+    let from_target = resolve_within_workspace(&workspace_root, &from)?;
+    let to_target = resolve_within_workspace(&workspace_root, &to)?;
+    if let Some(parent) = to_target.parent() {
+        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    fs::rename(&from_target, &to_target).map_err(|e| e.to_string())
+}
+
+/// Permanently deletes a workspace-relative path, after verifying
+/// containment. Counterpart to `delete_path_permanent` below.
+#[tauri::command]
+pub fn delete_workspace_path_permanent(
+    workspace_root: String,
+    relative_path: String,
+) -> Result<(), String> {
+    let target = resolve_within_workspace(&workspace_root, &relative_path)?;
+    if target.is_dir() {
+        fs::remove_dir_all(&target).map_err(|e| e.to_string())
+    } else {
+        fs::remove_file(&target).map_err(|e| e.to_string())
+    }
+}
+
 /// Writes `contents` to `path`, creating any missing parent directories
 /// first (needed for first-run writes like the settings file, whose config
 /// directory may not exist yet).
@@ -494,13 +702,24 @@ pub fn rename_path(from: String, to: String) -> Result<(), String> {
 /// relative to the workspace root, rather than deleting it outright. If a
 /// same-named entry already sits in `.trash`, the incoming one is given a
 /// millisecond-timestamp prefix instead of overwriting it.
+///
+/// `path` arrives as an absolute path (every existing caller already has
+/// one), so containment here works the other way round from the other
+/// `resolve_within_workspace` callers above: first derive the
+/// workspace-relative form via `strip_prefix`, a purely lexical check on
+/// its own, then run that relative form back through
+/// `resolve_within_workspace` for the real, canonicalize-based containment
+/// and symlink check (audit follow-up F-004) before touching the
+/// filesystem, rather than trusting the lexical prefix match alone.
 #[tauri::command]
 pub fn trash_path(workspace_root: String, path: String) -> Result<(), String> {
     let root = Path::new(&workspace_root);
     let target = Path::new(&path);
     let relative = target.strip_prefix(root).map_err(|e| e.to_string())?;
+    let resolved = resolve_within_workspace(&workspace_root, &relative.to_string_lossy())?;
 
-    let mut dest = root.join(".trash").join(relative);
+    let canonical_root = fs::canonicalize(root).map_err(|e| e.to_string())?;
+    let mut dest = canonical_root.join(".trash").join(relative);
     if let Some(parent) = dest.parent() {
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
@@ -516,7 +735,7 @@ pub fn trash_path(workspace_root: String, path: String) -> Result<(), String> {
         dest = dest.with_file_name(format!("{stamp}-{file_name}"));
     }
 
-    fs::rename(target, &dest).map_err(|e| e.to_string())
+    fs::rename(&resolved, &dest).map_err(|e| e.to_string())
 }
 
 /// Deletes `path` outright, no `.trash` involved. Used when the workspace's
@@ -1165,6 +1384,339 @@ mod tests {
         );
 
         fs::remove_file(root.join("loop")).unwrap();
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    fn make_workspace(name: &str) -> PathBuf {
+        let root =
+            std::env::temp_dir().join(format!("leotheca-test-f004-{name}-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        root
+    }
+
+    #[test]
+    fn resolve_within_workspace_rejects_an_empty_path() {
+        let root = make_workspace("empty");
+        assert!(resolve_within_workspace(&root.to_string_lossy(), "").is_err());
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn resolve_within_workspace_rejects_an_absolute_relative_path() {
+        let root = make_workspace("absolute");
+        let err = resolve_within_workspace(&root.to_string_lossy(), "/etc/passwd").unwrap_err();
+        assert!(err.contains("absolute"), "unexpected error: {err}");
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn resolve_within_workspace_rejects_lexical_parent_traversal() {
+        let root = make_workspace("traversal");
+        fs::write(root.join("note.md"), "hi").unwrap();
+        let err = resolve_within_workspace(&root.to_string_lossy(), "../outside.md").unwrap_err();
+        assert!(err.contains(".."), "unexpected error: {err}");
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn resolve_within_workspace_rejects_traversal_hidden_in_the_middle_of_the_path() {
+        // "notes/../../outside.md" contains no leading ".." but still
+        // escapes once walked: the component-based rejection must catch a
+        // ".." anywhere, not just check whether the whole string starts
+        // with one.
+        let root = make_workspace("mid-traversal");
+        fs::create_dir_all(root.join("notes")).unwrap();
+        let err = resolve_within_workspace(&root.to_string_lossy(), "notes/../../outside.md")
+            .unwrap_err();
+        assert!(err.contains(".."), "unexpected error: {err}");
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn resolve_within_workspace_accepts_a_not_yet_existing_nested_path() {
+        let root = make_workspace("new-nested");
+        let resolved =
+            resolve_within_workspace(&root.to_string_lossy(), "folder/sub/new-note.md").unwrap();
+        let canonical_root = fs::canonicalize(&root).unwrap();
+        assert_eq!(resolved, canonical_root.join("folder/sub/new-note.md"));
+        // Purely a resolution, not a write: nothing should have been created.
+        assert!(!root.join("folder").exists());
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn resolve_within_workspace_accepts_an_existing_nested_file() {
+        let root = make_workspace("existing-nested");
+        fs::create_dir_all(root.join("folder")).unwrap();
+        fs::write(root.join("folder/note.md"), "hi").unwrap();
+        let resolved = resolve_within_workspace(&root.to_string_lossy(), "folder/note.md").unwrap();
+        let canonical_root = fs::canonicalize(&root).unwrap();
+        assert_eq!(resolved, canonical_root.join("folder/note.md"));
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn resolve_within_workspace_rejects_a_sibling_directory_that_merely_shares_a_name_prefix() {
+        // Regression guard for the classic string-prefix bug: a workspace at
+        // ".../vault" must not accept a target that resolves to
+        // ".../vault-evil/secret.md" just because the string "vault-evil"
+        // starts with the string "vault". `Path::starts_with` is
+        // component-aware and should already reject this; this test proves
+        // it, rather than assuming the stdlib API is used correctly.
+        let parent = std::env::temp_dir().join(format!(
+            "leotheca-test-f004-prefix-parent-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&parent);
+        let root = parent.join("vault");
+        let evil = parent.join("vault-evil");
+        fs::create_dir_all(&root).unwrap();
+        fs::create_dir_all(&evil).unwrap();
+        fs::write(evil.join("secret.md"), "top secret").unwrap();
+        // Symlink *inside* the real workspace pointing at the sibling
+        // "vault-evil" directory, the only way a resolver operating purely
+        // on `workspace_root` + a relative path could otherwise reach it.
+        #[cfg(unix)]
+        {
+            std::os::unix::fs::symlink(&evil, root.join("escape")).unwrap();
+            let err =
+                resolve_within_workspace(&root.to_string_lossy(), "escape/secret.md").unwrap_err();
+            assert!(err.contains("outside"), "unexpected error: {err}");
+        }
+        fs::remove_dir_all(&parent).unwrap();
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn resolve_within_workspace_rejects_a_symlinked_parent_directory_escaping_the_workspace() {
+        let root = make_workspace("symlink-parent");
+        let outside = std::env::temp_dir().join(format!(
+            "leotheca-test-f004-symlink-parent-outside-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&outside);
+        fs::create_dir_all(&outside).unwrap();
+        std::os::unix::fs::symlink(&outside, root.join("escape")).unwrap();
+
+        let err = resolve_within_workspace(&root.to_string_lossy(), "escape/note.md").unwrap_err();
+        assert!(err.contains("outside"), "unexpected error: {err}");
+
+        fs::remove_dir_all(&root).unwrap();
+        fs::remove_dir_all(&outside).unwrap();
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn resolve_within_workspace_rejects_a_symlink_at_the_exact_target_escaping_the_workspace() {
+        let root = make_workspace("symlink-target");
+        let outside_file = std::env::temp_dir().join(format!(
+            "leotheca-test-f004-symlink-target-outside-{}.md",
+            std::process::id()
+        ));
+        fs::write(&outside_file, "outside content").unwrap();
+        std::os::unix::fs::symlink(&outside_file, root.join("note.md")).unwrap();
+
+        let err = resolve_within_workspace(&root.to_string_lossy(), "note.md").unwrap_err();
+        assert!(err.contains("outside"), "unexpected error: {err}");
+
+        fs::remove_dir_all(&root).unwrap();
+        fs::remove_file(&outside_file).unwrap();
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn resolve_within_workspace_rejects_a_dangling_symlink_at_the_exact_target() {
+        let root = make_workspace("dangling-symlink");
+        let nonexistent = root.join("this-does-not-exist.md");
+        std::os::unix::fs::symlink(&nonexistent, root.join("note.md")).unwrap();
+
+        assert!(resolve_within_workspace(&root.to_string_lossy(), "note.md").is_err());
+
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn resolve_within_workspace_allows_a_symlink_that_stays_inside_the_workspace() {
+        let root = make_workspace("symlink-internal");
+        fs::create_dir_all(root.join("real")).unwrap();
+        fs::write(root.join("real/note.md"), "hi").unwrap();
+        std::os::unix::fs::symlink(root.join("real/note.md"), root.join("linked.md")).unwrap();
+
+        let resolved = resolve_within_workspace(&root.to_string_lossy(), "linked.md").unwrap();
+        let canonical_root = fs::canonicalize(&root).unwrap();
+        assert_eq!(resolved, canonical_root.join("real/note.md"));
+
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn write_workspace_text_file_writes_within_the_workspace_and_creates_missing_directories() {
+        let root = make_workspace("write-ok");
+        write_workspace_text_file(
+            root.to_string_lossy().to_string(),
+            "notes/new/hello.md".to_string(),
+            "# Hello".to_string(),
+        )
+        .unwrap();
+        assert_eq!(
+            fs::read_to_string(root.join("notes/new/hello.md")).unwrap(),
+            "# Hello"
+        );
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn write_workspace_text_file_rejects_traversal_and_writes_nothing() {
+        let root = make_workspace("write-traversal");
+        let result = write_workspace_text_file(
+            root.to_string_lossy().to_string(),
+            "../escape.md".to_string(),
+            "malicious".to_string(),
+        );
+        assert!(result.is_err());
+        let outside = root.parent().unwrap().join("escape.md");
+        assert!(
+            !outside.exists(),
+            "a rejected write must not touch the filesystem at all"
+        );
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn write_workspace_binary_file_rejects_an_absolute_path() {
+        let root = make_workspace("write-binary-absolute");
+        let result = write_workspace_binary_file(
+            root.to_string_lossy().to_string(),
+            "/tmp/should-not-be-written.bin".to_string(),
+            vec![1, 2, 3],
+        );
+        assert!(result.is_err());
+        assert!(!Path::new("/tmp/should-not-be-written.bin").exists());
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn create_workspace_dir_creates_nested_directories_within_the_workspace() {
+        let root = make_workspace("create-dir-ok");
+        create_workspace_dir(root.to_string_lossy().to_string(), "a/b/c".to_string()).unwrap();
+        assert!(root.join("a/b/c").is_dir());
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn create_workspace_dir_rejects_traversal() {
+        let root = make_workspace("create-dir-traversal");
+        let result =
+            create_workspace_dir(root.to_string_lossy().to_string(), "../evil".to_string());
+        assert!(result.is_err());
+        assert!(!root.parent().unwrap().join("evil").exists());
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn rename_workspace_path_moves_a_file_within_the_workspace() {
+        let root = make_workspace("rename-ok");
+        fs::write(root.join("old.md"), "content").unwrap();
+        rename_workspace_path(
+            root.to_string_lossy().to_string(),
+            "old.md".to_string(),
+            "renamed/new.md".to_string(),
+        )
+        .unwrap();
+        assert!(!root.join("old.md").exists());
+        assert_eq!(
+            fs::read_to_string(root.join("renamed/new.md")).unwrap(),
+            "content"
+        );
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn rename_workspace_path_rejects_a_destination_that_escapes_the_workspace() {
+        let root = make_workspace("rename-traversal");
+        fs::write(root.join("old.md"), "content").unwrap();
+        let result = rename_workspace_path(
+            root.to_string_lossy().to_string(),
+            "old.md".to_string(),
+            "../escaped.md".to_string(),
+        );
+        assert!(result.is_err());
+        assert!(
+            root.join("old.md").exists(),
+            "the source must be untouched on rejection"
+        );
+        assert!(!root.parent().unwrap().join("escaped.md").exists());
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn delete_workspace_path_permanent_removes_a_contained_file() {
+        let root = make_workspace("delete-ok");
+        fs::write(root.join("gone.md"), "bye").unwrap();
+        delete_workspace_path_permanent(root.to_string_lossy().to_string(), "gone.md".to_string())
+            .unwrap();
+        assert!(!root.join("gone.md").exists());
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn delete_workspace_path_permanent_rejects_traversal_and_deletes_nothing() {
+        let root = make_workspace("delete-traversal");
+        let sibling = root.parent().unwrap().join(format!(
+            "leotheca-test-f004-delete-traversal-victim-{}",
+            std::process::id()
+        ));
+        fs::write(&sibling, "do not delete me").unwrap();
+        let relative = format!("../{}", sibling.file_name().unwrap().to_string_lossy());
+        let result = delete_workspace_path_permanent(root.to_string_lossy().to_string(), relative);
+        assert!(result.is_err());
+        assert!(
+            sibling.exists(),
+            "a rejected delete must not touch the filesystem"
+        );
+        fs::remove_dir_all(&root).unwrap();
+        fs::remove_file(&sibling).unwrap();
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn trash_path_rejects_a_symlinked_target_escaping_the_workspace() {
+        let root = make_workspace("trash-symlink-escape");
+        let outside_file = std::env::temp_dir().join(format!(
+            "leotheca-test-f004-trash-symlink-outside-{}.md",
+            std::process::id()
+        ));
+        fs::write(&outside_file, "outside content").unwrap();
+        let link = root.join("note.md");
+        std::os::unix::fs::symlink(&outside_file, &link).unwrap();
+
+        let result = trash_path(
+            root.to_string_lossy().to_string(),
+            link.to_string_lossy().to_string(),
+        );
+
+        assert!(result.is_err());
+        assert!(
+            outside_file.exists(),
+            "a rejected trash must not move the real file it points to"
+        );
+        fs::remove_dir_all(&root).unwrap();
+        fs::remove_file(&outside_file).unwrap();
+    }
+
+    #[test]
+    fn trash_path_still_moves_an_ordinary_contained_file() {
+        let root = make_workspace("trash-ok");
+        fs::write(root.join("note.md"), "content").unwrap();
+        trash_path(
+            root.to_string_lossy().to_string(),
+            root.join("note.md").to_string_lossy().to_string(),
+        )
+        .unwrap();
+        assert!(!root.join("note.md").exists());
+        assert!(root.join(".trash/note.md").exists());
         fs::remove_dir_all(&root).unwrap();
     }
 }

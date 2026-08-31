@@ -9,14 +9,14 @@ const { findAllFiles, readTextFilesBatch } = vi.hoisted(() => ({
 }));
 
 vi.mock("./tauriBridge", () => ({
-  createDir: vi.fn(),
-  deletePathPermanent: vi.fn(),
+  createWorkspaceDir: vi.fn(),
+  deleteWorkspacePathPermanent: vi.fn(),
   findAllEntries: vi.fn(async () => []),
   findAllFiles,
   listDir: vi.fn(async () => []),
   readTextFile: vi.fn(async () => ""),
   readTextFilesBatch,
-  renamePath: vi.fn(),
+  renameWorkspacePath: vi.fn(),
   trashPath: vi.fn(),
   writeTextFile: vi.fn(),
 }));
@@ -65,13 +65,17 @@ describe("search request ownership", () => {
     workspaceSession.value = 1;
     clearSearch();
     findAllFiles.mockResolvedValue([]);
-    readTextFilesBatch.mockImplementation(async (paths) => paths.map(() => null));
+    readTextFilesBatch.mockImplementation(async (paths) =>
+      paths.map(() => null),
+    );
   });
 
   it("keeps the newer search authoritative when B resolves before A", async () => {
     const a = deferred<FsEntry[]>();
     const b = deferred<FsEntry[]>();
-    findAllFiles.mockImplementationOnce(() => a.promise).mockImplementationOnce(() => b.promise);
+    findAllFiles
+      .mockImplementationOnce(() => a.promise)
+      .mockImplementationOnce(() => b.promise);
 
     const searchA = runSearch("/workspace", "alpha");
     const searchB = runSearch("/workspace", "beta");
@@ -92,7 +96,9 @@ describe("search request ownership", () => {
   it("does not publish A when A resolves before the newer B", async () => {
     const a = deferred<FsEntry[]>();
     const b = deferred<FsEntry[]>();
-    findAllFiles.mockImplementationOnce(() => a.promise).mockImplementationOnce(() => b.promise);
+    findAllFiles
+      .mockImplementationOnce(() => a.promise)
+      .mockImplementationOnce(() => b.promise);
 
     const searchA = runSearch("/workspace", "alpha");
     const searchB = runSearch("/workspace", "beta");

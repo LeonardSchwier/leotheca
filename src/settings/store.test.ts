@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const {
   readTextFile,
   writeTextFile,
+  writeWorkspaceTextFile,
   getAppVersion,
   listDir,
   restoreWorkspaceAccess,
@@ -13,7 +14,14 @@ const {
   readTextFile: vi.fn<(path: string) => Promise<string>>(async () => {
     throw new Error("not found");
   }),
-  writeTextFile: vi.fn<(path: string, contents: string) => Promise<void>>(async () => {}),
+  // Still real and still needed here: globalConfig.ts (not workspace-scoped)
+  // writes through this one, unchanged by audit follow-up F-004.
+  writeTextFile: vi.fn<(path: string, contents: string) => Promise<void>>(
+    async () => {},
+  ),
+  writeWorkspaceTextFile: vi.fn<
+    (root: string, relativePath: string, contents: string) => Promise<void>
+  >(async () => {}),
   getAppVersion: vi.fn(async () => "1.0"),
   listDir: vi.fn(async () => []),
   restoreWorkspaceAccess: vi.fn(async () => {}),
@@ -24,6 +32,7 @@ const {
 vi.mock("../workspace/tauriBridge", () => ({
   readTextFile,
   writeTextFile,
+  writeWorkspaceTextFile,
   getAppVersion,
   listDir,
   restoreWorkspaceAccess,
@@ -52,13 +61,14 @@ const {
   workspaceSettings,
   workspaceSession,
 } = await import("./store");
-const { activeTabPath, closeAllTabs, openOrFocusTab, openTabs } = await import(
-  "../workspace/store",
-);
+const { activeTabPath, closeAllTabs, openOrFocusTab, openTabs } =
+  await import("../workspace/store");
 const { DEFAULT_WORKSPACE_SETTINGS } = await import("./workspaceSettings");
 
 function writesTo(path: string): unknown[] {
-  return writeTextFile.mock.calls.filter(([p]) => p === path).map(([, content]) => JSON.parse(content as string));
+  return writeWorkspaceTextFile.mock.calls
+    .filter(([root, relativePath]) => `${root}/${relativePath}` === path)
+    .map(([, , content]) => JSON.parse(content as string));
 }
 
 async function flushSettingsWrites(): Promise<void> {
@@ -79,9 +89,9 @@ describe("setWorkspacePath", () => {
 
     const beforeSwitch = writesTo("/workspaceA/.leotheca/settings.json");
     expect(beforeSwitch.length).toBeGreaterThan(0);
-    expect((beforeSwitch.at(-1) as { lastOpenPaths: string[] }).lastOpenPaths).toEqual([
-      "/workspaceA/note1.md",
-    ]);
+    expect(
+      (beforeSwitch.at(-1) as { lastOpenPaths: string[] }).lastOpenPaths,
+    ).toEqual(["/workspaceA/note1.md"]);
 
     await setWorkspacePath("/workspaceB");
 
@@ -89,9 +99,9 @@ describe("setWorkspacePath", () => {
     // an empty tab list back over workspace A's real one. If it did, this
     // would be the exact regression session 22 found and fixed.
     const afterSwitch = writesTo("/workspaceA/.leotheca/settings.json");
-    expect((afterSwitch.at(-1) as { lastOpenPaths: string[] }).lastOpenPaths).toEqual([
-      "/workspaceA/note1.md",
-    ]);
+    expect(
+      (afterSwitch.at(-1) as { lastOpenPaths: string[] }).lastOpenPaths,
+    ).toEqual(["/workspaceA/note1.md"]);
   });
 
   it("still writes an empty tab list for a workspace whose tabs the user actually closed themselves", async () => {
@@ -103,7 +113,9 @@ describe("setWorkspacePath", () => {
     await flushSettingsWrites();
 
     const writes = writesTo("/workspaceA/.leotheca/settings.json");
-    expect((writes.at(-1) as { lastOpenPaths: string[] }).lastOpenPaths).toEqual([]);
+    expect(
+      (writes.at(-1) as { lastOpenPaths: string[] }).lastOpenPaths,
+    ).toEqual([]);
   });
 
   it("starts a fresh session when Android changes only its opaque folder token", async () => {
@@ -125,10 +137,16 @@ describe("settings hydration", () => {
     settingsLoaded.value = false;
     readTextFile.mockImplementation(async (path) => {
       if (path === "/config/config.json") {
-        return JSON.stringify({ lastWorkspacePath: "/workspaceA", theme: "system" });
+        return JSON.stringify({
+          lastWorkspacePath: "/workspaceA",
+          theme: "system",
+        });
       }
       if (path === "/workspaceA/.leotheca/settings.json") {
-        return JSON.stringify({ ...DEFAULT_WORKSPACE_SETTINGS, lastOpenPaths: ["/workspaceA/note.md"] });
+        return JSON.stringify({
+          ...DEFAULT_WORKSPACE_SETTINGS,
+          lastOpenPaths: ["/workspaceA/note.md"],
+        });
       }
       if (path === "/workspaceA/note.md") return "saved note";
       throw new Error("not found");
@@ -137,7 +155,9 @@ describe("settings hydration", () => {
     await initSettings();
 
     expect(writesTo("/workspaceA/.leotheca/settings.json")).toEqual([]);
-    expect(openTabs.value.map((tab) => tab.path)).toEqual(["/workspaceA/note.md"]);
+    expect(openTabs.value.map((tab) => tab.path)).toEqual([
+      "/workspaceA/note.md",
+    ]);
   });
 });
 
@@ -175,8 +195,9 @@ describe("restoreLastOpenTabs", () => {
     ]);
     expect(activeTabPath.value).toBe("/workspaceA/board.CANVAS");
     expect(readTextFile).not.toHaveBeenCalledWith("/workspaceA/photo.PNG");
-    expect(writeTextFile).not.toHaveBeenCalledWith(
-      "/workspaceA/.leotheca/settings.json",
+    expect(writeWorkspaceTextFile).not.toHaveBeenCalledWith(
+      "/workspaceA",
+      ".leotheca/settings.json",
       expect.any(String),
     );
   });
@@ -231,7 +252,10 @@ describe("tab operations that change both openTabs and activeTabPath", () => {
     vi.clearAllMocks();
     action();
     await flushSettingsWrites();
-    return writeTextFile.mock.calls.filter(([p]) => p === "/workspaceA/.leotheca/settings.json").length;
+    return writeWorkspaceTextFile.mock.calls.filter(
+      ([root, relativePath]) =>
+        root === "/workspaceA" && relativePath === ".leotheca/settings.json",
+    ).length;
   }
 
   it("closeTab writes once when closing the active tab (which also changes activeTabPath)", async () => {
@@ -248,14 +272,20 @@ describe("tab operations that change both openTabs and activeTabPath", () => {
 
   it("closeTabsUnder writes once when it closes the active tab", async () => {
     const { closeTabsUnder } = await import("../workspace/store");
-    const count = await writesDuring(() => closeTabsUnder("/workspaceA/folder"));
+    const count = await writesDuring(() =>
+      closeTabsUnder("/workspaceA/folder"),
+    );
     expect(count).toBe(1);
   });
 
   it("renameOpenTab writes once when renaming the active tab", async () => {
     const { renameOpenTab } = await import("../workspace/store");
     const count = await writesDuring(() =>
-      renameOpenTab("/workspaceA/folder/b.md", "/workspaceA/folder/renamed.md", "renamed.md"),
+      renameOpenTab(
+        "/workspaceA/folder/b.md",
+        "/workspaceA/folder/renamed.md",
+        "renamed.md",
+      ),
     );
     expect(count).toBe(1);
   });

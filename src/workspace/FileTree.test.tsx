@@ -13,22 +13,32 @@ vi.mock("../settings/store", () => ({
 }));
 vi.mock("./tauriBridge", () => ({
   listDir: vi.fn(),
-  createDir: vi.fn(),
-  deletePathPermanent: vi.fn(),
+  createWorkspaceDir: vi.fn(),
+  deleteWorkspacePathPermanent: vi.fn(),
   readTextFile: vi.fn(),
-  renamePath: vi.fn(),
+  renameWorkspacePath: vi.fn(),
   trashPath: vi.fn(),
   writeTextFile: vi.fn(),
 }));
 
 import { FileTree } from "./FileTree";
-import { dirChildren, expandedDirs, selectedDir, selectedPath, contextMenuTarget } from "./fileTreeStore";
+import {
+  dirChildren,
+  expandedDirs,
+  selectedDir,
+  selectedPath,
+  contextMenuTarget,
+} from "./fileTreeStore";
 import { listDir } from "./tauriBridge";
 import type { FsEntry } from "./types";
 
 const note: FsEntry = { name: "note.md", path: "/vault/note.md", isDir: false };
 const folder: FsEntry = { name: "folder", path: "/vault/folder", isDir: true };
-const nested: FsEntry = { name: "nested.md", path: "/vault/folder/nested.md", isDir: false };
+const nested: FsEntry = {
+  name: "nested.md",
+  path: "/vault/folder/nested.md",
+  isDir: false,
+};
 
 afterEach(() => {
   cleanup();
@@ -43,13 +53,17 @@ afterEach(() => {
 describe("FileTree", () => {
   it("renders nothing until the root directory's listing has loaded", () => {
     vi.mocked(listDir).mockReturnValue(new Promise(() => {}));
-    const { container } = render(<FileTree rootPath="/vault" onOpenFile={vi.fn()} />);
+    const { container } = render(
+      <FileTree rootPath="/vault" onOpenFile={vi.fn()} />,
+    );
     expect(container.querySelector(".file-tree")).toBeNull();
   });
 
   it("renders the loaded, sorted entries once the root listing resolves", async () => {
     vi.mocked(listDir).mockResolvedValue([note, folder]);
-    const { getByText } = render(<FileTree rootPath="/vault" onOpenFile={vi.fn()} />);
+    const { getByText } = render(
+      <FileTree rootPath="/vault" onOpenFile={vi.fn()} />,
+    );
     await waitFor(() => expect(getByText("folder")).toBeTruthy());
     // Directories sort before files (sortEntries), regardless of listing order.
     expect(getByText("note.md")).toBeTruthy();
@@ -58,7 +72,9 @@ describe("FileTree", () => {
   it("clicking a file opens it and sets the selected directory to its parent, without expanding anything", async () => {
     vi.mocked(listDir).mockResolvedValue([note]);
     const onOpenFile = vi.fn();
-    const { getByText } = render(<FileTree rootPath="/vault" onOpenFile={onOpenFile} />);
+    const { getByText } = render(
+      <FileTree rootPath="/vault" onOpenFile={onOpenFile} />,
+    );
     await waitFor(() => expect(getByText("note.md")).toBeTruthy());
 
     fireEvent.click(getByText("note.md"));
@@ -71,7 +87,9 @@ describe("FileTree", () => {
     vi.mocked(listDir).mockImplementation(async (path: string) =>
       path === "/vault" ? [folder] : path === "/vault/folder" ? [nested] : [],
     );
-    const { getByText } = render(<FileTree rootPath="/vault" onOpenFile={vi.fn()} />);
+    const { getByText } = render(
+      <FileTree rootPath="/vault" onOpenFile={vi.fn()} />,
+    );
     await waitFor(() => expect(getByText("folder")).toBeTruthy());
 
     fireEvent.click(getByText("folder"));
@@ -84,7 +102,9 @@ describe("FileTree", () => {
     vi.mocked(listDir).mockImplementation(async (path: string) =>
       path === "/vault" ? [folder] : path === "/vault/folder" ? [nested] : [],
     );
-    const { getByText, queryByText } = render(<FileTree rootPath="/vault" onOpenFile={vi.fn()} />);
+    const { getByText, queryByText } = render(
+      <FileTree rootPath="/vault" onOpenFile={vi.fn()} />,
+    );
     await waitFor(() => expect(getByText("folder")).toBeTruthy());
 
     fireEvent.click(getByText("folder"));
@@ -99,7 +119,9 @@ describe("FileTree", () => {
     vi.mocked(listDir).mockImplementation(async (path: string) =>
       path === "/vault" ? [folder] : path === "/vault/folder" ? [nested] : [],
     );
-    const { getByText } = render(<FileTree rootPath="/vault" onOpenFile={vi.fn()} />);
+    const { getByText } = render(
+      <FileTree rootPath="/vault" onOpenFile={vi.fn()} />,
+    );
     await waitFor(() => expect(getByText("folder")).toBeTruthy());
 
     fireEvent.click(getByText("folder")); // expand, fetches children
@@ -112,7 +134,9 @@ describe("FileTree", () => {
 
   it("marks the selected entry, and only that one, as selected", async () => {
     vi.mocked(listDir).mockResolvedValue([note, folder]);
-    const { getByText } = render(<FileTree rootPath="/vault" onOpenFile={vi.fn()} />);
+    const { getByText } = render(
+      <FileTree rootPath="/vault" onOpenFile={vi.fn()} />,
+    );
     await waitFor(() => expect(getByText("note.md")).toBeTruthy());
 
     fireEvent.click(getByText("note.md"));
@@ -129,7 +153,9 @@ describe("FileTree", () => {
     vi.mocked(listDir).mockImplementation(async (path: string) =>
       path === "/vault" ? [folder] : path === "/vault/folder" ? [nested] : [],
     );
-    const { getByText } = render(<FileTree rootPath="/vault" onOpenFile={vi.fn()} />);
+    const { getByText } = render(
+      <FileTree rootPath="/vault" onOpenFile={vi.fn()} />,
+    );
     await waitFor(() => expect(getByText("folder")).toBeTruthy());
     fireEvent.click(getByText("folder"));
     await waitFor(() => expect(getByText("nested.md")).toBeTruthy());
@@ -142,7 +168,9 @@ describe("FileTree", () => {
 
   it("right-clicking an entry opens the context menu targeting it, without toggling selection or expansion", async () => {
     vi.mocked(listDir).mockResolvedValue([note]);
-    const { getByText } = render(<FileTree rootPath="/vault" onOpenFile={vi.fn()} />);
+    const { getByText } = render(
+      <FileTree rootPath="/vault" onOpenFile={vi.fn()} />,
+    );
     await waitFor(() => expect(getByText("note.md")).toBeTruthy());
 
     fireEvent.contextMenu(getByText("note.md"), { clientX: 12, clientY: 34 });

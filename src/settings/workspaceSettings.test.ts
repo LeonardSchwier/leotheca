@@ -6,12 +6,15 @@ import {
   saveWorkspaceSettings,
 } from "./workspaceSettings";
 
-const { readTextFile, writeTextFile } = vi.hoisted(() => ({
+const { readTextFile, writeWorkspaceTextFile } = vi.hoisted(() => ({
   readTextFile: vi.fn(),
-  writeTextFile: vi.fn(),
+  writeWorkspaceTextFile: vi.fn(),
 }));
 
-vi.mock("../workspace/tauriBridge", () => ({ readTextFile, writeTextFile }));
+vi.mock("../workspace/tauriBridge", () => ({
+  readTextFile,
+  writeWorkspaceTextFile,
+}));
 
 describe("clamp", () => {
   it("passes values already inside the range through unchanged", () => {
@@ -75,7 +78,9 @@ describe("loadWorkspaceSettings", () => {
   it("fills in fields missing from an older settings file with today's defaults", async () => {
     // A settings.json written before uiZoom/lastOpenPaths existed, the
     // real shape of files already on disk from earlier sessions.
-    readTextFile.mockResolvedValueOnce(JSON.stringify({ version: 1, sortOrder: "name-desc" }));
+    readTextFile.mockResolvedValueOnce(
+      JSON.stringify({ version: 1, sortOrder: "name-desc" }),
+    );
     const settings = await loadWorkspaceSettings("/workspace");
     expect(settings.sortOrder).toBe("name-desc");
     expect(settings.uiZoom).toBe(DEFAULT_WORKSPACE_SETTINGS.uiZoom);
@@ -94,8 +99,9 @@ describe("loadWorkspaceSettings", () => {
 describe("saveWorkspaceSettings", () => {
   it("writes to .leotheca/settings.json under the workspace root", async () => {
     await saveWorkspaceSettings("/workspace", DEFAULT_WORKSPACE_SETTINGS);
-    expect(writeTextFile).toHaveBeenCalledWith(
-      "/workspace/.leotheca/settings.json",
+    expect(writeWorkspaceTextFile).toHaveBeenCalledWith(
+      "/workspace",
+      ".leotheca/settings.json",
       JSON.stringify(DEFAULT_WORKSPACE_SETTINGS, null, 2),
     );
   });

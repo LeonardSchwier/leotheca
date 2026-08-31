@@ -7,7 +7,7 @@ import { linkIndex } from "../linking/store";
 vi.mock("../workspace/tauriBridge", () => ({
   listDir: vi.fn(),
   readTextFile: vi.fn(),
-  writeBinaryFile: vi.fn(),
+  writeWorkspaceBinaryFile: vi.fn(),
 }));
 
 function contextAt(doc: string, pos: number): CompletionContext {
@@ -17,7 +17,8 @@ function contextAt(doc: string, pos: number): CompletionContext {
 
 function setNotes(names: string[]) {
   const pathsByNoteName = new Map<string, string[]>();
-  for (const name of names) pathsByNoteName.set(name.toLowerCase(), [`/workspace/${name}.md`]);
+  for (const name of names)
+    pathsByNoteName.set(name.toLowerCase(), [`/workspace/${name}.md`]);
   linkIndex.value = {
     backlinksByPath: new Map(),
     pathsByNoteName,
@@ -46,7 +47,10 @@ describe("wikilinkCompletions", () => {
     const doc = "see [[";
     const result = wikilinkCompletions(contextAt(doc, doc.length));
     expect(result).not.toBeNull();
-    expect(result!.options.map((o) => o.label).sort()).toEqual(["Alpha", "Beta"]);
+    expect(result!.options.map((o) => o.label).sort()).toEqual([
+      "Alpha",
+      "Beta",
+    ]);
     // Completion should replace starting right after the "[[", not before it.
     expect(result!.from).toBe(doc.length);
   });
@@ -55,7 +59,10 @@ describe("wikilinkCompletions", () => {
     setNotes(["Alpha", "Beta", "Alphabet"]);
     const doc = "see [[alp";
     const result = wikilinkCompletions(contextAt(doc, doc.length));
-    expect(result!.options.map((o) => o.label).sort()).toEqual(["Alpha", "Alphabet"]);
+    expect(result!.options.map((o) => o.label).sort()).toEqual([
+      "Alpha",
+      "Alphabet",
+    ]);
   });
 
   it("returns null when nothing matches the partial text", () => {
@@ -74,7 +81,12 @@ describe("wikilinkCompletions", () => {
   it("de-duplicates when two paths share the same note name", () => {
     linkIndex.value = {
       backlinksByPath: new Map(),
-      pathsByNoteName: new Map([["duplicate", ["/workspace/a/Duplicate.md", "/workspace/b/Duplicate.md"]]]),
+      pathsByNoteName: new Map([
+        [
+          "duplicate",
+          ["/workspace/a/Duplicate.md", "/workspace/b/Duplicate.md"],
+        ],
+      ]),
       pathsByAlias: new Map(),
       aliasesByPath: new Map(),
       pathsByTag: new Map(),
@@ -93,7 +105,11 @@ describe("wikilinkCompletions", () => {
     };
     const doc = "see [[";
     const result = wikilinkCompletions(contextAt(doc, doc.length));
-    expect(result!.options.map((o) => o.label).sort()).toEqual(["Alpha", "Ay", "First Letter"]);
+    expect(result!.options.map((o) => o.label).sort()).toEqual([
+      "Alpha",
+      "Ay",
+      "First Letter",
+    ]);
   });
 
   it("applies an alias itself (not the note's file name) when that suggestion is accepted", () => {
@@ -115,6 +131,9 @@ describe("wikilinkCompletions", () => {
     };
     const doc = "see [[";
     const result = wikilinkCompletions(contextAt(doc, doc.length));
-    expect(result!.options.map((o) => o.label).sort()).toEqual(["Alpha", "Beta"]);
+    expect(result!.options.map((o) => o.label).sort()).toEqual([
+      "Alpha",
+      "Beta",
+    ]);
   });
 });

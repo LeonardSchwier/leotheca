@@ -19,7 +19,9 @@ vi.mock("../settings/store", () => {
     viewMode: signal("source"),
     initSettings: vi.fn(),
     workspaceSettings,
-    updateWorkspaceSettings: async (patch: Partial<typeof DEFAULT_WORKSPACE_SETTINGS>) => {
+    updateWorkspaceSettings: async (
+      patch: Partial<typeof DEFAULT_WORKSPACE_SETTINGS>,
+    ) => {
       if (!workspacePath.value) return;
       updateWorkspaceSettingsSpy(patch);
       workspaceSettings.value = { ...workspaceSettings.value, ...patch };
@@ -29,7 +31,9 @@ vi.mock("../settings/store", () => {
 
 const { readTextFile, writeTextFile } = vi.hoisted(() => ({
   readTextFile: vi.fn<(path: string) => Promise<string>>(async () => ""),
-  writeTextFile: vi.fn<(path: string, content: string) => Promise<void>>(async () => {}),
+  writeTextFile: vi.fn<(path: string, content: string) => Promise<void>>(
+    async () => {},
+  ),
 }));
 
 vi.mock("../workspace/tauriBridge", () => ({
@@ -39,10 +43,10 @@ vi.mock("../workspace/tauriBridge", () => ({
   restoreWorkspaceAccess: vi.fn(),
   listDir: vi.fn(async () => []),
   findMarkdownFiles: vi.fn(async () => []),
-  createDir: vi.fn(),
-  renamePath: vi.fn(),
+  createWorkspaceDir: vi.fn(),
+  renameWorkspacePath: vi.fn(),
   trashPath: vi.fn(),
-  deletePathPermanent: vi.fn(),
+  deleteWorkspacePathPermanent: vi.fn(),
   getAppConfigFilePath: vi.fn(),
   getAppVersion: vi.fn(async () => "1.0"),
   fileSrc: vi.fn(),
@@ -75,14 +79,30 @@ vi.mock("@tauri-apps/plugin-clipboard-manager", () => ({
 }));
 
 vi.mock("../workspace/Sidebar", () => ({
-  Sidebar: ({ onOpenFile }: { onOpenFile: (path: string, name: string) => void }) => (
-    <button onClick={() => onOpenFile("/vault/note.md", "note.md")}>Open mock note</button>
+  Sidebar: ({
+    onOpenFile,
+  }: {
+    onOpenFile: (path: string, name: string) => void;
+  }) => (
+    <button onClick={() => onOpenFile("/vault/note.md", "note.md")}>
+      Open mock note
+    </button>
   ),
 }));
 
 vi.mock("../editor/MarkdownEditor", () => ({
-  MarkdownEditor: ({ value, onChange }: { value: string; onChange: (v: string) => void }) => (
-    <textarea data-testid="mock-editor" value={value} onInput={(e) => onChange((e.target as HTMLTextAreaElement).value)} />
+  MarkdownEditor: ({
+    value,
+    onChange,
+  }: {
+    value: string;
+    onChange: (v: string) => void;
+  }) => (
+    <textarea
+      data-testid="mock-editor"
+      value={value}
+      onInput={(e) => onChange((e.target as HTMLTextAreaElement).value)}
+    />
   ),
 }));
 
@@ -90,8 +110,10 @@ vi.mock("../settings/SettingsPanel", () => ({
   SettingsPanel: () => null,
 }));
 
-const { openOrFocusTab, openTabs, activeTabPath } = await import("../workspace/store");
-const { settingsPanelOpen, workspacePath, workspaceSettings } = await import("../settings/store");
+const { openOrFocusTab, openTabs, activeTabPath } =
+  await import("../workspace/store");
+const { settingsPanelOpen, workspacePath, workspaceSettings } =
+  await import("../settings/store");
 const { App } = await import("./App");
 
 const defaultViewportWidth = window.innerWidth;
@@ -105,7 +127,10 @@ afterEach(() => {
   workspacePath.value = null;
   workspaceSettings.value = DEFAULT_WORKSPACE_SETTINGS;
   updateWorkspaceSettingsSpy.mockClear();
-  Object.defineProperty(window, "innerWidth", { configurable: true, value: defaultViewportWidth });
+  Object.defineProperty(window, "innerWidth", {
+    configurable: true,
+    value: defaultViewportWidth,
+  });
   writeTextFile.mockClear();
   readTextFile.mockClear();
   renameEntry.mockReset();
@@ -126,14 +151,17 @@ describe("App: tab rename while an autosave is still pending", () => {
 
     const { container, getByRole } = render(<App />);
 
-    const editor = container.querySelector('[data-testid="mock-editor"]') as HTMLTextAreaElement;
+    const editor = container.querySelector(
+      '[data-testid="mock-editor"]',
+    ) as HTMLTextAreaElement;
     fireEvent.input(editor, { target: { value: "typed content" } });
 
     // Open rename dialog
     fireEvent.contextMenu(container.querySelector(".tab")!);
     fireEvent.click(getByRole("button", { name: "Rename" }));
 
-    const nameInput = container.querySelector<HTMLInputElement>(".name-prompt input")!;
+    const nameInput =
+      container.querySelector<HTMLInputElement>(".name-prompt input")!;
     fireEvent.input(nameInput, { target: { value: "renamed.md" } });
 
     // fireEvent.click on an async callback doesn't await the promise.
@@ -146,9 +174,15 @@ describe("App: tab rename while an autosave is still pending", () => {
     // The coordinator's flush() returns a promise that needs to resolve.
     await new Promise((resolve) => setTimeout(resolve, 10));
 
-    expect(order).toEqual(["write:/vault/note.md:typed content", "rename:/vault/note.md"]);
+    expect(order).toEqual([
+      "write:/vault/note.md:typed content",
+      "rename:/vault/note.md",
+    ]);
     expect(writeTextFile).toHaveBeenCalledTimes(1);
-    expect(writeTextFile).toHaveBeenCalledWith("/vault/note.md", "typed content");
+    expect(writeTextFile).toHaveBeenCalledWith(
+      "/vault/note.md",
+      "typed content",
+    );
     expect(renameEntry).toHaveBeenCalledWith("/vault/note.md", "renamed.md");
 
     expect(openTabs.value).toHaveLength(1);

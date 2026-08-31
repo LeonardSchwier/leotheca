@@ -1,4 +1,4 @@
-import { readTextFile, writeTextFile } from "../workspace/tauriBridge";
+import { readTextFile, writeWorkspaceTextFile } from "../workspace/tauriBridge";
 
 export type SortOrder = "name-asc" | "name-desc";
 export type ViewMode = "source" | "split" | "preview";
@@ -165,10 +165,15 @@ function workspaceSettingsPath(workspacePath: string): string {
   return `${workspacePath}/.leotheca/settings.json`;
 }
 
-export async function loadWorkspaceSettings(workspacePath: string): Promise<WorkspaceSettings> {
+export async function loadWorkspaceSettings(
+  workspacePath: string,
+): Promise<WorkspaceSettings> {
   try {
     const raw = await readTextFile(workspaceSettingsPath(workspacePath));
-    return { ...DEFAULT_WORKSPACE_SETTINGS, ...(JSON.parse(raw) as Partial<WorkspaceSettings>) };
+    return {
+      ...DEFAULT_WORKSPACE_SETTINGS,
+      ...(JSON.parse(raw) as Partial<WorkspaceSettings>),
+    };
   } catch {
     return DEFAULT_WORKSPACE_SETTINGS;
   }
@@ -178,5 +183,9 @@ export async function saveWorkspaceSettings(
   workspacePath: string,
   settings: WorkspaceSettings,
 ): Promise<void> {
-  await writeTextFile(workspaceSettingsPath(workspacePath), JSON.stringify(settings, null, 2));
+  await writeWorkspaceTextFile(
+    workspacePath,
+    ".leotheca/settings.json",
+    JSON.stringify(settings, null, 2),
+  );
 }

@@ -2,18 +2,23 @@ import { signal } from "@preact/signals";
 import type { FsEntry } from "./types";
 import { isImagePath, isTextFile } from "./types";
 import {
-  createDir,
-  deletePathPermanent,
+  createWorkspaceDir,
+  deleteWorkspacePathPermanent,
   findAllEntries,
   findAllFiles,
   listDir,
   readTextFile,
   readTextFilesBatch,
-  renamePath,
+  renameWorkspacePath,
   trashPath,
-  writeTextFile,
+  writeWorkspaceTextFile,
 } from "./tauriBridge";
-import { updateWorkspaceSettings, workspaceSession, workspaceSettings } from "../settings/store";
+import {
+  updateWorkspaceSettings,
+  workspacePath,
+  workspaceSession,
+  workspaceSettings,
+} from "../settings/store";
 import { linkIndex } from "../linking/store";
 import { matchesSearchQuery, parseSearchQuery } from "./searchQuery";
 import { mapWithConcurrency } from "./concurrency";
@@ -48,11 +53,17 @@ interface SearchAuthority {
 }
 
 function beginSearchAuthority(): SearchAuthority {
-  return { generation: ++searchGeneration, workspaceSession: workspaceSession.value };
+  return {
+    generation: ++searchGeneration,
+    workspaceSession: workspaceSession.value,
+  };
 }
 
 function isCurrentSearch(authority: SearchAuthority): boolean {
-  return authority.generation === searchGeneration && authority.workspaceSession === workspaceSession.value;
+  return (
+    authority.generation === searchGeneration &&
+    authority.workspaceSession === workspaceSession.value
+  );
 }
 
 function invalidateSearchAuthority(): void {
@@ -87,12 +98,27 @@ export function closeContextMenu() {
 }
 
 export function relativePath(rootPath: string, path: string): string {
-  return path.startsWith(rootPath) ? path.slice(rootPath.length).replace(/^\//, "") : path;
+  return path.startsWith(rootPath)
+    ? path.slice(rootPath.length).replace(/^\//, "")
+    : path;
 }
 
 export function dirname(path: string): string {
   const idx = path.lastIndexOf("/");
   return idx > 0 ? path.slice(0, idx) : path;
+}
+
+/** Every mutation below (create, rename, delete) only ever runs while a
+ * workspace is open in the UI that exposes it, so a missing workspace here
+ * is a real bug, not an expected condition to swallow silently the way a
+ * read-only display guard (`if (!workspacePath.value) return;`) elsewhere
+ * in the app does. */
+function requireWorkspacePath(): string {
+  const root = workspacePath.value;
+  if (!root) {
+    throw new Error("No workspace is open.");
+  }
+  return root;
 }
 
 export function sortEntries(entries: FsEntry[]): FsEntry[] {
@@ -176,7 +202,8 @@ export async function expandAll(rootPath: string) {
   for (const entry of entries) {
     if (entry.isDir) {
       nextExpanded.add(entry.path);
-      if (!childrenByParent.has(entry.path)) childrenByParent.set(entry.path, []);
+      if (!childrenByParent.has(entry.path))
+        childrenByParent.set(entry.path, []);
     }
     const parent = dirname(entry.path);
     const siblings = childrenByParent.get(parent);
@@ -192,7 +219,8 @@ export async function expandAll(rootPath: string) {
 }
 
 export function toggleSortOrder() {
-  const next = workspaceSettings.value.sortOrder === "name-asc" ? "name-desc" : "name-asc";
+  const next =
+    workspaceSettings.value.sortOrder === "name-asc" ? "name-desc" : "name-asc";
   updateWorkspaceSettings({ sortOrder: next });
 }
 
@@ -203,14 +231,22 @@ function initialNoteContent(): string {
   return `---\ncreated: ${now}\n---\n\n`;
 }
 
-export async function createNote(dirPath: string, fileName: string): Promise<string> {
+export async function createNote(
+  dirPath: string,
+  fileName: string,
+): Promise<string> {
   const name = fileName.endsWith(".md") ? fileName : `${fileName}.md`;
   const existing = await listDir(dirPath);
   if (existing.some((e) => e.name === name)) {
     throw new Error(`"${name}" already exists in this folder.`);
   }
   const path = `${dirPath}/${name}`;
-  await writeTextFile(path, initialNoteContent());
+  const root = requireWorkspacePath();
+  await writeWorkspaceTextFile(
+    root,
+    relativePath(root, path),
+    initialNoteContent(),
+  );
   await loadChildren(dirPath);
   return path;
 }
@@ -241,7 +277,12 @@ export async function createCanvasQuick(
   let n = 2;
   while (existingNames.has(name)) name = `Untitled canvas ${n++}.canvas`;
   const path = `${dirPath}/${name}`;
-  await writeTextFile(path, JSON.stringify({ nodes: [], edges: [] }, null, 2));
+  const root = requireWorkspacePath();
+  await writeWorkspaceTextFile(
+    root,
+    relativePath(root, path),
+    JSON.stringify({ nodes: [], edges: [] }, null, 2),
+  );
   await loadChildren(dirPath);
   return { path, name };
 }
@@ -263,7 +304,8 @@ export async function createNoteQuick(
   const existingNames = new Set(existing.map((e) => e.name));
   const name = uniqueNoteName(existingNames, "Untitled");
   const path = `${dirPath}/${name}`;
-  await writeTextFile(path, content);
+  const root = requireWorkspacePath();
+  await writeWorkspaceTextFile(root, relativePath(root, path), content);
   await loadChildren(dirPath);
   return { path, name };
 }
@@ -286,7 +328,9 @@ function stripMdExtension(name: string): string {
  * another nested tree to navigate. A missing folder (the common case:
  * nobody has created one yet) is not an error, just an empty list, the
  * same treatment loadWorkspaceSettings gives a missing settings.json. */
-export async function listTemplates(workspacePath: string): Promise<NoteTemplate[]> {
+export async function listTemplates(
+  workspacePath: string,
+): Promise<NoteTemplate[]> {
   const dir = `${workspacePath}/${workspaceSettings.value.templatesFolder}`;
   try {
     const entries = await listDir(dir);
@@ -316,18 +360,23 @@ export async function createNoteFromTemplate(
   const name = uniqueNoteName(existingNames, stripMdExtension(template.name));
   const content = await readTextFile(template.path);
   const path = `${dirPath}/${name}`;
-  await writeTextFile(path, content);
+  const root = requireWorkspacePath();
+  await writeWorkspaceTextFile(root, relativePath(root, path), content);
   await loadChildren(dirPath);
   return { path, name };
 }
 
-export async function createFolder(dirPath: string, folderName: string): Promise<string> {
+export async function createFolder(
+  dirPath: string,
+  folderName: string,
+): Promise<string> {
   const existing = await listDir(dirPath);
   if (existing.some((e) => e.name === folderName)) {
     throw new Error(`"${folderName}" already exists in this folder.`);
   }
   const path = `${dirPath}/${folderName}`;
-  await createDir(path);
+  const root = requireWorkspacePath();
+  await createWorkspaceDir(root, relativePath(root, path));
   await loadChildren(dirPath);
   return path;
 }
@@ -418,7 +467,7 @@ function createBatchedContentReader(isCurrent: () => boolean) {
     }
     const stillCurrent = isCurrent();
     paths.forEach((path, i) => {
-      const content = stillCurrent ? contents[i] ?? null : null;
+      const content = stillCurrent ? (contents[i] ?? null) : null;
       for (const resolve of batch.get(path) ?? []) resolve(content);
     });
   }
@@ -519,7 +568,8 @@ export async function runSearch(rootPath: string, query: string) {
         const fileIsReadableForContent =
           !isImagePath(entry.path) &&
           isTextFile(entry.path) &&
-          (entry.size ?? CONSERVATIVE_UNKNOWN_SIZE) <= MAX_SEARCHABLE_FILE_BYTES;
+          (entry.size ?? CONSERVATIVE_UNKNOWN_SIZE) <=
+            MAX_SEARCHABLE_FILE_BYTES;
         // When the native walk doesn't report a size, assume CONSERVATIVE_UNKNOWN_SIZE
         // bytes so the file still triggers a batch flush (it won't blend into a
         // zero-size batch with a hundred tiny notes), but don't read the file if
@@ -530,7 +580,7 @@ export async function runSearch(rootPath: string, query: string) {
           if (!contentPromise) {
             contentPromise = fileIsReadableForContent
               ? readContent(entry.path, fileByteSize).then((content) =>
-                  isCurrent() ? content?.toLowerCase() ?? null : null,
+                  isCurrent() ? (content?.toLowerCase() ?? null) : null,
                 )
               : Promise.resolve(null);
           }
@@ -559,22 +609,33 @@ export function clearSearch() {
   searchInProgress.value = false;
 }
 
-export async function renameEntry(oldPath: string, newName: string): Promise<string> {
+export async function renameEntry(
+  oldPath: string,
+  newName: string,
+): Promise<string> {
   const parent = dirname(oldPath);
   const siblings = await listDir(parent);
   if (siblings.some((e) => e.name === newName)) {
     throw new Error(`"${newName}" already exists in this folder.`);
   }
   const newPath = `${parent}/${newName}`;
-  await renamePath(oldPath, newPath);
+  const root = requireWorkspacePath();
+  await renameWorkspacePath(
+    root,
+    relativePath(root, oldPath),
+    relativePath(root, newPath),
+  );
   forgetPath(oldPath);
   await loadChildren(parent);
   return newPath;
 }
 
-export async function deleteEntry(rootPath: string, path: string): Promise<void> {
+export async function deleteEntry(
+  rootPath: string,
+  path: string,
+): Promise<void> {
   if (workspaceSettings.value.deleteBehavior === "permanent") {
-    await deletePathPermanent(path);
+    await deleteWorkspacePathPermanent(rootPath, relativePath(rootPath, path));
   } else {
     await trashPath(rootPath, path);
   }

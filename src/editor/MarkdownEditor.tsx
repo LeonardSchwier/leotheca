@@ -40,6 +40,11 @@ export interface MarkdownEditorProps {
    * request at the same range to re-apply; `null` means no pending
    * request. */
   reveal?: { from: number; to: number; requestId: number } | null;
+  /** Reports the primary selection head (character offset) after every
+   * transaction that changes it, including typing and the reveal effect
+   * above; used by HeadingBreadcrumbs for Source-mode active-section
+   * tracking (spec section 7.3). Not called on mere re-renders. */
+  onCursorChange?: (pos: number) => void;
 }
 
 /** Suggests note names (and, when the setting is on, note aliases) while
@@ -188,6 +193,7 @@ function buildExtensions(
   onChangeRef: { current: (value: string) => void },
   attachmentSettingsRef: { current: AttachmentSettings },
   snippetSettingsRef: { current: SnippetSettings },
+  onCursorChangeRef: { current: ((pos: number) => void) | undefined },
 ) {
   return [
     lineNumbers(),
@@ -204,6 +210,14 @@ function buildExtensions(
     EditorView.updateListener.of((update) => {
       if (update.docChanged) {
         onChangeRef.current(update.state.doc.toString());
+      }
+      // Covers typing (which moves the cursor as part of the same
+      // transaction as docChanged) and plain cursor movement/selection
+      // alike, including the reveal effect's own programmatic dispatch
+      // below, per spec section 7.3's "programmatic navigation updates
+      // after the editor transaction settles."
+      if (update.docChanged || update.selectionSet) {
+        onCursorChangeRef.current?.(update.state.selection.main.head);
       }
     }),
     EditorView.theme({
@@ -230,11 +244,14 @@ export function MarkdownEditor({
   snippetsEnabled,
   snippets,
   reveal,
+  onCursorChange,
 }: MarkdownEditorProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
+  const onCursorChangeRef = useRef(onCursorChange);
+  onCursorChangeRef.current = onCursorChange;
   const attachmentSettingsRef = useRef<AttachmentSettings>({
     workspaceRoot,
     attachmentsFolder,
@@ -254,11 +271,18 @@ export function MarkdownEditor({
 
     const state = EditorState.create({
       doc: value,
-      extensions: buildExtensions(path, onChangeRef, attachmentSettingsRef, snippetSettingsRef),
+      extensions: buildExtensions(
+        path,
+        onChangeRef,
+        attachmentSettingsRef,
+        snippetSettingsRef,
+        onCursorChangeRef,
+      ),
     });
 
     const view = new EditorView({ state, parent: hostRef.current });
     viewRef.current = view;
+    onCursorChangeRef.current?.(view.state.selection.main.head);
 
     return () => {
       view.destroy();
@@ -289,9 +313,16 @@ export function MarkdownEditor({
     view.setState(
       EditorState.create({
         doc: value,
-        extensions: buildExtensions(path, onChangeRef, attachmentSettingsRef, snippetSettingsRef),
+        extensions: buildExtensions(
+          path,
+          onChangeRef,
+          attachmentSettingsRef,
+          snippetSettingsRef,
+          onCursorChangeRef,
+        ),
       }),
     );
+    onCursorChangeRef.current?.(view.state.selection.main.head);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [path]);
 

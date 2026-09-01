@@ -225,3 +225,134 @@ describe("MarkdownEditor: reusing the editor view across a file switch", () => {
     expect(writeWorkspaceBinaryFile.mock.calls[0][1]).toMatch(/^folderB\//);
   });
 });
+
+describe("MarkdownEditor: reveal", () => {
+  it("moves the selection to the requested range and does not affect undo history", () => {
+    const { container, rerender } = render(
+      <MarkdownEditor path="/vault/a.md" value="one two three" {...baseEditorProps()} reveal={null} />,
+    );
+    rerender(
+      <MarkdownEditor
+        path="/vault/a.md"
+        value="one two three"
+        {...baseEditorProps()}
+        reveal={{ from: 4, to: 7, requestId: 1 }}
+      />,
+    );
+    const view = editorView(container);
+    expect(view.state.selection.main.from).toBe(4);
+    expect(view.state.selection.main.to).toBe(7);
+
+    undo(view);
+    expect(view.state.doc.toString()).toBe("one two three");
+  });
+
+  it("re-applies a reveal to the same range when requestId changes", () => {
+    const { container, rerender } = render(
+      <MarkdownEditor
+        path="/vault/a.md"
+        value="one two three"
+        {...baseEditorProps()}
+        reveal={{ from: 4, to: 7, requestId: 1 }}
+      />,
+    );
+    const view = editorView(container);
+    view.dispatch({ selection: { anchor: 0 } });
+    expect(view.state.selection.main.from).toBe(0);
+
+    rerender(
+      <MarkdownEditor
+        path="/vault/a.md"
+        value="one two three"
+        {...baseEditorProps()}
+        reveal={{ from: 4, to: 7, requestId: 2 }}
+      />,
+    );
+    expect(editorView(container).state.selection.main.from).toBe(4);
+  });
+
+  it("clamps an out-of-range reveal to the document's actual length", () => {
+    const { container, rerender } = render(
+      <MarkdownEditor path="/vault/a.md" value="short" {...baseEditorProps()} reveal={null} />,
+    );
+    rerender(
+      <MarkdownEditor
+        path="/vault/a.md"
+        value="short"
+        {...baseEditorProps()}
+        reveal={{ from: 4, to: 999, requestId: 1 }}
+      />,
+    );
+    const view = editorView(container);
+    expect(view.state.selection.main.to).toBe(5);
+  });
+});
+
+describe("MarkdownEditor: onCursorChange", () => {
+  it("reports the initial cursor position on mount", () => {
+    const onCursorChange = vi.fn();
+    render(
+      <MarkdownEditor
+        path="/vault/a.md"
+        value="hello"
+        {...baseEditorProps()}
+        onCursorChange={onCursorChange}
+      />,
+    );
+    expect(onCursorChange).toHaveBeenCalledWith(0);
+  });
+
+  it("reports the new cursor position after typing", () => {
+    const onCursorChange = vi.fn();
+    const { container } = render(
+      <MarkdownEditor
+        path="/vault/a.md"
+        value="hello"
+        {...baseEditorProps()}
+        onCursorChange={onCursorChange}
+      />,
+    );
+    const view = editorView(container);
+    onCursorChange.mockClear();
+    view.dispatch({ changes: { from: 5, insert: "!" }, selection: { anchor: 6 } });
+    expect(onCursorChange).toHaveBeenCalledWith(6);
+  });
+
+  it("reports the new cursor position after a pure selection move", () => {
+    const onCursorChange = vi.fn();
+    const { container } = render(
+      <MarkdownEditor
+        path="/vault/a.md"
+        value="hello world"
+        {...baseEditorProps()}
+        onCursorChange={onCursorChange}
+      />,
+    );
+    const view = editorView(container);
+    onCursorChange.mockClear();
+    view.dispatch({ selection: { anchor: 8 } });
+    expect(onCursorChange).toHaveBeenCalledWith(8);
+  });
+
+  it("reports the reset cursor position after switching files", () => {
+    const onCursorChange = vi.fn();
+    const { rerender } = render(
+      <MarkdownEditor
+        path="/vault/a.md"
+        value="first file"
+        {...baseEditorProps()}
+        onCursorChange={onCursorChange}
+      />,
+    );
+    onCursorChange.mockClear();
+    rerender(
+      <MarkdownEditor
+        path="/vault/b.md"
+        value="second file"
+        {...baseEditorProps()}
+        onCursorChange={onCursorChange}
+      />,
+    );
+    expect(onCursorChange).toHaveBeenCalledWith(0);
+  });
+});

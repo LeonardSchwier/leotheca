@@ -42,7 +42,8 @@ import { SettingsPanel } from "../settings/SettingsPanel";
 import { WelcomeDialog } from "../settings/WelcomeDialog";
 import { BacklinksPanel } from "../linking/BacklinksPanel";
 import { OutlinePanel } from "../outline/OutlinePanel";
-import { outlineRevealRequest } from "../outline/outlineNavigation";
+import { outlineRevealRequest, requestOutlineReveal } from "../outline/outlineNavigation";
+import { HeadingBreadcrumbs } from "../outline/HeadingBreadcrumbs";
 import {
   linkIndexBuilding,
   linkIndexUnreadablePaths,
@@ -201,6 +202,13 @@ export function App() {
     targetDir: string;
     templates: NoteTemplate[];
   } | null>(null);
+  // Source-mode cursor position for HeadingBreadcrumbs (spec section 7.3).
+  // MarkdownEditor itself reports this; it is not rendered at all in a
+  // preview-only view mode or for a non-text tab, so this can go stale
+  // while either is true. HeadingBreadcrumbs is only ever given this value
+  // guarded by the same conditions (see its render below), so a stale
+  // value is never actually read as if it reflected the current pane.
+  const [cursorPos, setCursorPos] = useState<number | null>(null);
 
   useEffect(() => {
     const p = initSettings();
@@ -715,6 +723,14 @@ export function App() {
               <CanvasView path={current.path} source={current.content} onChange={(value) => handleChange(current.path, value)} onOpenFile={(path) => void handleOpenFile(path, path.split("/").pop() ?? path)} />
             ) : (
               <>
+                <HeadingBreadcrumbs
+                  key={current.path}
+                  noteTitle={current.name}
+                  content={current.content}
+                  cursorOffset={viewMode.value !== "preview" ? cursorPos : null}
+                  onSelectRoot={() => requestOutlineReveal(0, 0)}
+                  onSelectHeading={(heading) => requestOutlineReveal(heading.contentFrom, heading.contentTo)}
+                />
                 <FrontmatterPropertiesPanel
                   key={current.path}
                   source={current.content}
@@ -733,6 +749,7 @@ export function App() {
                       snippetsEnabled={workspaceSettings.value.snippetsEnabled}
                       snippets={workspaceSettings.value.snippets}
                       reveal={outlineRevealRequest.value}
+                      onCursorChange={setCursorPos}
                     />
                   )}
                   {viewMode.value !== "source" && (

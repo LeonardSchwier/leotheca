@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from "preact/hooks";
-import { scanHeadings, type HeadingRecord } from "../markdown/headings";
+import { useState } from "preact/hooks";
+import type { HeadingRecord } from "../markdown/headings";
 import { requestOutlineReveal } from "./outlineNavigation";
+import { useNoteHeadings } from "./useNoteHeadings";
 import "./outline.css";
 
 interface OutlinePanelProps {
@@ -12,8 +13,6 @@ interface OutlinePanelProps {
   onNavigated?: () => void;
 }
 
-// spec/f06-note-outline-heading-breadcrumbs.md section 10.2.
-const SCAN_DEBOUNCE_MS = 75;
 // section 6.2: the filter field only appears once a note has enough
 // headings that scanning the list by eye stops being the faster option.
 const FILTER_THRESHOLD = 20;
@@ -146,23 +145,9 @@ function OutlineRow({
  * than needing an explicit workspace-switch listener.
  */
 export function OutlinePanel({ content, onNavigated }: OutlinePanelProps) {
-  const [headings, setHeadings] = useState<HeadingRecord[]>(() => scanHeadings(content));
+  const headings = useNoteHeadings(content);
   const [filterText, setFilterText] = useState("");
   const [collapsedKeys, setCollapsedKeys] = useState<Set<string>>(new Set());
-  const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const isFirstContentRef = useRef(true);
-
-  useEffect(() => {
-    // Skip the debounce for the very first render: initial state above
-    // already scanned this exact content synchronously.
-    if (isFirstContentRef.current) {
-      isFirstContentRef.current = false;
-      return;
-    }
-    if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => setHeadings(scanHeadings(content)), SCAN_DEBOUNCE_MS);
-    return () => clearTimeout(timerRef.current);
-  }, [content]);
 
   const filterLower = filterText.trim().toLowerCase();
   const filterActive = filterLower.length > 0;

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "preact/hooks";
-import { EditorState } from "@codemirror/state";
+import { EditorSelection, EditorState } from "@codemirror/state";
 import { EditorView, keymap, lineNumbers, highlightActiveLine } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { searchKeymap } from "@codemirror/search";
@@ -33,6 +33,13 @@ export interface MarkdownEditorProps {
   pasteImagesEnabled: boolean;
   snippetsEnabled: boolean;
   snippets: string;
+  /** A request to move the selection to a source range and scroll it
+   * into view without remounting the editor or touching undo history,
+   * e.g. from OutlinePanel's click-to-navigate (see
+   * outline/outlineNavigation.ts). `requestId` must change for a repeat
+   * request at the same range to re-apply; `null` means no pending
+   * request. */
+  reveal?: { from: number; to: number; requestId: number } | null;
 }
 
 /** Suggests note names (and, when the setting is on, note aliases) while
@@ -222,6 +229,7 @@ export function MarkdownEditor({
   pasteImagesEnabled,
   snippetsEnabled,
   snippets,
+  reveal,
 }: MarkdownEditorProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
@@ -306,6 +314,25 @@ export function MarkdownEditor({
     const change = minimalChange(current, value);
     view.dispatch({ changes: change });
   }, [value]);
+
+  // Reveals an outline-requested range: moves the selection there and
+  // scrolls it into view, without remounting or touching undo. Tracks the
+  // last-applied requestId (not just reveal !== null) so clicking the
+  // same outline row again still re-scrolls even though from/to and the
+  // path haven't changed since the last request.
+  const lastRevealIdRef = useRef<number | null>(null);
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view || !reveal || reveal.requestId === lastRevealIdRef.current) return;
+    lastRevealIdRef.current = reveal.requestId;
+    const docLength = view.state.doc.length;
+    const from = Math.min(Math.max(reveal.from, 0), docLength);
+    const to = Math.min(Math.max(reveal.to, from), docLength);
+    view.dispatch({
+      selection: EditorSelection.range(from, to),
+      scrollIntoView: true,
+    });
+  }, [reveal]);
 
   return <div class="markdown-editor" ref={hostRef} />;
 }

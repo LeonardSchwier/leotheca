@@ -16,5 +16,6 @@
 - The editor area now shows a short stoic-philosophy quote (with attribution) instead of a bare "No file open." message when no note is open.
 - The wikilink/tag/backlink index is more robust on a large workspace: a single note that fails to read (a lock, a permission change, a sync tool mid-write) no longer prevents the rest of the workspace from being indexed, and a small notice now appears if any notes couldn't be read. The index also uses file size alongside modification time to detect changed content, narrowing a rare case where an edit could otherwise go unnoticed.
 - The desktop app now reads more notes at once while rebuilding the wikilink index, which should make opening the Graph or Tags view on a large workspace feel faster. Android is unaffected.
+- A new Outline button on a note's toolbar shows a live, hierarchical list of its headings; clicking one jumps the editor to that heading without losing your place or undo history. Breadcrumbs, copy/insert-link actions, and current-section tracking are not part of this first slice yet.
 
 Entries will accumulate here from the first tagged release onward.

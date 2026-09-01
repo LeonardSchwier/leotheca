@@ -41,6 +41,8 @@ import type { ViewMode } from "../settings/workspaceSettings";
 import { SettingsPanel } from "../settings/SettingsPanel";
 import { WelcomeDialog } from "../settings/WelcomeDialog";
 import { BacklinksPanel } from "../linking/BacklinksPanel";
+import { OutlinePanel } from "../outline/OutlinePanel";
+import { outlineRevealRequest } from "../outline/outlineNavigation";
 import {
   linkIndexBuilding,
   linkIndexUnreadablePaths,
@@ -115,6 +117,14 @@ function GraphIcon() {
   );
 }
 
+function OutlineIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+      <path d="M4 5h12M4 10h8M4 15h10" />
+    </svg>
+  );
+}
+
 function SourceModeIcon() {
   return (
     <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -160,6 +170,11 @@ const VIEW_MODE_ICONS: Record<ViewMode, ComponentType> = {
 const bookmarksOpen = signal(false);
 const tagsOpen = signal(false);
 const graphOpen = signal(false);
+// Unlike bookmarksOpen/tagsOpen, this does not swap out the file tree: the
+// outline is per-note context like BacklinksPanel, not a workspace-wide
+// list, so it renders alongside the sidebar's primary content instead of
+// replacing it.
+const outlineOpen = signal(false);
 const markdownHelpOpen = signal(false);
 const commandPaletteOpen = signal(false);
 const sidebarOpen = signal(!Capacitor.isNativePlatform());
@@ -576,6 +591,16 @@ export function App() {
             <TagIcon />
           </button>
         )}
+        {current?.kind === "text" && (
+          <button
+            class={`icon-button ${outlineOpen.value ? "active" : ""}`}
+            aria-label={outlineOpen.value ? "Hide note outline" : "Show note outline"}
+            title={outlineOpen.value ? "Hide note outline" : "Show note outline"}
+            onClick={() => (outlineOpen.value = !outlineOpen.value)}
+          >
+            <OutlineIcon />
+          </button>
+        )}
         {rootPath && (
           <button
             class="icon-button"
@@ -636,6 +661,15 @@ export function App() {
                       />
                     )}
                   </div>
+                  {current?.kind === "text" && outlineOpen.value && (
+                    <OutlinePanel
+                      key={current.path}
+                      content={current.content}
+                      onNavigated={() => {
+                        if (viewMode.value === "preview") viewMode.value = "split";
+                      }}
+                    />
+                  )}
                   {current?.kind === "text" && (
                     <BacklinksPanel
                       path={current.path}
@@ -698,6 +732,7 @@ export function App() {
                       pasteImagesEnabled={workspaceSettings.value.pasteImagesEnabled}
                       snippetsEnabled={workspaceSettings.value.snippetsEnabled}
                       snippets={workspaceSettings.value.snippets}
+                      reveal={outlineRevealRequest.value}
                     />
                   )}
                   {viewMode.value !== "source" && (

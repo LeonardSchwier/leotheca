@@ -1,0 +1,123 @@
+.outline-panel {
+  flex-shrink: 0;
+  max-height: 300px;
+  overflow-y: auto;
+  padding: var(--space-2);
+  border-top: 1px solid var(--border);
+}
+
+.outline-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.outline-heading {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.outline-count {
+  color: var(--text-faint);
+  font-size: 11px;
+}
+
+.outline-header-actions {
+  display: flex;
+  gap: var(--space-1);
+  margin-left: auto;
+}
+
+.outline-text-button {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 11px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.outline-text-button:hover {
+  color: var(--text-primary);
+  text-decoration: underline;
+}
+
+.outline-filter {
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: var(--space-2);
+  padding: 2px var(--space-2);
+  font: inherit;
+  font-size: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-base);
+  color: var(--text-primary);
+}
+
+.outline-list,
+.outline-children {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.outline-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.outline-chevron {
+  flex: 0 0 auto;
+  width: 16px;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0;
+}
+
+.outline-chevron:disabled {
+  cursor: default;
+}
+
+.outline-label {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font: inherit;
+  text-align: left;
+  padding: 2px var(--space-2) 2px 2px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.outline-label:hover {
+  background: var(--bg-hover);
+}
+
+.outline-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.outline-duplicate-marker {
+  flex: 0 0 auto;
+  font-size: 11px;
+}
+
+.outline-empty-filter {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}

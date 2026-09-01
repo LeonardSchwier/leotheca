@@ -1,13 +1,19 @@
 /** @vitest-environment jsdom */
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, waitFor } from "@testing-library/preact";
 
 vi.mock("../workspace/tauriBridge", () => ({
   fileSrc: vi.fn(),
 }));
 
+vi.mock("../settings/store", async () => {
+  const { signal } = await import("@preact/signals");
+  return { workspacePath: signal<string | null>(null) };
+});
+
 import { MarkdownPreview } from "./MarkdownPreview";
 import { linkIndex } from "../linking/store";
+import { workspacePath } from "../settings/store";
 import { fileSrc } from "../workspace/tauriBridge";
 
 afterEach(() => {
@@ -20,6 +26,7 @@ afterEach(() => {
     pathsByTag: new Map(),
     tagsByPath: new Map(),
   };
+  workspacePath.value = null;
   vi.mocked(fileSrc).mockReset();
 });
 
@@ -111,6 +118,10 @@ describe("MarkdownPreview", () => {
 });
 
 describe("MarkdownPreview: local image attachments", () => {
+  beforeEach(() => {
+    workspacePath.value = "/vault";
+  });
+
   it("leaves a local relative image unresolved when no notePath is given", () => {
     const { container } = render(<MarkdownPreview source="![a cat](cat.png)" />);
     const img = container.querySelector("img");
@@ -132,7 +143,7 @@ describe("MarkdownPreview: local image attachments", () => {
     );
   });
 
-  it("resolves a ../ image target relative to the note's folder, not the workspace root", async () => {
+  it("resolves a ../ image target relative to the note's folder when it stays in the workspace", async () => {
     vi.mocked(fileSrc).mockResolvedValue("asset://localhost/vault/attachments/cat.png");
     render(
       <MarkdownPreview
@@ -141,6 +152,29 @@ describe("MarkdownPreview: local image attachments", () => {
       />,
     );
     expect(fileSrc).toHaveBeenCalledWith("/vault/attachments/cat.png");
+  });
+
+  it("rejects a relative image that escapes the workspace without reading it", () => {
+    const { container } = render(
+      <MarkdownPreview source="![outside](../../outside.png)" notePath="/vault/notes/today.md" />,
+    );
+    expect(fileSrc).not.toHaveBeenCalled();
+    expect(container.querySelector("img")?.getAttribute("src")).toBe("../../outside.png");
+  });
+
+  it("rejects a prefix-confusion escape at the exact workspace boundary", () => {
+    render(
+      <MarkdownPreview
+        source="![outside](../../vault-other/cat.png)"
+        notePath="/vault/notes/today.md"
+      />,
+    );
+    expect(fileSrc).not.toHaveBeenCalled();
+  });
+
+  it("rejects an absolute local image target without reading it", () => {
+    render(<MarkdownPreview source="![outside](/outside/cat.png)" notePath="/vault/notes/today.md" />);
+    expect(fileSrc).not.toHaveBeenCalled();
   });
 
   it("preserves a title alongside a resolved local image", async () => {
@@ -214,8 +248,6 @@ describe("MarkdownPreview: math rendering", () => {
 
   it("does not crash on malformed LaTeX, and shows KaTeX's own error styling", () => {
     const { container } = render(<MarkdownPreview source="Broken: $\\frac{1}{$." />);
-    // katex's throwOnError: false renders a visible error span rather than
-    // throwing; this just confirms the preview pane survives it intact.
     expect(container.querySelector(".markdown-preview")).toBeTruthy();
   });
 

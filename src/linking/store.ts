@@ -1,5 +1,9 @@
 import { signal } from "@preact/signals";
-import { findMarkdownFiles as walkMarkdownFiles, readTextFile, writeTextFile } from "../workspace/tauriBridge";
+import {
+  findMarkdownFiles as walkMarkdownFiles,
+  readTextFile,
+  writeWorkspaceTextFile,
+} from "../workspace/tauriBridge";
 import { mapWithConcurrency } from "../workspace/concurrency";
 import type { FsEntry } from "../workspace/types";
 import { extractAliases } from "./frontmatter";
@@ -102,14 +106,6 @@ const loadedCacheRoots = new Set<string>();
 // start unnecessary note reads nor replace the visible index when it ends.
 let latestIndexRequest = 0;
 
-function yieldForInitialWorkspacePaint(): Promise<void> {
-  // This module's pure-logic tests intentionally run without a DOM. In the
-  // app, one frame gives the direct folder listing a chance to render before
-  // the lower-priority, full-workspace metadata scan begins.
-  if (typeof window === "undefined") return Promise.resolve();
-  return new Promise((resolve) => window.requestAnimationFrame(() => resolve()));
-}
-
 function cacheFilePath(rootPath: string): string {
   return `${rootPath}/${LINK_INDEX_CACHE_FILENAME}`;
 }
@@ -119,7 +115,10 @@ async function loadPersistedCacheIfNeeded(rootPath: string): Promise<void> {
   loadedCacheRoots.add(rootPath);
   try {
     const raw = await readTextFile(cacheFilePath(rootPath));
-    const parsed = JSON.parse(raw) as { version: number; entries: Record<string, CachedNote> };
+    const parsed = JSON.parse(raw) as {
+      version: number;
+      entries: Record<string, CachedNote>;
+    };
     if (parsed.version === LINK_INDEX_CACHE_VERSION) {
       for (const [path, cached] of Object.entries(parsed.entries)) {
         wikilinkCache.set(path, cached);
@@ -133,12 +132,19 @@ async function loadPersistedCacheIfNeeded(rootPath: string): Promise<void> {
   }
 }
 
-async function savePersistedCache(rootPath: string, entries: Map<string, CachedNote>): Promise<void> {
+async function savePersistedCache(
+  rootPath: string,
+  entries: Map<string, CachedNote>,
+): Promise<void> {
   try {
-    await writeTextFile(
-      cacheFilePath(rootPath),
+    await writeWorkspaceTextFile(
+      rootPath,
+      LINK_INDEX_CACHE_FILENAME,
       JSON.stringify(
-        { version: LINK_INDEX_CACHE_VERSION, entries: Object.fromEntries(entries) },
+        {
+          version: LINK_INDEX_CACHE_VERSION,
+          entries: Object.fromEntries(entries),
+        },
         null,
         2,
       ),
@@ -178,9 +184,6 @@ export async function rebuildLinkIndex(
   const isCurrentRequest = () => request === latestIndexRequest;
   linkIndexBuilding.value = true;
   try {
-    await yieldForInitialWorkspacePaint();
-    if (!isCurrentRequest()) return;
-
     await loadPersistedCacheIfNeeded(rootPath);
     if (!isCurrentRequest()) return;
 
@@ -213,60 +216,74 @@ export async function rebuildLinkIndex(
     // yet, since which note gets read first isn't ordered.
     const wikilinksByPath = new Map<string, string[]>();
 
-    await mapWithConcurrency(noteEntries, LINK_INDEX_READ_CONCURRENCY, async (entry) => {
-      if (!isCurrentRequest()) return;
-      const cached = wikilinkCache.get(entry.path);
-      let wikilinks: string[];
-      let aliases: string[];
-      let tags: string[];
-      if (cached && entry.mtime !== undefined && cached.mtime === entry.mtime) {
-        wikilinks = cached.wikilinks;
-        aliases = cached.aliases;
-        tags = cached.tags;
-      } else {
-        let source: string;
-        try {
-          source = await readTextFile(entry.path);
-        } catch (error) {
-          if (!isCurrentRequest()) return;
-          throw error;
-        }
+    await mapWithConcurrency(
+      noteEntries,
+      LINK_INDEX_READ_CONCURRENCY,
+      async (entry) => {
         if (!isCurrentRequest()) return;
-        wikilinks = extractWikilinks(source);
-        aliases = extractAliases(source);
-        tags = extractTags(source);
-      }
-      if (entry.mtime !== undefined) {
-        freshCache.set(entry.path, { mtime: entry.mtime, wikilinks, aliases, tags });
-      }
-      wikilinksByPath.set(entry.path, wikilinks);
-
-      if (aliasesEnabled && aliases.length > 0) {
-        aliasesByPath.set(entry.path, aliases);
-        for (const alias of aliases) {
-          const key = alias.toLocaleLowerCase();
-          const paths = pathsByAlias.get(key) ?? [];
-          paths.push(entry.path);
-          pathsByAlias.set(key, paths);
+        const cached = wikilinkCache.get(entry.path);
+        let wikilinks: string[];
+        let aliases: string[];
+        let tags: string[];
+        if (
+          cached &&
+          entry.mtime !== undefined &&
+          cached.mtime === entry.mtime
+        ) {
+          wikilinks = cached.wikilinks;
+          aliases = cached.aliases;
+          tags = cached.tags;
+        } else {
+          let source: string;
+          try {
+            source = await readTextFile(entry.path);
+          } catch (error) {
+            if (!isCurrentRequest()) return;
+            throw error;
+          }
+          if (!isCurrentRequest()) return;
+          wikilinks = extractWikilinks(source);
+          aliases = extractAliases(source);
+          tags = extractTags(source);
         }
-      }
-
-      if (tagsEnabled && tags.length > 0) {
-        tagsByPath.set(entry.path, tags);
-        for (const tag of tags) {
-          const paths = pathsByTag.get(tag) ?? [];
-          paths.push(entry.path);
-          pathsByTag.set(tag, paths);
+        if (entry.mtime !== undefined) {
+          freshCache.set(entry.path, {
+            mtime: entry.mtime,
+            wikilinks,
+            aliases,
+            tags,
+          });
         }
-      }
-    });
+        wikilinksByPath.set(entry.path, wikilinks);
+
+        if (aliasesEnabled && aliases.length > 0) {
+          aliasesByPath.set(entry.path, aliases);
+          for (const alias of aliases) {
+            const key = alias.toLocaleLowerCase();
+            const paths = pathsByAlias.get(key) ?? [];
+            paths.push(entry.path);
+            pathsByAlias.set(key, paths);
+          }
+        }
+
+        if (tagsEnabled && tags.length > 0) {
+          tagsByPath.set(entry.path, tags);
+          for (const tag of tags) {
+            const paths = pathsByTag.get(tag) ?? [];
+            paths.push(entry.path);
+            pathsByTag.set(tag, paths);
+          }
+        }
+      },
+    );
 
     if (!isCurrentRequest()) return;
 
     for (const [path, wikilinks] of wikilinksByPath) {
       for (const targetName of wikilinks) {
         const key = targetName.toLocaleLowerCase();
-        const targetPaths = pathsByNoteName.get(key) ?? pathsByAlias.get(key) ?? [];
+        const targetPaths =
+          pathsByNoteName.get(key) ?? pathsByAlias.get(key) ?? [];
         for (const targetPath of targetPaths) {
           const backlinks = backlinksByPath.get(targetPath);
           if (backlinks && !backlinks.includes(path)) backlinks.push(path);

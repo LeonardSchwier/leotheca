@@ -4,7 +4,8 @@ import DOMPurify from "dompurify";
 import katex from "katex";
 import "katex/dist/katex.min.css";
 import { fileNameFromPath, resolveWikilink } from "../linking/store";
-import { dirname, resolvePath } from "../workspace/paths";
+import { workspacePath } from "../settings/store";
+import { dirname, resolvePathWithinWorkspace } from "../workspace/paths";
 import { fileSrc } from "../workspace/tauriBridge";
 import "../linking/linking.css";
 
@@ -108,6 +109,7 @@ interface MarkdownPreviewProps {
 // Android, see workspace/tauriBridge.ts's fileSrc) can only be obtained
 // asynchronously, which a synchronous marked.parse call cannot wait on.
 const ATTACHMENT_SRC_PREFIX = "#leotheca-attachment=";
+const ATTACHMENT_READ_CONCURRENCY = 6;
 
 // Any URI with a scheme (http:, https:, data:, etc.) is left for marked's
 // own default image rendering: an absolute remote URL is exactly what
@@ -126,12 +128,17 @@ const IMAGE_MARKDOWN = /!\[([^\]]*)\]\(([^)]+)\)/g;
  * resolved the same way a browser resolves a relative URL: against the
  * folder of the note that embeds it, regardless of where the file was
  * actually saved, see editor/attachments.ts) into the placeholder href
- * above, carrying the resolved absolute path so the effect in
- * MarkdownPreview below can look the real file up after render. Absolute
- * URLs and data: URIs are left untouched, see isLocalRelativeTarget.
+ * above. Only paths that remain inside the active workspace are carried
+ * into that placeholder, so user-authored markdown cannot turn preview
+ * rendering into an arbitrary native file read. Absolute URLs, data: URIs,
+ * and workspace escapes are left unresolved.
  */
-function markLocalImageAttachments(source: string, noteDir: string | null): string {
-  if (!noteDir) return source;
+function markLocalImageAttachments(
+  source: string,
+  noteDir: string | null,
+  workspaceRoot: string | null,
+): string {
+  if (!noteDir || !workspaceRoot) return source;
   return source.replace(IMAGE_MARKDOWN, (match, alt: string, rawTarget: string) => {
     const trimmed = rawTarget.trim();
     const withTitle = /^(\S+)(\s+"[^"]*")?$/.exec(trimmed);
@@ -139,8 +146,9 @@ function markLocalImageAttachments(source: string, noteDir: string | null): stri
     const [, target, titleSuffix = ""] = withTitle;
     if (!isLocalRelativeTarget(target)) return match;
 
-    const absolutePath = resolvePath(noteDir, target);
-    return `![${alt}](${ATTACHMENT_SRC_PREFIX}${encodeURIComponent(absolutePath)}${titleSuffix})`;
+    const containedPath = resolvePathWithinWorkspace(workspaceRoot, noteDir, target);
+    if (!containedPath) return match;
+    return `![${alt}](${ATTACHMENT_SRC_PREFIX}${encodeURIComponent(containedPath)}${titleSuffix})`;
   });
 }
 
@@ -164,38 +172,54 @@ export function MarkdownPreview({
 }: MarkdownPreviewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const noteDir = notePath ? dirname(notePath) : null;
+  const workspaceRoot = workspacePath.value;
 
   const html = useMemo(() => {
     mathRenderingActive = mathRenderingEnabled;
-    const withAttachments = markLocalImageAttachments(source, noteDir);
+    const withAttachments = markLocalImageAttachments(source, noteDir, workspaceRoot);
     const rendered = marked.parse(renderWikilinks(withAttachments), {
       async: false,
     }) as string;
     return DOMPurify.sanitize(rendered);
-  }, [source, mathRenderingEnabled, noteDir]);
+  }, [source, mathRenderingEnabled, noteDir, workspaceRoot]);
 
   // marked.parse is synchronous, but resolving a placeholder src into a
-  // real, loadable one (fileSrc, see workspace/tauriBridge.ts) is not: on
-  // desktop it's an asset:// URL, on Android it's a data: URL read off
-  // disk. Both need an await, so the real src is filled in here, after
-  // render, the same pattern ImageViewer.tsx already uses for a
-  // standalone image tab.
+  // real, loadable one (fileSrc, see workspace/tauriBridge.ts) is not. A
+  // small worker queue bounds native reads on both desktop and Android.
+  // Cancelling a stale render stops its workers before they schedule any
+  // more queued reads; already-invoked reads may finish but cannot update
+  // the obsolete DOM.
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
     let cancelled = false;
 
-    const images = container.querySelectorAll<HTMLImageElement>(
-      `img[src^="${ATTACHMENT_SRC_PREFIX}"]`,
+    const images = Array.from(
+      container.querySelectorAll<HTMLImageElement>(`img[src^="${ATTACHMENT_SRC_PREFIX}"]`),
     );
-    for (const img of Array.from(images)) {
-      const absolutePath = decodeURIComponent(
-        img.getAttribute("src")!.slice(ATTACHMENT_SRC_PREFIX.length),
-      );
-      void fileSrc(absolutePath).then((resolved) => {
-        if (!cancelled) img.src = resolved;
-      });
-    }
+    let nextImageIndex = 0;
+
+    const resolveNext = async () => {
+      while (!cancelled) {
+        const img = images[nextImageIndex];
+        if (!img) return;
+        nextImageIndex += 1;
+
+        const absolutePath = decodeURIComponent(
+          img.getAttribute("src")!.slice(ATTACHMENT_SRC_PREFIX.length),
+        );
+        try {
+          const resolved = await fileSrc(absolutePath);
+          if (!cancelled) img.src = resolved;
+        } catch {
+          // Keep one unreadable attachment local to that image. The worker
+          // continues with the rest of the current queue.
+        }
+      }
+    };
+
+    const workerCount = Math.min(ATTACHMENT_READ_CONCURRENCY, images.length);
+    void Promise.allSettled(Array.from({ length: workerCount }, () => resolveNext()));
 
     return () => {
       cancelled = true;

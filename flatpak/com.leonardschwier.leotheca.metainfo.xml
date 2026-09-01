@@ -51,8 +51,14 @@
 
   <content_rating type="oars-1.1" />
 
+  <!--
+    Kept in sync with the root VERSION file (audit follow-up F-015),
+    validated by `npm run check-version`. This describes the version this
+    project intends to tag next, not a release that has actually shipped
+    yet; no v* tag exists in this repository as of this entry.
+  -->
   <releases>
-    <release version="1.0.0" date="2026-08-27">
+    <release version="0.1.0" date="2026-08-27">
       <description>
         <p>Initial release: local folder workspace, wikilinks with backlinks and a graph view, bookmarks, command palette, full-text search, and a light/dark theme.</p>
       </description>

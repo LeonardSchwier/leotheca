@@ -169,6 +169,44 @@ function imageAttachmentExtension(path: string, settingsRef: { current: Attachme
   });
 }
 
+/** The extensions array a fresh `EditorState` needs, factored out so both
+ * the initial mount and a later file switch (see the two effects below)
+ * build it identically. `imageAttachmentExtension` closes over `path`
+ * directly (not a ref), since a pasted/dropped image needs to record
+ * *this* extension's own file as `notePath` at save time; that's exactly
+ * why switching files needs a fresh extensions array, not just a content
+ * swap in an unchanged one. */
+function buildExtensions(
+  path: string,
+  onChangeRef: { current: (value: string) => void },
+  attachmentSettingsRef: { current: AttachmentSettings },
+  snippetSettingsRef: { current: SnippetSettings },
+) {
+  return [
+    lineNumbers(),
+    highlightActiveLine(),
+    history(),
+    autocompletion({ override: [wikilinkCompletions] }),
+    keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap, ...completionKeymap]),
+    markdown({ codeLanguages: languages }),
+    syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+    livePreviewExtension,
+    imageAttachmentExtension(path, attachmentSettingsRef),
+    snippetKeymap(snippetSettingsRef),
+    EditorView.lineWrapping,
+    EditorView.updateListener.of((update) => {
+      if (update.docChanged) {
+        onChangeRef.current(update.state.doc.toString());
+      }
+    }),
+    EditorView.theme({
+      "&": { height: "100%", fontSize: "var(--content-font-size)" },
+      ".cm-scroller": { fontFamily: "var(--font-mono)", lineHeight: "1.6" },
+      ".cm-content": { padding: "var(--space-4)" },
+    }),
+  ];
+}
+
 /**
  * CodeMirror 6 source-mode editor with markdown syntax highlighting and
  * inline live-preview decorations (headings, bold, italic, inline code,
@@ -198,34 +236,17 @@ export function MarkdownEditor({
   const snippetSettingsRef = useRef<SnippetSettings>({ enabled: snippetsEnabled, source: snippets });
   snippetSettingsRef.current = { enabled: snippetsEnabled, source: snippets };
 
+  // Creates the CodeMirror view once and keeps it alive for the component's
+  // whole lifetime. A file switch used to destroy and recreate this (full
+  // DOM teardown, fresh syntax-highlighting/decoration/event-handler setup
+  // every time, 100-500ms on a large document); it now reconfigures this
+  // same view in place instead, see the effect below.
   useEffect(() => {
     if (!hostRef.current) return;
 
     const state = EditorState.create({
       doc: value,
-      extensions: [
-        lineNumbers(),
-        highlightActiveLine(),
-        history(),
-        autocompletion({ override: [wikilinkCompletions] }),
-        keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap, ...completionKeymap]),
-        markdown({ codeLanguages: languages }),
-        syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
-        livePreviewExtension,
-        imageAttachmentExtension(path, attachmentSettingsRef),
-        snippetKeymap(snippetSettingsRef),
-        EditorView.lineWrapping,
-        EditorView.updateListener.of((update) => {
-          if (update.docChanged) {
-            onChangeRef.current(update.state.doc.toString());
-          }
-        }),
-        EditorView.theme({
-          "&": { height: "100%", fontSize: "var(--content-font-size)" },
-          ".cm-scroller": { fontFamily: "var(--font-mono)", lineHeight: "1.6" },
-          ".cm-content": { padding: "var(--space-4)" },
-        }),
-      ],
+      extensions: buildExtensions(path, onChangeRef, attachmentSettingsRef, snippetSettingsRef),
     });
 
     const view = new EditorView({ state, parent: hostRef.current });
@@ -235,8 +256,34 @@ export function MarkdownEditor({
       view.destroy();
       viewRef.current = null;
     };
-    // Re-create the editor when switching files; content sync for the same
-    // file is handled by the effect below.
+    // Deliberately empty: this mounts the view once. `path`'s own
+    // extensions and `value`'s own content are handled by the two effects
+    // below instead of being dependencies here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Reconfigures the existing view for a newly opened file instead of
+  // recreating it. Skips its own first run: the mount effect above already
+  // built the view with this exact path's extensions and content, so
+  // reconfiguring again immediately would be redundant. Uses `setState`,
+  // not `dispatch`, on purpose: `dispatch`'s changes are undo-tracked,
+  // which would let Ctrl+Z after switching files undo back into the
+  // *previous* file's content; `setState` starts a genuinely fresh
+  // document and a fresh (empty) history for the file just opened.
+  const isFirstPathRef = useRef(true);
+  useEffect(() => {
+    if (isFirstPathRef.current) {
+      isFirstPathRef.current = false;
+      return;
+    }
+    const view = viewRef.current;
+    if (!view) return;
+    view.setState(
+      EditorState.create({
+        doc: value,
+        extensions: buildExtensions(path, onChangeRef, attachmentSettingsRef, snippetSettingsRef),
+      }),
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [path]);
 

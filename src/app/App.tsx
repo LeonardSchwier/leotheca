@@ -1,5 +1,5 @@
-import { signal, useSignal } from "@preact/signals";
-import { useCallback, useEffect, useMemo, useRef, useState } from "preact/hooks";
+import { effect, signal, useSignal } from "@preact/signals";
+import { useCallback, useEffect, useMemo, useState } from "preact/hooks";
 import type { ComponentType } from "preact";
 import { Capacitor } from "@capacitor/core";
 import { App as CapacitorApp } from "@capacitor/app";
@@ -20,12 +20,13 @@ import {
   closeOtherTabs,
   closeTab,
   markTabSaved,
+  markTabSaveError,
   openOrFocusTab,
   openTabs,
   renameOpenTab,
   updateTabContent,
 } from "../workspace/store";
-import { readTextFile, writeTextFile } from "../workspace/tauriBridge";
+import { readTextFile } from "../workspace/tauriBridge";
 import {
   initSettings,
   settingsLoaded,
@@ -33,15 +34,17 @@ import {
   updateWorkspaceSettings,
   viewMode,
   workspacePath,
+  workspaceSession,
   workspaceSettings,
 } from "../settings/store";
 import type { ViewMode } from "../settings/workspaceSettings";
 import { SettingsPanel } from "../settings/SettingsPanel";
 import { WelcomeDialog } from "../settings/WelcomeDialog";
 import { BacklinksPanel } from "../linking/BacklinksPanel";
-import { linkIndexBuilding, rebuildLinkIndex } from "../linking/store";
+import { linkIndexBuilding, rebuildLinkIndex, resetLinkIndexCache } from "../linking/store";
 import { BookmarksPanel } from "../bookmarks/BookmarksPanel";
 import { addFileBookmark, bookmarks, loadBookmarks, removeBookmark } from "../bookmarks/store";
+import { resetWorkspaceTree } from "../workspace/fileTreeStore";
 import { TagsPanel } from "../tags/TagsPanel";
 import {
   createNoteFromTemplate,
@@ -63,6 +66,7 @@ import { MarkdownHelpDialog } from "./MarkdownHelpDialog";
 import { CommandPalette, type Command } from "./CommandPalette";
 import { nextUiZoom, zoomActionForKey, zoomActionForWheel } from "./zoomControls";
 import { isNarrowViewport } from "./responsiveLayout";
+import { createSaveCoordinator } from "../workspace/saveCoordinator";
 
 // Plain inline SVG, not the 🔖 emoji this used to use: it rendered as an
 // unrelated (reportedly pepper-shaped) glyph on Android, the same class of
@@ -143,8 +147,6 @@ const VIEW_MODE_ICONS: Record<ViewMode, ComponentType> = {
   preview: PreviewModeIcon,
 };
 
-const AUTOSAVE_DELAY_MS = 400;
-
 const bookmarksOpen = signal(false);
 const tagsOpen = signal(false);
 const graphOpen = signal(false);
@@ -169,9 +171,13 @@ function toggleSidebarPanel(panel: typeof bookmarksOpen): void {
 }
 
 export function App() {
-  const saveTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
   const tick = useSignal(0);
   const rootPath = workspacePath.value;
+  const session = workspaceSession.value;
+  const save = useMemo(() => createSaveCoordinator({
+    onSaved: (path: string) => { markTabSaved(path); refresh(); },
+    onError: (path: string, error: string) => markTabSaveError(path, error),
+  }), []);
   const [tabRename, setTabRename] = useState<{ path: string; name: string } | null>(null);
   const [tabRenameError, setTabRenameError] = useState<string | null>(null);
   const [templatePicker, setTemplatePicker] = useState<{
@@ -179,26 +185,58 @@ export function App() {
     templates: NoteTemplate[];
   } | null>(null);
 
+  // Clear all pending/in-flight saves when the workspace session changes
+  // (Android SAF switch, desktop reload). This prevents writes from the old
+  // session from targeting the wrong folder or a file that was renamed.
   useEffect(() => {
-    initSettings();
+    save.resetForSession(session);
+  }, [session, save]);
+
+  useEffect(() => {
+    // Always ensure settingsLoaded becomes true even if initSettings() fails.
+    // A fresh install with no workspace will show the WelcomeDialog; if the
+    // version check or config read fails, we still want the UI to render.
+    const p = initSettings();
+    if (p) {
+      p.catch(() => {
+        settingsLoaded.value = true;
+      });
+    } else {
+      // In tests/initSettings is mocked to undefined; render immediately.
+      settingsLoaded.value = true;
+    }
   }, []);
 
   useEffect(() => {
-    if (rootPath) void rebuildLinkIndex(rootPath, workspaceSettings.value.frontmatterAliasesEnabled, workspaceSettings.value.tagsEnabled);
-  }, [rootPath]);
+    resetWorkspaceTree();
+    resetLinkIndexCache();
+  }, [session]);
 
-  useEffect(() => {
-    if (workspacePath.value) void loadBookmarks(workspacePath.value);
-  }, [workspacePath.value]);
+  // Deferring rebuildLinkIndex until the user explicitly opens the Graph or
+  // Tags view. Building the link index on every workspace open adds 100-3000ms
+  // of native bridge calls (recursive file walk + per-note content reads)
+  // before the user needs it. The index is built on-demand by openGraphView
+  // and openTagsPanel, and manually via settings.
 
+  // Defer bookmarks loading until the user opens the Bookmarks panel.
+  // Reading bookmarks.json costs one native bridge call on startup that
+  // provides zero user value on first paint.
   useEffect(() => {
+    if (bookmarksOpen.value && workspacePath.value) void loadBookmarks(workspacePath.value);
+  }, [bookmarksOpen.value, workspacePath.value]);
+
+  // Use effect() from @preact/signals (not useEffect) so changes to
+  // workspaceSettings.value.accentColor or themesEnabled are properly
+  // tracked reactively — Preact Signals only subscribes during render,
+  // not inside useEffect callbacks.
+  effect(() => {
     const root = document.documentElement;
-    if (!rootPath || !workspaceSettings.value.themesEnabled) {
+    if (!workspacePath.value || !workspaceSettings.value.themesEnabled) {
       root.removeAttribute("data-accent");
       return;
     }
     root.setAttribute("data-accent", workspaceSettings.value.accentColor);
-  }, [rootPath, workspaceSettings.value.themesEnabled, workspaceSettings.value.accentColor]);
+  });
 
   const { width: sidebarWidth, onDragStart } = useResizableSidebar();
 
@@ -243,6 +281,7 @@ export function App() {
       if (command.kind === "open-favorites") {
         bookmarksOpen.value = true;
         tagsOpen.value = false;
+        sidebarOpen.value = true;
         return;
       }
       // Same reasoning: a "new-note" command that arrives before any
@@ -284,20 +323,9 @@ export function App() {
   const handleChange = useCallback(
     (path: string, content: string) => {
       updateTabContent(path, content);
-      const timers = saveTimers.current;
-      const existing = timers.get(path);
-      if (existing) clearTimeout(existing);
-      timers.set(
-        path,
-        setTimeout(() => {
-          writeTextFile(path, content).then(() => {
-            markTabSaved(path);
-            refresh();
-          });
-        }, AUTOSAVE_DELAY_MS),
-      );
+      save.change(session, path, content);
     },
-    [refresh],
+    [session, save],
   );
 
   // If a debounced autosave (see handleChange above) is still pending for
@@ -309,17 +337,8 @@ export function App() {
   // file-tree rename) call this first, so neither can reintroduce the race
   // independently of the other.
   const flushPendingAutosave = useCallback(async (path: string) => {
-    const timers = saveTimers.current;
-    const pendingTimer = timers.get(path);
-    if (!pendingTimer) return;
-    clearTimeout(pendingTimer);
-    timers.delete(path);
-    const tab = openTabs.value.find((t) => t.path === path);
-    if (tab) {
-      await writeTextFile(path, tab.content);
-      markTabSaved(path);
-    }
-  }, []);
+    await save.flush(session, path);
+  }, [session, save]);
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -520,7 +539,7 @@ export function App() {
     openTabs.value,
   ]);
 
-  const handleTabRenameSubmit = async (newName: string) => {
+  const handleTabRenameSubmit = useCallback(async (newName: string) => {
     if (!tabRename) return;
     try {
       await flushPendingAutosave(tabRename.path);
@@ -532,7 +551,7 @@ export function App() {
     } catch (e) {
       setTabRenameError(e instanceof Error ? e.message : String(e));
     }
-  };
+  }, [tabRename, flushPendingAutosave, renameEntry, renameOpenTab, setTabRename, setTabRenameError]);
 
   return (
     <div class="app-shell">
@@ -704,7 +723,7 @@ export function App() {
             current.kind === "image" ? (
               <ImageViewer path={current.path} />
             ) : current.kind === "canvas" ? (
-              <CanvasView source={current.content} onChange={(value) => handleChange(current.path, value)} onOpenFile={(path) => void handleOpenFile(path, path.split("/").pop() ?? path)} />
+              <CanvasView path={current.path} source={current.content} onChange={(value) => handleChange(current.path, value)} onOpenFile={(path) => void handleOpenFile(path, path.split("/").pop() ?? path)} />
             ) : (
               <>
                 <FrontmatterPropertiesPanel
@@ -716,7 +735,6 @@ export function App() {
                 <div class={`editor-panes mode-${viewMode.value}`}>
                   {viewMode.value !== "preview" && (
                     <MarkdownEditor
-                      key={current.path}
                       path={current.path}
                       value={current.content}
                       onChange={(value) => handleChange(current.path, value)}

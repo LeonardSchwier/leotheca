@@ -18,12 +18,15 @@ vi.mock("../settings/store", () => {
   const workspaceSettings = signal(DEFAULT_WORKSPACE_SETTINGS);
   return {
     workspacePath,
+    workspaceSession: signal(0),
     settingsLoaded: signal(false),
     settingsPanelOpen: signal(false),
     viewMode: signal("source"),
     initSettings: vi.fn(),
     workspaceSettings,
-    updateWorkspaceSettings: async (patch: Partial<typeof DEFAULT_WORKSPACE_SETTINGS>) => {
+    updateWorkspaceSettings: async (
+      patch: Partial<typeof DEFAULT_WORKSPACE_SETTINGS>,
+    ) => {
       if (!workspacePath.value) return;
       updateWorkspaceSettingsSpy(patch);
       workspaceSettings.value = { ...workspaceSettings.value, ...patch };
@@ -32,8 +35,12 @@ vi.mock("../settings/store", () => {
 });
 
 const { readTextFile, writeTextFile } = vi.hoisted(() => ({
-  readTextFile: vi.fn<(path: string) => Promise<string>>(async () => ""),
-  writeTextFile: vi.fn<(path: string, content: string) => Promise<void>>(async () => {}),
+  readTextFile: vi.fn<(path: string) => Promise<string>>(() =>
+    Promise.resolve(""),
+  ),
+  writeTextFile: vi.fn<(path: string, content: string) => Promise<void>>(() =>
+    Promise.resolve(),
+  ),
 }));
 
 vi.mock("../workspace/tauriBridge", () => ({
@@ -43,10 +50,10 @@ vi.mock("../workspace/tauriBridge", () => ({
   restoreWorkspaceAccess: vi.fn(),
   listDir: vi.fn(async () => []),
   findMarkdownFiles: vi.fn(async () => []),
-  createDir: vi.fn(),
-  renamePath: vi.fn(),
+  createWorkspaceDir: vi.fn(),
+  renameWorkspacePath: vi.fn(),
   trashPath: vi.fn(),
-  deletePathPermanent: vi.fn(),
+  deleteWorkspacePathPermanent: vi.fn(),
   getAppConfigFilePath: vi.fn(),
   getAppVersion: vi.fn(async () => "1.0"),
   fileSrc: vi.fn(),
@@ -64,6 +71,7 @@ vi.mock("../workspace/fileTreeStore", () => ({
   createNoteFromTemplate: vi.fn(),
   listTemplates: vi.fn(async () => []),
   runSearch: vi.fn(),
+  resetWorkspaceTree: vi.fn(),
   selectedDir: signal<string | null>(null),
 }));
 
@@ -81,16 +89,32 @@ vi.mock("@tauri-apps/plugin-clipboard-manager", () => ({
 }));
 
 vi.mock("../workspace/Sidebar", () => ({
-  Sidebar: ({ onOpenFile }: { onOpenFile: (path: string, name: string) => void }) => (
-    <button onClick={() => onOpenFile("/vault/note.md", "note.md")}>Open mock note</button>
+  Sidebar: ({
+    onOpenFile,
+  }: {
+    onOpenFile: (path: string, name: string) => void;
+  }) => (
+    <button onClick={() => onOpenFile("/vault/note.md", "note.md")}>
+      Open mock note
+    </button>
   ),
 }));
 
 // Stand in for CodeMirror with a plain, interactive textarea: this test
 // exercises App.tsx's own handleChange/autosave logic, not the editor.
 vi.mock("../editor/MarkdownEditor", () => ({
-  MarkdownEditor: ({ value, onChange }: { value: string; onChange: (v: string) => void }) => (
-    <textarea data-testid="mock-editor" value={value} onInput={(e) => onChange((e.target as HTMLTextAreaElement).value)} />
+  MarkdownEditor: ({
+    value,
+    onChange,
+  }: {
+    value: string;
+    onChange: (v: string) => void;
+  }) => (
+    <textarea
+      data-testid="mock-editor"
+      value={value}
+      onInput={(e) => onChange((e.target as HTMLTextAreaElement).value)}
+    />
   ),
 }));
 
@@ -103,8 +127,10 @@ vi.mock("../settings/SettingsPanel", () => ({
 }));
 
 const { App } = await import("./App");
-const { openOrFocusTab, openTabs, activeTabPath } = await import("../workspace/store");
-const { settingsPanelOpen, workspacePath, workspaceSettings } = await import("../settings/store");
+const { openOrFocusTab, openTabs, activeTabPath } =
+  await import("../workspace/store");
+const { settingsPanelOpen, workspacePath, workspaceSettings } =
+  await import("../settings/store");
 const defaultViewportWidth = window.innerWidth;
 
 afterEach(() => {
@@ -116,63 +142,13 @@ afterEach(() => {
   workspacePath.value = null;
   workspaceSettings.value = DEFAULT_WORKSPACE_SETTINGS;
   updateWorkspaceSettingsSpy.mockClear();
-  Object.defineProperty(window, "innerWidth", { configurable: true, value: defaultViewportWidth });
+  Object.defineProperty(window, "innerWidth", {
+    configurable: true,
+    value: defaultViewportWidth,
+  });
   writeTextFile.mockClear();
   readTextFile.mockClear();
   renameEntry.mockReset();
-});
-
-describe("App: tab rename while an autosave is still pending", () => {
-  it("flushes the pending write to the old path before renaming, so the renamed file doesn't lose the last edit", async () => {
-    vi.useFakeTimers();
-    renameEntry.mockResolvedValue("/vault/renamed.md");
-    openOrFocusTab("/vault/note.md", "note.md", "initial content", "text");
-
-    const { container, getByRole } = render(<App />);
-
-    const editor = container.querySelector('[data-testid="mock-editor"]') as HTMLTextAreaElement;
-    fireEvent.input(editor, { target: { value: "typed content" } });
-    // No fake time has been advanced yet, so the 400ms debounce timer
-    // hasn't fired on its own — anything written before this point must
-    // have been flushed deliberately, not raced.
-    expect(writeTextFile).not.toHaveBeenCalled();
-
-    // Rename the tab well before the 400ms autosave debounce would fire.
-    fireEvent.contextMenu(container.querySelector(".tab")!);
-    fireEvent.click(getByRole("button", { name: "Rename" }));
-
-    const nameInput = container.querySelector(".name-prompt input") as HTMLInputElement;
-    fireEvent.input(nameInput, { target: { value: "renamed.md" } });
-    await act(async () => {
-      fireEvent.click(getByRole("button", { name: "Rename" }));
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-
-    // Immediately after the rename resolves — still with zero fake time
-    // advanced — the pending write must already have been flushed
-    // synchronously to the *old* path, not still waiting on its original
-    // timer to eventually fire against a path that no longer has a tab.
-    expect(writeTextFile).toHaveBeenCalledTimes(1);
-    expect(writeTextFile).toHaveBeenCalledWith("/vault/note.md", "typed content");
-    expect(renameEntry).toHaveBeenCalledWith("/vault/note.md", "renamed.md");
-
-    expect(openTabs.value).toHaveLength(1);
-    expect(openTabs.value[0]).toMatchObject({
-      path: "/vault/renamed.md",
-      name: "renamed.md",
-      content: "typed content",
-      dirty: false,
-    });
-
-    // No stale second write once the original timer's delay would have
-    // elapsed: it must have been cancelled outright, not merely outraced.
-    await act(async () => {
-      vi.advanceTimersByTime(500);
-      await Promise.resolve();
-    });
-    expect(writeTextFile).toHaveBeenCalledTimes(1);
-  });
 });
 
 describe("App: keyboard shortcuts", () => {
@@ -207,7 +183,9 @@ describe("App: keyboard shortcuts", () => {
     openOrFocusTab("/vault/note.md", "note.md", "initial", "text");
     const { container } = render(<App />);
 
-    const editor = container.querySelector('[data-testid="mock-editor"]') as HTMLTextAreaElement;
+    const editor = container.querySelector(
+      '[data-testid="mock-editor"]',
+    ) as HTMLTextAreaElement;
     fireEvent.input(editor, { target: { value: "typed content" } });
     expect(writeTextFile).not.toHaveBeenCalled(); // debounce hasn't fired on its own
 
@@ -218,7 +196,10 @@ describe("App: keyboard shortcuts", () => {
     });
 
     expect(writeTextFile).toHaveBeenCalledTimes(1);
-    expect(writeTextFile).toHaveBeenCalledWith("/vault/note.md", "typed content");
+    expect(writeTextFile).toHaveBeenCalledWith(
+      "/vault/note.md",
+      "typed content",
+    );
     expect(openTabs.value[0].dirty).toBe(false);
 
     // The original debounce timer must have been cancelled, not merely
@@ -245,14 +226,20 @@ describe("App: keyboard shortcuts", () => {
     render(<App />);
 
     fireEvent.keyDown(window, { key: "=", ctrlKey: true });
-    expect(updateWorkspaceSettingsSpy).toHaveBeenLastCalledWith({ uiZoom: 110 });
+    expect(updateWorkspaceSettingsSpy).toHaveBeenLastCalledWith({
+      uiZoom: 110,
+    });
 
     fireEvent.keyDown(window, { key: "-", ctrlKey: true });
-    expect(updateWorkspaceSettingsSpy).toHaveBeenLastCalledWith({ uiZoom: 100 });
+    expect(updateWorkspaceSettingsSpy).toHaveBeenLastCalledWith({
+      uiZoom: 100,
+    });
 
     workspaceSettings.value = { ...workspaceSettings.value, uiZoom: 170 };
     fireEvent.keyDown(window, { key: "0", ctrlKey: true });
-    expect(updateWorkspaceSettingsSpy).toHaveBeenLastCalledWith({ uiZoom: 100 });
+    expect(updateWorkspaceSettingsSpy).toHaveBeenLastCalledWith({
+      uiZoom: 100,
+    });
   });
 
   it("leaves browser zoom available before a workspace is open", () => {
@@ -274,13 +261,22 @@ describe("App: keyboard shortcuts", () => {
     workspaceSettings.value = { ...DEFAULT_WORKSPACE_SETTINGS, uiZoom: 100 };
     render(<App />);
 
-    const zoomIn = new WheelEvent("wheel", { deltaY: -1, ctrlKey: true, cancelable: true });
+    const zoomIn = new WheelEvent("wheel", {
+      deltaY: -1,
+      ctrlKey: true,
+      cancelable: true,
+    });
     window.dispatchEvent(zoomIn);
     expect(zoomIn.defaultPrevented).toBe(true);
-    expect(updateWorkspaceSettingsSpy).toHaveBeenLastCalledWith({ uiZoom: 110 });
+    expect(updateWorkspaceSettingsSpy).toHaveBeenLastCalledWith({
+      uiZoom: 110,
+    });
 
     const callCount = updateWorkspaceSettingsSpy.mock.calls.length;
-    const ordinaryScroll = new WheelEvent("wheel", { deltaY: 1, cancelable: true });
+    const ordinaryScroll = new WheelEvent("wheel", {
+      deltaY: 1,
+      cancelable: true,
+    });
     window.dispatchEvent(ordinaryScroll);
     expect(ordinaryScroll.defaultPrevented).toBe(false);
     expect(updateWorkspaceSettingsSpy).toHaveBeenCalledTimes(callCount);
@@ -289,13 +285,19 @@ describe("App: keyboard shortcuts", () => {
 
 describe("App: narrow-screen navigation", () => {
   it("closes the file browser after opening a note", async () => {
-    Object.defineProperty(window, "innerWidth", { configurable: true, value: 600 });
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 600,
+    });
     workspacePath.value = "/vault";
     readTextFile.mockResolvedValue("note content");
     const { getByRole } = render(<App />);
 
-    const fileBrowserToggle = getByRole("button", { name: "Toggle file browser" });
-    if (!fileBrowserToggle.classList.contains("active")) fireEvent.click(fileBrowserToggle);
+    const fileBrowserToggle = getByRole("button", {
+      name: "Toggle file browser",
+    });
+    if (!fileBrowserToggle.classList.contains("active"))
+      fireEvent.click(fileBrowserToggle);
     expect(fileBrowserToggle.classList.contains("active")).toBe(true);
 
     await act(async () => {

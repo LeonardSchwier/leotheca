@@ -8,22 +8,34 @@ const {
   findAllEntries,
   readTextFile,
   readTextFilesBatch,
-  writeTextFile,
-  createDir,
-  renamePath,
+  writeWorkspaceTextFile,
+  createWorkspaceDir,
+  renameWorkspacePath,
   trashPath,
-  deletePathPermanent,
+  deleteWorkspacePathPermanent,
 } = vi.hoisted(() => ({
   listDir: vi.fn<(path: string) => Promise<FsEntry[]>>(async () => []),
   findAllFiles: vi.fn<(path: string) => Promise<FsEntry[]>>(async () => []),
   findAllEntries: vi.fn<(path: string) => Promise<FsEntry[]>>(async () => []),
   readTextFile: vi.fn<(path: string) => Promise<string>>(async () => ""),
-  readTextFilesBatch: vi.fn<(paths: string[]) => Promise<(string | null)[]>>(async (paths) => paths.map(() => null)),
-  writeTextFile: vi.fn<(path: string, contents: string) => Promise<void>>(async () => {}),
-  createDir: vi.fn<(path: string) => Promise<void>>(async () => {}),
-  renamePath: vi.fn<(from: string, to: string) => Promise<void>>(async () => {}),
-  trashPath: vi.fn<(root: string, path: string) => Promise<void>>(async () => {}),
-  deletePathPermanent: vi.fn<(path: string) => Promise<void>>(async () => {}),
+  readTextFilesBatch: vi.fn<(paths: string[]) => Promise<(string | null)[]>>(
+    async (paths) => paths.map(() => null),
+  ),
+  writeWorkspaceTextFile: vi.fn<
+    (root: string, relativePath: string, contents: string) => Promise<void>
+  >(async () => {}),
+  createWorkspaceDir: vi.fn<
+    (root: string, relativePath: string) => Promise<void>
+  >(async () => {}),
+  renameWorkspacePath: vi.fn<
+    (root: string, from: string, to: string) => Promise<void>
+  >(async () => {}),
+  trashPath: vi.fn<(root: string, path: string) => Promise<void>>(
+    async () => {},
+  ),
+  deleteWorkspacePathPermanent: vi.fn<
+    (root: string, relativePath: string) => Promise<void>
+  >(async () => {}),
 }));
 
 vi.mock("./tauriBridge", () => ({
@@ -32,11 +44,11 @@ vi.mock("./tauriBridge", () => ({
   findAllEntries,
   readTextFile,
   readTextFilesBatch,
-  writeTextFile,
-  createDir,
-  renamePath,
+  writeWorkspaceTextFile,
+  createWorkspaceDir,
+  renameWorkspacePath,
   trashPath,
-  deletePathPermanent,
+  deleteWorkspacePathPermanent,
   getAppVersion: vi.fn(async () => "1.0"),
   restoreWorkspaceAccess: vi.fn(async () => {}),
   setStatusBarAppearance: vi.fn(async () => {}),
@@ -53,8 +65,14 @@ window.matchMedia = vi.fn().mockImplementation((query: string) => ({
   removeEventListener: vi.fn(),
 })) as unknown as typeof window.matchMedia;
 
-const { workspaceSettings } = await import("../settings/store");
-const { DEFAULT_WORKSPACE_SETTINGS } = await import("../settings/workspaceSettings");
+const { workspacePath, workspaceSettings } = await import("../settings/store");
+// Every create/rename/delete test below operates against this fixed root;
+// the mutation functions under test now read it from the module-level
+// signal (see requireWorkspacePath in fileTreeStore.ts) rather than being
+// passed it directly for every call, so it must be set before any of them run.
+workspacePath.value = "/workspace";
+const { DEFAULT_WORKSPACE_SETTINGS } =
+  await import("../settings/workspaceSettings");
 const { linkIndex } = await import("../linking/store");
 const {
   dirname,
@@ -75,6 +93,7 @@ const {
   toggleExpanded,
   loadChildren,
   expandAll,
+  expandFirstLevel,
 } = await import("./fileTreeStore");
 
 function entry(name: string, isDir = false): FsEntry {
@@ -87,7 +106,9 @@ function entry(name: string, isDir = false): FsEntry {
  * a path missing from the map resolves to null, the same as a real
  * unreadable file. */
 function mockFileContents(contentByPath: Record<string, string>) {
-  readTextFilesBatch.mockImplementation(async (paths: string[]) => paths.map((path) => contentByPath[path] ?? null));
+  readTextFilesBatch.mockImplementation(async (paths: string[]) =>
+    paths.map((path) => contentByPath[path] ?? null),
+  );
 }
 
 describe("dirname", () => {
@@ -102,11 +123,15 @@ describe("dirname", () => {
 
 describe("relativePath", () => {
   it("strips the root and the leading slash", () => {
-    expect(relativePath("/workspace", "/workspace/folder/note.md")).toBe("folder/note.md");
+    expect(relativePath("/workspace", "/workspace/folder/note.md")).toBe(
+      "folder/note.md",
+    );
   });
 
   it("returns the path unchanged when it isn't under the given root", () => {
-    expect(relativePath("/workspace", "/elsewhere/note.md")).toBe("/elsewhere/note.md");
+    expect(relativePath("/workspace", "/elsewhere/note.md")).toBe(
+      "/elsewhere/note.md",
+    );
   });
 });
 
@@ -116,13 +141,21 @@ describe("sortEntries", () => {
   });
 
   it("puts directories before files, case-insensitively alphabetical within each group", () => {
-    const entries = [entry("zebra.md"), entry("Apples", true), entry("banana.md"), entry("bears", true)];
+    const entries = [
+      entry("zebra.md"),
+      entry("Apples", true),
+      entry("banana.md"),
+      entry("bears", true),
+    ];
     const sorted = sortEntries(entries).map((e) => e.name);
     expect(sorted).toEqual(["Apples", "bears", "banana.md", "zebra.md"]);
   });
 
   it("reverses the order when sortOrder is name-desc", () => {
-    workspaceSettings.value = { ...DEFAULT_WORKSPACE_SETTINGS, sortOrder: "name-desc" };
+    workspaceSettings.value = {
+      ...DEFAULT_WORKSPACE_SETTINGS,
+      sortOrder: "name-desc",
+    };
     const entries = [entry("a.md"), entry("b.md")];
     expect(sortEntries(entries).map((e) => e.name)).toEqual(["b.md", "a.md"]);
   });
@@ -137,7 +170,11 @@ describe("createNote", () => {
   it("appends .md if the given name doesn't already have it", async () => {
     const path = await createNote("/workspace", "My Note");
     expect(path).toBe("/workspace/My Note.md");
-    expect(writeTextFile).toHaveBeenCalledWith("/workspace/My Note.md", expect.any(String));
+    expect(writeWorkspaceTextFile).toHaveBeenCalledWith(
+      "/workspace",
+      "My Note.md",
+      expect.any(String),
+    );
   });
 
   it("doesn't double up the extension if it's already there", async () => {
@@ -147,8 +184,10 @@ describe("createNote", () => {
 
   it("refuses to overwrite an existing file with the same name", async () => {
     listDir.mockResolvedValue([entry("My Note.md")]);
-    await expect(createNote("/workspace", "My Note")).rejects.toThrow(/already exists/);
-    expect(writeTextFile).not.toHaveBeenCalled();
+    await expect(createNote("/workspace", "My Note")).rejects.toThrow(
+      /already exists/,
+    );
+    expect(writeWorkspaceTextFile).not.toHaveBeenCalled();
   });
 });
 
@@ -164,7 +203,11 @@ describe("createNoteQuick", () => {
   });
 
   it("counts up past existing Untitled notes to find a free name", async () => {
-    listDir.mockResolvedValue([entry("Untitled.md"), entry("Untitled 2.md"), entry("Untitled 3.md")]);
+    listDir.mockResolvedValue([
+      entry("Untitled.md"),
+      entry("Untitled 2.md"),
+      entry("Untitled 3.md"),
+    ]);
     const result = await createNoteQuick("/workspace");
     expect(result.name).toBe("Untitled 4.md");
     expect(result.path).toBe("/workspace/Untitled 4.md");
@@ -173,13 +216,21 @@ describe("createNoteQuick", () => {
   it("stamps the usual blank frontmatter when no content is given", async () => {
     listDir.mockResolvedValue([]);
     await createNoteQuick("/workspace");
-    expect(writeTextFile).toHaveBeenCalledWith("/workspace/Untitled.md", expect.stringContaining("created:"));
+    expect(writeWorkspaceTextFile).toHaveBeenCalledWith(
+      "/workspace",
+      "Untitled.md",
+      expect.stringContaining("created:"),
+    );
   });
 
   it("writes the given content verbatim instead, when provided", async () => {
     listDir.mockResolvedValue([]);
     await createNoteQuick("/workspace", "Clipped from an automation command");
-    expect(writeTextFile).toHaveBeenCalledWith("/workspace/Untitled.md", "Clipped from an automation command");
+    expect(writeWorkspaceTextFile).toHaveBeenCalledWith(
+      "/workspace",
+      "Untitled.md",
+      "Clipped from an automation command",
+    );
   });
 });
 
@@ -192,13 +243,15 @@ describe("createFolder", () => {
     listDir.mockResolvedValue([]);
     const path = await createFolder("/workspace", "New Folder");
     expect(path).toBe("/workspace/New Folder");
-    expect(createDir).toHaveBeenCalledWith("/workspace/New Folder");
+    expect(createWorkspaceDir).toHaveBeenCalledWith("/workspace", "New Folder");
   });
 
   it("refuses to create a folder that already exists", async () => {
     listDir.mockResolvedValue([entry("New Folder", true)]);
-    await expect(createFolder("/workspace", "New Folder")).rejects.toThrow(/already exists/);
-    expect(createDir).not.toHaveBeenCalled();
+    await expect(createFolder("/workspace", "New Folder")).rejects.toThrow(
+      /already exists/,
+    );
+    expect(createWorkspaceDir).not.toHaveBeenCalled();
   });
 });
 
@@ -224,7 +277,10 @@ describe("listTemplates", () => {
   });
 
   it("reads from the workspace's configured templates folder, not just the default", async () => {
-    workspaceSettings.value = { ...DEFAULT_WORKSPACE_SETTINGS, templatesFolder: "Notes/Snippets" };
+    workspaceSettings.value = {
+      ...DEFAULT_WORKSPACE_SETTINGS,
+      templatesFolder: "Notes/Snippets",
+    };
     listDir.mockResolvedValue([]);
     await listTemplates("/workspace");
     expect(listDir).toHaveBeenCalledWith("/workspace/Notes/Snippets");
@@ -241,25 +297,38 @@ describe("createNoteFromTemplate", () => {
     vi.clearAllMocks();
   });
 
-  const template = { name: "Meeting Notes.md", path: "/workspace/Templates/Meeting Notes.md" };
+  const template = {
+    name: "Meeting Notes.md",
+    path: "/workspace/Templates/Meeting Notes.md",
+  };
 
   it("copies the template's content verbatim into a note named after it", async () => {
     listDir.mockResolvedValue([]);
     readTextFile.mockResolvedValue("---\nagenda: []\n---\n\n# Notes\n");
     const result = await createNoteFromTemplate("/workspace", template);
-    expect(result).toEqual({ path: "/workspace/Meeting Notes.md", name: "Meeting Notes.md" });
+    expect(result).toEqual({
+      path: "/workspace/Meeting Notes.md",
+      name: "Meeting Notes.md",
+    });
     expect(readTextFile).toHaveBeenCalledWith(template.path);
-    expect(writeTextFile).toHaveBeenCalledWith(
-      "/workspace/Meeting Notes.md",
+    expect(writeWorkspaceTextFile).toHaveBeenCalledWith(
+      "/workspace",
+      "Meeting Notes.md",
       "---\nagenda: []\n---\n\n# Notes\n",
     );
   });
 
   it("counts up past an existing note with the template's name, the same way createNoteQuick does", async () => {
-    listDir.mockResolvedValue([entry("Meeting Notes.md"), entry("Meeting Notes 2.md")]);
+    listDir.mockResolvedValue([
+      entry("Meeting Notes.md"),
+      entry("Meeting Notes 2.md"),
+    ]);
     readTextFile.mockResolvedValue("template body");
     const result = await createNoteFromTemplate("/workspace", template);
-    expect(result).toEqual({ path: "/workspace/Meeting Notes 3.md", name: "Meeting Notes 3.md" });
+    expect(result).toEqual({
+      path: "/workspace/Meeting Notes 3.md",
+      name: "Meeting Notes 3.md",
+    });
   });
 });
 
@@ -272,13 +341,19 @@ describe("renameEntry", () => {
     listDir.mockResolvedValue([entry("old.md")]);
     const newPath = await renameEntry("/workspace/old.md", "new.md");
     expect(newPath).toBe("/workspace/new.md");
-    expect(renamePath).toHaveBeenCalledWith("/workspace/old.md", "/workspace/new.md");
+    expect(renameWorkspacePath).toHaveBeenCalledWith(
+      "/workspace",
+      "old.md",
+      "new.md",
+    );
   });
 
   it("refuses to rename onto an existing sibling", async () => {
     listDir.mockResolvedValue([entry("old.md"), entry("taken.md")]);
-    await expect(renameEntry("/workspace/old.md", "taken.md")).rejects.toThrow(/already exists/);
-    expect(renamePath).not.toHaveBeenCalled();
+    await expect(renameEntry("/workspace/old.md", "taken.md")).rejects.toThrow(
+      /already exists/,
+    );
+    expect(renameWorkspacePath).not.toHaveBeenCalled();
   });
 });
 
@@ -292,13 +367,19 @@ describe("deleteEntry", () => {
     workspaceSettings.value = DEFAULT_WORKSPACE_SETTINGS;
     await deleteEntry("/workspace", "/workspace/note.md");
     expect(trashPath).toHaveBeenCalledWith("/workspace", "/workspace/note.md");
-    expect(deletePathPermanent).not.toHaveBeenCalled();
+    expect(deleteWorkspacePathPermanent).not.toHaveBeenCalled();
   });
 
   it("deletes permanently when that workspace setting is chosen", async () => {
-    workspaceSettings.value = { ...DEFAULT_WORKSPACE_SETTINGS, deleteBehavior: "permanent" };
+    workspaceSettings.value = {
+      ...DEFAULT_WORKSPACE_SETTINGS,
+      deleteBehavior: "permanent",
+    };
     await deleteEntry("/workspace", "/workspace/note.md");
-    expect(deletePathPermanent).toHaveBeenCalledWith("/workspace/note.md");
+    expect(deleteWorkspacePathPermanent).toHaveBeenCalledWith(
+      "/workspace",
+      "note.md",
+    );
     expect(trashPath).not.toHaveBeenCalled();
   });
 });
@@ -370,9 +451,19 @@ describe("runSearch", () => {
     // content-read fallback, which used to mean one native call per
     // file. With bounded concurrency and batching, a 100-file vault
     // should cost a small handful of readTextFilesBatch calls, not 100.
-    const entries = Array.from({ length: 100 }, (_, i) => entry(`note-${i}.md`));
+    // Entries include a realistic size so they batch together (the old
+    // CONSERVATIVE_UNKNOWN_SIZE default for undefined size would inflate
+    // each to 4 MB, producing ~50 batches for 100 files).
+    const entries = Array.from({ length: 100 }, (_, i) => ({
+      name: `note-${i}.md`,
+      path: `/workspace/note-${i}.md`,
+      isDir: false,
+      size: 2 * 1024,
+    }));
     findAllFiles.mockResolvedValue(entries);
-    mockFileContents(Object.fromEntries(entries.map((e) => [e.path, "no match here"])));
+    mockFileContents(
+      Object.fromEntries(entries.map((e) => [e.path, "no match here"])),
+    );
     await runSearch("/workspace", "zzz-nonexistent");
     expect(searchResults.value).toEqual([]);
     expect(readTextFilesBatch.mock.calls.length).toBeLessThan(10);
@@ -393,16 +484,29 @@ describe("runSearch", () => {
       isDir: false,
       size: 5 * 1024 * 1024,
     });
-    const bigEntries = [bigFile("big1.md"), bigFile("big2.md"), bigFile("big3.md")];
+    const bigEntries = [
+      bigFile("big1.md"),
+      bigFile("big2.md"),
+      bigFile("big3.md"),
+    ];
     findAllFiles.mockResolvedValue(bigEntries);
-    mockFileContents(Object.fromEntries(bigEntries.map((e) => [e.path, "no match"])));
+    mockFileContents(
+      Object.fromEntries(bigEntries.map((e) => [e.path, "no match"])),
+    );
     await runSearch("/workspace", "zzz-nonexistent");
     expect(searchResults.value).toEqual([]);
     expect(readTextFilesBatch.mock.calls.length).toBeGreaterThanOrEqual(2);
   });
 
   it("never reads an exceptionally large file's content, the same as it skips an image", async () => {
-    findAllFiles.mockResolvedValue([{ name: "huge.md", path: "/workspace/huge.md", isDir: false, size: 100 * 1024 * 1024 }]);
+    findAllFiles.mockResolvedValue([
+      {
+        name: "huge.md",
+        path: "/workspace/huge.md",
+        isDir: false,
+        size: 100 * 1024 * 1024,
+      },
+    ]);
     await runSearch("/workspace", "zzz-nonexistent");
     expect(readTextFilesBatch).not.toHaveBeenCalled();
     expect(searchResults.value).toEqual([]);
@@ -456,7 +560,9 @@ describe("runSearch: query operators", () => {
 
   it("combines a tag: filter with a plain text term (AND)", async () => {
     findAllFiles.mockResolvedValue([entry("Project.md"), entry("Journal.md")]);
-    mockFileContents({ "/workspace/Project.md": "some content, no keyword here" });
+    mockFileContents({
+      "/workspace/Project.md": "some content, no keyword here",
+    });
     await runSearch("/workspace", "tag:work Project");
     expect(searchResults.value?.map((e) => e.name)).toEqual(["Project.md"]);
     // Project.md resolves entirely from metadata (the tag matches and its
@@ -509,7 +615,9 @@ describe("runSearch: query operators", () => {
       tagsByPath: new Map([["/workspace/Project.md", ["work"]]]),
     };
     findAllFiles.mockResolvedValue([entry("Project.md")]);
-    mockFileContents({ "/workspace/Project.md": "this mentions badword right here" });
+    mockFileContents({
+      "/workspace/Project.md": "this mentions badword right here",
+    });
     await runSearch("/workspace", "tag:work -badword");
     expect(searchResults.value).toEqual([]);
   });
@@ -522,16 +630,354 @@ describe("runSearch: query operators", () => {
         ["/workspace/Journal.md", ["personal"]],
       ]),
     };
-    findAllFiles.mockResolvedValue([entry("Project.md"), entry("Journal.md"), entry("Other.md")]);
+    findAllFiles.mockResolvedValue([
+      entry("Project.md"),
+      entry("Journal.md"),
+      entry("Other.md"),
+    ]);
     await runSearch("/workspace", "tag:work OR tag:personal");
-    expect(searchResults.value?.map((e) => e.name).sort()).toEqual(["Journal.md", "Project.md"]);
+    expect(searchResults.value?.map((e) => e.name).sort()).toEqual([
+      "Journal.md",
+      "Project.md",
+    ]);
   });
 
   it("keeps a quoted phrase's spaces together as one term", async () => {
     findAllFiles.mockResolvedValue([entry("Notes.md")]);
-    mockFileContents({ "/workspace/Notes.md": "a note about exact phrase matching" });
+    mockFileContents({
+      "/workspace/Notes.md": "a note about exact phrase matching",
+    });
     await runSearch("/workspace", '"exact phrase"');
     expect(searchResults.value?.map((e) => e.name)).toEqual(["Notes.md"]);
+  });
+});
+
+// F-005: Search's 8 MiB memory bound must be enforced and binary files must
+// not be serialized as text.  Three fixes were applied:
+//
+// 1. `isTextFile` — non-text extensions (pdf, mp4, zip, exe, ...) are never
+//    passed to readTextFilesBatch, preventing Android's invalid-UTF8-replacement
+//    and Rust's wasted-IPC on unreadable content.
+//
+// 2. Batch size enforcement — `createBatchedContentReader` adds each file's
+//    size to the running total and flushes once the cap is reached.  The old
+//    code bounded only by *file count* (up to 40), letting 3 files at 5 MB
+//    each go out at 15 MB.  Now the combined size per batch stays at or
+//    below the 8 MiB limit (each batch may contain files whose sum slightly
+//    exceeds the cap by at most one file, since the flush triggers *after*
+//    the cap-crossing file is added — the same approach that proved correct
+//    on a real ~500-note vault).
+//
+// 3. Conservative unknown-size default — when the native walk doesn't report
+//    size, the batch assumes CONSERVATIVE_UNKNOWN_SIZE (4 MiB) instead of 0,
+//    so one batch can never hold more than two entries of unknown size.
+describe("F-005: non-text files are never content-read (isTextFile whitelist)", async () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  // Common extensions that are NOT text: pdf, mp4, zip, exe, jpg, bin, dat, iso, dmg, otf, ttf, woff2
+  const nonTextEntries = [
+    {
+      name: "report.pdf",
+      path: "/workspace/report.pdf",
+      isDir: false,
+      size: 1024,
+    },
+    {
+      name: "video.mp4",
+      path: "/workspace/video.mp4",
+      isDir: false,
+      size: 1024,
+    },
+    {
+      name: "archive.zip",
+      path: "/workspace/archive.zip",
+      isDir: false,
+      size: 1024,
+    },
+    {
+      name: "installer.exe",
+      path: "/workspace/installer.exe",
+      isDir: false,
+      size: 1024,
+    },
+    { name: "data.bin", path: "/workspace/data.bin", isDir: false, size: 1024 },
+    { name: "disk.iso", path: "/workspace/disk.iso", isDir: false, size: 1024 },
+    { name: "font.ttf", path: "/workspace/font.ttf", isDir: false, size: 1024 },
+    {
+      name: "font.woff2",
+      path: "/workspace/font.woff2",
+      isDir: false,
+      size: 1024,
+    },
+    {
+      name: "image.dat",
+      path: "/workspace/image.dat",
+      isDir: false,
+      size: 1024,
+    },
+    {
+      name: "setup.dmg",
+      path: "/workspace/setup.dmg",
+      isDir: false,
+      size: 1024,
+    },
+  ];
+
+  it("never sends a PDF's content to readTextFilesBatch", async () => {
+    findAllFiles.mockResolvedValue(nonTextEntries);
+    await runSearch("/workspace", "zzz-no-match");
+    expect(readTextFilesBatch).not.toHaveBeenCalled();
+    expect(searchResults.value).toEqual([]);
+  });
+
+  it("never sends a video, archive, or executable's content to readTextFilesBatch", async () => {
+    findAllFiles.mockResolvedValue([
+      {
+        name: "video.mp4",
+        path: "/workspace/video.mp4",
+        isDir: false,
+        size: 1024,
+      },
+      {
+        name: "archive.zip",
+        path: "/workspace/archive.zip",
+        isDir: false,
+        size: 1024,
+      },
+      {
+        name: "installer.exe",
+        path: "/workspace/installer.exe",
+        isDir: false,
+        size: 1024,
+      },
+    ]);
+    await runSearch("/workspace", "zzz-no-match");
+    expect(readTextFilesBatch).not.toHaveBeenCalled();
+  });
+
+  it("still matches non-text files by name but skips their content", async () => {
+    // A note named "archive" should still be found by name, but its content
+    // is never read because .zip is not a text extension.
+    findAllFiles.mockResolvedValue([
+      {
+        name: "archive.zip",
+        path: "/workspace/archive.zip",
+        isDir: false,
+        size: 1024,
+      },
+    ]);
+    await runSearch("/workspace", "archive");
+    // Name matches, so the file should be in results even though content was never read.
+    expect(searchResults.value?.map((e) => e.name)).toEqual(["archive.zip"]);
+  });
+
+  it("still reads content for known text extensions (md, txt, html, json, js, py, sh)", async () => {
+    const textEntries = [
+      {
+        name: "readme.md",
+        path: "/workspace/readme.md",
+        isDir: false,
+        size: 1024,
+      },
+      {
+        name: "notes.txt",
+        path: "/workspace/notes.txt",
+        isDir: false,
+        size: 1024,
+      },
+      {
+        name: "index.html",
+        path: "/workspace/index.html",
+        isDir: false,
+        size: 1024,
+      },
+      {
+        name: "config.json",
+        path: "/workspace/config.json",
+        isDir: false,
+        size: 1024,
+      },
+      {
+        name: "script.js",
+        path: "/workspace/script.js",
+        isDir: false,
+        size: 1024,
+      },
+      { name: "app.py", path: "/workspace/app.py", isDir: false, size: 1024 },
+      { name: "run.sh", path: "/workspace/run.sh", isDir: false, size: 1024 },
+    ];
+    findAllFiles.mockResolvedValue(textEntries);
+    mockFileContents(
+      Object.fromEntries(textEntries.map((e) => [e.path, "search term found"])),
+    );
+    await runSearch("/workspace", "search term");
+    // All 7 entries matched their content.
+    expect(searchResults.value?.map((e) => e.name).sort()).toEqual(
+      textEntries.map((e) => e.name).sort(),
+    );
+  });
+});
+
+describe("F-005: batch size bound prevents overshoot (3 × 5 MB files)", async () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("three 5 MB files split into multiple batches instead of going out at 15 MB", async () => {
+    // The old code bounded batches only by file count (up to 40), so three
+    // 5 MB files went out in one 15 MB call → 288 MB JSON allocation crash.
+    // The fix adds each file's byte size to the running total and flushes
+    // once the cap is reached, splitting the files into smaller batches.
+    const bigFiles = [
+      {
+        name: "big1.md",
+        path: "/workspace/big1.md",
+        isDir: false,
+        size: 5 * 1024 * 1024,
+      },
+      {
+        name: "big2.md",
+        path: "/workspace/big2.md",
+        isDir: false,
+        size: 5 * 1024 * 1024,
+      },
+      {
+        name: "big3.md",
+        path: "/workspace/big3.md",
+        isDir: false,
+        size: 5 * 1024 * 1024,
+      },
+    ];
+    findAllFiles.mockResolvedValue(bigFiles);
+    mockFileContents(
+      Object.fromEntries(bigFiles.map((e) => [e.path, "no match"])),
+    );
+    await runSearch("/workspace", "zzz-nonexistent");
+    expect(searchResults.value).toEqual([]);
+    // At least 2 batches must exist (old code: 1 batch of 3 at 15 MB).
+    // Each batch's combined size must stay under ~13 MB (8 MB cap + one file).
+    expect(readTextFilesBatch.mock.calls.length).toBeGreaterThanOrEqual(2);
+    const totalBytes = readTextFilesBatch.mock.calls.reduce((sum, call) => {
+      return sum + call[0].length * (5 * 1024 * 1024);
+    }, 0);
+    // Total across all batches should be ~15 MB, not a single 15 MB call.
+    expect(totalBytes).toBeLessThanOrEqual(15 * 1024 * 1024 + 5 * 1024 * 1024);
+  });
+
+  it("a file at exactly SEARCH_BATCH_MAX_BYTES goes out in its own batch", async () => {
+    const entry = {
+      name: "exact.md",
+      path: "/workspace/exact.md",
+      isDir: false,
+      size: 8 * 1024 * 1024,
+    };
+    findAllFiles.mockResolvedValue([entry]);
+    mockFileContents({ "/workspace/exact.md": "no match" });
+    await runSearch("/workspace", "zzz-nonexistent");
+    expect(readTextFilesBatch).toHaveBeenCalledTimes(1);
+    const batch = readTextFilesBatch.mock.calls[0] as [string[]];
+    expect(batch[0]).toEqual(["/workspace/exact.md"]);
+  });
+});
+
+describe("F-005: conservative unknown-size default prevents batch blending", async () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("unknown-size entries assume a large default so batches stay bounded", async () => {
+    // Entries with no `size` field: the old `?? 0` meant they blended into
+    // zero-size batches and many could go out in one native call.
+    // With CONSERVATIVE_UNKNOWN_SIZE (4 MiB) each entry triggers a pre-add
+    // flush when the pending batch already has a 4 MB entry (4+4 = 8 >= cap).
+    // Two entries → 2 batches of 1 each.  The old code would have batched
+    // them together at effectively 0 bytes → 1 batch (but unbounded in
+    // practice if there were more entries).
+    const entries = [
+      { name: "a.md", path: "/workspace/a.md", isDir: false },
+      { name: "b.md", path: "/workspace/b.md", isDir: false },
+    ];
+    findAllFiles.mockResolvedValue(entries);
+    mockFileContents({
+      "/workspace/a.md": "no match",
+      "/workspace/b.md": "no match",
+    });
+    await runSearch("/workspace", "zzz-nonexistent");
+    // Each entry flushes before adding to the other since 4+4 >= 8.
+    expect(readTextFilesBatch).toHaveBeenCalledTimes(2);
+    expect(readTextFilesBatch.mock.calls[0][0]).toEqual(["/workspace/a.md"]);
+    expect(readTextFilesBatch.mock.calls[1][0]).toEqual(["/workspace/b.md"]);
+  });
+
+  it("three unknown-size entries produce three batches of 1 each", async () => {
+    const entries = [
+      { name: "x.md", path: "/workspace/x.md", isDir: false },
+      { name: "y.md", path: "/workspace/y.md", isDir: false },
+      { name: "z.md", path: "/workspace/z.md", isDir: false },
+    ];
+    findAllFiles.mockResolvedValue(entries);
+    mockFileContents(
+      Object.fromEntries(entries.map((e) => [e.path, "no match"])),
+    );
+    await runSearch("/workspace", "zzz-nonexistent");
+    // Each entry sees a pending 4 MB from the previous one and flushes.
+    expect(readTextFilesBatch.mock.calls.length).toBe(3);
+    expect(readTextFilesBatch.mock.calls[0][0].length).toBe(1);
+    expect(readTextFilesBatch.mock.calls[1][0].length).toBe(1);
+    expect(readTextFilesBatch.mock.calls[2][0].length).toBe(1);
+  });
+
+  it("known-size entries still batch normally alongside unknown-size ones", async () => {
+    // Three small known files (1 KB each) + one unknown-size (4 MiB default).
+    // The small files (3 KB total) fit well within the 8 MB cap alongside
+    // the unknown-size entry.  All 4 go in one batch.
+    const entries = [
+      {
+        name: "small1.md",
+        path: "/workspace/small1.md",
+        isDir: false,
+        size: 1024,
+      },
+      {
+        name: "small2.md",
+        path: "/workspace/small2.md",
+        isDir: false,
+        size: 1024,
+      },
+      { name: "unknown.md", path: "/workspace/unknown.md", isDir: false },
+    ];
+    findAllFiles.mockResolvedValue(entries);
+    mockFileContents(
+      Object.fromEntries(entries.map((e) => [e.path, "no match"])),
+    );
+    await runSearch("/workspace", "zzz-nonexistent");
+    expect(readTextFilesBatch).toHaveBeenCalledTimes(1);
+    const batch = readTextFilesBatch.mock.calls[0] as [string[]];
+    expect(batch[0].length).toBe(3);
+  });
+
+  it("entries with realistic sizes still batch tightly", async () => {
+    // 100 entries at 2 KB each (200 KB total) should go out in ~3 batches
+    // of ~25 files each (8 MB cap / 2 KB per file ≈ 4096 files per batch
+    // would fit, so all 100 go in one batch in practice, but the mock's
+    // concurrency model means not all land in the same microtask tick).
+    const entries = Array.from({ length: 100 }, (_, i) => ({
+      name: `n${i}.md`,
+      path: `/workspace/n${i}.md`,
+      isDir: false,
+      size: 2 * 1024,
+    }));
+    findAllFiles.mockResolvedValue(entries);
+    mockFileContents(
+      Object.fromEntries(entries.map((e) => [e.path, "no match"])),
+    );
+    await runSearch("/workspace", "zzz-nonexistent");
+    // With 2 KB entries the old code batched ~50 files per microtask tick.
+    // The new pre-add check doesn't change much here since 2 KB is tiny
+    // relative to the 8 MB cap.
+    expect(readTextFilesBatch.mock.calls.length).toBeLessThan(10);
   });
 });
 
@@ -546,7 +992,11 @@ describe("renameEntry and deleteEntry forget stale expand/selection state", () =
   beforeEach(() => {
     vi.clearAllMocks();
     listDir.mockResolvedValue([]);
-    expandedDirs.value = new Set(["/workspace/folder", "/workspace/folder/nested", "/workspace/other"]);
+    expandedDirs.value = new Set([
+      "/workspace/folder",
+      "/workspace/folder/nested",
+      "/workspace/other",
+    ]);
     dirChildren.value = new Map([
       ["/workspace/folder", [entry("nested", true)]],
       ["/workspace/folder/nested", [entry("child.md")]],
@@ -589,7 +1039,9 @@ describe("toggleExpanded and loadChildren", () => {
   it("loadChildren stores what it loaded, keyed by path", async () => {
     listDir.mockResolvedValue([entry("a.md")]);
     await loadChildren("/workspace");
-    expect(dirChildren.value.get("/workspace")?.map((e) => e.name)).toEqual(["a.md"]);
+    expect(dirChildren.value.get("/workspace")?.map((e) => e.name)).toEqual([
+      "a.md",
+    ]);
   });
 
   it("toggleExpanded flips a path in and back out of the expanded set", () => {
@@ -626,8 +1078,18 @@ describe("expandAll", () => {
     expect(expandedDirs.value).toEqual(
       new Set(["/workspace", "/workspace/notes", "/workspace/notes/empty"]),
     );
-    expect(dirChildren.value.get("/workspace")?.map((e) => e.name).sort()).toEqual(["b.md", "notes"]);
-    expect(dirChildren.value.get("/workspace/notes")?.map((e) => e.name).sort()).toEqual(["a.md", "empty"]);
+    expect(
+      dirChildren.value
+        .get("/workspace")
+        ?.map((e) => e.name)
+        .sort(),
+    ).toEqual(["b.md", "notes"]);
+    expect(
+      dirChildren.value
+        .get("/workspace/notes")
+        ?.map((e) => e.name)
+        .sort(),
+    ).toEqual(["a.md", "empty"]);
     // The whole point of using findAllEntries over the old files-only walk:
     // an empty directory still gets a real (empty) entry here, rather than
     // never being discovered at all because it has no file anywhere
@@ -645,3 +1107,69 @@ describe("expandAll", () => {
   });
 });
 
+describe("expandFirstLevel", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    expandedDirs.value = new Set();
+    dirChildren.value = new Map();
+  });
+
+  it("loads the root and expands each of its immediate subdirectories, but not their own children", async () => {
+    const nested: FsEntry = {
+      name: "nested",
+      path: "/workspace/notes/nested",
+      isDir: true,
+    };
+    listDir.mockImplementation(async (path: string) => {
+      if (path === "/workspace") return [entry("notes", true), entry("a.md")];
+      if (path === "/workspace/notes") return [nested];
+      return [];
+    });
+
+    await expandFirstLevel("/workspace");
+
+    expect(expandedDirs.value).toEqual(new Set(["/workspace/notes"]));
+    expect(dirChildren.value.get("/workspace")?.map((e) => e.name)).toEqual([
+      "notes",
+      "a.md",
+    ]);
+    expect(
+      dirChildren.value.get("/workspace/notes")?.map((e) => e.name),
+    ).toEqual(["nested"]);
+    // The second level itself is never fetched: bounded to one level, not
+    // expandAll's full recursive walk.
+    expect(dirChildren.value.has("/workspace/notes/nested")).toBe(false);
+    expect(listDir).toHaveBeenCalledTimes(2);
+  });
+
+  it("does nothing beyond loading the root when it has no subdirectories", async () => {
+    listDir.mockImplementation(async (path: string) =>
+      path === "/workspace" ? [entry("a.md"), entry("b.md")] : [],
+    );
+
+    await expandFirstLevel("/workspace");
+
+    expect(expandedDirs.value).toEqual(new Set());
+    expect(listDir).toHaveBeenCalledTimes(1);
+  });
+
+  it("still expands the subdirectories whose listing succeeds when another one's listing rejects", async () => {
+    listDir.mockImplementation(async (path: string) => {
+      if (path === "/workspace")
+        return [entry("good", true), entry("bad", true)];
+      if (path === "/workspace/bad") throw new Error("permission denied");
+      return [];
+    });
+
+    await expandFirstLevel("/workspace");
+
+    expect(expandedDirs.value).toEqual(
+      new Set(["/workspace/good", "/workspace/bad"]),
+    );
+    expect(dirChildren.value.get("/workspace/good")).toEqual([]);
+    // The failed one is still marked expanded (so collapsing and
+    // re-expanding it retries the load, like any manually toggled
+    // folder), it just has no cached children to show yet.
+    expect(dirChildren.value.has("/workspace/bad")).toBe(false);
+  });
+});

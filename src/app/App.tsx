@@ -68,6 +68,7 @@ import { nextUiZoom, zoomActionForKey, zoomActionForWheel } from "./zoomControls
 import { isNarrowViewport } from "./responsiveLayout";
 import { createSaveCoordinator } from "../workspace/saveCoordinator";
 import { workspaceTransitions } from "../workspace/workspaceTransition";
+import { EmptyEditorState } from "./EmptyEditorState";
 
 // Workspace-scoped stores participate in the same generation-authoritative
 // transition as settings and autosave. Registration is synchronous at module
@@ -696,7 +697,7 @@ export function App() {
               </>
             )
           ) : (
-            <div class="empty-hint editor-empty">No file open.</div>
+            <EmptyEditorState />
           )}
         </main>
       </div>

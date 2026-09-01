@@ -13,7 +13,7 @@ describe("HeadingBreadcrumbs", () => {
       <HeadingBreadcrumbs
         noteTitle="My Note"
         content={content}
-        cursorOffset={0}
+        activeSource={{ kind: "cursor", offset: 0 }}
         onSelectRoot={vi.fn()}
         onSelectHeading={vi.fn()}
       />,
@@ -22,13 +22,13 @@ describe("HeadingBreadcrumbs", () => {
     expect(queryByText("First heading")).toBeNull();
   });
 
-  it("shows only the note root when cursorOffset is null (no Source tracking yet)", () => {
+  it('shows only the note root when activeSource is "none" (no tracking yet)', () => {
     const content = "# First heading\nBody.";
     const { getByText, queryByText } = render(
       <HeadingBreadcrumbs
         noteTitle="My Note"
         content={content}
-        cursorOffset={null}
+        activeSource={{ kind: "none" }}
         onSelectRoot={vi.fn()}
         onSelectHeading={vi.fn()}
       />,
@@ -45,7 +45,7 @@ describe("HeadingBreadcrumbs", () => {
       <HeadingBreadcrumbs
         noteTitle="Spec"
         content={content}
-        cursorOffset={android.contentFrom}
+        activeSource={{ kind: "cursor", offset: android.contentFrom }}
         onSelectRoot={vi.fn()}
         onSelectHeading={vi.fn()}
       />,
@@ -63,7 +63,7 @@ describe("HeadingBreadcrumbs", () => {
       <HeadingBreadcrumbs
         noteTitle="Note"
         content={content}
-        cursorOffset={headings[0].contentFrom}
+        activeSource={{ kind: "cursor", offset: headings[0].contentFrom }}
         onSelectRoot={vi.fn()}
         onSelectHeading={vi.fn()}
       />,
@@ -77,7 +77,7 @@ describe("HeadingBreadcrumbs", () => {
       <HeadingBreadcrumbs
         noteTitle="Note"
         content="No headings here."
-        cursorOffset={0}
+        activeSource={{ kind: "cursor", offset: 0 }}
         onSelectRoot={vi.fn()}
         onSelectHeading={vi.fn()}
       />,
@@ -91,7 +91,7 @@ describe("HeadingBreadcrumbs", () => {
       <HeadingBreadcrumbs
         noteTitle="Note"
         content="# Heading\nBody."
-        cursorOffset={0}
+        activeSource={{ kind: "cursor", offset: 0 }}
         onSelectRoot={onSelectRoot}
         onSelectHeading={vi.fn()}
       />,
@@ -108,7 +108,7 @@ describe("HeadingBreadcrumbs", () => {
       <HeadingBreadcrumbs
         noteTitle="Note"
         content={content}
-        cursorOffset={headings[0].contentFrom}
+        activeSource={{ kind: "cursor", offset: headings[0].contentFrom }}
         onSelectRoot={vi.fn()}
         onSelectHeading={onSelectHeading}
       />,
@@ -124,11 +124,42 @@ describe("HeadingBreadcrumbs", () => {
       <HeadingBreadcrumbs
         noteTitle="Note"
         content={content}
-        cursorOffset={headings[0].sourceFrom}
+        activeSource={{ kind: "cursor", offset: headings[0].sourceFrom }}
         onSelectRoot={vi.fn()}
         onSelectHeading={vi.fn()}
       />,
     );
     expect(getByText("(Untitled heading)")).toBeTruthy();
+  });
+
+  it("shows the ancestor chain for a previewIndex source", () => {
+    const content = "# Product\n## Delivery\n### Android\n";
+    const { getByText } = render(
+      <HeadingBreadcrumbs
+        noteTitle="Spec"
+        content={content}
+        activeSource={{ kind: "previewIndex", index: 2 }}
+        onSelectRoot={vi.fn()}
+        onSelectHeading={vi.fn()}
+      />,
+    );
+    expect(getByText("Product")).toBeTruthy();
+    expect(getByText("Delivery")).toBeTruthy();
+    expect(getByText("Android")).toBeTruthy();
+  });
+
+  it("marks the heading at previewIndex 0 as current", () => {
+    const content = "# First\nBody.";
+    const { getByText } = render(
+      <HeadingBreadcrumbs
+        noteTitle="Note"
+        content={content}
+        activeSource={{ kind: "previewIndex", index: 0 }}
+        onSelectRoot={vi.fn()}
+        onSelectHeading={vi.fn()}
+      />,
+    );
+    expect(getByText("Note")).toBeTruthy();
+    expect(getByText("First").getAttribute("aria-current")).toBe("location");
   });
 });

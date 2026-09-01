@@ -3,34 +3,58 @@ import { useNoteHeadings } from "./useNoteHeadings";
 import { activeHeadingIndex, breadcrumbChain } from "./outlineActiveSection";
 import "./outline.css";
 
+/**
+ * Where HeadingBreadcrumbs should get its active heading from. Kept as a
+ * discriminated union rather than two optional props so a caller can
+ * never accidentally supply both a stale cursor offset and a preview
+ * index at once: exactly one source is ever consulted.
+ *
+ *  - "cursor": Source-mode tracking (spec section 7.3), an offset into
+ *    the note's own text.
+ *  - "previewIndex": Preview-mode tracking (section 7.4), an index into
+ *    MarkdownPreview's own rendered heading elements (see its
+ *    `onActiveHeadingChange`), positionally matched against this
+ *    component's own heading scan.
+ *  - "none": no tracking available yet (e.g. before the editor or
+ *    preview has reported a position); only the note root shows.
+ */
+export type HeadingBreadcrumbsActiveSource =
+  | { kind: "cursor"; offset: number }
+  | { kind: "previewIndex"; index: number }
+  | { kind: "none" };
+
 interface HeadingBreadcrumbsProps {
   noteTitle: string;
   content: string;
-  /** The Source editor's primary selection head (character offset), or
-   * `null` before it has reported one (e.g. Preview-only view mode,
-   * Preview-scroll tracking is a later phase, see spec section 7.4). */
-  cursorOffset: number | null;
+  activeSource: HeadingBreadcrumbsActiveSource;
   onSelectRoot: () => void;
   onSelectHeading: (heading: HeadingRecord) => void;
 }
 
 /**
- * Phase 2a (spec/f06-note-outline-heading-breadcrumbs.md section 7, 7.2,
- * 7.3): a breadcrumb trail from the note root through the active
- * heading's ancestors to the active heading itself, driven by the
- * Source-mode cursor position. Preview-scroll tracking and Split-mode
- * authority (7.4-7.5) are a later phase and not implemented here: with
- * `cursorOffset === null` this renders only the note root.
+ * Phase 2a-2b (spec/f06-note-outline-heading-breadcrumbs.md section 7):
+ * a breadcrumb trail from the note root through the active heading's
+ * ancestors to the active heading itself, driven by either the
+ * Source-mode cursor (7.3) or Preview-mode scroll tracking (7.4)
+ * depending on `activeSource`. Split-mode authority switching (7.5,
+ * deciding which of the two a caller should be passing right now) is a
+ * later phase and not implemented here; the caller currently decides
+ * based on the active view mode alone.
  */
 export function HeadingBreadcrumbs({
   noteTitle,
   content,
-  cursorOffset,
+  activeSource,
   onSelectRoot,
   onSelectHeading,
 }: HeadingBreadcrumbsProps) {
   const headings = useNoteHeadings(content);
-  const activeIndex = cursorOffset === null ? undefined : activeHeadingIndex(headings, cursorOffset);
+  const activeIndex =
+    activeSource.kind === "cursor"
+      ? activeHeadingIndex(headings, activeSource.offset)
+      : activeSource.kind === "previewIndex"
+        ? activeSource.index
+        : undefined;
   const chain = breadcrumbChain(headings, activeIndex);
 
   return (

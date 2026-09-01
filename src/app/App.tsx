@@ -209,6 +209,13 @@ export function App() {
   // guarded by the same conditions (see its render below), so a stale
   // value is never actually read as if it reflected the current pane.
   const [cursorPos, setCursorPos] = useState<number | null>(null);
+  // Preview-mode counterpart to cursorPos (spec section 7.4): the index,
+  // among MarkdownPreview's own rendered heading elements, that has
+  // crossed the reading threshold. Only meaningful in Preview-only view
+  // mode for now; Split-mode authority switching between this and
+  // cursorPos (section 7.5) is a later phase, see HeadingBreadcrumbs's
+  // own doc comment.
+  const [previewActiveIndex, setPreviewActiveIndex] = useState<number | undefined>(undefined);
 
   useEffect(() => {
     const p = initSettings();
@@ -727,7 +734,15 @@ export function App() {
                   key={current.path}
                   noteTitle={current.name}
                   content={current.content}
-                  cursorOffset={viewMode.value !== "preview" ? cursorPos : null}
+                  activeSource={
+                    viewMode.value === "preview"
+                      ? previewActiveIndex !== undefined
+                        ? { kind: "previewIndex", index: previewActiveIndex }
+                        : { kind: "none" }
+                      : cursorPos !== null
+                        ? { kind: "cursor", offset: cursorPos }
+                        : { kind: "none" }
+                  }
                   onSelectRoot={() => requestOutlineReveal(0, 0)}
                   onSelectHeading={(heading) => requestOutlineReveal(heading.contentFrom, heading.contentTo)}
                 />
@@ -758,6 +773,7 @@ export function App() {
                       onOpenFile={handleOpenFile}
                       mathRenderingEnabled={workspaceSettings.value.mathRenderingEnabled}
                       notePath={current.path}
+                      onActiveHeadingChange={setPreviewActiveIndex}
                     />
                   )}
                 </div>

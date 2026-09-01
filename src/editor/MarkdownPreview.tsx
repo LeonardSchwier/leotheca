@@ -99,7 +99,23 @@ interface MarkdownPreviewProps {
    * links render exactly as before this feature existed (an unresolved,
    * broken `<img src="...">`). */
   notePath?: string;
+  /** Reports which rendered heading (by position among this preview's own
+   * `h1`-`h6` elements, top to bottom) has crossed the reading threshold
+   * near the top of the scrollable container, per
+   * spec/f06-note-outline-heading-breadcrumbs.md section 7.4; `undefined`
+   * before the first heading. Used by HeadingBreadcrumbs for Preview-mode
+   * active-section tracking. This is a positional correspondence with
+   * the shared heading scanner's output (src/markdown/headings.ts), not
+   * F04's still-unbuilt deterministic anchor attributes, so it shares
+   * that scanner's own documented limitation: a heading-like line inside
+   * a blockquote or list renders here (marked treats it as a real
+   * heading) but is not part of the scanned array, which would shift
+   * every later index out of alignment for that note. */
+  onActiveHeadingChange?: (index: number | undefined) => void;
 }
+
+// spec section 7.4: "the upper 25 percent of the viewport."
+const READING_THRESHOLD_FRACTION = 0.25;
 
 // Placeholder src prefix for a locally-resolved image, the same "encode a
 // same-document fragment, decode and act on it after render" trick
@@ -169,10 +185,13 @@ export function MarkdownPreview({
   onOpenFile,
   mathRenderingEnabled = true,
   notePath,
+  onActiveHeadingChange,
 }: MarkdownPreviewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const noteDir = notePath ? dirname(notePath) : null;
   const workspaceRoot = workspacePath.value;
+  const onActiveHeadingChangeRef = useRef(onActiveHeadingChange);
+  onActiveHeadingChangeRef.current = onActiveHeadingChange;
 
   const html = useMemo(() => {
     mathRenderingActive = mathRenderingEnabled;
@@ -240,6 +259,44 @@ export function MarkdownPreview({
 
     return () => {
       cancelled = true;
+    };
+  }, [html]);
+
+  // Section 7.4's active-section tracking. Recomputed on every scroll of
+  // the preview's own scroll container (see .markdown-preview's
+  // `overflow: auto`) and once right after each render, so switching
+  // notes or editing content updates the active heading immediately
+  // rather than waiting for the next scroll. A plain scroll-event
+  // recompute rather than an IntersectionObserver or a
+  // requestAnimationFrame throttle: bounded by the same heading-count
+  // scale Phase 1 already defers to a later phase, and simpler to test.
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const headingElements = Array.from(
+      container.querySelectorAll<HTMLElement>("h1, h2, h3, h4, h5, h6"),
+    );
+
+    const update = () => {
+      if (headingElements.length === 0) {
+        onActiveHeadingChangeRef.current?.(undefined);
+        return;
+      }
+      const containerRect = container.getBoundingClientRect();
+      const thresholdY = containerRect.top + containerRect.height * READING_THRESHOLD_FRACTION;
+      let active: number | undefined;
+      for (let i = 0; i < headingElements.length; i++) {
+        if (headingElements[i].getBoundingClientRect().top <= thresholdY) active = i;
+        else break;
+      }
+      onActiveHeadingChangeRef.current?.(active);
+    };
+
+    update();
+    container.addEventListener("scroll", update, { passive: true });
+    return () => {
+      container.removeEventListener("scroll", update);
     };
   }, [html]);
 

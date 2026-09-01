@@ -20,5 +20,6 @@
 - A new Outline button on a note's toolbar shows a live, hierarchical list of its headings; clicking one jumps the editor to that heading without losing your place or undo history. Breadcrumbs, copy/insert-link actions, and current-section tracking are not part of this first slice yet.
 - A heading breadcrumb trail now appears above each note (in Source or Split view) showing the current section's ancestry; clicking a segment jumps there. It follows the Source cursor only for now; Preview-scroll tracking is not implemented yet, so breadcrumbs are hidden in Preview-only view.
 - Preview now resolves an image embedded more than once in the same note (e.g. a diagram referenced twice) only once instead of reading the same file again for every occurrence.
+- The heading breadcrumb trail now also appears in Preview-only view, following the section you're scrolled to.
 
 Entries will accumulate here from the first tagged release onward.

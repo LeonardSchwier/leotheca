@@ -297,3 +297,86 @@ describe("MarkdownPreview: math rendering", () => {
     expect(visual?.querySelector("[style]")).toBeTruthy();
   });
 });
+
+describe("MarkdownPreview: onActiveHeadingChange", () => {
+  function setRect(el: Element, top: number, height = 20) {
+    vi.spyOn(el, "getBoundingClientRect").mockReturnValue({
+      top,
+      height,
+      bottom: top + height,
+      left: 0,
+      right: 0,
+      width: 0,
+      x: 0,
+      y: top,
+      toJSON() {
+        return this;
+      },
+    } as DOMRect);
+  }
+
+  it("reports undefined when the note has no headings", () => {
+    const onActiveHeadingChange = vi.fn();
+    render(
+      <MarkdownPreview source="Just a paragraph." onActiveHeadingChange={onActiveHeadingChange} />,
+    );
+    expect(onActiveHeadingChange).toHaveBeenCalledWith(undefined);
+  });
+
+  it("reports undefined before any heading has crossed the reading threshold", () => {
+    const onActiveHeadingChange = vi.fn();
+    const { container } = render(
+      <MarkdownPreview
+        source={"# One\n\n## Two"}
+        onActiveHeadingChange={onActiveHeadingChange}
+      />,
+    );
+    const preview = container.querySelector(".markdown-preview")!;
+    setRect(preview, 0, 400);
+    const [h1, h2] = Array.from(preview.querySelectorAll("h1, h2"));
+    setRect(h1, 300);
+    setRect(h2, 350);
+    fireEvent.scroll(preview);
+    expect(onActiveHeadingChange).toHaveBeenLastCalledWith(undefined);
+  });
+
+  it("reports the last heading whose top has crossed the reading threshold", () => {
+    const onActiveHeadingChange = vi.fn();
+    const { container } = render(
+      <MarkdownPreview
+        source={"# One\n\n## Two\n\n### Three"}
+        onActiveHeadingChange={onActiveHeadingChange}
+      />,
+    );
+    const preview = container.querySelector(".markdown-preview")!;
+    // threshold = top(0) + height(400) * 0.25 = 100
+    setRect(preview, 0, 400);
+    const [h1, h2, h3] = Array.from(preview.querySelectorAll("h1, h2, h3"));
+    setRect(h1, -50);
+    setRect(h2, 50);
+    setRect(h3, 150);
+    fireEvent.scroll(preview);
+    expect(onActiveHeadingChange).toHaveBeenLastCalledWith(1);
+  });
+
+  it("updates the active heading again as the container scrolls further", () => {
+    const onActiveHeadingChange = vi.fn();
+    const { container } = render(
+      <MarkdownPreview
+        source={"# One\n\n## Two"}
+        onActiveHeadingChange={onActiveHeadingChange}
+      />,
+    );
+    const preview = container.querySelector(".markdown-preview")!;
+    setRect(preview, 0, 400);
+    const [h1, h2] = Array.from(preview.querySelectorAll("h1, h2"));
+    setRect(h1, -50);
+    setRect(h2, 500);
+    fireEvent.scroll(preview);
+    expect(onActiveHeadingChange).toHaveBeenLastCalledWith(0);
+
+    setRect(h2, 50);
+    fireEvent.scroll(preview);
+    expect(onActiveHeadingChange).toHaveBeenLastCalledWith(1);
+  });
+});

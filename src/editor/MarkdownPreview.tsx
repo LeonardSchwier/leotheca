@@ -197,28 +197,45 @@ export function MarkdownPreview({
     const images = Array.from(
       container.querySelectorAll<HTMLImageElement>(`img[src^="${ATTACHMENT_SRC_PREFIX}"]`),
     );
-    let nextImageIndex = 0;
+
+    // Group by absolute path first: a note can embed the same image more
+    // than once (e.g. a diagram referenced twice), and resolving each
+    // occurrence independently means one native fileSrc() read of the
+    // same file per occurrence. Resolving each unique path once and
+    // fanning the result out to every <img> that needs it removes that
+    // redundant work without caching anything beyond this single render
+    // pass, so unlike a persisted cache it carries no staleness risk (see
+    // the "Image data URL caching" roadmap entry).
+    const imagesByPath = new Map<string, HTMLImageElement[]>();
+    for (const img of images) {
+      const absolutePath = decodeURIComponent(
+        img.getAttribute("src")!.slice(ATTACHMENT_SRC_PREFIX.length),
+      );
+      const group = imagesByPath.get(absolutePath);
+      if (group) group.push(img);
+      else imagesByPath.set(absolutePath, [img]);
+    }
+    const uniquePaths = Array.from(imagesByPath.keys());
+    let nextPathIndex = 0;
 
     const resolveNext = async () => {
       while (!cancelled) {
-        const img = images[nextImageIndex];
-        if (!img) return;
-        nextImageIndex += 1;
+        const path = uniquePaths[nextPathIndex];
+        if (path === undefined) return;
+        nextPathIndex += 1;
 
-        const absolutePath = decodeURIComponent(
-          img.getAttribute("src")!.slice(ATTACHMENT_SRC_PREFIX.length),
-        );
         try {
-          const resolved = await fileSrc(absolutePath);
-          if (!cancelled) img.src = resolved;
+          const resolved = await fileSrc(path);
+          if (cancelled) return;
+          for (const img of imagesByPath.get(path)!) img.src = resolved;
         } catch {
-          // Keep one unreadable attachment local to that image. The worker
+          // Keep this path's attachment(s) unresolved. The worker
           // continues with the rest of the current queue.
         }
       }
     };
 
-    const workerCount = Math.min(ATTACHMENT_READ_CONCURRENCY, images.length);
+    const workerCount = Math.min(ATTACHMENT_READ_CONCURRENCY, uniquePaths.length);
     void Promise.allSettled(Array.from({ length: workerCount }, () => resolveNext()));
 
     return () => {

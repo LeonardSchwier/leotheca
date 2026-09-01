@@ -202,6 +202,45 @@ describe("MarkdownPreview: local image attachments", () => {
     expect(fileSrc).not.toHaveBeenCalled();
     expect(container.querySelector("img")?.getAttribute("src")).toBe(dataUri);
   });
+
+  it("resolves the same repeated image path only once, applying the result to every occurrence", async () => {
+    vi.mocked(fileSrc).mockResolvedValue("asset://localhost/vault/notes/cat.png");
+    const { container } = render(
+      <MarkdownPreview
+        source={"![first](cat.png)\n\n![second](cat.png)"}
+        notePath="/vault/notes/today.md"
+      />,
+    );
+
+    await waitFor(() => {
+      const imgs = Array.from(container.querySelectorAll("img"));
+      expect(imgs).toHaveLength(2);
+      for (const img of imgs) {
+        expect(img.getAttribute("src")).toBe("asset://localhost/vault/notes/cat.png");
+      }
+    });
+    expect(fileSrc).toHaveBeenCalledTimes(1);
+    expect(fileSrc).toHaveBeenCalledWith("/vault/notes/cat.png");
+  });
+
+  it("resolves two different image paths independently", async () => {
+    vi.mocked(fileSrc).mockImplementation(async (path: string) => `asset://localhost${path}`);
+    const { container } = render(
+      <MarkdownPreview
+        source={"![a](a.png)\n\n![b](b.png)"}
+        notePath="/vault/notes/today.md"
+      />,
+    );
+
+    await waitFor(() => {
+      const imgs = Array.from(container.querySelectorAll("img"));
+      expect(imgs.map((img) => img.getAttribute("src")).sort()).toEqual([
+        "asset://localhost/vault/notes/a.png",
+        "asset://localhost/vault/notes/b.png",
+      ]);
+    });
+    expect(fileSrc).toHaveBeenCalledTimes(2);
+  });
 });
 
 describe("MarkdownPreview: math rendering", () => {

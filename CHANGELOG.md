@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Canvas files now keep every card, connection, and unrecognized field an editor doesn't understand instead of silently dropping them the next time any card is edited. A canvas card's linked file path is now resolved against the canvas file's own location and verified to stay inside the open workspace before it can be opened, the same containment check already applied to note attachments.
 - Workspace settings, the app's global config, and bookmarks now validate their persisted file's contents on load instead of trusting them outright: an invalid value falls back to its default without discarding the rest of the file, and a workspace settings file that didn't fully decode shows a notice with an explicit "Rewrite settings file" action rather than being silently overwritten.
 - Creating, renaming, deleting, and saving attachments now verify the target stays inside the open workspace before touching disk on desktop, closing a gap where a native command trusted an already-computed path with no server-side check. Note-content autosave itself is not yet covered by this change; that's tracked as follow-up work.
 - The project's version number now has one canonical source (the root `VERSION` file), validated across every platform's build metadata in CI; a real release can no longer be tagged if the tag or the changelog has drifted from it.

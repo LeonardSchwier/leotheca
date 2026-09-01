@@ -49,8 +49,9 @@ describe("scanMarkdownTables", () => {
   it("treats even-backslash pipes as separators and odd-backslash pipes as content", () => {
     const even = onlyTable("| A | B | C |\n| --- | --- | --- |\n| x\\\\ | y | z |");
     expect(even.rows[0]).toHaveLength(3);
-    const odd = onlyTable("| A | B |\n| --- | --- |\n| x\\\|y | z |");
-    expect(odd.rows[0].map((cell) => cell.rawMarkdown)).toEqual(["x\\\|y", "z"]);
+    const oddSource = "| A | B |\n| --- | --- |\n| x" + "\\" + "|y | z |";
+    const odd = onlyTable(oddSource);
+    expect(odd.rows[0].map((cell) => cell.rawMarkdown)).toEqual(["x" + "\\" + "|y", "z"]);
   });
 
   it("supports variable-length inline-code delimiters", () => {

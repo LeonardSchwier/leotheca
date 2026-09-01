@@ -44,6 +44,10 @@
   white-space: nowrap;
 }
 
+.app-title-hint-warning {
+  color: #c0392b;
+}
+
 .toolbar button {
   font: inherit;
   background: var(--bg-sunken);

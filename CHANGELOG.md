@@ -14,5 +14,6 @@
 - Desktop saves (notes, attachments, settings) are now crash-safe: a save writes to a temporary file first and only replaces the real file once that write finishes, so a crash or forced quit mid-save can no longer leave a note truncated or empty.
 - Switching workspaces is now authoritative: a workspace switch started before an earlier one has finished loading can no longer have the earlier switch overwrite it, and pending saves for the workspace being left are drained instead of racing the new one.
 - The editor area now shows a short stoic-philosophy quote (with attribution) instead of a bare "No file open." message when no note is open.
+- The wikilink/tag/backlink index is more robust on a large workspace: a single note that fails to read (a lock, a permission change, a sync tool mid-write) no longer prevents the rest of the workspace from being indexed, and a small notice now appears if any notes couldn't be read. The index also uses file size alongside modification time to detect changed content, narrowing a rare case where an edit could otherwise go unnoticed.
 
 Entries will accumulate here from the first tagged release onward.

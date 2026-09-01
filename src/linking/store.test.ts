@@ -3,6 +3,7 @@ import {
   extractWikilinks,
   linkIndex,
   linkIndexBuilding,
+  linkIndexUnreadablePaths,
   rebuildLinkIndex,
   resetLinkIndexCache,
   resolveWikilink,
@@ -131,7 +132,7 @@ describe("wikilink index", () => {
     expect(linkIndexBuilding.value).toBe(false);
   });
 
-  it("clears linkIndexBuilding even if a read fails, and never has more than the concurrency cap in flight", async () => {
+  it("clears linkIndexBuilding, never has more than the concurrency cap in flight, and (audit follow-up F-012) does not abort the whole rebuild when one read fails", async () => {
     const paths = Array.from(
       { length: 20 },
       (_, i) => `/workspace/note-${i}.md`,
@@ -152,9 +153,7 @@ describe("wikilink index", () => {
       return "";
     });
 
-    await expect(rebuildLinkIndex("/workspace")).rejects.toThrow(
-      "simulated read failure",
-    );
+    await expect(rebuildLinkIndex("/workspace")).resolves.toBeUndefined();
 
     expect(linkIndexBuilding.value).toBe(false);
     // The concurrency cap in rebuildLinkIndex is 8; asserting a looser bound
@@ -162,6 +161,73 @@ describe("wikilink index", () => {
     // isn't dispatching all 20 reads at once like Promise.all(...) would.
     expect(maxInFlight).toBeLessThanOrEqual(8);
     expect(maxInFlight).toBeGreaterThan(1);
+    // The other 19 notes still indexed successfully despite the one failure.
+    expect(linkIndex.value.backlinksByPath.size).toBe(20);
+    expect(linkIndexUnreadablePaths.value).toEqual(["/workspace/note-5.md"]);
+  });
+
+  it("reports an empty linkIndexUnreadablePaths after a rebuild in which every note reads successfully (audit follow-up F-012)", async () => {
+    findMarkdownFiles.mockResolvedValue([
+      { name: "a.md", path: "/workspace/a.md", isDir: false },
+    ]);
+    readTextFile.mockImplementation(async (path: string) => {
+      if (path === CACHE_PATH) throw new Error("no cache file yet");
+      return "content";
+    });
+
+    await rebuildLinkIndex("/workspace");
+    expect(linkIndexUnreadablePaths.value).toEqual([]);
+  });
+
+  it("keeps a note's last-known wikilinks, aliases, and tags when a later rebuild fails to re-read it, instead of dropping them (audit follow-up F-012)", async () => {
+    findMarkdownFiles.mockResolvedValue([
+      { name: "a.md", path: "/workspace/a.md", isDir: false, mtime: 1000, size: 5 },
+    ]);
+    rejectCacheLoad();
+    readTextFile.mockImplementation(async (path: string) => {
+      if (path === CACHE_PATH) throw new Error("no cache file yet");
+      return "[[b]]";
+    });
+
+    await rebuildLinkIndex("/workspace");
+    expect(linkIndex.value.pathsByNoteName.has("a")).toBe(true);
+    const firstBacklinkTargets = [...linkIndex.value.backlinksByPath.keys()];
+
+    // The note's mtime/size changed (so it's no longer a cache hit), but
+    // this time the read itself fails, e.g. a sync tool briefly locked it
+    // mid-write.
+    findMarkdownFiles.mockResolvedValue([
+      { name: "a.md", path: "/workspace/a.md", isDir: false, mtime: 2000, size: 9 },
+    ]);
+    readTextFile.mockImplementation(async (path: string) => {
+      if (path === CACHE_PATH) throw new Error("no cache file yet");
+      throw new Error("simulated transient lock");
+    });
+
+    await expect(rebuildLinkIndex("/workspace")).resolves.toBeUndefined();
+    expect(linkIndexUnreadablePaths.value).toEqual(["/workspace/a.md"]);
+    // Still resolvable and still contributing the same backlinks as the
+    // last successful read, not silently emptied out by the failure.
+    expect(linkIndex.value.pathsByNoteName.has("a")).toBe(true);
+    expect([...linkIndex.value.backlinksByPath.keys()]).toEqual(
+      firstBacklinkTargets,
+    );
+
+    // A third rebuild where the file becomes readable again (the lock
+    // cleared): the retained cache entry still reflects the last
+    // *confirmed* mtime/size (from the first, successful read), not the
+    // failed attempt's unconfirmed one, so this mismatches the file's
+    // real current mtime/size and triggers a genuine re-read rather than
+    // wrongly trusting stale content paired with an identity nobody ever
+    // actually verified.
+    readTextFile.mockImplementation(async (path: string) => {
+      if (path === CACHE_PATH) throw new Error("no cache file yet");
+      return "[[c]]";
+    });
+    readTextFile.mockClear();
+    await rebuildLinkIndex("/workspace");
+    expect(readTextFile).toHaveBeenCalledWith("/workspace/a.md");
+    expect(linkIndexUnreadablePaths.value).toEqual([]);
   });
 });
 
@@ -182,7 +248,7 @@ describe("rebuildLinkIndex: mtime-based caching", () => {
 
   it("does not re-read a note's content on a second call when its mtime hasn't changed", async () => {
     findMarkdownFiles.mockResolvedValue([
-      { name: "a.md", path: "/workspace/a.md", isDir: false, mtime: 1000 },
+      { name: "a.md", path: "/workspace/a.md", isDir: false, mtime: 1000, size: 10 },
     ]);
     rejectCacheLoad();
     readTextFile.mockImplementation(async (path: string) => {
@@ -205,7 +271,7 @@ describe("rebuildLinkIndex: mtime-based caching", () => {
   it("does re-read a note's content when its mtime has changed since the last call", async () => {
     let mtime = 1000;
     findMarkdownFiles.mockImplementation(async () => [
-      { name: "a.md", path: "/workspace/a.md", isDir: false, mtime },
+      { name: "a.md", path: "/workspace/a.md", isDir: false, mtime, size: 10 },
     ]);
     readTextFile.mockImplementation(async (path: string) => {
       if (path === CACHE_PATH) throw new Error("no cache file yet");
@@ -236,17 +302,75 @@ describe("rebuildLinkIndex: mtime-based caching", () => {
     expect(readTextFile).toHaveBeenCalledWith("/workspace/a.md");
   });
 
-  it("loads a persisted cache file and uses it to skip a read on the very first call in a session", async () => {
+  it("always re-reads a note with mtime but no size available, rather than risking a stale cache hit (audit follow-up F-012)", async () => {
     findMarkdownFiles.mockResolvedValue([
       { name: "a.md", path: "/workspace/a.md", isDir: false, mtime: 1000 },
     ]);
     readTextFile.mockImplementation(async (path: string) => {
+      if (path === CACHE_PATH) throw new Error("no cache file yet");
+      return "content";
+    });
+
+    await rebuildLinkIndex("/workspace");
+    readTextFile.mockClear();
+
+    await rebuildLinkIndex("/workspace");
+    expect(readTextFile).toHaveBeenCalledWith("/workspace/a.md");
+  });
+
+  it("re-reads a note whose mtime is unchanged but whose size differs, the same-tick-edit case a coarse or colliding mtime alone would hide (audit follow-up F-012)", async () => {
+    let content = "[[b]]"; // 5 bytes
+    findMarkdownFiles.mockImplementation(async () => [
+      { name: "a.md", path: "/workspace/a.md", isDir: false, mtime: 1000, size: content.length },
+    ]);
+    readTextFile.mockImplementation(async (path: string) => {
+      if (path === CACHE_PATH) throw new Error("no cache file yet");
+      return content;
+    });
+
+    await rebuildLinkIndex("/workspace");
+    readTextFile.mockClear();
+
+    // Same mtime as before (a coarse filesystem clock or a same-tick
+    // rewrite), but the content, and therefore the byte size, changed.
+    content = "[[c]][[d]]"; // 10 bytes: mtime alone would have missed this
+    await rebuildLinkIndex("/workspace");
+    expect(readTextFile).toHaveBeenCalledWith("/workspace/a.md");
+  });
+
+  it("still misses a same-mtime, same-size content change, the accepted residual risk mtime-plus-size narrows but does not eliminate (audit follow-up F-012)", async () => {
+    let content = "[[b]]"; // 5 bytes
+    findMarkdownFiles.mockImplementation(async () => [
+      { name: "a.md", path: "/workspace/a.md", isDir: false, mtime: 1000, size: content.length },
+    ]);
+    readTextFile.mockImplementation(async (path: string) => {
+      if (path === CACHE_PATH) throw new Error("no cache file yet");
+      return content;
+    });
+
+    await rebuildLinkIndex("/workspace");
+    readTextFile.mockClear();
+
+    // Same mtime and same byte length, different content: this exact
+    // pathological case is documented, not silently assumed, as the one
+    // this fix narrows rather than fully closes.
+    content = "[[c]]"; // also 5 bytes
+    await rebuildLinkIndex("/workspace");
+    expect(readTextFile).not.toHaveBeenCalledWith("/workspace/a.md");
+  });
+
+  it("loads a persisted cache file and uses it to skip a read on the very first call in a session", async () => {
+    findMarkdownFiles.mockResolvedValue([
+      { name: "a.md", path: "/workspace/a.md", isDir: false, mtime: 1000, size: 10 },
+    ]);
+    readTextFile.mockImplementation(async (path: string) => {
       if (path === CACHE_PATH) {
         return JSON.stringify({
-          version: 3,
+          version: 4,
           entries: {
             "/workspace/a.md": {
               mtime: 1000,
+              size: 10,
               wikilinks: ["b"],
               aliases: [],
               tags: [],
@@ -285,9 +409,35 @@ describe("rebuildLinkIndex: mtime-based caching", () => {
     expect(readTextFile).toHaveBeenCalledWith("/workspace/a.md");
   });
 
+  it("ignores an old pre-size (version 3) cache file rather than trusting an entry with no size to compare (audit follow-up F-012)", async () => {
+    findMarkdownFiles.mockResolvedValue([
+      { name: "a.md", path: "/workspace/a.md", isDir: false, mtime: 1000, size: 5 },
+    ]);
+    readTextFile.mockImplementation(async (path: string) => {
+      if (path === CACHE_PATH) {
+        return JSON.stringify({
+          version: 3,
+          entries: {
+            "/workspace/a.md": {
+              mtime: 1000,
+              wikilinks: ["b"],
+              aliases: [],
+              tags: [],
+            },
+          },
+        });
+      }
+      return "[[c]]";
+    });
+
+    await rebuildLinkIndex("/workspace");
+
+    expect(readTextFile).toHaveBeenCalledWith("/workspace/a.md");
+  });
+
   it("saves the rebuilt cache to disk after a successful call", async () => {
     findMarkdownFiles.mockResolvedValue([
-      { name: "a.md", path: "/workspace/a.md", isDir: false, mtime: 1000 },
+      { name: "a.md", path: "/workspace/a.md", isDir: false, mtime: 1000, size: 5 },
     ]);
     rejectCacheLoad();
     readTextFile.mockImplementation(async (path: string) => {
@@ -303,9 +453,10 @@ describe("rebuildLinkIndex: mtime-based caching", () => {
     expect(savedRoot).toBe("/workspace");
     expect(savedRelativePath).toBe(CACHE_RELATIVE_PATH);
     const saved = JSON.parse(savedContent);
-    expect(saved.version).toBe(3);
+    expect(saved.version).toBe(4);
     expect(saved.entries["/workspace/a.md"]).toEqual({
       mtime: 1000,
+      size: 5,
       wikilinks: ["b"],
       aliases: [],
       tags: [],
@@ -318,9 +469,10 @@ describe("rebuildLinkIndex: mtime-based caching", () => {
       path: string;
       isDir: boolean;
       mtime: number;
+      size: number;
     }[] = [
-      { name: "a.md", path: "/workspace/a.md", isDir: false, mtime: 1000 },
-      { name: "b.md", path: "/workspace/b.md", isDir: false, mtime: 1000 },
+      { name: "a.md", path: "/workspace/a.md", isDir: false, mtime: 1000, size: 0 },
+      { name: "b.md", path: "/workspace/b.md", isDir: false, mtime: 1000, size: 0 },
     ];
     findMarkdownFiles.mockImplementation(async () => entries);
     readTextFile.mockImplementation(async (path: string) => {
@@ -351,6 +503,35 @@ describe("rebuildLinkIndex: mtime-based caching", () => {
 
     await expect(rebuildLinkIndex("/workspace")).resolves.toBeUndefined();
     expect(linkIndex.value.backlinksByPath.size).toBeGreaterThan(0);
+  });
+
+  it("forces a real re-read after resetLinkIndexCache even when mtime and size would otherwise still match, the workspace-transition-switch case (audit follow-up N-001/N-003 wires this to a workspace switch)", async () => {
+    findMarkdownFiles.mockResolvedValue([
+      { name: "a.md", path: "/workspace/a.md", isDir: false, mtime: 1000, size: 5 },
+    ]);
+    rejectCacheLoad();
+    readTextFile.mockImplementation(async (path: string) => {
+      if (path === CACHE_PATH) throw new Error("no cache file yet");
+      return "[[b]]";
+    });
+
+    await rebuildLinkIndex("/workspace");
+    readTextFile.mockClear();
+
+    // Simulates App.tsx's workspaceTransitions.registerReset(resetLinkIndexCache)
+    // firing on a workspace switch, even back to the exact same root with
+    // files reporting the exact same mtime/size as before (a pathological
+    // edge case, but the reset must not depend on anything actually having
+    // changed on disk to take effect).
+    resetLinkIndexCache();
+    readTextFile.mockImplementation(async (path: string) => {
+      if (path === CACHE_PATH) throw new Error("no cache file yet");
+      return "[[b]]";
+    });
+
+    await rebuildLinkIndex("/workspace");
+    expect(readTextFile).toHaveBeenCalledWith("/workspace/a.md");
+    expect(linkIndexUnreadablePaths.value).toEqual([]);
   });
 });
 
@@ -448,7 +629,7 @@ describe("rebuildLinkIndex: aliases", () => {
 
   it("caches aliases the same way it caches wikilinks (no re-read when mtime is unchanged)", async () => {
     findMarkdownFiles.mockResolvedValue([
-      { name: "a.md", path: "/workspace/a.md", isDir: false, mtime: 1000 },
+      { name: "a.md", path: "/workspace/a.md", isDir: false, mtime: 1000, size: 24 },
     ]);
     readTextFile.mockImplementation(async (path: string) => {
       if (path === CACHE_PATH) throw new Error("no cache file yet");
@@ -533,7 +714,7 @@ describe("rebuildLinkIndex: tags", () => {
 
   it("caches tags the same way it caches wikilinks and aliases (no re-read when mtime is unchanged)", async () => {
     findMarkdownFiles.mockResolvedValue([
-      { name: "a.md", path: "/workspace/a.md", isDir: false, mtime: 1000 },
+      { name: "a.md", path: "/workspace/a.md", isDir: false, mtime: 1000, size: 4 },
     ]);
     readTextFile.mockImplementation(async (path: string) => {
       if (path === CACHE_PATH) throw new Error("no cache file yet");

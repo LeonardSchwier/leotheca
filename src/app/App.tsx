@@ -41,7 +41,12 @@ import type { ViewMode } from "../settings/workspaceSettings";
 import { SettingsPanel } from "../settings/SettingsPanel";
 import { WelcomeDialog } from "../settings/WelcomeDialog";
 import { BacklinksPanel } from "../linking/BacklinksPanel";
-import { linkIndexBuilding, rebuildLinkIndex, resetLinkIndexCache } from "../linking/store";
+import {
+  linkIndexBuilding,
+  linkIndexUnreadablePaths,
+  rebuildLinkIndex,
+  resetLinkIndexCache,
+} from "../linking/store";
 import { BookmarksPanel } from "../bookmarks/BookmarksPanel";
 import { addFileBookmark, bookmarks, loadBookmarks, removeBookmark } from "../bookmarks/store";
 import { resetWorkspaceTree } from "../workspace/fileTreeStore";
@@ -511,6 +516,16 @@ export function App() {
         {linkIndexBuilding.value && (
           <span class="app-title-hint" title="Building the wikilink index for this workspace">
             Indexing…
+          </span>
+        )}
+        {!linkIndexBuilding.value && linkIndexUnreadablePaths.value.length > 0 && (
+          <span
+            class="app-title-hint app-title-hint-warning"
+            title={`Could not read: ${linkIndexUnreadablePaths.value.join(", ")}`}
+          >
+            {linkIndexUnreadablePaths.value.length === 1
+              ? "1 note couldn't be indexed"
+              : `${linkIndexUnreadablePaths.value.length} notes couldn't be indexed`}
           </span>
         )}
         {current?.kind === "text" && (

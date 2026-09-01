@@ -41,6 +41,9 @@ interface NativeMarkdownFile {
   relativePath: string;
   uri: string;
   mtime?: number;
+  /** For the link index's mtime-plus-size cache identity (audit follow-up
+   * F-012): a coarse or colliding mtime alone can hide changed content. */
+  size?: number;
 }
 
 interface WorkspaceWalkResult {
@@ -600,25 +603,29 @@ export async function findMarkdownFiles(
     const markdownFiles = cached.allFiles.filter((f) =>
       f.relativePath.endsWith(".md"),
     );
-    return markdownFiles.map(({ relativePath, uri, mtime }) => {
+    return markdownFiles.map(({ relativePath, uri, mtime, size }) => {
       const path = `${rootPath}/${relativePath}`;
       pathToUri.set(path, uri);
-      return { name: pathBasename(path), path, isDir: false, mtime };
+      return { name: pathBasename(path), path, isDir: false, mtime, size };
     });
   }
 
   const { markdownFiles } = await deps.walk(rootPath);
+  // Real size, not a fabricated placeholder: a later findAllFiles call
+  // within this walk cache's TTL derives its own results from this same
+  // allFilesResult (see findAllFiles below), and runSearch's batching
+  // relies on a real size there too.
   const allFilesResult = markdownFiles.map((f) => ({
     relativePath: f.relativePath,
     uri: f.uri,
     mtime: f.mtime,
-    size: 0,
+    size: f.size,
   }));
   setWalkCache(rootPath, allFilesResult, markdownFiles, null);
-  return markdownFiles.map(({ relativePath, uri, mtime }) => {
+  return markdownFiles.map(({ relativePath, uri, mtime, size }) => {
     const path = `${rootPath}/${relativePath}`;
     pathToUri.set(path, uri);
-    return { name: pathBasename(path), path, isDir: false, mtime };
+    return { name: pathBasename(path), path, isDir: false, mtime, size };
   });
 }
 

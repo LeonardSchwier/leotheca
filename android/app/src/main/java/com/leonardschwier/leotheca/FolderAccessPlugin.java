@@ -173,6 +173,13 @@ public class FolderAccessPlugin extends Plugin {
                 if (mtime > 0) {
                     entry.put("mtime", mtime);
                 }
+                // For the link index's mtime-plus-size cache identity check
+                // (audit follow-up F-012): a coarse or colliding mtime alone
+                // can hide changed content, so linking/store.ts's
+                // rebuildLinkIndex also compares size. child.length() is
+                // already a cheap DocumentFile field, not an extra query,
+                // the same as walkForAllFiles's own size below.
+                entry.put("size", child.length());
                 markdownFiles.put(entry);
             } else if (isImageName(name)) {
                 imageCount[0]++;

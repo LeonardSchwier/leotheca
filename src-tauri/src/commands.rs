@@ -16,9 +16,11 @@ pub struct FsEntry {
     /// or if the OS call fails, never a fabricated/default value.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mtime: Option<u64>,
-    /// File size in bytes. Only populated by `find_all_files`, for
-    /// `runSearch`'s content-read batching (see its own `SEARCH_BATCH_MAX_BYTES`
-    /// in `fileTreeStore.ts`); `None` elsewhere, including for a directory.
+    /// File size in bytes. Populated by `find_all_files` (for `runSearch`'s
+    /// content-read batching, see its own `SEARCH_BATCH_MAX_BYTES` in
+    /// `fileTreeStore.ts`) and `find_markdown_files` (for the link index's
+    /// mtime-plus-size cache identity, audit follow-up F-012); `None`
+    /// elsewhere, including `find_all_entries` and for a directory.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub size: Option<u64>,
 }
@@ -112,9 +114,10 @@ fn entry_mtime_ms(path: &Path) -> Option<u64> {
 
 /// Same as `entry_mtime_ms`, but also returns the file's size in bytes,
 /// from the same `fs::metadata` call rather than a second stat syscall.
-/// Only `find_all_files` needs the size (for `runSearch`'s content-read
-/// batching), so this stays separate from `entry_mtime_ms` rather than
-/// changing that function's return type for every other caller too.
+/// Used by `find_all_files` (for `runSearch`'s content-read batching) and
+/// `find_markdown_files` (for the link index's mtime-plus-size cache
+/// identity, audit follow-up F-012); `find_all_entries` still uses plain
+/// `entry_mtime_ms`, since directory entries have no size of their own.
 fn entry_mtime_ms_and_size(path: &Path) -> (Option<u64>, Option<u64>) {
     match fs::metadata(path) {
         Ok(metadata) => {
@@ -256,12 +259,21 @@ pub fn find_markdown_files(path: String) -> Result<Vec<FsEntry>, String> {
                 .and_then(|extension| extension.to_str())
                 .is_some_and(|extension| extension.eq_ignore_ascii_case("md"))
             {
+                // Size is populated here too (audit follow-up F-012), from
+                // the same `fs::metadata` call `entry_mtime_ms_and_size`
+                // already makes for mtime, not a second stat: the link
+                // index (linking/store.ts's rebuildLinkIndex) uses it as a
+                // secondary cache-identity check alongside mtime, since an
+                // mtime collision (coarse filesystem timestamp resolution,
+                // two writes in the same tick) would otherwise let changed
+                // content hide behind an unchanged mtime.
+                let (mtime, size) = entry_mtime_ms_and_size(&entry_path);
                 files.push(FsEntry {
                     name: name_str,
                     path: path_to_string(&entry_path),
                     is_dir: false,
-                    mtime: entry_mtime_ms(&entry_path),
-                    size: None,
+                    mtime,
+                    size,
                 });
             }
         }
@@ -1220,6 +1232,36 @@ mod tests {
             "only .md files outside hidden directories, case-insensitively"
         );
         assert!(files.iter().all(|f| !f.is_dir));
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn find_markdown_files_reports_each_file_size_from_the_same_metadata_call_as_mtime() {
+        let root =
+            std::env::temp_dir().join(format!("leotheca-test-findmd-size-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        create_dir(root.to_string_lossy().to_string()).unwrap();
+        fs::write(root.join("a.md"), "hello").unwrap();
+        fs::write(
+            root.join("b.md"),
+            "a much longer body of text than a.md has",
+        )
+        .unwrap();
+
+        let files = find_markdown_files(root.to_string_lossy().to_string()).unwrap();
+        let a = files.iter().find(|f| f.name == "a.md").unwrap();
+        let b = files.iter().find(|f| f.name == "b.md").unwrap();
+
+        assert_eq!(
+            a.size,
+            Some(5),
+            "size must be populated (audit follow-up F-012's link-index cache identity needs it alongside mtime)"
+        );
+        assert_eq!(b.size, Some(40));
+        assert!(
+            a.mtime.is_some(),
+            "mtime must still be populated alongside size"
+        );
         fs::remove_dir_all(&root).unwrap();
     }
 

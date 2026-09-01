@@ -43,6 +43,14 @@ export const linkIndex = signal<LinkIndex>(emptyLinkIndex());
 // a subtle hint instead of looking stuck on a large vault (see the
 // concurrency note on rebuildLinkIndex below for why that can take a while).
 export const linkIndexBuilding = signal(false);
+// Paths that failed to read during the most recent completed rebuild
+// (audit follow-up F-012): a note can be temporarily unreadable (a lock,
+// a permission change, a sync tool mid-write) without that aborting the
+// whole rebuild or silently pretending the workspace is fully indexed.
+// Set once a rebuild finishes, only by the request that's still current
+// at that point (an older, superseded rebuild never overwrites it); an
+// empty array after a successful rebuild means every note read cleanly.
+export const linkIndexUnreadablePaths = signal<string[]>([]);
 
 const WIKILINK_PATTERN = /\[\[([^\]]+)\]\]/g;
 
@@ -75,15 +83,28 @@ const LINK_INDEX_READ_CONCURRENCY = 8;
 
 interface CachedNote {
   mtime: number;
+  /** Audit follow-up F-012: undefined when the walk that produced this
+   * entry couldn't report a size (should not happen for a real file on
+   * either platform's markdown walk today, but a decode of an old,
+   * pre-size cache file entry from disk also lands here). Treated as a
+   * hard requirement for a cache hit, not an optional bonus check, so a
+   * missing size degrades to a real re-read rather than trusting mtime
+   * alone. */
+  size?: number;
   wikilinks: string[];
   aliases: string[];
   tags: string[];
 }
 
-// Bumped from 2: cached entries now also carry tags, so an old-shaped
-// cache file (tags missing) must be treated as a miss and rebuilt from a
-// real read, not trusted with `tags` silently undefined.
-const LINK_INDEX_CACHE_VERSION = 3;
+// Bumped from 3 (audit follow-up F-012): cache identity now also requires
+// `size` to match, not just `mtime`, since a coarse or colliding mtime
+// (some filesystems and SAF providers report only second-level
+// resolution) could otherwise let two different writes to the same note
+// within the same tick look identical and hide the newer content behind
+// a stale cache hit. An old-shaped cache file's entries have no `size`,
+// so bumping the version forces a real re-read for all of them rather
+// than treating an absent field as coincidentally already "matching."
+const LINK_INDEX_CACHE_VERSION = 4;
 const LINK_INDEX_CACHE_FILENAME = ".leotheca/link-index-cache.json";
 
 /** path -> the wikilinks extracted from that note the last time it was
@@ -156,15 +177,20 @@ async function savePersistedCache(
   }
 }
 
-/** Drops all cached wikilink/mtime state, in memory and the "already
+/** Drops all cached wikilink/mtime/size state, in memory and the "already
  * loaded this session" tracking, so the next rebuildLinkIndex call starts
- * from a clean slate. Not wired to any UI today; exists mainly so tests
- * can isolate themselves from each other's cache state, since the cache
- * is deliberately module-level (persists across calls) in production. */
+ * from a clean slate. Registered with the workspace transition coordinator
+ * (App.tsx's `workspaceTransitions.registerReset(resetLinkIndexCache)`, see
+ * audit follow-up N-001/N-003) so switching workspaces never carries one
+ * workspace's cached identities into another's; also used directly by
+ * tests to isolate themselves from each other's cache state, since the
+ * cache is deliberately module-level (persists across calls) in
+ * production. */
 export function resetLinkIndexCache(): void {
   wikilinkCache = new Map();
   loadedCacheRoots.clear();
   latestIndexRequest = 0;
+  linkIndexUnreadablePaths.value = [];
 }
 
 /** `aliasesEnabled`/`tagsEnabled` each default to on, matching
@@ -215,6 +241,13 @@ export async function rebuildLinkIndex(
     // race: the note the link targets by alias might not have been read
     // yet, since which note gets read first isn't ordered.
     const wikilinksByPath = new Map<string, string[]>();
+    // Audit follow-up F-012: notes that failed to read during this pass,
+    // so one unreadable file (a transient lock, a permission change, a
+    // sync tool mid-write) never aborts indexing the rest of the
+    // workspace. Reported via linkIndexUnreadablePaths once this request
+    // finishes, so the UI can show a visible incomplete/error state
+    // instead of silently pretending the index is fully current.
+    const unreadablePaths: string[] = [];
 
     await mapWithConcurrency(
       noteEntries,
@@ -228,7 +261,9 @@ export async function rebuildLinkIndex(
         if (
           cached &&
           entry.mtime !== undefined &&
-          cached.mtime === entry.mtime
+          cached.mtime === entry.mtime &&
+          entry.size !== undefined &&
+          cached.size === entry.size
         ) {
           wikilinks = cached.wikilinks;
           aliases = cached.aliases;
@@ -237,18 +272,50 @@ export async function rebuildLinkIndex(
           let source: string;
           try {
             source = await readTextFile(entry.path);
-          } catch (error) {
+          } catch {
             if (!isCurrentRequest()) return;
-            throw error;
+            unreadablePaths.push(entry.path);
+            // A previous successful read is better than nothing: keep
+            // contributing its last-known wikilinks/aliases/tags to this
+            // pass's index, and carry its old cache entry forward
+            // unchanged (not this entry's own, possibly-different,
+            // mtime/size) so a note that becomes readable again later
+            // with the exact same content is still recognized as
+            // unchanged rather than forced through a needless re-read.
+            // With no prior cache entry at all, this note simply
+            // contributes nothing this pass and is left out of
+            // freshCache, so the next rebuild retries reading it fresh
+            // rather than caching a real gap.
+            if (cached) freshCache.set(entry.path, cached);
+            wikilinksByPath.set(entry.path, cached?.wikilinks ?? []);
+            if (aliasesEnabled && cached?.aliases.length) {
+              aliasesByPath.set(entry.path, cached.aliases);
+              for (const alias of cached.aliases) {
+                const key = alias.toLocaleLowerCase();
+                const paths = pathsByAlias.get(key) ?? [];
+                paths.push(entry.path);
+                pathsByAlias.set(key, paths);
+              }
+            }
+            if (tagsEnabled && cached?.tags.length) {
+              tagsByPath.set(entry.path, cached.tags);
+              for (const tag of cached.tags) {
+                const paths = pathsByTag.get(tag) ?? [];
+                paths.push(entry.path);
+                pathsByTag.set(tag, paths);
+              }
+            }
+            return;
           }
           if (!isCurrentRequest()) return;
           wikilinks = extractWikilinks(source);
           aliases = extractAliases(source);
           tags = extractTags(source);
         }
-        if (entry.mtime !== undefined) {
+        if (entry.mtime !== undefined && entry.size !== undefined) {
           freshCache.set(entry.path, {
             mtime: entry.mtime,
+            size: entry.size,
             wikilinks,
             aliases,
             tags,
@@ -300,6 +367,7 @@ export async function rebuildLinkIndex(
       pathsByTag,
       tagsByPath,
     };
+    linkIndexUnreadablePaths.value = unreadablePaths;
     await savePersistedCache(rootPath, freshCache);
   } finally {
     if (isCurrentRequest()) linkIndexBuilding.value = false;

@@ -4,4 +4,5 @@
     <string name="title_activity_main">Leotheca</string>
     <string name="package_name">com.leonardschwier.leotheca</string>
     <string name="custom_url_scheme">com.leonardschwier.leotheca</string>
+    <string name="creating_note">Creating note</string>
 </resources>

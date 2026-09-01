@@ -32,14 +32,18 @@ interface HeadingBreadcrumbsProps {
 }
 
 /**
- * Phase 2a-2b (spec/f06-note-outline-heading-breadcrumbs.md section 7):
+ * Phase 2a-2c (spec/f06-note-outline-heading-breadcrumbs.md section 7):
  * a breadcrumb trail from the note root through the active heading's
  * ancestors to the active heading itself, driven by either the
  * Source-mode cursor (7.3) or Preview-mode scroll tracking (7.4)
- * depending on `activeSource`. Split-mode authority switching (7.5,
- * deciding which of the two a caller should be passing right now) is a
- * later phase and not implemented here; the caller currently decides
- * based on the active view mode alone.
+ * depending on `activeSource`. Which of the two `activeSource` carries in
+ * Split view (7.5's authority switching) is decided by the caller, not
+ * this component; this component only needs to know which one it was
+ * actually given, which is also enough to satisfy 7.5's own requirement
+ * that current authority be "visually and accessibly identifiable": the
+ * nav's aria-label names the active source whenever one is tracked, so a
+ * screen-reader user in Split view can tell which pane the breadcrumb
+ * trail is currently following without needing separate UI for it.
  */
 export function HeadingBreadcrumbs({
   noteTitle,
@@ -56,9 +60,15 @@ export function HeadingBreadcrumbs({
         ? activeSource.index
         : undefined;
   const chain = breadcrumbChain(headings, activeIndex);
+  const ariaLabel =
+    activeSource.kind === "cursor"
+      ? "Breadcrumb (following Source)"
+      : activeSource.kind === "previewIndex"
+        ? "Breadcrumb (following Preview)"
+        : "Breadcrumb";
 
   return (
-    <nav class="heading-breadcrumbs" aria-label="Breadcrumb">
+    <nav class="heading-breadcrumbs" aria-label={ariaLabel}>
       <ol class="heading-breadcrumbs-list">
         <li>
           <button

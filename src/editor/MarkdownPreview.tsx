@@ -112,6 +112,16 @@ interface MarkdownPreviewProps {
    * heading) but is not part of the scanned array, which would shift
    * every later index out of alignment for that note. */
   onActiveHeadingChange?: (index: number | undefined) => void;
+  /** Fired for a real, user-initiated interaction with the preview pane
+   * (a scroll event, a click anywhere inside it, or a keydown while focus
+   * is inside it), never for the recompute this component already runs
+   * on mount or on content change. Split view (spec section 7.5) uses
+   * this to tell "the user just did something in Preview" apart from
+   * "Preview's active heading was recomputed because the note changed,"
+   * which fires through onActiveHeadingChange above regardless of cause
+   * and would otherwise let an unrelated edit silently steal breadcrumb
+   * authority from whichever pane the user actually last touched. */
+  onDirectInteraction?: () => void;
 }
 
 // spec section 7.4: "the upper 25 percent of the viewport."
@@ -186,12 +196,15 @@ export function MarkdownPreview({
   mathRenderingEnabled = true,
   notePath,
   onActiveHeadingChange,
+  onDirectInteraction,
 }: MarkdownPreviewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const noteDir = notePath ? dirname(notePath) : null;
   const workspaceRoot = workspacePath.value;
   const onActiveHeadingChangeRef = useRef(onActiveHeadingChange);
   onActiveHeadingChangeRef.current = onActiveHeadingChange;
+  const onDirectInteractionRef = useRef(onDirectInteraction);
+  onDirectInteractionRef.current = onDirectInteraction;
 
   const html = useMemo(() => {
     mathRenderingActive = mathRenderingEnabled;
@@ -293,10 +306,15 @@ export function MarkdownPreview({
       onActiveHeadingChangeRef.current?.(active);
     };
 
+    const handleScroll = () => {
+      update();
+      onDirectInteractionRef.current?.();
+    };
+
     update();
-    container.addEventListener("scroll", update, { passive: true });
+    container.addEventListener("scroll", handleScroll, { passive: true });
     return () => {
-      container.removeEventListener("scroll", update);
+      container.removeEventListener("scroll", handleScroll);
     };
   }, [html]);
 
@@ -306,6 +324,8 @@ export function MarkdownPreview({
       ref={containerRef}
       dangerouslySetInnerHTML={{ __html: html }}
       onClick={(event) => {
+        onDirectInteractionRef.current?.();
+
         const anchor = (event.target as HTMLElement).closest<HTMLAnchorElement>(
           'a[href^="#leotheca-wikilink="]',
         );
@@ -318,6 +338,7 @@ export function MarkdownPreview({
         const path = resolveWikilink(target);
         if (path) onOpenFile?.(path, fileNameFromPath(path));
       }}
+      onKeyDown={() => onDirectInteractionRef.current?.()}
     />
   );
 }

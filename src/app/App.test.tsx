@@ -96,15 +96,28 @@ vi.mock("../editor/MarkdownEditor", () => ({
   MarkdownEditor: ({
     value,
     onChange,
+    onCursorChange,
   }: {
     value: string;
     onChange: (v: string) => void;
+    onCursorChange?: (pos: number) => void;
   }) => (
-    <textarea
-      data-testid="mock-editor"
-      value={value}
-      onInput={(e) => onChange((e.target as HTMLTextAreaElement).value)}
-    />
+    <>
+      <textarea
+        data-testid="mock-editor"
+        value={value}
+        onInput={(e) => onChange((e.target as HTMLTextAreaElement).value)}
+      />
+      {/* Stands in for a real CodeMirror cursor/keyboard action (App.test.tsx
+          mocks MarkdownEditor wholesale, so there is no real editor to move a
+          cursor in); used by the Split-mode breadcrumb authority test below. */}
+      <button
+        data-testid="mock-editor-cursor-move"
+        onClick={() => onCursorChange?.(0)}
+      >
+        Move cursor
+      </button>
+    </>
   ),
 }));
 
@@ -115,7 +128,7 @@ vi.mock("../settings/SettingsPanel", () => ({
 const { App } = await import("./App");
 const { openOrFocusTab, openTabs, activeTabPath } =
   await import("../workspace/store");
-const { settingsPanelOpen, workspacePath, workspaceSettings } =
+const { settingsPanelOpen, workspacePath, workspaceSettings, viewMode } =
   await import("../settings/store");
 const defaultViewportWidth = window.innerWidth;
 
@@ -127,6 +140,7 @@ afterEach(() => {
   settingsPanelOpen.value = false;
   workspacePath.value = null;
   workspaceSettings.value = DEFAULT_WORKSPACE_SETTINGS;
+  viewMode.value = "source";
   updateWorkspaceSettingsSpy.mockClear();
   Object.defineProperty(window, "innerWidth", {
     configurable: true,
@@ -294,5 +308,57 @@ describe("App: narrow-screen navigation", () => {
     expect(fileBrowserToggle.classList.contains("active")).toBe(false);
 
     fireEvent.click(fileBrowserToggle);
+  });
+});
+
+describe("App: Split-mode breadcrumb authority (spec section 7.5)", () => {
+  it("defaults to Source, switches to Preview on a direct Preview scroll, and back to Source on a cursor action", () => {
+    viewMode.value = "split";
+    openOrFocusTab("/vault/note.md", "note.md", "# One\n\n## Two", "text");
+    const { getByRole, container } = render(<App />);
+
+    // The App.test.tsx MarkdownEditor mock, unlike the real editor, never
+    // reports a cursor position on mount; drive its stand-in button once
+    // first so cursorPos is populated the same way it would be for real.
+    fireEvent.click(
+      container.querySelector('[data-testid="mock-editor-cursor-move"]')!,
+    );
+    expect(
+      getByRole("navigation", { name: "Breadcrumb (following Source)" }),
+    ).toBeTruthy();
+
+    const preview = container.querySelector(".markdown-preview")!;
+    fireEvent.scroll(preview);
+    expect(
+      getByRole("navigation", { name: "Breadcrumb (following Preview)" }),
+    ).toBeTruthy();
+
+    fireEvent.click(
+      container.querySelector('[data-testid="mock-editor-cursor-move"]')!,
+    );
+    expect(
+      getByRole("navigation", { name: "Breadcrumb (following Source)" }),
+    ).toBeTruthy();
+  });
+
+  it("resets authority to Source when switching to a different note", () => {
+    viewMode.value = "split";
+    openOrFocusTab("/vault/a.md", "a.md", "# One", "text");
+    openOrFocusTab("/vault/b.md", "b.md", "# Other", "text");
+    const { getByRole, getByText, container } = render(<App />);
+
+    fireEvent.click(
+      container.querySelector('[data-testid="mock-editor-cursor-move"]')!,
+    );
+    const preview = container.querySelector(".markdown-preview")!;
+    fireEvent.scroll(preview);
+    expect(
+      getByRole("navigation", { name: "Breadcrumb (following Preview)" }),
+    ).toBeTruthy();
+
+    fireEvent.click(getByText("a.md"));
+    expect(
+      getByRole("navigation", { name: "Breadcrumb (following Source)" }),
+    ).toBeTruthy();
   });
 });

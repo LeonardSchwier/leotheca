@@ -162,4 +162,43 @@ describe("HeadingBreadcrumbs", () => {
     expect(getByText("Note")).toBeTruthy();
     expect(getByText("First").getAttribute("aria-current")).toBe("location");
   });
+
+  it("names the active source in the nav's accessible label for a cursor source", () => {
+    const { getByRole } = render(
+      <HeadingBreadcrumbs
+        noteTitle="Note"
+        content="# Heading\nBody."
+        activeSource={{ kind: "cursor", offset: 0 }}
+        onSelectRoot={vi.fn()}
+        onSelectHeading={vi.fn()}
+      />,
+    );
+    expect(getByRole("navigation", { name: "Breadcrumb (following Source)" })).toBeTruthy();
+  });
+
+  it("names the active source in the nav's accessible label for a previewIndex source", () => {
+    const { getByRole } = render(
+      <HeadingBreadcrumbs
+        noteTitle="Note"
+        content="# Heading\nBody."
+        activeSource={{ kind: "previewIndex", index: 0 }}
+        onSelectRoot={vi.fn()}
+        onSelectHeading={vi.fn()}
+      />,
+    );
+    expect(getByRole("navigation", { name: "Breadcrumb (following Preview)" })).toBeTruthy();
+  });
+
+  it("falls back to a plain label when no active source is tracked yet", () => {
+    const { getByRole } = render(
+      <HeadingBreadcrumbs
+        noteTitle="Note"
+        content="# Heading\nBody."
+        activeSource={{ kind: "none" }}
+        onSelectRoot={vi.fn()}
+        onSelectHeading={vi.fn()}
+      />,
+    );
+    expect(getByRole("navigation", { name: "Breadcrumb" })).toBeTruthy();
+  });
 });

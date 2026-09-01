@@ -44,6 +44,7 @@ import { BacklinksPanel } from "../linking/BacklinksPanel";
 import { OutlinePanel } from "../outline/OutlinePanel";
 import { outlineRevealRequest, requestOutlineReveal } from "../outline/outlineNavigation";
 import { HeadingBreadcrumbs } from "../outline/HeadingBreadcrumbs";
+import { nextSplitAuthority, type SplitAuthority } from "../outline/splitAuthority";
 import {
   linkIndexBuilding,
   linkIndexUnreadablePaths,
@@ -211,11 +212,17 @@ export function App() {
   const [cursorPos, setCursorPos] = useState<number | null>(null);
   // Preview-mode counterpart to cursorPos (spec section 7.4): the index,
   // among MarkdownPreview's own rendered heading elements, that has
-  // crossed the reading threshold. Only meaningful in Preview-only view
-  // mode for now; Split-mode authority switching between this and
-  // cursorPos (section 7.5) is a later phase, see HeadingBreadcrumbs's
-  // own doc comment.
+  // crossed the reading threshold.
   const [previewActiveIndex, setPreviewActiveIndex] = useState<number | undefined>(undefined);
+  // Split-mode breadcrumb authority (spec section 7.5): which of
+  // cursorPos/previewActiveIndex above HeadingBreadcrumbs should actually
+  // follow while both panes are visible. Only consulted when viewMode is
+  // "split" (see the activeSource prop below); fed by every real Source
+  // cursor/keyboard action and every real, direct Preview interaction
+  // regardless of the current view mode, so it already reflects the
+  // right pane the moment the user switches into Split. See
+  // src/outline/splitAuthority.ts for the transition rule itself.
+  const [splitAuthority, setSplitAuthority] = useState<SplitAuthority>("source");
 
   useEffect(() => {
     const p = initSettings();
@@ -381,6 +388,13 @@ export function App() {
   const current = activeTab();
   const currentBookmark =
     current && bookmarks.value.find((b) => b.kind === "file" && b.path === current.path);
+
+  // Reset Split-mode breadcrumb authority (spec section 7.5) whenever the
+  // active note changes: an authority carried over from a different
+  // note's Split session has nothing to do with this one.
+  useEffect(() => {
+    setSplitAuthority(nextSplitAuthority("note-changed"));
+  }, [current?.path]);
 
   const toggleCurrentNoteBookmark = () => {
     if (!current) return;
@@ -735,7 +749,8 @@ export function App() {
                   noteTitle={current.name}
                   content={current.content}
                   activeSource={
-                    viewMode.value === "preview"
+                    viewMode.value === "preview" ||
+                    (viewMode.value === "split" && splitAuthority === "preview")
                       ? previewActiveIndex !== undefined
                         ? { kind: "previewIndex", index: previewActiveIndex }
                         : { kind: "none" }
@@ -764,7 +779,10 @@ export function App() {
                       snippetsEnabled={workspaceSettings.value.snippetsEnabled}
                       snippets={workspaceSettings.value.snippets}
                       reveal={outlineRevealRequest.value}
-                      onCursorChange={setCursorPos}
+                      onCursorChange={(pos) => {
+                        setCursorPos(pos);
+                        setSplitAuthority(nextSplitAuthority("source-cursor"));
+                      }}
                     />
                   )}
                   {viewMode.value !== "source" && (
@@ -774,6 +792,9 @@ export function App() {
                       mathRenderingEnabled={workspaceSettings.value.mathRenderingEnabled}
                       notePath={current.path}
                       onActiveHeadingChange={setPreviewActiveIndex}
+                      onDirectInteraction={() =>
+                        setSplitAuthority(nextSplitAuthority("preview-interaction"))
+                      }
                     />
                   )}
                 </div>

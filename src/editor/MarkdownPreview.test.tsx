@@ -380,3 +380,59 @@ describe("MarkdownPreview: onActiveHeadingChange", () => {
     expect(onActiveHeadingChange).toHaveBeenLastCalledWith(1);
   });
 });
+
+describe("MarkdownPreview: onDirectInteraction", () => {
+  it("does not fire for the initial mount recompute", () => {
+    const onDirectInteraction = vi.fn();
+    render(
+      <MarkdownPreview source={"# One\n\n## Two"} onDirectInteraction={onDirectInteraction} />,
+    );
+    expect(onDirectInteraction).not.toHaveBeenCalled();
+  });
+
+  it("does not fire for a recompute triggered by a content change alone", () => {
+    const onDirectInteraction = vi.fn();
+    const { rerender } = render(
+      <MarkdownPreview source={"# One"} onDirectInteraction={onDirectInteraction} />,
+    );
+    rerender(<MarkdownPreview source={"# One\n\n## Two"} onDirectInteraction={onDirectInteraction} />);
+    expect(onDirectInteraction).not.toHaveBeenCalled();
+  });
+
+  it("fires on a real scroll event", () => {
+    const onDirectInteraction = vi.fn();
+    const { container } = render(
+      <MarkdownPreview source={"# One\n\n## Two"} onDirectInteraction={onDirectInteraction} />,
+    );
+    const preview = container.querySelector(".markdown-preview")!;
+    fireEvent.scroll(preview);
+    expect(onDirectInteraction).toHaveBeenCalledTimes(1);
+  });
+
+  it("fires on a click anywhere inside the preview, not only on a wikilink", () => {
+    const onDirectInteraction = vi.fn();
+    const { container } = render(
+      <MarkdownPreview source={"Just a paragraph."} onDirectInteraction={onDirectInteraction} />,
+    );
+    const preview = container.querySelector(".markdown-preview")!;
+    fireEvent.click(preview);
+    expect(onDirectInteraction).toHaveBeenCalledTimes(1);
+  });
+
+  it("fires on a keydown inside the preview", () => {
+    const onDirectInteraction = vi.fn();
+    const { container } = render(
+      <MarkdownPreview source={"# One"} onDirectInteraction={onDirectInteraction} />,
+    );
+    const preview = container.querySelector(".markdown-preview")!;
+    fireEvent.keyDown(preview, { key: "Tab" });
+    expect(onDirectInteraction).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not require onDirectInteraction to be supplied", () => {
+    const { container } = render(<MarkdownPreview source={"# One"} />);
+    const preview = container.querySelector(".markdown-preview")!;
+    expect(() => fireEvent.scroll(preview)).not.toThrow();
+    expect(() => fireEvent.click(preview)).not.toThrow();
+  });
+});

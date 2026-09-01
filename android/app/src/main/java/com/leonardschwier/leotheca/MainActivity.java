@@ -53,7 +53,7 @@ public class MainActivity extends BridgeActivity {
     }
 
     @Override
-    protected void onDestroy() {
+    public void onDestroy() {
         if (newNoteTrackerExecutor != null) {
             newNoteTrackerExecutor.shutdownNow();
             newNoteTrackerExecutor = null;

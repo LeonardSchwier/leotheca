@@ -10,6 +10,15 @@ import * as android from "./capacitorBridgeImpl";
  */
 const impl = Capacitor.isNativePlatform() ? android : desktop;
 
+/** Whether this session is running on the Android/Capacitor bridge rather
+ * than the Tauri desktop shell. A function, not a precomputed constant, so
+ * callers that need platform-specific tuning (e.g. linking/store.ts's
+ * read concurrency) get a value tests can freely override per case with
+ * `vi.fn()`, rather than one baked in at this module's own import time. */
+export function isNativePlatform(): boolean {
+  return Capacitor.isNativePlatform();
+}
+
 // A workspace transition cannot safely replace Android's synthetic
 // `/workspace` SAF grant while an older read, mutation, or attachment write
 // is still inside the native bridge. Track every workspace-facing operation

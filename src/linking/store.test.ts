@@ -9,18 +9,22 @@ import {
   resolveWikilink,
 } from "./store";
 
-const { findMarkdownFiles, readTextFile, writeWorkspaceTextFile } = vi.hoisted(
-  () => ({
+const { findMarkdownFiles, readTextFile, writeWorkspaceTextFile, isNativePlatform } =
+  vi.hoisted(() => ({
     findMarkdownFiles: vi.fn(),
     readTextFile: vi.fn(),
     writeWorkspaceTextFile: vi.fn(),
-  }),
-);
+    // Defaults to true (Android/native) so every existing test, written
+    // before platform-specific concurrency existed, keeps exercising the
+    // original 8-way cap without needing its own override.
+    isNativePlatform: vi.fn(() => true),
+  }));
 
 vi.mock("../workspace/tauriBridge", () => ({
   findMarkdownFiles,
   readTextFile,
   writeWorkspaceTextFile,
+  isNativePlatform,
 }));
 
 const CACHE_PATH = "/workspace/.leotheca/link-index-cache.json";
@@ -40,6 +44,7 @@ describe("wikilink index", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     writeWorkspaceTextFile.mockResolvedValue(undefined);
+    isNativePlatform.mockReturnValue(true);
     linkIndex.value = {
       backlinksByPath: new Map(),
       pathsByNoteName: new Map(),
@@ -166,6 +171,41 @@ describe("wikilink index", () => {
     expect(linkIndexUnreadablePaths.value).toEqual(["/workspace/note-5.md"]);
   });
 
+  it("uses a higher read concurrency on desktop than on Android", async () => {
+    const paths = Array.from(
+      { length: 40 },
+      (_, i) => `/workspace/note-${i}.md`,
+    );
+    findMarkdownFiles.mockResolvedValue(
+      paths.map((path, i) => ({ name: `note-${i}.md`, path, isDir: false })),
+    );
+
+    async function measureMaxInFlight(): Promise<number> {
+      resetLinkIndexCache();
+      let inFlight = 0;
+      let maxInFlight = 0;
+      readTextFile.mockImplementation(async (path: string) => {
+        if (path === CACHE_PATH) throw new Error("no cache file yet");
+        inFlight++;
+        maxInFlight = Math.max(maxInFlight, inFlight);
+        await new Promise((resolve) => setTimeout(resolve, 1));
+        inFlight--;
+        return "";
+      });
+      await rebuildLinkIndex("/workspace");
+      return maxInFlight;
+    }
+
+    isNativePlatform.mockReturnValue(true);
+    const androidMaxInFlight = await measureMaxInFlight();
+    expect(androidMaxInFlight).toBeLessThanOrEqual(8);
+
+    isNativePlatform.mockReturnValue(false);
+    const desktopMaxInFlight = await measureMaxInFlight();
+    expect(desktopMaxInFlight).toBeGreaterThan(8);
+    expect(desktopMaxInFlight).toBeLessThanOrEqual(24);
+  });
+
   it("reports an empty linkIndexUnreadablePaths after a rebuild in which every note reads successfully (audit follow-up F-012)", async () => {
     findMarkdownFiles.mockResolvedValue([
       { name: "a.md", path: "/workspace/a.md", isDir: false },
@@ -235,6 +275,7 @@ describe("rebuildLinkIndex: mtime-based caching", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     writeWorkspaceTextFile.mockResolvedValue(undefined);
+    isNativePlatform.mockReturnValue(true);
     linkIndex.value = {
       backlinksByPath: new Map(),
       pathsByNoteName: new Map(),
@@ -539,6 +580,7 @@ describe("rebuildLinkIndex: aliases", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     writeWorkspaceTextFile.mockResolvedValue(undefined);
+    isNativePlatform.mockReturnValue(true);
     linkIndex.value = {
       backlinksByPath: new Map(),
       pathsByNoteName: new Map(),
@@ -654,6 +696,7 @@ describe("rebuildLinkIndex: tags", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     writeWorkspaceTextFile.mockResolvedValue(undefined);
+    isNativePlatform.mockReturnValue(true);
     linkIndex.value = {
       backlinksByPath: new Map(),
       pathsByNoteName: new Map(),

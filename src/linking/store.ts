@@ -1,6 +1,7 @@
 import { signal } from "@preact/signals";
 import {
   findMarkdownFiles as walkMarkdownFiles,
+  isNativePlatform,
   readTextFile,
   writeWorkspaceTextFile,
 } from "../workspace/tauriBridge";
@@ -78,8 +79,25 @@ async function findMarkdownFiles(rootPath: string): Promise<FsEntry[]> {
 }
 
 // At most this many notes are read concurrently while rebuilding the link
-// index, see mapWithConcurrency's doc comment for why.
-const LINK_INDEX_READ_CONCURRENCY = 8;
+// index, see mapWithConcurrency's doc comment for why. 8 was originally
+// chosen for Android SAF compatibility (a SAF content provider can choke
+// on a much larger burst of concurrent document reads) and applied
+// uniformly to every platform. On Tauri desktop, IPC round trips to the
+// Rust backend are far cheaper than SAF document-provider calls, so the
+// same cap was leaving real cold-start rebuild time on the table there;
+// bumped desktop's own cap to 24 (within the 16-32 range this gap
+// originally suggested, chosen as a middle value rather than the extreme
+// end since a markdown vault's individual file reads are already small
+// and the concurrency win has diminishing returns past this). Android
+// keeps its original 8.
+const DESKTOP_LINK_INDEX_READ_CONCURRENCY = 24;
+const ANDROID_LINK_INDEX_READ_CONCURRENCY = 8;
+
+function linkIndexReadConcurrency(): number {
+  return isNativePlatform()
+    ? ANDROID_LINK_INDEX_READ_CONCURRENCY
+    : DESKTOP_LINK_INDEX_READ_CONCURRENCY;
+}
 
 interface CachedNote {
   mtime: number;
@@ -251,7 +269,7 @@ export async function rebuildLinkIndex(
 
     await mapWithConcurrency(
       noteEntries,
-      LINK_INDEX_READ_CONCURRENCY,
+      linkIndexReadConcurrency(),
       async (entry) => {
         if (!isCurrentRequest()) return;
         const cached = wikilinkCache.get(entry.path);

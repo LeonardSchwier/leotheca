@@ -579,6 +579,45 @@ fn resolve_within_workspace(workspace_root: &str, relative_path: &str) -> Result
     }
 }
 
+/// Writes `bytes` to `target` crash-safely (audit follow-up F-004's
+/// remaining "atomic replacement" item): writes to a sibling temporary
+/// file in the same directory first, then atomically renames it over
+/// `target`, instead of `fs::write`ing `target` directly. A direct
+/// `fs::write` truncates the destination before writing the new content,
+/// so a crash, power loss, or killed process partway through leaves the
+/// file empty or half-written; renaming a fully-written temp file over
+/// the target is atomic on both POSIX (`rename(2)`) and Windows (Rust's
+/// `fs::rename` uses `MoveFileExW` with the replace flag there), so
+/// `target` always ends up holding either its old complete contents or
+/// its new complete contents, never a partial write. The temp file must
+/// sit in `target`'s own directory, not a global temp directory: `rename`
+/// is only atomic within a single filesystem/volume, and a cross-volume
+/// "rename" silently falls back to copy-then-delete, losing the
+/// guarantee this exists for. Callers still create `target`'s parent
+/// directory themselves first, since the parent must exist before the
+/// temp file can be written into it.
+fn write_file_atomically(target: &Path, bytes: &[u8]) -> Result<(), String> {
+    let parent = target.parent().unwrap_or_else(|| Path::new("."));
+    let file_name = target
+        .file_name()
+        .ok_or_else(|| "target has no file name".to_string())?
+        .to_string_lossy();
+    let stamp = std::time::SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0);
+    let temp_path = parent.join(format!(
+        ".{file_name}.leotheca-tmp-{stamp}-{}",
+        std::process::id()
+    ));
+
+    fs::write(&temp_path, bytes).map_err(|e| e.to_string())?;
+    fs::rename(&temp_path, target).map_err(|e| {
+        let _ = fs::remove_file(&temp_path);
+        e.to_string()
+    })
+}
+
 /// Writes `contents` to a workspace-relative path, after verifying with
 /// `resolve_within_workspace` that it cannot escape `workspace_root`. This
 /// is the workspace-scoped counterpart to `write_text_file` below, which
@@ -595,7 +634,7 @@ pub fn write_workspace_text_file(
     if let Some(parent) = target.parent() {
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
-    fs::write(&target, contents).map_err(|e| e.to_string())
+    write_file_atomically(&target, contents.as_bytes())
 }
 
 /// Same containment guarantee as `write_workspace_text_file`, for binary
@@ -611,7 +650,7 @@ pub fn write_workspace_binary_file(
     if let Some(parent) = target.parent() {
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
-    fs::write(&target, data).map_err(|e| e.to_string())
+    write_file_atomically(&target, &data)
 }
 
 /// Creates a workspace-relative directory (and any missing intermediate
@@ -657,14 +696,18 @@ pub fn delete_workspace_path_permanent(
 
 /// Writes `contents` to `path`, creating any missing parent directories
 /// first (needed for first-run writes like the settings file, whose config
-/// directory may not exist yet).
+/// directory may not exist yet). This is the command the actual
+/// keystroke-autosave path still goes through (`saveCoordinator.ts`; see
+/// F-004's own notes on why its containment-check migration is deferred),
+/// so it gets the same crash-safe atomic replacement as the
+/// workspace-scoped writes above, via `write_file_atomically`.
 #[tauri::command]
 pub fn write_text_file(path: String, contents: String) -> Result<(), String> {
     let target = Path::new(&path);
     if let Some(parent) = target.parent() {
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
-    fs::write(target, contents).map_err(|e| e.to_string())
+    write_file_atomically(target, contents.as_bytes())
 }
 
 /// Writes raw bytes to `path`, creating any missing parent directories
@@ -682,7 +725,7 @@ pub fn write_binary_file(path: String, data: Vec<u8>) -> Result<(), String> {
     if let Some(parent) = target.parent() {
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
-    fs::write(target, data).map_err(|e| e.to_string())
+    write_file_atomically(target, &data)
 }
 
 /// Creates `path` and any missing parent directories. Does not error if the
@@ -919,6 +962,82 @@ mod tests {
 
         assert_eq!(fs::read(&tmp).unwrap(), vec![9, 9]);
         fs::remove_file(&tmp).unwrap();
+    }
+
+    #[test]
+    fn write_file_atomically_leaves_no_temp_file_behind_after_a_successful_write() {
+        let base = std::env::temp_dir().join(format!(
+            "leotheca-test-atomicwrite-cleanup-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&base);
+        fs::create_dir_all(&base).unwrap();
+        let target = base.join("note.md");
+
+        write_file_atomically(&target, b"hello").unwrap();
+        write_file_atomically(&target, b"updated").unwrap();
+
+        assert_eq!(fs::read(&target).unwrap(), b"updated");
+        let remaining: Vec<_> = fs::read_dir(&base)
+            .unwrap()
+            .map(|entry| entry.unwrap().file_name())
+            .collect();
+        assert_eq!(remaining, vec![std::ffi::OsString::from("note.md")]);
+        fs::remove_dir_all(&base).unwrap();
+    }
+
+    #[test]
+    fn write_file_atomically_creates_nothing_when_the_temp_write_itself_fails() {
+        // The target's parent directory does not exist and write_file_atomically
+        // (unlike its tauri-command callers) does not create it, so the initial
+        // fs::write to the temp path fails before any rename is attempted.
+        let base = std::env::temp_dir().join(format!(
+            "leotheca-test-atomicwrite-nopath-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&base);
+        let target = base.join("missing-parent").join("note.md");
+
+        let result = write_file_atomically(&target, b"data");
+
+        assert!(result.is_err());
+        assert!(!target.exists());
+    }
+
+    #[test]
+    fn write_file_atomically_leaves_the_original_target_untouched_when_the_final_rename_fails() {
+        // A regular file can't be renamed over a non-empty directory, so this
+        // forces the rename step specifically to fail after the temp file has
+        // already been fully written, proving the target survives that failure
+        // with its original contents intact rather than ending up corrupted or
+        // half-replaced, and that the now-orphaned temp file is cleaned up.
+        let base = std::env::temp_dir().join(format!(
+            "leotheca-test-atomicwrite-renamefails-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&base);
+        let target = base.join("existing-dir");
+        fs::create_dir_all(&target).unwrap();
+        fs::write(target.join("keep.txt"), b"original").unwrap();
+
+        let result = write_file_atomically(&target, b"new content");
+
+        assert!(result.is_err());
+        assert!(target.is_dir());
+        assert_eq!(fs::read(target.join("keep.txt")).unwrap(), b"original");
+        let leftover_temp_files: Vec<_> = fs::read_dir(&base)
+            .unwrap()
+            .filter(|entry| {
+                entry
+                    .as_ref()
+                    .unwrap()
+                    .file_name()
+                    .to_string_lossy()
+                    .contains("leotheca-tmp")
+            })
+            .collect();
+        assert!(leftover_temp_files.is_empty());
+        fs::remove_dir_all(&base).unwrap();
     }
 
     #[test]

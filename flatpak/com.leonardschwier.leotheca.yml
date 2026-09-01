@@ -12,9 +12,6 @@ finish-args:
   - --socket=wayland
   - --socket=fallback-x11
   - --device=dri
-  # Read-write access to the user's own folders, needed to open a
-  # workspace folder anywhere the user picks, not just inside the sandbox.
-  - --filesystem=home
 
 build-options:
   append-path: /usr/lib/sdk/rust-stable/bin:/usr/lib/sdk/node20/bin

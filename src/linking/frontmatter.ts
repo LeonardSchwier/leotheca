@@ -50,18 +50,31 @@ function parseBlockList(lines: string[], startIndex: number): string[] {
   return items;
 }
 
+/** One precompiled pattern per list-shaped field this app reads, built
+ * once at module load rather than per call: `extractAliases`/
+ * `extractFrontmatterTags` run once per note during a workspace index
+ * rebuild, so a `new RegExp(...)` inside `extractListField` would mean
+ * one allocation per note, per enabled field, on every rebuild. Neither
+ * pattern uses the `g`/`y` flags, so reusing the same compiled `RegExp`
+ * object across calls carries no `lastIndex`-carryover risk between
+ * unrelated notes. */
+const LIST_FIELD_PATTERNS = {
+  aliases: /^aliases:\s*(.*)$/,
+  tags: /^tags:\s*(.*)$/,
+} as const;
+
 /** Reads a single top-level list-shaped frontmatter field, as either a
  * single scalar (`key: Foo`), an inline list (`key: [Foo, Bar]`), or a
  * YAML block list (`key:` followed by `  - Foo` lines). Returns an empty
  * array when there's no frontmatter block, or no `key` field in it. Shared
  * by extractAliases and extractFrontmatterTags below, the only two fields
  * this app reads this way outside of the generic Properties panel. */
-function extractListField(source: string, key: string): string[] {
+function extractListField(source: string, key: keyof typeof LIST_FIELD_PATTERNS): string[] {
   const block = FRONTMATTER_BLOCK.exec(source);
   if (!block) return [];
 
   const lines = block[1].split(/\r?\n/);
-  const pattern = new RegExp(`^${key}:\\s*(.*)$`);
+  const pattern = LIST_FIELD_PATTERNS[key];
   for (let i = 0; i < lines.length; i++) {
     const match = pattern.exec(lines[i]);
     if (!match) continue;

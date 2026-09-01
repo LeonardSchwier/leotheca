@@ -17,6 +17,10 @@
 /android/app/build/
 /android/.gradle/
 /android/capacitor-cordova-android-plugins/build/
+# Debug keystore (embedded as base64 in CI workflow, safe to commit)
+# but keep the decoded copy out of the repo so it doesn't accidentally
+# become a release key
+~/.config/.android/debug.keystore*
 
 # OS
 .DS_Store

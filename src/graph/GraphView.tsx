@@ -3,6 +3,7 @@ import { linkIndex } from "../linking/store";
 import { updateWorkspaceSettings, workspaceSettings } from "../settings/store";
 import type { GraphColorGroup } from "../settings/workspaceSettings";
 import { computeLayout, type Point } from "./layout";
+import { createGraphLayoutCoordinator } from "./layoutCoordinator";
 import { computeZoomTransform, findNodeAtWorld, screenToWorld, type Transform } from "./transform";
 import "./graph.css";
 
@@ -165,6 +166,8 @@ export function GraphView({ onOpenFile, onClose, focusPath }: GraphViewProps) {
     offsetX: number;
     offsetY: number;
   } | null>(null);
+  const layoutCoordinatorRef = useRef<ReturnType<typeof createGraphLayoutCoordinator>>();
+  if (!layoutCoordinatorRef.current) layoutCoordinatorRef.current = createGraphLayoutCoordinator();
   const [showAll, setShowAll] = useState(false);
   const [mode, setMode] = useState<"workspace" | "local">("workspace");
   // filterInput reflects every keystroke immediately (so the text box never
@@ -180,6 +183,7 @@ export function GraphView({ onOpenFile, onClose, focusPath }: GraphViewProps) {
   useEffect(() => {
     return () => {
       if (filterTimerRef.current) clearTimeout(filterTimerRef.current);
+      layoutCoordinatorRef.current?.cancel();
     };
   }, []);
 
@@ -237,6 +241,13 @@ export function GraphView({ onOpenFile, onClose, focusPath }: GraphViewProps) {
     ctx.restore();
   };
 
+  const publishLayout = (edges: [string, string][], positions: Map<string, Point>) => {
+    edgesRef.current = edges;
+    positionsRef.current = positions;
+    transformRef.current = { offsetX: 0, offsetY: 0, scale: 1 };
+    draw();
+  };
+
   const layoutAndDraw = () => {
     const container = containerRef.current;
     const canvas = canvasRef.current;
@@ -249,16 +260,23 @@ export function GraphView({ onOpenFile, onClose, focusPath }: GraphViewProps) {
     canvas.height = height;
 
     const { backlinksByPath } = linkIndex.value;
-    const { nodes: nodePaths, edges } = computeVisibleGraph(backlinksByPath, {
+    const { nodes, edges } = computeVisibleGraph(backlinksByPath, {
       isLocal,
       focusPath,
       showAll,
       filterQuery,
     });
-    edgesRef.current = edges;
-    positionsRef.current = computeLayout(nodePaths, edges, width, height);
-    transformRef.current = { offsetX: 0, offsetY: 0, scale: 1 };
-    draw();
+
+    // The first visible layout remains synchronous so the canvas is immediately
+    // interactive when it appears. The bounded algorithm makes that work safe.
+    // Subsequent resize/filter requests are coalesced and generation-owned.
+    if (positionsRef.current.size === 0) {
+      publishLayout(edges, computeLayout(nodes, edges, width, height));
+      return;
+    }
+    layoutCoordinatorRef.current!.request({ nodes, edges, width, height }, (positions) => {
+      publishLayout(edges, positions);
+    });
   };
 
   useEffect(() => {
@@ -273,7 +291,10 @@ export function GraphView({ onOpenFile, onClose, focusPath }: GraphViewProps) {
     layoutAndDraw();
     const observer = new ResizeObserver(() => layoutAndDraw());
     observer.observe(container);
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      layoutCoordinatorRef.current?.cancel();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showAll, isLocal, focusPath, filterQuery]);
 

@@ -24,9 +24,16 @@ RepoType: git
 Repo: https://github.com/LeonardSchwier/leotheca.git
 
 Builds:
-  - versionName: "1.0"
-    versionCode: 1
-    commit: 516249983daf5fb3dc421f9a2ad436ed22a44ea8
+  # versionName/versionCode/commit are kept in sync with the root VERSION
+  # file (audit follow-up F-015; validated by `npm run check-version`).
+  # `commit` names the future v0.1.0 tag rather than the main branch: F-Droid
+  # (and reproducible builds generally) require a build recipe to reference
+  # an immutable ref, not a moving branch. That tag does not exist yet (see
+  # packaging/f-droid/README.md); this entry, and the versionCode below,
+  # must be updated together if the version changes again before it is cut.
+  - versionName: "0.1.0"
+    versionCode: 100
+    commit: v0.1.0
     subdir: android
     sudo:
       - apt-get update
@@ -46,8 +53,7 @@ Builds:
       - yes
     output: app/build/outputs/apk/release/app-release-unsigned.apk
 
-AutoUpdateMode: Version
-UpdateCheckMode: Tags ^v[0-9]+\.[0-9]+\.[0-9]+$
-UpdateCheckData: 'android/app/build.gradle|versionCode\s+(\d+)|.|versionName\s+"([^"]+)"'
-CurrentVersion: "1.0"
-CurrentVersionCode: 1
+AutoUpdateMode: None
+UpdateCheckMode: None
+CurrentVersion: "0.1.0"
+CurrentVersionCode: 100

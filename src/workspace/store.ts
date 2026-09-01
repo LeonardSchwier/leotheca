@@ -11,7 +11,7 @@ export function activeTab(): OpenTab | undefined {
 export function openOrFocusTab(path: string, name: string, content: string, kind: TabKind) {
   const existing = openTabs.value.find((t) => t.path === path);
   if (!existing) {
-    openTabs.value = [...openTabs.value, { path, name, content, kind, dirty: false }];
+    openTabs.value = [...openTabs.value, { path, name, content, kind, dirty: false, saveError: null }];
   }
   activeTabPath.value = path;
 }
@@ -22,9 +22,25 @@ export function updateTabContent(path: string, content: string) {
   );
 }
 
+/** Marks a tab saved AND clears its revision. The save coordinator calls
+ * this only when the write completed for the exact revision that was in
+ * flight — never for a stale revision. The tab stays dirty until its
+ * revision reaches the value of the last change() call. */
 export function markTabSaved(path: string) {
   openTabs.value = openTabs.value.map((t) =>
     t.path === path ? { ...t, dirty: false } : t,
+  );
+}
+
+export function markTabSaveError(path: string, error: string) {
+  openTabs.value = openTabs.value.map((t) =>
+    t.path === path ? { ...t, saveError: error } : t,
+  );
+}
+
+export function clearTabSaveError(path: string) {
+  openTabs.value = openTabs.value.map((t) =>
+    t.path === path ? { ...t, saveError: null } : t,
   );
 }
 

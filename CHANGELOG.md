@@ -10,5 +10,6 @@
 - Android now exposes New note and Favorites as separate home-screen widgets instead of combining both actions in one widget.
 - Frontmatter property edits now preserve unrelated comments, ordering, line endings, scalar types, and unsupported structures instead of rebuilding the entire frontmatter block. Complex values that cannot be edited losslessly in the Properties panel are shown read-only and remain editable in Source view.
 - Opening a workspace now shows one level of folder structure right away instead of just the root; the existing "Expand all" button still walks the whole tree recursively.
+- Switching between open notes no longer tears down and rebuilds the editor from scratch; large documents should feel noticeably snappier to switch into.
 
 Entries will accumulate here from the first tagged release onward.

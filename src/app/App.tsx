@@ -735,7 +735,6 @@ export function App() {
                 <div class={`editor-panes mode-${viewMode.value}`}>
                   {viewMode.value !== "preview" && (
                     <MarkdownEditor
-                      key={current.path}
                       path={current.path}
                       value={current.content}
                       onChange={(value) => handleChange(current.path, value)}

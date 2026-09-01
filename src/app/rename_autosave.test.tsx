@@ -16,6 +16,7 @@ vi.mock("../settings/store", () => {
     workspaceSession: signal("test-session"),
     settingsLoaded: signal(false),
     settingsPanelOpen: signal(false),
+    workspaceSelectionError: signal<string | null>(null),
     viewMode: signal("source"),
     initSettings: vi.fn(),
     workspaceSettings,
@@ -156,22 +157,14 @@ describe("App: tab rename while an autosave is still pending", () => {
     ) as HTMLTextAreaElement;
     fireEvent.input(editor, { target: { value: "typed content" } });
 
-    // Open rename dialog
     fireEvent.contextMenu(container.querySelector(".tab")!);
     fireEvent.click(getByRole("button", { name: "Rename" }));
 
     const nameInput =
       container.querySelector<HTMLInputElement>(".name-prompt input")!;
     fireEvent.input(nameInput, { target: { value: "renamed.md" } });
-
-    // fireEvent.click on an async callback doesn't await the promise.
-    // The NamePrompt's onSubmit calls handleTabRenameSubmit which is async.
-    // We need to manually await the async chain. Use setTimeout to let
-    // the microtask queue process (real timers are active here).
     fireEvent.click(getByRole("button", { name: "Rename" }));
 
-    // Wait for the async rename flow to complete.
-    // The coordinator's flush() returns a promise that needs to resolve.
     await new Promise((resolve) => setTimeout(resolve, 10));
 
     expect(order).toEqual([

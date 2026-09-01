@@ -4,11 +4,6 @@ import { act, cleanup, fireEvent, render } from "@testing-library/preact";
 import { signal } from "@preact/signals";
 import { DEFAULT_WORKSPACE_SETTINGS } from "../settings/workspaceSettings";
 
-// A minimal, narrowly-scoped harness for App-level interactions that need
-// real window events or top-level state wiring, not general App.tsx coverage.
-// The zoom tests open a minimal workspace, so Sidebar is replaced with a
-// no-op below; the other optional panels are never reached and don't need
-// mocking.
 const { updateWorkspaceSettingsSpy } = vi.hoisted(() => ({
   updateWorkspaceSettingsSpy: vi.fn(),
 }));
@@ -21,6 +16,7 @@ vi.mock("../settings/store", () => {
     workspaceSession: signal(0),
     settingsLoaded: signal(false),
     settingsPanelOpen: signal(false),
+    workspaceSelectionError: signal<string | null>(null),
     viewMode: signal("source"),
     initSettings: vi.fn(),
     workspaceSettings,
@@ -75,10 +71,6 @@ vi.mock("../workspace/fileTreeStore", () => ({
   selectedDir: signal<string | null>(null),
 }));
 
-// Real @tauri-apps/plugin-deep-link and plugin-clipboard-manager reach for
-// window.__TAURI_INTERNALS__, absent in jsdom; App.tsx's automation-command
-// effect (see automationCommands.ts) is exercised by automationCommands'
-// own unit tests, not by this file, so a plain no-op stand-in is enough here.
 vi.mock("@tauri-apps/plugin-deep-link", () => ({
   getCurrent: vi.fn(async () => null),
   onOpenUrl: vi.fn(async () => () => {}),
@@ -100,8 +92,6 @@ vi.mock("../workspace/Sidebar", () => ({
   ),
 }));
 
-// Stand in for CodeMirror with a plain, interactive textarea: this test
-// exercises App.tsx's own handleChange/autosave logic, not the editor.
 vi.mock("../editor/MarkdownEditor", () => ({
   MarkdownEditor: ({
     value,
@@ -118,10 +108,6 @@ vi.mock("../editor/MarkdownEditor", () => ({
   ),
 }));
 
-// SettingsPanel has its own extensive dedicated test file and needs a much
-// larger settings/store mock than this file cares about; the Ctrl+, test
-// below only needs to verify the shortcut flips settingsPanelOpen, not that
-// SettingsPanel itself renders correctly.
 vi.mock("../settings/SettingsPanel", () => ({
   SettingsPanel: () => null,
 }));
@@ -165,11 +151,11 @@ describe("App: keyboard shortcuts", () => {
   it("Ctrl+Tab cycles to the next tab, wrapping around, and Ctrl+Shift+Tab goes backward", () => {
     openOrFocusTab("/vault/a.md", "a.md", "", "text");
     openOrFocusTab("/vault/b.md", "b.md", "", "text");
-    openOrFocusTab("/vault/c.md", "c.md", "", "text"); // active is now c.md
+    openOrFocusTab("/vault/c.md", "c.md", "", "text");
     render(<App />);
 
     fireEvent.keyDown(window, { key: "Tab", ctrlKey: true });
-    expect(activeTabPath.value).toBe("/vault/a.md"); // wraps past the end
+    expect(activeTabPath.value).toBe("/vault/a.md");
 
     fireEvent.keyDown(window, { key: "Tab", ctrlKey: true });
     expect(activeTabPath.value).toBe("/vault/b.md");
@@ -187,7 +173,7 @@ describe("App: keyboard shortcuts", () => {
       '[data-testid="mock-editor"]',
     ) as HTMLTextAreaElement;
     fireEvent.input(editor, { target: { value: "typed content" } });
-    expect(writeTextFile).not.toHaveBeenCalled(); // debounce hasn't fired on its own
+    expect(writeTextFile).not.toHaveBeenCalled();
 
     await act(async () => {
       fireEvent.keyDown(window, { key: "s", ctrlKey: true });
@@ -202,8 +188,6 @@ describe("App: keyboard shortcuts", () => {
     );
     expect(openTabs.value[0].dirty).toBe(false);
 
-    // The original debounce timer must have been cancelled, not merely
-    // outraced, or this would be a second, redundant write.
     await act(async () => {
       vi.advanceTimersByTime(500);
       await Promise.resolve();

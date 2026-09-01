@@ -1,6 +1,8 @@
 import { batch, effect, signal } from "@preact/signals";
 import {
+  drainWorkspaceOperations,
   getAppVersion,
+  listDir,
   readTextFile,
   restoreWorkspaceAccess,
   setStatusBarAppearance,
@@ -8,6 +10,7 @@ import {
 import {
   loadGlobalConfig,
   saveGlobalConfig,
+  type GlobalConfig,
   type ThemePreference,
 } from "./globalConfig";
 import {
@@ -17,6 +20,8 @@ import {
   openTabs,
 } from "../workspace/store";
 import { classifyWorkspaceResource } from "../workspace/types";
+import { workspaceSaves } from "../workspace/workspaceSaves";
+import { workspaceTransitions } from "../workspace/workspaceTransition";
 import {
   DEFAULT_WORKSPACE_SETTINGS,
   loadWorkspaceSettings,
@@ -26,19 +31,14 @@ import {
 } from "./workspaceSettings";
 
 export const workspacePath = signal<string | null>(null);
-// Android maps every SAF folder to the same display path (/workspace), so a
-// path alone cannot identify a workspace lifetime. Consumers that own
-// asynchronous state key off this monotonically increasing session instead.
 export const workspaceSession = signal(0);
-// Opaque, platform-specific (see GlobalConfig.workspaceToken); kept
-// alongside workspacePath purely so later saves (e.g. setTheme) don't
-// accidentally drop it.
 const workspaceToken = signal<string | undefined>(undefined);
 export const workspaceSettings = signal<WorkspaceSettings>(
   DEFAULT_WORKSPACE_SETTINGS,
 );
 export const settingsLoaded = signal(false);
 export const workspaceSettingsSaveError = signal<string | null>(null);
+export const workspaceSelectionError = signal<string | null>(null);
 // Set when the workspace's settings.json existed but didn't fully decode as
 // written (see workspaceSettings.ts's decodeWorkspaceSettings): a JSON
 // syntax error, a wrong-typed or out-of-range field, an unrecognized enum
@@ -59,47 +59,37 @@ export const viewMode = signal<ViewMode>(
   DEFAULT_WORKSPACE_SETTINGS.defaultViewMode,
 );
 
-// Keeps the editor and reading font size (see MarkdownEditor.tsx's CodeMirror
-// theme and .markdown-preview in App.css, both reference this variable) in
-// sync with the current workspace's setting, including the very first paint
-// before any workspace is open (DEFAULT_WORKSPACE_SETTINGS applies then).
 effect(() => {
-  document.documentElement.style.setProperty(
-    "--content-font-size",
-    `${workspaceSettings.value.fontSize}px`,
-  );
+  document.documentElement.style.setProperty("--content-font-size", `${workspaceSettings.value.fontSize}px`);
 });
 
-// Same idea for the whole-UI zoom level, see WorkspaceSettings.uiZoom's doc
-// comment for why this is the CSS `zoom` property (applied to .app-shell in
-// App.css) rather than a transform-based scale.
 effect(() => {
-  document.documentElement.style.setProperty(
-    "--ui-zoom",
-    `${workspaceSettings.value.uiZoom / 100}`,
-  );
+  document.documentElement.style.setProperty("--ui-zoom", `${workspaceSettings.value.uiZoom / 100}`);
 });
 
-// Reopens the tabs that were open at the end of the last session in this
-// workspace, so the editor isn't blank on every launch. Best-effort: a note
-// deleted or moved since the last session is silently skipped rather than
-// failing the whole restore.
 let isRestoringTabs = false;
+let lastPersistedTabsKey = "";
 
-export async function restoreLastOpenTabs(): Promise<void> {
+/** Restores remembered tabs only while the caller still owns the workspace
+ * transition. Reads may finish after another folder has been selected, so the
+ * authority check is repeated after every await and before every mutation. */
+export async function restoreLastOpenTabs(isCurrent: () => boolean = () => true): Promise<void> {
   const { lastOpenPaths, lastActivePath } = workspaceSettings.value;
   isRestoringTabs = true;
   try {
     for (const path of lastOpenPaths) {
+      if (!isCurrent()) return;
       const name = path.split("/").pop() ?? path;
       const kind = classifyWorkspaceResource(path);
       try {
         const content = kind === "image" ? "" : await readTextFile(path);
+        if (!isCurrent()) return;
         openOrFocusTab(path, name, content, kind);
       } catch {
-        // Deleted or moved since last session, skip it.
+        if (!isCurrent()) return;
       }
     }
+    if (!isCurrent()) return;
     const restoredPaths = new Set(openTabs.value.map((tab) => tab.path));
     activeTabPath.value =
       lastActivePath && restoredPaths.has(lastActivePath)
@@ -114,18 +104,11 @@ export async function restoreLastOpenTabs(): Promise<void> {
   }
 }
 
-// Persists the open tab paths and the active one whenever they change, so
-// they can be restored on next launch (see restoreLastOpenTabs above). Keyed
-// off a derived key rather than openTabs.value directly, since that array
-// also gets a new reference on every content edit (autosave), which would
-// otherwise write this file on every keystroke.
-let lastPersistedTabsKey = "";
 effect(() => {
   if (!workspacePath.value || !settingsLoaded.value) return;
   const paths = openTabs.value.map((t) => t.path);
   const key = JSON.stringify([paths, activeTabPath.value]);
-  if (isRestoringTabs) return;
-  if (key === lastPersistedTabsKey) return;
+  if (isRestoringTabs || key === lastPersistedTabsKey) return;
   lastPersistedTabsKey = key;
   void updateWorkspaceSettings({
     lastOpenPaths: paths,
@@ -139,18 +122,10 @@ function resolvesToDarkBackground(pref: ThemePreference): boolean {
   return window.matchMedia("(prefers-color-scheme: dark)").matches;
 }
 
-// Applies the theme preference to the document root so `theme.css`'s
-// `[data-theme]` selectors take over from the `prefers-color-scheme`
-// default ("system" removes the override and lets the media query
-// decide), and keeps the Android status bar's icon color matched to our
-// toolbar's actual background (a no-op on desktop).
 effect(() => {
   const root = document.documentElement;
-  if (theme.value === "system") {
-    root.removeAttribute("data-theme");
-  } else {
-    root.setAttribute("data-theme", theme.value);
-  }
+  if (theme.value === "system") root.removeAttribute("data-theme");
+  else root.setAttribute("data-theme", theme.value);
   void setStatusBarAppearance(resolvesToDarkBackground(theme.value));
 });
 
@@ -164,16 +139,22 @@ window
     }
   });
 
+// Global-config writes can overlap workspace transitions. Serialize them so a
+// slower write from transition A can never land after the later B write.
+let globalConfigWriteTail: Promise<void> = Promise.resolve();
+function saveGlobalConfigOrdered(config: GlobalConfig): Promise<void> {
+  const write = globalConfigWriteTail.then(() => saveGlobalConfig(config));
+  globalConfigWriteTail = write.catch(() => {});
+  return write;
+}
+
 export async function initSettings(): Promise<void> {
   appVersion.value = await getAppVersion();
   const global = await loadGlobalConfig();
   theme.value = global.theme;
   if (global.lastWorkspacePath) {
     try {
-      await restoreWorkspaceAccess(
-        global.lastWorkspacePath,
-        global.workspaceToken,
-      );
+      await restoreWorkspaceAccess(global.lastWorkspacePath, global.workspaceToken);
       // Skip the listDir probe — if the path is invalid, the first real
       // file operation will fail with a clear error. This saves ~20-100ms
       // on startup by avoiding one unnecessary SAF round trip.
@@ -212,56 +193,103 @@ export async function initSettings(): Promise<void> {
       // the tab bar's open handler.
     } catch {
       workspacePath.value = null;
-      await saveGlobalConfig({ lastWorkspacePath: null, theme: theme.value });
+      await saveGlobalConfigOrdered({ lastWorkspacePath: null, theme: theme.value });
     }
   }
   settingsLoaded.value = true;
 }
 
-export async function setWorkspacePath(
-  path: string,
-  token?: string,
-): Promise<void> {
-  // A manually chosen workspace can be opened before initSettings finishes
-  // only in tests or an embedding shell. It is already fully interactive,
-  // so it must enable persistence after its settings are hydrated below.
+/**
+ * Performs one authoritative workspace transition. If Android's folder picker
+ * already reseeded the synthetic `/workspace` cache, reconnect to the outgoing
+ * token synchronously first. Then block new outgoing autosaves, drain queued
+ * settings writes plus every native workspace operation, clear outgoing UI
+ * stores, and only then activate and validate the incoming grant. A later call
+ * invalidates this call at every async phase.
+ *
+ * The incoming settings load runs through the same corrupt-decode path as
+ * initSettings (see workspaceSettingsCorrupted above): a workspace switched
+ * into with a malformed settings.json still becomes current, but its
+ * corruption flag is set from the freshly loaded result, not carried over
+ * from whatever the outgoing workspace's flag happened to be. A transition
+ * that fails closed clears the flag entirely, since no settings file is
+ * loaded for the resulting inactive state.
+ */
+export async function setWorkspacePath(path: string, token?: string): Promise<void> {
   settingsLoaded.value = true;
-  // closeAllTabs() below clears the *outgoing* workspace's tabs so the
-  // incoming one doesn't briefly show stale ones (a real bug fixed in an
-  // earlier session), but that clearing is not something the user asked
-  // for by closing tabs, it is just this function's own bookkeeping. Left
-  // alone, the persistence effect further down this file would still see
-  // openTabs/activeTabPath change and write "0 tabs were open" into the
-  // *outgoing* workspace's own settings.json, permanently losing its real
-  // last-open-tabs the next time someone switches back to it. Pre-seeding
-  // the effect's dedup key to exactly what that clear produces makes its
-  // resulting write a no-op instead, without touching the effect itself
-  // (adding a conditional early-return branch there instead would risk
-  // Preact signals silently dropping that effect's subscription to
-  // openTabs/activeTabPath on any run that doesn't read them).
-  lastPersistedTabsKey = JSON.stringify([[], null]);
-  closeAllTabs();
-  const { settings: loadedWorkspaceSettings, corrupt } =
-    await loadWorkspaceSettings(path);
-  batch(() => {
-    workspaceSettings.value = loadedWorkspaceSettings;
-    workspaceSettingsCorrupted.value = corrupt;
-    viewMode.value = loadedWorkspaceSettings.defaultViewMode;
-    workspacePath.value = path;
-    workspaceToken.value = token;
-    workspaceSession.value++;
-  });
-  await saveGlobalConfig({
-    lastWorkspacePath: path,
-    theme: theme.value,
-    workspaceToken: token,
-  });
-  await restoreLastOpenTabs();
+  workspaceSelectionError.value = null;
+  const outgoingPath = workspacePath.value;
+  const outgoingToken = workspaceToken.value;
+  const outgoingSession = workspaceSession.value;
+
+  try {
+    await workspaceTransitions.run({
+      prepareOutgoing: async () => {
+        // pickWorkspaceFolder() currently activates its picked SAF token before
+        // returning. Rebind the old grant immediately so pending old-session
+        // work cannot resolve against the newly picked tree while it drains.
+        if (outgoingPath) await restoreWorkspaceAccess(outgoingPath, outgoingToken);
+        await Promise.all([
+          workspaceSaves.prepareForTransition(outgoingSession),
+          drainWorkspaceSettingsWrites(),
+        ]);
+        await drainWorkspaceOperations();
+
+        // Clear tabs before the new grant is active. Preseed the persistence
+        // key so this internal clear cannot overwrite the outgoing workspace's
+        // remembered tabs while the transition is in progress.
+        lastPersistedTabsKey = JSON.stringify([[], null]);
+        closeAllTabs();
+      },
+      connectIncoming: async () => {
+        await restoreWorkspaceAccess(path, token);
+        // A successful restore alone is not proof the root remains readable,
+        // especially for an expired Android persistable grant. Validate the
+        // root before publishing the incoming session.
+        await listDir(path);
+      },
+      loadIncoming: () => loadWorkspaceSettings(path),
+      publishIncoming: ({ settings: loadedWorkspaceSettings, corrupt }) => {
+        batch(() => {
+          workspaceSettings.value = loadedWorkspaceSettings;
+          workspaceSettingsCorrupted.value = corrupt;
+          viewMode.value = loadedWorkspaceSettings.defaultViewMode;
+          workspacePath.value = path;
+          workspaceToken.value = token;
+          workspaceSession.value++;
+        });
+      },
+      publishFailure: (error) => {
+        lastPersistedTabsKey = JSON.stringify([[], null]);
+        closeAllTabs();
+        batch(() => {
+          workspaceSettings.value = DEFAULT_WORKSPACE_SETTINGS;
+          workspaceSettingsCorrupted.value = false;
+          viewMode.value = DEFAULT_WORKSPACE_SETTINGS.defaultViewMode;
+          workspacePath.value = null;
+          workspaceToken.value = undefined;
+          workspaceSession.value++;
+          workspaceSelectionError.value =
+            error instanceof Error && error.message
+              ? `Could not open that workspace: ${error.message}`
+              : "Could not open that workspace. Choose the folder again or select another folder.";
+        });
+      },
+      afterPublish: async (isCurrent) => {
+        await saveGlobalConfigOrdered({ lastWorkspacePath: path, theme: theme.value, workspaceToken: token });
+        if (!isCurrent()) return;
+        await restoreLastOpenTabs(isCurrent);
+      },
+    });
+  } catch (error) {
+    await saveGlobalConfigOrdered({ lastWorkspacePath: null, theme: theme.value });
+    throw error;
+  }
 }
 
 export async function setTheme(next: ThemePreference): Promise<void> {
   theme.value = next;
-  await saveGlobalConfig({
+  await saveGlobalConfigOrdered({
     lastWorkspacePath: workspacePath.value,
     theme: next,
     workspaceToken: workspaceToken.value,
@@ -276,9 +304,24 @@ interface PendingWorkspaceSettingsWrite {
 
 let pendingWorkspaceSettingsWrite: PendingWorkspaceSettingsWrite | null = null;
 let workspaceSettingsWriteInFlight = false;
+const workspaceSettingsDrainWaiters = new Set<() => void>();
+
+function resolveWorkspaceSettingsDrainWaiters(): void {
+  if (workspaceSettingsWriteInFlight || pendingWorkspaceSettingsWrite) return;
+  for (const resolve of workspaceSettingsDrainWaiters) resolve();
+  workspaceSettingsDrainWaiters.clear();
+}
+
+function drainWorkspaceSettingsWrites(): Promise<void> {
+  if (!workspaceSettingsWriteInFlight && !pendingWorkspaceSettingsWrite) return Promise.resolve();
+  return new Promise((resolve) => workspaceSettingsDrainWaiters.add(resolve));
+}
 
 function flushWorkspaceSettingsWrites(): void {
-  if (workspaceSettingsWriteInFlight || !pendingWorkspaceSettingsWrite) return;
+  if (workspaceSettingsWriteInFlight || !pendingWorkspaceSettingsWrite) {
+    resolveWorkspaceSettingsDrainWaiters();
+    return;
+  }
   const pending = pendingWorkspaceSettingsWrite;
   pendingWorkspaceSettingsWrite = null;
   workspaceSettingsWriteInFlight = true;
@@ -293,6 +336,7 @@ function flushWorkspaceSettingsWrites(): void {
     .finally(() => {
       workspaceSettingsWriteInFlight = false;
       flushWorkspaceSettingsWrites();
+      resolveWorkspaceSettingsDrainWaiters();
     });
 }
 
@@ -306,9 +350,7 @@ function queueWorkspaceSettingsWrite(
       pendingWorkspaceSettingsWrite.resolvers.push({ resolve, reject });
       return;
     }
-
-    const pending = { path, settings, resolvers: [{ resolve, reject }] };
-    pendingWorkspaceSettingsWrite = pending;
+    pendingWorkspaceSettingsWrite = { path, settings, resolvers: [{ resolve, reject }] };
     flushWorkspaceSettingsWrites();
   });
 }

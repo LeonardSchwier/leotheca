@@ -6,6 +6,7 @@
 import { signal } from "@preact/signals";
 import { workspacePath } from "../settings/store";
 import { readTextFile, writeWorkspaceTextFile } from "../workspace/tauriBridge";
+import { workspaceTransitions } from "../workspace/workspaceTransition";
 import type { Bookmark } from "./types";
 
 const EMPTY_BOOKMARKS: Bookmark[] = [];
@@ -73,6 +74,15 @@ async function saveBookmarks(): Promise<void> {
 // tell it's stale and not overwrite the newer, correct result once it
 // eventually resolves.
 let loadSequence = 0;
+
+/** Invalidates both visible bookmarks and any older read that is still
+ * resolving. Registered with the authoritative transition so stale workspace
+ * bookmarks disappear before the incoming workspace is published. */
+export function resetBookmarks(): void {
+  loadSequence += 1;
+  bookmarks.value = EMPTY_BOOKMARKS;
+}
+workspaceTransitions.registerReset(resetBookmarks);
 
 export async function loadBookmarks(rootPath: string): Promise<void> {
   const sequence = ++loadSequence;

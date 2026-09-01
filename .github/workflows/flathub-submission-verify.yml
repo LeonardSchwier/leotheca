@@ -1,0 +1,44 @@
+name: Flatpak Submission Verify
+
+on:
+  push:
+    branches:
+      - agent/flathub-submission
+    paths:
+      - flatpak/**
+      - .github/workflows/flathub-submission-verify.yml
+
+jobs:
+  submission-build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-latest
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    container:
+      image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-50
+      options: --privileged
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Lint AppStream metadata
+        run: flatpak-builder-lint appstream flatpak/com.leonardschwier.leotheca.metainfo.xml
+
+      - name: Lint submission manifest
+        run: flatpak-builder-lint manifest flatpak/com.leonardschwier.leotheca.yml
+
+      - name: Build submission candidate
+        uses: flatpak/flatpak-github-actions/flatpak-builder@v6
+        with:
+          bundle: leotheca-${{ matrix.arch }}.flatpak
+          manifest-path: flatpak/com.leonardschwier.leotheca.yml
+          cache-key: flathub-submission-${{ matrix.arch }}-${{ github.sha }}
+          arch: ${{ matrix.arch }}
+          artifact-name: flathub-submission-${{ matrix.arch }}
+
+      - name: Lint built repository
+        run: flatpak-builder-lint repo repo

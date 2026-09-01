@@ -1,0 +1,149 @@
+name: Mobile Distribution Submission Verify
+
+on:
+  push:
+    branches:
+      - agent/f-droid-submission
+    paths:
+      - packaging/f-droid/com.leonardschwier.leotheca.yml
+      - .github/workflows/fdroid-submission-verify.yml
+
+jobs:
+  branch-quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - name: Install Linux dependencies
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev libayatana-appindicator3-dev build-essential libssl-dev
+      - run: npm ci
+      - run: npm run lint
+      - name: Lint backend
+        working-directory: src-tauri
+        run: cargo clippy
+
+  verify-release-recipe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out submission branch
+        uses: actions/checkout@v4
+        with:
+          path: submission
+
+      - name: Check out tagged release source
+        uses: actions/checkout@v4
+        with:
+          ref: 516249983daf5fb3dc421f9a2ad436ed22a44ea8
+          path: release-source
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install pinned Node toolchain
+        run: |
+          curl -fsSLo /tmp/node.tar.xz https://nodejs.org/download/release/v22.23.2/node-v22.23.2-linux-x64.tar.xz
+          echo "d60acfe00a2932254bb0ad20e01b0d74397a0875595de719654b214f4b03f307  /tmp/node.tar.xz" | sha256sum -c -
+          sudo tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1
+          node --version
+          npm --version
+
+      - name: Confirm metadata is pinned to this recipe
+        working-directory: submission
+        run: |
+          grep -F 'commit: 516249983daf5fb3dc421f9a2ad436ed22a44ea8' packaging/f-droid/com.leonardschwier.leotheca.yml
+          grep -F 'node-v22.23.2-linux-x64.tar.xz' packaging/f-droid/com.leonardschwier.leotheca.yml
+          grep -F 'd60acfe00a2932254bb0ad20e01b0d74397a0875595de719654b214f4b03f307' packaging/f-droid/com.leonardschwier.leotheca.yml
+          grep -F 'node_modules/esbuild/bin/esbuild' packaging/f-droid/com.leonardschwier.leotheca.yml
+          grep -F 'node_modules/source-map/lib/mappings.wasm' packaging/f-droid/com.leonardschwier.leotheca.yml
+
+      - name: Prepare historical source for offline-policy compliance
+        working-directory: release-source/android
+        run: |
+          sed -i '/com.google.gms:google-services/d' build.gradle
+          sed -i '/google-services/d' app/build.gradle
+          sed -i '/android.permission.INTERNET/d' app/src/main/AndroidManifest.xml
+          ! grep -R -E 'com.google.gms:google-services|android.permission.INTERNET' build.gradle app/build.gradle app/src/main/AndroidManifest.xml
+
+      - name: Build shared assets and remove frontend-only artifacts
+        working-directory: release-source
+        run: |
+          npm ci
+          npm run build
+          npx cap sync android
+          rm -f node_modules/esbuild/bin/esbuild node_modules/@esbuild/linux-x64/bin/esbuild node_modules/@capacitor/cli/assets/capacitor-cordova-ios-plugins.tar.gz node_modules/@capacitor/cli/assets/ios-pods-template.tar.gz node_modules/@capacitor/cli/assets/ios-spm-template.tar.gz node_modules/@capacitor/cli/assets/android-template.tar.gz node_modules/@capacitor/cli/assets/capacitor-cordova-android-plugins.tar.gz node_modules/source-map/lib/mappings.wasm
+          test ! -e node_modules/esbuild/bin/esbuild
+          test ! -e node_modules/@esbuild/linux-x64/bin/esbuild
+          test ! -e node_modules/@capacitor/cli/assets/capacitor-cordova-ios-plugins.tar.gz
+          test ! -e node_modules/@capacitor/cli/assets/ios-pods-template.tar.gz
+          test ! -e node_modules/@capacitor/cli/assets/ios-spm-template.tar.gz
+          test ! -e node_modules/@capacitor/cli/assets/android-template.tar.gz
+          test ! -e node_modules/@capacitor/cli/assets/capacitor-cordova-android-plugins.tar.gz
+          test ! -e node_modules/source-map/lib/mappings.wasm
+
+      - name: Build unsigned release APK
+        working-directory: release-source/android
+        run: ./gradlew assembleRelease
+
+      - name: Inspect release APK
+        working-directory: release-source/android
+        run: |
+          apk=app/build/outputs/apk/release/app-release-unsigned.apk
+          test -f "$apk"
+          apkanalyzer manifest permissions "$apk" | tee /tmp/leotheca-apk-permissions.txt
+          ! grep -Fq android.permission.INTERNET /tmp/leotheca-apk-permissions.txt
+          test "$(apkanalyzer manifest version-code "$apk")" = "1"
+          test "$(apkanalyzer manifest version-name "$apk")" = "1.0"
+
+      - name: Upload verification APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-distribution-unsigned-release-apk
+          path: release-source/android/app/build/outputs/apk/release/app-release-unsigned.apk
+
+  server-tools-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out submission branch
+        uses: actions/checkout@v4
+        with:
+          path: submission
+
+      - name: Prepare official metadata workspace
+        run: |
+          git clone --depth 1 https://gitlab.com/fdroid/fdroiddata.git fdroiddata
+          git clone --depth 1 https://gitlab.com/fdroid/fdroidserver.git fdroidserver
+          cp submission/packaging/f-droid/com.leonardschwier.leotheca.yml fdroiddata/metadata/com.leonardschwier.leotheca.yml
+          sudo chown -R 1000:1000 fdroiddata fdroidserver
+
+      - name: Run official metadata checks and build
+        run: |
+          docker run --rm \
+            -u vagrant \
+            -v "$PWD/fdroiddata:/build" \
+            -v "$PWD/fdroidserver:/home/vagrant/fdroidserver" \
+            --entrypoint /bin/bash \
+            registry.gitlab.com/fdroid/fdroidserver:buildserver \
+            -lc 'source /etc/profile && export PATH=/home/vagrant/fdroidserver:$PATH PYTHONPATH=/home/vagrant/fdroidserver && git config --global --add safe.directory /build && git config --global --add safe.directory /home/vagrant/fdroidserver && git -C /build rev-parse --is-inside-work-tree && git -C /home/vagrant/fdroidserver rev-parse --is-inside-work-tree && cd /build && fdroid readmeta && fdroid lint com.leonardschwier.leotheca && fdroid checkupdates --allow-dirty com.leonardschwier.leotheca && fdroid build --verbose --on-server --no-tarball com.leonardschwier.leotheca && find unsigned -maxdepth 1 -type f -name "com.leonardschwier.leotheca_1.apk" -print -quit | grep -q .'
+
+      - name: Upload server-tools build output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-distribution-server-tools-output
+          path: |
+            fdroiddata/logs
+            fdroiddata/unsigned
+          if-no-files-found: ignore

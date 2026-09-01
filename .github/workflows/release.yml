@@ -15,12 +15,12 @@ name: Release
 #   see the publish job below, and is clearly labeled as an unreviewed
 #   continuous build, never mistaken for a stable, versioned release.
 #
-# Both channels publish as long as the linux and android build jobs
-# succeed, even if flatpak doesn't: flatpak currently fails on every run
-# (a pre-existing, already-documented npm-cache bug, see ROADMAP.md), and a
-# release with two of three artifacts is far more useful than no release
-# at all while that's unresolved. The release body says plainly when the
-# Flatpak bundle was left out for this reason.
+# Publication is gated by the reusable CI workflow for this exact commit.
+# The artifact build jobs below do not substitute for that validation: CI
+# must report its final validation job as successful before publish can run.
+# Linux and Android artifact builds are additionally required to succeed.
+# Flatpak, macOS, and Windows artifacts are included when their own build
+# jobs succeed; their absence is recorded in the release body.
 #
 # Status: Linux (AppImage) is a real, signed-by-nobody-needed build, no
 # secrets required. Android currently only produces a debug-signed APK
@@ -74,6 +74,44 @@ on:
   workflow_dispatch: {}
 
 jobs:
+  validation:
+    uses: ./.github/workflows/ci.yml
+
+  # Audit follow-up F-015: a real v* tag is the one piece of release-workflow
+  # metadata ci.yml's own validation job (which runs for every push, not just
+  # a tag) cannot check, since it has no way to know a given commit is about
+  # to become a tagged release. This job only does real work on a tag push:
+  # the tag itself must equal "v" plus the VERSION file's contents (so the
+  # published artifact's identity can never silently drift from the version
+  # every other file was validated against), and CHANGELOG.md must already
+  # have moved its "## Unreleased" notes into a matching versioned heading
+  # (so a real release is never cut with an empty user-facing changelog).
+  version-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify the release tag and changelog match VERSION
+        run: |
+          set -euo pipefail
+          if [ "${{ github.ref_type }}" != "tag" ]; then
+            echo "Not a tag push, nothing to guard here."
+            exit 0
+          fi
+          version="$(cat VERSION | tr -d '[:space:]')"
+          expected_tag="v${version}"
+          actual_tag="${{ github.ref_name }}"
+          if [ "$actual_tag" != "$expected_tag" ]; then
+            echo "Tag '$actual_tag' does not match the VERSION file (expected '$expected_tag')." >&2
+            echo "Update VERSION (and every file npm run check-version validates against it) before retagging." >&2
+            exit 1
+          fi
+          escaped_version="$(printf '%s' "$version" | sed 's/[.[\*^$]/\\&/g')"
+          if ! grep -qE "^## ${escaped_version}([[:space:]]|\$)" CHANGELOG.md; then
+            echo "CHANGELOG.md has no '## ${version}' heading." >&2
+            echo "Move the '## Unreleased' section into a versioned heading before tagging a release." >&2
+            exit 1
+          fi
+
   linux:
     runs-on: ubuntu-latest
     steps:
@@ -199,18 +237,15 @@ jobs:
           path: leotheca.flatpak
 
   publish:
-    needs: [linux, android, flatpak, macos, windows]
+    needs: [validation, version-guard, linux, android, flatpak, macos, windows]
     # Real push events only, never workflow_dispatch (a manual run has no
     # single unambiguous release identity to attach artifacts to, see the
-    # workflow_dispatch note above). Only linux and android are required to
-    # actually succeed: flatpak has a known, already-documented (ROADMAP.md)
-    # npm-cache bug that currently fails it on every run, and macos/windows
-    # are new build targets with no local way to test them before their
-    # first real CI run, so the same reasoning applies to both: a release
-    # missing one or more of those three is far more useful than no release
-    # at all. `always()` is needed here because a job's default condition
-    # skips it entirely once any of its `needs` fails.
-    if: always() && github.event_name == 'push' && needs.linux.result == 'success' && needs.android.result == 'success'
+    # workflow_dispatch note above). The same-commit canonical validation,
+    # the tag/changelog version guard, the Linux artifact, and the Android
+    # artifact must all succeed. `always()` is needed so this job can make
+    # the result check explicit when an optional artifact job fails rather
+    # than being skipped by dependency semantics.
+    if: always() && github.event_name == 'push' && needs.validation.result == 'success' && needs.version-guard.result == 'success' && needs.linux.result == 'success' && needs.android.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: write

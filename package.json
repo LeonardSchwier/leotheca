@@ -12,7 +12,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "check-version": "node scripts/checkVersion.js"
   },
   "dependencies": {
     "@capacitor/android": "^7.0.1",

@@ -1,6 +1,6 @@
 use serde::Serialize;
 use std::fs;
-use std::path::Path;
+use std::path::{Component, Path, PathBuf};
 use std::time::UNIX_EPOCH;
 
 #[derive(Serialize)]
@@ -67,7 +67,11 @@ fn path_to_string(path: &Path) -> String {
 /// only runs `cargo test` on Linux, see `.github/workflows/ci.yml`'s
 /// `backend` job).
 fn normalize_separators_for_platform(path: String, is_windows: bool) -> String {
-    if is_windows { path.replace('\\', "/") } else { path }
+    if is_windows {
+        path.replace('\\', "/")
+    } else {
+        path
+    }
 }
 
 fn is_image_path(path: &Path) -> bool {
@@ -144,23 +148,17 @@ const MAX_WALK_DEPTH: usize = 40;
 /// workspace trash do not appear in the user's note statistics.
 #[tauri::command]
 pub fn workspace_stats(path: String) -> Result<WorkspaceStats, String> {
-    let mut folder_count = 0;
-    let mut note_count = 0;
-    let mut image_count = 0;
-    let mut total_note_lines = 0;
-    let mut oldest_note_date = None;
-    let mut newest_note_date = None;
+    #[derive(Default)]
+    struct Accumulator {
+        folder_count: usize,
+        note_count: usize,
+        image_count: usize,
+        total_note_lines: usize,
+        oldest_note_date: Option<u64>,
+        newest_note_date: Option<u64>,
+    }
 
-    fn walk(
-        path: &Path,
-        depth: usize,
-        folder_count: &mut usize,
-        note_count: &mut usize,
-        image_count: &mut usize,
-        total_note_lines: &mut usize,
-        oldest_note_date: &mut Option<u64>,
-        newest_note_date: &mut Option<u64>,
-    ) -> Result<(), String> {
+    fn walk(path: &Path, depth: usize, stats: &mut Accumulator) -> Result<(), String> {
         for entry in fs::read_dir(path).map_err(|error| error.to_string())? {
             let entry = entry.map_err(|error| error.to_string())?;
             let entry_path = entry.path();
@@ -170,68 +168,57 @@ pub fn workspace_stats(path: String) -> Result<WorkspaceStats, String> {
             }
 
             if entry_path.is_dir() {
-                *folder_count += 1;
+                stats.folder_count += 1;
                 if depth < MAX_WALK_DEPTH {
-                    walk(
-                        &entry_path,
-                        depth + 1,
-                        folder_count,
-                        note_count,
-                        image_count,
-                        total_note_lines,
-                        oldest_note_date,
-                        newest_note_date,
-                    )?;
+                    walk(&entry_path, depth + 1, stats)?;
                 }
             } else if entry_path
                 .extension()
                 .and_then(|extension| extension.to_str())
                 .is_some_and(|extension| extension.eq_ignore_ascii_case("md"))
             {
-                *note_count += 1;
+                stats.note_count += 1;
                 // A single unreadable note (permission denied, invalid
                 // UTF-8, ...) shouldn't take down the whole statistics
                 // computation; skip its content, don't abort. It still
                 // counts as a note, same principle runSearch already
                 // follows on the frontend for the same class of failure.
                 if let Ok(contents) = fs::read_to_string(&entry_path) {
-                    *total_note_lines += contents.lines().count();
+                    stats.total_note_lines += contents.lines().count();
                 }
                 if let Some(timestamp) = note_timestamp(&entry_path) {
-                    *oldest_note_date =
-                        Some(oldest_note_date.map_or(timestamp, |oldest| oldest.min(timestamp)));
-                    *newest_note_date =
-                        Some(newest_note_date.map_or(timestamp, |newest| newest.max(timestamp)));
+                    stats.oldest_note_date = Some(
+                        stats
+                            .oldest_note_date
+                            .map_or(timestamp, |oldest| oldest.min(timestamp)),
+                    );
+                    stats.newest_note_date = Some(
+                        stats
+                            .newest_note_date
+                            .map_or(timestamp, |newest| newest.max(timestamp)),
+                    );
                 }
             } else if is_image_path(&entry_path) {
-                *image_count += 1;
+                stats.image_count += 1;
             }
         }
         Ok(())
     }
 
-    walk(
-        Path::new(&path),
-        0,
-        &mut folder_count,
-        &mut note_count,
-        &mut image_count,
-        &mut total_note_lines,
-        &mut oldest_note_date,
-        &mut newest_note_date,
-    )?;
+    let mut stats = Accumulator::default();
+    walk(Path::new(&path), 0, &mut stats)?;
 
     Ok(WorkspaceStats {
-        folder_count,
-        note_count,
-        image_count,
-        average_lines_per_note: if note_count == 0 {
+        folder_count: stats.folder_count,
+        note_count: stats.note_count,
+        image_count: stats.image_count,
+        average_lines_per_note: if stats.note_count == 0 {
             0.0
         } else {
-            total_note_lines as f64 / note_count as f64
+            stats.total_note_lines as f64 / stats.note_count as f64
         },
-        oldest_note_date,
-        newest_note_date,
+        oldest_note_date: stats.oldest_note_date,
+        newest_note_date: stats.newest_note_date,
     })
 }
 
@@ -363,7 +350,11 @@ pub fn find_all_entries(path: String) -> Result<Vec<FsEntry>, String> {
             }
 
             let is_dir = entry_path.is_dir();
-            let mtime = if is_dir { None } else { entry_mtime_ms(&entry_path) };
+            let mtime = if is_dir {
+                None
+            } else {
+                entry_mtime_ms(&entry_path)
+            };
             entries.push(FsEntry {
                 name: name_str,
                 path: path_to_string(&entry_path),
@@ -403,7 +394,11 @@ pub fn list_dir(path: String) -> Result<Vec<FsEntry>, String> {
         }
         let entry_path = entry.path();
         let is_dir = entry_path.is_dir();
-        let mtime = if is_dir { None } else { entry_mtime_ms(&entry_path) };
+        let mtime = if is_dir {
+            None
+        } else {
+            entry_mtime_ms(&entry_path)
+        };
         let fs_entry = FsEntry {
             name,
             path: path_to_string(&entry_path),
@@ -418,8 +413,8 @@ pub fn list_dir(path: String) -> Result<Vec<FsEntry>, String> {
         }
     }
 
-    dirs.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
-    files.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+    dirs.sort_by_key(|entry| entry.name.to_lowercase());
+    files.sort_by_key(|entry| entry.name.to_lowercase());
     dirs.extend(files);
     Ok(dirs)
 }
@@ -446,19 +441,273 @@ pub fn read_text_file(path: String) -> Result<String, String> {
 /// just centralized here.
 #[tauri::command]
 pub fn read_text_files_batch(paths: Vec<String>) -> Vec<Option<String>> {
-    paths.iter().map(|path| fs::read_to_string(path).ok()).collect()
+    paths
+        .iter()
+        .map(|path| fs::read_to_string(path).ok())
+        .collect()
+}
+
+/// Walks upward from `path` until it finds a real, existing ancestor,
+/// returning that ancestor plus the not-yet-existing remainder as a plain,
+/// non-canonicalized suffix. A brand-new nested note or folder has no
+/// canonical form of its own (`fs::canonicalize` requires the path to
+/// exist), so `resolve_within_workspace` below canonicalizes only the part
+/// of the path that can be, then reattaches the rest lexically. The
+/// reattached suffix cannot itself hide a symlink escape: nothing exists
+/// there yet for a symlink to have been planted at.
+fn nearest_existing_ancestor(path: &Path) -> (PathBuf, PathBuf) {
+    let mut existing = path.to_path_buf();
+    let mut suffix_components: Vec<std::ffi::OsString> = Vec::new();
+    while !existing.exists() {
+        let name = existing.file_name().map(|name| name.to_os_string());
+        match existing.parent() {
+            Some(parent) => {
+                if let Some(name) = name {
+                    suffix_components.push(name);
+                }
+                existing = parent.to_path_buf();
+            }
+            None => break,
+        }
+    }
+    suffix_components.reverse();
+    let mut suffix = PathBuf::new();
+    for component in suffix_components {
+        suffix.push(component);
+    }
+    (existing, suffix)
+}
+
+/// Audit follow-up F-004: resolves `relative_path` against `workspace_root`,
+/// the one canonical containment boundary every workspace-scoped mutation
+/// (create, write, rename, delete) is required to pass through before
+/// touching the filesystem. Before this, desktop commands accepted an
+/// already-joined absolute path straight from the frontend with no
+/// server-side check at all, trusting the caller's own arithmetic as the
+/// only thing keeping a write inside the workspace.
+///
+/// Rejected before any filesystem access, regardless of what exists on
+/// disk: an empty path, an absolute `relative_path` (it must be relative
+/// to `workspace_root`, not a second full path), and any lexical `..`
+/// component (parent-directory traversal). `Path::is_absolute` already
+/// covers a Windows drive-letter or UNC prefix on that platform; this adds
+/// an explicit check for a bare root/prefix component too, as defense in
+/// depth against a future caller constructing `relative_path` in a way
+/// `is_absolute` alone wouldn't catch on every platform.
+///
+/// Symlink policy: once the lexical checks pass, the resolver canonicalizes
+/// the nearest existing ancestor of the target (see `nearest_existing_ancestor`)
+/// and requires that canonical form to sit inside the canonicalized
+/// workspace root, using component-wise comparison (`Path::starts_with`),
+/// not a raw string prefix, so a sibling directory whose name merely starts
+/// with the workspace root's name (e.g. a workspace at `/vault` and a
+/// symlink target of `/vault-evil`) is correctly rejected rather than
+/// accepted by accident. A symlink anywhere in that ancestor chain whose
+/// real target resolves outside the workspace is therefore rejected; one
+/// that stays inside the workspace (a note symlinked to another location in
+/// the same vault) is allowed, since canonicalization only cares about
+/// where a path actually leads. If the exact target itself is already a
+/// symlink (dangling or not), it is resolved and checked directly first,
+/// rather than being treated as "doesn't exist yet" by the ancestor walk:
+/// a dangling symlink still has no canonical form, so `fs::canonicalize`
+/// naturally fails it, and a non-dangling one is checked the same way as
+/// any other target.
+fn resolve_within_workspace(workspace_root: &str, relative_path: &str) -> Result<PathBuf, String> {
+    let relative = Path::new(relative_path);
+    if relative.as_os_str().is_empty() {
+        return Err("a workspace-relative path may not be empty".to_string());
+    }
+    if relative.is_absolute()
+        || relative
+            .components()
+            .any(|component| matches!(component, Component::RootDir | Component::Prefix(_)))
+    {
+        return Err(format!(
+            "\"{relative_path}\" must be relative to the workspace, not an absolute path"
+        ));
+    }
+    if relative
+        .components()
+        .any(|component| matches!(component, Component::ParentDir))
+    {
+        return Err(format!(
+            "\"{relative_path}\" may not contain \"..\" path segments"
+        ));
+    }
+
+    let root = Path::new(workspace_root);
+    let canonical_root = fs::canonicalize(root)
+        .map_err(|e| format!("workspace root \"{workspace_root}\" is not accessible: {e}"))?;
+
+    let joined = root.join(relative);
+
+    if let Ok(link_metadata) = fs::symlink_metadata(&joined) {
+        if link_metadata.file_type().is_symlink() {
+            let canonical_target = fs::canonicalize(&joined).map_err(|_| {
+                format!("\"{relative_path}\" is a symlink that does not resolve to a real location")
+            })?;
+            return if canonical_target.starts_with(&canonical_root) {
+                Ok(canonical_target)
+            } else {
+                Err(format!(
+                    "\"{relative_path}\" is a symlink resolving outside the workspace"
+                ))
+            };
+        }
+    }
+
+    let (existing_ancestor, remaining_suffix) = nearest_existing_ancestor(&joined);
+    let canonical_ancestor = fs::canonicalize(&existing_ancestor)
+        .map_err(|e| format!("\"{relative_path}\" is not accessible: {e}"))?;
+    if !canonical_ancestor.starts_with(&canonical_root) {
+        return Err(format!(
+            "\"{relative_path}\" resolves outside the workspace root"
+        ));
+    }
+
+    // `PathBuf::join` with an empty path still appends a trailing
+    // separator (observed directly: joining "/a/b" with "" produced
+    // "/a/b/", not "/a/b"), which then makes `fs::rename`/`fs::remove_file`
+    // fail with ENOTDIR on a non-directory target since a trailing
+    // separator asserts "this must be a directory" at the OS level. An
+    // empty suffix means the target already existed and was canonicalized
+    // directly, so there is nothing to append at all.
+    if remaining_suffix.as_os_str().is_empty() {
+        Ok(canonical_ancestor)
+    } else {
+        Ok(canonical_ancestor.join(remaining_suffix))
+    }
+}
+
+/// Writes `bytes` to `target` crash-safely (audit follow-up F-004's
+/// remaining "atomic replacement" item): writes to a sibling temporary
+/// file in the same directory first, then atomically renames it over
+/// `target`, instead of `fs::write`ing `target` directly. A direct
+/// `fs::write` truncates the destination before writing the new content,
+/// so a crash, power loss, or killed process partway through leaves the
+/// file empty or half-written; renaming a fully-written temp file over
+/// the target is atomic on both POSIX (`rename(2)`) and Windows (Rust's
+/// `fs::rename` uses `MoveFileExW` with the replace flag there), so
+/// `target` always ends up holding either its old complete contents or
+/// its new complete contents, never a partial write. The temp file must
+/// sit in `target`'s own directory, not a global temp directory: `rename`
+/// is only atomic within a single filesystem/volume, and a cross-volume
+/// "rename" silently falls back to copy-then-delete, losing the
+/// guarantee this exists for. Callers still create `target`'s parent
+/// directory themselves first, since the parent must exist before the
+/// temp file can be written into it.
+fn write_file_atomically(target: &Path, bytes: &[u8]) -> Result<(), String> {
+    let parent = target.parent().unwrap_or_else(|| Path::new("."));
+    let file_name = target
+        .file_name()
+        .ok_or_else(|| "target has no file name".to_string())?
+        .to_string_lossy();
+    let stamp = std::time::SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0);
+    let temp_path = parent.join(format!(
+        ".{file_name}.leotheca-tmp-{stamp}-{}",
+        std::process::id()
+    ));
+
+    fs::write(&temp_path, bytes).map_err(|e| e.to_string())?;
+    fs::rename(&temp_path, target).map_err(|e| {
+        let _ = fs::remove_file(&temp_path);
+        e.to_string()
+    })
+}
+
+/// Writes `contents` to a workspace-relative path, after verifying with
+/// `resolve_within_workspace` that it cannot escape `workspace_root`. This
+/// is the workspace-scoped counterpart to `write_text_file` below, which
+/// still exists unchanged for the one caller that genuinely has no
+/// workspace to contain against (the global app config file, written
+/// before any workspace is ever opened).
+#[tauri::command]
+pub fn write_workspace_text_file(
+    workspace_root: String,
+    relative_path: String,
+    contents: String,
+) -> Result<(), String> {
+    let target = resolve_within_workspace(&workspace_root, &relative_path)?;
+    if let Some(parent) = target.parent() {
+        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    write_file_atomically(&target, contents.as_bytes())
+}
+
+/// Same containment guarantee as `write_workspace_text_file`, for binary
+/// attachment content. See `write_binary_file` below for the byte-array
+/// IPC encoding note; unchanged here.
+#[tauri::command]
+pub fn write_workspace_binary_file(
+    workspace_root: String,
+    relative_path: String,
+    data: Vec<u8>,
+) -> Result<(), String> {
+    let target = resolve_within_workspace(&workspace_root, &relative_path)?;
+    if let Some(parent) = target.parent() {
+        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    write_file_atomically(&target, &data)
+}
+
+/// Creates a workspace-relative directory (and any missing intermediate
+/// directories), after verifying containment. Counterpart to `create_dir`
+/// below.
+#[tauri::command]
+pub fn create_workspace_dir(workspace_root: String, relative_path: String) -> Result<(), String> {
+    let target = resolve_within_workspace(&workspace_root, &relative_path)?;
+    fs::create_dir_all(&target).map_err(|e| e.to_string())
+}
+
+/// Renames/moves a workspace-relative path to another workspace-relative
+/// path within the same workspace, after verifying both ends independently
+/// with `resolve_within_workspace`. Counterpart to `rename_path` below.
+#[tauri::command]
+pub fn rename_workspace_path(
+    workspace_root: String,
+    from: String,
+    to: String,
+) -> Result<(), String> {
+    let from_target = resolve_within_workspace(&workspace_root, &from)?;
+    let to_target = resolve_within_workspace(&workspace_root, &to)?;
+    if let Some(parent) = to_target.parent() {
+        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    fs::rename(&from_target, &to_target).map_err(|e| e.to_string())
+}
+
+/// Permanently deletes a workspace-relative path, after verifying
+/// containment. Counterpart to `delete_path_permanent` below.
+#[tauri::command]
+pub fn delete_workspace_path_permanent(
+    workspace_root: String,
+    relative_path: String,
+) -> Result<(), String> {
+    let target = resolve_within_workspace(&workspace_root, &relative_path)?;
+    if target.is_dir() {
+        fs::remove_dir_all(&target).map_err(|e| e.to_string())
+    } else {
+        fs::remove_file(&target).map_err(|e| e.to_string())
+    }
 }
 
 /// Writes `contents` to `path`, creating any missing parent directories
 /// first (needed for first-run writes like the settings file, whose config
-/// directory may not exist yet).
+/// directory may not exist yet). This is the command the actual
+/// keystroke-autosave path still goes through (`saveCoordinator.ts`; see
+/// F-004's own notes on why its containment-check migration is deferred),
+/// so it gets the same crash-safe atomic replacement as the
+/// workspace-scoped writes above, via `write_file_atomically`.
 #[tauri::command]
 pub fn write_text_file(path: String, contents: String) -> Result<(), String> {
     let target = Path::new(&path);
     if let Some(parent) = target.parent() {
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
-    fs::write(target, contents).map_err(|e| e.to_string())
+    write_file_atomically(target, contents.as_bytes())
 }
 
 /// Writes raw bytes to `path`, creating any missing parent directories
@@ -476,7 +725,7 @@ pub fn write_binary_file(path: String, data: Vec<u8>) -> Result<(), String> {
     if let Some(parent) = target.parent() {
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
-    fs::write(target, data).map_err(|e| e.to_string())
+    write_file_atomically(target, &data)
 }
 
 /// Creates `path` and any missing parent directories. Does not error if the
@@ -496,13 +745,24 @@ pub fn rename_path(from: String, to: String) -> Result<(), String> {
 /// relative to the workspace root, rather than deleting it outright. If a
 /// same-named entry already sits in `.trash`, the incoming one is given a
 /// millisecond-timestamp prefix instead of overwriting it.
+///
+/// `path` arrives as an absolute path (every existing caller already has
+/// one), so containment here works the other way round from the other
+/// `resolve_within_workspace` callers above: first derive the
+/// workspace-relative form via `strip_prefix`, a purely lexical check on
+/// its own, then run that relative form back through
+/// `resolve_within_workspace` for the real, canonicalize-based containment
+/// and symlink check (audit follow-up F-004) before touching the
+/// filesystem, rather than trusting the lexical prefix match alone.
 #[tauri::command]
 pub fn trash_path(workspace_root: String, path: String) -> Result<(), String> {
     let root = Path::new(&workspace_root);
     let target = Path::new(&path);
     let relative = target.strip_prefix(root).map_err(|e| e.to_string())?;
+    let resolved = resolve_within_workspace(&workspace_root, &relative.to_string_lossy())?;
 
-    let mut dest = root.join(".trash").join(relative);
+    let canonical_root = fs::canonicalize(root).map_err(|e| e.to_string())?;
+    let mut dest = canonical_root.join(".trash").join(relative);
     if let Some(parent) = dest.parent() {
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
@@ -518,7 +778,7 @@ pub fn trash_path(workspace_root: String, path: String) -> Result<(), String> {
         dest = dest.with_file_name(format!("{stamp}-{file_name}"));
     }
 
-    fs::rename(target, &dest).map_err(|e| e.to_string())
+    fs::rename(&resolved, &dest).map_err(|e| e.to_string())
 }
 
 /// Deletes `path` outright, no `.trash` involved. Used when the workspace's
@@ -622,7 +882,8 @@ mod tests {
 
     #[test]
     fn read_text_files_batch_reads_every_file_and_maps_a_missing_one_to_none() {
-        let root = std::env::temp_dir().join(format!("leotheca-test-batchread-{}", std::process::id()));
+        let root =
+            std::env::temp_dir().join(format!("leotheca-test-batchread-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
         create_dir(root.to_string_lossy().to_string()).unwrap();
         fs::write(root.join("a.md"), "content a").unwrap();
@@ -637,7 +898,11 @@ mod tests {
 
         assert_eq!(
             results,
-            vec![Some("content a".to_string()), None, Some("content b".to_string())],
+            vec![
+                Some("content a".to_string()),
+                None,
+                Some("content b".to_string())
+            ],
             "one missing file yields None in its own position, not a failure for the whole batch"
         );
         fs::remove_dir_all(&root).unwrap();
@@ -671,8 +936,10 @@ mod tests {
 
     #[test]
     fn write_binary_file_creates_missing_parent_directories() {
-        let base = std::env::temp_dir()
-            .join(format!("leotheca-test-binfile-mkdirp-{}", std::process::id()));
+        let base = std::env::temp_dir().join(format!(
+            "leotheca-test-binfile-mkdirp-{}",
+            std::process::id()
+        ));
         let _ = fs::remove_dir_all(&base);
         let nested = base.join("attachments").join("pasted.png");
 
@@ -684,8 +951,10 @@ mod tests {
 
     #[test]
     fn write_binary_file_overwrites_an_existing_file() {
-        let tmp = std::env::temp_dir()
-            .join(format!("leotheca-test-binfile-overwrite-{}", std::process::id()));
+        let tmp = std::env::temp_dir().join(format!(
+            "leotheca-test-binfile-overwrite-{}",
+            std::process::id()
+        ));
         let path = tmp.to_string_lossy().to_string();
 
         write_binary_file(path.clone(), vec![1, 2, 3, 4, 5]).unwrap();
@@ -693,6 +962,82 @@ mod tests {
 
         assert_eq!(fs::read(&tmp).unwrap(), vec![9, 9]);
         fs::remove_file(&tmp).unwrap();
+    }
+
+    #[test]
+    fn write_file_atomically_leaves_no_temp_file_behind_after_a_successful_write() {
+        let base = std::env::temp_dir().join(format!(
+            "leotheca-test-atomicwrite-cleanup-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&base);
+        fs::create_dir_all(&base).unwrap();
+        let target = base.join("note.md");
+
+        write_file_atomically(&target, b"hello").unwrap();
+        write_file_atomically(&target, b"updated").unwrap();
+
+        assert_eq!(fs::read(&target).unwrap(), b"updated");
+        let remaining: Vec<_> = fs::read_dir(&base)
+            .unwrap()
+            .map(|entry| entry.unwrap().file_name())
+            .collect();
+        assert_eq!(remaining, vec![std::ffi::OsString::from("note.md")]);
+        fs::remove_dir_all(&base).unwrap();
+    }
+
+    #[test]
+    fn write_file_atomically_creates_nothing_when_the_temp_write_itself_fails() {
+        // The target's parent directory does not exist and write_file_atomically
+        // (unlike its tauri-command callers) does not create it, so the initial
+        // fs::write to the temp path fails before any rename is attempted.
+        let base = std::env::temp_dir().join(format!(
+            "leotheca-test-atomicwrite-nopath-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&base);
+        let target = base.join("missing-parent").join("note.md");
+
+        let result = write_file_atomically(&target, b"data");
+
+        assert!(result.is_err());
+        assert!(!target.exists());
+    }
+
+    #[test]
+    fn write_file_atomically_leaves_the_original_target_untouched_when_the_final_rename_fails() {
+        // A regular file can't be renamed over a non-empty directory, so this
+        // forces the rename step specifically to fail after the temp file has
+        // already been fully written, proving the target survives that failure
+        // with its original contents intact rather than ending up corrupted or
+        // half-replaced, and that the now-orphaned temp file is cleaned up.
+        let base = std::env::temp_dir().join(format!(
+            "leotheca-test-atomicwrite-renamefails-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&base);
+        let target = base.join("existing-dir");
+        fs::create_dir_all(&target).unwrap();
+        fs::write(target.join("keep.txt"), b"original").unwrap();
+
+        let result = write_file_atomically(&target, b"new content");
+
+        assert!(result.is_err());
+        assert!(target.is_dir());
+        assert_eq!(fs::read(target.join("keep.txt")).unwrap(), b"original");
+        let leftover_temp_files: Vec<_> = fs::read_dir(&base)
+            .unwrap()
+            .filter(|entry| {
+                entry
+                    .as_ref()
+                    .unwrap()
+                    .file_name()
+                    .to_string_lossy()
+                    .contains("leotheca-tmp")
+            })
+            .collect();
+        assert!(leftover_temp_files.is_empty());
+        fs::remove_dir_all(&base).unwrap();
     }
 
     #[test]
@@ -841,7 +1186,10 @@ mod tests {
 
         let stats = workspace_stats(root.to_string_lossy().to_string()).unwrap();
 
-        assert_eq!(stats.note_count, 2, "the unreadable file still counts as a note");
+        assert_eq!(
+            stats.note_count, 2,
+            "the unreadable file still counts as a note"
+        );
         assert_eq!(
             stats.average_lines_per_note, 1.5,
             "3 lines from the readable file, averaged over both notes"
@@ -851,7 +1199,8 @@ mod tests {
 
     #[test]
     fn find_markdown_files_collects_md_files_recursively_and_skips_others() {
-        let root = std::env::temp_dir().join(format!("leotheca-test-findmd-{}", std::process::id()));
+        let root =
+            std::env::temp_dir().join(format!("leotheca-test-findmd-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
         create_dir(root.join("notes").to_string_lossy().to_string()).unwrap();
         create_dir(root.join(".leotheca").to_string_lossy().to_string()).unwrap();
@@ -865,14 +1214,19 @@ mod tests {
         let mut names: Vec<_> = files.iter().map(|f| f.name.clone()).collect();
         names.sort();
 
-        assert_eq!(names, vec!["a.md", "b.MD"], "only .md files outside hidden directories, case-insensitively");
+        assert_eq!(
+            names,
+            vec!["a.md", "b.MD"],
+            "only .md files outside hidden directories, case-insensitively"
+        );
         assert!(files.iter().all(|f| !f.is_dir));
         fs::remove_dir_all(&root).unwrap();
     }
 
     #[test]
     fn find_all_files_collects_every_extension_but_still_skips_hidden_entries() {
-        let root = std::env::temp_dir().join(format!("leotheca-test-findall-{}", std::process::id()));
+        let root =
+            std::env::temp_dir().join(format!("leotheca-test-findall-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
         create_dir(root.join("notes").to_string_lossy().to_string()).unwrap();
         create_dir(root.join(".leotheca").to_string_lossy().to_string()).unwrap();
@@ -897,7 +1251,8 @@ mod tests {
 
     #[test]
     #[cfg(unix)]
-    fn find_all_files_stops_at_a_bounded_depth_instead_of_recursing_forever_through_a_symlink_cycle() {
+    fn find_all_files_stops_at_a_bounded_depth_instead_of_recursing_forever_through_a_symlink_cycle(
+    ) {
         // Same shape and reasoning as find_markdown_files's own symlink-cycle
         // test just above: this shares that function's walk logic and
         // MAX_WALK_DEPTH cap verbatim, minus the .md filter. The bound below
@@ -922,7 +1277,10 @@ mod tests {
 
         let files = find_all_files(root.to_string_lossy().to_string()).unwrap();
 
-        assert!(!files.is_empty(), "the walk should have found a.md at least once");
+        assert!(
+            !files.is_empty(),
+            "the walk should have found a.md at least once"
+        );
         assert!(
             files.len() <= MAX_WALK_DEPTH + 2,
             "MAX_WALK_DEPTH should cap how many times a.md is rediscovered through the cycle \
@@ -940,7 +1298,10 @@ mod tests {
         // nothing directly inside it (here, "empty") must still appear, so
         // fileTreeStore.ts's expandAll can expand it and know it has no
         // children, instead of silently never learning it exists.
-        let root = std::env::temp_dir().join(format!("leotheca-test-findallentries-{}", std::process::id()));
+        let root = std::env::temp_dir().join(format!(
+            "leotheca-test-findallentries-{}",
+            std::process::id()
+        ));
         let _ = fs::remove_dir_all(&root);
         create_dir(root.join("notes").to_string_lossy().to_string()).unwrap();
         create_dir(root.join("empty").to_string_lossy().to_string()).unwrap();
@@ -961,7 +1322,10 @@ mod tests {
         );
         let empty_entry = entries.iter().find(|e| e.name == "empty").unwrap();
         assert!(empty_entry.is_dir);
-        assert!(empty_entry.mtime.is_none(), "mtime is only meaningful for files, same as list_dir");
+        assert!(
+            empty_entry.mtime.is_none(),
+            "mtime is only meaningful for files, same as list_dir"
+        );
         let notes_entry = entries.iter().find(|e| e.name == "notes").unwrap();
         assert!(notes_entry.is_dir);
         let a_entry = entries.iter().find(|e| e.name == "a.md").unwrap();
@@ -972,7 +1336,8 @@ mod tests {
 
     #[test]
     #[cfg(unix)]
-    fn find_all_entries_stops_at_a_bounded_depth_instead_of_recursing_forever_through_a_symlink_cycle() {
+    fn find_all_entries_stops_at_a_bounded_depth_instead_of_recursing_forever_through_a_symlink_cycle(
+    ) {
         // Same shape and reasoning as find_all_files's own symlink-cycle
         // test above, adjusted for directory entries themselves now also
         // being collected (not just files found through them).
@@ -987,7 +1352,10 @@ mod tests {
 
         let entries = find_all_entries(root.to_string_lossy().to_string()).unwrap();
 
-        assert!(!entries.is_empty(), "the walk should have found a.md and loop at least once");
+        assert!(
+            !entries.is_empty(),
+            "the walk should have found a.md and loop at least once"
+        );
         assert!(
             entries.len() <= (MAX_WALK_DEPTH + 2) * 2,
             "MAX_WALK_DEPTH should cap how many times a.md and loop are rediscovered through the cycle \
@@ -1030,16 +1398,17 @@ mod tests {
             Some(12),
             "size should be the real byte length, for runSearch's content-read batching"
         );
-        assert!(files[0].mtime.is_some(), "size shouldn't come at the cost of losing mtime");
+        assert!(
+            files[0].mtime.is_some(),
+            "size shouldn't come at the cost of losing mtime"
+        );
         fs::remove_dir_all(&root).unwrap();
     }
 
     #[test]
     fn find_markdown_files_returns_an_empty_list_for_a_workspace_with_no_notes() {
-        let root = std::env::temp_dir().join(format!(
-            "leotheca-test-findmd-empty-{}",
-            std::process::id()
-        ));
+        let root =
+            std::env::temp_dir().join(format!("leotheca-test-findmd-empty-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
         create_dir(root.to_string_lossy().to_string()).unwrap();
         fs::write(root.join("not-a-note.txt"), "x").unwrap();
@@ -1052,17 +1421,16 @@ mod tests {
 
     #[test]
     #[cfg(unix)]
-    fn find_markdown_files_stops_at_a_bounded_depth_instead_of_recursing_forever_through_a_symlink_cycle() {
+    fn find_markdown_files_stops_at_a_bounded_depth_instead_of_recursing_forever_through_a_symlink_cycle(
+    ) {
         // Same shape as workspace_stats's own symlink-cycle test: a
         // directory symlinked back at itself. The main thing this proves is
         // that the call returns at all, in bounded work, instead of hanging
         // or crashing; see that test's own comment for why an exact count
         // isn't asserted (the OS's own ELOOP protection can independently
         // stop the walk at or below MAX_WALK_DEPTH).
-        let root = std::env::temp_dir().join(format!(
-            "leotheca-test-findmd-cycle-{}",
-            std::process::id()
-        ));
+        let root =
+            std::env::temp_dir().join(format!("leotheca-test-findmd-cycle-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
         create_dir(root.to_string_lossy().to_string()).unwrap();
         fs::write(root.join("a.md"), "a").unwrap();
@@ -1073,7 +1441,10 @@ mod tests {
         // "a.md" is rediscovered once per depth level the cycle revisits
         // (root's own content, seen again through each nested "loop"), so a
         // correct depth cap bounds the count instead of it growing forever.
-        assert!(!files.is_empty(), "the walk should have found a.md at least once");
+        assert!(
+            !files.is_empty(),
+            "the walk should have found a.md at least once"
+        );
         assert!(
             files.len() <= MAX_WALK_DEPTH + 1,
             "MAX_WALK_DEPTH should cap how many times a.md is rediscovered through the cycle, got {}",
@@ -1086,7 +1457,8 @@ mod tests {
 
     #[test]
     #[cfg(unix)]
-    fn workspace_stats_stops_at_a_bounded_depth_instead_of_recursing_forever_through_a_symlink_cycle() {
+    fn workspace_stats_stops_at_a_bounded_depth_instead_of_recursing_forever_through_a_symlink_cycle(
+    ) {
         // A directory symlinked back at itself is the simplest way to
         // reproduce a workspace symlink cycle (a directory symlinked back
         // to one of its own ancestors, see ROADMAP.md's "Symlink Cycle
@@ -1111,17 +1483,18 @@ mod tests {
         // macOS/Windows plans), while MAX_WALK_DEPTH is an explicit,
         // portable guarantee independent of any OS's symlink-resolution
         // quirks.
-        let root = std::env::temp_dir().join(format!(
-            "leotheca-test-stats-cycle-{}",
-            std::process::id()
-        ));
+        let root =
+            std::env::temp_dir().join(format!("leotheca-test-stats-cycle-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
         create_dir(root.to_string_lossy().to_string()).unwrap();
         std::os::unix::fs::symlink(&root, root.join("loop")).unwrap();
 
         let stats = workspace_stats(root.to_string_lossy().to_string()).unwrap();
 
-        assert!(stats.folder_count > 0, "the walk should have descended at least once");
+        assert!(
+            stats.folder_count > 0,
+            "the walk should have descended at least once"
+        );
         assert!(
             stats.folder_count <= MAX_WALK_DEPTH + 1,
             "MAX_WALK_DEPTH should cap this walk even if the OS's own symlink-loop \
@@ -1130,6 +1503,339 @@ mod tests {
         );
 
         fs::remove_file(root.join("loop")).unwrap();
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    fn make_workspace(name: &str) -> PathBuf {
+        let root =
+            std::env::temp_dir().join(format!("leotheca-test-f004-{name}-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        root
+    }
+
+    #[test]
+    fn resolve_within_workspace_rejects_an_empty_path() {
+        let root = make_workspace("empty");
+        assert!(resolve_within_workspace(&root.to_string_lossy(), "").is_err());
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn resolve_within_workspace_rejects_an_absolute_relative_path() {
+        let root = make_workspace("absolute");
+        let err = resolve_within_workspace(&root.to_string_lossy(), "/etc/passwd").unwrap_err();
+        assert!(err.contains("absolute"), "unexpected error: {err}");
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn resolve_within_workspace_rejects_lexical_parent_traversal() {
+        let root = make_workspace("traversal");
+        fs::write(root.join("note.md"), "hi").unwrap();
+        let err = resolve_within_workspace(&root.to_string_lossy(), "../outside.md").unwrap_err();
+        assert!(err.contains(".."), "unexpected error: {err}");
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn resolve_within_workspace_rejects_traversal_hidden_in_the_middle_of_the_path() {
+        // "notes/../../outside.md" contains no leading ".." but still
+        // escapes once walked: the component-based rejection must catch a
+        // ".." anywhere, not just check whether the whole string starts
+        // with one.
+        let root = make_workspace("mid-traversal");
+        fs::create_dir_all(root.join("notes")).unwrap();
+        let err = resolve_within_workspace(&root.to_string_lossy(), "notes/../../outside.md")
+            .unwrap_err();
+        assert!(err.contains(".."), "unexpected error: {err}");
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn resolve_within_workspace_accepts_a_not_yet_existing_nested_path() {
+        let root = make_workspace("new-nested");
+        let resolved =
+            resolve_within_workspace(&root.to_string_lossy(), "folder/sub/new-note.md").unwrap();
+        let canonical_root = fs::canonicalize(&root).unwrap();
+        assert_eq!(resolved, canonical_root.join("folder/sub/new-note.md"));
+        // Purely a resolution, not a write: nothing should have been created.
+        assert!(!root.join("folder").exists());
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn resolve_within_workspace_accepts_an_existing_nested_file() {
+        let root = make_workspace("existing-nested");
+        fs::create_dir_all(root.join("folder")).unwrap();
+        fs::write(root.join("folder/note.md"), "hi").unwrap();
+        let resolved = resolve_within_workspace(&root.to_string_lossy(), "folder/note.md").unwrap();
+        let canonical_root = fs::canonicalize(&root).unwrap();
+        assert_eq!(resolved, canonical_root.join("folder/note.md"));
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn resolve_within_workspace_rejects_a_sibling_directory_that_merely_shares_a_name_prefix() {
+        // Regression guard for the classic string-prefix bug: a workspace at
+        // ".../vault" must not accept a target that resolves to
+        // ".../vault-evil/secret.md" just because the string "vault-evil"
+        // starts with the string "vault". `Path::starts_with` is
+        // component-aware and should already reject this; this test proves
+        // it, rather than assuming the stdlib API is used correctly.
+        let parent = std::env::temp_dir().join(format!(
+            "leotheca-test-f004-prefix-parent-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&parent);
+        let root = parent.join("vault");
+        let evil = parent.join("vault-evil");
+        fs::create_dir_all(&root).unwrap();
+        fs::create_dir_all(&evil).unwrap();
+        fs::write(evil.join("secret.md"), "top secret").unwrap();
+        // Symlink *inside* the real workspace pointing at the sibling
+        // "vault-evil" directory, the only way a resolver operating purely
+        // on `workspace_root` + a relative path could otherwise reach it.
+        #[cfg(unix)]
+        {
+            std::os::unix::fs::symlink(&evil, root.join("escape")).unwrap();
+            let err =
+                resolve_within_workspace(&root.to_string_lossy(), "escape/secret.md").unwrap_err();
+            assert!(err.contains("outside"), "unexpected error: {err}");
+        }
+        fs::remove_dir_all(&parent).unwrap();
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn resolve_within_workspace_rejects_a_symlinked_parent_directory_escaping_the_workspace() {
+        let root = make_workspace("symlink-parent");
+        let outside = std::env::temp_dir().join(format!(
+            "leotheca-test-f004-symlink-parent-outside-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&outside);
+        fs::create_dir_all(&outside).unwrap();
+        std::os::unix::fs::symlink(&outside, root.join("escape")).unwrap();
+
+        let err = resolve_within_workspace(&root.to_string_lossy(), "escape/note.md").unwrap_err();
+        assert!(err.contains("outside"), "unexpected error: {err}");
+
+        fs::remove_dir_all(&root).unwrap();
+        fs::remove_dir_all(&outside).unwrap();
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn resolve_within_workspace_rejects_a_symlink_at_the_exact_target_escaping_the_workspace() {
+        let root = make_workspace("symlink-target");
+        let outside_file = std::env::temp_dir().join(format!(
+            "leotheca-test-f004-symlink-target-outside-{}.md",
+            std::process::id()
+        ));
+        fs::write(&outside_file, "outside content").unwrap();
+        std::os::unix::fs::symlink(&outside_file, root.join("note.md")).unwrap();
+
+        let err = resolve_within_workspace(&root.to_string_lossy(), "note.md").unwrap_err();
+        assert!(err.contains("outside"), "unexpected error: {err}");
+
+        fs::remove_dir_all(&root).unwrap();
+        fs::remove_file(&outside_file).unwrap();
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn resolve_within_workspace_rejects_a_dangling_symlink_at_the_exact_target() {
+        let root = make_workspace("dangling-symlink");
+        let nonexistent = root.join("this-does-not-exist.md");
+        std::os::unix::fs::symlink(&nonexistent, root.join("note.md")).unwrap();
+
+        assert!(resolve_within_workspace(&root.to_string_lossy(), "note.md").is_err());
+
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn resolve_within_workspace_allows_a_symlink_that_stays_inside_the_workspace() {
+        let root = make_workspace("symlink-internal");
+        fs::create_dir_all(root.join("real")).unwrap();
+        fs::write(root.join("real/note.md"), "hi").unwrap();
+        std::os::unix::fs::symlink(root.join("real/note.md"), root.join("linked.md")).unwrap();
+
+        let resolved = resolve_within_workspace(&root.to_string_lossy(), "linked.md").unwrap();
+        let canonical_root = fs::canonicalize(&root).unwrap();
+        assert_eq!(resolved, canonical_root.join("real/note.md"));
+
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn write_workspace_text_file_writes_within_the_workspace_and_creates_missing_directories() {
+        let root = make_workspace("write-ok");
+        write_workspace_text_file(
+            root.to_string_lossy().to_string(),
+            "notes/new/hello.md".to_string(),
+            "# Hello".to_string(),
+        )
+        .unwrap();
+        assert_eq!(
+            fs::read_to_string(root.join("notes/new/hello.md")).unwrap(),
+            "# Hello"
+        );
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn write_workspace_text_file_rejects_traversal_and_writes_nothing() {
+        let root = make_workspace("write-traversal");
+        let result = write_workspace_text_file(
+            root.to_string_lossy().to_string(),
+            "../escape.md".to_string(),
+            "malicious".to_string(),
+        );
+        assert!(result.is_err());
+        let outside = root.parent().unwrap().join("escape.md");
+        assert!(
+            !outside.exists(),
+            "a rejected write must not touch the filesystem at all"
+        );
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn write_workspace_binary_file_rejects_an_absolute_path() {
+        let root = make_workspace("write-binary-absolute");
+        let result = write_workspace_binary_file(
+            root.to_string_lossy().to_string(),
+            "/tmp/should-not-be-written.bin".to_string(),
+            vec![1, 2, 3],
+        );
+        assert!(result.is_err());
+        assert!(!Path::new("/tmp/should-not-be-written.bin").exists());
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn create_workspace_dir_creates_nested_directories_within_the_workspace() {
+        let root = make_workspace("create-dir-ok");
+        create_workspace_dir(root.to_string_lossy().to_string(), "a/b/c".to_string()).unwrap();
+        assert!(root.join("a/b/c").is_dir());
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn create_workspace_dir_rejects_traversal() {
+        let root = make_workspace("create-dir-traversal");
+        let result =
+            create_workspace_dir(root.to_string_lossy().to_string(), "../evil".to_string());
+        assert!(result.is_err());
+        assert!(!root.parent().unwrap().join("evil").exists());
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn rename_workspace_path_moves_a_file_within_the_workspace() {
+        let root = make_workspace("rename-ok");
+        fs::write(root.join("old.md"), "content").unwrap();
+        rename_workspace_path(
+            root.to_string_lossy().to_string(),
+            "old.md".to_string(),
+            "renamed/new.md".to_string(),
+        )
+        .unwrap();
+        assert!(!root.join("old.md").exists());
+        assert_eq!(
+            fs::read_to_string(root.join("renamed/new.md")).unwrap(),
+            "content"
+        );
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn rename_workspace_path_rejects_a_destination_that_escapes_the_workspace() {
+        let root = make_workspace("rename-traversal");
+        fs::write(root.join("old.md"), "content").unwrap();
+        let result = rename_workspace_path(
+            root.to_string_lossy().to_string(),
+            "old.md".to_string(),
+            "../escaped.md".to_string(),
+        );
+        assert!(result.is_err());
+        assert!(
+            root.join("old.md").exists(),
+            "the source must be untouched on rejection"
+        );
+        assert!(!root.parent().unwrap().join("escaped.md").exists());
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn delete_workspace_path_permanent_removes_a_contained_file() {
+        let root = make_workspace("delete-ok");
+        fs::write(root.join("gone.md"), "bye").unwrap();
+        delete_workspace_path_permanent(root.to_string_lossy().to_string(), "gone.md".to_string())
+            .unwrap();
+        assert!(!root.join("gone.md").exists());
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn delete_workspace_path_permanent_rejects_traversal_and_deletes_nothing() {
+        let root = make_workspace("delete-traversal");
+        let sibling = root.parent().unwrap().join(format!(
+            "leotheca-test-f004-delete-traversal-victim-{}",
+            std::process::id()
+        ));
+        fs::write(&sibling, "do not delete me").unwrap();
+        let relative = format!("../{}", sibling.file_name().unwrap().to_string_lossy());
+        let result = delete_workspace_path_permanent(root.to_string_lossy().to_string(), relative);
+        assert!(result.is_err());
+        assert!(
+            sibling.exists(),
+            "a rejected delete must not touch the filesystem"
+        );
+        fs::remove_dir_all(&root).unwrap();
+        fs::remove_file(&sibling).unwrap();
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn trash_path_rejects_a_symlinked_target_escaping_the_workspace() {
+        let root = make_workspace("trash-symlink-escape");
+        let outside_file = std::env::temp_dir().join(format!(
+            "leotheca-test-f004-trash-symlink-outside-{}.md",
+            std::process::id()
+        ));
+        fs::write(&outside_file, "outside content").unwrap();
+        let link = root.join("note.md");
+        std::os::unix::fs::symlink(&outside_file, &link).unwrap();
+
+        let result = trash_path(
+            root.to_string_lossy().to_string(),
+            link.to_string_lossy().to_string(),
+        );
+
+        assert!(result.is_err());
+        assert!(
+            outside_file.exists(),
+            "a rejected trash must not move the real file it points to"
+        );
+        fs::remove_dir_all(&root).unwrap();
+        fs::remove_file(&outside_file).unwrap();
+    }
+
+    #[test]
+    fn trash_path_still_moves_an_ordinary_contained_file() {
+        let root = make_workspace("trash-ok");
+        fs::write(root.join("note.md"), "content").unwrap();
+        trash_path(
+            root.to_string_lossy().to_string(),
+            root.join("note.md").to_string_lossy().to_string(),
+        )
+        .unwrap();
+        assert!(!root.join("note.md").exists());
+        assert!(root.join(".trash/note.md").exists());
         fs::remove_dir_all(&root).unwrap();
     }
 }

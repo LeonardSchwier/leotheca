@@ -16,6 +16,7 @@
             android:label="@string/title_activity_main"
             android:theme="@style/AppTheme.NoActionBarLaunch"
             android:launchMode="singleTask"
+            android:windowSoftInputMode="adjustResize"
             android:exported="true">
 
             <intent-filter>
@@ -31,9 +32,14 @@
 
         </activity>
 
-        <receiver android:name=".LeothecaWidgetProvider" android:exported="false">
+        <receiver android:name=".LeothecaNewNoteWidgetProvider" android:exported="false">
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
-            <meta-data android:name="android.appwidget.provider" android:resource="@xml/leotheca_widget_info" />
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/leotheca_widget_new_note_info" />
+        </receiver>
+
+        <receiver android:name=".LeothecaFavoritesWidgetProvider" android:exported="false">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/leotheca_widget_favorites_info" />
         </receiver>
 
         <provider

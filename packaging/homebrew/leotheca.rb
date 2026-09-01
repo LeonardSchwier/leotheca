@@ -1,7 +1,12 @@
 cask "leotheca" do
   # TODO: fill in once a real macOS build exists, see README.md in this
   # directory for the full list of what's blocking that.
-  version "1.0.0"
+  # Matches the root VERSION file today; this whole cask is still a
+  # non-submittable draft (see sha256 below and README.md), so it isn't part
+  # of `npm run check-version`'s automated coverage, but keeping this number
+  # honest avoids yet another stray "1.0.0" for a project that hasn't tagged
+  # a release yet.
+  version "0.1.0"
   sha256 "TODO_REPLACE_WITH_REAL_SHA256_OF_THE_RELEASED_DMG"
 
   # TODO: confirm the actual asset name/extension release.yml's future

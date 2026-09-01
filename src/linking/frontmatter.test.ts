@@ -111,6 +111,21 @@ describe("extractFrontmatterTags", () => {
   it("returns an empty array when the frontmatter has no tags key", () => {
     expect(extractFrontmatterTags("---\naliases: Foo\n---\n\nBody.")).toEqual([]);
   });
+
+  it("reads correctly across repeated, interleaved calls with different notes and fields", () => {
+    // extractAliases and extractFrontmatterTags share one precompiled
+    // RegExp per field, reused across every call rather than rebuilt each
+    // time. Neither pattern uses the g/y flags, so this proves there's no
+    // stale lastIndex or other cross-call state leaking between unrelated
+    // notes, not just that each field extracts correctly once in isolation.
+    const noteA = "---\naliases: [A1, A2]\ntags: [ta]\n---\n\nA.";
+    const noteB = "---\naliases: B1\ntags: [tb1, tb2]\n---\n\nB.";
+    expect(extractAliases(noteA)).toEqual(["A1", "A2"]);
+    expect(extractFrontmatterTags(noteB)).toEqual(["tb1", "tb2"]);
+    expect(extractAliases(noteB)).toEqual(["B1"]);
+    expect(extractFrontmatterTags(noteA)).toEqual(["ta"]);
+    expect(extractAliases(noteA)).toEqual(["A1", "A2"]);
+  });
 });
 
 describe("parseFrontmatterFields", () => {

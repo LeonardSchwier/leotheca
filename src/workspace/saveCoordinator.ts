@@ -211,14 +211,21 @@ export function createSaveCoordinator(cbs?: SaveCoordinatorCallbacks): SaveCoord
     return entries.size;
   }
 
+  /** Returns a copy of all entries (for testing/debugging). */
   function debugEntries(): Array<{
     key: string;
     entry: Omit<SaveEntry, "timer" | "waiters">;
   }> {
-    return Array.from(entries, ([key, entry]) => {
-      const { timer: _timer, waiters: _waiters, ...rest } = entry;
-      return { key, entry: rest };
-    });
+    return Array.from(entries, ([key, entry]) => ({
+      key,
+      entry: {
+        revision: entry.revision,
+        latestContent: entry.latestContent,
+        inFlight: entry.inFlight,
+        savedRevision: entry.savedRevision,
+        lastError: entry.lastError,
+      },
+    }));
   }
 
   const api: SaveCoordinator = {

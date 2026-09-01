@@ -14,10 +14,12 @@ vi.mock("./store", () => ({
   settingsPanelOpen: signal(true),
   setTheme: vi.fn(),
   setWorkspacePath: vi.fn(),
+  repairWorkspaceSettingsFile: vi.fn(),
   retryWorkspaceSettingsSave: vi.fn(),
   theme: signal<ThemePreference>("system"),
   updateWorkspaceSettings: vi.fn(),
   workspacePath: signal<string | null>(null),
+  workspaceSettingsCorrupted: signal(false),
   workspaceSettingsSaveError: signal<string | null>(null),
   workspaceSettings: signal(DEFAULT_WORKSPACE_SETTINGS),
 }));
@@ -37,10 +39,12 @@ import {
   settingsPanelOpen,
   setTheme,
   setWorkspacePath,
+  repairWorkspaceSettingsFile,
   retryWorkspaceSettingsSave,
   theme,
   updateWorkspaceSettings,
   workspacePath,
+  workspaceSettingsCorrupted,
   workspaceSettingsSaveError,
   workspaceSettings,
 } from "./store";
@@ -57,7 +61,9 @@ afterEach(() => {
   vi.mocked(setWorkspacePath).mockReset();
   vi.mocked(updateWorkspaceSettings).mockReset();
   vi.mocked(retryWorkspaceSettingsSave).mockReset();
+  vi.mocked(repairWorkspaceSettingsFile).mockReset();
   workspaceSettingsSaveError.value = null;
+  workspaceSettingsCorrupted.value = false;
   vi.mocked(pickWorkspaceFolder).mockReset();
 });
 
@@ -77,6 +83,20 @@ describe("SettingsPanel", () => {
     expect(getByText("/home/user/vault")).toBeTruthy();
   });
 
+  it("shows nothing about corrupted settings when the file decoded cleanly", () => {
+    const { queryByText } = render(<SettingsPanel />);
+    expect(queryByText("Settings file had invalid data")).toBeNull();
+  });
+
+  it("shows a corruption notice and a repair button when the settings file didn't fully decode", () => {
+    workspaceSettingsCorrupted.value = true;
+    const { getByText } = render(<SettingsPanel />);
+    expect(getByText("Settings file had invalid data")).toBeTruthy();
+    const button = getByText("Rewrite settings file");
+    fireEvent.click(button);
+    expect(repairWorkspaceSettingsFile).toHaveBeenCalledTimes(1);
+  });
+
   it("closes on backdrop click but not on a click inside the panel", () => {
     const { container } = render(<SettingsPanel />);
     fireEvent.click(container.querySelector(".settings-panel")!);
@@ -93,11 +113,16 @@ describe("SettingsPanel", () => {
   });
 
   it("Change Folder opens the picked folder, and does nothing if cancelled", async () => {
-    vi.mocked(pickWorkspaceFolder).mockResolvedValue({ path: "/vault", token: "tok" });
+    vi.mocked(pickWorkspaceFolder).mockResolvedValue({
+      path: "/vault",
+      token: "tok",
+    });
     const { container } = render(<SettingsPanel />);
     // Find the "Change Folder" button by text content
     const buttons = container.querySelectorAll("button");
-    const folderBtn = Array.from(buttons).find((b) => b.textContent?.trim() === "Change Folder");
+    const folderBtn = Array.from(buttons).find(
+      (b) => b.textContent?.trim() === "Change Folder",
+    );
     expect(folderBtn).toBeTruthy();
     await fireEvent.click(folderBtn!);
     await Promise.resolve();
@@ -130,12 +155,17 @@ describe("SettingsPanel", () => {
     const permanent = getByText("Permanent");
     expect(permanent.className).not.toContain("active");
     fireEvent.click(permanent);
-    expect(updateWorkspaceSettings).toHaveBeenCalledWith({ deleteBehavior: "permanent" });
+    expect(updateWorkspaceSettings).toHaveBeenCalledWith({
+      deleteBehavior: "permanent",
+    });
   });
 
   it("marks the current delete behavior as active", () => {
     workspacePath.value = "/vault";
-    workspaceSettings.value = { ...DEFAULT_WORKSPACE_SETTINGS, deleteBehavior: "permanent" };
+    workspaceSettings.value = {
+      ...DEFAULT_WORKSPACE_SETTINGS,
+      deleteBehavior: "permanent",
+    };
     const { getByText } = render(<SettingsPanel />);
     expect(getByText("Permanent").className).toContain("active");
     expect(getByText("Project Trash").className).not.toContain("active");
@@ -168,12 +198,19 @@ describe("SettingsPanel", () => {
 
   it("shows and wires the paste-images-as-attachments switch", () => {
     workspacePath.value = "/vault";
-    workspaceSettings.value = { ...DEFAULT_WORKSPACE_SETTINGS, pasteImagesEnabled: true };
+    workspaceSettings.value = {
+      ...DEFAULT_WORKSPACE_SETTINGS,
+      pasteImagesEnabled: true,
+    };
     const { getByText } = render(<SettingsPanel />);
-    const row = getByText("Paste images as attachments").closest(".settings-row") as HTMLElement;
+    const row = getByText("Paste images as attachments").closest(
+      ".settings-row",
+    ) as HTMLElement;
     expect(within(row).getByText("On").className).toContain("active");
     fireEvent.click(within(row).getByText("Off"));
-    expect(updateWorkspaceSettings).toHaveBeenCalledWith({ pasteImagesEnabled: false });
+    expect(updateWorkspaceSettings).toHaveBeenCalledWith({
+      pasteImagesEnabled: false,
+    });
   });
 
   it("wires the attachments folder text input", () => {
@@ -181,37 +218,56 @@ describe("SettingsPanel", () => {
     const { getByPlaceholderText } = render(<SettingsPanel />);
     const input = getByPlaceholderText("next to the note") as HTMLInputElement;
     fireEvent.input(input, { target: { value: "attachments" } });
-    expect(updateWorkspaceSettings).toHaveBeenCalledWith({ attachmentsFolder: "attachments" });
+    expect(updateWorkspaceSettings).toHaveBeenCalledWith({
+      attachmentsFolder: "attachments",
+    });
   });
 
   it("shows and wires the frontmatter properties panel switch", () => {
     workspacePath.value = "/vault";
-    workspaceSettings.value = { ...DEFAULT_WORKSPACE_SETTINGS, frontmatterPropertiesEnabled: true };
+    workspaceSettings.value = {
+      ...DEFAULT_WORKSPACE_SETTINGS,
+      frontmatterPropertiesEnabled: true,
+    };
     const { getByText } = render(<SettingsPanel />);
-    const row = getByText("Frontmatter properties panel").closest(".settings-row") as HTMLElement;
+    const row = getByText("Frontmatter properties panel").closest(
+      ".settings-row",
+    ) as HTMLElement;
     expect(within(row).getByText("On").className).toContain("active");
     fireEvent.click(within(row).getByText("Off"));
-    expect(updateWorkspaceSettings).toHaveBeenCalledWith({ frontmatterPropertiesEnabled: false });
+    expect(updateWorkspaceSettings).toHaveBeenCalledWith({
+      frontmatterPropertiesEnabled: false,
+    });
   });
 
   it("shows and wires the tags switch", () => {
     workspacePath.value = "/vault";
-    workspaceSettings.value = { ...DEFAULT_WORKSPACE_SETTINGS, tagsEnabled: true };
+    workspaceSettings.value = {
+      ...DEFAULT_WORKSPACE_SETTINGS,
+      tagsEnabled: true,
+    };
     const { getByText } = render(<SettingsPanel />);
     const row = getByText("Tags").closest(".settings-row") as HTMLElement;
     expect(within(row).getByText("On").className).toContain("active");
     fireEvent.click(within(row).getByText("Off"));
-    expect(updateWorkspaceSettings).toHaveBeenCalledWith({ tagsEnabled: false });
+    expect(updateWorkspaceSettings).toHaveBeenCalledWith({
+      tagsEnabled: false,
+    });
   });
 
   it("shows and wires the templates switch", () => {
     workspacePath.value = "/vault";
-    workspaceSettings.value = { ...DEFAULT_WORKSPACE_SETTINGS, templatesEnabled: true };
+    workspaceSettings.value = {
+      ...DEFAULT_WORKSPACE_SETTINGS,
+      templatesEnabled: true,
+    };
     const { getByText } = render(<SettingsPanel />);
     const row = getByText("Templates").closest(".settings-row") as HTMLElement;
     expect(within(row).getByText("On").className).toContain("active");
     fireEvent.click(within(row).getByText("Off"));
-    expect(updateWorkspaceSettings).toHaveBeenCalledWith({ templatesEnabled: false });
+    expect(updateWorkspaceSettings).toHaveBeenCalledWith({
+      templatesEnabled: false,
+    });
   });
 
   it("wires the templates folder text input", () => {
@@ -219,16 +275,23 @@ describe("SettingsPanel", () => {
     const { getByPlaceholderText } = render(<SettingsPanel />);
     const input = getByPlaceholderText("Templates") as HTMLInputElement;
     fireEvent.input(input, { target: { value: "Notes/Templates" } });
-    expect(updateWorkspaceSettings).toHaveBeenCalledWith({ templatesFolder: "Notes/Templates" });
+    expect(updateWorkspaceSettings).toHaveBeenCalledWith({
+      templatesFolder: "Notes/Templates",
+    });
   });
 
   it("wires the default view mode switch and marks the active option", () => {
     workspacePath.value = "/vault";
-    workspaceSettings.value = { ...DEFAULT_WORKSPACE_SETTINGS, defaultViewMode: "split" };
+    workspaceSettings.value = {
+      ...DEFAULT_WORKSPACE_SETTINGS,
+      defaultViewMode: "split",
+    };
     const { getByText } = render(<SettingsPanel />);
     expect(getByText("Split").className).toContain("active");
     fireEvent.click(getByText("Preview"));
-    expect(updateWorkspaceSettings).toHaveBeenCalledWith({ defaultViewMode: "preview" });
+    expect(updateWorkspaceSettings).toHaveBeenCalledWith({
+      defaultViewMode: "preview",
+    });
   });
 
   it("lists the keyboard shortcuts, always, regardless of whether a workspace is open", () => {
@@ -252,7 +315,9 @@ describe("SettingsPanel", () => {
     fireEvent.click(getByText("View License"));
     expect(container.querySelector(".license-viewer")).toBeTruthy();
 
-    fireEvent.click(getByText("x", { selector: ".license-viewer .modal-close" }));
+    fireEvent.click(
+      getByText("x", { selector: ".license-viewer .modal-close" }),
+    );
     expect(container.querySelector(".license-viewer")).toBeNull();
     expect(settingsPanelOpen.value).toBe(true);
   });

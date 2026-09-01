@@ -63,6 +63,34 @@ export const trashPath: typeof impl.trashPath = (workspaceRoot: string, path: st
   trackWorkspaceOperation(impl.trashPath(workspaceRoot, path));
 export const deletePathPermanent: typeof impl.deletePathPermanent = (path: string) =>
   trackWorkspaceOperation(impl.deletePathPermanent(path));
+// Audit follow-up F-004's containment-checked counterparts to the functions
+// above. Same drain participation: a rename or delete resolved and verified
+// against the workspace root on the native side is still a native mutation
+// in flight, so a transition must wait for it the same as for the unchecked
+// calls above.
+export const writeWorkspaceTextFile: typeof impl.writeWorkspaceTextFile = (
+  workspaceRoot: string,
+  relativePath: string,
+  contents: string,
+) => trackWorkspaceOperation(impl.writeWorkspaceTextFile(workspaceRoot, relativePath, contents));
+export const writeWorkspaceBinaryFile: typeof impl.writeWorkspaceBinaryFile = (
+  workspaceRoot: string,
+  relativePath: string,
+  data: Uint8Array,
+) => trackWorkspaceOperation(impl.writeWorkspaceBinaryFile(workspaceRoot, relativePath, data));
+export const createWorkspaceDir: typeof impl.createWorkspaceDir = (
+  workspaceRoot: string,
+  relativePath: string,
+) => trackWorkspaceOperation(impl.createWorkspaceDir(workspaceRoot, relativePath));
+export const renameWorkspacePath: typeof impl.renameWorkspacePath = (
+  workspaceRoot: string,
+  from: string,
+  to: string,
+) => trackWorkspaceOperation(impl.renameWorkspacePath(workspaceRoot, from, to));
+export const deleteWorkspacePathPermanent: typeof impl.deleteWorkspacePathPermanent = (
+  workspaceRoot: string,
+  relativePath: string,
+) => trackWorkspaceOperation(impl.deleteWorkspacePathPermanent(workspaceRoot, relativePath));
 
 // App-private config, app metadata, and status-bar appearance are not bound to
 // a selected workspace grant and therefore do not participate in the drain.

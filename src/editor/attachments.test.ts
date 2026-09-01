@@ -1,12 +1,19 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { attachmentFileName, attachmentSaveDir, attachmentsInsertText, saveAttachment } from "./attachments";
-import { writeBinaryFile } from "../workspace/tauriBridge";
+import {
+  attachmentFileName,
+  attachmentSaveDir,
+  attachmentsInsertText,
+  saveAttachment,
+} from "./attachments";
+import { writeWorkspaceBinaryFile } from "../workspace/tauriBridge";
 
-vi.mock("../workspace/tauriBridge", () => ({ writeBinaryFile: vi.fn() }));
+vi.mock("../workspace/tauriBridge", () => ({
+  writeWorkspaceBinaryFile: vi.fn(),
+}));
 
 beforeEach(() => {
   vi.restoreAllMocks();
-  vi.mocked(writeBinaryFile).mockClear();
+  vi.mocked(writeWorkspaceBinaryFile).mockClear();
   vi.spyOn(Math, "random").mockReturnValue(0.123456789);
 });
 
@@ -29,8 +36,12 @@ describe("attachmentFileName", () => {
   });
 
   it("treats a bare 'image' or 'image.<ext>' original name as not meaningful", () => {
-    expect(attachmentFileName("image/png", 1, "image")).toMatch(/^Pasted image /);
-    expect(attachmentFileName("image/png", 1, "image.png")).toMatch(/^Pasted image /);
+    expect(attachmentFileName("image/png", 1, "image")).toMatch(
+      /^Pasted image /,
+    );
+    expect(attachmentFileName("image/png", 1, "image.png")).toMatch(
+      /^Pasted image /,
+    );
   });
 
   it("preserves a real dropped file name, inserting the suffix before the extension", () => {
@@ -40,51 +51,61 @@ describe("attachmentFileName", () => {
   });
 
   it("appends the suffix directly when the real name has no extension", () => {
-    expect(attachmentFileName("image/png", 1, "diagram")).toBe("diagram-4fzzzx");
+    expect(attachmentFileName("image/png", 1, "diagram")).toBe(
+      "diagram-4fzzzx",
+    );
   });
 
   it("sanitizes path-separator-like characters out of a real file name", () => {
-    expect(attachmentFileName("image/png", 1, "a/b:c.png")).toBe("a-b-c-4fzzzx.png");
+    expect(attachmentFileName("image/png", 1, "a/b:c.png")).toBe(
+      "a-b-c-4fzzzx.png",
+    );
   });
 
   it("produces different names on repeated calls (random suffix)", () => {
     vi.spyOn(Math, "random").mockRestore();
-    const names = new Set(Array.from({ length: 20 }, () => attachmentFileName("image/png", 1)));
+    const names = new Set(
+      Array.from({ length: 20 }, () => attachmentFileName("image/png", 1)),
+    );
     expect(names.size).toBe(20);
   });
 });
 
 describe("attachmentSaveDir", () => {
   it("resolves next to the note when no attachments folder is configured", () => {
-    expect(attachmentSaveDir("/vault", "/vault/notes/today.md", "")).toBe("/vault/notes");
+    expect(attachmentSaveDir("/vault", "/vault/notes/today.md", "")).toBe(
+      "/vault/notes",
+    );
   });
 
   it("resolves next to the note when the attachments folder is only whitespace", () => {
-    expect(attachmentSaveDir("/vault", "/vault/notes/today.md", "   ")).toBe("/vault/notes");
+    expect(attachmentSaveDir("/vault", "/vault/notes/today.md", "   ")).toBe(
+      "/vault/notes",
+    );
   });
 
   it("resolves under the workspace root when an attachments folder is configured", () => {
-    expect(attachmentSaveDir("/vault", "/vault/notes/today.md", "attachments")).toBe(
-      "/vault/attachments",
-    );
+    expect(
+      attachmentSaveDir("/vault", "/vault/notes/today.md", "attachments"),
+    ).toBe("/vault/attachments");
   });
 
   it("trims leading and trailing slashes from the configured folder", () => {
-    expect(attachmentSaveDir("/vault", "/vault/notes/today.md", "/attachments/")).toBe(
-      "/vault/attachments",
-    );
+    expect(
+      attachmentSaveDir("/vault", "/vault/notes/today.md", "/attachments/"),
+    ).toBe("/vault/attachments");
   });
 
   it("supports a nested attachments folder", () => {
-    expect(attachmentSaveDir("/vault", "/vault/notes/today.md", "assets/images")).toBe(
-      "/vault/assets/images",
-    );
+    expect(
+      attachmentSaveDir("/vault", "/vault/notes/today.md", "assets/images"),
+    ).toBe("/vault/assets/images");
   });
 
   it("ignores the note's own location once a folder is configured", () => {
-    expect(attachmentSaveDir("/vault", "/vault/deep/nested/today.md", "attachments")).toBe(
-      "/vault/attachments",
-    );
+    expect(
+      attachmentSaveDir("/vault", "/vault/deep/nested/today.md", "attachments"),
+    ).toBe("/vault/attachments");
   });
 });
 
@@ -100,8 +121,9 @@ describe("saveAttachment", () => {
       now: 1700000000000,
     });
 
-    expect(writeBinaryFile).toHaveBeenCalledWith(
-      "/vault/notes/Pasted image 1700000000000-4fzzzx.png",
+    expect(writeWorkspaceBinaryFile).toHaveBeenCalledWith(
+      "/vault",
+      "notes/Pasted image 1700000000000-4fzzzx.png",
       bytes,
     );
     expect(relative).toBe("Pasted image 1700000000000-4fzzzx.png");
@@ -154,8 +176,16 @@ describe("attachmentsInsertText", () => {
   it("joins multiple dropped files, one per line, in the given order", async () => {
     const text = await attachmentsInsertText(
       [
-        { bytes: new Uint8Array(), mimeType: "image/png", originalName: "first.png" },
-        { bytes: new Uint8Array(), mimeType: "image/jpeg", originalName: "second.jpg" },
+        {
+          bytes: new Uint8Array(),
+          mimeType: "image/png",
+          originalName: "first.png",
+        },
+        {
+          bytes: new Uint8Array(),
+          mimeType: "image/jpeg",
+          originalName: "second.jpg",
+        },
       ],
       context,
     );
@@ -165,16 +195,24 @@ describe("attachmentsInsertText", () => {
   it("saves every file before returning, not just the first", async () => {
     await attachmentsInsertText(
       [
-        { bytes: new Uint8Array([1]), mimeType: "image/png", originalName: "a.png" },
-        { bytes: new Uint8Array([2]), mimeType: "image/png", originalName: "b.png" },
+        {
+          bytes: new Uint8Array([1]),
+          mimeType: "image/png",
+          originalName: "a.png",
+        },
+        {
+          bytes: new Uint8Array([2]),
+          mimeType: "image/png",
+          originalName: "b.png",
+        },
       ],
       context,
     );
-    expect(writeBinaryFile).toHaveBeenCalledTimes(2);
+    expect(writeWorkspaceBinaryFile).toHaveBeenCalledTimes(2);
   });
 
   it("returns an empty string for an empty file list", async () => {
     expect(await attachmentsInsertText([], context)).toBe("");
-    expect(writeBinaryFile).not.toHaveBeenCalled();
+    expect(writeWorkspaceBinaryFile).not.toHaveBeenCalled();
   });
 });

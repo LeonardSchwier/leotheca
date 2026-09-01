@@ -40,6 +40,11 @@ pub fn run() {
             commands::rename_path,
             commands::trash_path,
             commands::delete_path_permanent,
+            commands::write_workspace_text_file,
+            commands::write_workspace_binary_file,
+            commands::create_workspace_dir,
+            commands::rename_workspace_path,
+            commands::delete_workspace_path_permanent,
             commands::workspace_stats,
         ])
         .run(tauri::generate_context!())

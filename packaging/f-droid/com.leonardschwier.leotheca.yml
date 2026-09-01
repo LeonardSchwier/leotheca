@@ -1,19 +1,24 @@
 Categories:
   - Writing
-  - Office
 License: MIT
 SourceCode: https://github.com/LeonardSchwier/leotheca
 IssueTracker: https://github.com/LeonardSchwier/leotheca/issues
 Changelog: https://github.com/LeonardSchwier/leotheca/blob/main/CHANGELOG.md
 AuthorName: Leonard Schwier
 AutoName: Leotheca
-Summary: A free and open source markdown viewer and editor
+Summary: Local markdown viewer and editor
 Description: |
   Leotheca is a free and open source markdown viewer and editor for a
   local folder of plain text notes. No account, no telemetry, no
   proprietary sync service. Point it at any folder of markdown files and
   use whatever sync tool you already trust to keep it in sync across
   devices.
+
+MaintainerNotes: |
+  The v1.0.0 tag predates removal of two unused mobile-project template
+  entries: a network permission and an unused services build plugin. The
+  build block removes those inert entries before scanning and building.
+  Current upstream source no longer contains either entry.
 
 RepoType: git
 Repo: https://github.com/LeonardSchwier/leotheca.git
@@ -32,9 +37,18 @@ Builds:
     subdir: android
     sudo:
       - apt-get update
-      - apt-get install -y nodejs npm
+      - apt-get install -y curl xz-utils
+      - curl -fsSLo /tmp/node.tar.xz https://nodejs.org/download/release/v22.23.2/node-v22.23.2-linux-x64.tar.xz
+      - echo "d60acfe00a2932254bb0ad20e01b0d74397a0875595de719654b214f4b03f307  /tmp/node.tar.xz" | sha256sum -c -
+      - tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1
     init:
       - cd .. && npm ci && npm run build && npx cap sync android
+      - rm -f node_modules/esbuild/bin/esbuild node_modules/@esbuild/linux-x64/bin/esbuild node_modules/@capacitor/cli/assets/capacitor-cordova-ios-plugins.tar.gz node_modules/@capacitor/cli/assets/ios-pods-template.tar.gz node_modules/@capacitor/cli/assets/ios-spm-template.tar.gz node_modules/@capacitor/cli/assets/android-template.tar.gz node_modules/@capacitor/cli/assets/capacitor-cordova-android-plugins.tar.gz node_modules/source-map/lib/mappings.wasm
+    prebuild:
+      - sed -i '/com.google.gms:google-services/d' build.gradle
+      - sed -i '/google-services/d' app/build.gradle
+      - sed -i '/android.permission.INTERNET/d' app/src/main/AndroidManifest.xml
+      - '! grep -R -E "com.google.gms:google-services|android.permission.INTERNET" build.gradle app/build.gradle app/src/main/AndroidManifest.xml'
     gradle:
       - yes
     output: app/build/outputs/apk/release/app-release-unsigned.apk

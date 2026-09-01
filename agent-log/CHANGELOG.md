@@ -6,6 +6,12 @@ Append one entry per work session, newest at the top. Each entry: date, which ag
 
 ---
 
+## 2026-09-01: Claude Code (cloud, live conversation), added the approved feature SDD pack to `spec/` and ROADMAP.md
+
+The maintainer uploaded a zip of ten approved Software Design Documents (README index, F02, F03, F04, F05, F06, F07, F09, F11, plus the separately proposed UX-01 visual-system refresh and F20 workspace-profiles SDD, and one combined document holding all eight F-numbered SDDs together) and asked for them to be added to a new `spec/` folder and referenced from `ROADMAP.md` for implementation. Extracted the zip, discarded the macOS `__MACOSX`/AppleDouble junk entries it also contained, and copied the eleven real Markdown files into `spec/` unchanged. Checked them against two standing hard rules first: zero em dashes (confirmed via `grep`) and no real competitor product names (confirmed via a targeted grep for the obvious note-taking competitors).
+
+Added ten new `⬜` Open Features entries to `ROADMAP.md`, each naming its `spec/` file and a short summary of what it does and its cross-feature dependencies, ordered by the spec pack's own recommended sequencing rather than alphabetically or by arrival order: UX-01 and F20 first (both foundational P1 items other specs depend on), then Track A's knowledge-structure order (F06, F04, F03, F02, F09), then F07 (needs UX-01's shell), F05 (needs F20's profile switch), and F11 last. Did not implement any of the ten features in this session: the request was specifically to load the specs and list them, not to build them, and each is a substantial, multi-hundred-line SDD that needs its own claim, branch, and verification pass under the existing roadmap protocol. Left UX-01 explicitly flagged as "proposed for approval, not yet implementation-approved" per its own header, unlike the other nine which are already marked "Approved for implementation design" in their source documents.
+
 ## 2026-09-01: Claude Code (cloud, live conversation), fixed the Flatpak release build
 
 The maintainer reported the Flatpak release build failing. Confirmed via `release.yml`'s `flatpak` job logs on the latest runs: `npm ci --offline` inside the Flatpak sandbox failed with `npm error ENOTCACHED ... request to https://registry.npmjs.org/eslint failed: cache mode is 'only-if-cached' but no cached response is available`, on every run since the Flathub-submission-prep merge landed earlier this session.

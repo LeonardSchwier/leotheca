@@ -6,6 +6,20 @@ Append one entry per work session, newest at the top. Each entry: date, which ag
 
 ---
 
+## 2026-09-01: Claude Code (cloud, live conversation), fixed the Flatpak release build
+
+The maintainer reported the Flatpak release build failing. Confirmed via `release.yml`'s `flatpak` job logs on the latest runs: `npm ci --offline` inside the Flatpak sandbox failed with `npm error ENOTCACHED ... request to https://registry.npmjs.org/eslint failed: cache mode is 'only-if-cached' but no cached response is available`, on every run since the Flathub-submission-prep merge landed earlier this session.
+
+Root-caused rather than guessed at: `flatpak/com.leonardschwier.leotheca.yml`'s git source was pinned to the `v1.0.0` tag (commit `5162499`), which predates commit `6f58e52` ("Fix flatpak CI ENOTCACHED: remove unused eslint-plugin-preact"). That old tag's `package-lock.json` still resolves `eslint-plugin-preact`'s transitive `eslint-config-developit` → `eslint-plugin-compat`, whose peer-dependency range doesn't cover `eslint@10.9.1`; `npm ci --offline`'s peer-override resolution for that conflict needs a live bare-metadata lookup against `registry.npmjs.org/eslint`, a kind of cache entry `flatpak-node-generator` never produces. `flatpak/node-sources.json` on `main`, however, was already regenerated (commit `452bd80`) against the *current*, already-fixed lockfile that doesn't need that lookup at all, so it has no matching cache entry, hence the previously-silent mismatch now surfacing as a hard failure the moment anything else in the pipeline (the Flathub-submission merge, unrelated) triggered a fresh run.
+
+Verified before fixing, not assumed: confirmed via `git diff` that `package-lock.json` and `src-tauri/Cargo.lock` are byte-identical between `origin/main`'s current head and the commits `node-sources.json`/`cargo-sources.json` were actually regenerated against (`452bd80`, `efd4969`), and that `node-sources.json` contains zero references to `eslint-plugin-preact`/`eslint-plugin-compat` and does contain the `eslint-10.9.1.tgz` tarball entry the current lockfile needs.
+
+Fix: re-pinned the manifest's git source to `origin/main`'s current head commit (`eb98b1a`) instead of the stale `v1.0.0` tag, since no real `v0.1.0`-style release tag exists yet to pin to (the repository's version scheme moved to `0.1.0` under audit follow-up F-015, and `v1.0.0` is a leftover pre-F-015 tag). Documented the full failure chain and the "whoever regenerates the dependency source lists must update this pin to the same commit" requirement directly in the manifest's own comment and in `flatpak/README.md`, so a future lockfile change doesn't silently reintroduce the same drift. Updated the existing `✅` "Flatpak CI Build" `ROADMAP.md` entry with a dated addendum rather than opening a new item, since this is a regression in already-shipped, previously-verified CI behavior, not new work.
+
+Did not touch the separate F-Droid submission draft (`packaging/f-droid/`), which pins its own commit independently and was out of scope for the maintainer's specific "flatpak release build" report; its own previously-flagged, non-blocking issues (a stale `verify-release-recipe` assertion, the expected `server-tools-build` failure on a not-yet-existing `v0.1.0` tag) are unrelated to this bug and already recorded elsewhere.
+
+Verification: this sandbox has no `flatpak`/`flatpak-builder` binary and no way to run the sandboxed offline npm/Cargo install locally (a long-standing, already-documented constraint), so the fix's correctness rests on direct evidence (the exact failing lockfile requirement, the exact missing cache entry, byte-identical lockfile diffs against the regeneration commits) rather than a local reproduction; pushed directly to `main` and watched the resulting `release.yml` run's `flatpak` job to confirm it actually goes green before considering this closed.
+
 ## 2026-09-01: Claude Code (cloud, live conversation), no-more-PRs policy, roadmap cleanup, merged PRs #18/#19/#24, inspiration-quote empty state
 
 The maintainer joined live with a batch of requests across this session. Handled each in turn:

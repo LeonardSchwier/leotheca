@@ -1,6 +1,8 @@
 # Flatpak packaging
 
-Status: the manifest is prepared as a standalone stable-release submission and has a dedicated cloud verification gate. The app source is pinned to the `v1.0.0` commit instead of relying on a local checkout. The submission metadata, generated dependency source lists, and Cargo configuration can therefore be copied to an external submission repository without changing build paths.
+Status: the manifest is prepared as a standalone stable-release submission and has a dedicated cloud verification gate. The app source is pinned to a fixed commit instead of relying on a local checkout. The submission metadata, generated dependency source lists, and Cargo configuration can therefore be copied to an external submission repository without changing build paths.
+
+The pinned commit is not a tagged release: the repository's version scheme moved to `VERSION`-file-driven `0.1.0` semantics (audit follow-up F-015), and no `v0.1.0` tag has been cut yet, so there is currently no real release tag to pin to. The manifest is instead pinned to a specific, currently-working commit hash, updated to a real `v0.1.0`-style tag once one exists. See the dated comment in `com.leonardschwier.leotheca.yml`'s `sources:` block for the real CI failure (an `npm ci --offline` registry hit caused by the old `v1.0.0` tag's stale, already-fixed-on-`main` `eslint-plugin-preact` dependency) that made re-pinning necessary.
 
 ## Files
 
@@ -13,7 +15,7 @@ The submission set is:
 - `cargo-sources.json`, generated offline Cargo sources.
 - `cargo-config.toml`, the Cargo source replacement configuration used during the sandboxed build.
 
-The manifest fetches the stable upstream source from the literal repository URL and pins both the `v1.0.0` tag and commit `516249983daf5fb3dc421f9a2ad436ed22a44ea8`. New stable releases must update the tag, commit, release metadata, and generated dependency source lists together.
+The manifest fetches the stable upstream source from the literal repository URL and pins commit `eb98b1affd309207d7fb114f1e8d6e9acf45537b`. New stable releases must update the commit (ideally to a real tag once one exists), release metadata, and generated dependency source lists together, and any commit that changes `package-lock.json` or `src-tauri/Cargo.lock` must regenerate the dependency source lists below against that exact commit and update the pin to match, or a future build can silently regress into the same offline-cache mismatch documented in `com.leonardschwier.leotheca.yml`.
 
 ## Verification
 

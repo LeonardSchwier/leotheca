@@ -62,10 +62,24 @@ modules:
     sources:
       # New submissions must build from a stable, reproducibly pinned source
       # instead of depending on this repository's checkout being present.
+      #
+      # 2026-09-01: re-pinned off the old `v1.0.0` tag, which predates both
+      # the F-015 version-scheme correction (VERSION is now 0.1.0, no
+      # `v0.1.0` tag exists yet) and commit 6f58e52's removal of the unused
+      # `eslint-plugin-preact` dependency. That tag's package-lock.json still
+      # pulls in `eslint-plugin-preact`'s transitive `eslint-plugin-compat`,
+      # whose peer-dependency override forces `npm ci --offline` to hit the
+      # real registry for a bare `eslint` metadata lookup, one node-sources.json
+      # (already regenerated against the current, already-fixed lockfile) has
+      # no offline cache entry for. Real failure confirmed via CI logs
+      # (`ENOTCACHED ... registry.npmjs.org/eslint`), not guessed. Pinned to a
+      # plain commit hash instead of a tag since no stable release tag exists
+      # yet; move this to a real `v0.1.0`-style tag once one is cut. Whoever
+      # regenerates node-sources.json/cargo-sources.json for a lockfile change
+      # must update this commit to the same one those were regenerated against.
       - type: git
         url: https://github.com/LeonardSchwier/leotheca.git
-        tag: v1.0.0
-        commit: 516249983daf5fb3dc421f9a2ad436ed22a44ea8
+        commit: eb98b1affd309207d7fb114f1e8d6e9acf45537b
       # Keep submission metadata alongside the manifest so the same files
       # can be copied to the external submission repository unchanged.
       - type: file

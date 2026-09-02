@@ -31,18 +31,18 @@ vi.mock("../settings/store", () => {
   };
 });
 
-const { readTextFile, writeTextFile } = vi.hoisted(() => ({
+const { readTextFile, writeActiveWorkspaceTextFile } = vi.hoisted(() => ({
   readTextFile: vi.fn<(path: string) => Promise<string>>(() =>
     Promise.resolve(""),
   ),
-  writeTextFile: vi.fn<(path: string, content: string) => Promise<void>>(() =>
-    Promise.resolve(),
-  ),
+  writeActiveWorkspaceTextFile: vi.fn<
+    (path: string, content: string) => Promise<void>
+  >(() => Promise.resolve()),
 }));
 
 vi.mock("../workspace/tauriBridge", () => ({
   readTextFile,
-  writeTextFile,
+  writeActiveWorkspaceTextFile,
   pickWorkspaceFolder: vi.fn(),
   restoreWorkspaceAccess: vi.fn(),
   listDir: vi.fn(async () => []),
@@ -161,7 +161,7 @@ afterEach(() => {
     configurable: true,
     value: defaultViewportWidth,
   });
-  writeTextFile.mockClear();
+  writeActiveWorkspaceTextFile.mockClear();
   readTextFile.mockClear();
   renameEntry.mockReset();
 });
@@ -202,7 +202,7 @@ describe("App: keyboard shortcuts", () => {
       '[data-testid="mock-editor"]',
     ) as HTMLTextAreaElement;
     fireEvent.input(editor, { target: { value: "typed content" } });
-    expect(writeTextFile).not.toHaveBeenCalled();
+    expect(writeActiveWorkspaceTextFile).not.toHaveBeenCalled();
 
     await act(async () => {
       fireEvent.keyDown(window, { key: "s", ctrlKey: true });
@@ -210,8 +210,8 @@ describe("App: keyboard shortcuts", () => {
       await Promise.resolve();
     });
 
-    expect(writeTextFile).toHaveBeenCalledTimes(1);
-    expect(writeTextFile).toHaveBeenCalledWith(
+    expect(writeActiveWorkspaceTextFile).toHaveBeenCalledTimes(1);
+    expect(writeActiveWorkspaceTextFile).toHaveBeenCalledWith(
       "/vault/note.md",
       "typed content",
     );
@@ -221,7 +221,7 @@ describe("App: keyboard shortcuts", () => {
       vi.advanceTimersByTime(500);
       await Promise.resolve();
     });
-    expect(writeTextFile).toHaveBeenCalledTimes(1);
+    expect(writeActiveWorkspaceTextFile).toHaveBeenCalledTimes(1);
   });
 
   it("Ctrl+, opens Settings", () => {

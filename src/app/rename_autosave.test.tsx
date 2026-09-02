@@ -30,16 +30,16 @@ vi.mock("../settings/store", () => {
   };
 });
 
-const { readTextFile, writeTextFile } = vi.hoisted(() => ({
+const { readTextFile, writeActiveWorkspaceTextFile } = vi.hoisted(() => ({
   readTextFile: vi.fn<(path: string) => Promise<string>>(async () => ""),
-  writeTextFile: vi.fn<(path: string, content: string) => Promise<void>>(
-    async () => {},
-  ),
+  writeActiveWorkspaceTextFile: vi.fn<
+    (path: string, content: string) => Promise<void>
+  >(async () => {}),
 }));
 
 vi.mock("../workspace/tauriBridge", () => ({
   readTextFile,
-  writeTextFile,
+  writeActiveWorkspaceTextFile,
   pickWorkspaceFolder: vi.fn(),
   restoreWorkspaceAccess: vi.fn(),
   listDir: vi.fn(async () => []),
@@ -132,7 +132,7 @@ afterEach(() => {
     configurable: true,
     value: defaultViewportWidth,
   });
-  writeTextFile.mockClear();
+  writeActiveWorkspaceTextFile.mockClear();
   readTextFile.mockClear();
   renameEntry.mockReset();
 });
@@ -144,9 +144,11 @@ describe("App: tab rename while an autosave is still pending", () => {
       order.push("rename:" + path);
       return "/vault/renamed.md";
     });
-    writeTextFile.mockImplementation(async (path: string, content: string) => {
-      order.push("write:" + path + ":" + content);
-    });
+    writeActiveWorkspaceTextFile.mockImplementation(
+      async (path: string, content: string) => {
+        order.push("write:" + path + ":" + content);
+      },
+    );
 
     openOrFocusTab("/vault/note.md", "note.md", "initial content", "text");
 
@@ -171,8 +173,8 @@ describe("App: tab rename while an autosave is still pending", () => {
       "write:/vault/note.md:typed content",
       "rename:/vault/note.md",
     ]);
-    expect(writeTextFile).toHaveBeenCalledTimes(1);
-    expect(writeTextFile).toHaveBeenCalledWith(
+    expect(writeActiveWorkspaceTextFile).toHaveBeenCalledTimes(1);
+    expect(writeActiveWorkspaceTextFile).toHaveBeenCalledWith(
       "/vault/note.md",
       "typed content",
     );

@@ -12,12 +12,16 @@ const {
   listDir,
   readTextFile,
   writeTextFile,
+  writeActiveWorkspaceTextFile,
   restoreWorkspaceAccess,
 } = vi.hoisted(() => ({
   drainWorkspaceOperations: vi.fn<() => Promise<void>>(async () => {}),
   listDir: vi.fn<(path: string) => Promise<unknown[]>>(async () => []),
   readTextFile: vi.fn<(path: string) => Promise<string>>(),
   writeTextFile: vi.fn<(path: string, contents: string) => Promise<void>>(),
+  writeActiveWorkspaceTextFile: vi.fn<
+    (path: string, contents: string) => Promise<void>
+  >(),
   restoreWorkspaceAccess: vi.fn<(path: string, token?: string) => Promise<void>>(async () => {}),
 }));
 
@@ -26,6 +30,7 @@ vi.mock("../workspace/tauriBridge", () => ({
   listDir,
   readTextFile,
   writeTextFile,
+  writeActiveWorkspaceTextFile,
   restoreWorkspaceAccess,
   getAppVersion: vi.fn(async () => "1.0"),
   setStatusBarAppearance: vi.fn(async () => {}),
@@ -55,10 +60,12 @@ beforeEach(() => {
   listDir.mockResolvedValue([]);
   readTextFile.mockReset();
   writeTextFile.mockReset();
+  writeActiveWorkspaceTextFile.mockReset();
   restoreWorkspaceAccess.mockReset();
   restoreWorkspaceAccess.mockResolvedValue();
   readTextFile.mockRejectedValue(new Error("no settings yet"));
   writeTextFile.mockResolvedValue();
+  writeActiveWorkspaceTextFile.mockResolvedValue();
   workspaceSelectionError.value = null;
 });
 
@@ -66,7 +73,7 @@ describe("workspace transition integration", () => {
   it("drains the outgoing write before activating a different Android token for /workspace", async () => {
     vi.useFakeTimers();
     const oldWrite = deferred<void>();
-    writeTextFile.mockImplementation((path) =>
+    writeActiveWorkspaceTextFile.mockImplementation((path) =>
       path === "/workspace/note.md" ? oldWrite.promise : Promise.resolve(),
     );
     const saves = createSaveCoordinator();
@@ -78,7 +85,10 @@ describe("workspace transition integration", () => {
 
     saves.change(oldSession, "/workspace/note.md", "old workspace edit");
     await vi.advanceTimersByTimeAsync(400);
-    expect(writeTextFile).toHaveBeenCalledWith("/workspace/note.md", "old workspace edit");
+    expect(writeActiveWorkspaceTextFile).toHaveBeenCalledWith(
+      "/workspace/note.md",
+      "old workspace edit",
+    );
 
     let switched = false;
     const switching = setWorkspacePath("/workspace", "token-B").then(() => { switched = true; });

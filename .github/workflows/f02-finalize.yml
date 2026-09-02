@@ -1,0 +1,45 @@
+name: Finalize F02 metadata
+
+on:
+  push:
+    branches:
+      - agent/f02-phase2-filter-toggle
+    paths:
+      - .github/workflows/f02-finalize.yml
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Merge current metadata with verified F02 metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          base=60634d2f1885456c3186b4ef62ccf7151fafdd01
+          source=93c54ea6fdf0a2b9136919c1ee25a27480da3672
+          for path in ROADMAP.md CHANGELOG.md documentation/ARCHITECTURE.md; do
+            git show "$base:$path" > "/tmp/base-${path//\//-}"
+            git show "$source:$path" > "/tmp/source-${path//\//-}"
+            if ! git merge-file -p "$path" "/tmp/base-${path//\//-}" "/tmp/source-${path//\//-}" > "/tmp/merged-${path//\//-}"; then
+              echo "Metadata merge conflicted for $path" >&2
+              exit 1
+            fi
+            mv "/tmp/merged-${path//\//-}" "$path"
+          done
+          git rm .github/workflows/f02-finalize.yml
+          if grep -R $'\342\200\224' ROADMAP.md CHANGELOG.md documentation/ARCHITECTURE.md; then
+            echo "Checked-in metadata contains an em dash" >&2
+            exit 1
+          fi
+          git diff --check
+          git config user.name Leonardschwier
+          git config user.email github@leonardschwier.de
+          git add ROADMAP.md CHANGELOG.md documentation/ARCHITECTURE.md
+          git commit -m "Finalize F02 Phase 2 metadata"
+          git push origin HEAD:agent/f02-phase2-filter-toggle

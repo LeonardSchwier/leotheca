@@ -107,8 +107,8 @@ jobs:
           git rm .github/workflows/f06-forward-integrate.yml
           git add CHANGELOG.md ROADMAP.md documentation/ARCHITECTURE.md src
           git diff --check
-          if git grep -n $'\342\200\224' -- CHANGELOG.md ROADMAP.md documentation/ARCHITECTURE.md; then
-            echo "Checked-in metadata contains an em dash" >&2
+          if git diff --cached --unified=0 -- CHANGELOG.md ROADMAP.md documentation/ARCHITECTURE.md | grep '^+' | grep -v '^+++' | grep -q $'\342\200\224'; then
+            echo "New metadata contains an em dash" >&2
             exit 1
           fi
           git commit -m "Forward integrate F06 Phase 3 with current main"

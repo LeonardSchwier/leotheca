@@ -1,3 +1,0 @@
-src/linking/store.test.ts(1333,1): error TS1005: '}' expected.
-
-exit=2

@@ -1055,7 +1055,6 @@ describe("rebuildLinkIndex: tasks (F02 Phase 1)", () => {
 });
 
 describe("F09 Phase 1: mtime and frontmatter property indexing", () => {
-describe("rebuildLinkIndex: wikiLinksByPath/headingsByPath (F03 Phase 1)", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     writeWorkspaceTextFile.mockResolvedValue(undefined);
@@ -1071,27 +1070,6 @@ describe("rebuildLinkIndex: wikiLinksByPath/headingsByPath (F03 Phase 1)", () =>
     readTextFile.mockImplementation(async (path: string) => {
       if (path === CACHE_PATH) throw new Error("no cache file yet");
       return "body";
-    linkIndex.value = {
-      backlinksByPath: new Map(),
-      pathsByNoteName: new Map(),
-      pathsByAlias: new Map(),
-      aliasesByPath: new Map(),
-      pathsByTag: new Map(),
-      tagsByPath: new Map(),
-      tasksByPath: new Map(),
-    };
-    resetLinkIndexCache();
-  });
-
-  it("populates wikiLinksByPath and headingsByPath from the same note read used for wikilinks/tags/tasks, with no second workspace walk", async () => {
-    findMarkdownFiles.mockResolvedValue([
-      { name: "Alpha.md", path: "/workspace/Alpha.md", isDir: false },
-      { name: "Beta.md", path: "/workspace/Beta.md", isDir: false },
-    ]);
-    readTextFile.mockImplementation(async (path: string) => {
-      if (path === CACHE_PATH) throw new Error("no cache file yet");
-      if (path.endsWith("Alpha.md")) return "# Intro\n\nSee [[Beta#Intro]].";
-      return "No links or headings here.";
     });
 
     await rebuildLinkIndex("/workspace");
@@ -1155,6 +1133,69 @@ describe("rebuildLinkIndex: wikiLinksByPath/headingsByPath (F03 Phase 1)", () =>
   });
 
   it("drops a persisted cache entry with a malformed frontmatterProperties field, forcing a real re-read", async () => {
+    findMarkdownFiles.mockResolvedValue([
+      { name: "a.md", path: "/workspace/a.md", isDir: false, mtime: 1000, size: 5 },
+    ]);
+    readTextFile.mockImplementation(async (path: string) => {
+      if (path === CACHE_PATH) {
+        return JSON.stringify({
+          version: 6,
+          entries: {
+            "/workspace/a.md": {
+              mtime: 1000,
+              size: 5,
+              wikilinks: [],
+              aliases: [],
+              tags: [],
+              tasks: [],
+              hasFrontmatter: true,
+              frontmatterProperties: [{ kind: "scalar", key: "x" }], // missing required fields
+              wikiLinks: [],
+              headings: [],
+            },
+          },
+        });
+      }
+      return "---\nx: 1\n---\n";
+    });
+
+    await expect(rebuildLinkIndex("/workspace")).resolves.toBeUndefined();
+
+    expect(readTextFile).toHaveBeenCalledWith("/workspace/a.md");
+    expect(linkIndex.value.frontmatterPropertiesByPath?.get("/workspace/a.md")).toHaveLength(1);
+  });
+});
+
+describe("rebuildLinkIndex: wikiLinksByPath/headingsByPath (F03 Phase 1)", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    writeWorkspaceTextFile.mockResolvedValue(undefined);
+    isNativePlatform.mockReturnValue(true);
+    linkIndex.value = {
+      backlinksByPath: new Map(),
+      pathsByNoteName: new Map(),
+      pathsByAlias: new Map(),
+      aliasesByPath: new Map(),
+      pathsByTag: new Map(),
+      tagsByPath: new Map(),
+      tasksByPath: new Map(),
+    };
+    resetLinkIndexCache();
+  });
+
+  it("populates wikiLinksByPath and headingsByPath from the same note read used for wikilinks/tags/tasks, with no second workspace walk", async () => {
+    findMarkdownFiles.mockResolvedValue([
+      { name: "Alpha.md", path: "/workspace/Alpha.md", isDir: false },
+      { name: "Beta.md", path: "/workspace/Beta.md", isDir: false },
+    ]);
+    readTextFile.mockImplementation(async (path: string) => {
+      if (path === CACHE_PATH) throw new Error("no cache file yet");
+      if (path.endsWith("Alpha.md")) return "# Intro\n\nSee [[Beta#Intro]].";
+      return "No links or headings here.";
+    });
+
+    await rebuildLinkIndex("/workspace");
+
     expect(findMarkdownFiles).toHaveBeenCalledTimes(1);
     const alphaLinks = linkIndex.value.wikiLinksByPath?.get("/workspace/Alpha.md");
     expect(alphaLinks).toHaveLength(1);
@@ -1259,40 +1300,6 @@ describe("rebuildLinkIndex: wikiLinksByPath/headingsByPath (F03 Phase 1)", () =>
     await expect(rebuildLinkIndex("/workspace")).resolves.toBeUndefined();
 
     expect(readTextFile).toHaveBeenCalledWith("/workspace/a.md");
-    expect(linkIndexUnreadablePaths.value).toEqual([]);
-  });
-
-  it("drops a persisted cache entry with a malformed frontmatterProperties field, forcing a real re-read", async () => {
-    findMarkdownFiles.mockResolvedValue([
-      { name: "a.md", path: "/workspace/a.md", isDir: false, mtime: 1000, size: 5 },
-    ]);
-    readTextFile.mockImplementation(async (path: string) => {
-      if (path === CACHE_PATH) {
-        return JSON.stringify({
-          version: 6,
-          entries: {
-            "/workspace/a.md": {
-              mtime: 1000,
-              size: 5,
-              wikilinks: [],
-              aliases: [],
-              tags: [],
-              tasks: [],
-              hasFrontmatter: true,
-              frontmatterProperties: [{ kind: "scalar", key: "x" }], // missing required fields
-              wikiLinks: [],
-              headings: [],
-            },
-          },
-        });
-      }
-      return "---\nx: 1\n---\n";
-    });
-
-    await expect(rebuildLinkIndex("/workspace")).resolves.toBeUndefined();
-
-    expect(readTextFile).toHaveBeenCalledWith("/workspace/a.md");
-    expect(linkIndex.value.frontmatterPropertiesByPath?.get("/workspace/a.md")).toHaveLength(1);
     expect(linkIndexUnreadablePaths.value).toEqual([]);
   });
 

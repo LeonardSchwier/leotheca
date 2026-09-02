@@ -1,0 +1,37 @@
+name: Capture F09 typecheck diagnostics
+
+on:
+  push:
+    branches:
+      - agent/f09-phase1-collections
+    paths:
+      - .github/workflows/f09-capture-typecheck.yml
+
+permissions:
+  contents: write
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Capture compiler diagnostics
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name Leonardschwier
+          git config user.email github@leonardschwier.de
+          npm ci
+          set +e
+          npm run typecheck > .f09-typecheck.txt 2>&1
+          status=$?
+          set -e
+          printf '\nexit=%s\n' "$status" >> .f09-typecheck.txt
+          git add .f09-typecheck.txt
+          git rm .github/workflows/f09-capture-typecheck.yml
+          git commit -m "Capture F09 integration typecheck diagnostics"
+          git push origin HEAD:agent/f09-phase1-collections

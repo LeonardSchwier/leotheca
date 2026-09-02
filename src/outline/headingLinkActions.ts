@@ -11,7 +11,7 @@ import { requestOutlineInsert } from "./outlineNavigation";
  * allowed creator of `[[...]]` link text (spec/f04 section 2), never by
  * concatenating the note title and heading text by hand.
  *
- * Deferred to a follow-up, since they depend on work not yet landed:
+ * Deferred to a follow-up because this phase does not own these behaviors:
  * - Section 9.2's ambiguous-note-basename handling (a path-qualified note
  *   target when two notes share a basename) needs a resolver query this
  *   phase doesn't add; `headingLinkDisabledReason` below instead disables

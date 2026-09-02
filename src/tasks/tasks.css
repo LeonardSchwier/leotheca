@@ -24,6 +24,122 @@
   font-size: 11px;
 }
 
+.task-hub-search {
+  padding: var(--space-2) var(--space-2) 0;
+}
+
+.task-hub-search input {
+  width: 100%;
+  font: inherit;
+  font-size: 13px;
+  background: var(--bg-raised);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-2);
+}
+
+.task-hub-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-2) 0;
+}
+
+.task-hub-status-group {
+  display: flex;
+  gap: 2px;
+}
+
+.task-hub-status-button {
+  font: inherit;
+  font-size: 11px;
+  background: var(--bg-raised);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 2px var(--space-2);
+  cursor: pointer;
+}
+
+.task-hub-status-button.active {
+  background: var(--bg-selected);
+  color: var(--text-primary);
+  border-color: var(--accent);
+}
+
+.task-hub-filters-toggle {
+  font: inherit;
+  font-size: 11px;
+  background: none;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 2px var(--space-2);
+  cursor: pointer;
+}
+
+.task-hub-filter-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  margin: var(--space-2) var(--space-2) 0;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.task-hub-filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.task-hub-filter-field input,
+.task-hub-filter-field select {
+  font: inherit;
+  font-size: 13px;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-2);
+}
+
+.task-hub-clear-filters {
+  align-self: flex-start;
+  font: inherit;
+  font-size: 11px;
+  background: none;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 2px var(--space-2);
+  cursor: pointer;
+}
+
+.task-hub-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: 0 var(--space-2);
+}
+
+.task-hub-group-heading {
+  margin: var(--space-2) 0 0;
+  padding: 0 var(--space-2);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--text-faint);
+}
+
 .task-hub-list {
   list-style: none;
   margin: 0;
@@ -40,10 +156,15 @@
 .task-hub-checkbox {
   flex: 0 0 auto;
   margin-top: 3px;
-  /* Read-only in this Phase 1 slice (F02 Phase 2 adds the real toggle):
-   * cursor: default rather than the browser's pointer cursor, so a
-   * disabled control doesn't visually invite a click that does nothing. */
+  cursor: pointer;
+}
+
+.task-hub-checkbox:disabled {
+  /* Pending toggle in flight (spec section 6.5 step 1): default cursor
+   * rather than the browser's pointer, so a momentarily-disabled control
+   * doesn't visually invite a click that does nothing yet. */
   cursor: default;
+  opacity: 0.6;
 }
 
 .task-hub-label {
@@ -81,6 +202,24 @@
   white-space: nowrap;
   color: var(--text-faint);
   font-size: 11px;
+}
+
+.task-hub-row-error {
+  margin: 0 0 var(--space-1);
+  padding-left: calc(16px + var(--space-2));
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.task-hub-retry {
+  font: inherit;
+  font-size: 11px;
+  background: none;
+  color: var(--accent);
+  border: none;
+  padding: 0;
+  text-decoration: underline;
+  cursor: pointer;
 }
 
 /* App-wide *:focus-visible (src/styles/theme.css) already rings every

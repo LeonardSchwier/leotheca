@@ -752,6 +752,7 @@ export function App() {
                         onNavigated={() => {
                           if (viewMode.value === "preview") viewMode.value = "split";
                         }}
+                        save={save}
                       />
                     ) : bookmarksOpen.value ? (
                       <BookmarksPanel

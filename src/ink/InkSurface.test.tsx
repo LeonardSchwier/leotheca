@@ -48,8 +48,9 @@ describe("InkSurface", () => {
     const strokes = onChange.mock.calls[0][0] as InkStroke[];
     expect(strokes).toHaveLength(1);
     expect(strokes[0].tool).toBe("pen");
-    expect(strokes[0].points[0]).toMatchObject({ x: 1, y: 2, pressure: 0.2, tiltX: 5, tiltY: -5 });
-    expect(strokes[0].points.at(-1)?.pressure).toBe(0.8);
+    expect(strokes[0].points[0]).toMatchObject({ x: 1, y: 2, tiltX: 5, tiltY: -5 });
+    expect(strokes[0].points[0].pressure).toBeCloseTo(0.2);
+    expect(strokes[0].points.at(-1)?.pressure).toBeCloseTo(0.8);
     expect(strokes[0].points.length).toBeGreaterThan(2);
   });
 

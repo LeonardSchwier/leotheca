@@ -11,6 +11,58 @@ import { isPathWithinWorkspace, relativePathBetween } from "./paths";
  */
 const impl = Capacitor.isNativePlatform() ? android : desktop;
 
+export type WorkspaceMutationErrorCode =
+  | "invalid_name"
+  | "outside_workspace"
+  | "already_exists"
+  | "permission_denied"
+  | "io_failure";
+
+/** Stable cross-platform mutation failure exposed to UI and retry logic. */
+export class WorkspaceMutationError extends Error {
+  constructor(
+    public readonly code: WorkspaceMutationErrorCode,
+    message: string,
+  ) {
+    super(message);
+    this.name = "WorkspaceMutationError";
+  }
+}
+
+const MUTATION_CODES = new Set<WorkspaceMutationErrorCode>([
+  "invalid_name",
+  "outside_workspace",
+  "already_exists",
+  "permission_denied",
+  "io_failure",
+]);
+
+function normalizeMutationError(error: unknown): WorkspaceMutationError {
+  if (error instanceof WorkspaceMutationError) return error;
+  const raw = error instanceof Error ? error.message : String(error);
+  const match = /^([a-z_]+):\s*(.*)$/.exec(raw);
+  if (match && MUTATION_CODES.has(match[1] as WorkspaceMutationErrorCode)) {
+    return new WorkspaceMutationError(
+      match[1] as WorkspaceMutationErrorCode,
+      match[2] || match[1],
+    );
+  }
+  return new WorkspaceMutationError("io_failure", raw);
+}
+
+export function isWorkspaceMutationError(
+  error: unknown,
+  code: WorkspaceMutationErrorCode,
+): error is WorkspaceMutationError {
+  return error instanceof WorkspaceMutationError && error.code === code;
+}
+
+function trackMutation(operation: Promise<void>): Promise<void> {
+  return trackWorkspaceOperation(operation).catch((error) => {
+    throw normalizeMutationError(error);
+  });
+}
+
 /** Whether this session is running on the Android/Capacitor bridge rather
  * than the Tauri desktop shell. A function, not a precomputed constant, so
  * callers that need platform-specific tuning (e.g. linking/store.ts's
@@ -84,11 +136,7 @@ export const trashPath: typeof impl.trashPath = (workspaceRoot: string, path: st
   trackWorkspaceOperation(impl.trashPath(workspaceRoot, path));
 export const deletePathPermanent: typeof impl.deletePathPermanent = (path: string) =>
   trackWorkspaceOperation(impl.deletePathPermanent(path));
-// Audit follow-up F-004's containment-checked counterparts to the functions
-// above. Same drain participation: a rename or delete resolved and verified
-// against the workspace root on the native side is still a native mutation
-// in flight, so a transition must wait for it the same as for the unchecked
-// calls above.
+
 export const writeWorkspaceTextFile: typeof impl.writeWorkspaceTextFile = (
   workspaceRoot: string,
   relativePath: string,
@@ -99,15 +147,34 @@ export const writeWorkspaceBinaryFile: typeof impl.writeWorkspaceBinaryFile = (
   relativePath: string,
   data: Uint8Array,
 ) => trackWorkspaceOperation(impl.writeWorkspaceBinaryFile(workspaceRoot, relativePath, data));
+export const createWorkspaceTextFileNew: typeof impl.createWorkspaceTextFileNew = (
+  workspaceRoot: string,
+  relativePath: string,
+  contents: string,
+) => trackMutation(impl.createWorkspaceTextFileNew(workspaceRoot, relativePath, contents));
+export const createWorkspaceBinaryFileNew: typeof impl.createWorkspaceBinaryFileNew = (
+  workspaceRoot: string,
+  relativePath: string,
+  data: Uint8Array,
+) => trackMutation(impl.createWorkspaceBinaryFileNew(workspaceRoot, relativePath, data));
 export const createWorkspaceDir: typeof impl.createWorkspaceDir = (
   workspaceRoot: string,
   relativePath: string,
 ) => trackWorkspaceOperation(impl.createWorkspaceDir(workspaceRoot, relativePath));
+export const createWorkspaceDirNew: typeof impl.createWorkspaceDirNew = (
+  workspaceRoot: string,
+  relativePath: string,
+) => trackMutation(impl.createWorkspaceDirNew(workspaceRoot, relativePath));
 export const renameWorkspacePath: typeof impl.renameWorkspacePath = (
   workspaceRoot: string,
   from: string,
   to: string,
 ) => trackWorkspaceOperation(impl.renameWorkspacePath(workspaceRoot, from, to));
+export const renameWorkspacePathNoReplace: typeof impl.renameWorkspacePathNoReplace = (
+  workspaceRoot: string,
+  from: string,
+  to: string,
+) => trackMutation(impl.renameWorkspacePathNoReplace(workspaceRoot, from, to));
 export const deleteWorkspacePathPermanent: typeof impl.deleteWorkspacePathPermanent = (
   workspaceRoot: string,
   relativePath: string,

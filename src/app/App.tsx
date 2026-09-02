@@ -58,6 +58,8 @@ import { addFileBookmark, bookmarks, loadBookmarks, removeBookmark } from "../bo
 import { resetWorkspaceTree } from "../workspace/fileTreeStore";
 import { TagsPanel } from "../tags/TagsPanel";
 import { TaskHubPanel } from "../tasks/TaskHubPanel";
+import { CollectionsPanel } from "../collections/CollectionsPanel";
+import { loadCollections } from "../collections/collectionStore";
 import {
   createNoteFromTemplate,
   createCanvasQuick,
@@ -132,6 +134,17 @@ function TaskIcon() {
   );
 }
 
+function CollectionsIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="4" width="14" height="4" rx="1" />
+      <rect x="3" y="10" width="14" height="4" rx="1" />
+      <circle cx="5.5" cy="6" r="0.6" fill="currentColor" stroke="none" />
+      <circle cx="5.5" cy="12" r="0.6" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
 function OutlineIcon() {
   return (
     <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
@@ -185,6 +198,7 @@ const VIEW_MODE_ICONS: Record<ViewMode, ComponentType> = {
 const bookmarksOpen = signal(false);
 const tagsOpen = signal(false);
 const taskHubOpen = signal(false);
+const collectionsOpen = signal(false);
 const graphOpen = signal(false);
 // Unlike bookmarksOpen/tagsOpen, this does not swap out the file tree: the
 // outline is per-note context like BacklinksPanel, not a workspace-wide
@@ -200,6 +214,7 @@ function toggleSidebarPanel(panel: typeof bookmarksOpen): void {
   bookmarksOpen.value = false;
   tagsOpen.value = false;
   taskHubOpen.value = false;
+  collectionsOpen.value = false;
   panel.value = next;
   if (next) sidebarOpen.value = true;
 }
@@ -253,6 +268,10 @@ export function App() {
   useEffect(() => {
     if (bookmarksOpen.value && workspacePath.value) void loadBookmarks(workspacePath.value);
   }, [bookmarksOpen.value, workspacePath.value]);
+
+  useEffect(() => {
+    if (collectionsOpen.value && workspacePath.value) void loadCollections(workspacePath.value);
+  }, [collectionsOpen.value, workspacePath.value]);
 
   effect(() => {
     const root = document.documentElement;
@@ -471,6 +490,18 @@ export function App() {
     }
   };
 
+  const openCollectionsPanel = () => {
+    toggleSidebarPanel(collectionsOpen);
+    if (collectionsOpen.value && rootPath) {
+      void rebuildLinkIndex(
+        rootPath,
+        workspaceSettings.value.frontmatterAliasesEnabled,
+        workspaceSettings.value.tagsEnabled,
+      );
+      void loadCollections(rootPath);
+    }
+  };
+
   const commands = useMemo<Command[]>(() => {
     const list: Command[] = [
       {
@@ -496,6 +527,11 @@ export function App() {
         id: "toggle-task-hub",
         label: taskHubOpen.value ? "Hide Task Hub" : "Open Task Hub",
         run: openTaskHubPanel,
+      },
+      {
+        id: "toggle-collections",
+        label: collectionsOpen.value ? "Hide Collections" : "Open Collections",
+        run: openCollectionsPanel,
       },
       {
         id: "markdown-help",
@@ -587,6 +623,7 @@ export function App() {
     bookmarksOpen.value,
     tagsOpen.value,
     taskHubOpen.value,
+    collectionsOpen.value,
     workspaceSettings.value.tagsEnabled,
     workspaceSettings.value.templatesEnabled,
     workspaceSettings.value.canvasEnabled,
@@ -689,6 +726,14 @@ export function App() {
         >
           <TaskIcon />
         </button>
+        <button
+          class={`icon-button ${collectionsOpen.value ? "active" : ""}`}
+          aria-label="Open Collections"
+          title="Open Collections"
+          onClick={openCollectionsPanel}
+        >
+          <CollectionsIcon />
+        </button>
         {current?.kind === "text" && (
           <button
             class={`icon-button ${outlineOpen.value ? "active" : ""}`}
@@ -753,6 +798,8 @@ export function App() {
                           if (viewMode.value === "preview") viewMode.value = "split";
                         }}
                       />
+                    ) : collectionsOpen.value ? (
+                      <CollectionsPanel onOpenFile={handleOpenFile} />
                     ) : bookmarksOpen.value ? (
                       <BookmarksPanel
                         onOpenFile={handleOpenFile}

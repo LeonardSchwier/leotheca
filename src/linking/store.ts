@@ -10,6 +10,11 @@ import type { FsEntry } from "../workspace/types";
 import { extractAliases } from "./frontmatter";
 import { extractTags } from "../tags/tags";
 import { scanTasks, type TaskRecord } from "../markdown/tasks";
+import {
+  hasFrontmatterBlock,
+  parseFrontmatterProperties,
+  type FrontmatterProperty,
+} from "../editor/frontmatterEdits";
 
 export interface LinkIndex {
   backlinksByPath: Map<string, string[]>;
@@ -38,6 +43,33 @@ export interface LinkIndex {
    * doesn't apply here. Only paths with at least one task are present,
    * same sparse-map convention as pathsByTag. */
   tasksByPath: Map<string, TaskRecord[]>;
+  /** Note path -> its filesystem modification time (milliseconds since the
+   * epoch, see workspace/types.ts's FsEntry), for F09's "Modified" system
+   * query field (spec/f09-smart-collections-property-views.md section
+   * 6.2). Populated from the same findMarkdownFiles walk every other field
+   * here already uses, not a second listing call. Absent for a path whose
+   * entry had no mtime available (see FsEntry's own doc comment on when
+   * that happens), so a collection's "Modified" clauses simply don't match
+   * that note rather than treating a missing value as any particular date.
+   * Optional on the interface (rather than always present in every object
+   * literal) so the many existing LinkIndex test fixtures across the
+   * codebase that predate F09 don't all need updating for a field they
+   * don't exercise. */
+  mtimeByPath?: Map<string, number>;
+  /** Note path -> whether it has a YAML frontmatter delimiter block at all
+   * (see editor/frontmatterEdits.ts's hasFrontmatterBlock), for F09's "Has
+   * frontmatter" system field. A path absent from this map has no block.
+   * Same optionality rationale as mtimeByPath above. */
+  hasFrontmatterByPath?: Set<string>;
+  /** Note path -> its own top-level frontmatter fields, parsed by the same
+   * lossless parser the Properties panel and F09's inline editing (a later
+   * phase) both use (editor/frontmatterEdits.ts's parseFrontmatterProperties),
+   * for F09's property query fields and type inference
+   * (collections/collectionTypesInference.ts). A path with no frontmatter
+   * block, or one with no top-level fields, is simply absent from this map
+   * rather than mapped to an empty array. Same optionality rationale as
+   * mtimeByPath above. */
+  frontmatterPropertiesByPath?: Map<string, FrontmatterProperty[]>;
 }
 
 const emptyLinkIndex = (): LinkIndex => ({
@@ -48,6 +80,9 @@ const emptyLinkIndex = (): LinkIndex => ({
   pathsByTag: new Map(),
   tagsByPath: new Map(),
   tasksByPath: new Map(),
+  mtimeByPath: new Map(),
+  hasFrontmatterByPath: new Set(),
+  frontmatterPropertiesByPath: new Map(),
 });
 
 export const linkIndex = signal<LinkIndex>(emptyLinkIndex());
@@ -153,6 +188,56 @@ function isValidTaskRecord(raw: unknown): raw is TaskRecord {
   );
 }
 
+/** F09 Phase 1: `hasFrontmatter`/`frontmatterProperties` are the newest
+ * CachedNote fields, gaining the same defensive validation as every field
+ * before them rather than trusting a persisted cache entry's shape just
+ * because it's new. A malformed `FrontmatterProperty` (wrong `kind`, a
+ * missing range) drops the whole cache entry, forcing a real re-read,
+ * same as an invalid TaskRecord already does above. */
+function isValidSourceRange(raw: unknown): raw is { start: number; end: number } {
+  if (typeof raw !== "object" || raw === null) return false;
+  const range = raw as Record<string, unknown>;
+  return (
+    typeof range.start === "number" &&
+    Number.isFinite(range.start) &&
+    typeof range.end === "number" &&
+    Number.isFinite(range.end)
+  );
+}
+
+function isValidFrontmatterProperty(raw: unknown): raw is FrontmatterProperty {
+  if (typeof raw !== "object" || raw === null) return false;
+  const record = raw as Record<string, unknown>;
+  if (typeof record.key !== "string") return false;
+  const isStringArray = (v: unknown): v is string[] =>
+    Array.isArray(v) && v.every((item) => typeof item === "string");
+  if (record.kind === "readonly") {
+    return (
+      record.editable === false &&
+      typeof record.value === "string" &&
+      isValidSourceRange(record.removeRange)
+    );
+  }
+  if (record.kind === "scalar") {
+    return (
+      record.editable === true &&
+      typeof record.value === "string" &&
+      (record.style === "plain" || record.style === "single" || record.style === "double") &&
+      isValidSourceRange(record.replaceRange) &&
+      isValidSourceRange(record.removeRange)
+    );
+  }
+  if (record.kind === "list") {
+    return (
+      record.editable === true &&
+      isStringArray(record.value) &&
+      isValidSourceRange(record.replaceRange) &&
+      isValidSourceRange(record.removeRange)
+    );
+  }
+  return false;
+}
+
 function isValidCachedNote(raw: unknown): raw is CachedNote {
   if (typeof raw !== "object" || raw === null) return false;
   const record = raw as Record<string, unknown>;
@@ -172,7 +257,10 @@ function isValidCachedNote(raw: unknown): raw is CachedNote {
     isStringArray(record.aliases) &&
     isStringArray(record.tags) &&
     Array.isArray(record.tasks) &&
-    record.tasks.every(isValidTaskRecord)
+    record.tasks.every(isValidTaskRecord) &&
+    typeof record.hasFrontmatter === "boolean" &&
+    Array.isArray(record.frontmatterProperties) &&
+    record.frontmatterProperties.every(isValidFrontmatterProperty)
   );
 }
 
@@ -219,6 +307,13 @@ interface CachedNote {
   aliases: string[];
   tags: string[];
   tasks: TaskRecord[];
+  /** F09 Phase 1: whether this note has a YAML frontmatter block at all,
+   * and its parsed top-level fields, so a cache hit doesn't need to
+   * re-parse frontmatter it already read once. See LinkIndex's own
+   * hasFrontmatterByPath/frontmatterPropertiesByPath doc comments for what
+   * consumes this. */
+  hasFrontmatter: boolean;
+  frontmatterProperties: FrontmatterProperty[];
 }
 
 // Bumped from 3 (audit follow-up F-012): cache identity now also requires
@@ -237,7 +332,13 @@ interface CachedNote {
 // note as having no tasks forever until it's next edited. Forcing a
 // version bump for every cache-shape change, not just this one, is the
 // standing precedent this comment continues.
-const LINK_INDEX_CACHE_VERSION = 5;
+//
+// Bumped again from 5 (F09 Phase 1): CachedNote gained `hasFrontmatter` and
+// `frontmatterProperties`. An old-shaped cache entry has neither, so
+// without the bump it could "match" a current file on mtime/size and be
+// reused as a cache hit, silently reporting the note as having no
+// frontmatter at all until it's next edited.
+const LINK_INDEX_CACHE_VERSION = 6;
 const LINK_INDEX_CACHE_FILENAME = ".leotheca/link-index-cache.json";
 
 /** path -> the wikilinks extracted from that note the last time it was
@@ -352,6 +453,9 @@ export async function rebuildLinkIndex(
     const pathsByTag = new Map<string, string[]>();
     const tagsByPath = new Map<string, string[]>();
     const tasksByPath = new Map<string, TaskRecord[]>();
+    const mtimeByPath = new Map<string, number>();
+    const hasFrontmatterByPath = new Set<string>();
+    const frontmatterPropertiesByPath = new Map<string, FrontmatterProperty[]>();
 
     for (const entry of noteEntries) {
       const key = noteNameFromPath(entry.path).toLocaleLowerCase();
@@ -359,6 +463,7 @@ export async function rebuildLinkIndex(
       paths.push(entry.path);
       pathsByNoteName.set(key, paths);
       backlinksByPath.set(entry.path, []);
+      if (entry.mtime !== undefined) mtimeByPath.set(entry.path, entry.mtime);
     }
 
     // Rebuilt from scratch on every call (rather than mutating
@@ -390,6 +495,8 @@ export async function rebuildLinkIndex(
         let aliases: string[];
         let tags: string[];
         let tasks: TaskRecord[];
+        let hasFrontmatter: boolean;
+        let frontmatterProperties: FrontmatterProperty[];
         if (
           cached &&
           entry.mtime !== undefined &&
@@ -401,6 +508,8 @@ export async function rebuildLinkIndex(
           aliases = cached.aliases;
           tags = cached.tags;
           tasks = cached.tasks;
+          hasFrontmatter = cached.hasFrontmatter;
+          frontmatterProperties = cached.frontmatterProperties;
         } else {
           let source: string;
           try {
@@ -439,6 +548,10 @@ export async function rebuildLinkIndex(
               }
             }
             if (cached?.tasks.length) tasksByPath.set(entry.path, cached.tasks);
+            if (cached?.hasFrontmatter) hasFrontmatterByPath.add(entry.path);
+            if (cached?.frontmatterProperties.length) {
+              frontmatterPropertiesByPath.set(entry.path, cached.frontmatterProperties);
+            }
             return;
           }
           if (!isCurrentRequest()) return;
@@ -446,6 +559,8 @@ export async function rebuildLinkIndex(
           aliases = extractAliases(source);
           tags = extractTags(source);
           tasks = scanTasks(source);
+          hasFrontmatter = hasFrontmatterBlock(source);
+          frontmatterProperties = parseFrontmatterProperties(source).properties;
         }
         if (entry.mtime !== undefined && entry.size !== undefined) {
           freshCache.set(entry.path, {
@@ -455,10 +570,16 @@ export async function rebuildLinkIndex(
             aliases,
             tags,
             tasks,
+            hasFrontmatter,
+            frontmatterProperties,
           });
         }
         wikilinksByPath.set(entry.path, wikilinks);
         if (tasks.length > 0) tasksByPath.set(entry.path, tasks);
+        if (hasFrontmatter) hasFrontmatterByPath.add(entry.path);
+        if (frontmatterProperties.length > 0) {
+          frontmatterPropertiesByPath.set(entry.path, frontmatterProperties);
+        }
 
         if (aliasesEnabled && aliases.length > 0) {
           aliasesByPath.set(entry.path, aliases);
@@ -504,6 +625,9 @@ export async function rebuildLinkIndex(
       pathsByTag,
       tagsByPath,
       tasksByPath,
+      mtimeByPath,
+      hasFrontmatterByPath,
+      frontmatterPropertiesByPath,
     };
     linkIndexUnreadablePaths.value = unreadablePaths;
     await savePersistedCache(rootPath, freshCache);

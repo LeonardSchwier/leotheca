@@ -409,7 +409,7 @@ describe("rebuildLinkIndex: mtime-based caching", () => {
     readTextFile.mockImplementation(async (path: string) => {
       if (path === CACHE_PATH) {
         return JSON.stringify({
-          version: 5,
+          version: 6,
           entries: {
             "/workspace/a.md": {
               mtime: 1000,
@@ -418,6 +418,8 @@ describe("rebuildLinkIndex: mtime-based caching", () => {
               aliases: [],
               tags: [],
               tasks: [],
+              hasFrontmatter: false,
+              frontmatterProperties: [],
             },
           },
         });
@@ -491,7 +493,7 @@ describe("rebuildLinkIndex: mtime-based caching", () => {
         // error inside mapWithConcurrency's worker propagates out of the
         // whole rebuildLinkIndex call, not just this one entry.
         return JSON.stringify({
-          version: 5,
+          version: 6,
           entries: {
             "/workspace/a.md": {
               mtime: 1000,
@@ -500,6 +502,8 @@ describe("rebuildLinkIndex: mtime-based caching", () => {
               aliases: "not-an-array",
               tags: [],
               tasks: [],
+              hasFrontmatter: false,
+              frontmatterProperties: [],
             },
           },
         });
@@ -531,7 +535,7 @@ describe("rebuildLinkIndex: mtime-based caching", () => {
         // cached.tasks` downstream would trust a garbage shape instead
         // of forcing a real re-read.
         return JSON.stringify({
-          version: 5,
+          version: 6,
           entries: {
             "/workspace/a.md": {
               mtime: 1000,
@@ -540,6 +544,8 @@ describe("rebuildLinkIndex: mtime-based caching", () => {
               aliases: [],
               tags: [],
               tasks: [{ checked: "not-a-boolean" }],
+              hasFrontmatter: false,
+              frontmatterProperties: [],
             },
           },
         });
@@ -561,7 +567,7 @@ describe("rebuildLinkIndex: mtime-based caching", () => {
     readTextFile.mockImplementation(async (path: string) => {
       if (path === CACHE_PATH) {
         return JSON.stringify({
-          version: 5,
+          version: 6,
           entries: {
             "/workspace/a.md": {
               mtime: 1000,
@@ -570,6 +576,8 @@ describe("rebuildLinkIndex: mtime-based caching", () => {
               aliases: [],
               tags: [],
               tasks: [],
+              hasFrontmatter: false,
+              frontmatterProperties: [],
             },
             "/workspace/b.md": {
               mtime: 2000,
@@ -578,6 +586,8 @@ describe("rebuildLinkIndex: mtime-based caching", () => {
               aliases: [],
               tags: [],
               tasks: [],
+              hasFrontmatter: false,
+              frontmatterProperties: [],
             },
           },
         });
@@ -613,7 +623,7 @@ describe("rebuildLinkIndex: mtime-based caching", () => {
     ]);
     readTextFile.mockImplementation(async (path: string) => {
       if (path === CACHE_PATH) {
-        return JSON.stringify({ version: 5, entries: ["not", "a", "record"] });
+        return JSON.stringify({ version: 6, entries: ["not", "a", "record"] });
       }
       return "[[c]]";
     });
@@ -640,7 +650,7 @@ describe("rebuildLinkIndex: mtime-based caching", () => {
     expect(savedRoot).toBe("/workspace");
     expect(savedRelativePath).toBe(CACHE_RELATIVE_PATH);
     const saved = JSON.parse(savedContent);
-    expect(saved.version).toBe(5);
+    expect(saved.version).toBe(6);
     expect(saved.entries["/workspace/a.md"]).toEqual({
       mtime: 1000,
       size: 5,
@@ -648,6 +658,8 @@ describe("rebuildLinkIndex: mtime-based caching", () => {
       aliases: [],
       tags: [],
       tasks: [],
+      hasFrontmatter: false,
+      frontmatterProperties: [],
     });
   });
 
@@ -1019,5 +1031,115 @@ describe("rebuildLinkIndex: tasks (F02 Phase 1)", () => {
 
     expect(linkIndex.value.tasksByPath.get("/workspace/a.md")).toHaveLength(1);
     expect(linkIndexUnreadablePaths.value).toEqual(["/workspace/a.md"]);
+  });
+});
+
+describe("F09 Phase 1: mtime and frontmatter property indexing", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    writeWorkspaceTextFile.mockResolvedValue(undefined);
+    isNativePlatform.mockReturnValue(true);
+    resetLinkIndexCache();
+  });
+
+  it("populates mtimeByPath from the same walk entries used for everything else", async () => {
+    findMarkdownFiles.mockResolvedValue([
+      { name: "a.md", path: "/workspace/a.md", isDir: false, mtime: 1_700_000_000_000, size: 4 },
+    ]);
+    rejectCacheLoad();
+    readTextFile.mockImplementation(async (path: string) => {
+      if (path === CACHE_PATH) throw new Error("no cache file yet");
+      return "body";
+    });
+
+    await rebuildLinkIndex("/workspace");
+
+    expect(linkIndex.value.mtimeByPath?.get("/workspace/a.md")).toBe(1_700_000_000_000);
+  });
+
+  it("leaves a note out of mtimeByPath when the walk reported no mtime for it", async () => {
+    findMarkdownFiles.mockResolvedValue([
+      { name: "a.md", path: "/workspace/a.md", isDir: false },
+    ]);
+    rejectCacheLoad();
+    readTextFile.mockImplementation(async (path: string) => {
+      if (path === CACHE_PATH) throw new Error("no cache file yet");
+      return "body";
+    });
+
+    await rebuildLinkIndex("/workspace");
+
+    expect(linkIndex.value.mtimeByPath?.has("/workspace/a.md")).toBe(false);
+  });
+
+  it("indexes hasFrontmatter and parsed top-level frontmatter properties", async () => {
+    findMarkdownFiles.mockResolvedValue([
+      { name: "a.md", path: "/workspace/a.md", isDir: false, mtime: 1000, size: 30 },
+      { name: "b.md", path: "/workspace/b.md", isDir: false, mtime: 1000, size: 4 },
+    ]);
+    rejectCacheLoad();
+    readTextFile.mockImplementation(async (path: string) => {
+      if (path === CACHE_PATH) throw new Error("no cache file yet");
+      if (path.endsWith("a.md")) return "---\nstatus: active\nrating: 4\n---\nBody\n";
+      return "No frontmatter here.";
+    });
+
+    await rebuildLinkIndex("/workspace");
+
+    expect(linkIndex.value.hasFrontmatterByPath?.has("/workspace/a.md")).toBe(true);
+    expect(linkIndex.value.hasFrontmatterByPath?.has("/workspace/b.md")).toBe(false);
+    const aProps = linkIndex.value.frontmatterPropertiesByPath?.get("/workspace/a.md");
+    expect(aProps?.map((p) => p.key)).toEqual(["status", "rating"]);
+    expect(linkIndex.value.frontmatterPropertiesByPath?.has("/workspace/b.md")).toBe(false);
+  });
+
+  it("caches frontmatter properties the same way it caches wikilinks (no re-read when mtime is unchanged)", async () => {
+    findMarkdownFiles.mockResolvedValue([
+      { name: "a.md", path: "/workspace/a.md", isDir: false, mtime: 1000, size: 20 },
+    ]);
+    rejectCacheLoad();
+    readTextFile.mockImplementation(async (path: string) => {
+      if (path === CACHE_PATH) throw new Error("no cache file yet");
+      return "---\nkey: value\n---\n";
+    });
+
+    await rebuildLinkIndex("/workspace");
+    expect(linkIndex.value.frontmatterPropertiesByPath?.get("/workspace/a.md")).toHaveLength(1);
+    readTextFile.mockClear();
+
+    await rebuildLinkIndex("/workspace");
+    expect(readTextFile).not.toHaveBeenCalledWith("/workspace/a.md");
+    expect(linkIndex.value.frontmatterPropertiesByPath?.get("/workspace/a.md")).toHaveLength(1);
+  });
+
+  it("drops a persisted cache entry with a malformed frontmatterProperties field, forcing a real re-read", async () => {
+    findMarkdownFiles.mockResolvedValue([
+      { name: "a.md", path: "/workspace/a.md", isDir: false, mtime: 1000, size: 5 },
+    ]);
+    readTextFile.mockImplementation(async (path: string) => {
+      if (path === CACHE_PATH) {
+        return JSON.stringify({
+          version: 6,
+          entries: {
+            "/workspace/a.md": {
+              mtime: 1000,
+              size: 5,
+              wikilinks: [],
+              aliases: [],
+              tags: [],
+              tasks: [],
+              hasFrontmatter: true,
+              frontmatterProperties: [{ kind: "scalar", key: "x" }], // missing required fields
+            },
+          },
+        });
+      }
+      return "---\nx: 1\n---\n";
+    });
+
+    await expect(rebuildLinkIndex("/workspace")).resolves.toBeUndefined();
+
+    expect(readTextFile).toHaveBeenCalledWith("/workspace/a.md");
+    expect(linkIndex.value.frontmatterPropertiesByPath?.get("/workspace/a.md")).toHaveLength(1);
   });
 });

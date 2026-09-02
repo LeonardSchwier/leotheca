@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- A new Collections button lets you save a named query over note names, paths, folders, tags, modified time, and frontmatter properties, then view the matching notes as a live-updating list; clicking a result opens it. This first slice is read-only: table and card views, sort-key configuration, and editing a property's value from the results list are not part of it yet.
 - Cold-starting the Android New note widget now shows native "Creating note" progress until the existing quick-note flow creates its expected file, instead of leaving the user staring at startup with no indication that the widget action is still working.
 - Canvas files now keep every card, connection, and unrecognized field an editor doesn't understand instead of silently dropping them the next time any card is edited. A canvas card's linked file path is now resolved against the canvas file's own location and verified to stay inside the open workspace before it can be opened, the same containment check already applied to note attachments.
 - Workspace settings, the app's global config, and bookmarks now validate their persisted file's contents on load instead of trusting them outright: an invalid value falls back to its default without discarding the rest of the file, and a workspace settings file that didn't fully decode shows a notice with an explicit "Rewrite settings file" action rather than being silently overwritten.

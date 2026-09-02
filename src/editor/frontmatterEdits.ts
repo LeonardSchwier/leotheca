@@ -178,6 +178,17 @@ function replaceRange(source: string, range: SourceRange, replacement: string): 
   return source.slice(0, range.start) + replacement + source.slice(range.end);
 }
 
+/** Whether `source` starts with a YAML frontmatter delimiter block at all,
+ * independent of whether any of its fields are safely editable. Used by
+ * collections/collectionSelectors.ts for the "Has frontmatter" system
+ * query field (spec/f09-smart-collections-property-views.md section 6.2),
+ * which needs to distinguish "no frontmatter block" from "a frontmatter
+ * block with only unsupported/empty content" the same way this file's own
+ * `findBlock` already does for editing. */
+export function hasFrontmatterBlock(source: string): boolean {
+  return findBlock(source) !== null;
+}
+
 export function parseFrontmatterProperties(source: string): ParsedFrontmatterProperties {
   const block = findBlock(source);
   if (!block) return { properties: [] };

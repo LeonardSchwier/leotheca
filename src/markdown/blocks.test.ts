@@ -74,12 +74,21 @@ describe("scanBlockIds", () => {
     expect(scanBlockIds("## Architecture boundary ^architecture-boundary")).toEqual([]);
   });
 
-  it("does not attach a marker whose block is a list item", () => {
-    expect(scanBlockIds("- The user owns the Markdown files. ^local-first")).toEqual([]);
+  it("attaches a marker on a single-line list item (F04 Phase 3b)", () => {
+    const source = "- The user owns the Markdown files. ^local-first";
+    const [block] = scanBlockIds(source);
+    expect(block.kind).toBe("list-item");
+    expect(block.id).toBe("local-first");
+    expect(source.slice(block.contentFrom, block.contentTo)).toBe("The user owns the Markdown files.");
+    expect(source.slice(block.sourceFrom, block.sourceTo)).toBe(source);
   });
 
-  it("does not attach a marker whose block is a blockquote", () => {
-    expect(scanBlockIds("> A quoted principle. ^principle")).toEqual([]);
+  it("attaches a marker on a single-line blockquote (F04 Phase 3b)", () => {
+    const source = "> A quoted principle. ^principle";
+    const [block] = scanBlockIds(source);
+    expect(block.kind).toBe("blockquote");
+    expect(block.id).toBe("principle");
+    expect(source.slice(block.contentFrom, block.contentTo)).toBe("A quoted principle.");
   });
 
   it("does not attach a marker inside a fenced code block", () => {
@@ -141,18 +150,54 @@ describe("scanBlockIds", () => {
     expect(block.sourceTo).toBeLessThanOrEqual(source.length);
   });
 
-  it("only the eligible top-level paragraph gets a marker, in a mixed document", () => {
+  it("a heading marker stays not-eligible even in a mixed document with other eligible kinds", () => {
     const source = [
       "# Heading ^not-eligible",
       "",
-      "A real paragraph with an id. ^eligible-id",
+      "A real paragraph with an id. ^eligible-paragraph",
       "",
-      "- A list item. ^also-not-eligible",
+      "- A list item. ^eligible-list-item",
       "",
-      "> A blockquote. ^still-not-eligible",
+      "> A blockquote. ^eligible-blockquote",
     ].join("\n");
     const blocks = scanBlockIds(source);
-    expect(blocks).toHaveLength(1);
-    expect(blocks[0].id).toBe("eligible-id");
+    expect(blocks.map((b) => b.id)).toEqual(["eligible-paragraph", "eligible-list-item", "eligible-blockquote"]);
+    expect(blocks.map((b) => b.kind)).toEqual(["paragraph", "list-item", "blockquote"]);
+  });
+
+  it("rejects a list item marker with no real text before it (bullet's own separator space doesn't count)", () => {
+    expect(scanBlockIds("- ^orphan-id")).toEqual([]);
+  });
+
+  it("rejects a blockquote marker with no real text before it", () => {
+    expect(scanBlockIds("> ^orphan-id")).toEqual([]);
+  });
+
+  it("misreads an indented list-item continuation line as its own standalone paragraph, a disclosed gap", () => {
+    // Multi-line list-item continuation is out of scope for this phase
+    // (see the module doc comment): this scanner has no concept of "this
+    // indented line belongs to the list item above it," so a
+    // continuation line ending in a marker is read as an ordinary
+    // (wrong, but at least not silently dropped) top-level paragraph,
+    // not correctly attributed to the list item it actually continues.
+    // Documented here so a future fix has a failing test to go green,
+    // not just prose.
+    const source = "- First line of the item\n  continuation with the id. ^continued-id";
+    const [block] = scanBlockIds(source);
+    expect(block.kind).toBe("paragraph");
+    expect(block.id).toBe("continued-id");
+  });
+
+  it("supports *, +, and ordered markers for list-item blocks, not just -", () => {
+    const source = "* Star item. ^star-id\n\n+ Plus item. ^plus-id\n\n1. Ordered item. ^ordered-id";
+    const blocks = scanBlockIds(source);
+    expect(blocks.map((b) => b.id)).toEqual(["star-id", "plus-id", "ordered-id"]);
+    expect(blocks.every((b) => b.kind === "list-item")).toBe(true);
+  });
+
+  it("trims extra whitespace after the list/blockquote marker from the content range", () => {
+    const listSource = "-   Extra spaces after the bullet. ^spaced-list";
+    const [listBlock] = scanBlockIds(listSource);
+    expect(listSource.slice(listBlock.contentFrom, listBlock.contentTo)).toBe("Extra spaces after the bullet.");
   });
 });

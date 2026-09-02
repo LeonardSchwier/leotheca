@@ -781,6 +781,35 @@ describe("MarkdownPreview: F04 Phase 3a block references", () => {
     );
     expect(container.textContent).toContain("^release-decision");
   });
+
+  it("resolves a same-note block link to a list-item block (F04 Phase 3b)", () => {
+    const { container } = render(
+      <MarkdownPreview
+        source={"- The user owns the files. ^local-first\n\nSee [[#^local-first]] above."}
+        notePath="/vault/plan.md"
+      />,
+    );
+    const anchor = container.querySelector('a[href^="#leotheca-wikilink="]');
+    expect(anchor?.getAttribute("href")).toContain("resolved=1");
+    // The link's own default label legitimately shows the raw "#^id" form
+    // (see defaultWikilinkLabel); what must NOT happen is the *block's
+    // own* marker surviving as visible text on the list item itself.
+    const li = container.querySelector("li");
+    expect(li?.textContent).toBe("The user owns the files.");
+  });
+
+  it("resolves a same-note block link to a blockquote block (F04 Phase 3b)", () => {
+    const { container } = render(
+      <MarkdownPreview
+        source={"> A quoted principle. ^principle\n\nSee [[#^principle]] above."}
+        notePath="/vault/plan.md"
+      />,
+    );
+    const anchor = container.querySelector('a[href^="#leotheca-wikilink="]');
+    expect(anchor?.getAttribute("href")).toContain("resolved=1");
+    const blockquote = container.querySelector("blockquote");
+    expect(blockquote?.textContent?.trim()).toBe("A quoted principle.");
+  });
 });
 
 describe("MarkdownPreview: F04 Phase 4a embeds", () => {
@@ -807,6 +836,13 @@ describe("MarkdownPreview: F04 Phase 4a embeds", () => {
 
   it("renders a same-note block embed synchronously with the block content", () => {
     const source = "The user owns the files. ^local-first\n\nSee ![[#^local-first]] above.";
+    const { container } = render(<MarkdownPreview source={source} notePath="/vault/plan.md" />);
+    const frame = container.querySelector(".embed-frame");
+    expect(frame?.querySelector(".embed-frame-body")?.textContent).toContain("The user owns the files.");
+  });
+
+  it("renders a same-note block embed of a list-item block (F04 Phase 3b block-kind eligibility)", () => {
+    const source = "- The user owns the files. ^local-first\n\nSee ![[#^local-first]] above.";
     const { container } = render(<MarkdownPreview source={source} notePath="/vault/plan.md" />);
     const frame = container.querySelector(".embed-frame");
     expect(frame?.querySelector(".embed-frame-body")?.textContent).toContain("The user owns the files.");

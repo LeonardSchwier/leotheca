@@ -25,11 +25,17 @@ fn map_io_error(error: io::Error) -> String {
 fn validate_relative_path(relative_path: &str) -> Result<&Path, String> {
     let relative = Path::new(relative_path);
     if relative.as_os_str().is_empty() {
-        return Err(mutation_error(INVALID_NAME, "workspace-relative path may not be empty"));
+        return Err(mutation_error(
+            INVALID_NAME,
+            "workspace-relative path may not be empty",
+        ));
     }
     if relative.is_absolute()
         || relative.components().any(|component| {
-            matches!(component, Component::RootDir | Component::Prefix(_) | Component::ParentDir)
+            matches!(
+                component,
+                Component::RootDir | Component::Prefix(_) | Component::ParentDir
+            )
         })
     {
         return Err(mutation_error(
@@ -238,7 +244,10 @@ fn rename_no_replace(from: &Path, to: &Path) -> io::Result<()> {
 #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
 fn rename_no_replace(from: &Path, to: &Path) -> io::Result<()> {
     if to.try_exists()? {
-        return Err(io::Error::new(io::ErrorKind::AlreadyExists, "target already exists"));
+        return Err(io::Error::new(
+            io::ErrorKind::AlreadyExists,
+            "target already exists",
+        ));
     }
     fs::rename(from, to)
 }
@@ -284,7 +293,10 @@ mod tests {
         .unwrap_err();
 
         assert!(error.starts_with("already_exists:"), "{error}");
-        assert_eq!(fs::read_to_string(root.join("note.md")).unwrap(), "original");
+        assert_eq!(
+            fs::read_to_string(root.join("note.md")).unwrap(),
+            "original"
+        );
         fs::remove_dir_all(root).unwrap();
     }
 
@@ -309,11 +321,9 @@ mod tests {
     fn create_directory_new_reports_collision() {
         let root = workspace("dir-collision");
         fs::create_dir(root.join("existing")).unwrap();
-        let error = create_workspace_dir_new(
-            root.to_string_lossy().to_string(),
-            "existing".to_string(),
-        )
-        .unwrap_err();
+        let error =
+            create_workspace_dir_new(root.to_string_lossy().to_string(), "existing".to_string())
+                .unwrap_err();
         assert!(error.starts_with("already_exists:"), "{error}");
         fs::remove_dir_all(root).unwrap();
     }
@@ -333,7 +343,10 @@ mod tests {
 
         assert!(error.starts_with("already_exists:"), "{error}");
         assert_eq!(fs::read_to_string(root.join("from.md")).unwrap(), "source");
-        assert_eq!(fs::read_to_string(root.join("to.md")).unwrap(), "destination");
+        assert_eq!(
+            fs::read_to_string(root.join("to.md")).unwrap(),
+            "destination"
+        );
         fs::remove_dir_all(root).unwrap();
     }
 

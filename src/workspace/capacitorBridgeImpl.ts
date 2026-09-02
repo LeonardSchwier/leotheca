@@ -33,16 +33,10 @@ interface NativeEntry {
   mtime?: number;
 }
 
-/** One markdown file discovered by a native recursive workspace walk, see
- * findMarkdownFiles below. `relativePath` is relative to the walked root
- * (URI-joined with "/" by the native side), not yet prefixed with this
- * app's own workspace-relative path string. */
 interface NativeMarkdownFile {
   relativePath: string;
   uri: string;
   mtime?: number;
-  /** For the link index's mtime-plus-size cache identity (audit follow-up
-   * F-012): a coarse or colliding mtime alone can hide changed content. */
   size?: number;
 }
 
@@ -52,8 +46,6 @@ interface WorkspaceWalkResult {
   imageCount: number;
 }
 
-/** One file of any extension discovered by findAllFiles's native walk, the
- * same shape as NativeMarkdownFile above minus the ".md"-only filter. */
 interface NativeFile {
   relativePath: string;
   uri: string;
@@ -61,11 +53,6 @@ interface NativeFile {
   size?: number;
 }
 
-/** One entry (file or directory) discovered by findAllEntries's native
- * walk: the same relativePath/uri shape as NativeFile above, but also
- * covering directories, since expandAll (fileTreeStore.ts) needs to know
- * about every directory in the subtree, including one with nothing
- * directly inside it, which a files-only walk can never report. */
 interface NativeAllEntry {
   relativePath: string;
   uri: string;
@@ -78,13 +65,9 @@ interface FolderAccessPlugin {
   listDir(options: { uri: string }): Promise<{ entries: NativeEntry[] }>;
   findMarkdownFiles(options: { uri: string }): Promise<WorkspaceWalkResult>;
   findAllFiles(options: { uri: string }): Promise<{ files: NativeFile[] }>;
-  findAllEntries(options: {
-    uri: string;
-  }): Promise<{ entries: NativeAllEntry[] }>;
+  findAllEntries(options: { uri: string }): Promise<{ entries: NativeAllEntry[] }>;
   readTextFile(options: { uri: string }): Promise<{ content: string }>;
-  readTextFilesBatch(options: {
-    uris: string[];
-  }): Promise<{ contents: (string | null)[] }>;
+  readTextFilesBatch(options: { uris: string[] }): Promise<{ contents: (string | null)[] }>;
   writeTextFile(options: {
     uri?: string;
     parentUri?: string;
@@ -97,12 +80,22 @@ interface FolderAccessPlugin {
     name?: string;
     base64Data: string;
   }): Promise<{ uri: string }>;
-  createDir(options: {
+  createTextFileNew(options: {
     parentUri: string;
     name: string;
+    contents: string;
   }): Promise<{ uri: string }>;
-  renamePath(options: {
+  createBinaryFileNew(options: {
+    parentUri: string;
+    name: string;
+    base64Data: string;
+  }): Promise<{ uri: string }>;
+  createDir(options: { parentUri: string; name: string }): Promise<{ uri: string }>;
+  createDirNew(options: { parentUri: string; name: string }): Promise<{ uri: string }>;
+  renamePath(options: { uri: string; newName: string }): Promise<{ uri: string }>;
+  renamePathNoReplace(options: {
     uri: string;
+    parentUri: string;
     newName: string;
   }): Promise<{ uri: string }>;
   movePath(options: {
@@ -116,11 +109,7 @@ interface FolderAccessPlugin {
 
 const FolderAccess = registerPlugin<FolderAccessPlugin>("FolderAccess");
 
-// Small, always-available app-private storage (no permission prompt, no
-// SAF) for the tiny global pointer file only. Never used for workspace
-// content, that's SAF-backed below.
 const APP_DATA_ROOT = "/leotheca-appdata";
-// Synthetic root standing in for whatever real folder the user picked.
 export const WORKSPACE_ROOT = "/workspace";
 
 function isWorkspacePath(path: string): boolean {
@@ -146,22 +135,10 @@ function pathBasename(path: string): string {
 
 const pathToUri = new Map<string, string>();
 
-/** Cache native walk results keyed by rootPath to avoid redundant SAF
- * traversals. When `findAllEntries` or `findAllFiles` has already walked
- * the tree, `findMarkdownFiles` and `findAllFiles` can derive their results
- * from the cache instead of doing another native round trip.
- *
- * The cache is keyed by rootPath and cleared on every pickWorkspaceFolder
- * (line 189) and restoreWorkspaceAccess (line 202). TTL is 30 seconds —
- * sufficient for the initial workspace load but stale enough to not need
- * mtime-based invalidation for this use case. */
 interface WalkCacheEntry {
   timestamp: number;
-  /** All files (any extension) — from findAllFiles native call */
   allFiles: NativeFile[] | null;
-  /** Markdown-only files — from findMarkdownFiles native call */
   markdownFiles: NativeMarkdownFile[] | null;
-  /** All entries (files + directories) — from findAllEntries native call */
   allEntries: NativeAllEntry[] | null;
 }
 
@@ -187,6 +164,9 @@ function setWalkCache(
   const entry = getWalkCache(rootPath);
   if (entry) {
     entry.timestamp = Date.now();
+    if (allFiles !== null) entry.allFiles = allFiles;
+    if (markdownFiles !== null) entry.markdownFiles = markdownFiles;
+    if (allEntries !== null) entry.allEntries = allEntries;
   } else {
     walkCache.set(rootPath, {
       timestamp: Date.now(),
@@ -201,19 +181,12 @@ function isUriCacheSubtree(path: string, root: string): boolean {
   return path === root || path.startsWith(`${root}/`);
 }
 
-/** SAF document URIs are only valid at their current tree location. A
- * directory mutation can invalidate every cached descendant, so eviction is
- * safer than assuming a provider preserves URI identity across a move. */
 function evictUriSubtree(root: string): void {
   for (const path of pathToUri.keys()) {
     if (isUriCacheSubtree(path, root)) pathToUri.delete(path);
   }
 }
 
-/** Resolves a workspace-relative path to its real content:// URI, walking
- * down from the nearest cached ancestor (at worst, the workspace root)
- * and listing directories as needed. Throws if the path truly does not
- * exist, or if the workspace root has not been picked/restored yet. */
 async function resolveUri(path: string): Promise<string> {
   const cached = pathToUri.get(path);
   if (cached) return cached;
@@ -229,9 +202,6 @@ async function resolveUri(path: string): Promise<string> {
   return match.uri;
 }
 
-/** Like resolveUri, but creates missing directories along the way instead
- * of throwing, matching write_text_file's "create parent dirs" behavior
- * on desktop. */
 async function ensureDirUri(path: string): Promise<string> {
   const cached = pathToUri.get(path);
   if (cached) return cached;
@@ -251,10 +221,7 @@ async function ensureDirUri(path: string): Promise<string> {
   return created.uri;
 }
 
-export async function pickWorkspaceFolder(): Promise<{
-  path: string;
-  token?: string;
-} | null> {
+export async function pickWorkspaceFolder(): Promise<{ path: string; token?: string } | null> {
   const result = await FolderAccess.pickFolder();
   if (!result.uri) return null;
   pathToUri.clear();
@@ -263,17 +230,8 @@ export async function pickWorkspaceFolder(): Promise<{
   return { path: WORKSPACE_ROOT, token: result.uri };
 }
 
-/** Re-seeds the path -> URI cache from a previously persisted SAF tree
- * URI, so a restarted app doesn't need to re-prompt the folder picker.
- * The permission itself was already made persistable at pick time; this
- * just reconnects our in-memory cache to it. */
-export async function restoreWorkspaceAccess(
-  path: string,
-  token: string | undefined,
-): Promise<void> {
+export async function restoreWorkspaceAccess(path: string, token: string | undefined): Promise<void> {
   if (path === WORKSPACE_ROOT && token) {
-    // The same synthetic path can now point at a different SAF tree. Never
-    // let descendants resolved under the old grant survive that transition.
     pathToUri.clear();
     pathToUri.set(WORKSPACE_ROOT, token);
     walkCache.clear();
@@ -282,9 +240,7 @@ export async function restoreWorkspaceAccess(
 
 export async function listDir(path: string): Promise<FsEntry[]> {
   if (!isWorkspacePath(path)) {
-    throw new Error(
-      `listDir is only supported for workspace paths, got "${path}".`,
-    );
+    throw new Error(`listDir is only supported for workspace paths, got "${path}".`);
   }
   const uri = await resolveUri(path);
   const { entries } = await FolderAccess.listDir({ uri });
@@ -293,12 +249,7 @@ export async function listDir(path: string): Promise<FsEntry[]> {
     if (entry.name.startsWith(".")) continue;
     const childPath = `${path}/${entry.name}`;
     pathToUri.set(childPath, entry.uri);
-    result.push({
-      name: entry.name,
-      path: childPath,
-      isDir: entry.isDir,
-      mtime: entry.mtime,
-    });
+    result.push({ name: entry.name, path: childPath, isDir: entry.isDir, mtime: entry.mtime });
   }
   return result;
 }
@@ -314,32 +265,16 @@ export async function readTextFile(path: string): Promise<string> {
     directory: Directory.Data,
     encoding: Encoding.UTF8,
   });
-  return typeof result.data === "string"
-    ? result.data
-    : await result.data.text();
+  return typeof result.data === "string" ? result.data : await result.data.text();
 }
 
-/** Reads multiple workspace files' contents in one native call, for
- * full-text search's content-fallback (fileTreeStore.ts's runSearch):
- * one call per file whose name doesn't match the query exhausted the
- * app's Java heap on a real ~500-note vault, confirmed on-device
- * 2026-08-28 (see FolderAccessPlugin.java's readTextFilesBatch). Only
- * ever called with workspace paths, search's only real caller, unlike
- * readTextFile above which also serves app-data paths. Each path's URI
- * resolution is a pathToUri cache hit in practice, since these paths
- * always came from a prior findAllFiles walk in the same search. */
-export async function readTextFilesBatch(
-  paths: string[],
-): Promise<(string | null)[]> {
+export async function readTextFilesBatch(paths: string[]): Promise<(string | null)[]> {
   const uris = await Promise.all(paths.map((path) => resolveUri(path)));
   const { contents } = await FolderAccess.readTextFilesBatch({ uris });
   return contents;
 }
 
-export async function writeTextFile(
-  path: string,
-  contents: string,
-): Promise<void> {
+export async function writeTextFile(path: string, contents: string): Promise<void> {
   if (isWorkspacePath(path)) {
     const existingUri = pathToUri.get(path);
     if (existingUri) {
@@ -348,11 +283,7 @@ export async function writeTextFile(
     }
     const parentUri = await ensureDirUri(pathDirname(path));
     const name = pathBasename(path);
-    const created = await FolderAccess.writeTextFile({
-      parentUri,
-      name,
-      contents,
-    });
+    const created = await FolderAccess.writeTextFile({ parentUri, name, contents });
     pathToUri.set(path, created.uri);
     return;
   }
@@ -365,11 +296,6 @@ export async function writeTextFile(
   });
 }
 
-// btoa() only accepts a "binary string" (one code unit per byte), and
-// String.fromCharCode(...bytes) over a whole image at once risks blowing
-// the call stack (spread arguments count against the engine's argument
-// limit), hence chunked conversion rather than one call over the whole
-// buffer.
 const BASE64_CHUNK_SIZE = 0x8000;
 
 export function bytesToBase64(bytes: Uint8Array): string {
@@ -380,16 +306,7 @@ export function bytesToBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
-/** Same shape as writeTextFile, for binary content (a pasted or dropped
- * image attachment). Content crosses the Capacitor plugin call boundary
- * as base64 (FolderAccessPlugin.java's writeBinaryFile decodes it back);
- * Filesystem.writeFile's own `data` is base64 by default when no
- * `encoding` is given, so the app-private branch needs no extra option
- * either. */
-export async function writeBinaryFile(
-  path: string,
-  data: Uint8Array,
-): Promise<void> {
+export async function writeBinaryFile(path: string, data: Uint8Array): Promise<void> {
   const base64Data = bytesToBase64(data);
   if (isWorkspacePath(path)) {
     const existingUri = pathToUri.get(path);
@@ -399,11 +316,7 @@ export async function writeBinaryFile(
     }
     const parentUri = await ensureDirUri(pathDirname(path));
     const name = pathBasename(path);
-    const created = await FolderAccess.writeBinaryFile({
-      parentUri,
-      name,
-      base64Data,
-    });
+    const created = await FolderAccess.writeBinaryFile({ parentUri, name, base64Data });
     pathToUri.set(path, created.uri);
     return;
   }
@@ -427,8 +340,6 @@ export async function createDir(path: string): Promise<void> {
   });
 }
 
-/** Same-folder rename only, which is all the UI ever asks for (the
- * NamePrompt-driven rename flow never changes an entry's parent). */
 export async function renamePath(from: string, to: string): Promise<void> {
   const uri = await resolveUri(from);
   const newName = pathBasename(to);
@@ -438,38 +349,24 @@ export async function renamePath(from: string, to: string): Promise<void> {
     evictUriSubtree(to);
     pathToUri.set(to, renamed.uri);
   } catch (error) {
-    // SAF providers can fail after partially applying a mutation. Do not
-    // reuse either subtree until it has been resolved from the live tree.
     evictUriSubtree(from);
     evictUriSubtree(to);
     throw error;
   }
 }
 
-/** Mirrors the Rust `trash_path` command's behavior: move into
- * `<workspaceRoot>/.trash/<relative-to-root>`, timestamp-prefixing the
- * name on collision instead of overwriting. */
-export async function trashPath(
-  workspaceRoot: string,
-  path: string,
-): Promise<void> {
+export async function trashPath(workspaceRoot: string, path: string): Promise<void> {
   if (!path.startsWith(`${workspaceRoot}/`)) {
-    throw new Error(
-      `"${path}" is not inside workspace root "${workspaceRoot}".`,
-    );
+    throw new Error(`"${path}" is not inside workspace root "${workspaceRoot}".`);
   }
   const relativeToWorkspace = path.slice(workspaceRoot.length + 1);
   const segments = relativeToWorkspace.split("/");
   const name = segments.pop()!;
   const trashParentPath = [workspaceRoot, ".trash", ...segments].join("/");
   const trashParentUri = await ensureDirUri(trashParentPath);
-
   const { entries } = await FolderAccess.listDir({ uri: trashParentUri });
-  const finalName = entries.some((e) => e.name === name)
-    ? `${Date.now()}-${name}`
-    : name;
+  const finalName = entries.some((e) => e.name === name) ? `${Date.now()}-${name}` : name;
   const trashTargetPath = `${trashParentPath}/${finalName}`;
-
   const sourceUri = await resolveUri(path);
   const sourceParentUri = await resolveUri(pathDirname(path));
   try {
@@ -490,8 +387,6 @@ export async function trashPath(
   }
 }
 
-/** Deletes a workspace entry outright, no `.trash` involved, mirroring the
- * Rust `delete_path_permanent` command's desktop behavior. */
 export async function deletePathPermanent(path: string): Promise<void> {
   const uri = await resolveUri(path);
   try {
@@ -503,18 +398,6 @@ export async function deletePathPermanent(path: string): Promise<void> {
   }
 }
 
-/** Audit follow-up F-004: the workspace-scoped bridge functions exist on
- * both platforms so callers never need to know which one they're on. On
- * desktop, `workspaceRoot` is a real directory and the Rust side
- * canonicalizes and verifies containment before touching disk. On Android,
- * `workspaceRoot` is always the fixed synthetic `WORKSPACE_ROOT` constant
- * (a real on-disk path has no meaning against an opaque SAF tree), so the
- * only thing to do here is rejoin it with `relativePath` and delegate to
- * the already-`isWorkspacePath`-gated function above: SAF's own permission
- * model, not a POSIX-style path check, is what actually keeps every one of
- * these operations inside the granted folder tree on this platform. See
- * `documentation/ARCHITECTURE.md`'s F-004 note for why that SAF guarantee
- * is treated as a distinct, still-open sub-item rather than assumed. */
 export async function writeWorkspaceTextFile(
   workspaceRoot: string,
   relativePath: string,
@@ -531,11 +414,54 @@ export async function writeWorkspaceBinaryFile(
   return writeBinaryFile(`${workspaceRoot}/${relativePath}`, data);
 }
 
+export async function createWorkspaceTextFileNew(
+  workspaceRoot: string,
+  relativePath: string,
+  contents: string,
+): Promise<void> {
+  const path = `${workspaceRoot}/${relativePath}`;
+  const parentUri = await ensureDirUri(pathDirname(path));
+  const created = await FolderAccess.createTextFileNew({
+    parentUri,
+    name: pathBasename(path),
+    contents,
+  });
+  pathToUri.set(path, created.uri);
+}
+
+export async function createWorkspaceBinaryFileNew(
+  workspaceRoot: string,
+  relativePath: string,
+  data: Uint8Array,
+): Promise<void> {
+  const path = `${workspaceRoot}/${relativePath}`;
+  const parentUri = await ensureDirUri(pathDirname(path));
+  const created = await FolderAccess.createBinaryFileNew({
+    parentUri,
+    name: pathBasename(path),
+    base64Data: bytesToBase64(data),
+  });
+  pathToUri.set(path, created.uri);
+}
+
 export async function createWorkspaceDir(
   workspaceRoot: string,
   relativePath: string,
 ): Promise<void> {
   return createDir(`${workspaceRoot}/${relativePath}`);
+}
+
+export async function createWorkspaceDirNew(
+  workspaceRoot: string,
+  relativePath: string,
+): Promise<void> {
+  const path = `${workspaceRoot}/${relativePath}`;
+  const parentUri = await ensureDirUri(pathDirname(path));
+  const created = await FolderAccess.createDirNew({
+    parentUri,
+    name: pathBasename(path),
+  });
+  pathToUri.set(path, created.uri);
 }
 
 export async function renameWorkspacePath(
@@ -544,6 +470,31 @@ export async function renameWorkspacePath(
   to: string,
 ): Promise<void> {
   return renamePath(`${workspaceRoot}/${from}`, `${workspaceRoot}/${to}`);
+}
+
+export async function renameWorkspacePathNoReplace(
+  workspaceRoot: string,
+  from: string,
+  to: string,
+): Promise<void> {
+  const fromPath = `${workspaceRoot}/${from}`;
+  const toPath = `${workspaceRoot}/${to}`;
+  const uri = await resolveUri(fromPath);
+  const parentUri = await resolveUri(pathDirname(fromPath));
+  try {
+    const renamed = await FolderAccess.renamePathNoReplace({
+      uri,
+      parentUri,
+      newName: pathBasename(toPath),
+    });
+    evictUriSubtree(fromPath);
+    evictUriSubtree(toPath);
+    pathToUri.set(toPath, renamed.uri);
+  } catch (error) {
+    evictUriSubtree(fromPath);
+    evictUriSubtree(toPath);
+    throw error;
+  }
 }
 
 export async function deleteWorkspacePathPermanent(
@@ -568,53 +519,25 @@ export async function fileSrc(path: string): Promise<string> {
   return dataUrl;
 }
 
-/** Walks `rootPath`'s entire subtree in a single native call
- * (FolderAccessPlugin.java's findMarkdownFiles), instead of one Capacitor
- * plugin round trip per directory the way a naive recursive `listDir`-based
- * walk would need. That per-directory approach measured at 90+ seconds on a
- * real ~580-note SAF-backed vault (confirmed on-device, session 53): the
- * JS/native bridge call itself is the dominant cost, not the underlying SAF
- * queries, so this removes that overhead by doing the whole recursive walk
- * (depth cap, dotfile skip, and all) on the native side in one round trip.
- * Shared by both findMarkdownFiles and getWorkspaceStats below, since they
- * need the same underlying walk and would otherwise duplicate it. */
 async function walkWorkspace(rootPath: string): Promise<WorkspaceWalkResult> {
   const uri = await resolveUri(rootPath);
   return FolderAccess.findMarkdownFiles({ uri });
 }
 
-/** Recursively finds every markdown file under `rootPath`. `deps.walk`
- * defaults to the real native walk; tests inject a stand-in instead of
- * mocking the underlying Capacitor plugin call, the same seam
- * getWorkspaceStats below already used before this change.
- *
- * On first call it performs the native walk; subsequent calls within the
- * same workspace session check the walk results cache — if `findAllFiles`
- * has already populated `allFiles`, markdown files are derived from it
- * (no native round trip). Same logic applies if `findMarkdownFiles` ran
- * first: `findAllFiles` derives its results from the markdown cache. */
 export async function findMarkdownFiles(
   rootPath: string,
   deps: { walk: typeof walkWorkspace } = { walk: walkWorkspace },
 ): Promise<FsEntry[]> {
-  // Check if we already have allFiles from a prior findAllFiles call
   const cached = getWalkCache(rootPath);
   if (cached?.allFiles) {
-    const markdownFiles = cached.allFiles.filter((f) =>
-      f.relativePath.endsWith(".md"),
-    );
+    const markdownFiles = cached.allFiles.filter((f) => f.relativePath.endsWith(".md"));
     return markdownFiles.map(({ relativePath, uri, mtime, size }) => {
       const path = `${rootPath}/${relativePath}`;
       pathToUri.set(path, uri);
       return { name: pathBasename(path), path, isDir: false, mtime, size };
     });
   }
-
   const { markdownFiles } = await deps.walk(rootPath);
-  // Real size, not a fabricated placeholder: a later findAllFiles call
-  // within this walk cache's TTL derives its own results from this same
-  // allFilesResult (see findAllFiles below), and runSearch's batching
-  // relies on a real size there too.
   const allFilesResult = markdownFiles.map((f) => ({
     relativePath: f.relativePath,
     uri: f.uri,
@@ -629,40 +552,15 @@ export async function findMarkdownFiles(
   });
 }
 
-/** Same reasoning as walkWorkspace above, but backing findAllFiles below:
- * every file regardless of extension, not just markdown notes. Kept as a
- * separate native call (FolderAccessPlugin.java's findAllFiles) rather
- * than reusing walkWorkspace/findMarkdownFiles, which keeps its "notes
- * only" contract intact for its other caller (rebuildLinkIndex). */
-async function walkWorkspaceAllFiles(
-  rootPath: string,
-): Promise<{ files: NativeFile[] }> {
+async function walkWorkspaceAllFiles(rootPath: string): Promise<{ files: NativeFile[] }> {
   const uri = await resolveUri(rootPath);
   return FolderAccess.findAllFiles({ uri });
 }
 
-/** Recursively finds every file under `rootPath`, regardless of extension,
- * for full-text search (fileTreeStore.ts's runSearch). Before this
- * existed, runSearch walked the workspace itself via repeated listDir
- * plugin calls, one per directory: on a real ~500-note SAF-backed vault
- * that didn't just run slowly, it crashed the app with an
- * OutOfMemoryError partway through the walk (confirmed on-device,
- * 2026-08-28), the same per-directory-IPC-call problem findMarkdownFiles's
- * own doc comment above already measured and fixed for the link index.
- * `deps.walk` follows the same test seam as findMarkdownFiles and
- * getWorkspaceStats.
- *
- * Checks the walk results cache: if `findMarkdownFiles` already ran,
- * derives non-markdown files from the markdown result set and fetches
- * only the missing extensions from native. If a full allFiles cache
- * exists, returns it directly (no native call). */
 export async function findAllFiles(
   rootPath: string,
-  deps: { walk: typeof walkWorkspaceAllFiles } = {
-    walk: walkWorkspaceAllFiles,
-  },
+  deps: { walk: typeof walkWorkspaceAllFiles } = { walk: walkWorkspaceAllFiles },
 ): Promise<FsEntry[]> {
-  // Check if we already have a full allFiles cache
   const cached = getWalkCache(rootPath);
   if (cached?.allFiles) {
     return cached.allFiles.map(({ relativePath, uri, mtime, size }) => {
@@ -671,21 +569,8 @@ export async function findAllFiles(
       return { name: pathBasename(path), path, isDir: false, mtime, size };
     });
   }
-
-  // Check if we can derive from markdown cache (partial cache)
-  if (cached?.markdownFiles) {
-    const allFiles = await deps.walk(rootPath);
-    // Native walk returns all files; cache it with the markdown subset
-    setWalkCache(rootPath, allFiles.files, cached.markdownFiles, null);
-    return allFiles.files.map(({ relativePath, uri, mtime, size }) => {
-      const path = `${rootPath}/${relativePath}`;
-      pathToUri.set(path, uri);
-      return { name: pathBasename(path), path, isDir: false, mtime, size };
-    });
-  }
-
   const { files } = await deps.walk(rootPath);
-  setWalkCache(rootPath, files, null, null);
+  setWalkCache(rootPath, files, cached?.markdownFiles ?? null, null);
   return files.map(({ relativePath, uri, mtime, size }) => {
     const path = `${rootPath}/${relativePath}`;
     pathToUri.set(path, uri);
@@ -693,35 +578,14 @@ export async function findAllFiles(
   });
 }
 
-/** Same reasoning as walkWorkspaceAllFiles above, but backing
- * findAllEntries below: every file and directory, not just files. */
-async function walkWorkspaceAllEntries(
-  rootPath: string,
-): Promise<{ entries: NativeAllEntry[] }> {
+async function walkWorkspaceAllEntries(rootPath: string): Promise<{ entries: NativeAllEntry[] }> {
   const uri = await resolveUri(rootPath);
   return FolderAccess.findAllEntries({ uri });
 }
 
-/** Recursively finds every file and directory under `rootPath` in a single
- * native call, for fileTreeStore.ts's expandAll ("Expand All" in the file
- * tree). Before this existed, expandAll walked the workspace itself via
- * repeated listDir plugin calls, one per directory, the same per-directory
- * bridge-round-trip cost findMarkdownFiles's and findAllFiles's own doc
- * comments above already measured and fixed for the link index and search.
- * Kept as its own native call rather than teaching findAllFiles to also
- * return directories: findAllFiles's only caller (runSearch) relies on it
- * staying files-only, and a directory with nothing directly inside it (or
- * nested only under other empty directories) would never appear in a
- * files-only walk at all, which expandAll needs to know about, unlike
- * runSearch. `deps.walk` follows the same test seam as findAllFiles and
- * findMarkdownFiles.
- *
- * Caches results to avoid redundant native calls on subsequent invocations. */
 export async function findAllEntries(
   rootPath: string,
-  deps: { walk: typeof walkWorkspaceAllEntries } = {
-    walk: walkWorkspaceAllEntries,
-  },
+  deps: { walk: typeof walkWorkspaceAllEntries } = { walk: walkWorkspaceAllEntries },
 ): Promise<FsEntry[]> {
   const cached = getWalkCache(rootPath);
   if (cached?.allEntries) {
@@ -740,20 +604,8 @@ export async function findAllEntries(
   });
 }
 
-// At most this many notes are read concurrently while computing workspace
-// statistics, same reasoning (and same helper) as the link index's own
-// concurrency cap: reading every note's content one at a time is still
-// real, separate work from the walk itself (see walkWorkspace above),
-// which this bounds instead of dispatching all reads at once.
 const WORKSPACE_STATS_READ_CONCURRENCY = 8;
 
-/** `deps` defaults to this module's own `walkWorkspace`/`readTextFile`; the
- * parameter exists so tests can inject stand-ins without needing to mock
- * this file's own exports out from under itself, which ESM makes awkward
- * for same-file self-calls. Note: oldest/newest note dates are not
- * available here (SAF's directory listing does not surface a per-entry
- * creation timestamp through this plugin today), unlike the desktop
- * implementation. */
 export async function getWorkspaceStats(
   rootPath: string,
   deps: { walk: typeof walkWorkspace; readTextFile: typeof readTextFile } = {
@@ -762,38 +614,25 @@ export async function getWorkspaceStats(
   },
 ): Promise<WorkspaceStats> {
   const { markdownFiles, folderCount, imageCount } = await deps.walk(rootPath);
-
   let totalNoteLines = 0;
   await mapWithConcurrency(
     markdownFiles,
     WORKSPACE_STATS_READ_CONCURRENCY,
     async (note) => {
-      const contents = await deps.readTextFile(
-        `${rootPath}/${note.relativePath}`,
-      );
+      const contents = await deps.readTextFile(`${rootPath}/${note.relativePath}`);
       totalNoteLines += contents.length === 0 ? 0 : contents.split("\n").length;
     },
   );
-
   return {
     folderCount,
     noteCount: markdownFiles.length,
     imageCount,
-    averageLinesPerNote:
-      markdownFiles.length === 0 ? 0 : totalNoteLines / markdownFiles.length,
+    averageLinesPerNote: markdownFiles.length === 0 ? 0 : totalNoteLines / markdownFiles.length,
     oldestNoteDate: null,
     newestNoteDate: null,
   };
 }
 
-/** Keeps the system status bar's icons (clock, battery, etc.) legible
- * against our own toolbar color, which the OS has no way to know about on
- * its own. `Style.Dark` gives white icons (for a dark toolbar background),
- * `Style.Light` gives dark icons (for a light one). */
-export async function setStatusBarAppearance(
-  isDarkBackground: boolean,
-): Promise<void> {
-  await StatusBar.setStyle({
-    style: isDarkBackground ? Style.Dark : Style.Light,
-  });
+export async function setStatusBarAppearance(isDarkBackground: boolean): Promise<void> {
+  await StatusBar.setStyle({ style: isDarkBackground ? Style.Dark : Style.Light });
 }

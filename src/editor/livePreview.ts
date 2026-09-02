@@ -9,6 +9,9 @@ import {
   WidgetType,
 } from "@codemirror/view";
 import { resolveWikilink } from "../linking/store";
+import { parseWikiLinks, type WikiLinkRecord } from "../linking/wikiSyntax";
+import { resolveHeadingFragment, resolveWikiLinkTarget } from "../linking/wikiResolver";
+import { scanHeadings, type HeadingRecord } from "../markdown/headings";
 
 /**
  * Inline live-preview decorations for the editor's normal (source) mode:
@@ -29,6 +32,26 @@ import { resolveWikilink } from "../linking/store";
  * previous implementation rebuilt decorations for the whole document on
  * every cursor move, which made one unusually large note unnecessarily
  * expensive to edit or scroll through.
+ *
+ * F04 Phase 2 (spec/f04-heading-block-links-embeds.md section 21 Phase 2)
+ * adds a second, dedicated pass for heading-link syntax
+ * (`[[Note#Heading]]`/`[[#Heading]]`), reusing F04 Phase 1's structured
+ * parser (`linking/wikiSyntax.ts`'s parseWikiLinks) and resolver
+ * (`linking/wikiResolver.ts`) instead of teaching the plain-wikilink regex
+ * below about fragments, the same "one parser, shared by every consumer"
+ * rule MarkdownPreview.tsx's renderWikilinksStructured already follows
+ * (spec section 2). A same-note fragment resolves fully against this
+ * document's own headings (resolved/missing/ambiguous, see
+ * classifyHeadingLink below); a cross-note fragment resolves at
+ * the note level only, the same disclosed scope narrowing Preview uses
+ * (verifying a cross-note heading would mean reading another note's file
+ * from inside this synchronous decoration pass, deferred to the F04
+ * Phases 3-5 follow-up in ROADMAP.md), rendering with the plain "resolved"
+ * look once its target note exists, or "broken" if the note itself does
+ * not. A record whose fragment is not a heading (a plain
+ * `[[Note]]`/`[[Note|Label]]` link, or a `^block-id` fragment, block
+ * references being out of scope here too) is left to the WIKILINK_PATTERN
+ * pass below exactly as before this phase.
  */
 
 /** Matches the same `[[target]]` shape the wikilink autocomplete and link
@@ -66,6 +89,56 @@ const HEADING_NODE_CLASS: Record<string, string> = {
   ATXHeading5: "cm-live-heading-5",
   ATXHeading6: "cm-live-heading-6",
 };
+
+type HeadingLinkStatus = "resolved" | "missing" | "ambiguous" | "broken";
+
+/** Reuses the plain-wikilink classes for the two states this phase shares
+ * with it (a fully resolved link; a link whose note doesn't exist at all,
+ * indistinguishable in Source mode from a plain broken wikilink), and adds
+ * two heading-specific classes for the two states a plain wikilink can
+ * never be in: an existing note whose named heading is missing or
+ * ambiguous (see App.css and linking/linking.css's own dotted-underline
+ * convention for the equivalent Preview-mode states). */
+const HEADING_LINK_CLASS: Record<HeadingLinkStatus, string> = {
+  resolved: "cm-live-wikilink-resolved",
+  missing: "cm-live-wikilink-heading-missing",
+  ambiguous: "cm-live-wikilink-heading-ambiguous",
+  broken: "cm-live-wikilink-broken",
+};
+
+/**
+ * Classifies one already-parsed heading-link record for decoration.
+ * `currentHeadingsRef` is a lazily-populated one-call cache (populated at
+ * most once per buildLiveDecorations invocation, only if a same-note
+ * fragment is actually encountered) rather than an unconditional
+ * `scanHeadings` call on every decoration rebuild, since a rebuild runs on
+ * every keystroke and selection change, and most documents contain no
+ * same-note heading link at all.
+ *
+ * A cross-note fragment (`record.noteTarget !== ""`) never reaches
+ * "missing"/"ambiguous": this phase does not read another note's file
+ * just to verify its heading (see the module doc comment above), so a
+ * cross-note heading link is only ever "resolved" (its note exists,
+ * including spec 5.3's legacy-filename fallback) or "broken" (it does
+ * not), matching MarkdownPreview.tsx's own disclosed scope narrowing for
+ * the same case.
+ */
+function classifyHeadingLink(
+  record: WikiLinkRecord,
+  currentHeadingsRef: { value: HeadingRecord[] | null },
+  docText: string,
+): HeadingLinkStatus {
+  if (record.noteTarget === "") {
+    if (currentHeadingsRef.value === null) currentHeadingsRef.value = scanHeadings(docText);
+    const result = resolveHeadingFragment(currentHeadingsRef.value, record.fragment!.value);
+    if (result.status === "resolved") return "resolved";
+    if (result.status === "ambiguous-fragment") return "ambiguous";
+    return "missing";
+  }
+
+  const target = resolveWikiLinkTarget(record, { currentNotePath: undefined, targetHeadings: undefined });
+  return target.status === "resolved" ? "resolved" : "broken";
+}
 
 interface SimpleRange {
   from: number;
@@ -202,6 +275,36 @@ export function buildLiveDecorations(
   }
 
   const docText = state.doc.toString();
+
+  // F04 Phase 2: heading-link records (`[[Note#Heading]]`/`[[#Heading]]`)
+  // are decorated through the shared structured parser/resolver below,
+  // never through the plain-wikilink regex; headingLinkRanges records
+  // their exact [from, to) source spans so the WIKILINK_PATTERN pass right
+  // after can skip them rather than double-decorating the same occurrence
+  // with an incorrect "broken" look (a heading fragment's `#` makes the
+  // literal bracket contents an unresolvable note name to that regex).
+  const headingLinkRanges = new Set<string>();
+  const currentHeadingsRef: { value: HeadingRecord[] | null } = { value: null };
+  for (const range of scanRanges) {
+    const text = docText.slice(range.from, range.to);
+    for (const record of parseWikiLinks(text)) {
+      if (record.parseStatus !== "valid" || record.fragment?.kind !== "heading") continue;
+      const from = range.from + record.sourceFrom;
+      const to = range.from + record.sourceTo;
+      if (headingLinkRanges.has(`${from}:${to}`)) continue;
+      headingLinkRanges.add(`${from}:${to}`);
+      if (codeRanges.some((codeRange) => from < codeRange.to && to > codeRange.from)) continue;
+
+      const status = classifyHeadingLink(record, currentHeadingsRef, docText);
+      marks.push({ from, to, class: HEADING_LINK_CLASS[status] });
+
+      if (!overlapsSelectedLines(state.doc, selectionRanges, from, to)) {
+        hide(hidden, from, from + 2); // the opening "[["
+        hide(hidden, to - 2, to); // the closing "]]"
+      }
+    }
+  }
+
   const matchedWikilinks = new Set<number>();
   for (const range of scanRanges) {
     WIKILINK_PATTERN.lastIndex = 0;
@@ -212,6 +315,7 @@ export function buildLiveDecorations(
       const to = from + match[0].length;
       if (matchedWikilinks.has(from)) continue;
       matchedWikilinks.add(from);
+      if (headingLinkRanges.has(`${from}:${to}`)) continue;
       if (codeRanges.some((codeRange) => from < codeRange.to && to > codeRange.from)) continue;
 
       const target = match[1];

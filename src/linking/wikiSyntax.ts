@@ -87,6 +87,21 @@ export function unescapeWikiLinkText(text: string): string {
 }
 
 /**
+ * The exact inverse of unescapeWikiLinkText above: escapes `\`, `#`, `|`,
+ * `[`, and `]` so arbitrary text (e.g. a heading's own display text, which
+ * may itself contain one of these characters, like a heading literally
+ * titled "Q&A: Issue #12" or "Before | After") can be inserted into a
+ * structured wikilink's target, fragment, or label expression without
+ * being reinterpreted as a delimiter by parseWikiLinks. Used by F04 Phase
+ * 2's heading-link completion (MarkdownEditor.tsx) when inserting a
+ * selected heading's text; kept here rather than duplicated at the call
+ * site since this module owns the escaping grammar (spec section 5.2).
+ */
+export function escapeWikiLinkText(text: string): string {
+  return text.replace(/[\\#|[\]]/g, "\\$&");
+}
+
+/**
  * Scans `source` for `[[...]]` wikilink occurrences and returns a
  * `WikiLinkRecord` for each. Non-overlapping, left to right, mirroring
  * how the pre-F04 `matchAll` extraction walked the document.

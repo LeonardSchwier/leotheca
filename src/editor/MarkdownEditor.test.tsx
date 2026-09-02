@@ -5,18 +5,19 @@ import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { undo } from "@codemirror/commands";
 import { CompletionContext } from "@codemirror/autocomplete";
-import { MarkdownEditor, wikilinkCompletions } from "./MarkdownEditor";
+import { MarkdownEditor, headingLinkCompletions, wikilinkCompletions } from "./MarkdownEditor";
 import { linkIndex } from "../linking/store";
 
-const { writeWorkspaceBinaryFile } = vi.hoisted(() => ({
+const { writeWorkspaceBinaryFile, readTextFile } = vi.hoisted(() => ({
   writeWorkspaceBinaryFile: vi.fn<
     (root: string, relativePath: string, bytes: Uint8Array) => Promise<void>
   >(async () => {}),
+  readTextFile: vi.fn<(path: string) => Promise<string>>(),
 }));
 
 vi.mock("../workspace/tauriBridge", () => ({
   listDir: vi.fn(),
-  readTextFile: vi.fn(),
+  readTextFile,
   writeWorkspaceBinaryFile,
 }));
 
@@ -170,6 +171,106 @@ describe("wikilinkCompletions", () => {
       "Alpha",
       "Beta",
     ]);
+  });
+});
+
+describe("headingLinkCompletions", () => {
+  afterEach(() => {
+    readTextFile.mockReset();
+  });
+
+  it("returns null when there is no # after [[", async () => {
+    setNotes(["Alpha"]);
+    const doc = "see [[Alp";
+    const result = await headingLinkCompletions("/vault/current.md")(contextAt(doc, doc.length));
+    expect(result).toBeNull();
+  });
+
+  it("returns null for a block-reference fragment ([[Note#^), out of this phase's scope", async () => {
+    setNotes(["Alpha"]);
+    const doc = "see [[Alpha#^";
+    const result = await headingLinkCompletions("/vault/current.md")(contextAt(doc, doc.length));
+    expect(result).toBeNull();
+    expect(readTextFile).not.toHaveBeenCalled();
+  });
+
+  it("suggests the current note's own headings for a same-note [[#", async () => {
+    const doc = "# Intro\n\n## Setup\n\nsee [[#";
+    const result = await headingLinkCompletions("/vault/current.md")(contextAt(doc, doc.length));
+    expect(result).not.toBeNull();
+    expect(result!.options.map((o) => o.label).sort()).toEqual(["Intro", "Setup"]);
+    expect(readTextFile).not.toHaveBeenCalled();
+  });
+
+  it("filters same-note headings by the partial text already typed", async () => {
+    const doc = "# Intro\n\n## Setup\n\nsee [[#se";
+    const result = await headingLinkCompletions("/vault/current.md")(contextAt(doc, doc.length));
+    expect(result!.options.map((o) => o.label)).toEqual(["Setup"]);
+  });
+
+  it("applies the heading's display text and closing ]] when a same-note suggestion is accepted", async () => {
+    const doc = "# Intro\n\nsee [[#";
+    const result = await headingLinkCompletions("/vault/current.md")(contextAt(doc, doc.length));
+    expect(result!.options[0].apply).toBe("Intro]]");
+    expect(result!.from).toBe(doc.length);
+  });
+
+  it("reads a different, already-existing note's file to suggest its headings", async () => {
+    setNotes(["Alpha"]);
+    readTextFile.mockResolvedValueOnce("# Foo\n\n## Bar");
+    const doc = "see [[Alpha#";
+    const result = await headingLinkCompletions("/vault/current.md")(contextAt(doc, doc.length));
+    expect(readTextFile).toHaveBeenCalledWith("/workspace/Alpha.md");
+    expect(result!.options.map((o) => o.label).sort()).toEqual(["Bar", "Foo"]);
+  });
+
+  it("uses the live in-memory document, not a file read, when the note portion names the currently open note", async () => {
+    setNotes(["Alpha"]);
+    const doc = "# Foo\n\nsee [[Alpha#";
+    const result = await headingLinkCompletions("/workspace/Alpha.md")(contextAt(doc, doc.length));
+    expect(readTextFile).not.toHaveBeenCalled();
+    expect(result!.options.map((o) => o.label)).toEqual(["Foo"]);
+  });
+
+  it("returns null when the note portion does not resolve to any note", async () => {
+    setNotes(["Alpha"]);
+    const doc = "see [[Nope#";
+    const result = await headingLinkCompletions("/vault/current.md")(contextAt(doc, doc.length));
+    expect(result).toBeNull();
+  });
+
+  it("returns null when the target note fails to read", async () => {
+    setNotes(["Alpha"]);
+    readTextFile.mockRejectedValueOnce(new Error("boom"));
+    const doc = "see [[Alpha#";
+    const result = await headingLinkCompletions("/vault/current.md")(contextAt(doc, doc.length));
+    expect(result).toBeNull();
+  });
+
+  it("marks every occurrence of a duplicate heading name in its detail text", async () => {
+    const doc = "# Setup\n\n# Setup\n\nsee [[#";
+    const result = await headingLinkCompletions("/vault/current.md")(contextAt(doc, doc.length));
+    expect(result!.options).toHaveLength(2);
+    for (const option of result!.options) expect(option.detail).toContain("duplicate");
+  });
+
+  it("does not mark a unique heading name as a duplicate", async () => {
+    const doc = "# Intro\n\nsee [[#";
+    const result = await headingLinkCompletions("/vault/current.md")(contextAt(doc, doc.length));
+    expect(result!.options[0].detail).not.toContain("duplicate");
+  });
+
+  it("escapes a heading whose own text contains a fragment-delimiter character", async () => {
+    const doc = "# Issue #12\n\nsee [[#";
+    const result = await headingLinkCompletions("/vault/current.md")(contextAt(doc, doc.length));
+    expect(result!.options[0].label).toBe("Issue #12");
+    expect(result!.options[0].apply).toBe("Issue \\#12]]");
+  });
+
+  it("returns null when no heading exists at all", async () => {
+    const doc = "Just a paragraph.\n\nsee [[#";
+    const result = await headingLinkCompletions("/vault/current.md")(contextAt(doc, doc.length));
+    expect(result).toBeNull();
   });
 });
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseWikiLinks, unescapeWikiLinkText } from "./wikiSyntax";
+import { escapeWikiLinkText, parseWikiLinks, unescapeWikiLinkText } from "./wikiSyntax";
 
 describe("parseWikiLinks", () => {
   it("parses a plain [[Note]] link with no fragment or label", () => {
@@ -158,6 +158,35 @@ describe("parseWikiLinks", () => {
     it("unescapes inside a heading fragment too", () => {
       const [record] = parseWikiLinks("[[Note#Heading \\# One]]");
       expect(record.fragment).toEqual({ kind: "heading", value: "Heading # One" });
+    });
+  });
+
+  describe("escapeWikiLinkText", () => {
+    it("leaves plain text without any of the five escapable characters unchanged", () => {
+      expect(escapeWikiLinkText("Plain Heading Text")).toBe("Plain Heading Text");
+    });
+
+    it("escapes a literal # so a round trip through parseWikiLinks keeps it in the fragment", () => {
+      const escaped = escapeWikiLinkText("Issue #12");
+      expect(escaped).toBe("Issue \\#12");
+      const [record] = parseWikiLinks(`[[Note#${escaped}]]`);
+      expect(record.fragment).toEqual({ kind: "heading", value: "Issue #12" });
+    });
+
+    it("escapes a literal | so it does not split off a label", () => {
+      const escaped = escapeWikiLinkText("Before | After");
+      const [record] = parseWikiLinks(`[[Note#${escaped}]]`);
+      expect(record.fragment).toEqual({ kind: "heading", value: "Before | After" });
+      expect(record.label).toBeUndefined();
+    });
+
+    it("escapes brackets and backslashes", () => {
+      expect(escapeWikiLinkText("[a]\\b")).toBe("\\[a\\]\\\\b");
+    });
+
+    it("is the exact inverse of unescapeWikiLinkText for every escapable character combined", () => {
+      const original = "A \\ heading # with | every ] special [ character";
+      expect(unescapeWikiLinkText(escapeWikiLinkText(original))).toBe(original);
     });
   });
 });

@@ -34,6 +34,7 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(FolderAccessPlugin.class);
+        registerPlugin(WorkspaceMutationPlugin.class);
 
         NewNoteTarget newNoteTarget = null;
         if (

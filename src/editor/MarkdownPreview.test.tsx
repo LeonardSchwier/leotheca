@@ -810,6 +810,23 @@ describe("MarkdownPreview: F04 Phase 3a block references", () => {
     const blockquote = container.querySelector("blockquote");
     expect(blockquote?.textContent?.trim()).toBe("A quoted principle.");
   });
+
+  it("resolves a same-note block link to a fenced-code block (F04 Phase 3d)", () => {
+    const { container } = render(
+      <MarkdownPreview
+        source={"```\nconst x = 1;\n```\n^code-example\n\nSee [[#^code-example]] above."}
+        notePath="/vault/plan.md"
+      />,
+    );
+    const anchor = container.querySelector('a[href^="#leotheca-wikilink="]');
+    expect(anchor?.getAttribute("href")).toContain("resolved=1");
+    const pre = container.querySelector("pre");
+    // The marker line is stripped from the block's own rendered content;
+    // the link's own default label legitimately still shows the raw
+    // "#^id" text (see defaultWikilinkLabel), asserted separately above
+    // via resolved=1 rather than by absence of that substring.
+    expect(pre?.textContent).toBe("const x = 1;\n");
+  });
 });
 
 describe("MarkdownPreview: F04 Phase 4a embeds", () => {

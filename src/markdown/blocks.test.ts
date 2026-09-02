@@ -102,6 +102,52 @@ describe("scanBlockIds", () => {
     expect(block.id).toBe("after-fence");
   });
 
+  it("attaches a marker on the line immediately following a closing fence (F04 Phase 3d)", () => {
+    const source = "```\nconst x = 1;\n```\n^code-example";
+    const [block] = scanBlockIds(source);
+    expect(block.kind).toBe("fenced-code");
+    expect(block.id).toBe("code-example");
+    expect(source.slice(block.contentFrom, block.contentTo)).toBe("```\nconst x = 1;\n```");
+    expect(source.slice(block.sourceFrom, block.sourceTo)).toBe(source);
+  });
+
+  it("does not attach a fenced-code marker when a blank line separates it from the closing fence", () => {
+    const source = "```\ncode\n```\n\n^too-far";
+    expect(scanBlockIds(source)).toEqual([]);
+  });
+
+  it("does not attach a fenced-code marker when the immediately following line has other content, but still reads it as an ordinary paragraph", () => {
+    const source = "```\ncode\n```\nNot just a marker ^not-standalone";
+    const [block] = scanBlockIds(source);
+    expect(block.kind).toBe("paragraph");
+    expect(block.id).toBe("not-standalone");
+  });
+
+  it("forfeits the marker opportunity, not retrying a later line, when the immediately following line isn't one", () => {
+    const source = "```\ncode\n```\nsome text\n^too-late";
+    expect(scanBlockIds(source)).toEqual([]);
+  });
+
+  it("allows up to 3 leading spaces before the caret on a fenced-code marker line, matching leaf-block indentation", () => {
+    const source = "```\ncode\n```\n   ^indented";
+    const [block] = scanBlockIds(source);
+    expect(block.id).toBe("indented");
+  });
+
+  it("does not let a fence opening immediately after another's close consume that close's marker opportunity", () => {
+    const source = "```\nfirst\n```\n```\nsecond\n```\n^after-second";
+    const [block] = scanBlockIds(source);
+    expect(block.id).toBe("after-second");
+    expect(block.contentFrom).toBe(source.indexOf("```\nsecond"));
+  });
+
+  it("resumes paragraph scanning correctly after a fenced-code marker line", () => {
+    const source = "```\ncode\n```\n^code-id\n\nAfter. ^after-id";
+    const blocks = scanBlockIds(source);
+    expect(blocks.map((b) => b.id)).toEqual(["code-id", "after-id"]);
+    expect(blocks[1].kind).toBe("paragraph");
+  });
+
   it("does not attach a marker inside a block-level HTML comment", () => {
     const source = "<!-- A comment. ^in-comment -->";
     expect(scanBlockIds(source)).toEqual([]);

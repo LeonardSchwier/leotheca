@@ -142,6 +142,10 @@ function CollectionsIcon() {
       <rect x="3" y="10" width="14" height="4" rx="1" />
       <circle cx="5.5" cy="6" r="0.6" fill="currentColor" stroke="none" />
       <circle cx="5.5" cy="12" r="0.6" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
 function DiagnosticsIcon() {
   return (
     <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">

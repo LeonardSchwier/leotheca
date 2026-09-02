@@ -40,6 +40,15 @@ export interface MarkdownEditorProps {
    * request at the same range to re-apply; `null` means no pending
    * request. */
   reveal?: { from: number; to: number; requestId: number } | null;
+  /** A request to insert literal text at the current selection, e.g. from
+   * OutlinePanel/HeadingBreadcrumbs's insert-heading-link action (spec
+   * section 9.4, see outline/outlineNavigation.ts's
+   * `requestOutlineInsert`). Unlike `reveal` above, this is a normal,
+   * undo-tracked editor edit: it replaces the current selection and moves
+   * the cursor after the inserted text, exactly like typed input.
+   * `requestId` must change for a repeat request with the same text to
+   * re-apply; `null` means no pending request. */
+  insertRequest?: { text: string; requestId: number } | null;
   /** Reports the primary selection head (character offset) after every
    * transaction that changes it, including typing and the reveal effect
    * above; used by HeadingBreadcrumbs for Source-mode active-section
@@ -244,6 +253,7 @@ export function MarkdownEditor({
   snippetsEnabled,
   snippets,
   reveal,
+  insertRequest,
   onCursorChange,
 }: MarkdownEditorProps) {
   const hostRef = useRef<HTMLDivElement>(null);
@@ -364,6 +374,26 @@ export function MarkdownEditor({
       scrollIntoView: true,
     });
   }, [reveal]);
+
+  // Applies an insert-heading-link request: replaces the current
+  // selection with the requested text and moves the cursor after it,
+  // through a normal `dispatch` (undo-tracked, unlike the reveal effect
+  // above), matching spec section 9.4's "selection replacement and undo
+  // behave like normal editor input." Tracks the last-applied requestId
+  // for the same reason reveal does: inserting the exact same text twice
+  // in a row must still re-apply.
+  const lastInsertIdRef = useRef<number | null>(null);
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view || !insertRequest || insertRequest.requestId === lastInsertIdRef.current) return;
+    lastInsertIdRef.current = insertRequest.requestId;
+    const { from, to } = view.state.selection.main;
+    view.dispatch({
+      changes: { from, to, insert: insertRequest.text },
+      selection: { anchor: from + insertRequest.text.length },
+      scrollIntoView: true,
+    });
+  }, [insertRequest]);
 
   return <div class="markdown-editor" ref={hostRef} />;
 }

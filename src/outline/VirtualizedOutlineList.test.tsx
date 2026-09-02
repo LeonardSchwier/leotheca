@@ -43,14 +43,14 @@ function makeFlatOutline(count: number): string {
 describe("OutlinePanel: large-outline virtualization threshold", () => {
   it("keeps the plain nested list for a note with exactly the threshold heading count", () => {
     const content = makeFlatOutline(LARGE_OUTLINE_THRESHOLD);
-    const { container } = render(<OutlinePanel content={content} />);
+    const { container } = render(<OutlinePanel content={content} noteTitle="Note" />);
     expect(container.querySelector(".outline-list--virtual")).toBeNull();
     expect(container.querySelectorAll(".outline-node").length).toBe(LARGE_OUTLINE_THRESHOLD);
   });
 
   it("switches to the virtualized list one heading past the threshold", () => {
     const content = makeFlatOutline(LARGE_OUTLINE_THRESHOLD + 1);
-    const { container } = render(<OutlinePanel content={content} />);
+    const { container } = render(<OutlinePanel content={content} noteTitle="Note" />);
     const virtualList = container.querySelector(".outline-list--virtual");
     expect(virtualList).not.toBeNull();
     // The whole point: far fewer DOM rows than headings exist.
@@ -63,7 +63,7 @@ describe("OutlinePanel: large-outline virtualization threshold", () => {
 describe("VirtualizedOutlineList (via OutlinePanel)", () => {
   it("does not render every heading up front for a very large note", () => {
     const content = makeFlatOutline(2000);
-    const { container, getByText } = render(<OutlinePanel content={content} />);
+    const { container, getByText } = render(<OutlinePanel content={content} noteTitle="Note" />);
     expect(getByText("Heading 0")).toBeTruthy();
     // Far-down headings are not mounted until scrolled into view.
     expect(container.querySelector("li.outline-node span.outline-text")).toBeTruthy();
@@ -73,7 +73,7 @@ describe("VirtualizedOutlineList (via OutlinePanel)", () => {
 
   it("renders a far-down heading after scrolling to it, and stops rendering an earlier one", () => {
     const content = makeFlatOutline(2000);
-    const { container, getByText, queryByText } = render(<OutlinePanel content={content} />);
+    const { container, getByText, queryByText } = render(<OutlinePanel content={content} noteTitle="Note" />);
     expect(getByText("Heading 0")).toBeTruthy();
 
     const list = container.querySelector(".outline-list--virtual") as HTMLUListElement;
@@ -89,7 +89,7 @@ describe("VirtualizedOutlineList (via OutlinePanel)", () => {
 
   it("selecting a scrolled-to row still requests the correct reveal range", () => {
     const content = makeFlatOutline(1000);
-    const { container, getByText } = render(<OutlinePanel content={content} />);
+    const { container, getByText } = render(<OutlinePanel content={content} noteTitle="Note" />);
     const list = container.querySelector(".outline-list--virtual") as HTMLUListElement;
 
     const targetIndex = 700;
@@ -108,7 +108,7 @@ describe("VirtualizedOutlineList (via OutlinePanel)", () => {
     const lines = ["# Root"];
     for (let i = 0; i < 600; i++) lines.push(`## Child ${i}`);
     const { container, getByLabelText, queryByText, getByText } = render(
-      <OutlinePanel content={lines.join("\n")} />,
+      <OutlinePanel content={lines.join("\n")} noteTitle="Note" />,
     );
     expect(getByText("Child 0")).toBeTruthy();
 
@@ -122,7 +122,7 @@ describe("VirtualizedOutlineList (via OutlinePanel)", () => {
     const lines = ["# Section"];
     for (let i = 0; i < 600; i++) lines.push(`## Item ${i}`);
     const { container, getByLabelText, getByText, queryByText } = render(
-      <OutlinePanel content={lines.join("\n")} />,
+      <OutlinePanel content={lines.join("\n")} noteTitle="Note" />,
     );
 
     // "Item 599" is a substring match only of itself: every other label in
@@ -149,7 +149,7 @@ describe("VirtualizedOutlineList (via OutlinePanel)", () => {
     const lines = ["# Section"];
     for (let i = 0; i < 600; i++) lines.push(`## Item ${i}`);
     const { container, getByLabelText, getByText, queryByText } = render(
-      <OutlinePanel content={lines.join("\n")} />,
+      <OutlinePanel content={lines.join("\n")} noteTitle="Note" />,
     );
 
     const list = container.querySelector(".outline-list--virtual") as HTMLUListElement;

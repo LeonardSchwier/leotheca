@@ -290,6 +290,115 @@ describe("MarkdownEditor: reveal", () => {
   });
 });
 
+describe("MarkdownEditor: insertRequest (F06 Phase 3's insert-heading-link action)", () => {
+  it("inserts the requested text, replacing the current selection", () => {
+    const { container, rerender } = render(
+      <MarkdownEditor
+        path="/vault/a.md"
+        value="one two three"
+        {...baseEditorProps()}
+        insertRequest={null}
+      />,
+    );
+    const view = editorView(container);
+    // Select "two" (offsets 4-7) so the insertion's replacement behavior
+    // is actually exercised, not just an insert into an empty selection.
+    view.dispatch({ selection: { anchor: 4, head: 7 } });
+
+    rerender(
+      <MarkdownEditor
+        path="/vault/a.md"
+        value="one two three"
+        {...baseEditorProps()}
+        insertRequest={{ text: "[[#Heading]]", requestId: 1 }}
+      />,
+    );
+    expect(editorView(container).state.doc.toString()).toBe("one [[#Heading]] three");
+  });
+
+  it("places the cursor right after the inserted text", () => {
+    const { container, rerender } = render(
+      <MarkdownEditor path="/vault/a.md" value="" {...baseEditorProps()} insertRequest={null} />,
+    );
+    rerender(
+      <MarkdownEditor
+        path="/vault/a.md"
+        value=""
+        {...baseEditorProps()}
+        insertRequest={{ text: "[[#Heading]]", requestId: 1 }}
+      />,
+    );
+    const view = editorView(container);
+    expect(view.state.selection.main.head).toBe("[[#Heading]]".length);
+    expect(view.state.selection.main.anchor).toBe("[[#Heading]]".length);
+  });
+
+  it("is undo-tracked like normal typed input, unlike reveal", () => {
+    const { container, rerender } = render(
+      <MarkdownEditor path="/vault/a.md" value="one two three" {...baseEditorProps()} insertRequest={null} />,
+    );
+    rerender(
+      <MarkdownEditor
+        path="/vault/a.md"
+        value="one two three"
+        {...baseEditorProps()}
+        insertRequest={{ text: "XXX", requestId: 1 }}
+      />,
+    );
+    const view = editorView(container);
+    expect(view.state.doc.toString()).toBe("XXXone two three");
+    undo(view);
+    expect(view.state.doc.toString()).toBe("one two three");
+  });
+
+  it("re-applies an insert when requestId changes, even for identical text", () => {
+    const { container, rerender } = render(
+      <MarkdownEditor
+        path="/vault/a.md"
+        value=""
+        {...baseEditorProps()}
+        insertRequest={{ text: "X", requestId: 1 }}
+      />,
+    );
+    expect(editorView(container).state.doc.toString()).toBe("X");
+
+    rerender(
+      <MarkdownEditor
+        path="/vault/a.md"
+        value=""
+        {...baseEditorProps()}
+        insertRequest={{ text: "X", requestId: 2 }}
+      />,
+    );
+    // Cursor already sits right after the first "X" (the insertion moved
+    // it there), so the second insert lands right after it too.
+    expect(editorView(container).state.doc.toString()).toBe("XX");
+  });
+
+  it("does not insert again when the same requestId is passed twice", () => {
+    const { container, rerender } = render(
+      <MarkdownEditor
+        path="/vault/a.md"
+        value=""
+        {...baseEditorProps()}
+        insertRequest={{ text: "X", requestId: 1 }}
+      />,
+    );
+    const view = editorView(container);
+    view.dispatch({ selection: { anchor: 0 } });
+
+    rerender(
+      <MarkdownEditor
+        path="/vault/a.md"
+        value=""
+        {...baseEditorProps()}
+        insertRequest={{ text: "X", requestId: 1 }}
+      />,
+    );
+    expect(editorView(container).state.doc.toString()).toBe("X");
+  });
+});
+
 describe("MarkdownEditor: onCursorChange", () => {
   it("reports the initial cursor position on mount", () => {
     const onCursorChange = vi.fn();

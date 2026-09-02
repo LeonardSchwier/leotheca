@@ -42,7 +42,7 @@ import { SettingsPanel } from "../settings/SettingsPanel";
 import { WelcomeDialog } from "../settings/WelcomeDialog";
 import { BacklinksPanel } from "../linking/BacklinksPanel";
 import { OutlinePanel } from "../outline/OutlinePanel";
-import { outlineRevealRequest, requestOutlineReveal } from "../outline/outlineNavigation";
+import { outlineInsertRequest, outlineRevealRequest, requestOutlineReveal } from "../outline/outlineNavigation";
 import { HeadingBreadcrumbs } from "../outline/HeadingBreadcrumbs";
 import { nextSplitAuthority, type SplitAuthority } from "../outline/splitAuthority";
 import { scanHeadings } from "../markdown/headings";
@@ -770,6 +770,8 @@ export function App() {
                     <OutlinePanel
                       key={current.path}
                       content={current.content}
+                      noteTitle={current.name}
+                      canInsertLink={viewMode.value !== "preview"}
                       onNavigated={() => {
                         if (viewMode.value === "preview") viewMode.value = "split";
                       }}
@@ -836,6 +838,7 @@ export function App() {
                   }
                   onSelectRoot={() => requestOutlineReveal(0, 0)}
                   onSelectHeading={(heading) => requestOutlineReveal(heading.contentFrom, heading.contentTo)}
+                  canInsertLink={viewMode.value !== "preview"}
                 />
                 <FrontmatterPropertiesPanel
                   key={current.path}
@@ -855,6 +858,7 @@ export function App() {
                       snippetsEnabled={workspaceSettings.value.snippetsEnabled}
                       snippets={workspaceSettings.value.snippets}
                       reveal={outlineRevealRequest.value}
+                      insertRequest={outlineInsertRequest.value}
                       onCursorChange={(pos) => {
                         setCursorPos(pos);
                         setSplitAuthority(nextSplitAuthority("source-cursor"));

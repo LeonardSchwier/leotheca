@@ -1,6 +1,8 @@
 import type { HeadingRecord } from "../markdown/headings";
 import { useNoteHeadings } from "./useNoteHeadings";
 import { activeHeadingIndex, breadcrumbChain } from "./outlineActiveSection";
+import { computeDuplicateFlags } from "./OutlinePanel";
+import { HeadingLinkActions } from "./HeadingLinkActions";
 import "./outline.css";
 
 /**
@@ -29,6 +31,13 @@ interface HeadingBreadcrumbsProps {
   activeSource: HeadingBreadcrumbsActiveSource;
   onSelectRoot: () => void;
   onSelectHeading: (heading: HeadingRecord) => void;
+  /** Whether Insert link has anywhere sensible to insert into right now
+   * (spec section 9.4: no writable editor mounted, e.g. a preview-only
+   * view mode). Defaults to true so a caller that doesn't care about
+   * this distinction still sees the action enabled; see
+   * outline/HeadingLinkActions.tsx. Copy link is unaffected: it only
+   * needs the clipboard, never an editor. */
+  canInsertLink?: boolean;
 }
 
 /**
@@ -44,6 +53,13 @@ interface HeadingBreadcrumbsProps {
  * nav's aria-label names the active source whenever one is tracked, so a
  * screen-reader user in Split view can tell which pane the breadcrumb
  * trail is currently following without needing separate UI for it.
+ *
+ * Phase 3 (section 9) added copy-heading-link and insert-heading-link
+ * actions for the currently active heading (the chain's last entry; the
+ * note root has no heading to link to, so nothing renders before the
+ * first heading), sharing outline/HeadingLinkActions.tsx with
+ * OutlinePanel's own per-row actions so the two surfaces the spec asks
+ * for never drift apart in behavior.
  */
 export function HeadingBreadcrumbs({
   noteTitle,
@@ -51,6 +67,7 @@ export function HeadingBreadcrumbs({
   activeSource,
   onSelectRoot,
   onSelectHeading,
+  canInsertLink = true,
 }: HeadingBreadcrumbsProps) {
   const headings = useNoteHeadings(content);
   const activeIndex =
@@ -60,6 +77,13 @@ export function HeadingBreadcrumbs({
         ? activeSource.index
         : undefined;
   const chain = breadcrumbChain(headings, activeIndex);
+  // F06 Phase 3 (spec section 9): copy/insert-link actions act on the
+  // currently active heading only, the last (and only new) entry in the
+  // chain; there is nothing to link to before the first heading (the
+  // note root has no HeadingRecord of its own).
+  const activeHeading = chain.length > 0 ? chain[chain.length - 1] : undefined;
+  const activeDuplicate =
+    activeIndex !== undefined ? computeDuplicateFlags(headings)[activeIndex] : false;
   const ariaLabel =
     activeSource.kind === "cursor"
       ? "Breadcrumb (following Source)"
@@ -68,32 +92,42 @@ export function HeadingBreadcrumbs({
         : "Breadcrumb";
 
   return (
-    <nav class="heading-breadcrumbs" aria-label={ariaLabel}>
-      <ol class="heading-breadcrumbs-list">
-        <li>
-          <button
-            class="heading-breadcrumb-segment"
-            aria-current={chain.length === 0 ? "location" : undefined}
-            onClick={onSelectRoot}
-          >
-            {noteTitle}
-          </button>
-        </li>
-        {chain.map((heading, index) => (
-          <li key={`${heading.key} ${heading.occurrence}`}>
-            <span class="heading-breadcrumb-separator" aria-hidden="true">
-              {"›"}
-            </span>
+    <div class="heading-breadcrumbs-bar">
+      <nav class="heading-breadcrumbs" aria-label={ariaLabel}>
+        <ol class="heading-breadcrumbs-list">
+          <li>
             <button
               class="heading-breadcrumb-segment"
-              aria-current={index === chain.length - 1 ? "location" : undefined}
-              onClick={() => onSelectHeading(heading)}
+              aria-current={chain.length === 0 ? "location" : undefined}
+              onClick={onSelectRoot}
             >
-              {heading.displayText || "(Untitled heading)"}
+              {noteTitle}
             </button>
           </li>
-        ))}
-      </ol>
-    </nav>
+          {chain.map((heading, index) => (
+            <li key={`${heading.key} ${heading.occurrence}`}>
+              <span class="heading-breadcrumb-separator" aria-hidden="true">
+                {"›"}
+              </span>
+              <button
+                class="heading-breadcrumb-segment"
+                aria-current={index === chain.length - 1 ? "location" : undefined}
+                onClick={() => onSelectHeading(heading)}
+              >
+                {heading.displayText || "(Untitled heading)"}
+              </button>
+            </li>
+          ))}
+        </ol>
+      </nav>
+      {activeHeading && (
+        <HeadingLinkActions
+          heading={activeHeading}
+          noteTitle={noteTitle}
+          duplicate={activeDuplicate}
+          canInsertLink={canInsertLink}
+        />
+      )}
+    </div>
   );
 }

@@ -1,10 +1,14 @@
 /** @vitest-environment jsdom */
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render } from "@testing-library/preact";
+import { act, cleanup, fireEvent, render } from "@testing-library/preact";
 import { HeadingBreadcrumbs } from "./HeadingBreadcrumbs";
 import { scanHeadings } from "../markdown/headings";
+import { outlineInsertRequest } from "./outlineNavigation";
 
-afterEach(() => cleanup());
+afterEach(() => {
+  cleanup();
+  outlineInsertRequest.value = null;
+});
 
 describe("HeadingBreadcrumbs", () => {
   it("shows only the note root before the first heading", () => {
@@ -200,5 +204,125 @@ describe("HeadingBreadcrumbs", () => {
       />,
     );
     expect(getByRole("navigation", { name: "Breadcrumb" })).toBeTruthy();
+  });
+});
+
+describe("HeadingBreadcrumbs: copy and insert heading-link actions (F06 Phase 3)", () => {
+  function setClipboard() {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+    return writeText;
+  }
+
+  it("shows no link actions before the first heading (nothing to link to yet)", () => {
+    const { queryByRole } = render(
+      <HeadingBreadcrumbs
+        noteTitle="My Note"
+        content="No headings here."
+        activeSource={{ kind: "cursor", offset: 0 }}
+        onSelectRoot={vi.fn()}
+        onSelectHeading={vi.fn()}
+      />,
+    );
+    expect(queryByRole("button", { name: /Copy link/ })).toBeNull();
+    expect(queryByRole("button", { name: /Insert link/ })).toBeNull();
+  });
+
+  it("copies the note-qualified F04 link text for the active heading", async () => {
+    const writeText = setClipboard();
+    const content = "## Section one\nBody.";
+    const headings = scanHeadings(content);
+    const { getByRole } = render(
+      <HeadingBreadcrumbs
+        noteTitle="My Note"
+        content={content}
+        activeSource={{ kind: "cursor", offset: headings[0].contentFrom }}
+        onSelectRoot={vi.fn()}
+        onSelectHeading={vi.fn()}
+      />,
+    );
+    await act(async () => {
+      fireEvent.click(getByRole("button", { name: "Copy link to Section one" }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(writeText).toHaveBeenCalledWith("[[My Note#Section one]]");
+  });
+
+  it("requests inserting the same-note F04 link text for the active heading", () => {
+    const content = "## Section one\nBody.";
+    const headings = scanHeadings(content);
+    const { getByRole } = render(
+      <HeadingBreadcrumbs
+        noteTitle="My Note"
+        content={content}
+        activeSource={{ kind: "cursor", offset: headings[0].contentFrom }}
+        onSelectRoot={vi.fn()}
+        onSelectHeading={vi.fn()}
+      />,
+    );
+    fireEvent.click(getByRole("button", { name: "Insert link to Section one at the cursor" }));
+    expect(outlineInsertRequest.value?.text).toBe("[[#Section one]]");
+  });
+
+  it("acts on the deepest active heading, not an ancestor, when the chain has more than one entry", () => {
+    const content = "# Product\n## Delivery\n### Android\n";
+    const headings = scanHeadings(content);
+    const android = headings.find((h) => h.displayText === "Android")!;
+    const { getByRole } = render(
+      <HeadingBreadcrumbs
+        noteTitle="Spec"
+        content={content}
+        activeSource={{ kind: "cursor", offset: android.contentFrom }}
+        onSelectRoot={vi.fn()}
+        onSelectHeading={vi.fn()}
+      />,
+    );
+    fireEvent.click(getByRole("button", { name: "Insert link to Android at the cursor" }));
+    expect(outlineInsertRequest.value?.text).toBe("[[#Android]]");
+  });
+
+  it("disables both actions when the active heading's text is duplicated in the note", () => {
+    const content = "# Overview\n## Overview\n";
+    const headings = scanHeadings(content);
+    const second = headings[1];
+    const { getAllByLabelText } = render(
+      <HeadingBreadcrumbs
+        noteTitle="My Note"
+        content={content}
+        activeSource={{ kind: "cursor", offset: second.contentFrom }}
+        onSelectRoot={vi.fn()}
+        onSelectHeading={vi.fn()}
+      />,
+    );
+    const disabledButtons = getAllByLabelText(
+      "This heading's text repeats elsewhere in the note, so a link to it would be ambiguous.",
+    );
+    expect(disabledButtons).toHaveLength(2);
+    for (const button of disabledButtons) {
+      expect((button as HTMLButtonElement).disabled).toBe(true);
+    }
+  });
+
+  it("disables Insert link but not Copy link when canInsertLink is false", () => {
+    setClipboard();
+    const content = "## Section one\nBody.";
+    const headings = scanHeadings(content);
+    const { getByRole } = render(
+      <HeadingBreadcrumbs
+        noteTitle="My Note"
+        content={content}
+        activeSource={{ kind: "cursor", offset: headings[0].contentFrom }}
+        onSelectRoot={vi.fn()}
+        onSelectHeading={vi.fn()}
+        canInsertLink={false}
+      />,
+    );
+    expect(
+      (getByRole("button", { name: "Copy link to Section one" }) as HTMLButtonElement).disabled,
+    ).toBe(false);
+    expect(
+      (getByRole("button", { name: /Insert link to Section one/ }) as HTMLButtonElement).disabled,
+    ).toBe(true);
   });
 });

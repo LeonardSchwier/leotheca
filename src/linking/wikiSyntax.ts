@@ -87,6 +87,58 @@ export function unescapeWikiLinkText(text: string): string {
 }
 
 /**
+ * Escapes `\`, `#`, `|`, `[`, and `]` so `text` embeds literally inside a
+ * structured wikilink expression: the exact inverse of
+ * unescapeWikiLinkText above. Every producer of `[[...]]` link text (F06's
+ * copy/insert-link actions, any future link-editing UI) must escape
+ * through here rather than hand-rolling the same backslash rules, per
+ * this module's own header comment ("the one syntax parser every consumer
+ * must share").
+ */
+export function escapeWikiLinkText(text: string): string {
+  let result = "";
+  for (const ch of text) {
+    result += ESCAPABLE.has(ch) ? `\\${ch}` : ch;
+  }
+  return result;
+}
+
+/**
+ * A wikilink target to serialize into `[[...]]` text: the fields
+ * parseWikiLinks splits a record into, minus the source-range bookkeeping
+ * a caller building fresh link text (rather than parsing existing text)
+ * has no use for. `noteTarget: ""` means the same-note target (spec
+ * 5.2), producing `[[#Heading]]` rather than `[[Note#Heading]]`.
+ */
+export interface WikiLinkTarget {
+  noteTarget: string;
+  fragment?: WikiLinkFragment;
+  label?: string;
+}
+
+/**
+ * Serializes `target` back into `[[...]]` grammar text, escaping every
+ * part through escapeWikiLinkText so the result always round-trips
+ * through parseWikiLinks unchanged. This is the one allowed way to
+ * produce heading/block link text in this codebase (F04's "one shared
+ * serializer" rule, spec/f04-heading-block-links-embeds.md section 2):
+ * F06's copy-heading-link and insert-heading-link actions
+ * (outline/headingLinkActions.ts) build their `[[Note#Heading]]` /
+ * `[[#Heading]]` text through here, never by concatenating the pieces
+ * themselves.
+ */
+export function serializeWikiLink(target: WikiLinkTarget): string {
+  let inner = escapeWikiLinkText(target.noteTarget);
+  if (target.fragment) {
+    const fragmentRaw =
+      target.fragment.kind === "block" ? `^${target.fragment.value}` : target.fragment.value;
+    inner += `#${escapeWikiLinkText(fragmentRaw)}`;
+  }
+  if (target.label !== undefined) inner += `|${escapeWikiLinkText(target.label)}`;
+  return `[[${inner}]]`;
+}
+
+/**
  * Scans `source` for `[[...]]` wikilink occurrences and returns a
  * `WikiLinkRecord` for each. Non-overlapping, left to right, mirroring
  * how the pre-F04 `matchAll` extraction walked the document.

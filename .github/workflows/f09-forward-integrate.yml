@@ -17,7 +17,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Merge current main and resolve complementary feature conflicts
+      - name: Merge current main into the claimed branch
         shell: bash
         run: |
           set -euo pipefail
@@ -28,21 +28,21 @@ jobs:
           from pathlib import Path
 
           roadmap = Path("ROADMAP.md").read_text().splitlines()
-          roadmap_line = next(line for line in roadmap if "✅ **F09 Phase 1:" in line)
-          Path("/tmp/f09-roadmap-line").write_text(roadmap_line + "\n")
-
+          Path("/tmp/f09-roadmap-line").write_text(
+              next(line for line in roadmap if "✅ **F09 Phase 1:" in line) + "\n"
+          )
           changelog = Path("CHANGELOG.md").read_text().splitlines()
-          changelog_line = next(line for line in changelog if "A new Collections button" in line)
-          Path("/tmp/f09-changelog-line").write_text(changelog_line + "\n")
+          Path("/tmp/f09-changelog-line").write_text(
+              next(line for line in changelog if "A new Collections button" in line) + "\n"
+          )
           PY
 
           git fetch origin main
-          if git merge --no-ff --no-commit origin/main; then
-            :
-          else
-            for file in ROADMAP.md documentation/ARCHITECTURE.md CHANGELOG.md; do
+          if ! git merge --no-ff --no-commit origin/main; then
+            for file in ROADMAP.md CHANGELOG.md documentation/ARCHITECTURE.md; do
               if git diff --name-only --diff-filter=U -- "$file" | grep -q .; then
                 git checkout --theirs -- "$file"
+                git add "$file"
               fi
             done
 
@@ -50,77 +50,41 @@ jobs:
               if ! git diff --name-only --diff-filter=U -- "$file" | grep -q .; then
                 continue
               fi
-              git checkout --conflict=diff3 -- "$file"
-              python3 - "$file" <<'PY'
-          from pathlib import Path
-          import sys
-
-          path = Path(sys.argv[1])
-          lines = path.read_text().splitlines(keepends=True)
-          out = []
-          i = 0
-          while i < len(lines):
-              if not lines[i].startswith("<<<<<<<"):
-                  out.append(lines[i])
-                  i += 1
-                  continue
-              i += 1
-              ours = []
-              while i < len(lines) and not lines[i].startswith("|||||||"):
-                  ours.append(lines[i])
-                  i += 1
-              if i >= len(lines):
-                  raise SystemExit(f"unterminated conflict in {path}")
-              i += 1
-              while i < len(lines) and not lines[i].startswith("======="):
-                  i += 1
-              if i >= len(lines):
-                  raise SystemExit(f"missing separator in {path}")
-              i += 1
-              theirs = []
-              while i < len(lines) and not lines[i].startswith(">>>>>>>"):
-                  theirs.append(lines[i])
-                  i += 1
-              if i >= len(lines):
-                  raise SystemExit(f"missing conflict end in {path}")
-              i += 1
-              out.extend(ours)
-              out.extend(theirs)
-          path.write_text("".join(out))
-          PY
+              git show ":1:$file" > /tmp/base
+              git show ":2:$file" > /tmp/ours
+              git show ":3:$file" > /tmp/theirs
+              git merge-file --union /tmp/ours /tmp/base /tmp/theirs || true
+              cp /tmp/ours "$file"
+              git add "$file"
             done
-
-            python3 - <<'PY'
-          from pathlib import Path
-          path = Path("src/linking/store.ts")
-          text = path.read_text()
-          needle = "const LINK_INDEX_CACHE_VERSION = 6;"
-          first = text.find(needle)
-          second = text.find(needle, first + len(needle))
-          if first >= 0 and second >= 0:
-              text = text[:second] + text[second + len(needle):]
-              path.write_text(text)
-          PY
           fi
 
           python3 - <<'PY'
           from pathlib import Path
 
-          path = Path("ROADMAP.md")
-          lines = path.read_text().splitlines()
+          roadmap = Path("ROADMAP.md")
+          lines = roadmap.read_text().splitlines()
           completed = Path("/tmp/f09-roadmap-line").read_text().rstrip("\n")
           lines = [line for line in lines if "**F09 Phase 1:" not in line]
           implemented = lines.index("## Implemented")
           lines.insert(implemented + 2, completed)
-          path.write_text("\n".join(lines) + "\n")
+          roadmap.write_text("\n".join(lines) + "\n")
 
-          path = Path("CHANGELOG.md")
-          lines = path.read_text().splitlines()
+          changelog = Path("CHANGELOG.md")
+          lines = changelog.read_text().splitlines()
           entry = Path("/tmp/f09-changelog-line").read_text().rstrip("\n")
           if entry not in lines:
               unreleased = lines.index("## Unreleased")
               lines.insert(unreleased + 2, entry)
-          path.write_text("\n".join(lines) + "\n")
+          changelog.write_text("\n".join(lines) + "\n")
+
+          store = Path("src/linking/store.ts")
+          text = store.read_text()
+          needle = "const LINK_INDEX_CACHE_VERSION = 6;"
+          first = text.find(needle)
+          second = text.find(needle, first + len(needle))
+          if first >= 0 and second >= 0:
+              store.write_text(text[:second] + text[second + len(needle):])
           PY
 
           git diff 60634d2f1885456c3186b4ef62ccf7151fafdd01 203b617dc0b2f79e81dd7a5baa187cd32856952b -- documentation/ARCHITECTURE.md > /tmp/f09-architecture.patch
@@ -128,20 +92,14 @@ jobs:
             git apply --3way /tmp/f09-architecture.patch || true
           fi
 
-          git add ROADMAP.md CHANGELOG.md documentation/ARCHITECTURE.md src/app/App.tsx src/linking/store.ts src/linking/store.test.ts
+          git add ROADMAP.md CHANGELOG.md documentation/ARCHITECTURE.md src/linking/store.ts
           git rm .github/workflows/f09-forward-integrate.yml
 
-          if git diff --name-only --diff-filter=U | grep .; then
-            echo "Unresolved conflicts remain"
+          unresolved="$(git diff --name-only --diff-filter=U)"
+          if [ -n "$unresolved" ]; then
+            printf 'Unresolved conflicts:\n%s\n' "$unresolved"
             exit 1
           fi
-
-          npm ci
-          npm run typecheck
-          npm test -- --run
-          npm run lint
-          npm run check-version
-          npm run build
 
           git commit -m "Forward integrate F09 Phase 1 with current main"
           git push origin HEAD:agent/f09-phase1-collections

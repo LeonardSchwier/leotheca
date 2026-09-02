@@ -194,6 +194,50 @@ describe("parseWikiLinks", () => {
       expect(unescapeWikiLinkText(escapeWikiLinkText(original))).toBe(original);
     });
   });
+
+  describe("embeds (F04 Phase 4a)", () => {
+    it("parses ![[Note]] as an embed with the ! included in raw/sourceFrom", () => {
+      const source = "See ![[Existing Note]] below.";
+      const [record] = parseWikiLinks(source);
+      expect(record.kind).toBe("embed");
+      expect(record.noteTarget).toBe("Existing Note");
+      expect(record.raw).toBe("![[Existing Note]]");
+      expect(record.sourceFrom).toBe(source.indexOf("!"));
+      expect(source.slice(record.sourceFrom, record.sourceTo)).toBe(record.raw);
+    });
+
+    it("parses ![[Note#Heading]] as an embed with a heading fragment", () => {
+      const [record] = parseWikiLinks("![[Project Plan#Milestones]]");
+      expect(record.kind).toBe("embed");
+      expect(record.noteTarget).toBe("Project Plan");
+      expect(record.fragment).toEqual({ kind: "heading", value: "Milestones" });
+    });
+
+    it("parses ![[Note#^block-id]] as an embed with a block fragment", () => {
+      const [record] = parseWikiLinks("![[Note#^release-decision]]");
+      expect(record.kind).toBe("embed");
+      expect(record.fragment).toEqual({ kind: "block", value: "release-decision" });
+    });
+
+    it("parses a plain [[Note]] with no preceding ! as a link, not an embed", () => {
+      const [record] = parseWikiLinks("[[Note]]");
+      expect(record.kind).toBe("link");
+    });
+
+    it("does not treat a ! elsewhere in the text as marking an unrelated link as an embed", () => {
+      const [record] = parseWikiLinks("Wow! [[Note]]");
+      expect(record.kind).toBe("link");
+      expect(record.sourceFrom).toBe("Wow! ".length);
+    });
+
+    it("leaves the outer ! as literal text when two ! precede [[, only the adjacent one is consumed", () => {
+      const source = "!![[Note]]";
+      const [record] = parseWikiLinks(source);
+      expect(record.kind).toBe("embed");
+      expect(record.sourceFrom).toBe(1);
+      expect(source.slice(0, record.sourceFrom)).toBe("!");
+    });
+  });
 });
 
 // escapeWikiLinkText's own behavior (every escapable character, the

@@ -4,6 +4,7 @@ import { cleanup, fireEvent, render, waitFor } from "@testing-library/preact";
 
 vi.mock("../workspace/tauriBridge", () => ({
   fileSrc: vi.fn(),
+  readTextFile: vi.fn(),
 }));
 
 vi.mock("../settings/store", async () => {
@@ -14,7 +15,7 @@ vi.mock("../settings/store", async () => {
 import { MarkdownPreview } from "./MarkdownPreview";
 import { linkIndex } from "../linking/store";
 import { workspacePath } from "../settings/store";
-import { fileSrc } from "../workspace/tauriBridge";
+import { fileSrc, readTextFile } from "../workspace/tauriBridge";
 import { outlineRevealRequest } from "../outline/outlineNavigation";
 
 afterEach(() => {
@@ -31,6 +32,7 @@ afterEach(() => {
   workspacePath.value = null;
   outlineRevealRequest.value = null;
   vi.mocked(fileSrc).mockReset();
+  vi.mocked(readTextFile).mockReset();
 });
 
 describe("MarkdownPreview", () => {
@@ -778,5 +780,201 @@ describe("MarkdownPreview: F04 Phase 3a block references", () => {
       />,
     );
     expect(container.textContent).toContain("^release-decision");
+  });
+});
+
+describe("MarkdownPreview: F04 Phase 4a embeds", () => {
+  function setNote(name: string, path: string) {
+    linkIndex.value = {
+      backlinksByPath: new Map(),
+      pathsByNoteName: new Map([[name, [path]]]),
+      pathsByAlias: new Map(),
+      aliasesByPath: new Map(),
+      pathsByTag: new Map(),
+      tagsByPath: new Map(),
+      tasksByPath: new Map(),
+    };
+  }
+
+  it("renders a same-note heading embed synchronously with the section content and label", () => {
+    const source = "# Intro\n\n## Milestones\n\nShip v1.\n\nSee ![[#Milestones]] above.";
+    const { container } = render(<MarkdownPreview source={source} notePath="/vault/plan.md" />);
+    const frame = container.querySelector(".embed-frame");
+    expect(frame).toBeTruthy();
+    expect(frame?.querySelector(".embed-frame-body")?.textContent).toContain("Ship v1.");
+    expect(frame?.querySelector(".embed-frame-label")?.textContent).toContain("Milestones");
+  });
+
+  it("renders a same-note block embed synchronously with the block content", () => {
+    const source = "The user owns the files. ^local-first\n\nSee ![[#^local-first]] above.";
+    const { container } = render(<MarkdownPreview source={source} notePath="/vault/plan.md" />);
+    const frame = container.querySelector(".embed-frame");
+    expect(frame?.querySelector(".embed-frame-body")?.textContent).toContain("The user owns the files.");
+  });
+
+  it("shows an 'Embedded heading not found' placeholder for a same-note heading that doesn't exist", () => {
+    const { container } = render(
+      <MarkdownPreview source={"See ![[#Nonexistent]] above."} notePath="/vault/plan.md" />,
+    );
+    expect(container.querySelector(".embed-frame-body")?.textContent).toBe("Embedded heading not found");
+  });
+
+  it("shows an 'Embedded block not found' placeholder for a same-note block id that doesn't exist", () => {
+    const { container } = render(
+      <MarkdownPreview source={"See ![[#^nonexistent]] above."} notePath="/vault/plan.md" />,
+    );
+    expect(container.querySelector(".embed-frame-body")?.textContent).toBe("Embedded block not found");
+  });
+
+  it("shows an ambiguous placeholder for a same-note heading matching more than one heading", () => {
+    const { container } = render(
+      <MarkdownPreview
+        source={"## Design\n\ntext\n\n## Design\n\nSee ![[#Design]] above."}
+        notePath="/vault/plan.md"
+      />,
+    );
+    expect(container.querySelector(".embed-frame-body")?.textContent).toContain("more than one heading");
+  });
+
+  it("shows an 'Embedded note not found' placeholder for a note that doesn't resolve, with no async read attempted", () => {
+    const { container } = render(<MarkdownPreview source="![[Missing Note]]" />);
+    expect(container.querySelector(".embed-frame-body")?.textContent).toBe("Embedded note not found");
+    expect(readTextFile).not.toHaveBeenCalled();
+  });
+
+  it("resolves a cross-note whole-note embed asynchronously, with frontmatter stripped", async () => {
+    setNote("project plan", "/vault/project-plan.md");
+    vi.mocked(readTextFile).mockResolvedValue("---\ntitle: Plan\n---\nThe actual body text.");
+    const { container } = render(<MarkdownPreview source="![[Project Plan]]" />);
+
+    expect(container.querySelector(".embed-frame-body")?.textContent).toBe("Loading…");
+
+    await waitFor(() => {
+      expect(container.querySelector(".embed-frame-body")?.textContent).toContain("The actual body text.");
+    });
+    expect(container.querySelector(".embed-frame-body")?.textContent).not.toContain("title: Plan");
+    expect(readTextFile).toHaveBeenCalledWith("/vault/project-plan.md");
+  });
+
+  it("resolves a cross-note heading embed asynchronously", async () => {
+    setNote("project plan", "/vault/project-plan.md");
+    vi.mocked(readTextFile).mockResolvedValue("# Intro\n\n## Milestones\n\nShip v1.");
+    const { container } = render(<MarkdownPreview source="![[Project Plan#Milestones]]" />);
+
+    await waitFor(() => {
+      expect(container.querySelector(".embed-frame-body")?.textContent).toContain("Ship v1.");
+    });
+  });
+
+  it("resolves a cross-note block embed asynchronously", async () => {
+    setNote("project plan", "/vault/project-plan.md");
+    vi.mocked(readTextFile).mockResolvedValue("The decision is final. ^release-decision");
+    const { container } = render(<MarkdownPreview source="![[Project Plan#^release-decision]]" />);
+
+    await waitFor(() => {
+      expect(container.querySelector(".embed-frame-body")?.textContent).toContain("The decision is final.");
+    });
+  });
+
+  it("shows 'Could not read embedded note' when the cross-note read fails", async () => {
+    setNote("project plan", "/vault/project-plan.md");
+    vi.mocked(readTextFile).mockRejectedValue(new Error("not found"));
+    const { container } = render(<MarkdownPreview source="![[Project Plan]]" />);
+
+    await waitFor(() => {
+      expect(container.querySelector(".embed-frame-body")?.textContent).toBe("Could not read embedded note");
+    });
+  });
+
+  it("shows 'Embedded heading not found' when the cross-note target lacks the heading", async () => {
+    setNote("project plan", "/vault/project-plan.md");
+    vi.mocked(readTextFile).mockResolvedValue("# Intro\n\nno such heading here");
+    const { container } = render(<MarkdownPreview source="![[Project Plan#Nonexistent]]" />);
+
+    await waitFor(() => {
+      expect(container.querySelector(".embed-frame-body")?.textContent).toBe("Embedded heading not found");
+    });
+  });
+
+  it("does not expand a nested embed inside a cross-note embed's own content, falling back to a plain link", async () => {
+    linkIndex.value = {
+      backlinksByPath: new Map(),
+      pathsByNoteName: new Map([
+        ["target", ["/vault/target.md"]],
+        ["other", ["/vault/other.md"]],
+      ]),
+      pathsByAlias: new Map(),
+      aliasesByPath: new Map(),
+      pathsByTag: new Map(),
+      tagsByPath: new Map(),
+      tasksByPath: new Map(),
+    };
+    vi.mocked(readTextFile).mockResolvedValue("Has a nested ![[Other]] reference.");
+    const { container } = render(<MarkdownPreview source="![[Target]]" />);
+
+    await waitFor(() => {
+      expect(container.querySelector(".embed-frame-body")?.textContent).toContain("Has a nested");
+    });
+
+    // Only the outer frame exists; the inner "![[Other]]" (only ever
+    // present in the freshly-read target note's own content, never in the
+    // host document) was not expanded into a second, nested frame.
+    expect(container.querySelectorAll(".embed-frame")).toHaveLength(1);
+    const bodyLink = container.querySelector('.embed-frame-body a[href^="#leotheca-wikilink="]');
+    expect(bodyLink).toBeTruthy();
+    expect(bodyLink?.textContent).toBe("Other");
+  });
+
+  it("still strips block-id markers from a same-note embed's own extracted content", () => {
+    const source = "# Intro\n\n## Section\n\nText with a marker. ^marked\n\nSee ![[#Section]] above.";
+    const { container } = render(<MarkdownPreview source={source} notePath="/vault/plan.md" />);
+    expect(container.querySelector(".embed-frame-body")?.textContent).not.toContain("^marked");
+    expect(container.querySelector(".embed-frame-body")?.textContent).toContain("Text with a marker.");
+  });
+
+  it("clicking a same-note embed's Open source note link reveals the section without opening a note", () => {
+    const onOpenFile = vi.fn();
+    const source = "# Intro\n\n## Milestones\n\nShip v1.\n\nSee ![[#Milestones]] above.";
+    const { container } = render(
+      <MarkdownPreview source={source} notePath="/vault/plan.md" onOpenFile={onOpenFile} />,
+    );
+    const openLink = container.querySelector(".embed-frame-open") as HTMLAnchorElement;
+    expect(openLink).toBeTruthy();
+    fireEvent.click(openLink);
+    expect(onOpenFile).not.toHaveBeenCalled();
+    expect(outlineRevealRequest.value?.from).toBe(source.indexOf("Milestones"));
+  });
+
+  it("clicking a cross-note embed's Open source note link opens the target note", async () => {
+    setNote("project plan", "/vault/project-plan.md");
+    vi.mocked(readTextFile).mockResolvedValue("Body text.");
+    const onOpenFile = vi.fn();
+    const { container } = render(
+      <MarkdownPreview source="![[Project Plan]]" onOpenFile={onOpenFile} />,
+    );
+    const openLink = container.querySelector(".embed-frame-open") as HTMLAnchorElement;
+    fireEvent.click(openLink);
+    expect(onOpenFile).toHaveBeenCalledWith("/vault/project-plan.md", "project-plan.md");
+  });
+
+  it("does not render an embed frame when headingLinksEnabled is off", () => {
+    const { container } = render(
+      <MarkdownPreview source="![[Note]]" headingLinksEnabled={false} />,
+    );
+    expect(container.querySelector(".embed-frame")).toBeNull();
+  });
+
+  it("falls back to a generic label for a same-note embed with no notePath given at all", () => {
+    const { container } = render(<MarkdownPreview source="![[#Heading]]" />);
+    expect(container.querySelector(".embed-frame-label")?.textContent).toContain("this note");
+    expect(container.querySelector(".embed-frame-body")?.textContent).toBe("Embedded note not found");
+  });
+
+  it("still renders correctly when the embed marker sits mid-paragraph rather than on its own line", () => {
+    const source = "# Intro\n\n## Milestones\n\nShip v1.\n\nBefore text ![[#Milestones]] after text.";
+    const { container } = render(<MarkdownPreview source={source} notePath="/vault/plan.md" />);
+    expect(container.textContent).toContain("Before text");
+    expect(container.textContent).toContain("after text.");
+    expect(container.querySelector(".embed-frame-body")?.textContent).toContain("Ship v1.");
   });
 });

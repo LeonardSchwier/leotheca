@@ -13,13 +13,16 @@
  * diagnostics, F06 copy-link actions, editor completion, and this
  * module's own resolver/preview consumers must all parse through here.
  *
- * A `^block-id` fragment (section 7) parses structurally, since the
- * grammar naturally distinguishes it from a heading fragment, but this
- * phase does not resolve or render it specially (see wikiResolver.ts):
- * block references are Phase 2 scope. Likewise a leading `!` (embeds,
- * section 11) is not specially recognized here yet; `kind` always comes
- * back "link" in this phase, kept on the type for forward compatibility
- * with the embed work Phase 4 adds.
+ * A `^block-id` fragment (section 7) parses structurally; resolving it
+ * against a note's actual scanned blocks is `wikiResolver.ts`'s
+ * `resolveBlockFragment` (F04 Phase 3a), reused unchanged by an embed
+ * record's own fragment the same way a link record's is. A leading `!`
+ * immediately before `[[` (section 11) marks `kind: "embed"` (F04 Phase
+ * 4a); note/fragment parsing and resolution are otherwise identical
+ * between a link and an embed record, only how a caller renders the
+ * resolved target differs (`editor/MarkdownPreview.tsx`'s embed
+ * rendering, see that file for the current scope of what an embed
+ * actually resolves and displays).
  */
 
 export type WikiLinkFragment =
@@ -150,6 +153,15 @@ export function serializeWikiLink(target: WikiLinkTarget): string {
  * second full-document scan for a case F03 (a later phase) actually
  * needs. "malformed" is reserved for a case section 5.2 explicitly names:
  * a recognized `#`/`^` fragment marker with nothing after it.
+ *
+ * A `[[` immediately preceded by `!` (no space between them, section
+ * 11.1) is an embed rather than a link: `kind` comes back "embed" and
+ * `sourceFrom`/`raw` include that leading `!`, so a caller replacing the
+ * record's exact span never leaves a stray `!` behind. Spec 5.2's escape
+ * grammar has no way to escape a literal `!` before `[[` (only `\`, `#`,
+ * `|`, `[`, and `]` are escapable), matching this codebase's other
+ * wikilink-adjacent implementations' convention of not inventing an
+ * escape the spec doesn't define.
  */
 export function parseWikiLinks(source: string): WikiLinkRecord[] {
   const records: WikiLinkRecord[] = [];
@@ -159,7 +171,8 @@ export function parseWikiLinks(source: string): WikiLinkRecord[] {
       i += 1;
       continue;
     }
-    const sourceFrom = i;
+    const isEmbed = i > 0 && source[i - 1] === "!";
+    const sourceFrom = isEmbed ? i - 1 : i;
     const contentStart = i + 2;
     let j = contentStart;
     let barIndex = -1;
@@ -232,7 +245,7 @@ export function parseWikiLinks(source: string): WikiLinkRecord[] {
     }
 
     records.push({
-      kind: "link",
+      kind: isEmbed ? "embed" : "link",
       raw: source.slice(sourceFrom, sourceTo),
       noteTarget,
       fragment,

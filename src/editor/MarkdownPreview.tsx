@@ -4,14 +4,15 @@ import DOMPurify from "dompurify";
 import katex from "katex";
 import "katex/dist/katex.min.css";
 import { fileNameFromPath, resolveWikilink } from "../linking/store";
-import { parseWikiLinks, type WikiLinkRecord } from "../linking/wikiSyntax";
+import { parseWikiLinks, type WikiLinkFragment, type WikiLinkRecord } from "../linking/wikiSyntax";
 import { resolveBlockFragment, resolveHeadingFragment, resolveWikiLinkTarget } from "../linking/wikiResolver";
 import { scanHeadings, type HeadingRecord } from "../markdown/headings";
 import { scanBlockIds, type BlockRecord } from "../markdown/blocks";
+import { frontmatterBodyStart } from "./frontmatterEdits";
 import { requestOutlineReveal } from "../outline/outlineNavigation";
 import { workspacePath } from "../settings/store";
 import { dirname, resolvePathWithinWorkspace } from "../workspace/paths";
-import { fileSrc } from "../workspace/tauriBridge";
+import { fileSrc, readTextFile } from "../workspace/tauriBridge";
 import "../linking/linking.css";
 
 marked.setOptions({ gfm: true, breaks: false });
@@ -331,13 +332,210 @@ function defaultWikilinkLabel(record: WikiLinkRecord, headingStatus: "resolved" 
  * resolves at the note level only for the same reason cross-note headings
  * do, and the real block lookup happens once, correctly, at click time in
  * App.tsx (see onOpenFile's `blockId` option).
+ *
+ * F04 Phase 4a adds `![[Note]]`/`![[Note#Heading]]`/`![[Note#^block-id]]`
+ * embeds (`record.kind === "embed"`, see `RenderContext.allowEmbeds` and
+ * the embed helper functions directly below this doc comment for how
+ * they render, resolve, and degrade).
  */
-function renderWikilinksStructured(
-  source: string,
-  currentHeadings: HeadingRecord[],
-  currentBlocks: BlockRecord[],
-  currentNotePath: string | undefined,
+/** Escapes `&`, `"`, `<`, and `>` for safe embedding inside a
+ * double-quoted HTML attribute value built by hand (as opposed to
+ * `escapeHtml` above, used for ordinary text content, which does not
+ * need to escape `"`). Used by the embed-frame HTML this file builds
+ * directly rather than through `marked` (F04 Phase 4a). */
+function escapeAttr(text: string): string {
+  return text.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+/** Bundles every piece of context `renderWikilinksStructured` and its
+ * embed-rendering helpers need, since a single flat parameter list would
+ * be unwieldy at this point (F04 Phase 4a added several embed-only
+ * fields on top of Phase 1/3a's existing heading/block ones). Mirrors
+ * `wikiResolver.ts`'s `WikiResolutionContext` in spirit: one options
+ * object per call, not a growing positional argument list. */
+interface RenderContext {
+  currentHeadings: HeadingRecord[];
+  currentBlocks: BlockRecord[];
+  currentNotePath: string | undefined;
+  /** The note's own pristine, unmodified source (F04 Phase 4a): needed
+   * to extract a same-note embed's target section by the exact same
+   * `sourceFrom`/`sectionTo`/`contentFrom`/`contentTo` offsets
+   * `currentHeadings`/`currentBlocks` were computed against, since
+   * `source` (the string actually being scanned for `[[...]]`
+   * occurrences) may already be a rewritten copy (block markers
+   * stripped, image attachments marked) whose offsets no longer align
+   * with those records once any earlier rewrite has changed the
+   * string's length before the embed's own position. */
+  pristineNoteSource: string;
+  noteDir: string | null;
+  workspaceRoot: string | null;
+  /** False inside an embedded section's own recursive render pass (F04
+   * Phase 4a): a nested `![[...]]` is not expanded into a further
+   * embed frame, since this phase implements no recursion depth limit,
+   * cycle detection, or load-size budget (spec section 11.4), all
+   * disclosed as a follow-up rather than attempted here. A nested embed
+   * marker instead falls through to this function's ordinary link
+   * rendering, exactly as if its leading `!` were not there: still a
+   * working, clickable link to the same target, just not expanded
+   * inline. */
+  allowEmbeds: boolean;
+  /** Cross-note embeds discovered during this render pass, pushed to in
+   * source order; only ever populated when `allowEmbeds` is true, since
+   * a nested render pass never emits new embed placeholders. Each
+   * entry's index is the placeholder's own `data-lt-embed-id`, letting
+   * `MarkdownPreview`'s post-render effect find and resolve it. */
+  crossNoteEmbedsOut: CrossNoteEmbedRequest[];
+}
+
+/** One cross-note embed placeholder emitted synchronously during render,
+ * to be resolved asynchronously afterward (F04 Phase 4a): the target
+ * note's content must be read from disk before its section/block can be
+ * extracted and rendered, the same reason `ATTACHMENT_SRC_PREFIX` images
+ * above resolve in a follow-up effect rather than during this synchronous
+ * render pass. */
+interface CrossNoteEmbedRequest {
+  notePath: string;
+  fragment?: WikiLinkFragment;
+}
+
+type EmbedExtraction =
+  | { status: "ok"; text: string; sectionLabel?: string }
+  | { status: "missing-heading" }
+  | { status: "ambiguous-heading" }
+  | { status: "missing-block" }
+  | { status: "ambiguous-block" };
+
+/**
+ * Extracts the exact text an embed should render, per spec section 11.1:
+ * the whole note body after frontmatter for a plain `![[Note]]`, a
+ * heading's own text through its full section (equal-or-higher-level
+ * heading boundary, reusing `HeadingRecord.sectionTo`, the same range the
+ * outline feature already computes) for `![[Note#Heading]]`, or the
+ * exact block content for `![[Note#^block-id]]`. `headings`/`blocks` must
+ * already be scanned from the exact same `content` this function slices,
+ * whether that's the current note's own pristine source (same-note) or a
+ * freshly-read target note's content (cross-note).
+ */
+function extractEmbedSection(
+  content: string,
+  fragment: WikiLinkFragment | undefined,
+  headings: HeadingRecord[],
+  blocks: BlockRecord[],
+): EmbedExtraction {
+  if (!fragment) {
+    return { status: "ok", text: content.slice(frontmatterBodyStart(content)).trim() };
+  }
+  if (fragment.kind === "heading") {
+    const result = resolveHeadingFragment(headings, fragment.value);
+    if (result.status === "missing-fragment") return { status: "missing-heading" };
+    if (result.status === "ambiguous-fragment") return { status: "ambiguous-heading" };
+    return {
+      status: "ok",
+      text: content.slice(result.heading.sourceFrom, result.heading.sectionTo).trim(),
+      sectionLabel: result.heading.displayText,
+    };
+  }
+  const result = resolveBlockFragment(blocks, fragment.value);
+  if (result.status === "missing-fragment") return { status: "missing-block" };
+  if (result.status === "ambiguous-fragment") return { status: "ambiguous-block" };
+  return { status: "ok", text: content.slice(result.block.contentFrom, result.block.contentTo).trim() };
+}
+
+/**
+ * Renders an already-extracted embed section's own Markdown to sanitized-
+ * at-the-end HTML: strips its own block-id markers (a nested paragraph
+ * inside the embedded section can itself carry one), resolves its own
+ * local image attachments against the EMBEDDED note's own directory (spec
+ * 11.3: "relative images and attachments resolve from the embedded
+ * note's directory," not the host's), and processes its own wikilinks
+ * with `notePath` as the same-note context, so a same-note link inside
+ * the embedded section correctly refers to the embedded note (spec 11.3),
+ * not the host note previewing it. `allowEmbeds: false` on the recursive
+ * call is what actually enforces this phase's single-level-only embed
+ * depth (see `RenderContext.allowEmbeds`'s own doc comment).
+ */
+function renderEmbeddedMarkdownToHtml(
+  text: string,
+  notePath: string,
+  noteDir: string | null,
+  workspaceRoot: string | null,
 ): string {
+  if (text.trim() === "") {
+    return '<p class="embed-frame-message">This section is empty</p>';
+  }
+  const headings = scanHeadings(text);
+  const blocks = scanBlockIds(text);
+  const withoutBlockMarkers = stripBlockIdMarkers(text, blocks);
+  const withAttachments = markLocalImageAttachments(withoutBlockMarkers, noteDir, workspaceRoot);
+  const withWikilinks = renderWikilinksStructured(withAttachments, {
+    currentHeadings: headings,
+    currentBlocks: blocks,
+    currentNotePath: notePath,
+    pristineNoteSource: text,
+    noteDir,
+    workspaceRoot,
+    allowEmbeds: false,
+    crossNoteEmbedsOut: [],
+  });
+  return marked.parse(withWikilinks, { async: false }) as string;
+}
+
+/** Converts an `EmbedExtraction` result into the embed frame's body HTML:
+ * a placeholder message for a status spec section 11.4 explicitly
+ * requires one for, or the fully rendered section for "ok". */
+function embedExtractionHtml(
+  extraction: EmbedExtraction,
+  notePath: string,
+  noteDir: string | null,
+  workspaceRoot: string | null,
+): string {
+  switch (extraction.status) {
+    case "missing-heading":
+      return '<p class="embed-frame-message">Embedded heading not found</p>';
+    case "ambiguous-heading":
+      return '<p class="embed-frame-message">Embedded heading matches more than one heading in the note</p>';
+    case "missing-block":
+      return '<p class="embed-frame-message">Embedded block not found</p>';
+    case "ambiguous-block":
+      return '<p class="embed-frame-message">Embedded block matches more than one block in the note</p>';
+    case "ok":
+      return renderEmbeddedMarkdownToHtml(extraction.text, notePath, noteDir, workspaceRoot);
+  }
+}
+
+/**
+ * Builds one embed's "application frame" (spec section 11.2): a visually
+ * quiet container naming the source note, an `Open source note` action
+ * (reusing `buildWikilinkHref` and this file's own existing wikilink
+ * click handling, rather than a second navigation mechanism), and an
+ * accessible `Embedded content from ...` label. Wrapped in blank lines so
+ * `marked` reliably recognizes the `<div>` as a raw HTML block regardless
+ * of whether the `![[...]]` it replaces sat inline mid-paragraph or alone
+ * on its own line in the source.
+ */
+function embedFrameHtml(params: {
+  embedId?: number;
+  labelName: string;
+  openHref?: string;
+  sectionLabel?: string;
+  bodyHtml: string;
+}): string {
+  const idAttr = params.embedId !== undefined ? ` data-lt-embed-id="${params.embedId}"` : "";
+  const openLink = params.openHref
+    ? `<a href="${escapeAttr(params.openHref)}" class="embed-frame-open">Open source note</a>`
+    : "";
+  const sectionSuffix = params.sectionLabel ? ` &middot; ${escapeHtml(params.sectionLabel)}` : "";
+  return (
+    `\n\n<div class="embed-frame"${idAttr} aria-label="${escapeAttr(`Embedded content from ${params.labelName}`)}">` +
+    `<div class="embed-frame-header"><span class="embed-frame-label">${escapeHtml(params.labelName)}${sectionSuffix}</span>${openLink}</div>` +
+    `<div class="embed-frame-body">${params.bodyHtml}</div>` +
+    `</div>\n\n`
+  );
+}
+
+function renderWikilinksStructured(source: string, context: RenderContext): string {
+  const { currentHeadings, currentBlocks, currentNotePath, pristineNoteSource, noteDir, workspaceRoot, allowEmbeds, crossNoteEmbedsOut } =
+    context;
   const records = parseWikiLinks(source);
   if (records.length === 0) return source;
 
@@ -358,6 +556,45 @@ function renderWikilinksStructured(
       targetHeadings: sameNote ? currentHeadings : undefined,
       targetBlocks: sameNote ? currentBlocks : undefined,
     });
+
+    if (record.kind === "embed" && allowEmbeds) {
+      if (target.status === "missing-note" || !target.notePath) {
+        result += embedFrameHtml({
+          labelName: record.noteTarget || "this note",
+          bodyHtml: '<p class="embed-frame-message">Embedded note not found</p>',
+        });
+        continue;
+      }
+
+      const notePath = target.notePath;
+      const labelName = fileNameFromPath(notePath);
+      const openHref = buildWikilinkHref({
+        target: target.legacyFallback ? record.legacyRaw : record.noteTarget,
+        resolved: true,
+        fragmentKind: record.fragment?.kind,
+        fragment: record.fragment?.value,
+      });
+
+      if (sameNote) {
+        const extraction = extractEmbedSection(pristineNoteSource, record.fragment, currentHeadings, currentBlocks);
+        result += embedFrameHtml({
+          labelName,
+          openHref,
+          sectionLabel: extraction.status === "ok" ? extraction.sectionLabel : undefined,
+          bodyHtml: embedExtractionHtml(extraction, notePath, noteDir, workspaceRoot),
+        });
+      } else {
+        const embedId = crossNoteEmbedsOut.length;
+        crossNoteEmbedsOut.push({ notePath, fragment: record.fragment });
+        result += embedFrameHtml({
+          embedId,
+          labelName,
+          openHref,
+          bodyHtml: '<p class="embed-frame-message embed-frame-loading">Loading&hellip;</p>',
+        });
+      }
+      continue;
+    }
 
     const legacyFallback = Boolean(target.legacyFallback);
     let headingStatus: "resolved" | "missing" | "ambiguous" | undefined;
@@ -445,6 +682,61 @@ function stripBlockIdMarkers(source: string, blocks: BlockRecord[]): string {
   return result;
 }
 
+/**
+ * Resolves a batch of already-rendered `ATTACHMENT_SRC_PREFIX` placeholder
+ * `<img>` elements to their real, loadable `src` (`fileSrc`, see
+ * workspace/tauriBridge.ts), through a small bounded worker pool. Shared
+ * by the top-level image-resolution effect and F04 Phase 4a's cross-note
+ * embed effect (its own newly-injected images were never part of the DOM
+ * when the top-level effect ran, so they need their own resolution pass
+ * through the exact same logic, not a second copy of it). `isCancelled`
+ * is a function rather than a plain boolean so the caller's own `let
+ * cancelled` flag, set from that effect's cleanup, is read fresh on every
+ * loop iteration rather than captured stale at call time.
+ */
+async function resolveAttachmentImages(
+  images: HTMLImageElement[],
+  isCancelled: () => boolean,
+): Promise<void> {
+  // Group by absolute path first: a note (or an embedded section of one)
+  // can reference the same image more than once, and resolving each
+  // occurrence independently means one native fileSrc() read of the same
+  // file per occurrence. Resolving each unique path once and fanning the
+  // result out to every <img> that needs it removes that redundant work
+  // without caching anything beyond this single render pass, so unlike a
+  // persisted cache it carries no staleness risk (see the "Image data URL
+  // caching" roadmap entry).
+  const imagesByPath = new Map<string, HTMLImageElement[]>();
+  for (const img of images) {
+    const absolutePath = decodeURIComponent(img.getAttribute("src")!.slice(ATTACHMENT_SRC_PREFIX.length));
+    const group = imagesByPath.get(absolutePath);
+    if (group) group.push(img);
+    else imagesByPath.set(absolutePath, [img]);
+  }
+  const uniquePaths = Array.from(imagesByPath.keys());
+  let nextPathIndex = 0;
+
+  const resolveNext = async () => {
+    while (!isCancelled()) {
+      const path = uniquePaths[nextPathIndex];
+      if (path === undefined) return;
+      nextPathIndex += 1;
+
+      try {
+        const resolved = await fileSrc(path);
+        if (isCancelled()) return;
+        for (const img of imagesByPath.get(path)!) img.src = resolved;
+      } catch {
+        // Keep this path's attachment(s) unresolved. The worker
+        // continues with the rest of the current queue.
+      }
+    }
+  };
+
+  const workerCount = Math.min(ATTACHMENT_READ_CONCURRENCY, uniquePaths.length);
+  await Promise.allSettled(Array.from({ length: workerCount }, () => resolveNext()));
+}
+
 export function MarkdownPreview({
   source,
   onOpenFile,
@@ -472,7 +764,7 @@ export function MarkdownPreview({
   // fragments (see markdown/blocks.ts).
   const currentBlocks = useMemo(() => scanBlockIds(source), [source]);
 
-  const html = useMemo(() => {
+  const { html, crossNoteEmbeds } = useMemo(() => {
     mathRenderingActive = mathRenderingEnabled;
     // Must run first, against the pristine source: see
     // stripBlockIdMarkers's own doc comment for why offset-based rewrites
@@ -482,13 +774,23 @@ export function MarkdownPreview({
     // this feature's pre-F04 rendering, `^block-id` text included.
     const withoutBlockMarkers = headingLinksEnabled ? stripBlockIdMarkers(source, currentBlocks) : source;
     const withAttachments = markLocalImageAttachments(withoutBlockMarkers, noteDir, workspaceRoot);
+    const crossNoteEmbedsOut: CrossNoteEmbedRequest[] = [];
     const withWikilinks = headingLinksEnabled
-      ? renderWikilinksStructured(withAttachments, currentHeadings, currentBlocks, notePath)
+      ? renderWikilinksStructured(withAttachments, {
+          currentHeadings,
+          currentBlocks,
+          currentNotePath: notePath,
+          pristineNoteSource: source,
+          noteDir,
+          workspaceRoot,
+          allowEmbeds: true,
+          crossNoteEmbedsOut,
+        })
       : renderWikilinksLegacy(withAttachments);
     const rendered = marked.parse(withWikilinks, {
       async: false,
     }) as string;
-    return DOMPurify.sanitize(rendered);
+    return { html: DOMPurify.sanitize(rendered), crossNoteEmbeds: crossNoteEmbedsOut };
   }, [
     source,
     mathRenderingEnabled,
@@ -505,60 +807,86 @@ export function MarkdownPreview({
   // small worker queue bounds native reads on both desktop and Android.
   // Cancelling a stale render stops its workers before they schedule any
   // more queued reads; already-invoked reads may finish but cannot update
-  // the obsolete DOM.
+  // the obsolete DOM. Shared with the cross-note embed effect below (F04
+  // Phase 4a), whose own newly-injected images need the exact same
+  // grouped, bounded resolution, not a second copy of this logic.
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
     let cancelled = false;
-
     const images = Array.from(
       container.querySelectorAll<HTMLImageElement>(`img[src^="${ATTACHMENT_SRC_PREFIX}"]`),
     );
-
-    // Group by absolute path first: a note can embed the same image more
-    // than once (e.g. a diagram referenced twice), and resolving each
-    // occurrence independently means one native fileSrc() read of the
-    // same file per occurrence. Resolving each unique path once and
-    // fanning the result out to every <img> that needs it removes that
-    // redundant work without caching anything beyond this single render
-    // pass, so unlike a persisted cache it carries no staleness risk (see
-    // the "Image data URL caching" roadmap entry).
-    const imagesByPath = new Map<string, HTMLImageElement[]>();
-    for (const img of images) {
-      const absolutePath = decodeURIComponent(
-        img.getAttribute("src")!.slice(ATTACHMENT_SRC_PREFIX.length),
-      );
-      const group = imagesByPath.get(absolutePath);
-      if (group) group.push(img);
-      else imagesByPath.set(absolutePath, [img]);
-    }
-    const uniquePaths = Array.from(imagesByPath.keys());
-    let nextPathIndex = 0;
-
-    const resolveNext = async () => {
-      while (!cancelled) {
-        const path = uniquePaths[nextPathIndex];
-        if (path === undefined) return;
-        nextPathIndex += 1;
-
-        try {
-          const resolved = await fileSrc(path);
-          if (cancelled) return;
-          for (const img of imagesByPath.get(path)!) img.src = resolved;
-        } catch {
-          // Keep this path's attachment(s) unresolved. The worker
-          // continues with the rest of the current queue.
-        }
-      }
-    };
-
-    const workerCount = Math.min(ATTACHMENT_READ_CONCURRENCY, uniquePaths.length);
-    void Promise.allSettled(Array.from({ length: workerCount }, () => resolveNext()));
-
+    void resolveAttachmentImages(images, () => cancelled);
     return () => {
       cancelled = true;
     };
   }, [html]);
+
+  // F04 Phase 4a: resolves each cross-note embed placeholder
+  // `renderWikilinksStructured` emitted above (`data-lt-embed-id`, one
+  // per `crossNoteEmbeds` entry) by reading its target note, extracting
+  // the referenced section (`extractEmbedSection`, the same function the
+  // synchronous same-note path already uses), rendering it, and replacing
+  // the placeholder's "Loading…" body in place. A bounded worker pool,
+  // the same convention and concurrency as the image-resolution effect
+  // above, rather than one unbounded `Promise.all` over every embed in a
+  // note at once. Any local images the resolved embed body itself
+  // contains are queued through the same `resolveAttachmentImages` helper
+  // immediately after insertion, since they were not yet part of the DOM
+  // when the image effect above ran.
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || crossNoteEmbeds.length === 0) return;
+    let cancelled = false;
+
+    const resolveOne = async (embedId: number, request: CrossNoteEmbedRequest) => {
+      const body = container.querySelector<HTMLElement>(
+        `[data-lt-embed-id="${embedId}"] .embed-frame-body`,
+      );
+      if (!body) return;
+
+      let content: string;
+      try {
+        content = await readTextFile(request.notePath);
+      } catch {
+        if (cancelled) return;
+        body.innerHTML = DOMPurify.sanitize('<p class="embed-frame-message">Could not read embedded note</p>');
+        return;
+      }
+      if (cancelled) return;
+
+      const extraction = extractEmbedSection(content, request.fragment, scanHeadings(content), scanBlockIds(content));
+      const embedNoteDir = dirname(request.notePath);
+      const bodyHtml = embedExtractionHtml(extraction, request.notePath, embedNoteDir, workspaceRoot);
+      // A fresh DOM mutation from freshly-read note content, outside the
+      // synchronous render pass DOMPurify.sanitize(rendered) above already
+      // covers: this is a second, genuinely necessary sanitize call, not
+      // a redundant one.
+      body.innerHTML = DOMPurify.sanitize(bodyHtml);
+
+      const newImages = Array.from(
+        body.querySelectorAll<HTMLImageElement>(`img[src^="${ATTACHMENT_SRC_PREFIX}"]`),
+      );
+      if (newImages.length > 0) void resolveAttachmentImages(newImages, () => cancelled);
+    };
+
+    let nextIndex = 0;
+    const worker = async () => {
+      while (!cancelled) {
+        const index = nextIndex;
+        if (index >= crossNoteEmbeds.length) return;
+        nextIndex += 1;
+        await resolveOne(index, crossNoteEmbeds[index]);
+      }
+    };
+    const workerCount = Math.min(ATTACHMENT_READ_CONCURRENCY, crossNoteEmbeds.length);
+    void Promise.allSettled(Array.from({ length: workerCount }, () => worker()));
+
+    return () => {
+      cancelled = true;
+    };
+  }, [html, crossNoteEmbeds, workspaceRoot]);
 
   // Section 7.4's active-section tracking. Recomputed on every scroll of
   // the preview's own scroll container (see .markdown-preview's

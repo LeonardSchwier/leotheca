@@ -32,5 +32,6 @@
 - A new Link Diagnostics button lists every wikilink in the workspace that's broken (points at a note that doesn't exist) or points at a heading that's missing or ambiguous; clicking a finding opens its note and jumps straight to the link. This first slice is read-only: fixing a link, or renaming/moving a note with its links updated automatically, is not part of it yet.
 
 - The Outline panel and the heading breadcrumb trail now each offer Copy link and Insert link for a heading: Copy puts a ready-to-paste `[[Note#Heading]]` link on the clipboard, Insert drops the same link (in its shorter `[[#Heading]]` form) into the note at your cursor. Both are disabled for a heading with no text, or one that shares its exact text with another heading in the same note, since a link built from either would not point anywhere precisely; Insert is also disabled while a note is shown in Preview-only view, since there's nowhere to insert into.
+- Fixed a rare mix-up where clicking one note right after another, or switching workspaces while a note was still opening, could momentarily show the wrong note or reopen one from the workspace you just left. The most recently clicked note now always wins.
 
 Entries will accumulate here from the first tagged release onward.

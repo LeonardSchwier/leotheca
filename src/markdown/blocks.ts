@@ -1,5 +1,5 @@
 /**
- * F04 Phase 3a/3b's block-reference scanner
+ * F04 Phase 3a/3b/3d's block-reference scanner
  * (spec/f04-heading-block-links-embeds.md section 7). Detects an explicit
  * block ID, a whitespace-delimited `^id` token (grammar
  * `[A-Za-z0-9][A-Za-z0-9-]{0,63}`, section 7.1) at the end of a block's
@@ -9,10 +9,20 @@
  * **Scope, disclosed rather than silently narrowed**: section 7.2 lists
  * paragraphs, headings, list items, blockquotes, and fenced code blocks
  * as eligible block kinds. Phase 3a detected paragraphs only; Phase 3b
- * (this revision) adds **single-line** list items and blockquotes (a
- * line matching the bullet/blockquote marker syntax, with the block ID
- * on that same line, e.g. "- The user owns the files. ^local-first" or
- * "> A quoted principle. ^principle", both spec 7.1's own examples).
+ * added **single-line** list items and blockquotes (a line matching the
+ * bullet/blockquote marker syntax, with the block ID on that same line,
+ * e.g. "- The user owns the files. ^local-first" or "> A quoted
+ * principle. ^principle", both spec 7.1's own examples). Phase 3d (this
+ * revision) adds fenced code blocks, whose marker shape is genuinely
+ * different from the other four (spec 7.2: "the ID appears on a separate
+ * immediately following line, not inside the code fence") rather than on
+ * the block's own last line: the line directly after a closing fence,
+ * and only that one line, gets one chance to be a marker consisting of
+ * nothing but the token itself (optional 0-3 leading spaces, then
+ * `^id`, then only trailing whitespace); a blank line, another fence
+ * opening immediately, or any other content in that one line forfeits
+ * the attachment rather than searching further lines for one.
+ *
  * Deliberately not attempted: a list item or blockquote spanning more
  * than one physical line (lazy continuation lines, a nested sub-list,
  * a loose list's blank-line-separated paragraphs within one item) — real
@@ -25,29 +35,29 @@
  * list item above it"), not correctly attributed to the item it actually
  * continues and not rejected outright either; `blocks.test.ts` has a
  * dedicated test asserting this exact known-wrong behavior so a future
- * fix has something concrete to turn green. Headings remain
- * deliberately excluded even though `markdown/headings.ts` already scans
- * them: teaching that scanner about a trailing `^id` marker would mean
- * stripping it from `rawText`/`displayText`, a change to a foundational
- * module several other shipped features (outline, breadcrumbs, F03
- * diagnostics, F04's own heading links) already depend on and test
- * against, well beyond this slice's scope. Fenced code blocks (spec
- * 7.2's "ID on a separate immediately following line") need their own,
- * different detection shape (the marker is not on the same line as any
- * of the block's own content) this slice does not attempt either. Both
- * are tracked as a follow-up in ROADMAP.md, not silently dropped.
+ * fix has something concrete to turn green. Headings remain the one
+ * still-excluded eligible kind, deliberately, even though
+ * `markdown/headings.ts` already scans them: teaching that scanner about
+ * a trailing `^id` marker would mean stripping it from `rawText`/
+ * `displayText`, a change to a foundational module several other shipped
+ * features (outline, breadcrumbs, F03 diagnostics, F04's own heading
+ * links) already depend on and test against, well beyond this module's
+ * own scope. Tracked as a follow-up in ROADMAP.md, not silently dropped.
  *
- * A marker is only recognized on the same physical line as the block's
- * own trailing text (matching every example in spec section 7.1, e.g.
- * "This decision remains valid for the first release. ^release-decision"),
- * not on a line of its own directly below one, an intentionally narrower
- * reading of "whitespace-delimited" than the spec's wording alone would
- * strictly require, to keep detection unambiguous. For a list item or
- * blockquote specifically, the marker's own required leading whitespace
- * must belong to the block's real content, not merely be the single
- * separator space the bullet/`>` marker itself already requires: a bare
- * "- ^orphan-id" (no text before the marker) is rejected, not recorded
- * with an inverted, empty content range.
+ * A marker attached to a paragraph, list item, or blockquote is only
+ * recognized on the same physical line as the block's own trailing text
+ * (matching every example in spec section 7.1, e.g. "This decision
+ * remains valid for the first release. ^release-decision"), not on a
+ * line of its own directly below one, an intentionally narrower reading
+ * of "whitespace-delimited" than the spec's wording alone would strictly
+ * require for those three kinds, to keep detection unambiguous (fenced
+ * code blocks are the one deliberate, spec-mandated exception, per the
+ * paragraph above). For a list item or blockquote specifically, the
+ * marker's own required leading whitespace must belong to the block's
+ * real content, not merely be the single separator space the bullet/`>`
+ * marker itself already requires: a bare "- ^orphan-id" (no text before
+ * the marker) is rejected, not recorded with an inverted, empty content
+ * range.
  *
  * Line classification (fence/comment detection, blank-line paragraph
  * separation, and excluding heading lines so they are never misread as
@@ -70,8 +80,11 @@ export interface BlockRecord {
    * source order. The first occurrence of a key is 1. */
   occurrence: number;
   /** "list-item" and "blockquote" are single-line only in this phase; see
-   * the module doc comment above for the multi-line gap this leaves. */
-  kind: "paragraph" | "list-item" | "blockquote";
+   * the module doc comment above for the multi-line gap this leaves.
+   * "fenced-code" is a whole fenced code block (open fence through close
+   * fence), whose marker sits on its own separate line right after the
+   * closing fence rather than being part of the block's own content. */
+  kind: "paragraph" | "list-item" | "blockquote" | "fenced-code";
   /** Absolute character offsets spanning the whole block, its own marker
    * line included. */
   sourceFrom: number;
@@ -132,6 +145,12 @@ const BLOCKQUOTE_PREFIX_RE = /^ {0,3}>[ \t]?/;
 const LIST_ITEM_RE = /^ {0,3}(?:[-*+]|\d{1,9}[.)])(?:[ \t]|$)/;
 const LIST_ITEM_PREFIX_RE = /^ {0,3}(?:[-*+]|\d{1,9}[.)])[ \t]*/;
 const BLOCK_ID_RE = /[ \t]+\^([A-Za-z0-9][A-Za-z0-9-]{0,63})[ \t]*$/;
+// A fenced code block's marker line contains nothing but the token
+// itself (spec 7.2: "on a separate immediately following line"), so
+// unlike BLOCK_ID_RE above it requires no preceding text on that line,
+// only up to 3 leading spaces (matching CommonMark's own leaf-block
+// indentation allowance) before the caret.
+const STANDALONE_BLOCK_ID_RE = /^ {0,3}\^([A-Za-z0-9][A-Za-z0-9-]{0,63})[ \t]*$/;
 
 /** Scans a Markdown document for explicit block ID tokens attached to a
  * paragraph, single-line list item, or single-line blockquote (see the
@@ -143,12 +162,21 @@ export function scanBlockIds(content: string): BlockRecord[] {
   const blocks: BlockRecord[] = [];
   const keyOccurrences = new Map<string, number>();
 
-  function recordBlock(kind: BlockRecord["kind"], sourceFrom: number, contentFrom: number, line: LineInfo, match: RegExpExecArray): void {
+  function recordBlock(
+    kind: BlockRecord["kind"],
+    sourceFrom: number,
+    contentFrom: number,
+    contentTo: number,
+    line: LineInfo,
+    match: RegExpExecArray,
+  ): void {
     // The marker's own leading whitespace must belong to the block's
     // real content, not merely be the bullet/">" marker's own required
     // separator: reject a bare "- ^id"/"> ^id" with nothing else on the
-    // line (see the module doc comment's "orphan-id" example).
-    if (line.start + match.index < contentFrom) return;
+    // line (see the module doc comment's "orphan-id" example). Never
+    // triggers for a fenced-code block, whose contentTo (the closing
+    // fence's own line end) is always well past contentFrom.
+    if (contentTo < contentFrom) return;
     const id = match[1];
     const key = id.toLowerCase();
     const occurrence = (keyOccurrences.get(key) ?? 0) + 1;
@@ -163,7 +191,7 @@ export function scanBlockIds(content: string): BlockRecord[] {
       sourceFrom,
       sourceTo: line.end,
       contentFrom,
-      contentTo: line.start + match.index,
+      contentTo,
       idFrom,
       idTo: idFrom + 1 + id.length,
       line: line.lineNumber,
@@ -175,12 +203,18 @@ export function scanBlockIds(content: string): BlockRecord[] {
     const match = BLOCK_ID_RE.exec(line.text);
     if (!match) return;
     const prefixMatch = prefixRe.exec(line.text)!;
-    recordBlock(kind, line.start, line.start + prefixMatch[0].length, line, match);
+    recordBlock(kind, line.start, line.start + prefixMatch[0].length, line.start + match.index, line, match);
   }
 
   let inFence = false;
   let fenceChar = "";
   let fenceLength = 0;
+  let fenceStartLine: LineInfo | null = null;
+  // Set the instant a fence closes, to the fence's own [start, end)
+  // span (start of the opening line through end of the closing line);
+  // consumed (accepted or forfeited) by exactly the one line right after
+  // it, per spec 7.2's "immediately following line."
+  let pendingFencedCode: { blockFrom: number; blockTo: number } | null = null;
   let inComment = false;
   let paragraphLines: LineInfo[] = [];
 
@@ -189,7 +223,7 @@ export function scanBlockIds(content: string): BlockRecord[] {
     const first = paragraphLines[0];
     const last = paragraphLines[paragraphLines.length - 1];
     const match = BLOCK_ID_RE.exec(last.text);
-    if (match) recordBlock("paragraph", first.start, first.start, last, match);
+    if (match) recordBlock("paragraph", first.start, first.start, last.start + match.index, last, match);
     paragraphLines = [];
   }
 
@@ -201,16 +235,34 @@ export function scanBlockIds(content: string): BlockRecord[] {
       const close = FENCE_RE.exec(line.text);
       if (close && close[1][0] === fenceChar && close[1].length >= fenceLength && line.text.trim() === close[1]) {
         inFence = false;
+        pendingFencedCode = { blockFrom: fenceStartLine!.start, blockTo: line.end };
       }
       continue;
     }
     const fenceOpen = FENCE_RE.exec(line.text);
     if (fenceOpen) {
       flushParagraph();
+      // A fence opening immediately (no id line arrived in between)
+      // forfeits any pending marker check from the previous fence.
+      pendingFencedCode = null;
       inFence = true;
       fenceChar = fenceOpen[1][0];
       fenceLength = fenceOpen[1].length;
+      fenceStartLine = line;
       continue;
+    }
+
+    if (pendingFencedCode !== null) {
+      const { blockFrom, blockTo } = pendingFencedCode;
+      pendingFencedCode = null;
+      const idMatch = STANDALONE_BLOCK_ID_RE.exec(line.text);
+      if (idMatch) {
+        recordBlock("fenced-code", blockFrom, blockFrom, blockTo, line, idMatch);
+        continue;
+      }
+      // Not a marker line: forfeited, per the module doc comment. Fall
+      // through so this line is still classified normally below (it
+      // could itself be a blank line, a heading, a new fence, etc.).
     }
 
     if (inComment) {

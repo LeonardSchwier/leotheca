@@ -182,3 +182,56 @@
   color: var(--text-primary);
   font-weight: 600;
 }
+
+/* spec/f06-note-outline-heading-breadcrumbs.md section 15.4: focus
+ * indicators must remain visible, including in forced-colors mode.
+ * `outline` (not `box-shadow`) survives forced-colors/high-contrast
+ * mode, where a shadow is typically suppressed. These buttons all set
+ * `border: none`, and some browsers (notably Safari) draw no default
+ * focus ring at all on a button without one, so without this rule
+ * keyboard focus here would be silently invisible. */
+.outline-chevron:focus-visible,
+.outline-label:focus-visible,
+.outline-text-button:focus-visible,
+.outline-filter:focus-visible,
+.heading-breadcrumb-segment:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* section 15.4: "every compact action meets the minimum touch target,"
+ * matching this app's existing 44px compact convention (see
+ * src/app/App.css's `@media (max-width: 720px)` block). Deliberately
+ * excludes `.outline-list--virtual` (large, windowed outlines, Phase
+ * 4a): its rows use a fixed VIRTUAL_ROW_HEIGHT_PX (28px) that the
+ * windowing math in outlineVirtualization.ts depends on being the
+ * row's actual rendered height; enlarging it here without also making
+ * that constant viewport-responsive would either clip the enlarged
+ * button or desync the scroll math. Large-note outline rows keep their
+ * current row height at every viewport size until a follow-up makes
+ * that constant responsive too. */
+@media (max-width: 720px) {
+  .outline-list:not(.outline-list--virtual) .outline-row,
+  .outline-children .outline-row {
+    min-height: 44px;
+  }
+
+  .outline-list:not(.outline-list--virtual) .outline-chevron,
+  .outline-children .outline-chevron {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .outline-header-actions .outline-text-button,
+  .outline-empty-filter .outline-text-button {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .heading-breadcrumb-segment {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+}

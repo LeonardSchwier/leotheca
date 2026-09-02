@@ -10,8 +10,9 @@ import {
 } from "@codemirror/view";
 import { resolveWikilink } from "../linking/store";
 import { parseWikiLinks, type WikiLinkRecord } from "../linking/wikiSyntax";
-import { resolveHeadingFragment, resolveWikiLinkTarget } from "../linking/wikiResolver";
+import { resolveBlockFragment, resolveHeadingFragment, resolveWikiLinkTarget } from "../linking/wikiResolver";
 import { scanHeadings, type HeadingRecord } from "../markdown/headings";
+import { scanBlockIds, type BlockRecord } from "../markdown/blocks";
 
 /**
  * Inline live-preview decorations for the editor's normal (source) mode:
@@ -45,13 +46,20 @@ import { scanHeadings, type HeadingRecord } from "../markdown/headings";
  * classifyHeadingLink below); a cross-note fragment resolves at
  * the note level only, the same disclosed scope narrowing Preview uses
  * (verifying a cross-note heading would mean reading another note's file
- * from inside this synchronous decoration pass, deferred to the F04
- * Phases 3-5 follow-up in ROADMAP.md), rendering with the plain "resolved"
- * look once its target note exists, or "broken" if the note itself does
- * not. A record whose fragment is not a heading (a plain
- * `[[Note]]`/`[[Note|Label]]` link, or a `^block-id` fragment, block
- * references being out of scope here too) is left to the WIKILINK_PATTERN
- * pass below exactly as before this phase.
+ * from inside this synchronous decoration pass, deferred to a follow-up
+ * in ROADMAP.md), rendering with the plain "resolved" look once its
+ * target note exists, or "broken" if the note itself does not.
+ *
+ * F04 Phase 3c adds the identical treatment for `^block-id` fragments
+ * (`classifyBlockLink` below, reusing F04 Phase 3a/3b's `resolveBlockFragment`
+ * and `markdown/blocks.ts`'s `scanBlockIds` exactly the way the heading
+ * pass reuses `resolveHeadingFragment`/`scanHeadings`): a same-note
+ * fragment resolves fully against this document's own scanned blocks, a
+ * cross-note fragment resolves at the note level only, the same disclosed
+ * scope narrowing as headings above (and as `MarkdownPreview.tsx`'s own
+ * block-link rendering). A record whose fragment is neither a heading nor
+ * a block (a plain `[[Note]]`/`[[Note|Label]]` link) is left to the
+ * WIKILINK_PATTERN pass below exactly as before either phase.
  */
 
 /** Matches the same `[[target]]` shape the wikilink autocomplete and link
@@ -137,6 +145,40 @@ function classifyHeadingLink(
   }
 
   const target = resolveWikiLinkTarget(record, { currentNotePath: undefined, targetHeadings: undefined });
+  return target.status === "resolved" ? "resolved" : "broken";
+}
+
+type BlockLinkStatus = "resolved" | "missing" | "ambiguous" | "broken";
+
+/** F04 Phase 3c's analog of HEADING_LINK_CLASS above, for `^block-id`
+ * fragments (see App.css's own block-missing/block-ambiguous rule, styled
+ * identically to the heading pair). */
+const BLOCK_LINK_CLASS: Record<BlockLinkStatus, string> = {
+  resolved: "cm-live-wikilink-resolved",
+  missing: "cm-live-wikilink-block-missing",
+  ambiguous: "cm-live-wikilink-block-ambiguous",
+  broken: "cm-live-wikilink-broken",
+};
+
+/** F04 Phase 3c's analog of classifyHeadingLink above, for a `^block-id`
+ * fragment: `currentBlocksRef` is the same lazily-populated one-call cache
+ * pattern, and a cross-note fragment is likewise never verified against
+ * the target note's actual blocks in this synchronous decoration pass
+ * (only ever "resolved" or "broken" at the note level). */
+function classifyBlockLink(
+  record: WikiLinkRecord,
+  currentBlocksRef: { value: BlockRecord[] | null },
+  docText: string,
+): BlockLinkStatus {
+  if (record.noteTarget === "") {
+    if (currentBlocksRef.value === null) currentBlocksRef.value = scanBlockIds(docText);
+    const result = resolveBlockFragment(currentBlocksRef.value, record.fragment!.value);
+    if (result.status === "resolved") return "resolved";
+    if (result.status === "ambiguous-fragment") return "ambiguous";
+    return "missing";
+  }
+
+  const target = resolveWikiLinkTarget(record, { currentNotePath: undefined, targetBlocks: undefined });
   return target.status === "resolved" ? "resolved" : "broken";
 }
 
@@ -276,14 +318,16 @@ export function buildLiveDecorations(
 
   const docText = state.doc.toString();
 
-  // F04 Phase 2: heading-link records (`[[Note#Heading]]`/`[[#Heading]]`)
+  // F04 Phase 2/3c: heading-link and block-link records
+  // (`[[Note#Heading]]`/`[[#Heading]]`, `[[Note#^block-id]]`/`[[#^block-id]]`)
   // are decorated through the shared structured parser/resolver below,
-  // never through the plain-wikilink regex; headingLinkRanges records
-  // their exact [from, to) source spans so the WIKILINK_PATTERN pass right
-  // after can skip them rather than double-decorating the same occurrence
-  // with an incorrect "broken" look (a heading fragment's `#` makes the
-  // literal bracket contents an unresolvable note name to that regex).
-  const headingLinkRanges = new Set<string>();
+  // never through the plain-wikilink regex; fragmentLinkRanges records
+  // their exact [from, to) source spans (shared by both passes) so the
+  // WIKILINK_PATTERN pass right after can skip them rather than
+  // double-decorating the same occurrence with an incorrect "broken" look
+  // (a fragment's `#` makes the literal bracket contents an unresolvable
+  // note name to that regex).
+  const fragmentLinkRanges = new Set<string>();
   const currentHeadingsRef: { value: HeadingRecord[] | null } = { value: null };
   for (const range of scanRanges) {
     const text = docText.slice(range.from, range.to);
@@ -291,12 +335,33 @@ export function buildLiveDecorations(
       if (record.parseStatus !== "valid" || record.fragment?.kind !== "heading") continue;
       const from = range.from + record.sourceFrom;
       const to = range.from + record.sourceTo;
-      if (headingLinkRanges.has(`${from}:${to}`)) continue;
-      headingLinkRanges.add(`${from}:${to}`);
+      if (fragmentLinkRanges.has(`${from}:${to}`)) continue;
+      fragmentLinkRanges.add(`${from}:${to}`);
       if (codeRanges.some((codeRange) => from < codeRange.to && to > codeRange.from)) continue;
 
       const status = classifyHeadingLink(record, currentHeadingsRef, docText);
       marks.push({ from, to, class: HEADING_LINK_CLASS[status] });
+
+      if (!overlapsSelectedLines(state.doc, selectionRanges, from, to)) {
+        hide(hidden, from, from + 2); // the opening "[["
+        hide(hidden, to - 2, to); // the closing "]]"
+      }
+    }
+  }
+
+  const currentBlocksRef: { value: BlockRecord[] | null } = { value: null };
+  for (const range of scanRanges) {
+    const text = docText.slice(range.from, range.to);
+    for (const record of parseWikiLinks(text)) {
+      if (record.parseStatus !== "valid" || record.fragment?.kind !== "block") continue;
+      const from = range.from + record.sourceFrom;
+      const to = range.from + record.sourceTo;
+      if (fragmentLinkRanges.has(`${from}:${to}`)) continue;
+      fragmentLinkRanges.add(`${from}:${to}`);
+      if (codeRanges.some((codeRange) => from < codeRange.to && to > codeRange.from)) continue;
+
+      const status = classifyBlockLink(record, currentBlocksRef, docText);
+      marks.push({ from, to, class: BLOCK_LINK_CLASS[status] });
 
       if (!overlapsSelectedLines(state.doc, selectionRanges, from, to)) {
         hide(hidden, from, from + 2); // the opening "[["
@@ -315,7 +380,7 @@ export function buildLiveDecorations(
       const to = from + match[0].length;
       if (matchedWikilinks.has(from)) continue;
       matchedWikilinks.add(from);
-      if (headingLinkRanges.has(`${from}:${to}`)) continue;
+      if (fragmentLinkRanges.has(`${from}:${to}`)) continue;
       if (codeRanges.some((codeRange) => from < codeRange.to && to > codeRange.from)) continue;
 
       const target = match[1];

@@ -5,7 +5,7 @@ import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { undo } from "@codemirror/commands";
 import { CompletionContext } from "@codemirror/autocomplete";
-import { MarkdownEditor, headingLinkCompletions, wikilinkCompletions } from "./MarkdownEditor";
+import { MarkdownEditor, blockLinkCompletions, headingLinkCompletions, wikilinkCompletions } from "./MarkdownEditor";
 import { linkIndex } from "../linking/store";
 
 const { writeWorkspaceBinaryFile, readTextFile } = vi.hoisted(() => ({
@@ -186,7 +186,7 @@ describe("headingLinkCompletions", () => {
     expect(result).toBeNull();
   });
 
-  it("returns null for a block-reference fragment ([[Note#^), out of this phase's scope", async () => {
+  it("returns null for a block-reference fragment ([[Note#^), routed to blockLinkCompletions instead", async () => {
     setNotes(["Alpha"]);
     const doc = "see [[Alpha#^";
     const result = await headingLinkCompletions("/vault/current.md")(contextAt(doc, doc.length));
@@ -270,6 +270,106 @@ describe("headingLinkCompletions", () => {
   it("returns null when no heading exists at all", async () => {
     const doc = "Just a paragraph.\n\nsee [[#";
     const result = await headingLinkCompletions("/vault/current.md")(contextAt(doc, doc.length));
+    expect(result).toBeNull();
+  });
+});
+
+describe("blockLinkCompletions", () => {
+  afterEach(() => {
+    readTextFile.mockReset();
+  });
+
+  it("returns null when there is no #^ after [[", async () => {
+    setNotes(["Alpha"]);
+    const doc = "see [[Alp";
+    const result = await blockLinkCompletions("/vault/current.md")(contextAt(doc, doc.length));
+    expect(result).toBeNull();
+  });
+
+  it("returns null for a plain heading fragment ([[Note#), routed to headingLinkCompletions instead", async () => {
+    setNotes(["Alpha"]);
+    const doc = "see [[Alpha#";
+    const result = await blockLinkCompletions("/vault/current.md")(contextAt(doc, doc.length));
+    expect(result).toBeNull();
+    expect(readTextFile).not.toHaveBeenCalled();
+  });
+
+  it("suggests the current note's own block ids for a same-note [[#^", async () => {
+    const doc = "First. ^first-id\n\nSecond. ^second-id\n\nsee [[#^";
+    const result = await blockLinkCompletions("/vault/current.md")(contextAt(doc, doc.length));
+    expect(result).not.toBeNull();
+    expect(result!.options.map((o) => o.label).sort()).toEqual(["first-id", "second-id"]);
+    expect(readTextFile).not.toHaveBeenCalled();
+  });
+
+  it("filters same-note block ids by the partial text already typed", async () => {
+    const doc = "First. ^first-id\n\nSecond. ^second-id\n\nsee [[#^first";
+    const result = await blockLinkCompletions("/vault/current.md")(contextAt(doc, doc.length));
+    expect(result!.options.map((o) => o.label)).toEqual(["first-id"]);
+  });
+
+  it("applies the block id and closing ]] when a same-note suggestion is accepted", async () => {
+    const doc = "First. ^first-id\n\nsee [[#^";
+    const result = await blockLinkCompletions("/vault/current.md")(contextAt(doc, doc.length));
+    expect(result!.options[0].apply).toBe("first-id]]");
+    expect(result!.from).toBe(doc.length);
+  });
+
+  it("includes a content preview and line number in the option's detail", async () => {
+    const doc = "The decision is final. ^decision\n\nsee [[#^";
+    const result = await blockLinkCompletions("/vault/current.md")(contextAt(doc, doc.length));
+    expect(result!.options[0].detail).toContain("The decision is final.");
+    expect(result!.options[0].detail).toContain("line 1");
+  });
+
+  it("reads a different, already-existing note's file to suggest its block ids", async () => {
+    setNotes(["Alpha"]);
+    readTextFile.mockResolvedValueOnce("Foo. ^foo-id\n\nBar. ^bar-id");
+    const doc = "see [[Alpha#^";
+    const result = await blockLinkCompletions("/vault/current.md")(contextAt(doc, doc.length));
+    expect(readTextFile).toHaveBeenCalledWith("/workspace/Alpha.md");
+    expect(result!.options.map((o) => o.label).sort()).toEqual(["bar-id", "foo-id"]);
+  });
+
+  it("uses the live in-memory document, not a file read, when the note portion names the currently open note", async () => {
+    setNotes(["Alpha"]);
+    const doc = "Foo. ^foo-id\n\nsee [[Alpha#^";
+    const result = await blockLinkCompletions("/workspace/Alpha.md")(contextAt(doc, doc.length));
+    expect(readTextFile).not.toHaveBeenCalled();
+    expect(result!.options.map((o) => o.label)).toEqual(["foo-id"]);
+  });
+
+  it("returns null when the note portion does not resolve to any note", async () => {
+    setNotes(["Alpha"]);
+    const doc = "see [[Nope#^";
+    const result = await blockLinkCompletions("/vault/current.md")(contextAt(doc, doc.length));
+    expect(result).toBeNull();
+  });
+
+  it("returns null when the target note fails to read", async () => {
+    setNotes(["Alpha"]);
+    readTextFile.mockRejectedValueOnce(new Error("boom"));
+    const doc = "see [[Alpha#^";
+    const result = await blockLinkCompletions("/vault/current.md")(contextAt(doc, doc.length));
+    expect(result).toBeNull();
+  });
+
+  it("marks every occurrence of a duplicate block id in its detail text", async () => {
+    const doc = "One. ^dup\n\nTwo. ^dup\n\nsee [[#^";
+    const result = await blockLinkCompletions("/vault/current.md")(contextAt(doc, doc.length));
+    expect(result!.options).toHaveLength(2);
+    for (const option of result!.options) expect(option.detail).toContain("duplicate");
+  });
+
+  it("does not mark a unique block id as a duplicate", async () => {
+    const doc = "First. ^first-id\n\nsee [[#^";
+    const result = await blockLinkCompletions("/vault/current.md")(contextAt(doc, doc.length));
+    expect(result!.options[0].detail).not.toContain("duplicate");
+  });
+
+  it("returns null when no block id exists at all", async () => {
+    const doc = "Just a paragraph.\n\nsee [[#^";
+    const result = await blockLinkCompletions("/vault/current.md")(contextAt(doc, doc.length));
     expect(result).toBeNull();
   });
 });

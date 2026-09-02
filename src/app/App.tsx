@@ -58,6 +58,7 @@ import { addFileBookmark, bookmarks, loadBookmarks, removeBookmark } from "../bo
 import { resetWorkspaceTree } from "../workspace/fileTreeStore";
 import { TagsPanel } from "../tags/TagsPanel";
 import { TaskHubPanel } from "../tasks/TaskHubPanel";
+import { DiagnosticsPanel } from "../diagnostics/DiagnosticsPanel";
 import {
   createNoteFromTemplate,
   createCanvasQuick,
@@ -132,6 +133,16 @@ function TaskIcon() {
   );
 }
 
+function DiagnosticsIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M10 3l7.5 13H2.5L10 3z" stroke-linejoin="round" />
+      <path d="M10 8.5v3.2" />
+      <circle cx="10" cy="14.3" r="0.9" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
 function OutlineIcon() {
   return (
     <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
@@ -185,6 +196,7 @@ const VIEW_MODE_ICONS: Record<ViewMode, ComponentType> = {
 const bookmarksOpen = signal(false);
 const tagsOpen = signal(false);
 const taskHubOpen = signal(false);
+const diagnosticsOpen = signal(false);
 const graphOpen = signal(false);
 // Unlike bookmarksOpen/tagsOpen, this does not swap out the file tree: the
 // outline is per-note context like BacklinksPanel, not a workspace-wide
@@ -200,6 +212,7 @@ function toggleSidebarPanel(panel: typeof bookmarksOpen): void {
   bookmarksOpen.value = false;
   tagsOpen.value = false;
   taskHubOpen.value = false;
+  diagnosticsOpen.value = false;
   panel.value = next;
   if (next) sidebarOpen.value = true;
 }
@@ -471,6 +484,17 @@ export function App() {
     }
   };
 
+  const openDiagnosticsPanel = () => {
+    toggleSidebarPanel(diagnosticsOpen);
+    if (diagnosticsOpen.value && rootPath) {
+      void rebuildLinkIndex(
+        rootPath,
+        workspaceSettings.value.frontmatterAliasesEnabled,
+        workspaceSettings.value.tagsEnabled,
+      );
+    }
+  };
+
   const commands = useMemo<Command[]>(() => {
     const list: Command[] = [
       {
@@ -496,6 +520,11 @@ export function App() {
         id: "toggle-task-hub",
         label: taskHubOpen.value ? "Hide Task Hub" : "Open Task Hub",
         run: openTaskHubPanel,
+      },
+      {
+        id: "toggle-diagnostics",
+        label: diagnosticsOpen.value ? "Hide Link Diagnostics" : "Open Link Diagnostics",
+        run: openDiagnosticsPanel,
       },
       {
         id: "markdown-help",
@@ -587,6 +616,7 @@ export function App() {
     bookmarksOpen.value,
     tagsOpen.value,
     taskHubOpen.value,
+    diagnosticsOpen.value,
     workspaceSettings.value.tagsEnabled,
     workspaceSettings.value.templatesEnabled,
     workspaceSettings.value.canvasEnabled,
@@ -689,6 +719,14 @@ export function App() {
         >
           <TaskIcon />
         </button>
+        <button
+          class={`icon-button ${diagnosticsOpen.value ? "active" : ""}`}
+          aria-label="Open Link Diagnostics"
+          title="Open Link Diagnostics"
+          onClick={openDiagnosticsPanel}
+        >
+          <DiagnosticsIcon />
+        </button>
         {current?.kind === "text" && (
           <button
             class={`icon-button ${outlineOpen.value ? "active" : ""}`}
@@ -748,6 +786,13 @@ export function App() {
                       <TagsPanel onOpenFile={handleOpenFile} />
                     ) : taskHubOpen.value ? (
                       <TaskHubPanel
+                        onOpenFile={handleOpenFile}
+                        onNavigated={() => {
+                          if (viewMode.value === "preview") viewMode.value = "split";
+                        }}
+                      />
+                    ) : diagnosticsOpen.value ? (
+                      <DiagnosticsPanel
                         onOpenFile={handleOpenFile}
                         onNavigated={() => {
                           if (viewMode.value === "preview") viewMode.value = "split";

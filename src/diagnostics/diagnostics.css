@@ -1,0 +1,97 @@
+.diagnostics-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.diagnostics-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-2) 0;
+}
+
+.diagnostics-heading {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.diagnostics-count {
+  color: var(--text-faint);
+  font-size: 11px;
+}
+
+.diagnostics-list {
+  list-style: none;
+  margin: 0;
+  padding: var(--space-1) var(--space-2) var(--space-2);
+}
+
+.diagnostics-row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  gap: 2px;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font: inherit;
+  text-align: left;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.diagnostics-row:hover {
+  background: var(--bg-hover);
+}
+
+.diagnostics-badge {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+/* Reuses this codebase's existing error-red literal (App.css's
+ * .app-title-hint-warning/.name-prompt-error) rather than inventing a
+ * new theme token for a single feature's badge; no dedicated
+ * error/warning custom property exists in styles/theme.css yet, and
+ * adding one is out of scope for this claim's touch set. */
+.diagnostics-badge-broken {
+  color: #c0392b;
+}
+
+.diagnostics-badge-missing-heading,
+.diagnostics-badge-ambiguous-heading {
+  color: #b7791f;
+}
+
+.diagnostics-link-text {
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+}
+
+.diagnostics-note {
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-faint);
+  font-size: 11px;
+}
+
+@media (max-width: 720px) {
+  .diagnostics-row {
+    min-height: 44px;
+    justify-content: center;
+  }
+}

@@ -10,6 +10,8 @@ import type { FsEntry } from "../workspace/types";
 import { extractAliases } from "./frontmatter";
 import { extractTags } from "../tags/tags";
 import { scanTasks, type TaskRecord } from "../markdown/tasks";
+import { parseWikiLinks, type WikiLinkRecord } from "./wikiSyntax";
+import { scanHeadings, type HeadingRecord } from "../markdown/headings";
 
 export interface LinkIndex {
   backlinksByPath: Map<string, string[]>;
@@ -38,6 +40,29 @@ export interface LinkIndex {
    * doesn't apply here. Only paths with at least one task are present,
    * same sparse-map convention as pathsByTag. */
   tasksByPath: Map<string, TaskRecord[]>;
+  /** Note path -> the structured wikilink records found in it (F04
+   * Phase 1's `parseWikiLinks`, `linking/wikiSyntax.ts`), for F03 Phase
+   * 1's workspace-wide diagnostics (`diagnostics/diagnostics.ts`).
+   * Populated from the same note read already used for
+   * wikilinks/aliases/tags/tasks above, not a second workspace walk; see
+   * that doc comment for why this and `headingsByPath` exist as a
+   * dedicated pair rather than being derived from the plain-string
+   * `wikilinks` field, which throws away fragments and source ranges a
+   * diagnostic needs. Optional on the type (unlike the maps above) so
+   * every pre-existing test fixture across the codebase that builds a
+   * `LinkIndex` literal without these two fields still type-checks;
+   * every real `rebuildLinkIndex` call always populates both. Only
+   * notes with at least one wikilink are present, same sparse-map
+   * convention as `tasksByPath`. */
+  wikiLinksByPath?: Map<string, WikiLinkRecord[]>;
+  /** Note path -> that note's own scanned headings (`markdown/headings.ts`'s
+   * `scanHeadings`), kept for the same reason and from the same read as
+   * `wikiLinksByPath`: F03 diagnostics needs every note's headings, not
+   * just the currently-open note's (which is all `MarkdownPreview.tsx`
+   * itself scans), to verify a *cross-note* `[[Note#Heading]]` fragment
+   * without a second file read per link. Only notes with at least one
+   * heading are present, same sparse-map convention as `tasksByPath`. */
+  headingsByPath?: Map<string, HeadingRecord[]>;
 }
 
 const emptyLinkIndex = (): LinkIndex => ({
@@ -48,6 +73,8 @@ const emptyLinkIndex = (): LinkIndex => ({
   pathsByTag: new Map(),
   tagsByPath: new Map(),
   tasksByPath: new Map(),
+  wikiLinksByPath: new Map(),
+  headingsByPath: new Map(),
 });
 
 export const linkIndex = signal<LinkIndex>(emptyLinkIndex());
@@ -153,6 +180,83 @@ function isValidTaskRecord(raw: unknown): raw is TaskRecord {
   );
 }
 
+/** F03 Phase 1: `wikiLinks` is a structured `WikiLinkRecord` (see
+ * wikiSyntax.ts), not a plain string, so its validator has to check every
+ * field individually the same way isValidTaskRecord does, rather than a
+ * one-line array-of-strings check. A malformed entry drops the whole
+ * cached note (same policy as a malformed task above), forcing a real
+ * re-read/re-parse instead of feeding a bad shape into diagnostics. */
+function isValidWikiLinkRecord(raw: unknown): raw is WikiLinkRecord {
+  if (typeof raw !== "object" || raw === null) return false;
+  const record = raw as Record<string, unknown>;
+  const isFiniteNumber = (v: unknown): v is number =>
+    typeof v === "number" && Number.isFinite(v);
+  const isOptionalFiniteNumber = (v: unknown): boolean =>
+    v === undefined || isFiniteNumber(v);
+  const isOptionalString = (v: unknown): boolean =>
+    v === undefined || typeof v === "string";
+  let fragmentValid = record.fragment === undefined;
+  if (!fragmentValid && typeof record.fragment === "object" && record.fragment !== null) {
+    const fragment = record.fragment as Record<string, unknown>;
+    fragmentValid =
+      (fragment.kind === "heading" || fragment.kind === "block") &&
+      typeof fragment.value === "string";
+  }
+  return (
+    (record.kind === "link" || record.kind === "embed") &&
+    typeof record.raw === "string" &&
+    typeof record.noteTarget === "string" &&
+    fragmentValid &&
+    isOptionalString(record.label) &&
+    isFiniteNumber(record.sourceFrom) &&
+    isFiniteNumber(record.sourceTo) &&
+    isFiniteNumber(record.targetFrom) &&
+    isFiniteNumber(record.targetTo) &&
+    isOptionalFiniteNumber(record.fragmentFrom) &&
+    isOptionalFiniteNumber(record.fragmentTo) &&
+    isOptionalFiniteNumber(record.labelFrom) &&
+    isOptionalFiniteNumber(record.labelTo) &&
+    (record.parseStatus === "valid" ||
+      record.parseStatus === "malformed" ||
+      record.parseStatus === "legacy-fallback") &&
+    typeof record.legacyRaw === "string"
+  );
+}
+
+/** Same rationale as isValidWikiLinkRecord above, for the other new F03
+ * Phase 1 cached field: a `HeadingRecord` (markdown/headings.ts) has enough
+ * numeric/array fields that a malformed one is a real, not just
+ * theoretical, decode risk (a hand-edited cache file, a future format
+ * change). `childIndexes` is checked element-by-element rather than just
+ * `Array.isArray` since a garbage array of non-numbers would otherwise
+ * pass through into hierarchy computation downstream. */
+function isValidHeadingRecord(raw: unknown): raw is HeadingRecord {
+  if (typeof raw !== "object" || raw === null) return false;
+  const record = raw as Record<string, unknown>;
+  const isFiniteNumber = (v: unknown): v is number =>
+    typeof v === "number" && Number.isFinite(v);
+  return (
+    typeof record.key === "string" &&
+    isFiniteNumber(record.occurrence) &&
+    isFiniteNumber(record.level) &&
+    record.level >= 1 &&
+    record.level <= 6 &&
+    typeof record.rawText === "string" &&
+    typeof record.displayText === "string" &&
+    isFiniteNumber(record.sourceFrom) &&
+    isFiniteNumber(record.sourceTo) &&
+    isFiniteNumber(record.contentFrom) &&
+    isFiniteNumber(record.contentTo) &&
+    isFiniteNumber(record.line) &&
+    isFiniteNumber(record.column) &&
+    isFiniteNumber(record.sectionFrom) &&
+    isFiniteNumber(record.sectionTo) &&
+    (record.parentIndex === undefined || isFiniteNumber(record.parentIndex)) &&
+    Array.isArray(record.childIndexes) &&
+    record.childIndexes.every(isFiniteNumber)
+  );
+}
+
 function isValidCachedNote(raw: unknown): raw is CachedNote {
   if (typeof raw !== "object" || raw === null) return false;
   const record = raw as Record<string, unknown>;
@@ -172,7 +276,11 @@ function isValidCachedNote(raw: unknown): raw is CachedNote {
     isStringArray(record.aliases) &&
     isStringArray(record.tags) &&
     Array.isArray(record.tasks) &&
-    record.tasks.every(isValidTaskRecord)
+    record.tasks.every(isValidTaskRecord) &&
+    Array.isArray(record.wikiLinks) &&
+    record.wikiLinks.every(isValidWikiLinkRecord) &&
+    Array.isArray(record.headings) &&
+    record.headings.every(isValidHeadingRecord)
   );
 }
 
@@ -219,6 +327,13 @@ interface CachedNote {
   aliases: string[];
   tags: string[];
   tasks: TaskRecord[];
+  /** F03 Phase 1: this note's structured wikilink records (see
+   * LinkIndex.wikiLinksByPath's doc comment for why this exists alongside
+   * the plain-string `wikilinks` above rather than replacing it). */
+  wikiLinks: WikiLinkRecord[];
+  /** F03 Phase 1: this note's own scanned headings (see
+   * LinkIndex.headingsByPath's doc comment). */
+  headings: HeadingRecord[];
 }
 
 // Bumped from 3 (audit follow-up F-012): cache identity now also requires
@@ -237,7 +352,15 @@ interface CachedNote {
 // note as having no tasks forever until it's next edited. Forcing a
 // version bump for every cache-shape change, not just this one, is the
 // standing precedent this comment continues.
-const LINK_INDEX_CACHE_VERSION = 5;
+//
+// Bumped again from 5 (F03 Phase 1): CachedNote gained `wikiLinks` and
+// `headings`, following the exact same precedent as the `tasks` bump
+// above, for the exact same reason: an old-shaped cache entry has neither
+// field, and without the bump it could still "match" a current file's
+// mtime/size and be reused as a cache hit, silently reporting the note as
+// having no wikilinks or headings at all to the new diagnostics feature
+// until it's next edited.
+const LINK_INDEX_CACHE_VERSION = 6;
 const LINK_INDEX_CACHE_FILENAME = ".leotheca/link-index-cache.json";
 
 /** path -> the wikilinks extracted from that note the last time it was
@@ -352,6 +475,8 @@ export async function rebuildLinkIndex(
     const pathsByTag = new Map<string, string[]>();
     const tagsByPath = new Map<string, string[]>();
     const tasksByPath = new Map<string, TaskRecord[]>();
+    const wikiLinksByPath = new Map<string, WikiLinkRecord[]>();
+    const headingsByPath = new Map<string, HeadingRecord[]>();
 
     for (const entry of noteEntries) {
       const key = noteNameFromPath(entry.path).toLocaleLowerCase();
@@ -390,6 +515,8 @@ export async function rebuildLinkIndex(
         let aliases: string[];
         let tags: string[];
         let tasks: TaskRecord[];
+        let wikiLinks: WikiLinkRecord[];
+        let headings: HeadingRecord[];
         if (
           cached &&
           entry.mtime !== undefined &&
@@ -401,6 +528,8 @@ export async function rebuildLinkIndex(
           aliases = cached.aliases;
           tags = cached.tags;
           tasks = cached.tasks;
+          wikiLinks = cached.wikiLinks;
+          headings = cached.headings;
         } else {
           let source: string;
           try {
@@ -439,6 +568,8 @@ export async function rebuildLinkIndex(
               }
             }
             if (cached?.tasks.length) tasksByPath.set(entry.path, cached.tasks);
+            if (cached?.wikiLinks.length) wikiLinksByPath.set(entry.path, cached.wikiLinks);
+            if (cached?.headings.length) headingsByPath.set(entry.path, cached.headings);
             return;
           }
           if (!isCurrentRequest()) return;
@@ -446,6 +577,8 @@ export async function rebuildLinkIndex(
           aliases = extractAliases(source);
           tags = extractTags(source);
           tasks = scanTasks(source);
+          wikiLinks = parseWikiLinks(source);
+          headings = scanHeadings(source);
         }
         if (entry.mtime !== undefined && entry.size !== undefined) {
           freshCache.set(entry.path, {
@@ -455,10 +588,14 @@ export async function rebuildLinkIndex(
             aliases,
             tags,
             tasks,
+            wikiLinks,
+            headings,
           });
         }
         wikilinksByPath.set(entry.path, wikilinks);
         if (tasks.length > 0) tasksByPath.set(entry.path, tasks);
+        if (wikiLinks.length > 0) wikiLinksByPath.set(entry.path, wikiLinks);
+        if (headings.length > 0) headingsByPath.set(entry.path, headings);
 
         if (aliasesEnabled && aliases.length > 0) {
           aliasesByPath.set(entry.path, aliases);
@@ -504,6 +641,8 @@ export async function rebuildLinkIndex(
       pathsByTag,
       tagsByPath,
       tasksByPath,
+      wikiLinksByPath,
+      headingsByPath,
     };
     linkIndexUnreadablePaths.value = unreadablePaths;
     await savePersistedCache(rootPath, freshCache);

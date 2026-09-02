@@ -1,6 +1,7 @@
 import { Capacitor } from "@capacitor/core";
 import * as desktop from "./tauriBridgeImpl";
 import * as android from "./capacitorBridgeImpl";
+import { isPathWithinWorkspace, relativePathBetween } from "./paths";
 
 /**
  * Platform dispatcher. Every other file in this project imports storage
@@ -44,9 +45,20 @@ export function drainWorkspaceOperations(): Promise<void> {
 }
 
 export const pickWorkspaceFolder = impl.pickWorkspaceFolder;
-// Grant activation is transition infrastructure itself, so it must not be
-// counted as an operation that waits for the transition to finish.
-export const restoreWorkspaceAccess = impl.restoreWorkspaceAccess;
+
+// The transition layer calls this before it publishes a workspace, both on
+// startup and on every later workspace switch. Keep the active root beside
+// the platform grant at this same boundary: clear the capability before an
+// activation attempt, and publish it only after the underlying activation
+// succeeds. An autosave can therefore never reuse a root from a failed or
+// superseded grant activation.
+let activeWorkspaceRoot: string | null = null;
+
+export async function restoreWorkspaceAccess(path: string, token?: string): Promise<void> {
+  activeWorkspaceRoot = null;
+  await impl.restoreWorkspaceAccess(path, token);
+  activeWorkspaceRoot = path;
+}
 
 export const listDir: typeof impl.listDir = (path: string) =>
   trackWorkspaceOperation(impl.listDir(path));
@@ -100,6 +112,30 @@ export const deleteWorkspacePathPermanent: typeof impl.deleteWorkspacePathPerman
   workspaceRoot: string,
   relativePath: string,
 ) => trackWorkspaceOperation(impl.deleteWorkspacePathPermanent(workspaceRoot, relativePath));
+
+/**
+ * Saves an already-open workspace file through the active workspace
+ * capability rather than the older unrestricted absolute-path writer.
+ * This is intentionally an overwrite operation: the note already exists,
+ * and F-003's save coordinator owns revision ordering. New file creation
+ * uses the separate no-replace mutation contract from F-004.
+ */
+export function writeActiveWorkspaceTextFile(path: string, contents: string): Promise<void> {
+  const workspaceRoot = activeWorkspaceRoot;
+  if (!workspaceRoot) {
+    return Promise.reject(new Error("No active workspace is available for this write."));
+  }
+  if (path === workspaceRoot || !isPathWithinWorkspace(workspaceRoot, path)) {
+    return Promise.reject(
+      new Error(`Cannot save "${path}" outside workspace root "${workspaceRoot}".`),
+    );
+  }
+  return writeWorkspaceTextFile(
+    workspaceRoot,
+    relativePathBetween(workspaceRoot, path),
+    contents,
+  );
+}
 
 // App-private config, app metadata, and status-bar appearance are not bound to
 // a selected workspace grant and therefore do not participate in the drain.

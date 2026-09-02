@@ -1,4 +1,4 @@
-import { writeTextFile } from "./tauriBridge";
+import { writeActiveWorkspaceTextFile } from "./tauriBridge";
 
 interface SaveEntry {
   revision: number;
@@ -53,6 +53,8 @@ export async function prepareActiveSavesForTransition(
  * N-001/N-003 adds an explicit transition barrier: once a session is being
  * left, new edits for it are rejected, pending timers are cancelled, and
  * already-invoked native writes are drained before Android SAF access changes.
+ * F-004 routes every actual note write through the active workspace capability
+ * held by tauriBridge, so autosave cannot bypass native containment.
  */
 export function createSaveCoordinator(cbs?: SaveCoordinatorCallbacks): SaveCoordinator {
   const entries = new Map<string, SaveEntry>();
@@ -115,7 +117,7 @@ export function createSaveCoordinator(cbs?: SaveCoordinatorCallbacks): SaveCoord
     entry.inFlight = true;
     const content = entry.latestContent;
     try {
-      await writeTextFile(path, content);
+      await writeActiveWorkspaceTextFile(path, content);
       if (entry.revision === revision && !isBlocked(session)) {
         entry.savedRevision = revision;
         entry.lastError = null;

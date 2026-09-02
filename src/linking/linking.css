@@ -43,3 +43,13 @@
 .markdown-preview a[href*="headingStatus=ambiguous"] {
   text-decoration-style: dotted;
 }
+
+/* F04 Phase 3a: the same distinct-but-not-fully-broken treatment as the
+ * heading-status rule above, for a [[Note#^block-id]]/[[#^block-id]] link
+ * whose note resolved but whose block id doesn't (or matches more than
+ * one paragraph in the target note, spec 7.1's own duplicate-detection
+ * rule). */
+.markdown-preview a[href*="blockStatus=missing"],
+.markdown-preview a[href*="blockStatus=ambiguous"] {
+  text-decoration-style: dotted;
+}

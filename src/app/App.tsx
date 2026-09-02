@@ -46,7 +46,8 @@ import { outlineInsertRequest, outlineRevealRequest, requestOutlineReveal } from
 import { HeadingBreadcrumbs } from "../outline/HeadingBreadcrumbs";
 import { nextSplitAuthority, type SplitAuthority } from "../outline/splitAuthority";
 import { scanHeadings } from "../markdown/headings";
-import { resolveHeadingFragment } from "../linking/wikiResolver";
+import { scanBlockIds } from "../markdown/blocks";
+import { resolveBlockFragment, resolveHeadingFragment } from "../linking/wikiResolver";
 import {
   linkIndexBuilding,
   linkIndexUnreadablePaths,
@@ -303,21 +304,23 @@ export function App() {
 
   const handleOpenFile = useCallback(
     /**
-     * `options.headingKey` (F04 Phase 1, see MarkdownPreview.tsx's
-     * `onOpenFile` doc comment) is the raw heading text a resolved
-     * cross-note `[[Note#Heading]]` Preview link named. It's resolved
-     * here, against the content this function just read to open the
-     * tab, rather than in MarkdownPreview: this is the one place that
-     * already reads the target note's fresh content, and the note-open
-     * (`openOrFocusTab`) and the outline reveal request are batched into
-     * one signal update together so MarkdownEditor's `reveal` effect
-     * (keyed only on the `reveal` prop's identity) never fires against
-     * the *previous* note's still-displayed content in between. A
-     * heading that turns out missing or ambiguous in the freshly-read
-     * note is a silent no-op reveal: the note still opens, matching spec
-     * section 10.4's "open the note if its path still resolves."
+     * `options.headingKey`/`options.blockId` (F04 Phase 1 for headings,
+     * see MarkdownPreview.tsx's `onOpenFile` doc comment; F04 Phase 3a
+     * for blocks) is the raw heading text or block id a resolved
+     * cross-note `[[Note#Heading]]`/`[[Note#^block-id]]` Preview link
+     * named. It's resolved here, against the content this function just
+     * read to open the tab, rather than in MarkdownPreview: this is the
+     * one place that already reads the target note's fresh content, and
+     * the note-open (`openOrFocusTab`) and the outline reveal request are
+     * batched into one signal update together so MarkdownEditor's
+     * `reveal` effect (keyed only on the `reveal` prop's identity) never
+     * fires against the *previous* note's still-displayed content in
+     * between. A target that turns out missing or ambiguous in the
+     * freshly-read note is a silent no-op reveal: the note still opens,
+     * matching spec section 10.4's "open the note if its path still
+     * resolves."
      */
-    async (path: string, name: string, options?: { headingKey?: string }) => {
+    async (path: string, name: string, options?: { headingKey?: string; blockId?: string }) => {
       const kind = classifyWorkspaceResource(path);
       if (kind === "image") {
         openOrFocusTab(path, name, "", "image");
@@ -335,6 +338,11 @@ export function App() {
             const match = resolveHeadingFragment(scanHeadings(effectiveContent), options.headingKey);
             if (match.status === "resolved") {
               requestOutlineReveal(match.heading.contentFrom, match.heading.contentTo);
+            }
+          } else if (options?.blockId) {
+            const match = resolveBlockFragment(scanBlockIds(effectiveContent), options.blockId);
+            if (match.status === "resolved") {
+              requestOutlineReveal(match.block.contentFrom, match.block.contentTo);
             }
           }
         });

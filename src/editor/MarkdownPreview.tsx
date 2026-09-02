@@ -5,8 +5,9 @@ import katex from "katex";
 import "katex/dist/katex.min.css";
 import { fileNameFromPath, resolveWikilink } from "../linking/store";
 import { parseWikiLinks, type WikiLinkRecord } from "../linking/wikiSyntax";
-import { resolveHeadingFragment, resolveWikiLinkTarget } from "../linking/wikiResolver";
+import { resolveBlockFragment, resolveHeadingFragment, resolveWikiLinkTarget } from "../linking/wikiResolver";
 import { scanHeadings, type HeadingRecord } from "../markdown/headings";
+import { scanBlockIds, type BlockRecord } from "../markdown/blocks";
 import { requestOutlineReveal } from "../outline/outlineNavigation";
 import { workspacePath } from "../settings/store";
 import { dirname, resolvePathWithinWorkspace } from "../workspace/paths";
@@ -90,18 +91,19 @@ marked.use({
 
 interface MarkdownPreviewProps {
   source: string;
-  /** `options.headingKey` is set only when the click that opened this
-   * file came from a resolved `[[Note#Heading]]` cross-note heading
-   * link (see F04 Phase 1, spec/f04-heading-block-links-embeds.md
-   * section 10): the raw heading text the link named, for the caller to
-   * resolve against the freshly-opened note's own content (App.tsx
-   * already reads that content to open the tab, so it re-scans headings
+  /** `options.headingKey`/`options.blockId` are set only when the click
+   * that opened this file came from a resolved `[[Note#Heading]]` or
+   * `[[Note#^block-id]]` cross-note link (F04 Phase 1 for headings,
+   * spec/f04-heading-block-links-embeds.md section 10; F04 Phase 3a for
+   * blocks): the raw heading text or block id the link named, for the
+   * caller to resolve against the freshly-opened note's own content
+   * (App.tsx already reads that content to open the tab, so it re-scans
    * there rather than this component reading the file a second time) and
-   * reveal via the existing outline `reveal` mechanism. A heading that
+   * reveal via the existing outline `reveal` mechanism. A target that
    * turns out missing or ambiguous in the freshly-read note is a
    * silent no-op reveal, not an error: the note still opens (spec
    * section 10.4's "open the note if its path still resolves"). */
-  onOpenFile?: (path: string, name: string, options?: { headingKey?: string }) => void;
+  onOpenFile?: (path: string, name: string, options?: { headingKey?: string; blockId?: string }) => void;
   /** Whether $inline$ / $$block$$ math renders via KaTeX at all; when
    * false, that syntax is left as ordinary text, same as before this
    * feature existed. Defaults to on, see
@@ -239,6 +241,7 @@ function buildWikilinkHref(fields: {
   fragmentKind?: "heading" | "block";
   fragment?: string;
   headingStatus?: "resolved" | "missing" | "ambiguous";
+  blockStatus?: "resolved" | "missing" | "ambiguous";
 }): string {
   const params = new URLSearchParams();
   params.set("leotheca-wikilink", fields.target);
@@ -246,6 +249,7 @@ function buildWikilinkHref(fields: {
   if (fields.fragmentKind) params.set("fragmentKind", fields.fragmentKind);
   if (fields.fragment !== undefined) params.set("fragment", fields.fragment);
   if (fields.headingStatus) params.set("headingStatus", fields.headingStatus);
+  if (fields.blockStatus) params.set("blockStatus", fields.blockStatus);
   return `#${params.toString()}`;
 }
 
@@ -255,6 +259,7 @@ interface ParsedWikilinkHref {
   fragmentKind?: "heading" | "block";
   fragment?: string;
   headingStatus?: "resolved" | "missing" | "ambiguous";
+  blockStatus?: "resolved" | "missing" | "ambiguous";
 }
 
 function parseWikilinkHref(href: string): ParsedWikilinkHref {
@@ -262,15 +267,16 @@ function parseWikilinkHref(href: string): ParsedWikilinkHref {
   const params = new URLSearchParams(raw);
   const fragmentKind = params.get("fragmentKind");
   const headingStatus = params.get("headingStatus");
+  const blockStatus = params.get("blockStatus");
+  const asStatus = (value: string | null) =>
+    value === "resolved" || value === "missing" || value === "ambiguous" ? value : undefined;
   return {
     target: params.get("leotheca-wikilink") ?? "",
     resolved: params.get("resolved") === "1",
     fragmentKind: fragmentKind === "heading" || fragmentKind === "block" ? fragmentKind : undefined,
     fragment: params.get("fragment") ?? undefined,
-    headingStatus:
-      headingStatus === "resolved" || headingStatus === "missing" || headingStatus === "ambiguous"
-        ? headingStatus
-        : undefined,
+    headingStatus: asStatus(headingStatus),
+    blockStatus: asStatus(blockStatus),
   };
 }
 
@@ -317,10 +323,19 @@ function defaultWikilinkLabel(record: WikiLinkRecord, headingStatus: "resolved" 
  * a disclosed, deliberate scope narrowing, not an oversight: it keeps
  * Preview's rendering pass free of new per-keystroke file reads while
  * still making cross-note heading navigation work correctly on click.
+ *
+ * F04 Phase 3a extends the same treatment to `^block-id` fragments: a
+ * same-note `[[#^block-id]]` resolves fully against `currentBlocks`
+ * (resolved/missing/ambiguous, styled the same dotted-underline way as
+ * the equivalent heading states), a cross-note `[[Note#^block-id]]`
+ * resolves at the note level only for the same reason cross-note headings
+ * do, and the real block lookup happens once, correctly, at click time in
+ * App.tsx (see onOpenFile's `blockId` option).
  */
 function renderWikilinksStructured(
   source: string,
   currentHeadings: HeadingRecord[],
+  currentBlocks: BlockRecord[],
   currentNotePath: string | undefined,
 ): string {
   const records = parseWikiLinks(source);
@@ -337,21 +352,30 @@ function renderWikilinksStructured(
       continue;
     }
 
+    const sameNote = record.noteTarget === "";
     const target = resolveWikiLinkTarget(record, {
       currentNotePath,
-      targetHeadings: record.noteTarget === "" ? currentHeadings : undefined,
+      targetHeadings: sameNote ? currentHeadings : undefined,
+      targetBlocks: sameNote ? currentBlocks : undefined,
     });
 
     const legacyFallback = Boolean(target.legacyFallback);
     let headingStatus: "resolved" | "missing" | "ambiguous" | undefined;
+    let blockStatus: "resolved" | "missing" | "ambiguous" | undefined;
     if (!legacyFallback && record.fragment?.kind === "heading") {
       if (target.heading) headingStatus = "resolved";
       else if (target.status === "missing-fragment") headingStatus = "missing";
       else if (target.status === "ambiguous-fragment") headingStatus = "ambiguous";
+    } else if (!legacyFallback && record.fragment?.kind === "block") {
+      if (target.block) blockStatus = "resolved";
+      else if (target.status === "missing-fragment") blockStatus = "missing";
+      else if (target.status === "ambiguous-fragment") blockStatus = "ambiguous";
     }
 
     const overallResolved =
-      target.status === "resolved" && (headingStatus === undefined || headingStatus === "resolved");
+      target.status === "resolved" &&
+      (headingStatus === undefined || headingStatus === "resolved") &&
+      (blockStatus === undefined || blockStatus === "resolved");
 
     const label = legacyFallback
       ? record.legacyRaw
@@ -363,21 +387,59 @@ function renderWikilinksStructured(
       fragmentKind: legacyFallback ? undefined : record.fragment?.kind,
       fragment: legacyFallback ? undefined : record.fragment?.value,
       headingStatus,
+      blockStatus,
     });
 
     // A markdown title (rendered as the anchor's `title` attribute)
-    // gives a screen-reader- and hover-discoverable reason for the two
-    // heading-specific broken states (spec section 16: "unresolved and
-    // ambiguous links have textual status ... not color alone"), without
-    // building a new tooltip mechanism for it.
+    // gives a screen-reader- and hover-discoverable reason for the
+    // heading/block-specific broken states (spec section 16: "unresolved
+    // and ambiguous links have textual status ... not color alone"),
+    // without building a new tooltip mechanism for it.
     const title =
       headingStatus === "missing"
         ? ' "Heading not found in this note"'
         : headingStatus === "ambiguous"
           ? ' "More than one heading matches this name"'
-          : "";
+          : blockStatus === "missing"
+            ? ' "Block reference not found in this note"'
+            : blockStatus === "ambiguous"
+              ? ' "More than one block matches this id"'
+              : "";
 
     result += `[${escapeWikilinkLabel(label)}](${href}${title})`;
+  }
+  result += source.slice(cursor);
+  return result;
+}
+
+/**
+ * F04 Phase 3a, spec section 7.3: "a valid block ID token is not shown as
+ * ordinary rendered text." Removes each block's own `^id` marker (and its
+ * required leading whitespace, `contentTo` through `sourceTo`) from the
+ * source text fed to `marked.parse`, leaving the rest of the block's own
+ * content, and every surrounding line break, untouched. Must run against
+ * the pristine `source` before any other rewriting pass in this file
+ * (`markLocalImageAttachments`, `renderWikilinksStructured`): `blocks`
+ * itself was scanned against that same pristine text, so its offsets only
+ * stay valid here, before anything else has shifted the string around
+ * them. `blocks` (and the `contentFrom`/`contentTo` offsets any resulting
+ * click-reveal uses) still describe the pristine `source`, exactly what
+ * the CodeMirror editor itself displays; this function's output is used
+ * for `marked.parse` alone, never re-scanned or revealed against.
+ *
+ * Only the deterministic DOM ID / `data-lt-block-id` attribute and the
+ * copy-link affordance spec 7.3 also describes are deferred to a
+ * follow-up (see ROADMAP.md): this phase makes the marker invisible and
+ * makes an existing block reference resolvable and navigable, but does
+ * not yet expose a stable anchor on the rendered element itself.
+ */
+function stripBlockIdMarkers(source: string, blocks: BlockRecord[]): string {
+  if (blocks.length === 0) return source;
+  let result = "";
+  let cursor = 0;
+  for (const block of blocks) {
+    result += source.slice(cursor, block.contentTo);
+    cursor = block.sourceTo;
   }
   result += source.slice(cursor);
   return result;
@@ -406,18 +468,37 @@ export function MarkdownPreview({
   // bounded, non-recursive scan OutlinePanel/HeadingBreadcrumbs already
   // run for this exact note's content.
   const currentHeadings = useMemo(() => scanHeadings(source), [source]);
+  // F04 Phase 3a's analog of currentHeadings above, for `^block-id`
+  // fragments (see markdown/blocks.ts).
+  const currentBlocks = useMemo(() => scanBlockIds(source), [source]);
 
   const html = useMemo(() => {
     mathRenderingActive = mathRenderingEnabled;
-    const withAttachments = markLocalImageAttachments(source, noteDir, workspaceRoot);
+    // Must run first, against the pristine source: see
+    // stripBlockIdMarkers's own doc comment for why offset-based rewrites
+    // have to happen in this order. Gated behind the same
+    // headingLinksEnabled flag as renderWikilinksStructured below, so
+    // turning that setting off is still a genuine escape hatch back to
+    // this feature's pre-F04 rendering, `^block-id` text included.
+    const withoutBlockMarkers = headingLinksEnabled ? stripBlockIdMarkers(source, currentBlocks) : source;
+    const withAttachments = markLocalImageAttachments(withoutBlockMarkers, noteDir, workspaceRoot);
     const withWikilinks = headingLinksEnabled
-      ? renderWikilinksStructured(withAttachments, currentHeadings, notePath)
+      ? renderWikilinksStructured(withAttachments, currentHeadings, currentBlocks, notePath)
       : renderWikilinksLegacy(withAttachments);
     const rendered = marked.parse(withWikilinks, {
       async: false,
     }) as string;
     return DOMPurify.sanitize(rendered);
-  }, [source, mathRenderingEnabled, headingLinksEnabled, noteDir, workspaceRoot, currentHeadings, notePath]);
+  }, [
+    source,
+    mathRenderingEnabled,
+    headingLinksEnabled,
+    noteDir,
+    workspaceRoot,
+    currentHeadings,
+    currentBlocks,
+    notePath,
+  ]);
 
   // marked.parse is synchronous, but resolving a placeholder src into a
   // real, loadable one (fileSrc, see workspace/tauriBridge.ts) is not. A
@@ -543,11 +624,11 @@ export function MarkdownPreview({
         const parsed = parseWikilinkHref(anchor.getAttribute("href") ?? "");
 
         if (parsed.target === "") {
-          // Same-note link ([[#Heading]], or the rare bare [[|Label]]
-          // self-link): no note switch happens, so a resolved heading
+          // Same-note link ([[#Heading]]/[[#^block-id]], or the rare bare
+          // [[|Label]] self-link): no note switch happens, so a resolved
           // fragment reveals directly against this note's own
-          // already-scanned headings rather than round-tripping through
-          // onOpenFile.
+          // already-scanned headings/blocks rather than round-tripping
+          // through onOpenFile.
           if (parsed.fragmentKind === "heading" && parsed.fragment) {
             const match = resolveHeadingFragment(currentHeadings, parsed.fragment);
             if (match.status === "resolved") {
@@ -556,6 +637,11 @@ export function MarkdownPreview({
             // missing-fragment/ambiguous-fragment: no navigation, per
             // spec section 10.4's "never scroll to an arbitrary
             // similarly named target."
+          } else if (parsed.fragmentKind === "block" && parsed.fragment) {
+            const match = resolveBlockFragment(currentBlocks, parsed.fragment);
+            if (match.status === "resolved") {
+              requestOutlineReveal(match.block.contentFrom, match.block.contentTo);
+            }
           }
           return;
         }
@@ -565,6 +651,8 @@ export function MarkdownPreview({
 
         if (parsed.fragmentKind === "heading" && parsed.fragment) {
           onOpenFile?.(path, fileNameFromPath(path), { headingKey: parsed.fragment });
+        } else if (parsed.fragmentKind === "block" && parsed.fragment) {
+          onOpenFile?.(path, fileNameFromPath(path), { blockId: parsed.fragment });
         } else {
           onOpenFile?.(path, fileNameFromPath(path));
         }

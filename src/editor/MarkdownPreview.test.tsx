@@ -654,3 +654,129 @@ describe("MarkdownPreview: F04 Phase 1 heading links", () => {
     });
   });
 });
+
+describe("MarkdownPreview: F04 Phase 3a block references", () => {
+  it("never shows a block ID marker as visible text", () => {
+    const { container } = render(
+      <MarkdownPreview source="This decision is final. ^release-decision" notePath="/vault/plan.md" />,
+    );
+    expect(container.textContent).not.toContain("^release-decision");
+    expect(container.textContent).toContain("This decision is final.");
+  });
+
+  it("resolves a same-note [[#^block-id]] link", () => {
+    const { container } = render(
+      <MarkdownPreview
+        source={"The user owns the files. ^local-first\n\nSee [[#^local-first]] above."}
+        notePath="/vault/plan.md"
+      />,
+    );
+    const anchor = container.querySelector('a[href^="#leotheca-wikilink="]');
+    expect(anchor?.getAttribute("href")).toContain("resolved=1");
+    expect(anchor?.getAttribute("href")).toContain("fragmentKind=block");
+  });
+
+  it("clicking a resolved same-note block link reveals that block's exact content range, without opening a note", () => {
+    const onOpenFile = vi.fn();
+    const source = "The user owns the files. ^local-first\n\nSee [[#^local-first]] above.";
+    const { container } = render(
+      <MarkdownPreview source={source} notePath="/vault/plan.md" onOpenFile={onOpenFile} />,
+    );
+    const anchor = container.querySelector('a[href^="#leotheca-wikilink="]') as HTMLAnchorElement;
+    fireEvent.click(anchor);
+    expect(onOpenFile).not.toHaveBeenCalled();
+    expect(outlineRevealRequest.value?.from).toBe(0);
+    expect(outlineRevealRequest.value?.to).toBe("The user owns the files.".length);
+  });
+
+  it("renders a same-note block link as missing, distinctly, when the block id does not exist", () => {
+    const { container } = render(
+      <MarkdownPreview source={"See [[#^nonexistent]] below."} notePath="/vault/plan.md" />,
+    );
+    const anchor = container.querySelector('a[href^="#leotheca-wikilink="]');
+    expect(anchor?.getAttribute("href")).not.toContain("resolved=1");
+    expect(anchor?.getAttribute("href")).toContain("blockStatus=missing");
+  });
+
+  it("does not reveal anything when clicking a same-note block link that does not resolve", () => {
+    const { container } = render(
+      <MarkdownPreview source={"See [[#^nonexistent]] below."} notePath="/vault/plan.md" />,
+    );
+    const anchor = container.querySelector('a[href^="#leotheca-wikilink="]') as HTMLAnchorElement;
+    fireEvent.click(anchor);
+    expect(outlineRevealRequest.value).toBeNull();
+  });
+
+  it("renders a same-note block link as ambiguous, not resolved to the first occurrence, for duplicate ids", () => {
+    const { container } = render(
+      <MarkdownPreview
+        source={"One. ^dup\n\nTwo. ^dup\n\nSee [[#^dup]] above."}
+        notePath="/vault/plan.md"
+      />,
+    );
+    const anchor = container.querySelector('a[href^="#leotheca-wikilink="]');
+    expect(anchor?.getAttribute("href")).not.toContain("resolved=1");
+    expect(anchor?.getAttribute("href")).toContain("blockStatus=ambiguous");
+  });
+
+  it("resolves a cross-note [[Note#^block-id]] link at the note level, styled as resolved", () => {
+    linkIndex.value = {
+      backlinksByPath: new Map(),
+      pathsByNoteName: new Map([["project plan", ["/vault/project-plan.md"]]]),
+      pathsByAlias: new Map(),
+      aliasesByPath: new Map(),
+      pathsByTag: new Map(),
+      tagsByPath: new Map(),
+      tasksByPath: new Map(),
+    };
+    const { container } = render(<MarkdownPreview source="[[Project Plan#^release-decision]]" />);
+    const anchor = container.querySelector('a[href^="#leotheca-wikilink="]');
+    expect(anchor?.getAttribute("href")).toContain("resolved=1");
+    // The cross-note block itself is not verified during this render pass
+    // (the same disclosed scope narrowing as the equivalent heading test
+    // above): no explicit blockStatus is claimed for it.
+    expect(anchor?.getAttribute("href")).not.toContain("blockStatus=");
+  });
+
+  it("clicking a resolved cross-note block link opens the note and passes the block id through onOpenFile", () => {
+    linkIndex.value = {
+      backlinksByPath: new Map(),
+      pathsByNoteName: new Map([["project plan", ["/vault/project-plan.md"]]]),
+      pathsByAlias: new Map(),
+      aliasesByPath: new Map(),
+      pathsByTag: new Map(),
+      tagsByPath: new Map(),
+      tasksByPath: new Map(),
+    };
+    const onOpenFile = vi.fn();
+    const { container } = render(
+      <MarkdownPreview source="[[Project Plan#^release-decision]]" onOpenFile={onOpenFile} />,
+    );
+    const anchor = container.querySelector('a[href^="#leotheca-wikilink="]') as HTMLAnchorElement;
+    fireEvent.click(anchor);
+    expect(onOpenFile).toHaveBeenCalledWith("/vault/project-plan.md", "project-plan.md", {
+      blockId: "release-decision",
+    });
+  });
+
+  it("does not call onOpenFile for a cross-note block link whose note does not resolve", () => {
+    const onOpenFile = vi.fn();
+    const { container } = render(
+      <MarkdownPreview source="[[Missing Note#^some-id]]" onOpenFile={onOpenFile} />,
+    );
+    const anchor = container.querySelector('a[href^="#leotheca-wikilink="]') as HTMLAnchorElement;
+    fireEvent.click(anchor);
+    expect(onOpenFile).not.toHaveBeenCalled();
+  });
+
+  it("still shows the marker as literal text when headingLinksEnabled is off, exactly like before this feature existed", () => {
+    const { container } = render(
+      <MarkdownPreview
+        source="This decision is final. ^release-decision"
+        notePath="/vault/plan.md"
+        headingLinksEnabled={false}
+      />,
+    );
+    expect(container.textContent).toContain("^release-decision");
+  });
+});

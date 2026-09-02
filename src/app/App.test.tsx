@@ -434,3 +434,60 @@ describe("App: F04 Phase 1 cross-note heading-link navigation", () => {
     expect(outlineRevealRequest.value).toBeNull();
   });
 });
+
+describe("App: F04 Phase 3a cross-note block-link navigation", () => {
+  it("opens the target note and reveals the resolved block from its freshly-read content", async () => {
+    linkIndex.value = {
+      ...emptyLinkIndex(),
+      pathsByNoteName: new Map([["second", ["/vault/second.md"]]]),
+    };
+    viewMode.value = "split";
+    workspacePath.value = "/vault";
+    const targetContent = "Intro text.\n\nThe target block. ^target-block\n\nmore text";
+    readTextFile.mockResolvedValue(targetContent);
+    openOrFocusTab("/vault/first.md", "first.md", "See [[Second#^target-block]] over there.", "text");
+    const { container } = render(<App />);
+
+    const anchor = container.querySelector(
+      'a[href^="#leotheca-wikilink="]',
+    ) as HTMLAnchorElement;
+    expect(anchor).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.click(anchor);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(activeTabPath.value).toBe("/vault/second.md");
+    expect(outlineRevealRequest.value?.from).toBe(targetContent.indexOf("The target block."));
+    expect(outlineRevealRequest.value?.to).toBe(
+      targetContent.indexOf("The target block.") + "The target block.".length,
+    );
+  });
+
+  it("does not request a reveal when the freshly-read target note has no matching block id", async () => {
+    linkIndex.value = {
+      ...emptyLinkIndex(),
+      pathsByNoteName: new Map([["second", ["/vault/second.md"]]]),
+    };
+    viewMode.value = "split";
+    workspacePath.value = "/vault";
+    readTextFile.mockResolvedValue("No block ids here at all.");
+    openOrFocusTab("/vault/first.md", "first.md", "See [[Second#^target-block]] over there.", "text");
+    const { container } = render(<App />);
+
+    const anchor = container.querySelector(
+      'a[href^="#leotheca-wikilink="]',
+    ) as HTMLAnchorElement;
+
+    await act(async () => {
+      fireEvent.click(anchor);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(activeTabPath.value).toBe("/vault/second.md");
+    expect(outlineRevealRequest.value).toBeNull();
+  });
+});

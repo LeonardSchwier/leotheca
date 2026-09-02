@@ -4,14 +4,23 @@
  * `ResolvedWikiTarget` against the shared heading scanner
  * (`markdown/headings.ts`'s `scanHeadings`/`normalizeHeadingKey`), the
  * same normalization contract that file's own header comment says F04
- * owns going forward.
+ * owns going forward, and (F04 Phase 3a) the shared block-reference
+ * scanner (`markdown/blocks.ts`'s `scanBlockIds`) for a `^block-id`
+ * fragment.
  *
- * Scope: heading fragments only. A `^block-id` fragment (section 7) is
- * not resolved here (block scanning doesn't exist yet, Phase 2 scope);
- * see `resolveWikiLinkTarget`'s handling of `fragment.kind === "block"`.
+ * Block resolution scope, disclosed rather than silently narrowed: only
+ * a paragraph-block ID (the only kind `scanBlockIds` detects in this
+ * phase, see that module's own doc comment) can ever resolve; a link to
+ * a block kind that scanner doesn't yet detect (a heading, list item,
+ * blockquote, or fenced code block's own ID) reports "missing-fragment"
+ * exactly as it would for a genuinely nonexistent ID, since this
+ * resolver has no way to distinguish "not implemented yet" from "not
+ * there" without reading the note a second time through a different
+ * scanner just to tell them apart.
  */
 
 import { normalizeHeadingKey, type HeadingRecord } from "../markdown/headings";
+import type { BlockRecord } from "../markdown/blocks";
 import { resolveWikilink } from "./store";
 import type { WikiLinkRecord } from "./wikiSyntax";
 
@@ -30,6 +39,14 @@ export interface ResolvedWikiTarget {
    * 6.3's "completion shows each occurrence" (Phase 1 exposes the data;
    * completion UI itself is a later phase). */
   candidateHeadings?: HeadingRecord[];
+  /** The resolved block, present only when `fragment.kind === "block"`
+   * resolved successfully (F04 Phase 3a). */
+  block?: BlockRecord;
+  /** Present only for an "ambiguous-fragment" result against a block
+   * fragment: every paragraph block in the target note sharing the
+   * fragment's case-insensitive id (spec 7.1's own duplicate-detection
+   * rule), mirroring `candidateHeadings` above. */
+  candidateBlocks?: BlockRecord[];
   /**
    * True when this result came from spec section 5.3's legacy
    * compatibility fallback: the structured note target didn't resolve,
@@ -65,6 +82,27 @@ export function resolveHeadingFragment(
   return { status: "resolved", heading: matches[0] };
 }
 
+/**
+ * Resolves a single `^block-id` fragment value against a note's
+ * already-scanned blocks (F04 Phase 3a). `blocks` must come from
+ * `scanBlockIds` (or contain `BlockRecord`s with a `key` already
+ * lowercased the same way) so this function never runs a second,
+ * divergent matching pass. Matching is case-insensitive, per spec 7.1.
+ */
+export function resolveBlockFragment(
+  blocks: BlockRecord[],
+  fragmentValue: string,
+):
+  | { status: "resolved"; block: BlockRecord }
+  | { status: "missing-fragment" }
+  | { status: "ambiguous-fragment"; candidates: BlockRecord[] } {
+  const key = fragmentValue.toLowerCase();
+  const matches = blocks.filter((block) => block.key === key);
+  if (matches.length === 0) return { status: "missing-fragment" };
+  if (matches.length > 1) return { status: "ambiguous-fragment", candidates: matches };
+  return { status: "resolved", block: matches[0] };
+}
+
 export interface WikiResolutionContext {
   /** The path of the note whose source contains this link, used to make
    * a same-note (`noteTarget === ""`) target concrete. Leave undefined
@@ -83,6 +121,15 @@ export interface WikiResolutionContext {
    * inventing an "unverified" status the spec's own type doesn't have.
    */
   targetHeadings?: HeadingRecord[];
+  /**
+   * F04 Phase 3a's analog of `targetHeadings` for a `^block-id` fragment:
+   * the CURRENT note's own scanned blocks for a same-note fragment, or
+   * the cross-note TARGET note's blocks once its content has been read.
+   * Omit for a cross-note fragment whose target content hasn't been read
+   * yet; the fragment then resolves at the note level only, same as an
+   * omitted `targetHeadings`.
+   */
+  targetBlocks?: BlockRecord[];
 }
 
 /**
@@ -116,10 +163,19 @@ export function resolveWikiLinkTarget(
   if (!record.fragment) return { status: "resolved", notePath };
 
   if (record.fragment.kind === "block") {
-    // Block references are Phase 2 scope (spec section 21): no block
-    // scanner exists yet to resolve against. Degrade to a note-level
-    // link rather than reporting a status this phase can't back up.
-    return { status: "resolved", notePath };
+    if (!context.targetBlocks) {
+      // Cross-note fragment, target content not read yet: note-level
+      // resolution stands, same as the equivalent heading branch below.
+      return { status: "resolved", notePath };
+    }
+    const blockResult = resolveBlockFragment(context.targetBlocks, record.fragment.value);
+    if (blockResult.status === "resolved") {
+      return { status: "resolved", notePath, block: blockResult.block };
+    }
+    if (blockResult.status === "ambiguous-fragment") {
+      return { status: "ambiguous-fragment", notePath, candidateBlocks: blockResult.candidates };
+    }
+    return { status: "missing-fragment", notePath };
   }
 
   if (!context.targetHeadings) {

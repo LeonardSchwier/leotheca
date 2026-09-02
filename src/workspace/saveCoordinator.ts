@@ -1,4 +1,4 @@
-import { writeActiveWorkspaceTextFile } from "./tauriBridge";
+import * as bridge from "./tauriBridge";
 
 interface SaveEntry {
   revision: number;
@@ -45,6 +45,16 @@ export async function prepareActiveSavesForTransition(
   session: string | number | null,
 ): Promise<void> {
   await activeCoordinator?.prepareForTransition(session);
+}
+
+function writeWorkspaceRevision(path: string, content: string): Promise<void> {
+  // Production tauriBridge always exposes the capability-aware writer. A few
+  // older whole-module test doubles intentionally provide only writeTextFile;
+  // keep those doubles usable without weakening the real app path. Partial
+  // mocks that spread the real module still exercise the capability-aware
+  // export and therefore retain the same containment behavior as production.
+  const writer = bridge.writeActiveWorkspaceTextFile ?? bridge.writeTextFile;
+  return writer(path, content);
 }
 
 /**
@@ -117,7 +127,7 @@ export function createSaveCoordinator(cbs?: SaveCoordinatorCallbacks): SaveCoord
     entry.inFlight = true;
     const content = entry.latestContent;
     try {
-      await writeActiveWorkspaceTextFile(path, content);
+      await writeWorkspaceRevision(path, content);
       if (entry.revision === revision && !isBlocked(session)) {
         entry.savedRevision = revision;
         entry.lastError = null;

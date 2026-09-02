@@ -31,12 +31,23 @@ jobs:
             exit 0
           fi
 
-          echo "Merge conflicts follow"
           git diff --name-only --diff-filter=U
-          for file in $(git diff --name-only --diff-filter=U); do
-            echo "===== $file ====="
-            git checkout --conflict=diff3 -- "$file"
-            cat "$file"
+          for file in src/app/App.tsx src/linking/store.ts src/linking/store.test.ts; do
+            if git diff --name-only --diff-filter=U | grep -Fxq "$file"; then
+              git checkout --conflict=diff3 -- "$file"
+              echo "===== $file conflict regions ====="
+              python3 - "$file" <<'PY'
+          import pathlib, sys
+          lines = pathlib.Path(sys.argv[1]).read_text().splitlines()
+          starts = [i for i, line in enumerate(lines) if line.startswith("<<<<<<<")]
+          for start in starts:
+              end = next(i for i in range(start, len(lines)) if lines[i].startswith(">>>>>>>"))
+              lo = max(0, start - 12)
+              hi = min(len(lines), end + 13)
+              print(f"--- lines {lo + 1}-{hi} ---")
+              print("\n".join(lines[lo:hi]))
+          PY
+            fi
           done
           git merge --abort
           exit 1

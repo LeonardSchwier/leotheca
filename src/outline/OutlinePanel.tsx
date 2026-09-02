@@ -2,6 +2,9 @@ import { useState } from "preact/hooks";
 import type { HeadingRecord } from "../markdown/headings";
 import { requestOutlineReveal } from "./outlineNavigation";
 import { useNoteHeadings } from "./useNoteHeadings";
+import { OutlineRowContent } from "./OutlineRowContent";
+import { headingKeyId, LARGE_OUTLINE_THRESHOLD } from "./outlineVirtualization";
+import { VirtualizedOutlineList } from "./VirtualizedOutlineList";
 import "./outline.css";
 
 interface OutlinePanelProps {
@@ -16,10 +19,6 @@ interface OutlinePanelProps {
 // section 6.2: the filter field only appears once a note has enough
 // headings that scanning the list by eye stops being the faster option.
 const FILTER_THRESHOLD = 20;
-
-function headingKeyId(heading: HeadingRecord): string {
-  return `${heading.key} ${heading.occurrence}`;
-}
 
 /** A heading's key is a duplicate exactly when some other heading in the
  * document shares the same normalized key, including its own first
@@ -82,32 +81,15 @@ function OutlineRow({
 
   return (
     <li class="outline-node">
-      <div class="outline-row" style={{ paddingLeft: `${depth * 16}px` }}>
-        <button
-          class="outline-chevron"
-          aria-label={
-            hasChildren
-              ? `${collapsed ? "Expand" : "Collapse"} ${heading.displayText || "heading"}`
-              : undefined
-          }
-          disabled={!hasChildren}
-          onClick={() => onToggleCollapse(keyId)}
-        >
-          {hasChildren ? (collapsed ? "▸" : "▾") : ""}
-        </button>
-        <button
-          class="outline-label"
-          title={heading.displayText || "(Untitled heading)"}
-          onClick={() => onSelect(heading)}
-        >
-          <span class="outline-text">{heading.displayText || "(Untitled heading)"}</span>
-          {duplicateFlags[index] && (
-            <span class="outline-duplicate-marker" aria-label="Duplicate heading text" title="Duplicate heading text">
-              ⚠
-            </span>
-          )}
-        </button>
-      </div>
+      <OutlineRowContent
+        heading={heading}
+        depth={depth}
+        hasChildren={hasChildren}
+        collapsed={collapsed}
+        duplicate={duplicateFlags[index]}
+        onToggleCollapse={() => onToggleCollapse(keyId)}
+        onSelect={() => onSelect(heading)}
+      />
       {hasChildren && !collapsed && (
         <ul class="outline-children">
           {heading.childIndexes.map((childIndex) => (
@@ -134,9 +116,12 @@ function OutlineRow({
  * Phase 1 (spec/f06-note-outline-heading-breadcrumbs.md section 20)
  * read-only structural outline for the active note: a hierarchical,
  * filterable, collapsible list of headings that navigates the editor's
- * selection to a heading's text without remounting it. Breadcrumbs,
- * F04-dependent copy/insert-link actions, current-section tracking, and
- * large-outline virtualization are later phases, not implemented here.
+ * selection to a heading's text without remounting it. F04-dependent
+ * copy/insert-link actions and the remainder of Phase 4 (complete
+ * keyboard tree semantics, screen-reader validation, compact hardening)
+ * are later phases, not implemented here. Above LARGE_OUTLINE_THRESHOLD
+ * headings, rendering switches to VirtualizedOutlineList (Phase 4a);
+ * below it, this file's own nested OutlineRow renderer is unchanged.
  *
  * Rendered with `key={path}` by its caller (see App.tsx, following the
  * same convention as FrontmatterPropertiesPanel) so opening a different
@@ -216,6 +201,16 @@ export function OutlinePanel({ content, onNavigated }: OutlinePanelProps) {
             Clear filter
           </button>
         </div>
+      ) : headings.length > LARGE_OUTLINE_THRESHOLD ? (
+        <VirtualizedOutlineList
+          headings={headings}
+          duplicateFlags={duplicateFlags}
+          collapsedKeys={collapsedKeys}
+          onToggleCollapse={toggleCollapse}
+          filterActive={filterActive}
+          visibleIndexes={visibleIndexes}
+          onSelect={handleSelect}
+        />
       ) : (
         <ul class="outline-list" aria-label="Heading outline">
           {rootIndexes.map((index) => (

@@ -65,6 +65,16 @@
   padding: 0;
 }
 
+.outline-list--virtual {
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.outline-list--virtual .outline-node {
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
 .outline-row {
   display: flex;
   align-items: center;

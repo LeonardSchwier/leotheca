@@ -263,6 +263,8 @@ function isValidFrontmatterProperty(raw: unknown): raw is FrontmatterProperty {
     );
   }
   return false;
+}
+
 /** F03 Phase 1: `wikiLinks` is a structured `WikiLinkRecord` (see
  * wikiSyntax.ts), not a plain string, so its validator has to check every
  * field individually the same way isValidTaskRecord does, rather than a

@@ -13,6 +13,7 @@ afterEach(() => {
     aliasesByPath: new Map(),
     pathsByTag: new Map(),
     tagsByPath: new Map(),
+    tasksByPath: new Map(),
   };
 });
 
@@ -32,6 +33,7 @@ describe("BacklinksPanel", () => {
       aliasesByPath: new Map(),
       pathsByTag: new Map(),
       tagsByPath: new Map(),
+      tasksByPath: new Map(),
     };
     const { getByText } = render(<BacklinksPanel path="/vault/note.md" onOpenFile={vi.fn()} />);
     expect(getByText("a.md")).toBeTruthy();
@@ -49,6 +51,7 @@ describe("BacklinksPanel", () => {
       aliasesByPath: new Map(),
       pathsByTag: new Map(),
       tagsByPath: new Map(),
+      tasksByPath: new Map(),
     };
     const { getByText, queryByText } = render(
       <BacklinksPanel path="/vault/note.md" onOpenFile={vi.fn()} />,
@@ -65,6 +68,7 @@ describe("BacklinksPanel", () => {
       aliasesByPath: new Map(),
       pathsByTag: new Map(),
       tagsByPath: new Map(),
+      tasksByPath: new Map(),
     };
     const onOpenFile = vi.fn();
     const { getByText } = render(<BacklinksPanel path="/vault/note.md" onOpenFile={onOpenFile} />);

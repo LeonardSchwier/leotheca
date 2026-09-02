@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render } from "@testing-library/preact";
 import { signal } from "@preact/signals";
 import { DEFAULT_WORKSPACE_SETTINGS } from "../settings/workspaceSettings";
+import type { TaskRecord } from "../markdown/tasks";
 
 const { updateWorkspaceSettingsSpy } = vi.hoisted(() => ({
   updateWorkspaceSettingsSpy: vi.fn(),
@@ -141,6 +142,7 @@ const emptyLinkIndex = () => ({
   aliasesByPath: new Map<string, string[]>(),
   pathsByTag: new Map<string, string[]>(),
   tagsByPath: new Map<string, string[]>(),
+  tasksByPath: new Map<string, TaskRecord[]>(),
 });
 
 afterEach(() => {

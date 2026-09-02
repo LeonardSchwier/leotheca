@@ -12,6 +12,7 @@ function setNotes(namesToPaths: Record<string, string[]>) {
     aliasesByPath: new Map(),
     pathsByTag: new Map(),
     tagsByPath: new Map(),
+    tasksByPath: new Map(),
   };
 }
 
@@ -23,6 +24,7 @@ afterEach(() => {
     aliasesByPath: new Map(),
     pathsByTag: new Map(),
     tagsByPath: new Map(),
+    tasksByPath: new Map(),
   };
 });
 

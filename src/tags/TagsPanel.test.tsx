@@ -12,6 +12,7 @@ function setPathsByTag(pathsByTag: Map<string, string[]>) {
     aliasesByPath: new Map(),
     pathsByTag,
     tagsByPath: new Map(),
+    tasksByPath: new Map(),
   };
 }
 

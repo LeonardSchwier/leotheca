@@ -56,6 +56,7 @@ afterEach(() => {
     aliasesByPath: new Map(),
     pathsByTag: new Map(),
     tagsByPath: new Map(),
+    tasksByPath: new Map(),
   };
   mockWorkspaceSettings.value = { graphColorGroups: [] };
   mockUpdateWorkspaceSettings.mockClear();
@@ -94,6 +95,7 @@ function withOneNode() {
     aliasesByPath: new Map(),
     pathsByTag: new Map(),
     tagsByPath: new Map(),
+    tasksByPath: new Map(),
   };
 }
 
@@ -193,6 +195,7 @@ describe("GraphView: hides unconnected notes by default", () => {
       aliasesByPath: new Map(),
       pathsByTag: new Map(),
       tagsByPath: new Map(),
+      tasksByPath: new Map(),
     };
   }
 
@@ -207,6 +210,7 @@ describe("GraphView: hides unconnected notes by default", () => {
       aliasesByPath: new Map(),
       pathsByTag: new Map(),
       tagsByPath: new Map(),
+      tasksByPath: new Map(),
     };
     const { getByText, container } = render(<GraphView onOpenFile={vi.fn()} onClose={vi.fn()} />);
     expect(getByText(/No connected notes yet/)).toBeTruthy();
@@ -236,6 +240,7 @@ describe("GraphView: hides unconnected notes by default", () => {
       aliasesByPath: new Map(),
       pathsByTag: new Map(),
       tagsByPath: new Map(),
+      tasksByPath: new Map(),
     };
     const { getByLabelText, container, queryByText } = render(
       <GraphView onOpenFile={vi.fn()} onClose={vi.fn()} />,
@@ -322,6 +327,7 @@ describe("GraphView: local (per-note) graph mode", () => {
       aliasesByPath: new Map(),
       pathsByTag: new Map(),
       tagsByPath: new Map(),
+      tasksByPath: new Map(),
     };
   }
 
@@ -503,6 +509,7 @@ describe("GraphView: filtering", () => {
       aliasesByPath: new Map(),
       pathsByTag: new Map(),
       tagsByPath: new Map(),
+      tasksByPath: new Map(),
     };
   }
 
@@ -576,6 +583,7 @@ describe("GraphView: color groups panel", () => {
       aliasesByPath: new Map(),
       pathsByTag: new Map(),
       tagsByPath: new Map(),
+      tasksByPath: new Map(),
     };
   }
 

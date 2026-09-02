@@ -26,6 +26,7 @@ afterEach(() => {
     aliasesByPath: new Map(),
     pathsByTag: new Map(),
     tagsByPath: new Map(),
+    tasksByPath: new Map(),
   };
   workspacePath.value = null;
   outlineRevealRequest.value = null;
@@ -59,6 +60,7 @@ describe("MarkdownPreview", () => {
       aliasesByPath: new Map(),
       pathsByTag: new Map(),
       tagsByPath: new Map(),
+      tasksByPath: new Map(),
     };
     const { container } = render(<MarkdownPreview source="See [[Existing Note]] for details." />);
     const anchor = container.querySelector('a[href^="#leotheca-wikilink="]');
@@ -88,6 +90,7 @@ describe("MarkdownPreview", () => {
       aliasesByPath: new Map(),
       pathsByTag: new Map(),
       tagsByPath: new Map(),
+      tasksByPath: new Map(),
     };
     const onOpenFile = vi.fn();
     const { container } = render(
@@ -448,6 +451,7 @@ describe("MarkdownPreview: F04 Phase 1 heading links", () => {
       aliasesByPath: new Map(),
       pathsByTag: new Map(),
       tagsByPath: new Map(),
+      tasksByPath: new Map(),
     };
     const { container } = render(<MarkdownPreview source="[[Existing Note|see this]]" />);
     const anchor = container.querySelector('a[href^="#leotheca-wikilink="]');
@@ -528,6 +532,7 @@ describe("MarkdownPreview: F04 Phase 1 heading links", () => {
       aliasesByPath: new Map(),
       pathsByTag: new Map(),
       tagsByPath: new Map(),
+      tasksByPath: new Map(),
     };
     const { container } = render(<MarkdownPreview source="[[Project Plan#Milestones]]" />);
     const anchor = container.querySelector('a[href^="#leotheca-wikilink="]');
@@ -546,6 +551,7 @@ describe("MarkdownPreview: F04 Phase 1 heading links", () => {
       aliasesByPath: new Map(),
       pathsByTag: new Map(),
       tagsByPath: new Map(),
+      tasksByPath: new Map(),
     };
     const onOpenFile = vi.fn();
     const { container } = render(
@@ -583,6 +589,7 @@ describe("MarkdownPreview: F04 Phase 1 heading links", () => {
         aliasesByPath: new Map(),
         pathsByTag: new Map(),
         tagsByPath: new Map(),
+        tasksByPath: new Map(),
       };
       const { container } = render(<MarkdownPreview source="[[Foo#1]]" />);
       const anchor = container.querySelector('a[href^="#leotheca-wikilink="]');
@@ -599,6 +606,7 @@ describe("MarkdownPreview: F04 Phase 1 heading links", () => {
         aliasesByPath: new Map(),
         pathsByTag: new Map(),
         tagsByPath: new Map(),
+        tasksByPath: new Map(),
       };
       const onOpenFile = vi.fn();
       const { container } = render(<MarkdownPreview source="[[Foo#1]]" onOpenFile={onOpenFile} />);
@@ -634,6 +642,7 @@ describe("MarkdownPreview: F04 Phase 1 heading links", () => {
         aliasesByPath: new Map(),
         pathsByTag: new Map(),
         tagsByPath: new Map(),
+        tasksByPath: new Map(),
       };
       const onOpenFile = vi.fn();
       const { container } = render(

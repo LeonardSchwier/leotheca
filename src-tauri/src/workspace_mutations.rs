@@ -77,7 +77,7 @@ fn nearest_existing_ancestor(path: &Path) -> (PathBuf, PathBuf) {
 fn resolve_within_workspace(workspace_root: &str, relative_path: &str) -> Result<PathBuf, String> {
     let relative = validate_relative_path(relative_path)?;
     let root = Path::new(workspace_root);
-    let canonical_root = fs::canonicalize(root).map_err(|error| map_io_error(error))?;
+    let canonical_root = fs::canonicalize(root).map_err(map_io_error)?;
     let joined = root.join(relative);
 
     if let Ok(link_metadata) = fs::symlink_metadata(&joined) {

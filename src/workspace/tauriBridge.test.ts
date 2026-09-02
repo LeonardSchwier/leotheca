@@ -60,9 +60,9 @@ const {
 
 beforeEach(() => {
   restoreWorkspaceAccessImpl.mockReset();
-  restoreWorkspaceAccessImpl.mockResolvedValue();
+  restoreWorkspaceAccessImpl.mockResolvedValue(undefined);
   writeWorkspaceTextFileImpl.mockReset();
-  writeWorkspaceTextFileImpl.mockResolvedValue();
+  writeWorkspaceTextFileImpl.mockResolvedValue(undefined);
 });
 
 describe("workspace bridge operation drain", () => {

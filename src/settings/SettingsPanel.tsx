@@ -55,6 +55,11 @@ const FRONTMATTER_ALIASES_OPTIONS: { value: boolean; label: string }[] = [
   { value: false, label: "Off" },
 ];
 
+const HEADING_LINKS_OPTIONS: { value: boolean; label: string }[] = [
+  { value: true, label: "On" },
+  { value: false, label: "Off" },
+];
+
 const MATH_RENDERING_OPTIONS: { value: boolean; label: string }[] = [
   { value: true, label: "On" },
   { value: false, label: "Off" },
@@ -364,6 +369,39 @@ export function SettingsPanel() {
                           option.value,
                         );
                     }}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {workspacePath.value && (
+            <div class="settings-row">
+              <div>
+                <div class="settings-label">Heading links</div>
+                <div class="settings-hint">
+                  Resolve [[Note#Heading]] and [[#Heading]] links to a specific
+                  heading, with Preview click navigation to it. Off,
+                  [[wikilinks]] parse exactly as before this feature existed
+                </div>
+              </div>
+              <div class="settings-switch">
+                {HEADING_LINKS_OPTIONS.map((option) => (
+                  <button
+                    key={String(option.value)}
+                    class={
+                      workspaceSettings.value.headingLinksEnabled ===
+                      option.value
+                        ? "active"
+                        : ""
+                    }
+                    onClick={() =>
+                      void updateWorkspaceSettings({
+                        headingLinksEnabled: option.value,
+                      })
+                    }
                   >
                     {option.label}
                   </button>

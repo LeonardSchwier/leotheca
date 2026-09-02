@@ -69,6 +69,10 @@ describe("DEFAULT_WORKSPACE_SETTINGS", () => {
     expect(DEFAULT_WORKSPACE_SETTINGS.accentColor).toBe("warm");
     expect(DEFAULT_WORKSPACE_SETTINGS.snippetsEnabled).toBe(true);
   });
+
+  it("defaults heading links to on, per the opt-out policy for net-new functionality", () => {
+    expect(DEFAULT_WORKSPACE_SETTINGS.headingLinksEnabled).toBe(true);
+  });
 });
 
 describe("loadWorkspaceSettings", () => {

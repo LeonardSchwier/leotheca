@@ -144,6 +144,20 @@ export interface WorkspaceSettings {
   /** One snippet per line: `trigger<TAB>replacement`. Stored with the
    * workspace so reusable local writing patterns travel with it. */
   snippets: string;
+  /** Whether `[[wikilink]]` syntax is parsed through F04 Phase 1's
+   * structured grammar (see linking/wikiSyntax.ts and
+   * linking/wikiResolver.ts): heading fragments (`[[Note#Heading]]`,
+   * `[[#Heading]]`) and the `|Label` separator both resolve and render
+   * as designed, and Preview click navigation follows a resolved
+   * heading fragment to its target (spec
+   * spec/f04-heading-block-links-embeds.md, section 21 Phase 1). Off,
+   * `[[...]]` parses exactly as it did before this feature existed: the
+   * complete text between the brackets is used whole as the note name,
+   * with no `#`/`|` splitting at all. Defaults to on, per
+   * CONSTITUTION.md's "Daily competitor feature scan" opt-out policy for
+   * net-new functionality, matching every other feature flag in this
+   * file. */
+  headingLinksEnabled: boolean;
 }
 
 export const MIN_UI_ZOOM = 50;
@@ -178,6 +192,7 @@ export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   accentColor: "warm",
   snippetsEnabled: true,
   snippets: "todo\t- [ ] ",
+  headingLinksEnabled: true,
 };
 
 // Plain string join is intentional here (not a path-resolution API call):
@@ -350,6 +365,10 @@ export function decodeWorkspaceSettings(
     record.snippets,
     DEFAULT_WORKSPACE_SETTINGS.snippets,
   );
+  const headingLinksEnabled = decodeBoolean(
+    record.headingLinksEnabled,
+    DEFAULT_WORKSPACE_SETTINGS.headingLinksEnabled,
+  );
 
   // Only version 1 exists today. An unrecognized version is flagged as
   // corrupt (so it is never silently persisted back over) but its actual
@@ -382,6 +401,7 @@ export function decodeWorkspaceSettings(
     accentColor: accentColor.value,
     snippetsEnabled: snippetsEnabled.value,
     snippets: snippets.value,
+    headingLinksEnabled: headingLinksEnabled.value,
   } as unknown as WorkspaceSettings;
 
   const corrupt =
@@ -408,6 +428,7 @@ export function decodeWorkspaceSettings(
       accentColor,
       snippetsEnabled,
       snippets,
+      headingLinksEnabled,
     );
 
   return { settings, corrupt };

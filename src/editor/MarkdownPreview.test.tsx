@@ -15,6 +15,7 @@ import { MarkdownPreview } from "./MarkdownPreview";
 import { linkIndex } from "../linking/store";
 import { workspacePath } from "../settings/store";
 import { fileSrc } from "../workspace/tauriBridge";
+import { outlineRevealRequest } from "../outline/outlineNavigation";
 
 afterEach(() => {
   cleanup();
@@ -27,6 +28,7 @@ afterEach(() => {
     tagsByPath: new Map(),
   };
   workspacePath.value = null;
+  outlineRevealRequest.value = null;
   vi.mocked(fileSrc).mockReset();
 });
 
@@ -434,5 +436,212 @@ describe("MarkdownPreview: onDirectInteraction", () => {
     const preview = container.querySelector(".markdown-preview")!;
     expect(() => fireEvent.scroll(preview)).not.toThrow();
     expect(() => fireEvent.click(preview)).not.toThrow();
+  });
+});
+
+describe("MarkdownPreview: F04 Phase 1 heading links", () => {
+  it("renders [[Note|Label]] with the explicit label, resolved", () => {
+    linkIndex.value = {
+      backlinksByPath: new Map(),
+      pathsByNoteName: new Map([["existing note", ["/vault/existing-note.md"]]]),
+      pathsByAlias: new Map(),
+      aliasesByPath: new Map(),
+      pathsByTag: new Map(),
+      tagsByPath: new Map(),
+    };
+    const { container } = render(<MarkdownPreview source="[[Existing Note|see this]]" />);
+    const anchor = container.querySelector('a[href^="#leotheca-wikilink="]');
+    expect(anchor?.textContent).toBe("see this");
+    expect(anchor?.getAttribute("href")).toContain("resolved=1");
+  });
+
+  it("resolves a same-note [[#Heading]] link and shows the heading text as its label", () => {
+    const { container } = render(
+      <MarkdownPreview source={"# Intro\n\n## Milestones\n\nSee [[#Milestones]] below."} notePath="/vault/plan.md" />,
+    );
+    const anchor = container.querySelector('a[href^="#leotheca-wikilink="]');
+    expect(anchor?.textContent).toBe("Milestones");
+    expect(anchor?.getAttribute("href")).toContain("resolved=1");
+    expect(anchor?.getAttribute("href")).toContain("fragmentKind=heading");
+  });
+
+  it("clicking a resolved same-note heading link reveals that heading's exact range, without opening a note", () => {
+    const onOpenFile = vi.fn();
+    const source = "# Intro\n\n## Milestones\n\nSee [[#Milestones]] below.";
+    const { container } = render(
+      <MarkdownPreview source={source} notePath="/vault/plan.md" onOpenFile={onOpenFile} />,
+    );
+    const anchor = container.querySelector('a[href^="#leotheca-wikilink="]') as HTMLAnchorElement;
+    fireEvent.click(anchor);
+    expect(onOpenFile).not.toHaveBeenCalled();
+    expect(outlineRevealRequest.value?.from).toBe(source.indexOf("Milestones"));
+    expect(outlineRevealRequest.value?.to).toBe(source.indexOf("Milestones") + "Milestones".length);
+  });
+
+  it("renders a same-note heading link as missing, distinctly, when the heading does not exist", () => {
+    const { container } = render(
+      <MarkdownPreview source={"See [[#Nonexistent]] below."} notePath="/vault/plan.md" />,
+    );
+    const anchor = container.querySelector('a[href^="#leotheca-wikilink="]');
+    expect(anchor?.getAttribute("href")).not.toContain("resolved=1");
+    expect(anchor?.getAttribute("href")).toContain("headingStatus=missing");
+  });
+
+  it("does not reveal anything when clicking a same-note heading link that does not resolve", () => {
+    const { container } = render(
+      <MarkdownPreview source={"See [[#Nonexistent]] below."} notePath="/vault/plan.md" />,
+    );
+    const anchor = container.querySelector('a[href^="#leotheca-wikilink="]') as HTMLAnchorElement;
+    fireEvent.click(anchor);
+    expect(outlineRevealRequest.value).toBeNull();
+  });
+
+  it("renders a same-note heading link as ambiguous, not resolved to the first occurrence, for duplicate headings", () => {
+    const { container } = render(
+      <MarkdownPreview
+        source={"## Design\n\ntext\n\n## Design\n\nSee [[#Design]] above."}
+        notePath="/vault/plan.md"
+      />,
+    );
+    const anchor = container.querySelector('a[href^="#leotheca-wikilink="]');
+    expect(anchor?.getAttribute("href")).not.toContain("resolved=1");
+    expect(anchor?.getAttribute("href")).toContain("headingStatus=ambiguous");
+  });
+
+  it("does not reveal anything when clicking an ambiguous same-note heading link", () => {
+    const { container } = render(
+      <MarkdownPreview
+        source={"## Design\n\ntext\n\n## Design\n\nSee [[#Design]] above."}
+        notePath="/vault/plan.md"
+      />,
+    );
+    const anchor = container.querySelector('a[href^="#leotheca-wikilink="]') as HTMLAnchorElement;
+    fireEvent.click(anchor);
+    expect(outlineRevealRequest.value).toBeNull();
+  });
+
+  it("resolves a cross-note [[Note#Heading]] link at the note level, styled as resolved", () => {
+    linkIndex.value = {
+      backlinksByPath: new Map(),
+      pathsByNoteName: new Map([["project plan", ["/vault/project-plan.md"]]]),
+      pathsByAlias: new Map(),
+      aliasesByPath: new Map(),
+      pathsByTag: new Map(),
+      tagsByPath: new Map(),
+    };
+    const { container } = render(<MarkdownPreview source="[[Project Plan#Milestones]]" />);
+    const anchor = container.querySelector('a[href^="#leotheca-wikilink="]');
+    expect(anchor?.getAttribute("href")).toContain("resolved=1");
+    // The cross-note heading itself is not verified during this render
+    // pass (see MarkdownPreview.tsx's renderWikilinksStructured doc
+    // comment): no explicit headingStatus is claimed for it.
+    expect(anchor?.getAttribute("href")).not.toContain("headingStatus=");
+  });
+
+  it("clicking a resolved cross-note heading link opens the note and passes the heading key through onOpenFile", () => {
+    linkIndex.value = {
+      backlinksByPath: new Map(),
+      pathsByNoteName: new Map([["project plan", ["/vault/project-plan.md"]]]),
+      pathsByAlias: new Map(),
+      aliasesByPath: new Map(),
+      pathsByTag: new Map(),
+      tagsByPath: new Map(),
+    };
+    const onOpenFile = vi.fn();
+    const { container } = render(
+      <MarkdownPreview source="[[Project Plan#Milestones]]" onOpenFile={onOpenFile} />,
+    );
+    const anchor = container.querySelector('a[href^="#leotheca-wikilink="]') as HTMLAnchorElement;
+    fireEvent.click(anchor);
+    expect(onOpenFile).toHaveBeenCalledWith("/vault/project-plan.md", "project-plan.md", {
+      headingKey: "Milestones",
+    });
+  });
+
+  it("does not call onOpenFile for a cross-note heading link whose note does not resolve", () => {
+    const onOpenFile = vi.fn();
+    const { container } = render(
+      <MarkdownPreview source="[[Missing Note#Heading]]" onOpenFile={onOpenFile} />,
+    );
+    const anchor = container.querySelector('a[href^="#leotheca-wikilink="]') as HTMLAnchorElement;
+    fireEvent.click(anchor);
+    expect(onOpenFile).not.toHaveBeenCalled();
+  });
+
+  it("leaves a malformed [[Note#]] (empty fragment) as literal text, not a link", () => {
+    const { container } = render(<MarkdownPreview source="See [[Note#]] here." />);
+    expect(container.querySelector('a[href^="#leotheca-wikilink="]')).toBeNull();
+    expect(container.textContent).toContain("[[Note#]]");
+  });
+
+  describe("legacy compatibility fallback", () => {
+    it("resolves a literal filename containing a raw # as a plain whole-note link", () => {
+      linkIndex.value = {
+        backlinksByPath: new Map(),
+        pathsByNoteName: new Map([["foo#1", ["/vault/foo#1.md"]]]),
+        pathsByAlias: new Map(),
+        aliasesByPath: new Map(),
+        pathsByTag: new Map(),
+        tagsByPath: new Map(),
+      };
+      const { container } = render(<MarkdownPreview source="[[Foo#1]]" />);
+      const anchor = container.querySelector('a[href^="#leotheca-wikilink="]');
+      expect(anchor?.textContent).toBe("Foo#1");
+      expect(anchor?.getAttribute("href")).toContain("resolved=1");
+      expect(anchor?.getAttribute("href")).not.toContain("fragmentKind=");
+    });
+
+    it("clicking a legacy-fallback link opens the note with no heading key", () => {
+      linkIndex.value = {
+        backlinksByPath: new Map(),
+        pathsByNoteName: new Map([["foo#1", ["/vault/foo#1.md"]]]),
+        pathsByAlias: new Map(),
+        aliasesByPath: new Map(),
+        pathsByTag: new Map(),
+        tagsByPath: new Map(),
+      };
+      const onOpenFile = vi.fn();
+      const { container } = render(<MarkdownPreview source="[[Foo#1]]" onOpenFile={onOpenFile} />);
+      const anchor = container.querySelector('a[href^="#leotheca-wikilink="]') as HTMLAnchorElement;
+      fireEvent.click(anchor);
+      expect(onOpenFile).toHaveBeenCalledWith("/vault/foo#1.md", "foo#1.md");
+    });
+  });
+
+  describe("headingLinksEnabled=false (feature flag off)", () => {
+    it("treats the whole [[Note#Heading]] text as a note name, exactly like before this feature existed", () => {
+      const { container } = render(
+        <MarkdownPreview source="[[Note#Heading]]" headingLinksEnabled={false} />,
+      );
+      const anchor = container.querySelector('a[href^="#leotheca-wikilink="]');
+      expect(anchor?.textContent).toBe("Note#Heading");
+      expect(anchor?.getAttribute("href")).not.toContain("fragmentKind=");
+    });
+
+    it("treats [[Note|Label]] as an unresolved whole note name, not a label separator", () => {
+      const { container } = render(
+        <MarkdownPreview source="[[Note|Label]]" headingLinksEnabled={false} />,
+      );
+      const anchor = container.querySelector('a[href^="#leotheca-wikilink="]');
+      expect(anchor?.textContent).toBe("Note|Label");
+    });
+
+    it("clicking a plain link still opens the note when the flag is off", () => {
+      linkIndex.value = {
+        backlinksByPath: new Map(),
+        pathsByNoteName: new Map([["existing note", ["/vault/existing-note.md"]]]),
+        pathsByAlias: new Map(),
+        aliasesByPath: new Map(),
+        pathsByTag: new Map(),
+        tagsByPath: new Map(),
+      };
+      const onOpenFile = vi.fn();
+      const { container } = render(
+        <MarkdownPreview source="[[Existing Note]]" headingLinksEnabled={false} onOpenFile={onOpenFile} />,
+      );
+      const anchor = container.querySelector('a[href^="#leotheca-wikilink="]') as HTMLAnchorElement;
+      fireEvent.click(anchor);
+      expect(onOpenFile).toHaveBeenCalledWith("/vault/existing-note.md", "existing-note.md");
+    });
   });
 });

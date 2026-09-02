@@ -130,7 +130,18 @@ const { openOrFocusTab, openTabs, activeTabPath } =
   await import("../workspace/store");
 const { settingsPanelOpen, workspacePath, workspaceSettings, viewMode } =
   await import("../settings/store");
+const { linkIndex } = await import("../linking/store");
+const { outlineRevealRequest } = await import("../outline/outlineNavigation");
 const defaultViewportWidth = window.innerWidth;
+
+const emptyLinkIndex = () => ({
+  backlinksByPath: new Map<string, string[]>(),
+  pathsByNoteName: new Map<string, string[]>(),
+  pathsByAlias: new Map<string, string[]>(),
+  aliasesByPath: new Map<string, string[]>(),
+  pathsByTag: new Map<string, string[]>(),
+  tagsByPath: new Map<string, string[]>(),
+});
 
 afterEach(() => {
   cleanup();
@@ -141,6 +152,8 @@ afterEach(() => {
   workspacePath.value = null;
   workspaceSettings.value = DEFAULT_WORKSPACE_SETTINGS;
   viewMode.value = "source";
+  linkIndex.value = emptyLinkIndex();
+  outlineRevealRequest.value = null;
   updateWorkspaceSettingsSpy.mockClear();
   Object.defineProperty(window, "innerWidth", {
     configurable: true,
@@ -360,5 +373,62 @@ describe("App: Split-mode breadcrumb authority (spec section 7.5)", () => {
     expect(
       getByRole("navigation", { name: "Breadcrumb (following Source)" }),
     ).toBeTruthy();
+  });
+});
+
+describe("App: F04 Phase 1 cross-note heading-link navigation", () => {
+  it("opens the target note and reveals the resolved heading from its freshly-read content", async () => {
+    linkIndex.value = {
+      ...emptyLinkIndex(),
+      pathsByNoteName: new Map([["second", ["/vault/second.md"]]]),
+    };
+    viewMode.value = "split";
+    workspacePath.value = "/vault";
+    const targetContent = "# Intro\n\n## Target\n\ntext";
+    readTextFile.mockResolvedValue(targetContent);
+    openOrFocusTab("/vault/first.md", "first.md", "See [[Second#Target]] over there.", "text");
+    const { container } = render(<App />);
+
+    const anchor = container.querySelector(
+      'a[href^="#leotheca-wikilink="]',
+    ) as HTMLAnchorElement;
+    expect(anchor).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.click(anchor);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(activeTabPath.value).toBe("/vault/second.md");
+    expect(outlineRevealRequest.value?.from).toBe(targetContent.indexOf("Target"));
+    expect(outlineRevealRequest.value?.to).toBe(
+      targetContent.indexOf("Target") + "Target".length,
+    );
+  });
+
+  it("does not request a reveal when the freshly-read target note has no matching heading", async () => {
+    linkIndex.value = {
+      ...emptyLinkIndex(),
+      pathsByNoteName: new Map([["second", ["/vault/second.md"]]]),
+    };
+    viewMode.value = "split";
+    workspacePath.value = "/vault";
+    readTextFile.mockResolvedValue("# Intro\n\nno such heading here");
+    openOrFocusTab("/vault/first.md", "first.md", "See [[Second#Target]] over there.", "text");
+    const { container } = render(<App />);
+
+    const anchor = container.querySelector(
+      'a[href^="#leotheca-wikilink="]',
+    ) as HTMLAnchorElement;
+
+    await act(async () => {
+      fireEvent.click(anchor);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(activeTabPath.value).toBe("/vault/second.md");
+    expect(outlineRevealRequest.value).toBeNull();
   });
 });

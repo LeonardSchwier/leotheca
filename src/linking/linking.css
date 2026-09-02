@@ -29,3 +29,17 @@
   color: var(--accent);
   text-decoration-style: solid;
 }
+
+/* F04 Phase 1: a same-note [[#Heading]] link whose heading exists in more
+ * than one place (spec section 6.3, "ambiguous, not resolved by order")
+ * still resolves the note but not a specific heading, so it keeps the
+ * dashed unresolved look above even if the note-level lookup found
+ * something; this rule only needs to cover the case where resolved=1 is
+ * NOT already present (note-only links use the plain unresolved style).
+ * A missing heading in an otherwise-resolved note gets the same
+ * treatment: distinct from a fully broken note-link, but still not a
+ * confident "go here" link. */
+.markdown-preview a[href*="headingStatus=missing"],
+.markdown-preview a[href*="headingStatus=ambiguous"] {
+  text-decoration-style: dotted;
+}

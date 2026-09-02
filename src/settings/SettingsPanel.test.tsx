@@ -213,6 +213,21 @@ describe("SettingsPanel", () => {
     });
   });
 
+  it("shows and wires the heading links switch", () => {
+    workspacePath.value = "/vault";
+    workspaceSettings.value = {
+      ...DEFAULT_WORKSPACE_SETTINGS,
+      headingLinksEnabled: true,
+    };
+    const { getByText } = render(<SettingsPanel />);
+    const row = getByText("Heading links").closest(".settings-row") as HTMLElement;
+    expect(within(row).getByText("On").className).toContain("active");
+    fireEvent.click(within(row).getByText("Off"));
+    expect(updateWorkspaceSettings).toHaveBeenCalledWith({
+      headingLinksEnabled: false,
+    });
+  });
+
   it("wires the attachments folder text input", () => {
     workspacePath.value = "/vault";
     const { getByPlaceholderText } = render(<SettingsPanel />);

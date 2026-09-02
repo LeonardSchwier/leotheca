@@ -1,4 +1,4 @@
-import { effect, signal, useSignal } from "@preact/signals";
+import { batch, effect, signal, useSignal } from "@preact/signals";
 import { useCallback, useEffect, useMemo, useState } from "preact/hooks";
 import type { ComponentType } from "preact";
 import { Capacitor } from "@capacitor/core";
@@ -45,6 +45,8 @@ import { OutlinePanel } from "../outline/OutlinePanel";
 import { outlineRevealRequest, requestOutlineReveal } from "../outline/outlineNavigation";
 import { HeadingBreadcrumbs } from "../outline/HeadingBreadcrumbs";
 import { nextSplitAuthority, type SplitAuthority } from "../outline/splitAuthority";
+import { scanHeadings } from "../markdown/headings";
+import { resolveHeadingFragment } from "../linking/wikiResolver";
 import {
   linkIndexBuilding,
   linkIndexUnreadablePaths,
@@ -255,13 +257,42 @@ export function App() {
   }, [tick]);
 
   const handleOpenFile = useCallback(
-    async (path: string, name: string) => {
+    /**
+     * `options.headingKey` (F04 Phase 1, see MarkdownPreview.tsx's
+     * `onOpenFile` doc comment) is the raw heading text a resolved
+     * cross-note `[[Note#Heading]]` Preview link named. It's resolved
+     * here, against the content this function just read to open the
+     * tab, rather than in MarkdownPreview: this is the one place that
+     * already reads the target note's fresh content, and the note-open
+     * (`openOrFocusTab`) and the outline reveal request are batched into
+     * one signal update together so MarkdownEditor's `reveal` effect
+     * (keyed only on the `reveal` prop's identity) never fires against
+     * the *previous* note's still-displayed content in between. A
+     * heading that turns out missing or ambiguous in the freshly-read
+     * note is a silent no-op reveal: the note still opens, matching spec
+     * section 10.4's "open the note if its path still resolves."
+     */
+    async (path: string, name: string, options?: { headingKey?: string }) => {
       const kind = classifyWorkspaceResource(path);
       if (kind === "image") {
         openOrFocusTab(path, name, "", "image");
       } else {
         const content = await readTextFile(path);
-        openOrFocusTab(path, name, content, kind);
+        // An already-open tab keeps its own (possibly unsaved, dirty)
+        // content; openOrFocusTab only focuses it rather than
+        // overwriting it with what's on disk. Reveal against whichever
+        // content is actually about to be displayed, not the disk read.
+        const existingTab = openTabs.value.find((tab) => tab.path === path);
+        const effectiveContent = existingTab?.content ?? content;
+        batch(() => {
+          openOrFocusTab(path, name, content, kind);
+          if (options?.headingKey) {
+            const match = resolveHeadingFragment(scanHeadings(effectiveContent), options.headingKey);
+            if (match.status === "resolved") {
+              requestOutlineReveal(match.heading.contentFrom, match.heading.contentTo);
+            }
+          }
+        });
       }
       if (isNarrowViewport(window.innerWidth)) sidebarOpen.value = false;
       refresh();
@@ -790,6 +821,7 @@ export function App() {
                       source={current.content}
                       onOpenFile={handleOpenFile}
                       mathRenderingEnabled={workspaceSettings.value.mathRenderingEnabled}
+                      headingLinksEnabled={workspaceSettings.value.headingLinksEnabled}
                       notePath={current.path}
                       onActiveHeadingChange={setPreviewActiveIndex}
                       onDirectInteraction={() =>

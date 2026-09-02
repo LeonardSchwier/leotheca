@@ -24,5 +24,6 @@
 - The Outline panel and heading breadcrumbs now have full-size touch targets on narrow screens and a visible keyboard focus ring.
 - Keyboard focus now shows a visible outline on buttons, tabs, sidebar rows, and dialogs throughout the app, not just a few places; some browsers previously drew no focus indicator at all on these.
 - Fixed a rare crash where a corrupted or hand-edited wikilink index cache file could abort indexing the whole workspace instead of just re-reading the one affected note.
+- Wikilinks can now point at a specific heading, not just a whole note: `[[Note#Heading]]` links to a heading in another note, and `[[#Heading]]` links to a heading in the current note. Clicking one in Preview jumps straight to that heading. `[[Note|Custom text]]` (a link that shows different text than the note's name) also works correctly now. A heading that can't be found, or that matches more than one heading with the same name, is shown distinctly from a link to a missing note entirely. This can be turned off in Settings to go back to the previous plain wikilink behavior.
 
 Entries will accumulate here from the first tagged release onward.

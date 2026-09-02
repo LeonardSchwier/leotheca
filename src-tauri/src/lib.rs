@@ -1,4 +1,5 @@
 mod commands;
+mod workspace_mutations;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -45,6 +46,10 @@ pub fn run() {
             commands::create_workspace_dir,
             commands::rename_workspace_path,
             commands::delete_workspace_path_permanent,
+            workspace_mutations::create_workspace_text_file_new,
+            workspace_mutations::create_workspace_binary_file_new,
+            workspace_mutations::create_workspace_dir_new,
+            workspace_mutations::rename_workspace_path_no_replace,
             commands::workspace_stats,
         ])
         .run(tauri::generate_context!())

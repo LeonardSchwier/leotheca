@@ -12,7 +12,10 @@ import {
   type CompletionContext,
   type CompletionResult,
 } from "@codemirror/autocomplete";
-import { linkIndex } from "../linking/store";
+import { linkIndex, resolveWikilink } from "../linking/store";
+import { escapeWikiLinkText } from "../linking/wikiSyntax";
+import { scanHeadings, type HeadingRecord } from "../markdown/headings";
+import { readTextFile } from "../workspace/tauriBridge";
 import { livePreviewExtension } from "./livePreview";
 import { attachmentsInsertText, type PastedOrDroppedFile } from "./attachments";
 import { minimalChange } from "./textDiff";
@@ -51,9 +54,15 @@ export interface MarkdownEditorProps {
  * typing `[[`, sourced from the same link index the backlinks panel and
  * preview link resolution already build (see src/linking/store.ts). Only
  * offers already-existing notes; there is no "create a new note from
- * here" affordance yet. */
+ * here" affordance yet.
+ *
+ * Stops matching once a `#` appears in the bracket contents (F04 Phase 2):
+ * past that point, `[[Note#` is the start of a heading-link fragment (see
+ * headingLinkCompletions below), not a note name still being typed, and a
+ * note name can never itself contain `#` (spec/f04-heading-block-links-
+ * embeds.md section 5.2 reserves it as the fragment separator). */
 export function wikilinkCompletions(context: CompletionContext): CompletionResult | null {
-  const match = context.matchBefore(/\[\[([^[\]\n]*)$/);
+  const match = context.matchBefore(/\[\[([^[\]\n#]*)$/);
   if (!match) return null;
 
   const query = match.text.slice(2).toLowerCase();
@@ -77,6 +86,93 @@ export function wikilinkCompletions(context: CompletionContext): CompletionResul
 
   if (options.length === 0) return null;
   return { from, options, filter: false };
+}
+
+/** Matches the trigger point for F04 Phase 2's heading completion: `[[`,
+ * an optional note-name portion (no `[`, `]`, newline, or `#`, mirroring
+ * wikilinkCompletions' own note-name character class above), a `#`, then
+ * the heading text typed so far. The `(?!\^)` right after the `#` excludes
+ * a block-reference fragment (`[[Note#^block-id]]`, spec section 7): block
+ * completion is explicitly out of scope for this phase (see the F04
+ * Phases 3-5 follow-up in ROADMAP.md), so typing `^` there simply shows no
+ * heading suggestions rather than misclassifying it as a heading query. */
+const HEADING_LINK_TRIGGER = /\[\[([^[\]\n#]*)#(?!\^)([^[\]\n]*)$/;
+
+/** Builds one heading-completion option, escaping the heading's own
+ * display text (spec section 6.2's "visible heading text") through
+ * wikiSyntax.ts's escapeWikiLinkText so a heading literally containing
+ * `#`, `|`, `[`, `]`, or `\` still round-trips correctly through
+ * parseWikiLinks once inserted, rather than being reinterpreted as a
+ * second delimiter. `detail` surfaces spec section 9.2's level, line
+ * number, and duplicate-heading warning; full breadcrumb ancestry display
+ * is not implemented in this phase (disclosed scope narrowing, see
+ * ROADMAP.md's F04 Phase 2 entry). */
+function headingCompletionOption(heading: HeadingRecord, isDuplicate: boolean) {
+  return {
+    label: heading.displayText,
+    apply: `${escapeWikiLinkText(heading.displayText)}]]`,
+    type: "text",
+    detail: `H${heading.level} · line ${heading.line}${isDuplicate ? " · duplicate" : ""}`,
+  };
+}
+
+/**
+ * Suggests headings for a `[[Note#` (or same-note `[[#`) heading-link
+ * fragment being typed, reusing the shared heading scanner
+ * (markdown/headings.ts) rather than a second matching implementation, per
+ * this claim's own scope instruction. `path` is this editor's own open
+ * note: an empty note portion (`[[#`), or a note portion that resolves to
+ * this exact path, suggests headings from the live, possibly-unsaved
+ * document (`context.state.doc`) directly, matching spec section 9.2's
+ * "for the current unsaved note, headings come from the canonical
+ * in-memory scanner result." A different, already-existing note is read
+ * fresh from disk on every trigger (no headings cache exists yet, a
+ * disclosed scope narrowing, not the "workspace metadata index" section
+ * 9.2 describes); a note that doesn't resolve at all, or that fails to
+ * read, yields no suggestions rather than an error.
+ */
+export function headingLinkCompletions(path: string) {
+  return async function (context: CompletionContext): Promise<CompletionResult | null> {
+    const match = context.matchBefore(HEADING_LINK_TRIGGER);
+    if (!match) return null;
+    const groups = HEADING_LINK_TRIGGER.exec(match.text);
+    if (!groups) return null;
+    const [, noteName, headingQuery] = groups;
+    const from = context.pos - headingQuery.length;
+
+    let headings: HeadingRecord[];
+    if (noteName === "") {
+      headings = scanHeadings(context.state.doc.toString());
+    } else {
+      const targetPath = resolveWikilink(noteName);
+      if (!targetPath) return null;
+      if (targetPath === path) {
+        headings = scanHeadings(context.state.doc.toString());
+      } else {
+        try {
+          headings = scanHeadings(await readTextFile(targetPath));
+        } catch {
+          // Unreadable target note (deleted, permission change, a sync
+          // tool mid-write): no suggestions, same as a note that doesn't
+          // resolve at all, rather than surfacing a completion-popup error.
+          return null;
+        }
+      }
+    }
+
+    const query = headingQuery.trim().toLowerCase();
+    const occurrenceCounts = new Map<string, number>();
+    for (const heading of headings) {
+      occurrenceCounts.set(heading.key, (occurrenceCounts.get(heading.key) ?? 0) + 1);
+    }
+
+    const options = headings
+      .filter((heading) => heading.displayText.toLowerCase().includes(query))
+      .map((heading) => headingCompletionOption(heading, (occurrenceCounts.get(heading.key) ?? 0) > 1));
+
+    if (options.length === 0) return null;
+    return { from, options, filter: false };
+  };
 }
 
 async function fileToBytes(file: File): Promise<Uint8Array> {
@@ -199,7 +295,7 @@ function buildExtensions(
     lineNumbers(),
     highlightActiveLine(),
     history(),
-    autocompletion({ override: [wikilinkCompletions] }),
+    autocompletion({ override: [wikilinkCompletions, headingLinkCompletions(path)] }),
     keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap, ...completionKeymap]),
     markdown({ codeLanguages: languages }),
     syntaxHighlighting(defaultHighlightStyle, { fallback: true }),

@@ -203,6 +203,112 @@ describe("buildLiveDecorations: wikilinks", () => {
   });
 });
 
+describe("buildLiveDecorations: heading-links (F04 Phase 2)", () => {
+  beforeEach(() => {
+    linkIndex.value = {
+      backlinksByPath: new Map(),
+      pathsByNoteName: new Map([["beta", ["/workspace/Beta.md"]]]),
+      pathsByAlias: new Map(),
+      aliasesByPath: new Map(),
+      pathsByTag: new Map(),
+      tagsByPath: new Map(),
+      tasksByPath: new Map(),
+    };
+  });
+
+  it("styles a same-note [[#Heading]] link as resolved when the heading exists", () => {
+    const doc = "# Intro\n\nSee [[#Intro]] here.\n\nOther line.";
+    const state = stateFor(doc, { anchor: doc.length });
+    const { hidden, marked } = summarize(state);
+    expect(hidden).toContain("[[");
+    expect(hidden).toContain("]]");
+    expect(marked).toContainEqual({ text: "[[#Intro]]", class: "cm-live-wikilink-resolved" });
+  });
+
+  it("styles a same-note [[#Heading]] link as heading-missing when no heading matches", () => {
+    const doc = "# Intro\n\nSee [[#Nope]] here.\n\nOther line.";
+    const state = stateFor(doc, { anchor: doc.length });
+    const { marked } = summarize(state);
+    expect(marked).toContainEqual({ text: "[[#Nope]]", class: "cm-live-wikilink-heading-missing" });
+  });
+
+  it("styles a same-note [[#Heading]] link as heading-ambiguous when more than one heading shares the name", () => {
+    const doc = "# Intro\n\n# Intro\n\nSee [[#Intro]] here.\n\nOther line.";
+    const state = stateFor(doc, { anchor: doc.length });
+    const { marked } = summarize(state);
+    expect(marked).toContainEqual({ text: "[[#Intro]]", class: "cm-live-wikilink-heading-ambiguous" });
+  });
+
+  it("styles a cross-note [[Note#Heading]] link as resolved once the note exists, without verifying the heading", () => {
+    // "Nonexistent Heading" is never scanned anywhere: this phase does not
+    // read Beta.md's content just to decorate Source mode, matching
+    // MarkdownPreview's own disclosed cross-note scope narrowing.
+    const doc = "See [[Beta#Nonexistent Heading]] here.\n\nOther line.";
+    const state = stateFor(doc, { anchor: doc.length });
+    const { marked } = summarize(state);
+    expect(marked).toContainEqual({ text: "[[Beta#Nonexistent Heading]]", class: "cm-live-wikilink-resolved" });
+  });
+
+  it("styles a cross-note [[Note#Heading]] link as broken when the note itself does not exist", () => {
+    const doc = "See [[Nope#Heading]] here.\n\nOther line.";
+    const state = stateFor(doc, { anchor: doc.length });
+    const { marked } = summarize(state);
+    expect(marked).toContainEqual({ text: "[[Nope#Heading]]", class: "cm-live-wikilink-broken" });
+  });
+
+  it("keeps the [[ ]] markers visible while actively editing a heading-link's own line", () => {
+    const doc = "# Intro\n\nSee [[#Intro]] here.";
+    const state = stateFor(doc, { anchor: 20 });
+    const { hidden } = summarize(state);
+    expect(hidden).not.toContain("[[");
+    expect(hidden).not.toContain("]]");
+  });
+
+  it("decorates a heading-link exactly once, never also with a plain-wikilink class", () => {
+    const doc = "# Intro\n\nSee [[#Intro]] here.\n\nOther line.";
+    const state = stateFor(doc, { anchor: doc.length });
+    const { marked } = summarize(state);
+    const forThisLink = marked.filter((m) => m.text === "[[#Intro]]");
+    expect(forThisLink).toHaveLength(1);
+  });
+
+  it("does not treat a heading-link inside an inline code span as a real link", () => {
+    const doc = "# Intro\n\nUse `[[#Intro]]` literally.\n\nOther line.";
+    const state = stateFor(doc, { anchor: doc.length });
+    const { hidden, marked } = summarize(state);
+    expect(hidden).not.toContain("[[");
+    expect(marked).not.toContainEqual({ text: "[[#Intro]]", class: "cm-live-wikilink-resolved" });
+  });
+
+  it("leaves a plain [[Note]] link's own decoration unaffected alongside a heading-link in the same document", () => {
+    const doc = "# Intro\n\nSee [[Beta]] and [[#Intro]] here.\n\nOther line.";
+    const state = stateFor(doc, { anchor: doc.length });
+    const { marked } = summarize(state);
+    expect(marked).toContainEqual({ text: "[[Beta]]", class: "cm-live-wikilink-resolved" });
+    expect(marked).toContainEqual({ text: "[[#Intro]]", class: "cm-live-wikilink-resolved" });
+  });
+
+  it("leaves a block-reference fragment ([[Note#^block-id]]) to the existing plain-wikilink pass, out of this phase's scope", () => {
+    const doc = "See [[Beta#^some-block]] here.\n\nOther line.";
+    const state = stateFor(doc, { anchor: doc.length });
+    const { marked } = summarize(state);
+    // The whole bracket contents ("Beta#^some-block") is not a resolvable
+    // note name, so the pre-existing regex path marks it broken; this
+    // phase must not reclassify it as a heading-link state.
+    expect(marked).toContainEqual({ text: "[[Beta#^some-block]]", class: "cm-live-wikilink-broken" });
+  });
+
+  it("finds a heading-link within the visible lines without scanning the rest of the document", () => {
+    const doc = "# Intro\n\n[[#Intro]]\n\nOther content";
+    const state = stateFor(doc, { anchor: doc.length });
+    const linkStart = doc.indexOf("[[#Intro]]");
+    const { hidden, marked } = summarize(state, { from: linkStart, to: linkStart + "[[#Intro]]".length });
+
+    expect(hidden).toEqual(expect.arrayContaining(["[[", "]]"]));
+    expect(marked).toContainEqual({ text: "[[#Intro]]", class: "cm-live-wikilink-resolved" });
+  });
+});
+
 describe("buildLiveDecorations: multiple cursors", () => {
   it("keeps a line's markup visible if any selection range (not just the first) touches it", () => {
     const doc = "# One\n\n# Two";

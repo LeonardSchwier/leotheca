@@ -1,0 +1,42 @@
+name: Probe F09 forward integration
+
+on:
+  push:
+    branches:
+      - agent/f09-phase1-collections
+    paths:
+      - .github/workflows/f09-forward-integrate.yml
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Test merge with current main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name Leonardschwier
+          git config user.email github@leonardschwier.de
+          git fetch origin main
+          if git merge --no-ff --no-commit origin/main; then
+            git rm .github/workflows/f09-forward-integrate.yml
+            git commit -m "Forward integrate F09 Phase 1 with current main"
+            git push origin HEAD:agent/f09-phase1-collections
+            exit 0
+          fi
+
+          echo "Merge conflicts follow"
+          git diff --name-only --diff-filter=U
+          for file in $(git diff --name-only --diff-filter=U); do
+            echo "===== $file ====="
+            git checkout --conflict=diff3 -- "$file"
+            cat "$file"
+          done
+          git merge --abort
+          exit 1

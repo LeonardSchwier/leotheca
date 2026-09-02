@@ -1244,6 +1244,8 @@ describe("rebuildLinkIndex: wikiLinksByPath/headingsByPath (F03 Phase 1)", () =>
               aliases: [],
               tags: [],
               tasks: [],
+              hasFrontmatter: false,
+              frontmatterProperties: [],
               // Missing required numeric source-range fields.
               wikiLinks: [{ kind: "link", raw: "[[b]]", noteTarget: "b" }],
               headings: [],
@@ -1257,6 +1259,40 @@ describe("rebuildLinkIndex: wikiLinksByPath/headingsByPath (F03 Phase 1)", () =>
     await expect(rebuildLinkIndex("/workspace")).resolves.toBeUndefined();
 
     expect(readTextFile).toHaveBeenCalledWith("/workspace/a.md");
+    expect(linkIndexUnreadablePaths.value).toEqual([]);
+  });
+
+  it("drops a persisted cache entry with a malformed frontmatterProperties field, forcing a real re-read", async () => {
+    findMarkdownFiles.mockResolvedValue([
+      { name: "a.md", path: "/workspace/a.md", isDir: false, mtime: 1000, size: 5 },
+    ]);
+    readTextFile.mockImplementation(async (path: string) => {
+      if (path === CACHE_PATH) {
+        return JSON.stringify({
+          version: 6,
+          entries: {
+            "/workspace/a.md": {
+              mtime: 1000,
+              size: 5,
+              wikilinks: [],
+              aliases: [],
+              tags: [],
+              tasks: [],
+              hasFrontmatter: true,
+              frontmatterProperties: [{ kind: "scalar", key: "x" }], // missing required fields
+              wikiLinks: [],
+              headings: [],
+            },
+          },
+        });
+      }
+      return "---\nx: 1\n---\n";
+    });
+
+    await expect(rebuildLinkIndex("/workspace")).resolves.toBeUndefined();
+
+    expect(readTextFile).toHaveBeenCalledWith("/workspace/a.md");
+    expect(linkIndex.value.frontmatterPropertiesByPath?.get("/workspace/a.md")).toHaveLength(1);
     expect(linkIndexUnreadablePaths.value).toEqual([]);
   });
 
@@ -1276,13 +1312,8 @@ describe("rebuildLinkIndex: wikiLinksByPath/headingsByPath (F03 Phase 1)", () =>
               aliases: [],
               tags: [],
               tasks: [],
-              hasFrontmatter: true,
-              frontmatterProperties: [{ kind: "scalar", key: "x" }], // missing required fields
-            },
-          },
-        });
-      }
-      return "---\nx: 1\n---\n";
+              hasFrontmatter: false,
+              frontmatterProperties: [],
               wikiLinks: [],
               // level out of the valid 1-6 range.
               headings: [{ key: "x", occurrence: 1, level: 9, rawText: "X", displayText: "X", sourceFrom: 0, sourceTo: 1, contentFrom: 0, contentTo: 1, line: 1, column: 1, sectionFrom: 0, sectionTo: 1, childIndexes: [] }],
@@ -1296,7 +1327,6 @@ describe("rebuildLinkIndex: wikiLinksByPath/headingsByPath (F03 Phase 1)", () =>
     await expect(rebuildLinkIndex("/workspace")).resolves.toBeUndefined();
 
     expect(readTextFile).toHaveBeenCalledWith("/workspace/a.md");
-    expect(linkIndex.value.frontmatterPropertiesByPath?.get("/workspace/a.md")).toHaveLength(1);
     expect(linkIndexUnreadablePaths.value).toEqual([]);
   });
 });

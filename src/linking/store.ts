@@ -362,7 +362,7 @@ function isValidCachedNote(raw: unknown): raw is CachedNote {
     record.tasks.every(isValidTaskRecord) &&
     typeof record.hasFrontmatter === "boolean" &&
     Array.isArray(record.frontmatterProperties) &&
-    record.frontmatterProperties.every(isValidFrontmatterProperty)
+    record.frontmatterProperties.every(isValidFrontmatterProperty) &&
     Array.isArray(record.wikiLinks) &&
     record.wikiLinks.every(isValidWikiLinkRecord) &&
     Array.isArray(record.headings) &&

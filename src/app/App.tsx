@@ -55,6 +55,7 @@ import { BookmarksPanel } from "../bookmarks/BookmarksPanel";
 import { addFileBookmark, bookmarks, loadBookmarks, removeBookmark } from "../bookmarks/store";
 import { resetWorkspaceTree } from "../workspace/fileTreeStore";
 import { TagsPanel } from "../tags/TagsPanel";
+import { TaskHubPanel } from "../tasks/TaskHubPanel";
 import {
   createNoteFromTemplate,
   createCanvasQuick,
@@ -119,6 +120,16 @@ function GraphIcon() {
   );
 }
 
+function TaskIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="3" width="6" height="6" rx="1" />
+      <path d="M4.5 6l1 1 2-2" stroke-width="1.2" />
+      <path d="M12 6h5M3 14h6M12 14h5" />
+    </svg>
+  );
+}
+
 function OutlineIcon() {
   return (
     <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
@@ -171,6 +182,7 @@ const VIEW_MODE_ICONS: Record<ViewMode, ComponentType> = {
 
 const bookmarksOpen = signal(false);
 const tagsOpen = signal(false);
+const taskHubOpen = signal(false);
 const graphOpen = signal(false);
 // Unlike bookmarksOpen/tagsOpen, this does not swap out the file tree: the
 // outline is per-note context like BacklinksPanel, not a workspace-wide
@@ -185,6 +197,7 @@ function toggleSidebarPanel(panel: typeof bookmarksOpen): void {
   const next = !panel.value;
   bookmarksOpen.value = false;
   tagsOpen.value = false;
+  taskHubOpen.value = false;
   panel.value = next;
   if (next) sidebarOpen.value = true;
 }
@@ -416,6 +429,17 @@ export function App() {
     }
   };
 
+  const openTaskHubPanel = () => {
+    toggleSidebarPanel(taskHubOpen);
+    if (taskHubOpen.value && rootPath) {
+      void rebuildLinkIndex(
+        rootPath,
+        workspaceSettings.value.frontmatterAliasesEnabled,
+        workspaceSettings.value.tagsEnabled,
+      );
+    }
+  };
+
   const commands = useMemo<Command[]>(() => {
     const list: Command[] = [
       {
@@ -437,6 +461,11 @@ export function App() {
             },
           ]
         : []),
+      {
+        id: "toggle-task-hub",
+        label: taskHubOpen.value ? "Hide Task Hub" : "Open Task Hub",
+        run: openTaskHubPanel,
+      },
       {
         id: "markdown-help",
         label: "Markdown formatting help",
@@ -526,6 +555,7 @@ export function App() {
     sidebarOpen.value,
     bookmarksOpen.value,
     tagsOpen.value,
+    taskHubOpen.value,
     workspaceSettings.value.tagsEnabled,
     workspaceSettings.value.templatesEnabled,
     workspaceSettings.value.canvasEnabled,
@@ -620,6 +650,14 @@ export function App() {
             <TagIcon />
           </button>
         )}
+        <button
+          class={`icon-button ${taskHubOpen.value ? "active" : ""}`}
+          aria-label="Open Task Hub"
+          title="Open Task Hub"
+          onClick={openTaskHubPanel}
+        >
+          <TaskIcon />
+        </button>
         {current?.kind === "text" && (
           <button
             class={`icon-button ${outlineOpen.value ? "active" : ""}`}
@@ -677,6 +715,13 @@ export function App() {
                   <div class="sidebar-primary">
                     {tagsOpen.value && workspaceSettings.value.tagsEnabled ? (
                       <TagsPanel onOpenFile={handleOpenFile} />
+                    ) : taskHubOpen.value ? (
+                      <TaskHubPanel
+                        onOpenFile={handleOpenFile}
+                        onNavigated={() => {
+                          if (viewMode.value === "preview") viewMode.value = "split";
+                        }}
+                      />
                     ) : bookmarksOpen.value ? (
                       <BookmarksPanel
                         onOpenFile={handleOpenFile}

@@ -25,6 +25,7 @@ afterEach(() => {
     aliasesByPath: new Map(),
     pathsByTag: new Map(),
     tagsByPath: new Map(),
+    tasksByPath: new Map(),
   };
   workspacePath.value = null;
   vi.mocked(fileSrc).mockReset();
@@ -57,6 +58,7 @@ describe("MarkdownPreview", () => {
       aliasesByPath: new Map(),
       pathsByTag: new Map(),
       tagsByPath: new Map(),
+      tasksByPath: new Map(),
     };
     const { container } = render(<MarkdownPreview source="See [[Existing Note]] for details." />);
     const anchor = container.querySelector('a[href^="#leotheca-wikilink="]');
@@ -86,6 +88,7 @@ describe("MarkdownPreview", () => {
       aliasesByPath: new Map(),
       pathsByTag: new Map(),
       tagsByPath: new Map(),
+      tasksByPath: new Map(),
     };
     const onOpenFile = vi.fn();
     const { container } = render(

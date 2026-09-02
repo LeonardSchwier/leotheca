@@ -9,6 +9,7 @@ import { mapWithConcurrency } from "../workspace/concurrency";
 import type { FsEntry } from "../workspace/types";
 import { extractAliases } from "./frontmatter";
 import { extractTags } from "../tags/tags";
+import { scanTasks, type TaskRecord } from "../markdown/tasks";
 
 export interface LinkIndex {
   backlinksByPath: Map<string, string[]>;
@@ -28,6 +29,15 @@ export interface LinkIndex {
   /** Note path -> its own tags, for a note's own tag display. Same on/off
    * gating as pathsByTag. */
   tagsByPath: Map<string, string[]>;
+  /** Note path -> the GFM task-list items found in it (see
+   * markdown/tasks.ts's scanTasks), for the Task Hub panel (F02 Phase 1,
+   * spec/f02-workspace-task-hub.md). Unlike pathsByTag/tagsByPath, this
+   * has no workspace-settings on/off gate: F02 is a standalone spec-driven
+   * feature, not net-new functionality queued from the daily competitor
+   * scan, so CONSTITUTION.md's opt-out-toggle requirement for that queue
+   * doesn't apply here. Only paths with at least one task are present,
+   * same sparse-map convention as pathsByTag. */
+  tasksByPath: Map<string, TaskRecord[]>;
 }
 
 const emptyLinkIndex = (): LinkIndex => ({
@@ -37,6 +47,7 @@ const emptyLinkIndex = (): LinkIndex => ({
   aliasesByPath: new Map(),
   pathsByTag: new Map(),
   tagsByPath: new Map(),
+  tasksByPath: new Map(),
 });
 
 export const linkIndex = signal<LinkIndex>(emptyLinkIndex());
@@ -112,6 +123,36 @@ function linkIndexReadConcurrency(): number {
  * entry (drop it, force a real re-read for that note) costs nothing:
  * this cache is a pure, fully-derivable optimization, never the source
  * of truth, so silently discarding a bad entry is always safe. */
+/** F02 Phase 1: `tasks` is the newest CachedNote field, gaining the same
+ * defensive validation the F-008/F-012 decoder already applies to the
+ * older fields rather than trusting it wholesale just because it's new;
+ * a malformed `TaskRecord` (wrong field type, a marker character outside
+ * " "/"x"/"X") drops the whole entry the same way a malformed `tags`
+ * array would, forcing a real re-read instead of feeding a bad shape
+ * into the Task Hub panel. */
+function isValidTaskRecord(raw: unknown): raw is TaskRecord {
+  if (typeof raw !== "object" || raw === null) return false;
+  const record = raw as Record<string, unknown>;
+  const isFiniteNumber = (v: unknown): v is number =>
+    typeof v === "number" && Number.isFinite(v);
+  return (
+    typeof record.checked === "boolean" &&
+    (record.marker === " " || record.marker === "x" || record.marker === "X") &&
+    typeof record.text === "string" &&
+    typeof record.displayText === "string" &&
+    isFiniteNumber(record.indentationColumns) &&
+    isFiniteNumber(record.nestingDepth) &&
+    isFiniteNumber(record.line) &&
+    isFiniteNumber(record.column) &&
+    isFiniteNumber(record.sourceFrom) &&
+    isFiniteNumber(record.sourceTo) &&
+    isFiniteNumber(record.markerFrom) &&
+    isFiniteNumber(record.markerTo) &&
+    isFiniteNumber(record.textFrom) &&
+    isFiniteNumber(record.textTo)
+  );
+}
+
 function isValidCachedNote(raw: unknown): raw is CachedNote {
   if (typeof raw !== "object" || raw === null) return false;
   const record = raw as Record<string, unknown>;
@@ -129,14 +170,17 @@ function isValidCachedNote(raw: unknown): raw is CachedNote {
   return (
     isStringArray(record.wikilinks) &&
     isStringArray(record.aliases) &&
-    isStringArray(record.tags)
+    isStringArray(record.tags) &&
+    Array.isArray(record.tasks) &&
+    record.tasks.every(isValidTaskRecord)
   );
 }
 
 /** Validates the whole persisted cache file's shape before any entry is
  * trusted. Returns `null` (start fresh, same as today's "no cache file
- * yet" behavior) for anything not shaped like a version-4 cache file at
- * all; otherwise keeps only the entries that individually pass
+ * yet" behavior) for anything not shaped like the current cache version
+ * (see LINK_INDEX_CACHE_VERSION) at all; otherwise keeps only the entries
+ * that individually pass
  * `isValidCachedNote`; a malformed entry is dropped rather than
  * poisoning the whole load. */
 function decodePersistedLinkIndexCache(
@@ -174,6 +218,7 @@ interface CachedNote {
   wikilinks: string[];
   aliases: string[];
   tags: string[];
+  tasks: TaskRecord[];
 }
 
 // Bumped from 3 (audit follow-up F-012): cache identity now also requires
@@ -184,7 +229,15 @@ interface CachedNote {
 // a stale cache hit. An old-shaped cache file's entries have no `size`,
 // so bumping the version forces a real re-read for all of them rather
 // than treating an absent field as coincidentally already "matching."
-const LINK_INDEX_CACHE_VERSION = 4;
+//
+// Bumped again from 4 (F02 Phase 1): CachedNote gained `tasks`, so an
+// old-shaped cache entry read from disk has no `tasks` field at all;
+// without the bump, that entry's `mtime`/`size` could still "match" a
+// current file and be reused as a cache hit, silently reporting the
+// note as having no tasks forever until it's next edited. Forcing a
+// version bump for every cache-shape change, not just this one, is the
+// standing precedent this comment continues.
+const LINK_INDEX_CACHE_VERSION = 5;
 const LINK_INDEX_CACHE_FILENAME = ".leotheca/link-index-cache.json";
 
 /** path -> the wikilinks extracted from that note the last time it was
@@ -298,6 +351,7 @@ export async function rebuildLinkIndex(
     const aliasesByPath = new Map<string, string[]>();
     const pathsByTag = new Map<string, string[]>();
     const tagsByPath = new Map<string, string[]>();
+    const tasksByPath = new Map<string, TaskRecord[]>();
 
     for (const entry of noteEntries) {
       const key = noteNameFromPath(entry.path).toLocaleLowerCase();
@@ -335,6 +389,7 @@ export async function rebuildLinkIndex(
         let wikilinks: string[];
         let aliases: string[];
         let tags: string[];
+        let tasks: TaskRecord[];
         if (
           cached &&
           entry.mtime !== undefined &&
@@ -345,6 +400,7 @@ export async function rebuildLinkIndex(
           wikilinks = cached.wikilinks;
           aliases = cached.aliases;
           tags = cached.tags;
+          tasks = cached.tasks;
         } else {
           let source: string;
           try {
@@ -382,12 +438,14 @@ export async function rebuildLinkIndex(
                 pathsByTag.set(tag, paths);
               }
             }
+            if (cached?.tasks.length) tasksByPath.set(entry.path, cached.tasks);
             return;
           }
           if (!isCurrentRequest()) return;
           wikilinks = extractWikilinks(source);
           aliases = extractAliases(source);
           tags = extractTags(source);
+          tasks = scanTasks(source);
         }
         if (entry.mtime !== undefined && entry.size !== undefined) {
           freshCache.set(entry.path, {
@@ -396,9 +454,11 @@ export async function rebuildLinkIndex(
             wikilinks,
             aliases,
             tags,
+            tasks,
           });
         }
         wikilinksByPath.set(entry.path, wikilinks);
+        if (tasks.length > 0) tasksByPath.set(entry.path, tasks);
 
         if (aliasesEnabled && aliases.length > 0) {
           aliasesByPath.set(entry.path, aliases);
@@ -443,6 +503,7 @@ export async function rebuildLinkIndex(
       aliasesByPath,
       pathsByTag,
       tagsByPath,
+      tasksByPath,
     };
     linkIndexUnreadablePaths.value = unreadablePaths;
     await savePersistedCache(rootPath, freshCache);

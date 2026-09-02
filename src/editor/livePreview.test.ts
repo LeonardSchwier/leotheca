@@ -161,6 +161,7 @@ describe("buildLiveDecorations: wikilinks", () => {
       aliasesByPath: new Map(),
       pathsByTag: new Map(),
       tagsByPath: new Map(),
+      tasksByPath: new Map(),
     };
   });
 

@@ -24,5 +24,6 @@
 - The Outline panel and heading breadcrumbs now have full-size touch targets on narrow screens and a visible keyboard focus ring.
 - Keyboard focus now shows a visible outline on buttons, tabs, sidebar rows, and dialogs throughout the app, not just a few places; some browsers previously drew no focus indicator at all on these.
 - Fixed a rare crash where a corrupted or hand-edited wikilink index cache file could abort indexing the whole workspace instead of just re-reading the one affected note.
+- A new Task Hub button lists every `- [ ]`/`- [x]` task across the whole workspace in one place; clicking a task opens its note and jumps straight to it. This first slice is read-only: checking a task off, filtering, and grouping are not part of it yet.
 
 Entries will accumulate here from the first tagged release onward.

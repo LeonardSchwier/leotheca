@@ -59,6 +59,7 @@ function setNotes(names: string[]) {
     aliasesByPath: new Map(),
     pathsByTag: new Map(),
     tagsByPath: new Map(),
+    tasksByPath: new Map(),
   };
 }
 
@@ -124,6 +125,7 @@ describe("wikilinkCompletions", () => {
       aliasesByPath: new Map(),
       pathsByTag: new Map(),
       tagsByPath: new Map(),
+      tasksByPath: new Map(),
     };
     const doc = "see [[dup";
     const result = wikilinkCompletions(contextAt(doc, doc.length));

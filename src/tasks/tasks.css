@@ -1,0 +1,101 @@
+.task-hub-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.task-hub-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-2) 0;
+}
+
+.task-hub-heading {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.task-hub-count {
+  color: var(--text-faint);
+  font-size: 11px;
+}
+
+.task-hub-list {
+  list-style: none;
+  margin: 0;
+  padding: var(--space-1) var(--space-2) var(--space-2);
+}
+
+.task-hub-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: 2px 0;
+}
+
+.task-hub-checkbox {
+  flex: 0 0 auto;
+  margin-top: 3px;
+  /* Read-only in this Phase 1 slice (F02 Phase 2 adds the real toggle):
+   * cursor: default rather than the browser's pointer cursor, so a
+   * disabled control doesn't visually invite a click that does nothing. */
+  cursor: default;
+}
+
+.task-hub-label {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font: inherit;
+  text-align: left;
+  padding: 2px var(--space-2) 2px 2px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.task-hub-label:hover {
+  background: var(--bg-hover);
+}
+
+.task-hub-text {
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-hub-note {
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-faint);
+  font-size: 11px;
+}
+
+/* App-wide *:focus-visible (src/styles/theme.css) already rings every
+ * plain button by default; this panel introduces no custom `outline:
+ * none` or non-standard focusable element that would need its own
+ * override, unlike outline.css's buttons which sit flush against a
+ * clipping edge. */
+
+@media (max-width: 720px) {
+  .task-hub-row {
+    min-height: 44px;
+  }
+
+  .task-hub-checkbox {
+    width: 20px;
+    height: 20px;
+  }
+}

@@ -533,6 +533,7 @@ describe("runSearch: query operators", () => {
         ["/workspace/Project.md", ["work"]],
         ["/workspace/Journal.md", ["journal"]],
       ]),
+      tasksByPath: new Map(),
     };
   });
 

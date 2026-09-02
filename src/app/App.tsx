@@ -506,6 +506,15 @@ export function App() {
   const openCollectionsPanel = () => {
     toggleSidebarPanel(collectionsOpen);
     if (collectionsOpen.value && rootPath) {
+      void rebuildLinkIndex(
+        rootPath,
+        workspaceSettings.value.frontmatterAliasesEnabled,
+        workspaceSettings.value.tagsEnabled,
+      );
+      void loadCollections(rootPath);
+    }
+  };
+
   const openDiagnosticsPanel = () => {
     toggleSidebarPanel(diagnosticsOpen);
     if (diagnosticsOpen.value && rootPath) {
@@ -514,7 +523,6 @@ export function App() {
         workspaceSettings.value.frontmatterAliasesEnabled,
         workspaceSettings.value.tagsEnabled,
       );
-      void loadCollections(rootPath);
     }
   };
 
@@ -548,6 +556,8 @@ export function App() {
         id: "toggle-collections",
         label: collectionsOpen.value ? "Hide Collections" : "Open Collections",
         run: openCollectionsPanel,
+      },
+      {
         id: "toggle-diagnostics",
         label: diagnosticsOpen.value ? "Hide Link Diagnostics" : "Open Link Diagnostics",
         run: openDiagnosticsPanel,

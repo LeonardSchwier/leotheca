@@ -33,7 +33,9 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
-        registerPlugin(FolderAccessPlugin.class);
+        // WorkspaceMutationPlugin extends FolderAccessPlugin and is registered
+        // under the same bridge name, so callers get the established storage
+        // methods plus F-004's no-replace mutations from one capability.
         registerPlugin(WorkspaceMutationPlugin.class);
 
         NewNoteTarget newNoteTarget = null;
@@ -88,7 +90,7 @@ public class MainActivity extends BridgeActivity {
         try (FileInputStream input = new FileInputStream(configFile); ByteArrayOutputStream output = new ByteArrayOutputStream()) {
             byte[] buffer = new byte[4096];
             int count;
-            while ((count = input.read(buffer)) != -1) {
+            while ((count = input.read(buffer, 0, buffer.length)) != -1) {
                 output.write(buffer, 0, count);
             }
             JSONObject config = new JSONObject(output.toString(StandardCharsets.UTF_8.name()));

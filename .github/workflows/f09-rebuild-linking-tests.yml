@@ -1,0 +1,84 @@
+name: Rebuild F09 linking test integration
+
+on:
+  push:
+    branches:
+      - agent/f09-phase1-collections
+    paths:
+      - .github/workflows/f09-rebuild-linking-tests.yml
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Rebuild the two independent metadata-index suites
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name Leonardschwier
+          git config user.email github@leonardschwier.de
+          git fetch origin main
+          python3 - <<'PY'
+          from pathlib import Path
+          import subprocess
+
+          path = Path("src/linking/store.test.ts")
+          current = path.read_text()
+          f09_marker = 'describe("F09 Phase 1: mtime and frontmatter property indexing", () => {'
+          f03_marker = 'describe("rebuildLinkIndex: wikiLinksByPath/headingsByPath (F03 Phase 1)", () => {'
+          start = current.find(f09_marker)
+          if start < 0:
+              raise SystemExit("F09 suite marker not found")
+
+          def git_show(ref: str) -> str:
+              return subprocess.check_output(
+                  ["git", "show", f"{ref}:src/linking/store.test.ts"],
+                  text=True,
+              )
+
+          original_f09 = git_show("ca0d8a74aab5f8719a3f1afa8f84c035315d5693")
+          main_tests = git_show("origin/main")
+          f09_start = original_f09.find(f09_marker)
+          f03_start = main_tests.find(f03_marker)
+          if f09_start < 0 or f03_start < 0:
+              raise SystemExit("source suite marker missing")
+
+          f09 = original_f09[f09_start:]
+          f03 = main_tests[f03_start:]
+
+          # Keep the F09 malformed-frontmatter fixture valid for the F03
+          # cache fields, so that test fails only on frontmatterProperties.
+          f09_fixture = '''              hasFrontmatter: true,\n              frontmatterProperties: [{ kind: "scalar", key: "x" }], // missing required fields\n'''
+          f09_fixed = f09_fixture + '''              wikiLinks: [],\n              headings: [],\n'''
+          if f09.count(f09_fixture) != 1:
+              raise SystemExit("unexpected F09 malformed fixture shape")
+          f09 = f09.replace(f09_fixture, f09_fixed)
+
+          # Keep each F03 malformed-cache fixture valid for the F09 fields,
+          # so those tests continue proving the structured-link/heading
+          # decoder checks rather than failing earlier for a missing field.
+          f03_wikilink = '''              tasks: [],\n              // Missing required numeric source-range fields.\n              wikiLinks: [{ kind: "link", raw: "[[b]]", noteTarget: "b" }],\n'''
+          f03_wikilink_fixed = '''              tasks: [],\n              hasFrontmatter: false,\n              frontmatterProperties: [],\n              // Missing required numeric source-range fields.\n              wikiLinks: [{ kind: "link", raw: "[[b]]", noteTarget: "b" }],\n'''
+          if f03.count(f03_wikilink) != 1:
+              raise SystemExit("unexpected F03 wikiLinks malformed fixture shape")
+          f03 = f03.replace(f03_wikilink, f03_wikilink_fixed)
+
+          f03_heading = '''              tasks: [],\n              wikiLinks: [],\n              // level out of the valid 1-6 range.\n'''
+          f03_heading_fixed = '''              tasks: [],\n              hasFrontmatter: false,\n              frontmatterProperties: [],\n              wikiLinks: [],\n              // level out of the valid 1-6 range.\n'''
+          if f03.count(f03_heading) != 1:
+              raise SystemExit("unexpected F03 headings malformed fixture shape")
+          f03 = f03.replace(f03_heading, f03_heading_fixed)
+
+          prefix = current[:start]
+          path.write_text(prefix + f09.rstrip() + "\n\n" + f03.rstrip() + "\n")
+          PY
+          git add src/linking/store.test.ts
+          git rm --ignore-unmatch .f09-tsc3.txt .github/workflows/f09-rebuild-linking-tests.yml
+          git commit -m "Rebuild F09 and F03 linking test integration"
+          git push origin HEAD:agent/f09-phase1-collections

@@ -40,6 +40,7 @@ const { readTextFile, writeTextFile } = vi.hoisted(() => ({
 vi.mock("../workspace/tauriBridge", () => ({
   readTextFile,
   writeTextFile,
+  writeActiveWorkspaceTextFile: writeTextFile,
   pickWorkspaceFolder: vi.fn(),
   restoreWorkspaceAccess: vi.fn(),
   listDir: vi.fn(async () => []),

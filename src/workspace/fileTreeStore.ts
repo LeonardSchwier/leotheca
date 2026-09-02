@@ -2,16 +2,17 @@ import { signal } from "@preact/signals";
 import type { FsEntry } from "./types";
 import { isImagePath, isTextFile } from "./types";
 import {
-  createWorkspaceDir,
+  createWorkspaceDirNew,
+  createWorkspaceTextFileNew,
   deleteWorkspacePathPermanent,
   findAllEntries,
   findAllFiles,
+  isWorkspaceMutationError,
   listDir,
   readTextFile,
   readTextFilesBatch,
-  renameWorkspacePath,
+  renameWorkspacePathNoReplace,
   trashPath,
-  writeWorkspaceTextFile,
 } from "./tauriBridge";
 import {
   updateWorkspaceSettings,
@@ -250,6 +251,17 @@ function initialNoteContent(): string {
   return `---\ncreated: ${now}\n---\n\n`;
 }
 
+function alreadyExistsMessage(name: string): Error {
+  return new Error(`"${name}" already exists in this folder.`);
+}
+
+function rethrowCreateCollision(error: unknown, name: string): never {
+  if (isWorkspaceMutationError(error, "already_exists")) {
+    throw alreadyExistsMessage(name);
+  }
+  throw error;
+}
+
 export async function createNote(
   dirPath: string,
   fileName: string,
@@ -257,15 +269,19 @@ export async function createNote(
   const name = fileName.endsWith(".md") ? fileName : `${fileName}.md`;
   const existing = await listDir(dirPath);
   if (existing.some((e) => e.name === name)) {
-    throw new Error(`"${name}" already exists in this folder.`);
+    throw alreadyExistsMessage(name);
   }
   const path = `${dirPath}/${name}`;
   const root = requireWorkspacePath();
-  await writeWorkspaceTextFile(
-    root,
-    relativePath(root, path),
-    initialNoteContent(),
-  );
+  try {
+    await createWorkspaceTextFileNew(
+      root,
+      relativePath(root, path),
+      initialNoteContent(),
+    );
+  } catch (error) {
+    rethrowCreateCollision(error, name);
+  }
   await loadChildren(dirPath);
   return path;
 }
@@ -286,24 +302,55 @@ function uniqueNoteName(existingNames: Set<string>, baseName: string): string {
   return name;
 }
 
+function uniqueCanvasName(existingNames: Set<string>): string {
+  let name = "Untitled canvas.canvas";
+  let n = 2;
+  while (existingNames.has(name)) name = `Untitled canvas ${n++}.canvas`;
+  return name;
+}
+
+/** Creates an auto-named text file through the native no-replace boundary.
+ * `listDir` supplies the first likely-free candidate for a fast common path,
+ * but it is only a hint: another process can create that name before our
+ * mutation reaches the filesystem. The native `already_exists` result is
+ * authoritative, so a raced candidate is added to the occupied set and the
+ * next name is tried without ever replacing the other writer's file. */
+async function createAutoNamedTextFile(
+  root: string,
+  dirPath: string,
+  existingNames: Set<string>,
+  nextName: (names: Set<string>) => string,
+  contents: string,
+): Promise<{ path: string; name: string }> {
+  for (;;) {
+    const name = nextName(existingNames);
+    const path = `${dirPath}/${name}`;
+    try {
+      await createWorkspaceTextFileNew(root, relativePath(root, path), contents);
+      return { path, name };
+    } catch (error) {
+      if (!isWorkspaceMutationError(error, "already_exists")) throw error;
+      existingNames.add(name);
+    }
+  }
+}
+
 /** Creates a new, open-format canvas file without requiring a naming dialog. */
 export async function createCanvasQuick(
   dirPath: string,
 ): Promise<{ path: string; name: string }> {
   const existing = await listDir(dirPath);
   const existingNames = new Set(existing.map((e) => e.name));
-  let name = "Untitled canvas.canvas";
-  let n = 2;
-  while (existingNames.has(name)) name = `Untitled canvas ${n++}.canvas`;
-  const path = `${dirPath}/${name}`;
   const root = requireWorkspacePath();
-  await writeWorkspaceTextFile(
+  const created = await createAutoNamedTextFile(
     root,
-    relativePath(root, path),
+    dirPath,
+    existingNames,
+    uniqueCanvasName,
     JSON.stringify({ nodes: [], edges: [] }, null, 2),
   );
   await loadChildren(dirPath);
-  return { path, name };
+  return created;
 }
 
 /** Creates a note with an auto-generated, collision-free name ("Untitled",
@@ -321,12 +368,16 @@ export async function createNoteQuick(
 ): Promise<{ path: string; name: string }> {
   const existing = await listDir(dirPath);
   const existingNames = new Set(existing.map((e) => e.name));
-  const name = uniqueNoteName(existingNames, "Untitled");
-  const path = `${dirPath}/${name}`;
   const root = requireWorkspacePath();
-  await writeWorkspaceTextFile(root, relativePath(root, path), content);
+  const created = await createAutoNamedTextFile(
+    root,
+    dirPath,
+    existingNames,
+    (names) => uniqueNoteName(names, "Untitled"),
+    content,
+  );
   await loadChildren(dirPath);
-  return { path, name };
+  return created;
 }
 
 /** One Markdown file found directly inside the workspace's configured
@@ -376,13 +427,17 @@ export async function createNoteFromTemplate(
 ): Promise<{ path: string; name: string }> {
   const existing = await listDir(dirPath);
   const existingNames = new Set(existing.map((e) => e.name));
-  const name = uniqueNoteName(existingNames, stripMdExtension(template.name));
   const content = await readTextFile(template.path);
-  const path = `${dirPath}/${name}`;
   const root = requireWorkspacePath();
-  await writeWorkspaceTextFile(root, relativePath(root, path), content);
+  const created = await createAutoNamedTextFile(
+    root,
+    dirPath,
+    existingNames,
+    (names) => uniqueNoteName(names, stripMdExtension(template.name)),
+    content,
+  );
   await loadChildren(dirPath);
-  return { path, name };
+  return created;
 }
 
 export async function createFolder(
@@ -391,11 +446,15 @@ export async function createFolder(
 ): Promise<string> {
   const existing = await listDir(dirPath);
   if (existing.some((e) => e.name === folderName)) {
-    throw new Error(`"${folderName}" already exists in this folder.`);
+    throw alreadyExistsMessage(folderName);
   }
   const path = `${dirPath}/${folderName}`;
   const root = requireWorkspacePath();
-  await createWorkspaceDir(root, relativePath(root, path));
+  try {
+    await createWorkspaceDirNew(root, relativePath(root, path));
+  } catch (error) {
+    rethrowCreateCollision(error, folderName);
+  }
   await loadChildren(dirPath);
   return path;
 }
@@ -635,15 +694,19 @@ export async function renameEntry(
   const parent = dirname(oldPath);
   const siblings = await listDir(parent);
   if (siblings.some((e) => e.name === newName)) {
-    throw new Error(`"${newName}" already exists in this folder.`);
+    throw alreadyExistsMessage(newName);
   }
   const newPath = `${parent}/${newName}`;
   const root = requireWorkspacePath();
-  await renameWorkspacePath(
-    root,
-    relativePath(root, oldPath),
-    relativePath(root, newPath),
-  );
+  try {
+    await renameWorkspacePathNoReplace(
+      root,
+      relativePath(root, oldPath),
+      relativePath(root, newPath),
+    );
+  } catch (error) {
+    rethrowCreateCollision(error, newName);
+  }
   forgetPath(oldPath);
   await loadChildren(parent);
   return newPath;

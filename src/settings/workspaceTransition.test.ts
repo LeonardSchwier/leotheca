@@ -26,6 +26,7 @@ vi.mock("../workspace/tauriBridge", () => ({
   listDir,
   readTextFile,
   writeTextFile,
+  writeActiveWorkspaceTextFile: writeTextFile,
   restoreWorkspaceAccess,
   getAppVersion: vi.fn(async () => "1.0"),
   setStatusBarAppearance: vi.fn(async () => {}),

@@ -11,10 +11,17 @@ const { readTextFile, writeTextFile } = vi.hoisted(() => ({
 // panel transitively pulls in settings/store.ts, whose own top-level
 // effects call other real tauriBridge exports (setStatusBarAppearance,
 // etc.) that must stay real, not become `undefined`, or module import
-// itself throws.
+// itself throws. Map the capability-aware autosave writer to the same
+// write spy because this suite tests Task Hub behavior, while the bridge's
+// containment contract has dedicated tests in tauriBridge.test.ts.
 vi.mock("../workspace/tauriBridge", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../workspace/tauriBridge")>();
-  return { ...actual, readTextFile, writeTextFile };
+  return {
+    ...actual,
+    readTextFile,
+    writeTextFile,
+    writeActiveWorkspaceTextFile: writeTextFile,
+  };
 });
 
 import { scanTasks, type TaskRecord } from "../markdown/tasks";

@@ -634,8 +634,12 @@ button.icon-button.active {
   font-size: 15px;
 }
 
-.command-palette-input:focus {
-  outline: none;
+/* `.command-palette`'s `overflow: hidden` would clip theme.css's default
+ * outward `outline-offset: 2px` ring on this always-top, edge-to-edge
+ * input, so it draws inset instead (same technique as
+ * resizable-sidebar.css's `.sidebar-resize-handle`). */
+.command-palette-input:focus-visible {
+  outline-offset: -2px;
 }
 
 .command-palette-list {

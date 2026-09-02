@@ -91,6 +91,20 @@
   box-sizing: border-box;
 }
 
+/* App-wide keyboard focus indicator. Most of this app's custom buttons set
+ * `background: none; border: none;`, and some engines (notably Safari)
+ * draw no default focus ring at all on a border-less button, so without
+ * this rule keyboard focus on most of the app is silently invisible.
+ * `outline` (not `box-shadow`) survives forced-colors/high-contrast mode,
+ * where a shadow is typically suppressed. A more specific selector (e.g.
+ * outline.css's per-element rules, predating this one) still wins over
+ * this universal selector's zero specificity, so this is a safety net,
+ * not a replacement for a more tailored existing rule. */
+*:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 html,
 body,
 #app {

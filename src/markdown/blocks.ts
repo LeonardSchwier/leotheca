@@ -1,5 +1,5 @@
 /**
- * F04 Phase 3a/3b/3d's block-reference scanner
+ * F04 Phase 3a/3b/3d/3e's block-reference scanner
  * (spec/f04-heading-block-links-embeds.md section 7). Detects an explicit
  * block ID, a whitespace-delimited `^id` token (grammar
  * `[A-Za-z0-9][A-Za-z0-9-]{0,63}`, section 7.1) at the end of a block's
@@ -23,19 +23,29 @@
  * opening immediately, or any other content in that one line forfeits
  * the attachment rather than searching further lines for one.
  *
- * Deliberately not attempted: a list item or blockquote spanning more
- * than one physical line (lazy continuation lines, a nested sub-list,
- * a loose list's blank-line-separated paragraphs within one item) — real
- * CommonMark multi-line list/blockquote continuation parsing is well
- * beyond what this module's simple line classification can support
- * without becoming a second, competing block parser. A genuinely
- * disclosed inaccuracy, not silently dropped: an indented continuation
- * line ending in a marker is misread as its own standalone top-level
- * paragraph (this scanner has no notion of "this line belongs to the
- * list item above it"), not correctly attributed to the item it actually
- * continues and not rejected outright either; `blocks.test.ts` has a
- * dedicated test asserting this exact known-wrong behavior so a future
- * fix has something concrete to turn green. Headings remain the one
+ * A list item or blockquote spanning more than one physical line is now
+ * (Phase 3e) attributed correctly rather than misread as a standalone
+ * paragraph: a list item continues across any following non-blank line
+ * indented at least as far as the item's own marker+padding width (its
+ * `LIST_ITEM_PREFIX_RE` match length), matching CommonMark's own
+ * indent-based continuation rule; a blockquote continues across any
+ * following non-blank line, whether re-prefixed with `>` or not (real
+ * CommonMark "lazy continuation"), the same generous-lazy-continuation
+ * reading section 7.1 implies by not excluding it. Either continuation
+ * ends at a blank line, a line that starts a fenced code block, an ATX
+ * heading, or (for list items specifically) a line under-indented below
+ * the item's own continuation width; the block ID marker is then looked
+ * for on the last accumulated line only, the same "final line of the
+ * block" rule paragraphs already use. Deliberately still not attempted,
+ * a narrower but genuine remaining gap: a loose list item's own
+ * blank-line-separated paragraphs (continuation ends at the first blank
+ * line, not resumed after it), nested sub-lists or nested blockquotes
+ * inside a continuing item (a continuation line that itself looks like a
+ * new list item or blockquote ends the outer one rather than nesting into
+ * it), and tab-indented continuation (only literal space characters are
+ * counted toward a list item's own indent width). Real CommonMark parses
+ * all of these; this module intentionally does not become a second,
+ * competing block parser to get there. Headings remain the one
  * still-excluded eligible kind, deliberately, even though
  * `markdown/headings.ts` already scans them: teaching that scanner about
  * a trailing `^id` marker would mean stripping it from `rawText`/
@@ -79,8 +89,9 @@ export interface BlockRecord {
   /** 1-based count of this exact key seen so far in the document, in
    * source order. The first occurrence of a key is 1. */
   occurrence: number;
-  /** "list-item" and "blockquote" are single-line only in this phase; see
-   * the module doc comment above for the multi-line gap this leaves.
+  /** "list-item" and "blockquote" may span multiple physical lines (Phase
+   * 3e); see the module doc comment above for the remaining continuation
+   * gaps (loose-list blank-line-separated paragraphs, nesting, tabs).
    * "fenced-code" is a whole fenced code block (open fence through close
    * fence), whose marker sits on its own separate line right after the
    * closing fence rather than being part of the block's own content. */
@@ -153,10 +164,10 @@ const BLOCK_ID_RE = /[ \t]+\^([A-Za-z0-9][A-Za-z0-9-]{0,63})[ \t]*$/;
 const STANDALONE_BLOCK_ID_RE = /^ {0,3}\^([A-Za-z0-9][A-Za-z0-9-]{0,63})[ \t]*$/;
 
 /** Scans a Markdown document for explicit block ID tokens attached to a
- * paragraph, single-line list item, or single-line blockquote (see the
- * module doc comment above for exactly what's eligible), skipping fenced
- * code blocks, block-level HTML comments, and headings, and returns them
- * in source order. */
+ * paragraph, a (possibly multi-line) list item or blockquote, or a fenced
+ * code block (see the module doc comment above for exactly what's
+ * eligible), skipping block-level HTML comments and headings, and returns
+ * them in source order. */
 export function scanBlockIds(content: string): BlockRecord[] {
   const lines = splitLines(content);
   const blocks: BlockRecord[] = [];
@@ -199,11 +210,47 @@ export function scanBlockIds(content: string): BlockRecord[] {
     });
   }
 
-  function recordSingleLineBlock(line: LineInfo, kind: "list-item" | "blockquote", prefixRe: RegExp): void {
-    const match = BLOCK_ID_RE.exec(line.text);
-    if (!match) return;
-    const prefixMatch = prefixRe.exec(line.text)!;
-    recordBlock(kind, line.start, line.start + prefixMatch[0].length, line.start + match.index, line, match);
+  interface OpenBlock {
+    kind: "list-item" | "blockquote";
+    /** Offset right after the first line's own bullet/`>` prefix; the
+     * start of the block's real content, matching the single-line
+     * convention `recordBlock`'s callers already use. */
+    contentFrom: number;
+    /** The first line's marker+padding width, in space count only (tabs
+     * are not converted). Only meaningful for "list-item"; a blockquote's
+     * continuation is not indent-gated (see the module doc comment's
+     * "lazy continuation" note). */
+    indentWidth: number;
+    lines: LineInfo[];
+  }
+  let openBlock: OpenBlock | null = null;
+
+  function isContinuationLine(line: LineInfo, block: OpenBlock): boolean {
+    if (line.text.trim() === "") return false;
+    if (FENCE_RE.test(line.text)) return false;
+    if (line.text.indexOf("<!--") !== -1) return false;
+    if (ATX_RE.test(line.text)) return false;
+    if (LIST_ITEM_RE.test(line.text)) return false;
+    if (block.kind === "blockquote") {
+      // Lazy continuation (spec 7.1's "whitespace-delimited" reading):
+      // any remaining non-blank, non-block-starting line continues the
+      // quote whether or not it repeats the ">" prefix.
+      return true;
+    }
+    const leadingSpaces = /^ */.exec(line.text)![0].length;
+    if (leadingSpaces < block.indentWidth) return false;
+    if (BLOCKQUOTE_RE.test(line.text)) return false;
+    return true;
+  }
+
+  function flushOpenBlock(): void {
+    if (!openBlock) return;
+    const { kind, contentFrom, lines } = openBlock;
+    openBlock = null;
+    const first = lines[0];
+    const last = lines[lines.length - 1];
+    const match = BLOCK_ID_RE.exec(last.text);
+    if (match) recordBlock(kind, first.start, contentFrom, last.start + match.index, last, match);
   }
 
   let inFence = false;
@@ -242,6 +289,7 @@ export function scanBlockIds(content: string): BlockRecord[] {
     const fenceOpen = FENCE_RE.exec(line.text);
     if (fenceOpen) {
       flushParagraph();
+      flushOpenBlock();
       // A fence opening immediately (no id line arrived in between)
       // forfeits any pending marker check from the previous fence.
       pendingFencedCode = null;
@@ -250,6 +298,17 @@ export function scanBlockIds(content: string): BlockRecord[] {
       fenceLength = fenceOpen[1].length;
       fenceStartLine = line;
       continue;
+    }
+
+    if (openBlock !== null) {
+      if (isContinuationLine(line, openBlock)) {
+        openBlock.lines.push(line);
+        continue;
+      }
+      flushOpenBlock();
+      // Not a continuation: fall through so this line is classified
+      // normally below (it may itself start a new list item/blockquote,
+      // a fence, a heading, or be blank/paragraph text).
     }
 
     if (pendingFencedCode !== null) {
@@ -300,19 +359,27 @@ export function scanBlockIds(content: string): BlockRecord[] {
 
     if (BLOCKQUOTE_RE.test(line.text)) {
       flushParagraph();
-      recordSingleLineBlock(line, "blockquote", BLOCKQUOTE_PREFIX_RE);
+      const prefixMatch = BLOCKQUOTE_PREFIX_RE.exec(line.text)!;
+      openBlock = { kind: "blockquote", contentFrom: line.start + prefixMatch[0].length, indentWidth: 0, lines: [line] };
       continue;
     }
 
     if (LIST_ITEM_RE.test(line.text)) {
       flushParagraph();
-      recordSingleLineBlock(line, "list-item", LIST_ITEM_PREFIX_RE);
+      const prefixMatch = LIST_ITEM_PREFIX_RE.exec(line.text)!;
+      openBlock = {
+        kind: "list-item",
+        contentFrom: line.start + prefixMatch[0].length,
+        indentWidth: prefixMatch[0].length,
+        lines: [line],
+      };
       continue;
     }
 
     paragraphLines.push(line);
   }
   flushParagraph();
+  flushOpenBlock();
 
   return blocks;
 }

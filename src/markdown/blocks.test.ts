@@ -219,19 +219,79 @@ describe("scanBlockIds", () => {
     expect(scanBlockIds("> ^orphan-id")).toEqual([]);
   });
 
-  it("misreads an indented list-item continuation line as its own standalone paragraph, a disclosed gap", () => {
-    // Multi-line list-item continuation is out of scope for this phase
-    // (see the module doc comment): this scanner has no concept of "this
-    // indented line belongs to the list item above it," so a
-    // continuation line ending in a marker is read as an ordinary
-    // (wrong, but at least not silently dropped) top-level paragraph,
-    // not correctly attributed to the list item it actually continues.
-    // Documented here so a future fix has a failing test to go green,
-    // not just prose.
+  it("attaches a marker on an indented list-item continuation line to the item it continues (F04 Phase 3e)", () => {
     const source = "- First line of the item\n  continuation with the id. ^continued-id";
     const [block] = scanBlockIds(source);
-    expect(block.kind).toBe("paragraph");
+    expect(block.kind).toBe("list-item");
     expect(block.id).toBe("continued-id");
+    expect(source.slice(block.contentFrom, block.contentTo)).toBe(
+      "First line of the item\n  continuation with the id.",
+    );
+    expect(source.slice(block.sourceFrom, block.sourceTo)).toBe(source);
+  });
+
+  it("continues a list item across more than one continuation line", () => {
+    const source = "- First line\n  second line\n  third line with the id. ^three-lines";
+    const [block] = scanBlockIds(source);
+    expect(block.kind).toBe("list-item");
+    expect(block.id).toBe("three-lines");
+    expect(source.slice(block.contentFrom, block.contentTo)).toBe(
+      "First line\n  second line\n  third line with the id.",
+    );
+  });
+
+  it("ends list-item continuation at a blank line, not attaching a marker on the far side of it", () => {
+    const source = "- First line of the item\n\n  Not a continuation. ^after-blank";
+    const [block] = scanBlockIds(source);
+    expect(block.kind).toBe("paragraph");
+    expect(block.id).toBe("after-blank");
+  });
+
+  it("ends list-item continuation on an under-indented non-blank line", () => {
+    const source = "- First line of the item\nunder-indented text. ^under-indented";
+    const [block] = scanBlockIds(source);
+    expect(block.kind).toBe("paragraph");
+    expect(block.id).toBe("under-indented");
+  });
+
+  it("ends list-item continuation when the continuation line starts a new list item", () => {
+    const source = "- First item\n- Second item with the id. ^second-item";
+    const blocks = scanBlockIds(source);
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0].kind).toBe("list-item");
+    expect(blocks[0].id).toBe("second-item");
+    expect(source.slice(blocks[0].sourceFrom, blocks[0].sourceTo)).toBe("- Second item with the id. ^second-item");
+  });
+
+  it("continues a blockquote across a re-prefixed '>' continuation line", () => {
+    const source = "> First line of the quote\n> second line with the id. ^quoted-two-lines";
+    const [block] = scanBlockIds(source);
+    expect(block.kind).toBe("blockquote");
+    expect(block.id).toBe("quoted-two-lines");
+    expect(source.slice(block.contentFrom, block.contentTo)).toBe(
+      "First line of the quote\n> second line with the id.",
+    );
+  });
+
+  it("continues a blockquote through lazy continuation (a following line with no '>' prefix)", () => {
+    const source = "> First line of the quote\nlazy continuation with the id. ^lazy-quote";
+    const [block] = scanBlockIds(source);
+    expect(block.kind).toBe("blockquote");
+    expect(block.id).toBe("lazy-quote");
+  });
+
+  it("ends blockquote continuation at a blank line", () => {
+    const source = "> First line of the quote\n\nNot part of the quote. ^after-quote-blank";
+    const [block] = scanBlockIds(source);
+    expect(block.kind).toBe("paragraph");
+    expect(block.id).toBe("after-quote-blank");
+  });
+
+  it("ends blockquote continuation when the continuation line starts a fenced code block", () => {
+    const source = "> First line of the quote\n```\ncode ^inside-fence\n```\n\nAfter. ^after-fence-in-quote";
+    const blocks = scanBlockIds(source);
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0].id).toBe("after-fence-in-quote");
   });
 
   it("supports *, +, and ordered markers for list-item blocks, not just -", () => {

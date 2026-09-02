@@ -234,6 +234,19 @@ button.icon-button.active {
   text-decoration: underline dashed;
   text-underline-offset: 2px;
 }
+/* F04 Phase 2: a heading-link (`[[Note#Heading]]`/`[[#Heading]]`) whose
+   note resolves but whose named heading is missing or ambiguous, the same
+   two states linking/linking.css already distinguishes with a dotted
+   underline in Preview mode (see its headingStatus=missing/ambiguous
+   rule). Distinct from cm-live-wikilink-broken (the note itself doesn't
+   exist) and cm-live-wikilink-resolved (both note and heading resolved),
+   which this phase reuses as-is rather than duplicating. */
+.cm-live-wikilink-heading-missing,
+.cm-live-wikilink-heading-ambiguous {
+  color: var(--text-secondary);
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
+}
 .cm-live-list-bullet {
   color: var(--text-faint);
 }

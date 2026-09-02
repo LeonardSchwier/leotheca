@@ -476,6 +476,106 @@ describe("rebuildLinkIndex: mtime-based caching", () => {
     expect(readTextFile).toHaveBeenCalledWith("/workspace/a.md");
   });
 
+  it("audit follow-ups F-008/F-012: does not crash the whole rebuild when a persisted cache entry has a malformed field, and re-reads that note instead of trusting it", async () => {
+    findMarkdownFiles.mockResolvedValue([
+      { name: "a.md", path: "/workspace/a.md", isDir: false, mtime: 1000, size: 5 },
+    ]);
+    readTextFile.mockImplementation(async (path: string) => {
+      if (path === CACHE_PATH) {
+        // aliases is a string, not an array: without a runtime decoder,
+        // the cache-hit path's `cached.aliases.length`/`for...of
+        // cached.aliases` would either misbehave or throw, and a thrown
+        // error inside mapWithConcurrency's worker propagates out of the
+        // whole rebuildLinkIndex call, not just this one entry.
+        return JSON.stringify({
+          version: 4,
+          entries: {
+            "/workspace/a.md": {
+              mtime: 1000,
+              size: 5,
+              wikilinks: ["b"],
+              aliases: "not-an-array",
+              tags: [],
+            },
+          },
+        });
+      }
+      return "[[c]]";
+    });
+
+    await expect(rebuildLinkIndex("/workspace")).resolves.toBeUndefined();
+
+    // The malformed entry was dropped, not trusted, so the note was read
+    // fresh from disk instead of taking a false cache hit.
+    expect(readTextFile).toHaveBeenCalledWith("/workspace/a.md");
+    expect(linkIndex.value.pathsByNoteName.get("a")).toEqual([
+      "/workspace/a.md",
+    ]);
+    expect(linkIndexUnreadablePaths.value).toEqual([]);
+    expect(linkIndexBuilding.value).toBe(false);
+  });
+
+  it("drops only the malformed entry from a persisted cache file, keeping every other valid entry", async () => {
+    findMarkdownFiles.mockResolvedValue([
+      { name: "a.md", path: "/workspace/a.md", isDir: false, mtime: 1000, size: 5 },
+      { name: "b.md", path: "/workspace/b.md", isDir: false, mtime: 2000, size: 7 },
+    ]);
+    readTextFile.mockImplementation(async (path: string) => {
+      if (path === CACHE_PATH) {
+        return JSON.stringify({
+          version: 4,
+          entries: {
+            "/workspace/a.md": { mtime: 1000, size: 5, wikilinks: null, aliases: [], tags: [] },
+            "/workspace/b.md": {
+              mtime: 2000,
+              size: 7,
+              wikilinks: ["good"],
+              aliases: [],
+              tags: [],
+            },
+          },
+        });
+      }
+      throw new Error(`unexpected content read: ${path}`);
+    });
+
+    await rebuildLinkIndex("/workspace");
+
+    // a.md's malformed entry forced a real read (which the mock doesn't
+    // provide, and would throw if attempted); b.md's valid entry was kept
+    // and used as a cache hit, so only a.md was ever actually re-read.
+    expect(readTextFile).toHaveBeenCalledWith("/workspace/a.md");
+    expect(readTextFile).not.toHaveBeenCalledWith("/workspace/b.md");
+  });
+
+  it("starts fresh rather than crashing when the persisted cache file's top-level shape is not a version-4 object at all", async () => {
+    findMarkdownFiles.mockResolvedValue([
+      { name: "a.md", path: "/workspace/a.md", isDir: false, mtime: 1000, size: 5 },
+    ]);
+    readTextFile.mockImplementation(async (path: string) => {
+      if (path === CACHE_PATH) return JSON.stringify(["not", "an", "object"]);
+      return "[[c]]";
+    });
+
+    await expect(rebuildLinkIndex("/workspace")).resolves.toBeUndefined();
+    expect(readTextFile).toHaveBeenCalledWith("/workspace/a.md");
+  });
+
+  it("starts fresh rather than crashing when the persisted cache file's entries field is itself the wrong shape", async () => {
+    findMarkdownFiles.mockResolvedValue([
+      { name: "a.md", path: "/workspace/a.md", isDir: false, mtime: 1000, size: 5 },
+    ]);
+    readTextFile.mockImplementation(async (path: string) => {
+      if (path === CACHE_PATH) {
+        return JSON.stringify({ version: 4, entries: ["not", "a", "record"] });
+      }
+      return "[[c]]";
+    });
+
+    await expect(rebuildLinkIndex("/workspace")).resolves.toBeUndefined();
+    expect(readTextFile).toHaveBeenCalledWith("/workspace/a.md");
+  });
+
   it("saves the rebuilt cache to disk after a successful call", async () => {
     findMarkdownFiles.mockResolvedValue([
       { name: "a.md", path: "/workspace/a.md", isDir: false, mtime: 1000, size: 5 },

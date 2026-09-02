@@ -126,6 +126,62 @@
   font-size: 11px;
 }
 
+/* F06 Phase 3 (spec section 9): copy/insert-link actions, shared by
+ * OutlineRowContent (a row's own action pair) and HeadingBreadcrumbs (the
+ * active heading's action pair). Hidden until the row is hovered or one
+ * of its own buttons has focus, so a note with many headings doesn't turn
+ * into a wall of buttons; `opacity` (not `display`/`visibility`) keeps
+ * them present for keyboard tab order and screen readers regardless of
+ * visibility, and the compact media query below forces them visible
+ * unconditionally, since touch has no hover state to reveal them with. */
+.heading-link-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 2px;
+  opacity: 0;
+}
+
+.outline-row:hover .heading-link-actions,
+.outline-row:focus-within .heading-link-actions,
+.heading-breadcrumbs-bar:hover .heading-link-actions,
+.heading-breadcrumbs-bar:focus-within .heading-link-actions {
+  opacity: 1;
+}
+
+.heading-link-action {
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 11px;
+  white-space: nowrap;
+  padding: 1px var(--space-1);
+  cursor: pointer;
+}
+
+.heading-link-action:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.heading-link-action:disabled {
+  color: var(--text-faint);
+  cursor: default;
+}
+
+.heading-breadcrumbs-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.heading-breadcrumbs-bar .heading-breadcrumbs {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
 .outline-empty-filter {
   display: flex;
   align-items: center;
@@ -194,7 +250,8 @@
 .outline-label:focus-visible,
 .outline-text-button:focus-visible,
 .outline-filter:focus-visible,
-.heading-breadcrumb-segment:focus-visible {
+.heading-breadcrumb-segment:focus-visible,
+.heading-link-action:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
@@ -230,6 +287,20 @@
   }
 
   .heading-breadcrumb-segment {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  /* Touch has no hover state to reveal these with (see the rule above
+   * that hides them until :hover/:focus-within), so make them visible
+   * unconditionally in compact layouts, sized to the same 44px minimum
+   * touch target as every other compact action here. */
+  .heading-link-actions {
+    opacity: 1;
+  }
+
+  .heading-link-action {
     min-height: 44px;
     display: inline-flex;
     align-items: center;

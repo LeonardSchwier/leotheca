@@ -42,7 +42,7 @@ import { SettingsPanel } from "../settings/SettingsPanel";
 import { WelcomeDialog } from "../settings/WelcomeDialog";
 import { BacklinksPanel } from "../linking/BacklinksPanel";
 import { OutlinePanel } from "../outline/OutlinePanel";
-import { outlineRevealRequest, requestOutlineReveal } from "../outline/outlineNavigation";
+import { outlineInsertRequest, outlineRevealRequest, requestOutlineReveal } from "../outline/outlineNavigation";
 import { HeadingBreadcrumbs } from "../outline/HeadingBreadcrumbs";
 import { nextSplitAuthority, type SplitAuthority } from "../outline/splitAuthority";
 import { scanHeadings } from "../markdown/headings";
@@ -60,6 +60,7 @@ import { TagsPanel } from "../tags/TagsPanel";
 import { TaskHubPanel } from "../tasks/TaskHubPanel";
 import { CollectionsPanel } from "../collections/CollectionsPanel";
 import { loadCollections } from "../collections/collectionStore";
+import { DiagnosticsPanel } from "../diagnostics/DiagnosticsPanel";
 import {
   createNoteFromTemplate,
   createCanvasQuick,
@@ -141,6 +142,12 @@ function CollectionsIcon() {
       <rect x="3" y="10" width="14" height="4" rx="1" />
       <circle cx="5.5" cy="6" r="0.6" fill="currentColor" stroke="none" />
       <circle cx="5.5" cy="12" r="0.6" fill="currentColor" stroke="none" />
+function DiagnosticsIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M10 3l7.5 13H2.5L10 3z" stroke-linejoin="round" />
+      <path d="M10 8.5v3.2" />
+      <circle cx="10" cy="14.3" r="0.9" fill="currentColor" stroke="none" />
     </svg>
   );
 }
@@ -199,6 +206,7 @@ const bookmarksOpen = signal(false);
 const tagsOpen = signal(false);
 const taskHubOpen = signal(false);
 const collectionsOpen = signal(false);
+const diagnosticsOpen = signal(false);
 const graphOpen = signal(false);
 // Unlike bookmarksOpen/tagsOpen, this does not swap out the file tree: the
 // outline is per-note context like BacklinksPanel, not a workspace-wide
@@ -215,6 +223,7 @@ function toggleSidebarPanel(panel: typeof bookmarksOpen): void {
   tagsOpen.value = false;
   taskHubOpen.value = false;
   collectionsOpen.value = false;
+  diagnosticsOpen.value = false;
   panel.value = next;
   if (next) sidebarOpen.value = true;
 }
@@ -493,6 +502,9 @@ export function App() {
   const openCollectionsPanel = () => {
     toggleSidebarPanel(collectionsOpen);
     if (collectionsOpen.value && rootPath) {
+  const openDiagnosticsPanel = () => {
+    toggleSidebarPanel(diagnosticsOpen);
+    if (diagnosticsOpen.value && rootPath) {
       void rebuildLinkIndex(
         rootPath,
         workspaceSettings.value.frontmatterAliasesEnabled,
@@ -532,6 +544,9 @@ export function App() {
         id: "toggle-collections",
         label: collectionsOpen.value ? "Hide Collections" : "Open Collections",
         run: openCollectionsPanel,
+        id: "toggle-diagnostics",
+        label: diagnosticsOpen.value ? "Hide Link Diagnostics" : "Open Link Diagnostics",
+        run: openDiagnosticsPanel,
       },
       {
         id: "markdown-help",
@@ -624,6 +639,7 @@ export function App() {
     tagsOpen.value,
     taskHubOpen.value,
     collectionsOpen.value,
+    diagnosticsOpen.value,
     workspaceSettings.value.tagsEnabled,
     workspaceSettings.value.templatesEnabled,
     workspaceSettings.value.canvasEnabled,
@@ -733,6 +749,12 @@ export function App() {
           onClick={openCollectionsPanel}
         >
           <CollectionsIcon />
+          class={`icon-button ${diagnosticsOpen.value ? "active" : ""}`}
+          aria-label="Open Link Diagnostics"
+          title="Open Link Diagnostics"
+          onClick={openDiagnosticsPanel}
+        >
+          <DiagnosticsIcon />
         </button>
         {current?.kind === "text" && (
           <button
@@ -794,6 +816,14 @@ export function App() {
                     ) : taskHubOpen.value ? (
                       <TaskHubPanel
                         onOpenFile={handleOpenFile}
+                        save={save}
+                        onNavigated={() => {
+                          if (viewMode.value === "preview") viewMode.value = "split";
+                        }}
+                      />
+                    ) : diagnosticsOpen.value ? (
+                      <DiagnosticsPanel
+                        onOpenFile={handleOpenFile}
                         onNavigated={() => {
                           if (viewMode.value === "preview") viewMode.value = "split";
                         }}
@@ -817,6 +847,8 @@ export function App() {
                     <OutlinePanel
                       key={current.path}
                       content={current.content}
+                      noteTitle={current.name}
+                      canInsertLink={viewMode.value !== "preview"}
                       onNavigated={() => {
                         if (viewMode.value === "preview") viewMode.value = "split";
                       }}
@@ -883,6 +915,7 @@ export function App() {
                   }
                   onSelectRoot={() => requestOutlineReveal(0, 0)}
                   onSelectHeading={(heading) => requestOutlineReveal(heading.contentFrom, heading.contentTo)}
+                  canInsertLink={viewMode.value !== "preview"}
                 />
                 <FrontmatterPropertiesPanel
                   key={current.path}
@@ -902,6 +935,7 @@ export function App() {
                       snippetsEnabled={workspaceSettings.value.snippetsEnabled}
                       snippets={workspaceSettings.value.snippets}
                       reveal={outlineRevealRequest.value}
+                      insertRequest={outlineInsertRequest.value}
                       onCursorChange={(pos) => {
                         setCursorPos(pos);
                         setSplitAuthority(nextSplitAuthority("source-cursor"));

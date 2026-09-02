@@ -94,11 +94,48 @@ export function unescapeWikiLinkText(text: string): string {
  * structured wikilink's target, fragment, or label expression without
  * being reinterpreted as a delimiter by parseWikiLinks. Used by F04 Phase
  * 2's heading-link completion (MarkdownEditor.tsx) when inserting a
- * selected heading's text; kept here rather than duplicated at the call
- * site since this module owns the escaping grammar (spec section 5.2).
+ * selected heading's text, and by F06 Phase 3's `serializeWikiLink` below
+ * (outline/headingLinkActions.ts's copy/insert-link actions); kept here
+ * rather than duplicated at either call site since this module owns the
+ * escaping grammar (spec section 5.2).
  */
 export function escapeWikiLinkText(text: string): string {
   return text.replace(/[\\#|[\]]/g, "\\$&");
+}
+
+/**
+ * A wikilink target to serialize into `[[...]]` text: the fields
+ * parseWikiLinks splits a record into, minus the source-range bookkeeping
+ * a caller building fresh link text (rather than parsing existing text)
+ * has no use for. `noteTarget: ""` means the same-note target (spec
+ * 5.2), producing `[[#Heading]]` rather than `[[Note#Heading]]`.
+ */
+export interface WikiLinkTarget {
+  noteTarget: string;
+  fragment?: WikiLinkFragment;
+  label?: string;
+}
+
+/**
+ * Serializes `target` back into `[[...]]` grammar text, escaping every
+ * part through escapeWikiLinkText so the result always round-trips
+ * through parseWikiLinks unchanged. This is the one allowed way to
+ * produce heading/block link text in this codebase (F04's "one shared
+ * serializer" rule, spec/f04-heading-block-links-embeds.md section 2):
+ * F06's copy-heading-link and insert-heading-link actions
+ * (outline/headingLinkActions.ts) build their `[[Note#Heading]]` /
+ * `[[#Heading]]` text through here, never by concatenating the pieces
+ * themselves.
+ */
+export function serializeWikiLink(target: WikiLinkTarget): string {
+  let inner = escapeWikiLinkText(target.noteTarget);
+  if (target.fragment) {
+    const fragmentRaw =
+      target.fragment.kind === "block" ? `^${target.fragment.value}` : target.fragment.value;
+    inner += `#${escapeWikiLinkText(fragmentRaw)}`;
+  }
+  if (target.label !== undefined) inner += `|${escapeWikiLinkText(target.label)}`;
+  return `[[${inner}]]`;
 }
 
 /**

@@ -17,6 +17,9 @@ interface VirtualizedOutlineListProps {
   filterActive: boolean;
   visibleIndexes: Set<number> | null;
   onSelect: (heading: HeadingRecord) => void;
+  noteTitle: string;
+  canInsertLink: boolean;
+  onInserted?: () => void;
 }
 
 /** Used only before the first real ResizeObserver measurement lands (or
@@ -54,6 +57,9 @@ export function VirtualizedOutlineList({
   filterActive,
   visibleIndexes,
   onSelect,
+  noteTitle,
+  canInsertLink,
+  onInserted,
 }: VirtualizedOutlineListProps) {
   const containerRef = useRef<HTMLUListElement | null>(null);
   const [scrollTop, setScrollTop] = useState(0);
@@ -118,8 +124,11 @@ export function VirtualizedOutlineList({
               hasChildren={hasChildren}
               collapsed={collapsed}
               duplicate={duplicateFlags[index]}
+              noteTitle={noteTitle}
+              canInsertLink={canInsertLink}
               onToggleCollapse={() => onToggleCollapse(keyId)}
               onSelect={() => onSelect(heading)}
+              onInserted={onInserted}
             />
           </li>
         );

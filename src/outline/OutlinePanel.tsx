@@ -9,10 +9,21 @@ import "./outline.css";
 
 interface OutlinePanelProps {
   content: string;
+  /** The active note's own title, needed for Copy link's note-qualified
+   * `[[Note#Heading]]` form (spec section 9.2, see
+   * outline/HeadingLinkActions.tsx). */
+  noteTitle: string;
+  /** Whether Insert link has anywhere sensible to insert into right now
+   * (spec section 9.4: no writable editor mounted, e.g. a preview-only
+   * view mode). Defaults to true so a caller that doesn't care about this
+   * distinction still sees the action enabled. Copy link is unaffected:
+   * it only needs the clipboard, never an editor. */
+  canInsertLink?: boolean;
   /** Called right after a row is selected and a reveal has been
    * requested, so a host that needs to make the editor visible (e.g.
    * switching out of a preview-only view mode) can do so; the outline
-   * itself has no opinion on view mode. */
+   * itself has no opinion on view mode. Also called right after Insert
+   * link succeeds, for the same reason. */
   onNavigated?: () => void;
 }
 
@@ -23,7 +34,11 @@ const FILTER_THRESHOLD = 20;
 /** A heading's key is a duplicate exactly when some other heading in the
  * document shares the same normalized key, including its own first
  * occurrence, per spec section 6.3 ("duplicate-heading warning when
- * relevant"). Exported for testing. */
+ * relevant"). Exported for testing, and reused by HeadingBreadcrumbs.tsx
+ * to decide the same thing about its own active heading (Phase 3's
+ * headingLinkDisabledReason needs it too, spec section 9's "duplicate
+ * headings shall not produce a falsely precise copied heading link",
+ * F06-FR-15): one normalizer, not two. */
 export function computeDuplicateFlags(headings: HeadingRecord[]): boolean[] {
   const counts = new Map<string, number>();
   for (const heading of headings) counts.set(heading.key, (counts.get(heading.key) ?? 0) + 1);
@@ -57,6 +72,9 @@ interface OutlineRowProps {
   filterActive: boolean;
   visibleIndexes: Set<number> | null;
   onSelect: (heading: HeadingRecord) => void;
+  noteTitle: string;
+  canInsertLink: boolean;
+  onInserted?: () => void;
 }
 
 function OutlineRow({
@@ -69,6 +87,9 @@ function OutlineRow({
   filterActive,
   visibleIndexes,
   onSelect,
+  noteTitle,
+  canInsertLink,
+  onInserted,
 }: OutlineRowProps) {
   if (filterActive && !visibleIndexes?.has(index)) return null;
 
@@ -87,8 +108,11 @@ function OutlineRow({
         hasChildren={hasChildren}
         collapsed={collapsed}
         duplicate={duplicateFlags[index]}
+        noteTitle={noteTitle}
+        canInsertLink={canInsertLink}
         onToggleCollapse={() => onToggleCollapse(keyId)}
         onSelect={() => onSelect(heading)}
+        onInserted={onInserted}
       />
       {hasChildren && !collapsed && (
         <ul class="outline-children">
@@ -104,6 +128,9 @@ function OutlineRow({
               filterActive={filterActive}
               visibleIndexes={visibleIndexes}
               onSelect={onSelect}
+              noteTitle={noteTitle}
+              canInsertLink={canInsertLink}
+              onInserted={onInserted}
             />
           ))}
         </ul>
@@ -116,10 +143,11 @@ function OutlineRow({
  * Phase 1 (spec/f06-note-outline-heading-breadcrumbs.md section 20)
  * read-only structural outline for the active note: a hierarchical,
  * filterable, collapsible list of headings that navigates the editor's
- * selection to a heading's text without remounting it. F04-dependent
- * copy/insert-link actions and the remainder of Phase 4 (complete
+ * selection to a heading's text without remounting it. Phase 3 added
+ * per-row copy-heading-link and insert-heading-link actions (section 9,
+ * see outline/HeadingLinkActions.tsx); the remainder of Phase 4 (complete
  * keyboard tree semantics, screen-reader validation, compact hardening)
- * are later phases, not implemented here. Above LARGE_OUTLINE_THRESHOLD
+ * is still a later phase, not implemented here. Above LARGE_OUTLINE_THRESHOLD
  * headings, rendering switches to VirtualizedOutlineList (Phase 4a);
  * below it, this file's own nested OutlineRow renderer is unchanged.
  *
@@ -129,7 +157,7 @@ function OutlineRow({
  * and collapse state are component-local and reset automatically rather
  * than needing an explicit workspace-switch listener.
  */
-export function OutlinePanel({ content, onNavigated }: OutlinePanelProps) {
+export function OutlinePanel({ content, noteTitle, canInsertLink = true, onNavigated }: OutlinePanelProps) {
   const headings = useNoteHeadings(content);
   const [filterText, setFilterText] = useState("");
   const [collapsedKeys, setCollapsedKeys] = useState<Set<string>>(new Set());
@@ -210,6 +238,9 @@ export function OutlinePanel({ content, onNavigated }: OutlinePanelProps) {
           filterActive={filterActive}
           visibleIndexes={visibleIndexes}
           onSelect={handleSelect}
+          noteTitle={noteTitle}
+          canInsertLink={canInsertLink}
+          onInserted={onNavigated}
         />
       ) : (
         <ul class="outline-list" aria-label="Heading outline">
@@ -225,6 +256,9 @@ export function OutlinePanel({ content, onNavigated }: OutlinePanelProps) {
               filterActive={filterActive}
               visibleIndexes={visibleIndexes}
               onSelect={handleSelect}
+              noteTitle={noteTitle}
+              canInsertLink={canInsertLink}
+              onInserted={onNavigated}
             />
           ))}
         </ul>

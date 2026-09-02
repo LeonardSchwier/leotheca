@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { escapeWikiLinkText, parseWikiLinks, unescapeWikiLinkText } from "./wikiSyntax";
+import {
+  escapeWikiLinkText,
+  parseWikiLinks,
+  serializeWikiLink,
+  unescapeWikiLinkText,
+} from "./wikiSyntax";
 
 describe("parseWikiLinks", () => {
   it("parses a plain [[Note]] link with no fragment or label", () => {
@@ -188,5 +193,81 @@ describe("parseWikiLinks", () => {
       const original = "A \\ heading # with | every ] special [ character";
       expect(unescapeWikiLinkText(escapeWikiLinkText(original))).toBe(original);
     });
+  });
+});
+
+// escapeWikiLinkText's own behavior (every escapable character, the
+// inverse relationship with unescapeWikiLinkText) is already covered by
+// the "escapeWikiLinkText" describe block nested above (F04 Phase 2's
+// heading-completion tests): serializeWikiLink below is F06 Phase 3's own
+// genuinely new surface, so its tests don't re-cover the same escaping
+// ground a second time.
+describe("serializeWikiLink", () => {
+  it("serializes a plain note target with no fragment", () => {
+    expect(serializeWikiLink({ noteTarget: "Existing Note" })).toBe("[[Existing Note]]");
+  });
+
+  it("serializes a same-note heading fragment as [[#Heading]]", () => {
+    expect(
+      serializeWikiLink({ noteTarget: "", fragment: { kind: "heading", value: "Design System" } }),
+    ).toBe("[[#Design System]]");
+  });
+
+  it("serializes a cross-note heading fragment as [[Note#Heading]]", () => {
+    expect(
+      serializeWikiLink({
+        noteTarget: "Project Plan",
+        fragment: { kind: "heading", value: "Milestones" },
+      }),
+    ).toBe("[[Project Plan#Milestones]]");
+  });
+
+  it("serializes a block fragment with the ^ marker", () => {
+    expect(
+      serializeWikiLink({ noteTarget: "Note", fragment: { kind: "block", value: "release-decision" } }),
+    ).toBe("[[Note#^release-decision]]");
+  });
+
+  it("serializes a label", () => {
+    expect(
+      serializeWikiLink({
+        noteTarget: "Project Plan",
+        fragment: { kind: "heading", value: "Milestones" },
+        label: "the milestones",
+      }),
+    ).toBe("[[Project Plan#Milestones|the milestones]]");
+  });
+
+  it("escapes a literal # in the note target so it is not read back as a fragment separator", () => {
+    const text = serializeWikiLink({ noteTarget: "Note #1" });
+    expect(text).toBe("[[Note \\#1]]");
+    const [record] = parseWikiLinks(text);
+    expect(record.noteTarget).toBe("Note #1");
+    expect(record.fragment).toBeUndefined();
+  });
+
+  it("escapes a literal | in a heading fragment so it is not read back as a label separator", () => {
+    const text = serializeWikiLink({ noteTarget: "Note", fragment: { kind: "heading", value: "A | B" } });
+    const [record] = parseWikiLinks(text);
+    expect(record.fragment).toEqual({ kind: "heading", value: "A | B" });
+    expect(record.label).toBeUndefined();
+  });
+
+  it("escapes a literal ] in the note target so it does not end the link early", () => {
+    const text = serializeWikiLink({ noteTarget: "Note]1" });
+    const [record] = parseWikiLinks(text);
+    expect(record.noteTarget).toBe("Note]1");
+  });
+
+  it("round-trips a heading link containing every special character through parseWikiLinks", () => {
+    const target = {
+      noteTarget: "Weird \\ # | [ ] Note",
+      fragment: { kind: "heading" as const, value: "Odd \\ # | [ ] Heading" },
+    };
+    const text = serializeWikiLink(target);
+    const [record] = parseWikiLinks(text);
+    expect(record.noteTarget).toBe(target.noteTarget);
+    expect(record.fragment).toEqual(target.fragment);
+    expect(record.parseStatus).toBe("valid");
   });
 });

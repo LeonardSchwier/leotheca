@@ -1,0 +1,36 @@
+name: Forward integrate F06 Phase 3
+
+on:
+  push:
+    branches:
+      - agent/f06-phase3-link-actions
+    paths:
+      - .github/workflows/f06-forward-integrate.yml
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Merge current main without rewriting history
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name Leonardschwier
+          git config user.email github@leonardschwier.de
+          git fetch origin main
+          if ! git merge --no-ff --no-commit origin/main; then
+            echo "CONFLICTS_BEGIN"
+            git diff --name-only --diff-filter=U
+            echo "CONFLICTS_END"
+            exit 1
+          fi
+          git rm .github/workflows/f06-forward-integrate.yml
+          git diff --check
+          git commit -m "Forward integrate F06 Phase 3 with current main"
+          git push origin HEAD:agent/f06-phase3-link-actions

@@ -787,6 +787,7 @@ export function App() {
                     ) : taskHubOpen.value ? (
                       <TaskHubPanel
                         onOpenFile={handleOpenFile}
+                        save={save}
                         onNavigated={() => {
                           if (viewMode.value === "preview") viewMode.value = "split";
                         }}

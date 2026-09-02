@@ -86,10 +86,22 @@ export function InkSurface({ initialStrokes = [], onChange }: InkSurfaceProps) {
     setDraft((current) => current ? { ...current, points: [...current.points, ...samples] } : current);
   };
 
-  const finishPointer = (event: PointerEvent) => {
+  const finishPointer = (
+    event: PointerEvent,
+    element: SVGSVGElement,
+    includeFinalSample: boolean,
+  ) => {
     if (event.pointerId !== activePointer.current) return;
     if (draft && draft.points.length > 0) {
-      const completed = { ...draft, points: smoothInkPoints(draft.points) };
+      let points = draft.points;
+      if (includeFinalSample) {
+        const finalPoint = pointerPoint(event, element);
+        const lastPoint = points[points.length - 1];
+        if (finalPoint.x !== lastPoint.x || finalPoint.y !== lastPoint.y) {
+          points = [...points, finalPoint];
+        }
+      }
+      const completed = { ...draft, points: smoothInkPoints(points) };
       publish(commitInkEdit(history, [...history.present, completed]));
     }
     setDraft(null);
@@ -159,8 +171,12 @@ export function InkSurface({ initialStrokes = [], onChange }: InkSurfaceProps) {
           }
           appendDraftSamples(native, event.currentTarget);
         }}
-        onPointerUp={(event) => finishPointer(event as unknown as PointerEvent)}
-        onPointerCancel={(event) => finishPointer(event as unknown as PointerEvent)}
+        onPointerUp={(event) =>
+          finishPointer(event as unknown as PointerEvent, event.currentTarget, true)
+        }
+        onPointerCancel={(event) =>
+          finishPointer(event as unknown as PointerEvent, event.currentTarget, false)
+        }
       >
         {history.present.map(renderStroke)}
         {draft && renderStroke(draft)}

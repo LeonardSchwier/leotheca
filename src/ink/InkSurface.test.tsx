@@ -36,13 +36,13 @@ describe("InkSurface", () => {
     expect((getByText("Redo") as HTMLButtonElement).disabled).toBe(true);
   });
 
-  it("records a pressure-aware pen stroke and publishes it on pointer up", () => {
+  it("records pressure and the final pointer-up position before publishing a pen stroke", () => {
     const onChange = vi.fn();
     const { getByLabelText } = render(<InkSurface onChange={onChange} />);
     const surface = getByLabelText("Ink drawing surface");
     pointer(surface, "down", { pointerId: 1, pointerType: "pen", clientX: 1, clientY: 2, pressure: 0.2, tiltX: 5, tiltY: -5 });
     pointer(surface, "move", { pointerId: 1, pointerType: "pen", clientX: 10, clientY: 8, pressure: 0.8, tiltX: 20, tiltY: 10 });
-    pointer(surface, "up", { pointerId: 1, pointerType: "pen", clientX: 10, clientY: 8, pressure: 0.8 });
+    pointer(surface, "up", { pointerId: 1, pointerType: "pen", clientX: 12, clientY: 9, pressure: 0.8 });
 
     expect(onChange).toHaveBeenCalledTimes(1);
     const strokes = onChange.mock.calls[0][0] as InkStroke[];
@@ -50,6 +50,7 @@ describe("InkSurface", () => {
     expect(strokes[0].tool).toBe("pen");
     expect(strokes[0].points[0]).toMatchObject({ x: 1, y: 2, tiltX: 5, tiltY: -5 });
     expect(strokes[0].points[0].pressure).toBeCloseTo(0.2);
+    expect(strokes[0].points.at(-1)).toMatchObject({ x: 12, y: 9 });
     expect(strokes[0].points.at(-1)?.pressure).toBeCloseTo(0.8);
     expect(strokes[0].points.length).toBeGreaterThan(2);
   });

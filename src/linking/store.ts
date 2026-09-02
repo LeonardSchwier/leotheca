@@ -99,6 +99,68 @@ function linkIndexReadConcurrency(): number {
     : DESKTOP_LINK_INDEX_READ_CONCURRENCY;
 }
 
+/** Audit follow-ups F-008/F-012 both flagged this as left open: the
+ * persisted cache file is parsed with a raw type assertion, no runtime
+ * decoder. This is a genuine crash risk, not just a hygiene gap: a
+ * cache-hit path below (`cached.aliases.length`, `for...of cached.tags`,
+ * etc.) assumes every field is exactly the shape `CachedNote` declares,
+ * and a malformed entry (hand-edited file, a partial write, a future
+ * format change) throwing there propagates out of `mapWithConcurrency`'s
+ * `Promise.all` and aborts the *entire* rebuild, not just the one bad
+ * entry, the same class of "one bad note takes down the whole index"
+ * bug F-012 already fixed for read failures. Isolating one malformed
+ * entry (drop it, force a real re-read for that note) costs nothing:
+ * this cache is a pure, fully-derivable optimization, never the source
+ * of truth, so silently discarding a bad entry is always safe. */
+function isValidCachedNote(raw: unknown): raw is CachedNote {
+  if (typeof raw !== "object" || raw === null) return false;
+  const record = raw as Record<string, unknown>;
+  if (typeof record.mtime !== "number" || !Number.isFinite(record.mtime)) {
+    return false;
+  }
+  if (
+    record.size !== undefined &&
+    (typeof record.size !== "number" || !Number.isFinite(record.size))
+  ) {
+    return false;
+  }
+  const isStringArray = (v: unknown): v is string[] =>
+    Array.isArray(v) && v.every((item) => typeof item === "string");
+  return (
+    isStringArray(record.wikilinks) &&
+    isStringArray(record.aliases) &&
+    isStringArray(record.tags)
+  );
+}
+
+/** Validates the whole persisted cache file's shape before any entry is
+ * trusted. Returns `null` (start fresh, same as today's "no cache file
+ * yet" behavior) for anything not shaped like a version-4 cache file at
+ * all; otherwise keeps only the entries that individually pass
+ * `isValidCachedNote`; a malformed entry is dropped rather than
+ * poisoning the whole load. */
+function decodePersistedLinkIndexCache(
+  raw: unknown,
+): Record<string, CachedNote> | null {
+  if (typeof raw !== "object" || raw === null) return null;
+  const record = raw as Record<string, unknown>;
+  if (record.version !== LINK_INDEX_CACHE_VERSION) return null;
+  if (
+    typeof record.entries !== "object" ||
+    record.entries === null ||
+    Array.isArray(record.entries)
+  ) {
+    return null;
+  }
+  const entries: Record<string, CachedNote> = {};
+  for (const [path, value] of Object.entries(
+    record.entries as Record<string, unknown>,
+  )) {
+    if (isValidCachedNote(value)) entries[path] = value;
+  }
+  return entries;
+}
+
 interface CachedNote {
   mtime: number;
   /** Audit follow-up F-012: undefined when the walk that produced this
@@ -154,12 +216,9 @@ async function loadPersistedCacheIfNeeded(rootPath: string): Promise<void> {
   loadedCacheRoots.add(rootPath);
   try {
     const raw = await readTextFile(cacheFilePath(rootPath));
-    const parsed = JSON.parse(raw) as {
-      version: number;
-      entries: Record<string, CachedNote>;
-    };
-    if (parsed.version === LINK_INDEX_CACHE_VERSION) {
-      for (const [path, cached] of Object.entries(parsed.entries)) {
+    const entries = decodePersistedLinkIndexCache(JSON.parse(raw));
+    if (entries) {
+      for (const [path, cached] of Object.entries(entries)) {
         wikilinkCache.set(path, cached);
       }
     }

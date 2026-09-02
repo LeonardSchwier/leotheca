@@ -22,5 +22,6 @@
 - Preview now resolves an image embedded more than once in the same note (e.g. a diagram referenced twice) only once instead of reading the same file again for every occurrence.
 - The heading breadcrumb trail now also appears in Preview-only view, following the section you're scrolled to.
 - The Outline panel and heading breadcrumbs now have full-size touch targets on narrow screens and a visible keyboard focus ring.
+- Fixed a rare crash where a corrupted or hand-edited wikilink index cache file could abort indexing the whole workspace instead of just re-reading the one affected note.
 
 Entries will accumulate here from the first tagged release onward.

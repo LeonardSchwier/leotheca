@@ -87,20 +87,20 @@ export function unescapeWikiLinkText(text: string): string {
 }
 
 /**
- * Escapes `\`, `#`, `|`, `[`, and `]` so `text` embeds literally inside a
- * structured wikilink expression: the exact inverse of
- * unescapeWikiLinkText above. Every producer of `[[...]]` link text (F06's
- * copy/insert-link actions, any future link-editing UI) must escape
- * through here rather than hand-rolling the same backslash rules, per
- * this module's own header comment ("the one syntax parser every consumer
- * must share").
+ * The exact inverse of unescapeWikiLinkText above: escapes `\`, `#`, `|`,
+ * `[`, and `]` so arbitrary text (e.g. a heading's own display text, which
+ * may itself contain one of these characters, like a heading literally
+ * titled "Q&A: Issue #12" or "Before | After") can be inserted into a
+ * structured wikilink's target, fragment, or label expression without
+ * being reinterpreted as a delimiter by parseWikiLinks. Used by F04 Phase
+ * 2's heading-link completion (MarkdownEditor.tsx) when inserting a
+ * selected heading's text, and by F06 Phase 3's `serializeWikiLink` below
+ * (outline/headingLinkActions.ts's copy/insert-link actions); kept here
+ * rather than duplicated at either call site since this module owns the
+ * escaping grammar (spec section 5.2).
  */
 export function escapeWikiLinkText(text: string): string {
-  let result = "";
-  for (const ch of text) {
-    result += ESCAPABLE.has(ch) ? `\\${ch}` : ch;
-  }
-  return result;
+  return text.replace(/[\\#|[\]]/g, "\\$&");
 }
 
 /**

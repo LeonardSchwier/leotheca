@@ -165,23 +165,43 @@ describe("parseWikiLinks", () => {
       expect(record.fragment).toEqual({ kind: "heading", value: "Heading # One" });
     });
   });
+
+  describe("escapeWikiLinkText", () => {
+    it("leaves plain text without any of the five escapable characters unchanged", () => {
+      expect(escapeWikiLinkText("Plain Heading Text")).toBe("Plain Heading Text");
+    });
+
+    it("escapes a literal # so a round trip through parseWikiLinks keeps it in the fragment", () => {
+      const escaped = escapeWikiLinkText("Issue #12");
+      expect(escaped).toBe("Issue \\#12");
+      const [record] = parseWikiLinks(`[[Note#${escaped}]]`);
+      expect(record.fragment).toEqual({ kind: "heading", value: "Issue #12" });
+    });
+
+    it("escapes a literal | so it does not split off a label", () => {
+      const escaped = escapeWikiLinkText("Before | After");
+      const [record] = parseWikiLinks(`[[Note#${escaped}]]`);
+      expect(record.fragment).toEqual({ kind: "heading", value: "Before | After" });
+      expect(record.label).toBeUndefined();
+    });
+
+    it("escapes brackets and backslashes", () => {
+      expect(escapeWikiLinkText("[a]\\b")).toBe("\\[a\\]\\\\b");
+    });
+
+    it("is the exact inverse of unescapeWikiLinkText for every escapable character combined", () => {
+      const original = "A \\ heading # with | every ] special [ character";
+      expect(unescapeWikiLinkText(escapeWikiLinkText(original))).toBe(original);
+    });
+  });
 });
 
-describe("escapeWikiLinkText", () => {
-  it("escapes every character the grammar treats specially", () => {
-    expect(escapeWikiLinkText("a\\b#c|d[e]f")).toBe("a\\\\b\\#c\\|d\\[e\\]f");
-  });
-
-  it("leaves ordinary text untouched", () => {
-    expect(escapeWikiLinkText("Plain Heading Text")).toBe("Plain Heading Text");
-  });
-
-  it("round-trips through unescapeWikiLinkText", () => {
-    const original = "Weird: \\ # | [ ] chars";
-    expect(unescapeWikiLinkText(escapeWikiLinkText(original))).toBe(original);
-  });
-});
-
+// escapeWikiLinkText's own behavior (every escapable character, the
+// inverse relationship with unescapeWikiLinkText) is already covered by
+// the "escapeWikiLinkText" describe block nested above (F04 Phase 2's
+// heading-completion tests): serializeWikiLink below is F06 Phase 3's own
+// genuinely new surface, so its tests don't re-cover the same escaping
+// ground a second time.
 describe("serializeWikiLink", () => {
   it("serializes a plain note target with no fragment", () => {
     expect(serializeWikiLink({ noteTarget: "Existing Note" })).toBe("[[Existing Note]]");

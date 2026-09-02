@@ -753,6 +753,8 @@ export function App() {
           onClick={openCollectionsPanel}
         >
           <CollectionsIcon />
+        </button>
+        <button
           class={`icon-button ${diagnosticsOpen.value ? "active" : ""}`}
           aria-label="Open Link Diagnostics"
           title="Open Link Diagnostics"

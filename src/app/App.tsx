@@ -27,6 +27,7 @@ import {
   updateTabContent,
 } from "../workspace/store";
 import { readTextFile } from "../workspace/tauriBridge";
+import { beginFileOpenAuthority, isCurrentFileOpen } from "../workspace/fileOpenAuthority";
 import {
   initSettings,
   settingsLoaded,
@@ -319,13 +320,34 @@ export function App() {
      * freshly-read note is a silent no-op reveal: the note still opens,
      * matching spec section 10.4's "open the note if its path still
      * resolves."
+     *
+     * N-002: `beginFileOpenAuthority()` runs synchronously, before any
+     * await, so it invalidates every open request already in flight,
+     * including a synchronous image-tab open that never itself awaits
+     * anything. The one await below (`readTextFile`) re-checks it before
+     * touching tabs, focus, or sidebar state, so an older request that
+     * resolves after a newer one (or after a workspace switch, via the
+     * transition generation `fileOpenAuthority.ts` also captures) is a
+     * silent no-op rather than overriding the newer selection. A
+     * rejected read is only rethrown if this request was still current
+     * when it failed; a stale request's own read failure is not this
+     * call's problem to report, since a newer request already
+     * superseded it.
      */
     async (path: string, name: string, options?: { headingKey?: string; blockId?: string }) => {
+      const authority = beginFileOpenAuthority();
       const kind = classifyWorkspaceResource(path);
       if (kind === "image") {
         openOrFocusTab(path, name, "", "image");
       } else {
-        const content = await readTextFile(path);
+        let content: string;
+        try {
+          content = await readTextFile(path);
+        } catch (error) {
+          if (!isCurrentFileOpen(authority)) return;
+          throw error;
+        }
+        if (!isCurrentFileOpen(authority)) return;
         // An already-open tab keeps its own (possibly unsaved, dirty)
         // content; openOrFocusTab only focuses it rather than
         // overwriting it with what's on disk. Reveal against whichever

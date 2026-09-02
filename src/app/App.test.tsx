@@ -87,9 +87,20 @@ vi.mock("../workspace/Sidebar", () => ({
   }: {
     onOpenFile: (path: string, name: string) => void;
   }) => (
-    <button onClick={() => onOpenFile("/vault/note.md", "note.md")}>
-      Open mock note
-    </button>
+    <>
+      <button onClick={() => onOpenFile("/vault/note.md", "note.md")}>
+        Open mock note
+      </button>
+      {/* Two independently addressable notes, used by the N-002
+          stale-file-open-completion tests below to control two
+          concurrent handleOpenFile calls' read order independently. */}
+      <button onClick={() => onOpenFile("/vault/a.md", "a.md")}>
+        Open mock note A
+      </button>
+      <button onClick={() => onOpenFile("/vault/b.md", "b.md")}>
+        Open mock note B
+      </button>
+    </>
   ),
 }));
 
@@ -133,6 +144,7 @@ const { settingsPanelOpen, workspacePath, workspaceSettings, viewMode } =
   await import("../settings/store");
 const { linkIndex } = await import("../linking/store");
 const { outlineRevealRequest } = await import("../outline/outlineNavigation");
+const { workspaceTransitions } = await import("../workspace/workspaceTransition");
 const defaultViewportWidth = window.innerWidth;
 
 const emptyLinkIndex = () => ({
@@ -489,5 +501,132 @@ describe("App: F04 Phase 3a cross-note block-link navigation", () => {
 
     expect(activeTabPath.value).toBe("/vault/second.md");
     expect(outlineRevealRequest.value).toBeNull();
+  });
+});
+
+describe("App: N-002 stale file-open completions", () => {
+  it("an older open request completing after a newer one does not override the newer selection (latest-selection-wins)", async () => {
+    workspacePath.value = "/vault";
+    const pending: Record<
+      string,
+      { resolve: (v: string) => void; reject: (e: unknown) => void }
+    > = {};
+    readTextFile.mockImplementation(
+      (path: string) =>
+        new Promise<string>((resolve, reject) => {
+          pending[path] = { resolve, reject };
+        }),
+    );
+    const { getByRole } = render(<App />);
+
+    await act(async () => {
+      fireEvent.click(getByRole("button", { name: "Open mock note A" }));
+      await Promise.resolve();
+    });
+    await act(async () => {
+      fireEvent.click(getByRole("button", { name: "Open mock note B" }));
+      await Promise.resolve();
+    });
+
+    // B (the newer selection) resolves first...
+    await act(async () => {
+      pending["/vault/b.md"].resolve("b content");
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(activeTabPath.value).toBe("/vault/b.md");
+
+    // ...then A's older read finally resolves too. A must not override
+    // B, and must not even open a background tab for itself.
+    await act(async () => {
+      pending["/vault/a.md"].resolve("a content");
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(activeTabPath.value).toBe("/vault/b.md");
+    expect(openTabs.value.map((t) => t.path)).toEqual(["/vault/b.md"]);
+  });
+
+  it("a workspace transition starting during an in-flight read prevents that read's completion from opening a tab", async () => {
+    workspacePath.value = "/vault";
+    let resolveRead: ((v: string) => void) | undefined;
+    readTextFile.mockImplementation(
+      () =>
+        new Promise<string>((resolve) => {
+          resolveRead = resolve;
+        }),
+    );
+    const { getByRole } = render(<App />);
+
+    await act(async () => {
+      fireEvent.click(getByRole("button", { name: "Open mock note A" }));
+      await Promise.resolve();
+    });
+
+    // A real workspace switch (setWorkspacePath) runs its steps through
+    // this same shared workspaceTransitions coordinator; simulate one
+    // starting while A's read is still in flight.
+    await act(async () => {
+      await workspaceTransitions.run({
+        prepareOutgoing: async () => {},
+        connectIncoming: async () => {},
+        loadIncoming: async () => undefined,
+        publishIncoming: () => {},
+      });
+    });
+
+    await act(async () => {
+      resolveRead?.("a content");
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(
+      openTabs.value.find((t) => t.path === "/vault/a.md"),
+    ).toBeUndefined();
+  });
+
+  it("a rejected read for an already-superseded request does not throw or disturb the newer tab", async () => {
+    workspacePath.value = "/vault";
+    const pending: Record<
+      string,
+      { resolve: (v: string) => void; reject: (e: unknown) => void }
+    > = {};
+    readTextFile.mockImplementation(
+      (path: string) =>
+        new Promise<string>((resolve, reject) => {
+          pending[path] = { resolve, reject };
+        }),
+    );
+    const { getByRole } = render(<App />);
+
+    await act(async () => {
+      fireEvent.click(getByRole("button", { name: "Open mock note A" }));
+      await Promise.resolve();
+    });
+    await act(async () => {
+      fireEvent.click(getByRole("button", { name: "Open mock note B" }));
+      await Promise.resolve();
+    });
+    await act(async () => {
+      pending["/vault/b.md"].resolve("b content");
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(activeTabPath.value).toBe("/vault/b.md");
+
+    // A's own read, already stale, fails. This must not throw or reject
+    // unhandled, and must not disturb the already-current B tab.
+    await expect(
+      act(async () => {
+        pending["/vault/a.md"].reject(new Error("boom"));
+        await Promise.resolve();
+        await Promise.resolve();
+      }),
+    ).resolves.toBeUndefined();
+
+    expect(activeTabPath.value).toBe("/vault/b.md");
+    expect(openTabs.value.map((t) => t.path)).toEqual(["/vault/b.md"]);
   });
 });

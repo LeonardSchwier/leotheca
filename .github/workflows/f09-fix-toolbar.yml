@@ -1,0 +1,38 @@
+name: Repair F09 merged toolbar boundary
+
+on:
+  push:
+    branches:
+      - agent/f09-phase1-collections
+    paths:
+      - .github/workflows/f09-fix-toolbar.yml
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore both toolbar buttons
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name Leonardschwier
+          git config user.email github@leonardschwier.de
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("src/app/App.tsx")
+          text = path.read_text()
+          broken = '''          <CollectionsIcon />\n          class={`icon-button ${diagnosticsOpen.value ? "active" : ""}`}'''
+          fixed = '''          <CollectionsIcon />\n        </button>\n        <button\n          class={`icon-button ${diagnosticsOpen.value ? "active" : ""}`}'''
+          if text.count(broken) != 1:
+              raise SystemExit("expected one merged toolbar boundary")
+          path.write_text(text.replace(broken, fixed))
+          PY
+          git add src/app/App.tsx
+          git rm .github/workflows/f09-fix-toolbar.yml
+          git commit -m "Fix F09 forward integration toolbar boundary"
+          git push origin HEAD:agent/f09-phase1-collections

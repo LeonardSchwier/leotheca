@@ -88,9 +88,45 @@
   padding: var(--space-1) 0 var(--space-2) var(--space-2);
   border-left: 2px solid var(--border);
   margin-left: var(--space-2);
+  min-width: 0;
 }
 
-/* Result list (CollectionResults.tsx) */
+/* Result views (CollectionResults.tsx) */
+
+.collections-results {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.collections-view-switcher {
+  display: inline-flex;
+  align-self: flex-start;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.collections-view-switcher button {
+  border: 0;
+  border-right: 1px solid var(--border);
+  padding: 4px var(--space-2);
+  background: var(--bg-sunken);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.collections-view-switcher button:last-child {
+  border-right: 0;
+}
+
+.collections-view-switcher button.active {
+  background: var(--accent);
+  color: var(--bg-primary, #fff);
+}
 
 .collections-results-list {
   list-style: none;
@@ -126,9 +162,174 @@
 
 .collections-result-meta {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-2);
   color: var(--text-faint);
   font-size: 11px;
+}
+
+.collections-table-wrap {
+  max-width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.collections-table {
+  width: 100%;
+  min-width: 640px;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.collections-table th,
+.collections-table td {
+  padding: 5px var(--space-2);
+  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+  white-space: nowrap;
+}
+
+.collections-table th:last-child,
+.collections-table td:last-child {
+  border-right: 0;
+}
+
+.collections-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.collections-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--bg-sunken);
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.collections-note-link,
+.collections-property-value,
+.collections-card-open {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.collections-note-link,
+.collections-property-value {
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 2px;
+}
+
+.collections-note-link:hover,
+.collections-property-value:hover {
+  text-decoration-color: currentColor;
+}
+
+.collections-cell-empty {
+  color: var(--text-faint);
+}
+
+.collections-property-editor {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+  max-width: 320px;
+  white-space: normal;
+}
+
+.collections-property-input {
+  min-width: 120px;
+  max-width: 220px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 3px 5px;
+  background: var(--bg-sunken);
+  color: var(--text-primary);
+  font: inherit;
+}
+
+.collections-property-editor button {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 3px 5px;
+  background: var(--bg-sunken);
+  color: var(--text-primary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.collections-property-editor [role="alert"] {
+  color: #c0392b;
+}
+
+.collections-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: var(--space-2);
+}
+
+.collections-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-sunken);
+}
+
+.collections-card-open {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.collections-card-open strong,
+.collections-card-open span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.collections-card-open span {
+  color: var(--text-faint);
+  font-size: 11px;
+}
+
+.collections-card-fields {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+}
+
+.collections-card-fields div {
+  min-width: 0;
+}
+
+.collections-card-fields dt {
+  color: var(--text-faint);
+  font-size: 10px;
+}
+
+.collections-card-fields dd {
+  margin: 0;
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Builder (CollectionBuilder.tsx) */
@@ -291,5 +492,12 @@
   .collections-clause-row select,
   .collections-clause-row input {
     min-height: 32px;
+  }
+
+  .collections-view-switcher button,
+  .collections-note-link,
+  .collections-property-value,
+  .collections-card-open {
+    min-height: 44px;
   }
 }

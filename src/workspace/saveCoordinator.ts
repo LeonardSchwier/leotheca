@@ -36,10 +36,16 @@ export interface SaveCoordinator {
 }
 
 // App.tsx owns the editor coordinator instance. The settings transition layer
-// cannot import App without a cycle, so the factory registers the latest app
-// coordinator here. Tests that construct isolated coordinators still get fresh
-// instances; only the explicit transition helper uses the registered one.
+// and auxiliary editor surfaces cannot import App without a cycle, so the
+// factory registers the latest app coordinator here.
 let activeCoordinator: SaveCoordinator | null = null;
+
+/** Returns the app-owned save authority when the editor shell has initialized.
+ * Callers must fail closed when it is absent rather than constructing a second
+ * coordinator, which would create a competing writer for the same note path. */
+export function getActiveSaveCoordinator(): SaveCoordinator | null {
+  return activeCoordinator;
+}
 
 export async function prepareActiveSavesForTransition(
   session: string | number | null,
@@ -48,12 +54,6 @@ export async function prepareActiveSavesForTransition(
 }
 
 function writeWorkspaceRevision(path: string, content: string): Promise<void> {
-  // Production tauriBridge always exposes the capability-aware writer. A few
-  // older whole-module test doubles intentionally provide only writeTextFile.
-  // Vitest's strict module-mock proxy throws when an omitted export is read, so
-  // probe for the export before accessing it. This keeps those doubles usable
-  // without weakening the real app path: the production module always takes
-  // the capability-aware branch.
   const writers = bridge as unknown as {
     writeTextFile: typeof bridge.writeTextFile;
     writeActiveWorkspaceTextFile?: typeof bridge.writeTextFile;
@@ -65,15 +65,7 @@ function writeWorkspaceRevision(path: string, content: string): Promise<void> {
   return writer(path, content);
 }
 
-/**
- * Coordinates debounced note writes for one app lifetime.
- *
- * N-001/N-003 adds an explicit transition barrier: once a session is being
- * left, new edits for it are rejected, pending timers are cancelled, and
- * already-invoked native writes are drained before Android SAF access changes.
- * F-004 routes every actual note write through the active workspace capability
- * held by tauriBridge, so autosave cannot bypass native containment.
- */
+/** Coordinates debounced note writes for one app lifetime. */
 export function createSaveCoordinator(cbs?: SaveCoordinatorCallbacks): SaveCoordinator {
   const entries = new Map<string, SaveEntry>();
   const blockedSessions = new Set<string>();
@@ -198,9 +190,6 @@ export function createSaveCoordinator(cbs?: SaveCoordinatorCallbacks): SaveCoord
     }
   }
 
-  /** Defensive cleanup after a new session publishes. The authoritative drain
-   * happened before publication; this only removes any non-current leftovers
-   * from legacy callers and never blocks the newly published session. */
   function resetForSession(currentSession: string | number | null): void {
     const currentPrefix = `${sessionKey(currentSession)}::`;
     for (const [key, entry] of entries) {
@@ -231,7 +220,6 @@ export function createSaveCoordinator(cbs?: SaveCoordinatorCallbacks): SaveCoord
     return entries.size;
   }
 
-  /** Returns a copy of all entries (for testing/debugging). */
   function debugEntries(): Array<{
     key: string;
     entry: Omit<SaveEntry, "timer" | "waiters">;

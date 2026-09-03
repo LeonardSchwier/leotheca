@@ -2,6 +2,7 @@ import type { LinkIndex } from "../linking/store";
 import type { FrontmatterProperty } from "../editor/frontmatterEdits";
 import { inferScalar } from "./collectionTypesInference";
 import type {
+  CollectionSortV1,
   QueryClauseV1,
   QueryFieldV1,
   QueryNodeV1,
@@ -11,11 +12,9 @@ import type {
 } from "./collectionTypes";
 
 /**
- * F09 Phase 1: the pure query evaluator (spec section 6). Operates only on
- * `NoteRecord`s derived from the shared workspace metadata index
- * (linking/store.ts's LinkIndex), never reads a note's own body content,
- * matching FR-13. No scripts, regexes, or SQL are involved anywhere in
- * this file, matching FR-26.
+ * F09 query evaluator and result ordering (spec section 6 and section 9).
+ * Operates only on `NoteRecord`s derived from the shared workspace metadata
+ * index (`LinkIndex`), never reads note body content while rendering a view.
  */
 
 export interface NoteRecord {
@@ -31,11 +30,7 @@ export interface NoteRecord {
   modified?: number;
   hasFrontmatter: boolean;
   /** Normalized (lowercased) property key -> the frontmatter field as
-   * parsed by editor/frontmatterEdits.ts. Case-insensitive lookup per spec
-   * section 6.2; a note with two keys differing only by case keeps
-   * whichever this Map's construction visits last, a known, documented
-   * edge case the spec itself flags as builder-warning territory (out of
-   * scope for this read-only phase). */
+   * parsed by editor/frontmatterEdits.ts. */
   properties: Map<string, FrontmatterProperty>;
 }
 
@@ -52,10 +47,7 @@ function normalizeKey(key: string): string {
   return key.trim().toLocaleLowerCase();
 }
 
-/** Builds the note records the evaluator queries against, from the shared
- * metadata index alone (no file reads). Every note the index knows about
- * appears exactly once, sourced from `backlinksByPath`'s keys the same way
- * TaskHubPanel/TagsPanel already treat it as the authoritative note list. */
+/** Builds note records from the shared metadata index alone. */
 export function buildNoteRecords(index: LinkIndex): NoteRecord[] {
   const records: NoteRecord[] = [];
   for (const path of index.backlinksByPath.keys()) {
@@ -138,10 +130,7 @@ function evaluatePathLike(
     case "is-not-under-folder":
       return target === undefined || !folded.startsWith(`${fold(trimSlashes(target))}/`);
     case "contains-segment":
-      return (
-        target !== undefined &&
-        folded.split("/").some((segment) => segment === fold(target))
-      );
+      return target !== undefined && folded.split("/").some((segment) => segment === fold(target));
     default:
       return false;
   }
@@ -188,12 +177,6 @@ function evaluateListLike(
   }
 }
 
-/** Local (wall-clock) calendar day of a Date, for the "local calendar
- * semantics" date-only comparisons FR-10 and acceptance criterion 7
- * require: two users in different timezones editing the same note on the
- * same wall-clock day must see the same calendar-date match result,
- * which only holds if this is derived from local time components, never
- * from the UTC-anchored instant alone. */
 function localCalendarDate(date: Date): string {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, "0");
@@ -201,11 +184,6 @@ function localCalendarDate(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
-/** Parses an ISO `YYYY-MM-DD` string as a *local* midnight, not a UTC one:
- * `new Date("2024-05-01")` is UUTC-anchored per the ECMAScript spec, which
- * shifts to the previous day once converted back to local components in
- * any negative UTC-offset timezone. Constructing from the numeric parts
- * instead keeps the calendar day stable regardless of the runtime's zone. */
 function localMidnightFromIsoDate(iso: string): Date {
   const [y, m, d] = iso.split("-").map(Number);
   return new Date(y, m - 1, d);
@@ -223,11 +201,6 @@ function calendarDateOfIsoDateTime(iso: string): string {
   return localCalendarDate(new Date(iso));
 }
 
-/** Compares a note-side instant (either a raw epoch or an ISO
- * date/date-time string already known to be one of those two shapes)
- * against a clause's date-or-date-time value, per spec section 6.4: a
- * "date" value compares local calendar days; a "datetime" value compares
- * exact instants. */
 function evaluateDateLike(
   fieldValue: number | { iso: string; kind: "date" | "datetime" },
   operator: QueryOperatorV1,
@@ -285,25 +258,13 @@ function evaluateDateLike(
   }
 }
 
-/** Evaluates a clause against a property whose presence is already
- * confirmed (the caller handles `exists`/`does-not-exist`, which apply
- * uniformly to any present key regardless of type, per spec section 7.4).
- * A list-shaped property uses the list operators; an unsupported
- * (`readonly`) property never matches a typed comparison, only `exists`;
- * a scalar property is run through type inference and only matches an
- * operator whose family agrees with the inferred type, per section 7.3's
- * "incompatible note values do not match that typed clause." */
 function evaluatePropertyClause(
   property: FrontmatterProperty,
   operator: QueryOperatorV1,
   value: QueryValueV1 | undefined,
 ): boolean {
-  if (property.kind === "list") {
-    return evaluateListLike(property.value, operator, value);
-  }
-  if (property.kind === "readonly") {
-    return false;
-  }
+  if (property.kind === "list") return evaluateListLike(property.value, operator, value);
+  if (property.kind === "readonly") return false;
 
   const inferred = inferScalar(property.value, property.style);
   switch (inferred.type) {
@@ -377,8 +338,6 @@ function evaluateClause(clause: QueryClauseV1, note: NoteRecord): boolean {
   }
 }
 
-/** Evaluates one query node (spec section 6.1): an empty AND group matches
- * every note, an empty OR group matches none, exactly as specified. */
 export function evaluateQueryNode(node: QueryNodeV1, note: NoteRecord): boolean {
   if (node.type === "clause") return evaluateClause(node, note);
   if (node.children.length === 0) return node.operator === "and";
@@ -387,18 +346,69 @@ export function evaluateQueryNode(node: QueryNodeV1, note: NoteRecord): boolean 
     : node.children.some((child) => evaluateQueryNode(child, note));
 }
 
-/** Every note matching a collection's query, sorted by normalized path
- * ascending (spec section 9.5's tie-breaker; full multi-key sort
- * configuration is Phase 2 scope per this feature's own rollout plan, see
- * ROADMAP.md's F09 Phase 1 entry). */
-export function evaluateCollection(
-  collection: SmartCollectionV1,
-  notes: NoteRecord[],
-): NoteRecord[] {
-  return notes
-    .filter((note) => evaluateQueryNode(collection.query, note))
-    .slice()
-    .sort((a, b) => a.path.localeCompare(b.path));
+function propertySortValue(note: NoteRecord, key: string): string | number | undefined {
+  const property = note.properties.get(normalizeKey(key));
+  if (!property || property.kind === "readonly") return undefined;
+  if (property.kind === "list") return property.value.join("\u0000").toLocaleLowerCase();
+  const inferred = inferScalar(property.value, property.style);
+  if (inferred.type === "number") return inferred.value;
+  if (inferred.type === "boolean") return inferred.value ? 1 : 0;
+  if (inferred.type === "date" || inferred.type === "datetime") {
+    const parsed = Date.parse(inferred.value);
+    return Number.isNaN(parsed) ? inferred.value.toLocaleLowerCase() : parsed;
+  }
+  return inferred.value.toLocaleLowerCase();
+}
+
+function sortValue(note: NoteRecord, sort: CollectionSortV1): string | number | undefined {
+  if (sort.field.kind === "property") return propertySortValue(note, sort.field.key);
+  switch (sort.field.field) {
+    case "name":
+      return note.noteName.toLocaleLowerCase();
+    case "path":
+      return note.path.toLocaleLowerCase();
+    case "folder":
+      return note.folder.toLocaleLowerCase();
+    case "modified":
+      return note.modified;
+  }
+}
+
+function compareSortValue(
+  a: string | number | undefined,
+  b: string | number | undefined,
+  sort: CollectionSortV1,
+): number {
+  if (a === undefined || b === undefined) {
+    if (a === b) return 0;
+    return a === undefined ? (sort.missing === "first" ? -1 : 1) : sort.missing === "first" ? 1 : -1;
+  }
+  const comparison =
+    typeof a === "number" && typeof b === "number"
+      ? a - b
+      : String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: "base" });
+  return sort.direction === "desc" ? -comparison : comparison;
+}
+
+/** Stable multi-key ordering with normalized path as the final tie-breaker.
+ * Only the first three persisted sort keys are considered, matching the
+ * SDD's explicit maximum. */
+export function sortCollectionResults(notes: NoteRecord[], sorts: CollectionSortV1[]): NoteRecord[] {
+  const effectiveSorts = sorts.slice(0, 3);
+  return notes.slice().sort((a, b) => {
+    for (const sort of effectiveSorts) {
+      const comparison = compareSortValue(sortValue(a, sort), sortValue(b, sort), sort);
+      if (comparison !== 0) return comparison;
+    }
+    return a.path.localeCompare(b.path, undefined, { sensitivity: "base" });
+  });
+}
+
+export function evaluateCollection(collection: SmartCollectionV1, notes: NoteRecord[]): NoteRecord[] {
+  return sortCollectionResults(
+    notes.filter((note) => evaluateQueryNode(collection.query, note)),
+    collection.sort,
+  );
 }
 
 export type { QueryFieldV1 };

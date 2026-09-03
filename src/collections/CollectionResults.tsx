@@ -44,6 +44,12 @@ function visiblePropertyKeys(results: NoteRecord[], configured: string[] | undef
   return Array.from(keys.values());
 }
 
+function viewForMode(mode: CollectionViewV1["mode"]): CollectionViewV1 {
+  if (mode === "table") return { mode: "table" };
+  if (mode === "card") return { mode: "card" };
+  return { mode: "list" };
+}
+
 interface PropertyCellProps {
   note: NoteRecord;
   property: FrontmatterProperty | undefined;
@@ -194,7 +200,7 @@ function CardView({ collection, results, onOpenFile }: Pick<CollectionResultsPro
   const configured = collection.view.mode === "card" ? collection.view.fields : undefined;
   const propertyKeys = visiblePropertyKeys(results, configured);
   return (
-    <div class="collections-card-grid" aria-label="Collection cards">
+    <div class="collections-card-grid" role="region" aria-label="Collection cards">
       {results.map((note) => (
         <article key={note.path} class="collections-card">
           <button type="button" class="collections-card-open" onClick={() => onOpenFile(note.path, fileNameFromPath(note.path))}>
@@ -243,7 +249,7 @@ export function CollectionResults({
             role="radio"
             aria-checked={collection.view.mode === mode}
             class={collection.view.mode === mode ? "active" : ""}
-            onClick={() => void onViewChange({ mode })}
+            onClick={() => void onViewChange(viewForMode(mode))}
           >
             {mode === "list" ? "List" : mode === "table" ? "Table" : "Cards"}
           </button>

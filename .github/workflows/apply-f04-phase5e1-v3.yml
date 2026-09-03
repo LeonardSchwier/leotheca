@@ -1,0 +1,63 @@
+name: Apply F04 Phase 5e1 v3
+
+on:
+  push:
+    branches:
+      - automation/apply-f04-phase5e1-v3-2058
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Apply hardened heading block ID implementation
+        shell: bash
+        run: |
+          set -euo pipefail
+          awk '/python - <<'"'"'PY'"'"'/{capture=1; next} capture && /^          PY$/{exit} capture{sub(/^          /, ""); print}' .github/workflows/apply-f04-phase5e1.yml > /tmp/apply.py
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('/tmp/apply.py')
+          lines = path.read_text(encoding='utf-8').splitlines()
+          target = next((i for i, line in enumerate(lines) if '"src/markdown/blocks.test.ts",' in line), None)
+          if target is None:
+              raise SystemExit('blocks.test replacement target not found')
+          start = target
+          while start >= 0 and lines[start] != 'replace_once(':
+              start -= 1
+          end = target
+          while end < len(lines) and lines[end] != ')':
+              end += 1
+          if start < 0 or end >= len(lines):
+              raise SystemExit('blocks.test replacement call boundaries not found')
+          replacement = [
+              'replace_once(',
+              '    "src/markdown/blocks.test.ts",',
+              '    \'expect(findBlockAtOffset(source, source.indexOf("heading"))).toBeUndefined();\',',
+              '    \'expect(findBlockAtOffset(source, source.indexOf("heading"))?.kind).toBe("heading");\',',
+              ')',
+          ]
+          lines[start:end + 1] = replacement
+          path.write_text('\n'.join(lines) + '\n', encoding='utf-8')
+          PY
+          git fetch origin agent/f04-phase5e1-heading-block-ids
+          git checkout -B work origin/agent/f04-phase5e1-heading-block-ids
+          python /tmp/apply.py
+          npm ci
+          npx tsc --noEmit
+          npx vitest run src/markdown/headings.test.ts src/markdown/blocks.test.ts src/markdown/headingBlockIds.test.ts src/editor/MarkdownPreview.headingBlocks.test.tsx src/editor/blockLinkActions.test.ts src/linking/store.test.ts
+          git config user.name "Leonardschwier"
+          git config user.email "github@leonardschwier.de"
+          git add src/markdown/headings.ts src/markdown/blocks.ts src/markdown/blocks.test.ts src/linking/store.ts src/linking/store.test.ts src/editor/MarkdownPreview.tsx src/markdown/headingBlockIds.test.ts src/editor/MarkdownPreview.headingBlocks.test.tsx CHANGELOG.md documentation/ARCHITECTURE.md ROADMAP.md
+          git diff --cached --quiet && { echo "implementation produced no change"; exit 1; }
+          git commit -m "Implement F04 Phase 5e1 heading block IDs"
+          git push origin HEAD:agent/f04-phase5e1-heading-block-ids

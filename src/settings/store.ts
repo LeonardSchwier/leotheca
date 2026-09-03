@@ -428,7 +428,9 @@ export async function addWorkspaceFromPicker(): Promise<void> {
 
 /** F20 Phase 2a: rename catalog metadata only. Validation follows section
  * 13.1 exactly; the action never opens a workspace or changes recency. A
- * persistence failure restores the previous profile entry before rethrowing. */
+ * persistence failure restores only this action's own optimistic name if
+ * it still owns that field; a later concurrent edit must never be rolled
+ * back by an older failed write. */
 export async function renameWorkspaceProfile(id: string, rawName: string): Promise<boolean> {
   const name = normalizeProfileName(rawName);
   if (!name) return false;
@@ -443,17 +445,22 @@ export async function renameWorkspaceProfile(id: string, rawName: string): Promi
     await persistGlobalConfig();
     return true;
   } catch (error) {
-    workspaceProfiles.value = sortWorkspaceProfiles([
-      ...workspaceProfiles.value.filter((profile) => profile.id !== id),
-      current,
-    ]);
+    const latest = workspaceProfiles.value.find((profile) => profile.id === id);
+    if (latest?.name === name) {
+      workspaceProfiles.value = sortWorkspaceProfiles([
+        ...workspaceProfiles.value.filter((profile) => profile.id !== id),
+        { ...latest, name: current.name },
+      ]);
+    }
     throw error;
   }
 }
 
 /** F20 Phase 2a: choose only one of the bundled icon IDs. Unknown icon
  * strings may still round-trip from future config versions, but cannot be
- * newly persisted through this UI action. Recency and activation are untouched. */
+ * newly persisted through this UI action. Recency and activation are untouched.
+ * A failed persistence restores only this action's own optimistic icon when
+ * that value is still current, preserving any later concurrent edit. */
 export async function setWorkspaceProfileIcon(id: string, icon: WorkspaceIcon): Promise<boolean> {
   if (!isKnownWorkspaceIcon(icon)) return false;
   const index = workspaceProfiles.value.findIndex((profile) => profile.id === id);
@@ -467,10 +474,13 @@ export async function setWorkspaceProfileIcon(id: string, icon: WorkspaceIcon): 
     await persistGlobalConfig();
     return true;
   } catch (error) {
-    workspaceProfiles.value = sortWorkspaceProfiles([
-      ...workspaceProfiles.value.filter((profile) => profile.id !== id),
-      current,
-    ]);
+    const latest = workspaceProfiles.value.find((profile) => profile.id === id);
+    if (latest?.icon === icon) {
+      workspaceProfiles.value = sortWorkspaceProfiles([
+        ...workspaceProfiles.value.filter((profile) => profile.id !== id),
+        { ...latest, icon: current.icon },
+      ]);
+    }
     throw error;
   }
 }
@@ -485,7 +495,7 @@ export async function setWorkspaceProfileIcon(id: string, icon: WorkspaceIcon): 
  * it defensively rather than trusting the UI alone. */
 export async function forgetWorkspaceProfile(id: string): Promise<void> {
   if (id === activeWorkspaceId.value) return;
-  if (!workspaceProfiles.value.some((p) => p.id === id)) return;
+  if (!workspaceProfiles.value.some((p) => p.id !== id)) return;
   workspaceProfiles.value = workspaceProfiles.value.filter((p) => p.id !== id);
   await persistGlobalConfig();
 }

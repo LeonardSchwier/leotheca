@@ -38,8 +38,16 @@ export interface SaveCoordinator {
 // App.tsx owns the editor coordinator instance. The settings transition layer
 // cannot import App without a cycle, so the factory registers the latest app
 // coordinator here. Tests that construct isolated coordinators still get fresh
-// instances; only the explicit transition helper uses the registered one.
+// instances; only explicit consumers of this module-level authority use the
+// registered one.
 let activeCoordinator: SaveCoordinator | null = null;
+
+/** Returns the app-owned save authority when the editor shell has initialized.
+ * Auxiliary editing surfaces must fail closed when it is absent rather than
+ * constructing a second coordinator for the same note path. */
+export function getActiveSaveCoordinator(): SaveCoordinator | null {
+  return activeCoordinator;
+}
 
 export async function prepareActiveSavesForTransition(
   session: string | number | null,

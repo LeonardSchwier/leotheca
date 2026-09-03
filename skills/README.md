@@ -25,3 +25,13 @@ self-contained: a future session (in any tool) should be able to open one
 skill file and follow it without having to also have this index or
 `CONSTITUTION.md` open side by side, beyond the initial pointers already
 in `AGENTS.md`.
+
+Editing an existing skill file or adding a new one is ordinary,
+standing-authorized maintenance for any agent, any tool — no `ROADMAP.md`
+claim, no separate sign-off (see `CONSTITUTION.md`'s "Maintaining the
+skills library"). Do it the moment real work surfaces a gap or a mistake
+here, the same way `ci-failure-triage.md` and
+`packaging-submission-pipelines.md` came directly out of one session's
+own investigation rather than being written speculatively; that's the
+standard to hold a new or edited skill file to; a plausible-sounding
+procedure nobody actually verified is worse than no skill file at all.

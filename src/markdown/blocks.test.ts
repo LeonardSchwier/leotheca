@@ -70,8 +70,10 @@ describe("scanBlockIds", () => {
     expect(block.id).toBe(id64);
   });
 
-  it("does not attach a marker whose block is a heading", () => {
-    expect(scanBlockIds("## Architecture boundary ^architecture-boundary")).toEqual([]);
+  it("attaches a marker whose block is an ATX heading", () => {
+    const [block] = scanBlockIds("## Architecture boundary ^architecture-boundary");
+    expect(block.kind).toBe("heading");
+    expect(block.id).toBe("architecture-boundary");
   });
 
   it("attaches a marker on a single-line list item (F04 Phase 3b)", () => {
@@ -159,9 +161,11 @@ describe("scanBlockIds", () => {
     expect(block.id).toBe("visible-id");
   });
 
-  it("treats a setext heading's title line as consumed, not a paragraph", () => {
-    const source = "A Setext Heading ^not-a-block\n===";
-    expect(scanBlockIds(source)).toEqual([]);
+  it("treats a setext heading marker as a heading block, not a paragraph", () => {
+    const source = "A Setext Heading ^setext-id\n===";
+    const [block] = scanBlockIds(source);
+    expect(block.kind).toBe("heading");
+    expect(block.id).toBe("setext-id");
   });
 
   it("keeps an earlier paragraph line intact when only the line directly above a setext underline is claimed", () => {
@@ -196,9 +200,9 @@ describe("scanBlockIds", () => {
     expect(block.sourceTo).toBeLessThanOrEqual(source.length);
   });
 
-  it("a heading marker stays not-eligible even in a mixed document with other eligible kinds", () => {
+  it("includes a heading marker in the shared block-ID namespace with other eligible kinds", () => {
     const source = [
-      "# Heading ^not-eligible",
+      "# Heading ^eligible-heading",
       "",
       "A real paragraph with an id. ^eligible-paragraph",
       "",
@@ -207,8 +211,8 @@ describe("scanBlockIds", () => {
       "> A blockquote. ^eligible-blockquote",
     ].join("\n");
     const blocks = scanBlockIds(source);
-    expect(blocks.map((b) => b.id)).toEqual(["eligible-paragraph", "eligible-list-item", "eligible-blockquote"]);
-    expect(blocks.map((b) => b.kind)).toEqual(["paragraph", "list-item", "blockquote"]);
+    expect(blocks.map((b) => b.id)).toEqual(["eligible-heading", "eligible-paragraph", "eligible-list-item", "eligible-blockquote"]);
+    expect(blocks.map((b) => b.kind)).toEqual(["heading", "paragraph", "list-item", "blockquote"]);
   });
 
   it("rejects a list item marker with no real text before it (bullet's own separator space doesn't count)", () => {
@@ -417,9 +421,9 @@ describe("findBlockAtOffset", () => {
     expect(block?.kind).toBe("fenced-code");
   });
 
-  it("returns undefined for an offset inside a heading or a blank line between blocks", () => {
+  it("finds a heading block and still returns undefined for a blank line between blocks", () => {
     const source = "# A heading\n\nA paragraph.";
-    expect(findBlockAtOffset(source, source.indexOf("heading"))).toBeUndefined();
+    expect(findBlockAtOffset(source, source.indexOf("heading"))?.kind).toBe("heading");
     expect(findBlockAtOffset(source, source.indexOf("\n\n") + 1)).toBeUndefined();
   });
 

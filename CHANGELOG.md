@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Block references now support headings. A trailing `^id` on an ATX or setext heading stays hidden in Preview, shares the normal block-ID namespace, and works with Copy block link.
+
 - Workspace profiles can now be renamed and assigned a built-in icon. The workspace switcher is searchable and keyboard-operable, Settings has a Workspace profiles management section, and the command palette can switch, add, or manage workspaces without bypassing the existing workspace-transition coordinator.
 
 - Smart Collections now support persisted list, table, and card result views. Table view can edit already-supported top-level scalar and simple-list frontmatter values in place through the same lossless source-range editor and app-owned save authority as normal note editing; stale/conflicting values and unsupported YAML remain read-only. Card view renders selected metadata fields without reading note bodies, and collection evaluation now has deterministic multi-key sorting; the UI for configuring sort keys is still deferred.

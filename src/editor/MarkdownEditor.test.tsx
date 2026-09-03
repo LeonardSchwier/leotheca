@@ -670,7 +670,7 @@ describe("MarkdownEditor: blockLinkCopyRequest (F04 Phase 5d's Copy block link a
   it("does nothing when the cursor is not inside any eligible block", async () => {
     const writeText = vi.fn();
     Object.assign(navigator, { clipboard: { writeText } });
-    const value = "# A heading\n\nA paragraph.";
+    const value = "<!-- hidden -->\n\nA paragraph.";
     const { container, rerender } = render(
       <MarkdownEditor
         path="/vault/a.md"
@@ -680,7 +680,7 @@ describe("MarkdownEditor: blockLinkCopyRequest (F04 Phase 5d's Copy block link a
       />,
     );
     const view = editorView(container);
-    view.dispatch({ selection: { anchor: value.indexOf("heading") } });
+    view.dispatch({ selection: { anchor: value.indexOf("hidden") } });
 
     rerender(
       <MarkdownEditor

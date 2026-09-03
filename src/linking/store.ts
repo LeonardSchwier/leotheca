@@ -329,7 +329,16 @@ function isValidHeadingRecord(raw: unknown): raw is HeadingRecord {
   const record = raw as Record<string, unknown>;
   const isFiniteNumber = (v: unknown): v is number =>
     typeof v === "number" && Number.isFinite(v);
+  const blockId = record.blockId;
+  const hasValidBlockId =
+    blockId === undefined ||
+    (typeof blockId === "object" &&
+      blockId !== null &&
+      typeof (blockId as Record<string, unknown>).id === "string" &&
+      isFiniteNumber((blockId as Record<string, unknown>).idFrom) &&
+      isFiniteNumber((blockId as Record<string, unknown>).idTo));
   return (
+    hasValidBlockId &&
     typeof record.key === "string" &&
     isFiniteNumber(record.occurrence) &&
     isFiniteNumber(record.level) &&
@@ -366,7 +375,8 @@ function isValidBlockRecord(raw: unknown): raw is BlockRecord {
     (record.kind === "paragraph" ||
       record.kind === "list-item" ||
       record.kind === "blockquote" ||
-      record.kind === "fenced-code") &&
+      record.kind === "fenced-code" ||
+      record.kind === "heading") &&
     isFiniteNumber(record.sourceFrom) &&
     isFiniteNumber(record.sourceTo) &&
     isFiniteNumber(record.contentFrom) &&
@@ -506,7 +516,7 @@ interface CachedNote {
 // without the bump could still "match" a current file's mtime/size and be
 // reused as a cache hit, silently reporting the note as having zero block
 // IDs to the new cross-note block pre-check until it's next edited.
-const LINK_INDEX_CACHE_VERSION = 7;
+const LINK_INDEX_CACHE_VERSION = 8;
 const LINK_INDEX_CACHE_FILENAME = ".leotheca/link-index-cache.json";
 
 /** path -> the wikilinks extracted from that note the last time it was

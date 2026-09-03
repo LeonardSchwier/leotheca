@@ -40,9 +40,11 @@ describe("blockLinkText", () => {
 });
 
 describe("resolveBlockLinkAtCursor", () => {
-  it("returns undefined when the cursor is not inside any eligible block", () => {
+  it("creates a block ID when the cursor is inside a markerless heading", () => {
     const source = "# A heading\n\nA paragraph.";
-    expect(resolveBlockLinkAtCursor(source, source.indexOf("heading"))).toBeUndefined();
+    const resolution = resolveBlockLinkAtCursor(source, source.indexOf("heading"));
+    expect(resolution?.linkText).toMatch(/^\[\[#\^b-[a-f0-9]{8}\]\]$/);
+    expect(resolution?.insertion?.from).toBe(source.indexOf("\n"));
   });
 
   it("reuses an existing unique marker without inserting anything", () => {

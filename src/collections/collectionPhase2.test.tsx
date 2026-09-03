@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, waitFor } from "@testing-library/preact";
 import { parseFrontmatterProperties } from "../editor/frontmatterEdits";
-import { CollectionResults } from "./CollectionResults";
+import { CollectionResults, type CollectionResultsProps } from "./CollectionResults";
 import { sortCollectionResults, type NoteRecord } from "./collectionQuery";
 import type { SmartCollectionV1 } from "./collectionTypes";
 
@@ -35,6 +35,10 @@ function collection(view: SmartCollectionV1["view"]): SmartCollectionV1 {
     createdAt: "",
     updatedAt: "",
   };
+}
+
+function successfulEdit(): CollectionResultsProps["onEditProperty"] {
+  return async () => "ok";
 }
 
 afterEach(cleanup);
@@ -71,7 +75,7 @@ describe("F09 Phase 2 result views", () => {
         results={[note("Alpha.md")]}
         onOpenFile={vi.fn()}
         onViewChange={onViewChange}
-        onEditProperty={vi.fn(async () => "ok" as const)}
+        onEditProperty={successfulEdit()}
       />,
     );
 
@@ -88,7 +92,7 @@ describe("F09 Phase 2 result views", () => {
         results={[entry]}
         onOpenFile={onOpenFile}
         onViewChange={vi.fn()}
-        onEditProperty={vi.fn(async () => "ok" as const)}
+        onEditProperty={successfulEdit()}
       />,
     );
 
@@ -100,7 +104,7 @@ describe("F09 Phase 2 result views", () => {
 
   it("commits an editable scalar cell through the mutation callback", async () => {
     const entry = note("Alpha.md", "---\nstatus: active\n---\n");
-    const onEditProperty = vi.fn(async () => "ok" as const);
+    const onEditProperty = vi.fn<CollectionResultsProps["onEditProperty"]>(successfulEdit());
     const { getByRole, getByLabelText } = render(
       <CollectionResults
         collection={collection({ mode: "table", columns: ["status"] })}
@@ -128,7 +132,7 @@ describe("F09 Phase 2 result views", () => {
         results={[entry]}
         onOpenFile={vi.fn()}
         onViewChange={vi.fn()}
-        onEditProperty={vi.fn(async () => "ok" as const)}
+        onEditProperty={successfulEdit()}
       />,
     );
 
@@ -144,7 +148,7 @@ describe("F09 Phase 2 result views", () => {
         results={[entry]}
         onOpenFile={vi.fn()}
         onViewChange={vi.fn()}
-        onEditProperty={vi.fn(async () => "ok" as const)}
+        onEditProperty={successfulEdit()}
       />,
     );
 

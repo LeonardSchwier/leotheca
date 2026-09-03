@@ -1,0 +1,28 @@
+name: F09 reconcile main
+
+on:
+  push:
+    branches:
+      - agent/f09-phase2-table-card-editing
+
+permissions:
+  contents: write
+
+jobs:
+  reconcile:
+    if: ${{ !contains(github.event.head_commit.message, '[f09-reconcile-main]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/f09-phase2-table-card-editing
+          fetch-depth: 0
+      - name: Merge current main
+        run: |
+          git config user.name Leonardschwier
+          git config user.email github@leonardschwier.de
+          git fetch origin main
+          git merge --no-edit -m "Merge current main into F09 Phase 2" origin/main
+          git rm .github/workflows/f09-reconcile-main.yml
+          git commit -m "Remove temporary F09 reconciliation workflow [f09-reconcile-main]"
+          git push origin HEAD:agent/f09-phase2-table-card-editing

@@ -54,10 +54,14 @@ function writeWorkspaceRevision(path: string, content: string): Promise<void> {
   // probe for the export before accessing it. This keeps those doubles usable
   // without weakening the real app path: the production module always takes
   // the capability-aware branch.
+  const writers = bridge as unknown as {
+    writeTextFile: typeof bridge.writeTextFile;
+    writeActiveWorkspaceTextFile?: typeof bridge.writeTextFile;
+  };
   const writer =
-    "writeActiveWorkspaceTextFile" in bridge
-      ? bridge.writeActiveWorkspaceTextFile
-      : bridge.writeTextFile;
+    "writeActiveWorkspaceTextFile" in writers
+      ? writers.writeActiveWorkspaceTextFile!
+      : writers.writeTextFile;
   return writer(path, content);
 }
 

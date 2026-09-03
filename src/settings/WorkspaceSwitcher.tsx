@@ -4,10 +4,15 @@ import {
   activeWorkspaceId,
   addWorkspaceFromPicker,
   forgetWorkspaceProfile,
+  settingsPanelOpen,
   workspaceProfiles,
 } from "./store";
 import { displayWorkspaceIcon, matchesWorkspaceSearch } from "./workspaceProfiles";
-import { workspaceSwitcherOpenRequest } from "./workspaceSwitcherControl";
+import {
+  workspaceAddRequest,
+  workspaceManageRequest,
+  workspaceSwitcherOpenRequest,
+} from "./workspaceSwitcherControl";
 import type { WorkspaceIcon } from "./globalConfig";
 
 const ICON_GLYPHS: Record<WorkspaceIcon, string> = {
@@ -36,7 +41,12 @@ export function WorkspaceSwitcher() {
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
-  const previousRequest = useRef(workspaceSwitcherOpenRequest.value);
+  const previousOpenRequest = useRef(workspaceSwitcherOpenRequest.value);
+  const previousAddRequest = useRef(workspaceAddRequest.value);
+  const previousManageRequest = useRef(workspaceManageRequest.value);
+  const openRequest = workspaceSwitcherOpenRequest.value;
+  const addRequest = workspaceAddRequest.value;
+  const manageRequest = workspaceManageRequest.value;
   const active = workspaceProfiles.value.find((p) => p.id === activeWorkspaceId.value);
   const filtered = useMemo(
     () => workspaceProfiles.value.filter((profile) => matchesWorkspaceSearch(profile, query)),
@@ -50,10 +60,23 @@ export function WorkspaceSwitcher() {
     if (restoreFocus) queueMicrotask(() => triggerRef.current?.focus());
   };
 
-  if (workspaceSwitcherOpenRequest.value !== previousRequest.current) {
-    previousRequest.current = workspaceSwitcherOpenRequest.value;
-    if (!open) setOpen(true);
-  }
+  useEffect(() => {
+    if (openRequest === previousOpenRequest.current) return;
+    previousOpenRequest.current = openRequest;
+    setOpen(true);
+  }, [openRequest]);
+
+  useEffect(() => {
+    if (addRequest === previousAddRequest.current) return;
+    previousAddRequest.current = addRequest;
+    void addWorkspaceFromPicker();
+  }, [addRequest]);
+
+  useEffect(() => {
+    if (manageRequest === previousManageRequest.current) return;
+    previousManageRequest.current = manageRequest;
+    settingsPanelOpen.value = true;
+  }, [manageRequest]);
 
   useEffect(() => {
     if (!open) return;

@@ -20,6 +20,7 @@ import { outlineRevealRequest } from "../outline/outlineNavigation";
 
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
   linkIndex.value = {
     backlinksByPath: new Map(),
     pathsByNoteName: new Map(),
@@ -937,6 +938,46 @@ describe("MarkdownPreview: F04 Phase 4a embeds", () => {
     await waitFor(() => {
       expect(container.querySelector(".embed-frame-body")?.textContent).toBe("Could not read embedded note");
     });
+  });
+
+  it("shows 'Could not read embedded note' when the cross-note read times out (F04 Phase 4b follow-up 2)", async () => {
+    vi.useFakeTimers();
+    setNote("project plan", "/vault/project-plan.md");
+    // A read that never settles on its own, standing in for a hung
+    // native call: the timeout, not the read itself, must be what
+    // eventually produces the placeholder.
+    vi.mocked(readTextFile).mockImplementation(() => new Promise<string>(() => {}));
+    const { container } = render(<MarkdownPreview source="![[Project Plan]]" />);
+
+    expect(container.querySelector(".embed-frame-body")?.textContent).toBe("Loading…");
+
+    await vi.advanceTimersByTimeAsync(8000);
+
+    expect(container.querySelector(".embed-frame-body")?.textContent).toBe("Could not read embedded note");
+  });
+
+  it("does not let a real read that resolves after the timeout overwrite the timeout's own placeholder", async () => {
+    vi.useFakeTimers();
+    setNote("project plan", "/vault/project-plan.md");
+    let resolveRead: (content: string) => void = () => {};
+    vi.mocked(readTextFile).mockImplementation(
+      () =>
+        new Promise<string>((resolve) => {
+          resolveRead = resolve;
+        }),
+    );
+    const { container } = render(<MarkdownPreview source="![[Project Plan]]" />);
+
+    await vi.advanceTimersByTimeAsync(8000);
+    expect(container.querySelector(".embed-frame-body")?.textContent).toBe("Could not read embedded note");
+
+    // The real read finally settles, well after the timeout already
+    // rendered its own placeholder. It must lose the race silently, not
+    // overwrite content the reader has already seen.
+    resolveRead("# Intro\n\nReal content.");
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(container.querySelector(".embed-frame-body")?.textContent).toBe("Could not read embedded note");
   });
 
   it("shows 'Embedded heading not found' when the cross-note target lacks the heading", async () => {

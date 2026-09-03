@@ -26,10 +26,14 @@ vi.mock("./store", () => ({
 vi.mock("../workspace/tauriBridge", () => ({
   getWorkspaceStats: vi.fn(),
 }));
-// Out of scope for this file (its own loadStats/effect behavior); a plain
-// stand-in keeps these tests focused on SettingsPanel's own logic.
 vi.mock("./VaultStatsPanel", () => ({
   VaultStatsPanel: () => null,
+}));
+// Profile-management behavior has its own focused tests. Here a small stand-in
+// keeps the long-standing SettingsPanel suite focused on its existing controls
+// while still asserting that the new section replaced the legacy switch path.
+vi.mock("./WorkspaceProfilesSettings", () => ({
+  WorkspaceProfilesSettings: () => <section><h3>Workspace profiles</h3></section>,
 }));
 
 import { SettingsPanel } from "./SettingsPanel";
@@ -71,13 +75,11 @@ describe("SettingsPanel", () => {
     expect(container.querySelector(".settings-panel")).toBeNull();
   });
 
-  it("shows the workspace path, or a placeholder when none is set", () => {
-    const { getByText, rerender } = render(<SettingsPanel />);
-    expect(getByText("Not set")).toBeTruthy();
-
-    workspacePath.value = "/home/user/vault";
-    rerender(<SettingsPanel />);
-    expect(getByText("/home/user/vault")).toBeTruthy();
+  it("shows profile management and removes the legacy Change Folder path", () => {
+    const { getByText, queryByText } = render(<SettingsPanel />);
+    expect(getByText("Workspace profiles")).toBeTruthy();
+    expect(queryByText("Change Folder")).toBeNull();
+    expect(queryByText("Root folder")).toBeNull();
   });
 
   it("shows nothing about corrupted settings when the file decoded cleanly", () => {
@@ -107,20 +109,6 @@ describe("SettingsPanel", () => {
     const { getByText } = render(<SettingsPanel />);
     fireEvent.click(getByText("x"));
     expect(settingsPanelOpen.value).toBe(false);
-  });
-
-  it("Change Folder routes through the workspace-profile picker flow", async () => {
-    vi.mocked(addWorkspaceFromPicker).mockResolvedValue(undefined);
-    const { container } = render(<SettingsPanel />);
-    // Find the "Change Folder" button by text content
-    const buttons = container.querySelectorAll("button");
-    const folderBtn = Array.from(buttons).find(
-      (b) => b.textContent?.trim() === "Change Folder",
-    );
-    expect(folderBtn).toBeTruthy();
-    await fireEvent.click(folderBtn!);
-    await Promise.resolve();
-    expect(addWorkspaceFromPicker).toHaveBeenCalledTimes(1);
   });
 
   it("hides workspace-scoped rows (delete behavior, font size, zoom, view mode) with no workspace open", () => {

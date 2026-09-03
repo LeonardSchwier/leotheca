@@ -33,7 +33,7 @@ Builds:
   # must be updated together if the version changes again before it is cut.
   - versionName: "0.1.0"
     versionCode: 100
-    commit: v0.1.0
+    commit: 516249983daf5fb3dc421f9a2ad436ed22a44ea8
     subdir: android
     sudo:
       - apt-get update

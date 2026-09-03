@@ -73,6 +73,6 @@ jobs:
         run: |
           git config user.name Leonardschwier
           git config user.email github@leonardschwier.de
-          git add ROADMAP.md documentation/ARCHITECTURE.md .github/workflows/f09-bookkeeping.yml
+          git add -A
           git commit -m "Finalize F09 Phase 2 roadmap and architecture [f09-bookkeeping]"
           git push origin HEAD:agent/f09-phase2-table-card-editing

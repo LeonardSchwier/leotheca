@@ -1,5 +1,14 @@
 import { useMemo, useState } from "preact/hooks";
 import { linkIndex } from "../linking/store";
+import { openTabs, updateTabContent } from "../workspace/store";
+import { readTextFile } from "../workspace/tauriBridge";
+import { workspaceSession } from "../settings/store";
+import { getActiveSaveCoordinator } from "../workspace/saveCoordinator";
+import {
+  parseFrontmatterProperties,
+  updateFrontmatterProperty,
+  type FrontmatterProperty,
+} from "../editor/frontmatterEdits";
 import {
   collectionsFile,
   collectionsFileCorrupt,
@@ -8,7 +17,7 @@ import {
   orderedCollections,
   updateCollection,
 } from "./collectionStore";
-import { buildNoteRecords, evaluateCollection } from "./collectionQuery";
+import { buildNoteRecords, evaluateCollection, type NoteRecord } from "./collectionQuery";
 import { emptyQueryGroup, type QueryGroupV1, type SmartCollectionV1 } from "./collectionTypes";
 import { CollectionBuilder } from "./CollectionBuilder";
 import { CollectionResults } from "./CollectionResults";
@@ -19,38 +28,87 @@ export interface CollectionsPanelProps {
 }
 
 type BuilderState = { mode: "create" } | { mode: "edit"; collection: SmartCollectionV1 } | null;
+type EditableProperty = Exclude<FrontmatterProperty, { kind: "readonly" }>;
+
+const propertyEditQueues = new Map<string, Promise<void>>();
+
+function enqueuePropertyEdit<T>(path: string, run: () => Promise<T>): Promise<T> {
+  const previous = propertyEditQueues.get(path) ?? Promise.resolve();
+  const settled = previous.then(run, run);
+  propertyEditQueues.set(
+    path,
+    settled.then(
+      () => undefined,
+      () => undefined,
+    ),
+  );
+  return settled;
+}
+
+function sameEditableProperty(a: FrontmatterProperty | undefined, b: EditableProperty): a is EditableProperty {
+  if (!a || a.kind !== b.kind || a.key !== b.key) return false;
+  if (a.replaceRange.start !== b.replaceRange.start || a.replaceRange.end !== b.replaceRange.end) return false;
+  if (a.kind === "list" && b.kind === "list") {
+    return a.value.length === b.value.length && a.value.every((value, index) => value === b.value[index]);
+  }
+  return a.kind === "scalar" && b.kind === "scalar" && a.value === b.value && a.style === b.style;
+}
+
+function replaceIndexedProperties(path: string, content: string): void {
+  const next = new Map(linkIndex.value.frontmatterPropertiesByPath ?? []);
+  const properties = parseFrontmatterProperties(content).properties;
+  if (properties.length === 0) next.delete(path);
+  else next.set(path, properties);
+  linkIndex.value = { ...linkIndex.value, frontmatterPropertiesByPath: next };
+}
+
+async function editIndexedProperty(
+  note: NoteRecord,
+  expected: EditableProperty,
+  value: string | string[],
+): Promise<"ok" | "stale" | "error"> {
+  return enqueuePropertyEdit(note.path, async () => {
+    const save = getActiveSaveCoordinator();
+    if (!save) return "error";
+    const sessionAtStart = workspaceSession.value;
+    const openTab = openTabs.value.find((tab) => tab.path === note.path);
+    let content: string;
+    try {
+      content = openTab?.content ?? (await readTextFile(note.path));
+    } catch {
+      return "error";
+    }
+    if (workspaceSession.value !== sessionAtStart) return "stale";
+
+    const current = parseFrontmatterProperties(content).properties.find(
+      (property) => property.key.toLocaleLowerCase() === expected.key.toLocaleLowerCase(),
+    );
+    if (!sameEditableProperty(current, expected)) return "stale";
+    if (current.kind === "list" && !Array.isArray(value)) return "error";
+    if (current.kind === "scalar" && typeof value !== "string") return "error";
+
+    const nextContent = updateFrontmatterProperty(content, current, value);
+    if (openTab) updateTabContent(note.path, nextContent);
+    save.change(sessionAtStart, note.path, nextContent);
+    await save.flush(sessionAtStart, note.path);
+    if (save.getError(sessionAtStart, note.path)) return "error";
+    if (workspaceSession.value !== sessionAtStart) return "stale";
+    replaceIndexedProperties(note.path, nextContent);
+    return "ok";
+  });
+}
 
 /**
- * F09 Phase 1 (spec/f09-smart-collections-property-views.md, narrowed to
- * a first slice, see ROADMAP.md's F09 Phase 1 entry): a sidebar panel to
- * create, edit, and delete Smart Collection definitions, and to view one
- * collection's results as a read-only list. Follows TagsPanel/
- * TaskHubPanel's structural conventions (a plain list, click-to-open
- * rows, an empty-state hint). Results stay live because they're derived
- * fresh from `linkIndex.value` on every render, the same shared workspace
- * metadata index TagsPanel and TaskHubPanel already read; there is no
- * second file-watcher, matching the "keeping results live" requirement in
- * this phase's own claim.
- *
- * Table and card view modes, in-collection sort configuration, and the
- * full builder live-preview experience (typeahead, broad-query warnings)
- * are explicitly out of scope for this phase, see CollectionBuilder.tsx's
- * own doc comment for exactly which parts of spec section 8 are deferred
- * and why.
+ * F09 Smart Collections panel. Query results remain a projection of the shared
+ * metadata index. Phase 2 adds persisted list/table/card modes and safe table
+ * property edits without introducing another note writer: mutations validate
+ * the indexed field against the freshest open-tab or disk source and then use
+ * the app-owned SaveCoordinator.
  */
 export function CollectionsPanel({ onOpenFile }: CollectionsPanelProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [builder, setBuilder] = useState<BuilderState>(null);
 
-  // Recomputed plainly on every render, the same way TagsPanel/TaskHubPanel
-  // read `linkIndex.value` directly rather than through `useMemo`: a
-  // signal read inside a `useMemo` dependency array is exactly what it
-  // needs to be to stay live (Preact's signals integration re-renders this
-  // component whenever `linkIndex.value` changes, and the array is
-  // re-evaluated on every render anyway), but `eslint-plugin-react-hooks`
-  // has no notion of signals and flags it as an "unnecessary dependency"
-  // false positive; avoiding `useMemo` here sidesteps that without an
-  // eslint-disable comment.
   const notes = buildNoteRecords(linkIndex.value);
   const propertyKeys = useMemo(() => {
     const keys = new Set<string>();
@@ -69,11 +127,6 @@ export function CollectionsPanel({ onOpenFile }: CollectionsPanelProps) {
       builder.mode === "edit"
         ? builder.collection
         : { name: "", description: "", query: emptyQueryGroup() };
-    // A collection's query is always a group at the root (both
-    // emptyQueryGroup() and every persisted collection's own `query`,
-    // since the builder only ever writes a group there); this cast
-    // reflects that invariant rather than widening QueryGroupEditor to
-    // accept a bare clause at the root, which the spec never allows.
     const initialQuery = (initial.query as QueryGroupV1) ?? emptyQueryGroup();
     return (
       <section class="collections-panel" aria-label="Collections">
@@ -156,7 +209,13 @@ export function CollectionsPanel({ onOpenFile }: CollectionsPanelProps) {
                 </div>
                 {isSelected && (
                   <div class="collections-item-results">
-                    <CollectionResults results={results} onOpenFile={onOpenFile} />
+                    <CollectionResults
+                      collection={collection}
+                      results={results}
+                      onOpenFile={onOpenFile}
+                      onViewChange={(view) => updateCollection(collection.id, { view })}
+                      onEditProperty={editIndexedProperty}
+                    />
                   </div>
                 )}
               </li>

@@ -24,34 +24,32 @@ export function WorkspaceProfilesSettings() {
     <section class="settings-section" aria-labelledby="workspace-profiles-heading">
       <h3 id="workspace-profiles-heading">Workspace profiles</h3>
       <p class="settings-hint">Rename and identify known workspaces. Forgetting a profile never deletes its files.</p>
-      <div class="workspace-profile-settings-list">
-        {workspaceProfiles.value.map((profile) => {
-          const isActive = profile.id === activeWorkspaceId.value;
-          return (
-            <div class="workspace-profile-settings-row" key={profile.id}>
-              <span aria-hidden="true">{workspaceIconGlyph(profile.icon)}</span>
-              <div class="workspace-profile-settings-copy">
-                <strong>{profile.name}{isActive ? " (current)" : ""}</strong>
-                {!profile.token && <small>{profile.path}</small>}
-              </div>
-              <button type="button" onClick={() => void rename(profile.id, profile.name)}>Rename</button>
-              <label>
-                <span class="sr-only">Icon for {profile.name}</span>
-                <select
-                  aria-label={`Icon for ${profile.name}`}
-                  value={displayWorkspaceIcon(profile.icon)}
-                  onChange={(event) => void setWorkspaceProfileIcon(profile.id, event.currentTarget.value as WorkspaceIcon)}
-                >
-                  {WORKSPACE_ICONS.map((icon) => <option key={icon} value={icon}>{icon}</option>)}
-                </select>
-              </label>
-              {!isActive && (
-                <button type="button" onClick={() => void forgetWorkspaceProfile(profile.id)}>Forget</button>
-              )}
+      {workspaceProfiles.value.map((profile) => {
+        const isActive = profile.id === activeWorkspaceId.value;
+        return (
+          <div class="settings-row" key={profile.id}>
+            <span aria-hidden="true">{workspaceIconGlyph(profile.icon)}</span>
+            <div>
+              <div class="settings-label">{profile.name}{isActive ? " (current)" : ""}</div>
+              {!profile.token && <div class="settings-hint">{profile.path}</div>}
             </div>
-          );
-        })}
-      </div>
+            <button type="button" onClick={() => void rename(profile.id, profile.name)}>Rename</button>
+            <label>
+              <span class="sr-only">Icon for {profile.name}</span>
+              <select
+                aria-label={`Icon for ${profile.name}`}
+                value={displayWorkspaceIcon(profile.icon)}
+                onChange={(event) => void setWorkspaceProfileIcon(profile.id, event.currentTarget.value as WorkspaceIcon)}
+              >
+                {WORKSPACE_ICONS.map((icon) => <option key={icon} value={icon}>{icon}</option>)}
+              </select>
+            </label>
+            {!isActive && (
+              <button type="button" onClick={() => void forgetWorkspaceProfile(profile.id)}>Forget</button>
+            )}
+          </div>
+        );
+      })}
       <button type="button" onClick={() => void addWorkspaceFromPicker()}>Add workspace</button>
     </section>
   );

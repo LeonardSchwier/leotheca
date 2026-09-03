@@ -57,7 +57,7 @@ export function WorkspaceSwitcher() {
     setOpen(false);
     setQuery("");
     setHighlighted(0);
-    if (restoreFocus) queueMicrotask(() => triggerRef.current?.focus());
+    if (restoreFocus) triggerRef.current?.focus();
   };
 
   useEffect(() => {

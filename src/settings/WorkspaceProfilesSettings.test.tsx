@@ -69,6 +69,26 @@ describe("WorkspaceProfilesSettings", () => {
     expect(setWorkspaceProfileIcon).toHaveBeenCalledWith("desktop", "archive");
   });
 
+  it("reports persistence failures for rename and icon edits instead of leaving rejected promises unhandled", async () => {
+    workspaceProfiles.value = [DESKTOP];
+    activeWorkspaceId.value = "desktop";
+    vi.spyOn(window, "prompt").mockReturnValue("New Research");
+    const alert = vi.spyOn(window, "alert").mockImplementation(() => {});
+    vi.mocked(renameWorkspaceProfile).mockRejectedValueOnce(new Error("disk full"));
+    vi.mocked(setWorkspaceProfileIcon).mockRejectedValueOnce(new Error("disk full"));
+
+    const { getByText, getByLabelText } = render(<WorkspaceProfilesSettings />);
+    fireEvent.click(getByText("Rename"));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(alert).toHaveBeenCalledWith("Could not rename workspace profile. Try again.");
+
+    fireEvent.change(getByLabelText("Icon for Research"), { target: { value: "archive" } });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(alert).toHaveBeenCalledWith("Could not update workspace profile. Try again.");
+  });
+
   it("does not offer Forget for the active profile, but does for an inactive one", () => {
     workspaceProfiles.value = [DESKTOP, ANDROID];
     activeWorkspaceId.value = "desktop";

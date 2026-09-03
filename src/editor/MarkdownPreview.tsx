@@ -170,6 +170,50 @@ const MAX_EMBED_DEPTH = 3;
 const MAX_EMBED_INSTANCES = 25;
 const MAX_EMBED_BYTES = 1024 * 1024;
 
+// F04 Phase 4b follow-up 2, spec section 11.4's "per-note load timeout":
+// bounds a single cross-note embed's readTextFile call independently of
+// the stale-preview-generation cancellation the resolution effect's own
+// `cancelled` flag already provides, so one slow or hung native read
+// cannot leave its own embed frame stuck on "Loading..." forever even
+// within an otherwise still-current preview. An implementation constant,
+// same footing as the three limits directly above.
+const EMBED_LOAD_TIMEOUT_MS = 8000;
+
+/** Races a cross-note embed's own `readTextFile` call against
+ * `EMBED_LOAD_TIMEOUT_MS`, rejecting with an `Error` (caught uniformly by
+ * the resolution effect's own try/catch, alongside a genuine read
+ * failure) if the read itself hasn't settled in time. The underlying
+ * native call cannot actually be cancelled from here, no cancellation
+ * token flows through `tauriBridge.ts`'s `readTextFile` today, so a hung
+ * read keeps running in the background; this function only stops
+ * *waiting* on it. The `settled` flag discards whichever outcome loses
+ * the race, so a very-late real resolution can never overwrite a
+ * placeholder the timeout already caused to render. */
+function readEmbedNoteWithTimeout(path: string, timeoutMs: number): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      reject(new Error(`embed load timed out after ${timeoutMs}ms: ${path}`));
+    }, timeoutMs);
+    readTextFile(path).then(
+      (content) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve(content);
+      },
+      (error: unknown) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        reject(error instanceof Error ? error : new Error(String(error)));
+      },
+    );
+  });
+}
+
 // Any URI with a scheme (http:, https:, data:, etc.) is left for marked's
 // own default image rendering: an absolute remote URL is exactly what
 // CONSTITUTION.md's "Offline by design" rule already relies on the app's
@@ -973,6 +1017,15 @@ export function MarkdownPreview({
   // length` on every iteration, so a still-running worker naturally picks
   // up entries appended after the effect started, the standard
   // growing-work-queue pattern.
+  //
+  // F04 Phase 4b follow-up 2: `resolveOne`'s own `readTextFile` call is
+  // now raced against `EMBED_LOAD_TIMEOUT_MS` via
+  // `readEmbedNoteWithTimeout`, so a single slow or hung native read
+  // shows "Could not read embedded note" instead of leaving that one
+  // embed frame on "Loading…" forever, independent of this effect's own
+  // `cancelled` flag (which only covers a *newer preview generation*
+  // superseding this one, not a single call within an otherwise-current
+  // preview taking too long).
   useEffect(() => {
     const container = containerRef.current;
     if (!container || crossNoteEmbeds.length === 0) return;
@@ -986,7 +1039,7 @@ export function MarkdownPreview({
 
       let content: string;
       try {
-        content = await readTextFile(request.notePath);
+        content = await readEmbedNoteWithTimeout(request.notePath, EMBED_LOAD_TIMEOUT_MS);
       } catch {
         if (cancelled) return;
         body.innerHTML = DOMPurify.sanitize('<p class="embed-frame-message">Could not read embedded note</p>');

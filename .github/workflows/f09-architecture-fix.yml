@@ -1,0 +1,38 @@
+name: F09 architecture fix
+
+on:
+  push:
+    branches:
+      - agent/f09-phase2-table-card-editing
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    if: ${{ !contains(github.event.head_commit.message, '[f09-architecture-fix]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/f09-phase2-table-card-editing
+          fetch-depth: 0
+      - name: Correct stale F09 architecture tail
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path("documentation/ARCHITECTURE.md")
+          text = path.read_text()
+          old = "Table/card views, sort-key configuration, live-preview polish, and in-view property editing are explicit follow-up scope, see `ROADMAP.md`'s F09 entries."
+          new = "Sort-key configuration UI and live-preview polish remain explicit follow-up scope, see `ROADMAP.md`'s F09 entries."
+          assert text.count(old) == 1, text.count(old)
+          path.write_text(text.replace(old, new, 1))
+          PY
+          git rm .github/workflows/f09-architecture-fix.yml
+      - name: Commit correction
+        run: |
+          git config user.name Leonardschwier
+          git config user.email github@leonardschwier.de
+          git add -A
+          git commit -m "Correct F09 Phase 2 architecture scope [f09-architecture-fix]"
+          git push origin HEAD:agent/f09-phase2-table-card-editing

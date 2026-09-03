@@ -49,11 +49,15 @@ export async function prepareActiveSavesForTransition(
 
 function writeWorkspaceRevision(path: string, content: string): Promise<void> {
   // Production tauriBridge always exposes the capability-aware writer. A few
-  // older whole-module test doubles intentionally provide only writeTextFile;
-  // keep those doubles usable without weakening the real app path. Partial
-  // mocks that spread the real module still exercise the capability-aware
-  // export and therefore retain the same containment behavior as production.
-  const writer = bridge.writeActiveWorkspaceTextFile ?? bridge.writeTextFile;
+  // older whole-module test doubles intentionally provide only writeTextFile.
+  // Vitest's strict module-mock proxy throws when an omitted export is read, so
+  // probe for the export before accessing it. This keeps those doubles usable
+  // without weakening the real app path: the production module always takes
+  // the capability-aware branch.
+  const writer =
+    "writeActiveWorkspaceTextFile" in bridge
+      ? bridge.writeActiveWorkspaceTextFile
+      : bridge.writeTextFile;
   return writer(path, content);
 }
 

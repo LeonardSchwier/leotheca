@@ -1,0 +1,45 @@
+name: Claim F04 Phase 5e1
+
+on:
+  push:
+    branches:
+      - automation/claim-f04-phase5e1-2052
+
+permissions:
+  contents: write
+
+jobs:
+  claim:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Claim heading block ID work on main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          git checkout -B claim-f04-phase5e1 origin/main
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("ROADMAP.md")
+          lines = path.read_text(encoding="utf-8").splitlines()
+          matches = [i for i, line in enumerate(lines) if line.startswith("- ⬜ **F04 Phase 5e:")]
+          if len(matches) != 1:
+              raise SystemExit(f"expected exactly one unclaimed F04 Phase 5e line, found {len(matches)}")
+          i = matches[0]
+          lines[i:i + 1] = [
+              "- 🚧 **F04 Phase 5e1: heading block-ID eligibility and Preview heading anchors** (claim: ChatGPT-GPT-5.6-Sol-manual-20260903T2052Z, branch: agent/f04-phase5e1-heading-block-ids, spec: `spec/f04-heading-block-links-embeds.md`, sections 7.1-7.4 and 21 Phase 5): Extend the canonical heading scanner so ATX and setext headings can own trailing explicit `^id` markers without exposing those markers as visible heading text, merge those heading IDs into the existing block-ID resolver/index/duplicate namespace, support Copy block link at a heading cursor, and attach the existing deterministic Preview block anchor to rendered headings. Split from the former F04 Phase 5e so the separate Preview copy affordance and separate Create block link action remain independently tracked.",
+              "- ⬜ **F04 Phase 5e2: Preview on-block hover/focus/long-press copy affordance** (spec: `spec/f04-heading-block-links-embeds.md`, sections 7.3 and 21 Phase 5): Add an unobtrusive copy-link control directly to each uniquely identified rendered block, keyboard reachable and revealed on hover/focus, with a touch/pen long-press path that does not fire during scrolling. Reuse the existing structured block-link serializer and clipboard behavior rather than adding another resolver.",
+              "- ⬜ **F04 Phase 5e3: separate Create block link action** (spec: `spec/f04-heading-block-links-embeds.md`, sections 7.4 and 21 Phase 5): Add the separately labeled Create block link entry point still named by the specification, reusing the same create-if-needed operation already shared by Copy block link rather than introducing a second mutation implementation.",
+          ]
+          path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+          PY
+          git config user.name "Leonardschwier"
+          git config user.email "github@leonardschwier.de"
+          git add ROADMAP.md
+          git diff --cached --quiet && { echo "claim produced no change"; exit 1; }
+          git commit -m "Claim F04 Phase 5e1 heading block IDs"
+          git push origin HEAD:main

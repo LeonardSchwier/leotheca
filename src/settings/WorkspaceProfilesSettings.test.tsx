@@ -4,13 +4,24 @@ import { cleanup, fireEvent, render } from "@testing-library/preact";
 import { signal } from "@preact/signals";
 import type { WorkspaceProfile } from "./globalConfig";
 
+const { MockWorkspaceRelinkConflictError } = vi.hoisted(() => ({
+  MockWorkspaceRelinkConflictError: class extends Error {
+    constructor(public readonly conflictingProfileName: string) {
+      super(`This folder is already used by workspace "${conflictingProfileName}".`);
+      this.name = "WorkspaceRelinkConflictError";
+    }
+  },
+}));
+
 vi.mock("./store", () => ({
   workspaceProfiles: signal<WorkspaceProfile[]>([]),
   activeWorkspaceId: signal<string | null>(null),
   addWorkspaceFromPicker: vi.fn(async () => {}),
   forgetWorkspaceProfile: vi.fn(async () => {}),
+  relinkWorkspaceProfile: vi.fn(async () => true),
   renameWorkspaceProfile: vi.fn(async () => true),
   setWorkspaceProfileIcon: vi.fn(async () => true),
+  WorkspaceRelinkConflictError: MockWorkspaceRelinkConflictError,
 }));
 
 import { WorkspaceProfilesSettings } from "./WorkspaceProfilesSettings";
@@ -18,6 +29,7 @@ import {
   activeWorkspaceId,
   addWorkspaceFromPicker,
   forgetWorkspaceProfile,
+  relinkWorkspaceProfile,
   renameWorkspaceProfile,
   setWorkspaceProfileIcon,
   workspaceProfiles,
@@ -46,6 +58,7 @@ afterEach(() => {
   vi.restoreAllMocks();
   vi.mocked(addWorkspaceFromPicker).mockReset().mockResolvedValue(undefined);
   vi.mocked(forgetWorkspaceProfile).mockReset().mockResolvedValue(undefined);
+  vi.mocked(relinkWorkspaceProfile).mockReset().mockResolvedValue(true);
   vi.mocked(renameWorkspaceProfile).mockReset().mockResolvedValue(true);
   vi.mocked(setWorkspaceProfileIcon).mockReset().mockResolvedValue(true);
 });
@@ -126,5 +139,52 @@ describe("WorkspaceProfilesSettings", () => {
     const { getByText } = render(<WorkspaceProfilesSettings />);
     fireEvent.click(getByText("Add workspace"));
     expect(addWorkspaceFromPicker).toHaveBeenCalledTimes(1);
+  });
+
+  it("offers Relink for both the active and an inactive profile", () => {
+    workspaceProfiles.value = [DESKTOP, ANDROID];
+    activeWorkspaceId.value = "desktop";
+    const { getAllByText } = render(<WorkspaceProfilesSettings />);
+    expect(getAllByText("Relink")).toHaveLength(2);
+  });
+
+  it("relinks the profile whose row was clicked", () => {
+    workspaceProfiles.value = [DESKTOP, ANDROID];
+    activeWorkspaceId.value = "desktop";
+    const { getAllByText } = render(<WorkspaceProfilesSettings />);
+    fireEvent.click(getAllByText("Relink")[1]);
+    expect(relinkWorkspaceProfile).toHaveBeenCalledWith("android");
+  });
+
+  it("shows the conflicting profile's name instead of a generic failure for a relink conflict", async () => {
+    workspaceProfiles.value = [DESKTOP, ANDROID];
+    activeWorkspaceId.value = "desktop";
+    const alert = vi.spyOn(window, "alert").mockImplementation(() => {});
+    vi.mocked(relinkWorkspaceProfile).mockRejectedValueOnce(
+      new MockWorkspaceRelinkConflictError("Phone"),
+    );
+
+    const { getAllByText } = render(<WorkspaceProfilesSettings />);
+    fireEvent.click(getAllByText("Relink")[1]);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(alert).toHaveBeenCalledWith(
+      'This folder is already used by workspace "Phone".',
+    );
+  });
+
+  it("reports a generic failure for any other relink error", async () => {
+    workspaceProfiles.value = [DESKTOP];
+    activeWorkspaceId.value = "desktop";
+    const alert = vi.spyOn(window, "alert").mockImplementation(() => {});
+    vi.mocked(relinkWorkspaceProfile).mockRejectedValueOnce(new Error("denied"));
+
+    const { getByText } = render(<WorkspaceProfilesSettings />);
+    fireEvent.click(getByText("Relink"));
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(alert).toHaveBeenCalledWith("Could not relink workspace. Try again.");
   });
 });

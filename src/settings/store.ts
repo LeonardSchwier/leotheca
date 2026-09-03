@@ -2,6 +2,7 @@ import { batch, effect, signal } from "@preact/signals";
 import {
   drainWorkspaceOperations,
   getAppVersion,
+  isNativePlatform,
   listDir,
   pickWorkspaceFolder,
   readTextFile,
@@ -510,6 +511,104 @@ export async function forgetWorkspaceProfile(id: string): Promise<void> {
     if (workspaceProfiles.value.some((profile) => profile.id === id)) return;
     workspaceProfiles.value = sortWorkspaceProfiles([...workspaceProfiles.value, removed]);
   });
+}
+
+/** F20 Phase 2b-i, spec section 14: thrown when the folder picked for a
+ * relink already belongs to a different known profile. Carries the other
+ * profile's display name so the caller can state, per the spec's own
+ * confirmation requirement, exactly which profile the rejected folder
+ * belongs to instead of a generic failure message. */
+export class WorkspaceRelinkConflictError extends Error {
+  constructor(public readonly conflictingProfileName: string) {
+    super(`This folder is already used by workspace "${conflictingProfileName}".`);
+    this.name = "WorkspaceRelinkConflictError";
+  }
+}
+
+/** F20 Phase 2b-i, spec section 14: relinks an existing profile, active or
+ * not, to a newly picked folder, preserving its id/name/icon/recency (only
+ * `path`/`token` change). Returns `false` when the picker is cancelled or
+ * the profile no longer exists (e.g. forgotten while the picker was open);
+ * neither case changes anything (step 7). Throws
+ * `WorkspaceRelinkConflictError` when the picked folder already belongs to
+ * a different known profile (step 3), before anything is validated or
+ * committed.
+ *
+ * Relinking the *active* profile routes through the ordinary
+ * `setWorkspacePath` transition (step 6), so it gets the same
+ * connect/load validation, save-draining, and generation-invalidation
+ * guarantees as any other activation; a failed activation reports through
+ * the existing `workspaceSelectionError` signal, the same as any other
+ * transition failure, and leaves the profile's old locator untouched
+ * (nothing here mutates the catalog until `setWorkspacePath`'s own
+ * `afterPublish` succeeds).
+ *
+ * Relinking an *inactive* profile does not open it, matching the spec's
+ * own distinction (step 6 names only the active case as needing the full
+ * transition protocol): it must validate the candidate folder (step 4)
+ * without disturbing whichever workspace is actually live. On Desktop
+ * that's straightforward, `listDir`/`loadWorkspaceSettings` take the real
+ * absolute path directly and never touch `restoreWorkspaceAccess` or the
+ * active grant. On Android, every profile shares one synthetic
+ * `/workspace` root and one in-memory URI cache (section 12.3); there is
+ * no bridge primitive today to address a second, not-currently-open SAF
+ * tree without repointing that shared cache, which would risk a
+ * concurrent read or autosave against the workspace that's actually open
+ * resolving into this candidate folder instead. Rather than accept that
+ * risk, an inactive Android profile's relink target is committed on the
+ * same trust level `addWorkspaceFromPicker` already gives a freshly
+ * picked folder before it's ever opened (the platform picker returning a
+ * grant is itself the only validation); real access/settings validation
+ * then happens the ordinary way the next time this profile is activated,
+ * the same as any other catalog profile. This is a disclosed, genuine
+ * platform gap, not an oversight, left open under F20 Phase 2b-iv, which
+ * will need a real per-tree probe primitive to close it.
+ */
+export async function relinkWorkspaceProfile(id: string): Promise<boolean> {
+  if (!workspaceProfiles.value.some((profile) => profile.id === id)) return false;
+  const folder = await pickWorkspaceFolder();
+  if (!folder) return false;
+
+  const conflict = findProfileByLocator(workspaceProfiles.value, folder.path, folder.token);
+  if (conflict && conflict.id !== id) {
+    throw new WorkspaceRelinkConflictError(conflict.name);
+  }
+
+  const current = workspaceProfiles.value.find((profile) => profile.id === id);
+  if (!current) return false;
+
+  if (id === activeWorkspaceId.value) {
+    await setWorkspacePath(folder.path, folder.token, {
+      ...current,
+      path: folder.path,
+      token: folder.token,
+    });
+    return true;
+  }
+
+  if (!isNativePlatform()) {
+    // Real validation: listDir rejects an inaccessible/nonexistent folder.
+    // loadWorkspaceSettings never throws for a missing settings.json (an
+    // empty, never-before-opened folder is still a valid workspace), so it
+    // alone would not prove the folder is actually reachable.
+    await listDir(folder.path);
+    await loadWorkspaceSettings(folder.path);
+  }
+
+  const relinked: WorkspaceProfile = { ...current, path: folder.path, token: folder.token };
+  workspaceProfiles.value = sortWorkspaceProfiles([
+    ...workspaceProfiles.value.filter((profile) => profile.id !== id),
+    relinked,
+  ]);
+  await persistGlobalConfig(() => {
+    const latest = workspaceProfiles.value.find((profile) => profile.id === id);
+    if (latest?.path !== relinked.path || latest.token !== relinked.token) return;
+    workspaceProfiles.value = sortWorkspaceProfiles([
+      ...workspaceProfiles.value.filter((profile) => profile.id !== id),
+      { ...latest, path: current.path, token: current.token },
+    ]);
+  });
+  return true;
 }
 
 interface PendingWorkspaceSettingsWrite {

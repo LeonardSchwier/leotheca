@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   drainWorkspaceOperations,
+  isNativePlatform,
   pickWorkspaceFolder,
   readTextFile,
   writeTextFile,
@@ -14,6 +15,7 @@ const {
   getAppConfigFilePath,
 } = vi.hoisted(() => ({
   drainWorkspaceOperations: vi.fn(async () => {}),
+  isNativePlatform: vi.fn(() => false),
   pickWorkspaceFolder: vi.fn<() => Promise<{ path: string; token?: string } | null>>(
     async () => null,
   ),
@@ -37,6 +39,7 @@ const {
 
 vi.mock("../workspace/tauriBridge", () => ({
   drainWorkspaceOperations,
+  isNativePlatform,
   pickWorkspaceFolder,
   readTextFile,
   writeTextFile,
@@ -60,6 +63,7 @@ const {
   activeWorkspaceId,
   addWorkspaceFromPicker,
   forgetWorkspaceProfile,
+  relinkWorkspaceProfile,
   restoreLastOpenTabs,
   initSettings,
   repairWorkspaceSettingsFile,
@@ -68,9 +72,11 @@ const {
   updateWorkspaceSettings,
   workspacePath,
   workspaceProfiles,
+  workspaceSelectionError,
   workspaceSettings,
   workspaceSettingsCorrupted,
   workspaceSession,
+  WorkspaceRelinkConflictError,
 } = await import("./store");
 const { activeTabPath, closeAllTabs, openOrFocusTab, openTabs } =
   await import("../workspace/store");
@@ -380,6 +386,162 @@ describe("F20 Phase 1: workspace profile catalog", () => {
       const writes = globalConfigWrites();
       expect(writes.at(-1)?.version).toBe(2);
       expect(writes.at(-1)?.workspaceProfiles).toHaveLength(1);
+    });
+  });
+});
+
+describe("F20 Phase 2b-i: relinkWorkspaceProfile", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    closeAllTabs();
+    workspacePath.value = null;
+    workspaceProfiles.value = [];
+    activeWorkspaceId.value = null;
+    workspaceSelectionError.value = null;
+    pickWorkspaceFolder.mockResolvedValue(null);
+    isNativePlatform.mockReturnValue(false);
+    settingsLoaded.value = true;
+  });
+
+  it("does nothing and never opens the picker for an unknown profile id", async () => {
+    const result = await relinkWorkspaceProfile("does-not-exist");
+
+    expect(result).toBe(false);
+    expect(pickWorkspaceFolder).not.toHaveBeenCalled();
+  });
+
+  it("does nothing when the picker is cancelled", async () => {
+    workspaceProfiles.value = [
+      { id: "p1", name: "Vault", icon: "folder", path: "/vaultA", lastOpenedAt: 1 },
+    ];
+    pickWorkspaceFolder.mockResolvedValue(null);
+
+    const result = await relinkWorkspaceProfile("p1");
+
+    expect(result).toBe(false);
+    expect(workspaceProfiles.value[0].path).toBe("/vaultA");
+    expect(globalConfigWrites()).toEqual([]);
+  });
+
+  it("rejects a folder already owned by a different profile, naming it, and changes nothing", async () => {
+    workspaceProfiles.value = [
+      { id: "p1", name: "Vault", icon: "folder", path: "/vaultA", lastOpenedAt: 1 },
+      { id: "p2", name: "Other", icon: "folder", path: "/vaultB", lastOpenedAt: 2 },
+    ];
+    pickWorkspaceFolder.mockResolvedValue({ path: "/vaultB" });
+
+    let caught: unknown;
+    try {
+      await relinkWorkspaceProfile("p1");
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(WorkspaceRelinkConflictError);
+    expect((caught as InstanceType<typeof WorkspaceRelinkConflictError>).conflictingProfileName).toBe("Other");
+    expect(workspaceProfiles.value.find((p) => p.id === "p1")?.path).toBe("/vaultA");
+    expect(globalConfigWrites()).toEqual([]);
+  });
+
+  it("allows relinking a profile to the folder it already owns itself", async () => {
+    workspaceProfiles.value = [
+      { id: "p1", name: "Vault", icon: "folder", path: "/vaultA", lastOpenedAt: 1 },
+    ];
+    pickWorkspaceFolder.mockResolvedValue({ path: "/vaultA" });
+
+    const result = await relinkWorkspaceProfile("p1");
+
+    expect(result).toBe(true);
+  });
+
+  describe("inactive profile", () => {
+    it("validates the new folder, commits only path/token, and preserves id/name/icon/recency", async () => {
+      workspaceProfiles.value = [
+        { id: "p1", name: "Active", icon: "folder", path: "/active", lastOpenedAt: 5 },
+        { id: "p2", name: "Vault", icon: "book", path: "/oldPath", lastOpenedAt: 2 },
+      ];
+      activeWorkspaceId.value = "p1";
+      pickWorkspaceFolder.mockResolvedValue({ path: "/newPath" });
+
+      const result = await relinkWorkspaceProfile("p2");
+
+      expect(result).toBe(true);
+      expect(listDir).toHaveBeenCalledWith("/newPath");
+      const relinked = workspaceProfiles.value.find((p) => p.id === "p2");
+      expect(relinked).toMatchObject({
+        id: "p2",
+        name: "Vault",
+        icon: "book",
+        path: "/newPath",
+        lastOpenedAt: 2,
+      });
+      // Relinking an inactive profile must not open it or touch the live workspace.
+      expect(workspacePath.value).toBeNull();
+      expect(activeWorkspaceId.value).toBe("p1");
+      expect(restoreWorkspaceAccess).not.toHaveBeenCalled();
+      expect(globalConfigWrites().at(-1)?.workspaceProfiles.find(
+        (p: { id: string }) => p.id === "p2",
+      )?.path).toBe("/newPath");
+    });
+
+    it("leaves the old locator unchanged when validation fails", async () => {
+      workspaceProfiles.value = [
+        { id: "p1", name: "Vault", icon: "folder", path: "/oldPath", lastOpenedAt: 2 },
+      ];
+      pickWorkspaceFolder.mockResolvedValue({ path: "/badPath" });
+      listDir.mockRejectedValueOnce(new Error("permission denied"));
+
+      await expect(relinkWorkspaceProfile("p1")).rejects.toThrow("permission denied");
+
+      expect(workspaceProfiles.value[0].path).toBe("/oldPath");
+      expect(globalConfigWrites()).toEqual([]);
+    });
+
+    it("on a native (Android) platform, skips the shared-cache validation probe and trusts the picker grant", async () => {
+      isNativePlatform.mockReturnValue(true);
+      workspaceProfiles.value = [
+        { id: "p1", name: "Phone A", icon: "folder", path: "/workspace", token: "uri-old", lastOpenedAt: 2 },
+      ];
+      pickWorkspaceFolder.mockResolvedValue({ path: "/workspace", token: "uri-new" });
+
+      const result = await relinkWorkspaceProfile("p1");
+
+      expect(result).toBe(true);
+      expect(listDir).not.toHaveBeenCalled();
+      expect(workspaceProfiles.value[0].token).toBe("uri-new");
+    });
+  });
+
+  describe("active profile", () => {
+    it("routes through the ordinary transition, preserving id/name/icon", async () => {
+      workspaceProfiles.value = [
+        { id: "p1", name: "Vault", icon: "book", path: "/oldPath", lastOpenedAt: 3 },
+      ];
+      activeWorkspaceId.value = "p1";
+      pickWorkspaceFolder.mockResolvedValue({ path: "/newPath" });
+
+      const result = await relinkWorkspaceProfile("p1");
+
+      expect(result).toBe(true);
+      expect(workspacePath.value).toBe("/newPath");
+      expect(activeWorkspaceId.value).toBe("p1");
+      const relinked = workspaceProfiles.value.find((p) => p.id === "p1");
+      expect(relinked).toMatchObject({ id: "p1", name: "Vault", icon: "book", path: "/newPath" });
+    });
+
+    it("leaves the old locator in place and surfaces workspaceSelectionError when the new folder fails to open", async () => {
+      workspaceProfiles.value = [
+        { id: "p1", name: "Vault", icon: "folder", path: "/oldPath", lastOpenedAt: 3 },
+      ];
+      activeWorkspaceId.value = "p1";
+      workspacePath.value = "/oldPath";
+      pickWorkspaceFolder.mockResolvedValue({ path: "/badPath" });
+      listDir.mockRejectedValueOnce(new Error("gone"));
+
+      await expect(relinkWorkspaceProfile("p1")).rejects.toThrow();
+
+      expect(workspaceSelectionError.value).toContain("Could not open that workspace");
+      expect(workspaceProfiles.value[0].path).toBe("/oldPath");
     });
   });
 });

@@ -1,0 +1,496 @@
+name: Apply F04 Phase 5e1
+
+on:
+  push:
+    branches:
+      - automation/apply-f04-phase5e1-2053
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Apply heading block ID implementation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin agent/f04-phase5e1-heading-block-ids
+          git checkout -B work origin/agent/f04-phase5e1-heading-block-ids
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              text = p.read_text(encoding="utf-8")
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{path}: expected one match, found {count}: {old[:100]!r}")
+              p.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+          replace_once(
+              "src/markdown/headings.ts",
+              "  occurrence: number;\n  level: 1 | 2 | 3 | 4 | 5 | 6;",
+              """  occurrence: number;
+            /** Optional explicit block ID attached to this heading. The marker is
+             * excluded from rawText/displayText/contentTo so heading consumers keep
+             * describing only visible heading text. */
+            blockId?: { id: string; idFrom: number; idTo: number };
+            level: 1 | 2 | 3 | 4 | 5 | 6;""",
+          )
+          replace_once(
+              "src/markdown/headings.ts",
+              "const CLOSING_HASH_RE = /[ \\t]+#+$/;\n",
+              """const CLOSING_HASH_RE = /[ \\t]+#+$/;
+            const HEADING_BLOCK_ID_RE = /[ \\t]+\\^([A-Za-z0-9][A-Za-z0-9-]{0,63})[ \\t]*$/;
+            """,
+          )
+          replace_once(
+              "src/markdown/headings.ts",
+              """  line: number;
+            column: number;
+          }
+
+          function tryParseAtx""",
+              """  line: number;
+            column: number;
+            blockId?: { id: string; idFrom: number; idTo: number };
+          }
+
+          function extractHeadingBlockId(
+            rawText: string,
+            absoluteContentStart: number,
+          ): { rawText: string; contentTo: number; blockId?: { id: string; idFrom: number; idTo: number } } {
+            const match = HEADING_BLOCK_ID_RE.exec(rawText);
+            if (!match) return { rawText, contentTo: absoluteContentStart + rawText.length };
+            const id = match[1];
+            const caretOffset = match.index + match[0].indexOf("^");
+            const idFrom = absoluteContentStart + caretOffset;
+            return {
+              rawText: rawText.slice(0, match.index),
+              contentTo: absoluteContentStart + match.index,
+              blockId: { id, idFrom, idTo: idFrom + 1 + id.length },
+            };
+          }
+
+          function tryParseAtx""",
+          )
+          replace_once(
+              "src/markdown/headings.ts",
+              """  let raw = line.text.slice(contentStart, contentEnd);
+            const closing = CLOSING_HASH_RE.exec(raw);
+            if (closing) {
+              contentEnd -= closing[0].length;
+              raw = raw.slice(0, raw.length - closing[0].length);
+            }
+            return {
+              level: hashes.length as RawHeading["level"],
+              rawText: raw,
+              sourceFrom: line.start,
+              sourceTo: line.end,
+              contentFrom: line.start + contentStart,
+              contentTo: line.start + contentEnd,
+              line: line.lineNumber,
+              column: 1,
+            };""",
+              """  let raw = line.text.slice(contentStart, contentEnd);
+            const closing = CLOSING_HASH_RE.exec(raw);
+            if (closing) {
+              contentEnd -= closing[0].length;
+              raw = raw.slice(0, raw.length - closing[0].length);
+            }
+            const parsedBlockId = extractHeadingBlockId(raw, line.start + contentStart);
+            raw = parsedBlockId.rawText;
+            contentEnd = parsedBlockId.contentTo - line.start;
+            return {
+              level: hashes.length as RawHeading["level"],
+              rawText: raw,
+              sourceFrom: line.start,
+              sourceTo: line.end,
+              contentFrom: line.start + contentStart,
+              contentTo: line.start + contentEnd,
+              line: line.lineNumber,
+              column: 1,
+              blockId: parsedBlockId.blockId,
+            };""",
+          )
+          replace_once(
+              "src/markdown/headings.ts",
+              """        consumedLines.add(i - 1);
+                  consumedLines.add(i);
+                  raw.push({
+                    level: setextLevel,
+                    rawText: textLine.text.slice(contentStart, contentEnd),
+                    sourceFrom: textLine.start,
+                    sourceTo: line.end,
+                    contentFrom: textLine.start + contentStart,
+                    contentTo: textLine.start + contentEnd,
+                    line: textLine.lineNumber,
+                    column: 1,
+                  });""",
+              """        const parsedBlockId = extractHeadingBlockId(
+                    textLine.text.slice(contentStart, contentEnd),
+                    textLine.start + contentStart,
+                  );
+                  contentEnd = parsedBlockId.contentTo - textLine.start;
+                  consumedLines.add(i - 1);
+                  consumedLines.add(i);
+                  raw.push({
+                    level: setextLevel,
+                    rawText: parsedBlockId.rawText,
+                    sourceFrom: textLine.start,
+                    sourceTo: line.end,
+                    contentFrom: textLine.start + contentStart,
+                    contentTo: textLine.start + contentEnd,
+                    line: textLine.lineNumber,
+                    column: 1,
+                    blockId: parsedBlockId.blockId,
+                  });""",
+          )
+          replace_once(
+              "src/markdown/headings.ts",
+              """      key,
+                occurrence,
+                level: h.level,""",
+              """      key,
+                occurrence,
+                blockId: h.blockId,
+                level: h.level,""",
+          )
+
+          replace_once(
+              "src/markdown/blocks.ts",
+              "/**\n * F04 Phase 3a/3b/3d/3e's block-reference scanner",
+              "import { scanHeadings } from \"./headings\";\n\n/**\n * F04 Phase 3a/3b/3d/3e's block-reference scanner",
+          )
+          replace_once(
+              "src/markdown/blocks.ts",
+              '  kind: "paragraph" | "list-item" | "blockquote" | "fenced-code";',
+              '  kind: "paragraph" | "list-item" | "blockquote" | "fenced-code" | "heading";',
+          )
+          replace_once(
+              "src/markdown/blocks.ts",
+              """  flushPendingFencedCode();
+            flushParagraph();
+            flushOpenBlock();
+
+            return blocks;
+          }
+
+          /** Scans a Markdown document""",
+              """  flushPendingFencedCode();
+            flushParagraph();
+            flushOpenBlock();
+
+            for (const heading of scanHeadings(content)) {
+              blocks.push({
+                kind: "heading",
+                sourceFrom: heading.sourceFrom,
+                sourceTo: heading.sourceTo,
+                contentFrom: heading.contentFrom,
+                contentTo: heading.contentTo,
+                line: heading.line,
+                column: heading.column,
+                marker: heading.blockId
+                  ? { id: heading.blockId.id, idFrom: heading.blockId.idFrom, idTo: heading.blockId.idTo }
+                  : undefined,
+              });
+            }
+            blocks.sort((a, b) => a.sourceFrom - b.sourceFrom);
+
+            return blocks;
+          }
+
+          /** Scans a Markdown document""",
+          )
+          replace_once(
+              "src/markdown/blocks.ts",
+              """/** Scans a Markdown document for explicit block ID tokens attached to a
+           * paragraph, a (possibly multi-line) list item or blockquote, or a fenced
+           * code block (see the module doc comment above for exactly what's
+           * eligible), skipping block-level HTML comments and headings, and returns
+           * them in source order. */""",
+              """/** Scans a Markdown document for explicit block ID tokens attached to a
+           * paragraph, heading, (possibly multi-line) list item or blockquote, or a
+           * fenced code block, and returns them in source order. Heading ownership
+           * comes from scanHeadings so this module never maintains a second heading
+           * parser. */""",
+          )
+          replace_once(
+              "src/markdown/blocks.test.ts",
+              """  it("returns undefined for an offset inside a heading or a blank line between blocks", () => {
+                const source = "# A heading\\n\\nA paragraph.";
+                expect(findBlockAtOffset(source, source.indexOf("heading"))).toBeUndefined();
+                expect(findBlockAtOffset(source, source.indexOf("\\n\\n") + 1)).toBeUndefined();
+              });""",
+              """  it("finds a heading block and still returns undefined for a blank line between blocks", () => {
+                const source = "# A heading\\n\\nA paragraph.";
+                expect(findBlockAtOffset(source, source.indexOf("heading"))?.kind).toBe("heading");
+                expect(findBlockAtOffset(source, source.indexOf("\\n\\n") + 1)).toBeUndefined();
+              });""",
+          )
+
+          replace_once(
+              "src/linking/store.ts",
+              """    (record.kind === "paragraph" ||
+                record.kind === "list-item" ||
+                record.kind === "blockquote" ||
+                record.kind === "fenced-code") &&""",
+              """    (record.kind === "paragraph" ||
+                record.kind === "list-item" ||
+                record.kind === "blockquote" ||
+                record.kind === "fenced-code" ||
+                record.kind === "heading") &&""",
+          )
+          replace_once(
+              "src/linking/store.ts",
+              """function isValidHeadingRecord(raw: unknown): raw is HeadingRecord {
+            if (typeof raw !== "object" || raw === null) return false;
+            const record = raw as Record<string, unknown>;
+            const isFiniteNumber = (v: unknown): v is number =>
+              typeof v === "number" && Number.isFinite(v);
+            return (
+              typeof record.key === "string" &&""",
+              """function isValidHeadingRecord(raw: unknown): raw is HeadingRecord {
+            if (typeof raw !== "object" || raw === null) return false;
+            const record = raw as Record<string, unknown>;
+            const isFiniteNumber = (v: unknown): v is number =>
+              typeof v === "number" && Number.isFinite(v);
+            const blockId = record.blockId;
+            const hasValidBlockId =
+              blockId === undefined ||
+              (typeof blockId === "object" &&
+                blockId !== null &&
+                typeof (blockId as Record<string, unknown>).id === "string" &&
+                isFiniteNumber((blockId as Record<string, unknown>).idFrom) &&
+                isFiniteNumber((blockId as Record<string, unknown>).idTo));
+            return (
+              hasValidBlockId &&
+              typeof record.key === "string" &&""",
+          )
+          replace_once(
+              "src/linking/store.ts",
+              """// Bumped again from 6 (F04 Phase 5c): CachedNote gained `blocks`, the same
+          // precedent again: an old-shaped cache entry has no `blocks` field, and
+          // without the bump could still "match" a current file's mtime/size and be
+          // reused as a cache hit, silently reporting the note as having zero block
+          // IDs to the new cross-note block pre-check until it's next edited.
+          const LINK_INDEX_CACHE_VERSION = 7;""",
+              """// Bumped again from 6 (F04 Phase 5c): CachedNote gained `blocks`, the same
+          // precedent again: an old-shaped cache entry has no `blocks` field, and
+          // without the bump could still "match" a current file's mtime/size and be
+          // reused as a cache hit, silently reporting the note as having zero block
+          // IDs to the new cross-note block pre-check until it's next edited.
+          //
+          // Bumped from 7 (F04 Phase 5e1): heading-owned block IDs expand both cached
+          // heading records and the set of cached block records. Version 7 entries
+          // must be rebuilt or a heading ID added before upgrade could stay invisible
+          // until that note's mtime or size changes.
+          const LINK_INDEX_CACHE_VERSION = 8;""",
+          )
+
+          store_test = Path("src/linking/store.test.ts")
+          text = store_test.read_text(encoding="utf-8")
+          if text.count("version: 7,") != 3:
+              raise SystemExit(f"store.test.ts: expected three version 7 fixtures, found {text.count('version: 7,')}")
+          text = text.replace("version: 7,", "version: 8,")
+          old = '''      if (path.endsWith("Alpha.md")) return "A paragraph with an id. ^my-block";
+                return "No block ids here.";
+              });
+
+              await rebuildLinkIndex("/workspace");
+
+              expect(findMarkdownFiles).toHaveBeenCalledTimes(1);
+              const alphaBlocks = linkIndex.value.blocksByPath?.get("/workspace/Alpha.md");
+              expect(alphaBlocks?.map((b) => b.id)).toEqual(["my-block"]);'''
+          new = '''      if (path.endsWith("Alpha.md")) return "# Section ^heading-id\\n\\nA paragraph with an id. ^my-block";
+                return "No block ids here.";
+              });
+
+              await rebuildLinkIndex("/workspace");
+
+              expect(findMarkdownFiles).toHaveBeenCalledTimes(1);
+              const alphaBlocks = linkIndex.value.blocksByPath?.get("/workspace/Alpha.md");
+              expect(alphaBlocks?.map((b) => b.id)).toEqual(["heading-id", "my-block"]);'''
+          if text.count(old) != 1:
+              raise SystemExit("store.test.ts: blocksByPath integration fixture drifted")
+          store_test.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+          replace_once(
+              "src/editor/MarkdownPreview.tsx",
+              """    result += source.slice(cursor, block.contentTo);
+              cursor = block.sourceTo;""",
+              """    result += source.slice(cursor, block.contentTo);
+              cursor = block.kind === "heading" ? block.idTo : block.sourceTo;""",
+          )
+          replace_once(
+              "src/editor/MarkdownPreview.tsx",
+              """          : anchor.closest<HTMLElement>(
+                        kind === "list-item" ? "li" : kind === "blockquote" ? "blockquote" : "p",
+                      );""",
+              """          : anchor.closest<HTMLElement>(
+                        kind === "list-item"
+                          ? "li"
+                          : kind === "blockquote"
+                            ? "blockquote"
+                            : kind === "heading"
+                              ? "h1,h2,h3,h4,h5,h6"
+                              : "p",
+                      );""",
+          )
+
+          Path("src/markdown/headingBlockIds.test.ts").write_text('''import { describe, expect, it } from "vitest";
+          import { resolveBlockLinkAtCursor } from "../editor/blockLinkActions";
+          import { findBlockAtOffset, scanBlockIds } from "./blocks";
+          import { scanHeadings } from "./headings";
+
+          describe("heading block IDs", () => {
+            it("parses an ATX heading marker without exposing it as heading text", () => {
+              const source = "## Architecture boundary ^architecture-boundary";
+              const [heading] = scanHeadings(source);
+              expect(heading.rawText).toBe("Architecture boundary");
+              expect(heading.displayText).toBe("Architecture boundary");
+              expect(heading.blockId?.id).toBe("architecture-boundary");
+              expect(source.slice(heading.contentFrom, heading.contentTo)).toBe("Architecture boundary");
+              expect(source.slice(heading.blockId!.idFrom, heading.blockId!.idTo)).toBe("^architecture-boundary");
+            });
+
+            it("recognizes a marker before optional ATX closing hashes", () => {
+              const source = "### Shipping ^release ##";
+              const [heading] = scanHeadings(source);
+              expect(heading.displayText).toBe("Shipping");
+              expect(heading.blockId?.id).toBe("release");
+            });
+
+            it("parses a setext heading marker while preserving its underline", () => {
+              const source = "Architecture ^arch\\n============\\nBody";
+              const [heading] = scanHeadings(source);
+              expect(heading.displayText).toBe("Architecture");
+              expect(heading.blockId?.id).toBe("arch");
+              expect(source.slice(heading.sourceFrom, heading.sourceTo)).toBe("Architecture ^arch\\n============");
+            });
+
+            it("leaves malformed heading markers visible", () => {
+              const [heading] = scanHeadings("## Heading ^bad_id");
+              expect(heading.blockId).toBeUndefined();
+              expect(heading.displayText).toBe("Heading ^bad_id");
+            });
+
+            it("shares one case-insensitive duplicate namespace with other block kinds", () => {
+              const blocks = scanBlockIds("## Heading ^Shared\\n\\nParagraph. ^shared");
+              expect(blocks.map((block) => block.kind)).toEqual(["heading", "paragraph"]);
+              expect(blocks.map((block) => block.key)).toEqual(["shared", "shared"]);
+              expect(blocks.map((block) => block.occurrence)).toEqual([1, 2]);
+            });
+
+            it("finds a markerless heading as the block at the cursor", () => {
+              const source = "# Markerless heading\\n\\nBody.";
+              const block = findBlockAtOffset(source, source.indexOf("heading"));
+              expect(block?.kind).toBe("heading");
+              expect(block?.marker).toBeUndefined();
+            });
+
+            it("lets Copy block link create an inline marker for a markerless heading", () => {
+              const source = "## Heading\\n\\nBody.";
+              const heading = scanHeadings(source)[0];
+              const result = resolveBlockLinkAtCursor(source, source.indexOf("Heading") + 2);
+              expect(result?.insertion?.from).toBe(heading.contentTo);
+              expect(result?.insertion?.text).toMatch(/^ \\^b-[a-f0-9]{8}$/);
+              const id = result!.insertion!.text.slice(2);
+              expect(result?.linkText).toBe(`[[#^${id}]]`);
+            });
+          });
+          ''', encoding="utf-8")
+
+          Path("src/editor/MarkdownPreview.headingBlocks.test.tsx").write_text('''/** @vitest-environment jsdom */
+          import { cleanup, render } from "@testing-library/preact";
+          import { afterEach, describe, expect, it, vi } from "vitest";
+
+          vi.mock("../workspace/tauriBridge", () => ({ fileSrc: vi.fn(), readTextFile: vi.fn() }));
+          vi.mock("../settings/store", async () => {
+            const { signal } = await import("@preact/signals");
+            return { workspacePath: signal<string | null>(null) };
+          });
+
+          import { MarkdownPreview } from "./MarkdownPreview";
+
+          afterEach(() => cleanup());
+
+          describe("MarkdownPreview heading block IDs", () => {
+            it("hides an ATX marker and anchors the rendered heading", () => {
+              const { container } = render(<MarkdownPreview source="## Architecture ^arch" notePath="/vault/note.md" />);
+              const heading = container.querySelector("h2");
+              expect(heading?.textContent).toBe("Architecture");
+              expect(heading?.id).toBe("lt-block-arch");
+              expect(heading?.getAttribute("data-lt-block-id")).toBe("arch");
+              expect(container.textContent).not.toContain("^arch");
+            });
+
+            it("keeps setext rendering intact while hiding and anchoring its marker", () => {
+              const { container } = render(<MarkdownPreview source={"Architecture ^arch\\n============\\nBody"} notePath="/vault/note.md" />);
+              const heading = container.querySelector("h1");
+              expect(heading?.textContent).toBe("Architecture");
+              expect(heading?.id).toBe("lt-block-arch");
+              expect(heading?.getAttribute("data-lt-block-id")).toBe("arch");
+            });
+          });
+          ''', encoding="utf-8")
+
+          replace_once(
+              "CHANGELOG.md",
+              "## Unreleased\n",
+              "## Unreleased\n\n- Block references now support headings. A trailing `^id` on an ATX or setext heading stays hidden in Preview, resolves in the same block-ID namespace as other blocks, and works with the existing Copy block link action.\n",
+          )
+          replace_once(
+              "documentation/ARCHITECTURE.md",
+              "\n## Build and distribution architecture\n",
+              """
+          ### Heading-owned block IDs
+
+          `markdown/headings.ts` is the only parser for heading structure and now also owns an optional trailing explicit `^id` marker on ATX and setext headings. The marker is kept out of the heading's visible text and content range. `markdown/blocks.ts` merges those canonical heading records into the shared block model so block resolution, duplicate detection, Copy block link, and Preview anchoring do not maintain a second heading parser. The persisted link-index cache version is bumped whenever this block-record shape changes so an old cache cannot hide heading IDs until a later file edit.
+
+          ## Build and distribution architecture
+          """,
+          )
+
+          roadmap = Path("ROADMAP.md")
+          lines = roadmap.read_text(encoding="utf-8").splitlines()
+          matches = [i for i, line in enumerate(lines) if line.startswith("- 🚧 **F04 Phase 5e1:")]
+          if len(matches) != 1:
+              raise SystemExit(f"ROADMAP.md: expected one claimed F04 Phase 5e1 line, found {len(matches)}")
+          lines.pop(matches[0])
+          implemented = "- ✅ **F04 Phase 5e1: heading block-ID eligibility and Preview heading anchors** (claim: ChatGPT-GPT-5.6-Sol-manual-20260903T2052Z, branch: agent/f04-phase5e1-heading-block-ids, spec: `spec/f04-heading-block-links-embeds.md`, sections 7.1-7.4 and 21 Phase 5): ATX and setext headings can now own trailing explicit `^id` markers through the canonical `markdown/headings.ts` scanner. Those markers stay out of visible heading text and reveal ranges; `markdown/blocks.ts` merges headings into the same case-insensitive block-ID namespace used by paragraphs, lists, blockquotes, and fenced code; Copy block link can create or reuse a heading ID; Preview attaches the existing deterministic `lt-block-*` anchor to the rendered heading; and the persisted link-index cache advances to version 8 so pre-feature caches cannot hide heading IDs. Focused coverage includes ATX, closing hashes, setext headings, malformed markers, duplicate IDs across block kinds, markerless heading lookup, source-mode Copy block link insertion, Preview anchoring, and indexed heading IDs. Phase 5e2 remains open for the Preview hover/focus/long-press copy affordance, and Phase 5e3 remains open for the separate Create block link entry point."
+          try:
+              i = lines.index("## Implemented")
+          except ValueError:
+              raise SystemExit("ROADMAP.md: missing Implemented heading")
+          lines[i + 1:i + 1] = ["", implemented]
+          roadmap.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+          for name in [
+              "src/markdown/headings.ts", "src/markdown/blocks.ts", "src/markdown/blocks.test.ts",
+              "src/linking/store.ts", "src/linking/store.test.ts", "src/editor/MarkdownPreview.tsx",
+              "src/markdown/headingBlockIds.test.ts", "src/editor/MarkdownPreview.headingBlocks.test.tsx",
+              "CHANGELOG.md", "documentation/ARCHITECTURE.md", "ROADMAP.md",
+          ]:
+              if "\x00" in Path(name).read_text(encoding="utf-8"):
+                  raise SystemExit(f"{name}: null byte found")
+          PY
+
+          npm ci
+          npx tsc --noEmit
+          npx vitest run src/markdown/headings.test.ts src/markdown/blocks.test.ts src/markdown/headingBlockIds.test.ts src/editor/MarkdownPreview.headingBlocks.test.tsx src/editor/blockLinkActions.test.ts src/linking/store.test.ts
+          git config user.name "Leonardschwier"
+          git config user.email "github@leonardschwier.de"
+          git add src/markdown/headings.ts src/markdown/blocks.ts src/markdown/blocks.test.ts src/linking/store.ts src/linking/store.test.ts src/editor/MarkdownPreview.tsx src/markdown/headingBlockIds.test.ts src/editor/MarkdownPreview.headingBlocks.test.tsx CHANGELOG.md documentation/ARCHITECTURE.md ROADMAP.md
+          git diff --cached --quiet && { echo "implementation produced no change"; exit 1; }
+          git commit -m "Implement F04 Phase 5e1 heading block IDs"
+          git push origin HEAD:agent/f04-phase5e1-heading-block-ids

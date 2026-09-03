@@ -14,6 +14,10 @@ function reportProfileWriteFailure(action: string): void {
   window.alert(`Could not ${action} workspace profile. Try again.`);
 }
 
+function reportWorkspaceActionFailure(action: string): void {
+  window.alert(`Could not ${action} workspace. Try again.`);
+}
+
 /** F20 Phase 2a settings management surface. Relink and active-profile forget
  * deliberately stay out of this component because they belong to Phase 2b. */
 export function WorkspaceProfilesSettings() {
@@ -33,6 +37,22 @@ export function WorkspaceProfilesSettings() {
       await setWorkspaceProfileIcon(id, icon);
     } catch {
       reportProfileWriteFailure("update");
+    }
+  };
+
+  const forget = async (id: string) => {
+    try {
+      await forgetWorkspaceProfile(id);
+    } catch {
+      reportProfileWriteFailure("forget");
+    }
+  };
+
+  const add = async () => {
+    try {
+      await addWorkspaceFromPicker();
+    } catch {
+      reportWorkspaceActionFailure("add");
     }
   };
 
@@ -61,12 +81,12 @@ export function WorkspaceProfilesSettings() {
               </select>
             </label>
             {!isActive && (
-              <button type="button" onClick={() => void forgetWorkspaceProfile(profile.id)}>Forget</button>
+              <button type="button" onClick={() => void forget(profile.id)}>Forget</button>
             )}
           </div>
         );
       })}
-      <button type="button" onClick={() => void addWorkspaceFromPicker()}>Add workspace</button>
+      <button type="button" onClick={() => void add()}>Add workspace</button>
     </section>
   );
 }

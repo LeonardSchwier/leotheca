@@ -1114,6 +1114,23 @@ describe("MarkdownPreview: F04 Phase 4a embeds", () => {
     expect(smallFrame.querySelector(".embed-frame-body")?.textContent).toBe("Embed limit reached");
   });
 
+  it("treats the byte budget landing at exactly 0 remaining as exhausted (F04 Phase 4b edge-case coverage)", () => {
+    // "x".repeat(1_048_576) is exactly 1 MiB of single-byte ASCII
+    // characters, so bytesRemaining lands at precisely 0 after this one
+    // embed, not a large negative overshoot (the pre-existing test
+    // above). The boundary condition itself, `<= 0`, is what's under
+    // test here.
+    const exactlyOneMiB = "x".repeat(1_048_576);
+    const source = ["![[#Exact]]", "", "![[#Next]]", "", "## Exact", "", exactlyOneMiB, "", "## Next", "", "Tiny."].join(
+      "\n",
+    );
+    const { container } = render(<MarkdownPreview source={source} notePath="/vault/exact.md" />);
+
+    const [exactFrame, nextFrame] = container.querySelectorAll(".embed-frame");
+    expect(exactFrame.querySelector(".embed-frame-body")?.textContent).toContain(exactlyOneMiB);
+    expect(nextFrame.querySelector(".embed-frame-body")?.textContent).toBe("Embed limit reached");
+  });
+
   it("resolves two independent sibling cross-note embeds concurrently without cross-contaminating their ancestry", async () => {
     // Both siblings are queued for the bounded worker pool at once (2
     // pending embeds, workerCount = min(concurrency, 2) = 2 concurrent
@@ -1175,6 +1192,122 @@ describe("MarkdownPreview: F04 Phase 4a embeds", () => {
     // The nested same-note fragment ("#Details") resolved against
     // reference.md's own headings, not the (pathless) host note's.
     expect(inner.querySelector(".embed-frame-body")?.textContent).toContain("The embedded note's own section.");
+  });
+
+  it("expands a chain mixing cross-note and same-note embeds more than one level of each (F04 Phase 4b edge-case coverage)", async () => {
+    // Host (depth 0) -> NoteA, cross-note (depth 1) -> NoteB, cross-note
+    // (depth 2) -> NoteB's own "#Section" heading, same-note (depth 3,
+    // the cap). The same-note hop is the chain's own leaf, deliberately:
+    // a same-note fragment's "content" is a literal substring of the
+    // exact same text already being scanned for markers, so anything
+    // *after* it inside that same text would be found twice — once via
+    // this recursive expansion, once as its own independent top-level
+    // occurrence in that note's own render pass. That's correct,
+    // expected behavior for a note's real content, not a bug, but it
+    // does mean a clean, non-duplicating mixed-chain test needs the
+    // same-note hop to be the last one, not sandwiched with further
+    // markers inside its own extracted section.
+    linkIndex.value = {
+      backlinksByPath: new Map(),
+      pathsByNoteName: new Map([
+        ["notea", ["/vault/notea.md"]],
+        ["noteb", ["/vault/noteb.md"]],
+      ]),
+      pathsByAlias: new Map(),
+      aliasesByPath: new Map(),
+      pathsByTag: new Map(),
+      tagsByPath: new Map(),
+      tasksByPath: new Map(),
+    };
+    vi.mocked(readTextFile).mockImplementation(async (path: string) => {
+      if (path === "/vault/notea.md") return "Level A. ![[NoteB]]";
+      if (path === "/vault/noteb.md") return "Level B. ![[#Section]]\n\n## Section\n\nFinal leaf content.";
+      throw new Error(`unexpected path: ${path}`);
+    });
+    const { container } = render(<MarkdownPreview source="![[NoteA]]" />);
+
+    await waitFor(() => {
+      expect(container.querySelectorAll(".embed-frame")).toHaveLength(3);
+    });
+    const [noteAFrame, noteBFrame, sectionFrame] = container.querySelectorAll(".embed-frame");
+    await waitFor(() => {
+      expect(noteAFrame.querySelector(".embed-frame-body")?.textContent).toContain("Level A.");
+    });
+    await waitFor(() => {
+      expect(noteBFrame.querySelector(".embed-frame-body")?.textContent).toContain("Level B.");
+    });
+    expect(sectionFrame.querySelector(".embed-frame-body")?.textContent).toContain("Final leaf content.");
+  });
+
+  it("shows an ambiguous-heading placeholder for a same-note embed nested inside a cross-note embed (F04 Phase 4b edge-case coverage)", async () => {
+    linkIndex.value = {
+      backlinksByPath: new Map(),
+      pathsByNoteName: new Map([["reference", ["/vault/reference.md"]]]),
+      pathsByAlias: new Map(),
+      aliasesByPath: new Map(),
+      pathsByTag: new Map(),
+      tagsByPath: new Map(),
+      tasksByPath: new Map(),
+    };
+    vi.mocked(readTextFile).mockResolvedValue(
+      "Intro. ![[#Design]]\n\n## Design\n\nFirst.\n\n## Design\n\nSecond.",
+    );
+    const { container } = render(<MarkdownPreview source="![[Reference]]" />);
+
+    await waitFor(() => {
+      expect(container.querySelectorAll(".embed-frame")).toHaveLength(2);
+    });
+    const [, inner] = container.querySelectorAll(".embed-frame");
+    await waitFor(() => {
+      expect(inner.querySelector(".embed-frame-body")?.textContent).toContain("more than one heading");
+    });
+  });
+
+  it("does not mutate a nested embed's DOM after the preview is cancelled mid-resolution (F04 Phase 4b edge-case coverage)", async () => {
+    linkIndex.value = {
+      backlinksByPath: new Map(),
+      pathsByNoteName: new Map([
+        ["notea", ["/vault/notea.md"]],
+        ["noteb", ["/vault/noteb.md"]],
+      ]),
+      pathsByAlias: new Map(),
+      aliasesByPath: new Map(),
+      pathsByTag: new Map(),
+      tagsByPath: new Map(),
+      tasksByPath: new Map(),
+    };
+    let resolveNoteB: (content: string) => void = () => {};
+    const noteBRead = new Promise<string>((resolve) => {
+      resolveNoteB = resolve;
+    });
+    vi.mocked(readTextFile).mockImplementation(async (path: string) => {
+      if (path === "/vault/notea.md") return "Level A. ![[NoteB]]";
+      if (path === "/vault/noteb.md") return noteBRead;
+      throw new Error(`unexpected path: ${path}`);
+    });
+    const { container, rerender } = render(<MarkdownPreview source="![[NoteA]]" />);
+
+    // Wait until NoteA has resolved and NoteB's own placeholder (a
+    // *nested* cross-note request, discovered only while resolving
+    // NoteA) exists, its own read still in flight.
+    await waitFor(() => {
+      expect(container.querySelectorAll(".embed-frame")).toHaveLength(2);
+    });
+    const [, noteBFrame] = container.querySelectorAll(".embed-frame");
+    expect(noteBFrame.querySelector(".embed-frame-body")?.textContent).toBe("Loading…");
+
+    // Re-rendering with a source that no longer requests any embed runs
+    // the effect's own cleanup, setting the closure's `cancelled` flag
+    // before NoteB's own read has resolved.
+    rerender(<MarkdownPreview source="No embeds here." />);
+    resolveNoteB("Level B content.");
+    await Promise.resolve();
+    await Promise.resolve();
+
+    // The cancelled resolution must not have mutated the (now-detached)
+    // NoteB frame's body: it never received the real content.
+    expect(noteBFrame.querySelector(".embed-frame-body")?.textContent).toBe("Loading…");
+    expect(container.querySelector(".embed-frame")).toBeNull();
   });
 
   it("still strips block-id markers from a same-note embed's own extracted content", () => {

@@ -905,6 +905,85 @@ describe("MarkdownPreview: F04 Phase 3a block references", () => {
   });
 });
 
+describe("MarkdownPreview: F04 Phase 5d block anchor rendering hook", () => {
+  it("gives a uniquely-identified paragraph a deterministic DOM id and data-lt-block-id", () => {
+    const { container } = render(
+      <MarkdownPreview source="This decision is final. ^release-decision" notePath="/vault/plan.md" />,
+    );
+    const host = container.querySelector('[data-lt-block-id="release-decision"]');
+    expect(host?.tagName).toBe("P");
+    expect(host?.id).toBe("lt-block-release-decision");
+    // The anchor marker itself never survives into the final DOM.
+    expect(container.querySelector("[data-lt-block-anchor]")).toBeNull();
+  });
+
+  it("gives a uniquely-identified list item its own id, not the whole list", () => {
+    const { container } = render(
+      <MarkdownPreview
+        source={"- First item\n- The user owns the files. ^local-first\n- Third item"}
+        notePath="/vault/plan.md"
+      />,
+    );
+    const host = container.querySelector('[data-lt-block-id="local-first"]');
+    expect(host?.tagName).toBe("LI");
+    expect(host?.id).toBe("lt-block-local-first");
+    expect(host?.textContent).toContain("The user owns the files.");
+  });
+
+  it("gives a uniquely-identified blockquote its own id", () => {
+    const { container } = render(
+      <MarkdownPreview source={"> A quoted principle. ^principle"} notePath="/vault/plan.md" />,
+    );
+    const host = container.querySelector('[data-lt-block-id="principle"]');
+    expect(host?.tagName).toBe("BLOCKQUOTE");
+    expect(host?.id).toBe("lt-block-principle");
+  });
+
+  it("gives a uniquely-identified fenced code block's own <pre> its id, not a sibling element", () => {
+    const { container } = render(
+      <MarkdownPreview source={"```\nconst x = 1;\n```\n^code-block-id"} notePath="/vault/plan.md" />,
+    );
+    const host = container.querySelector('[data-lt-block-id="code-block-id"]');
+    expect(host?.tagName).toBe("PRE");
+    expect(host?.id).toBe("lt-block-code-block-id");
+    expect(host?.textContent).toBe("const x = 1;\n");
+    expect(container.querySelector("[data-lt-block-anchor]")).toBeNull();
+  });
+
+  it("does not assign a DOM id for a block whose marker is a duplicate elsewhere in the note", () => {
+    const { container } = render(
+      <MarkdownPreview source={"One. ^dup\n\nTwo. ^dup"} notePath="/vault/plan.md" />,
+    );
+    expect(container.querySelector("[data-lt-block-id]")).toBeNull();
+    expect(container.querySelector("[data-lt-block-anchor]")).toBeNull();
+    // Unchanged pre-existing behavior for a duplicate marker: still
+    // invisible as text, just without a DOM anchor either.
+    expect(container.textContent).not.toContain("^dup");
+  });
+
+  it("assigns no DOM id at all when headingLinksEnabled is off", () => {
+    const { container } = render(
+      <MarkdownPreview
+        source="This decision is final. ^release-decision"
+        notePath="/vault/plan.md"
+        headingLinksEnabled={false}
+      />,
+    );
+    expect(container.querySelector("[data-lt-block-id]")).toBeNull();
+  });
+
+  it("assigns independent ids to multiple unique blocks in the same note", () => {
+    const { container } = render(
+      <MarkdownPreview
+        source={"First paragraph. ^first\n\nSecond paragraph. ^second"}
+        notePath="/vault/plan.md"
+      />,
+    );
+    expect(container.querySelector('[data-lt-block-id="first"]')?.textContent).toBe("First paragraph.");
+    expect(container.querySelector('[data-lt-block-id="second"]')?.textContent).toBe("Second paragraph.");
+  });
+});
+
 describe("MarkdownPreview: F04 Phase 4a embeds", () => {
   function setNote(name: string, path: string) {
     linkIndex.value = {

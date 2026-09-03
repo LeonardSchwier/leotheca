@@ -77,6 +77,14 @@
  * needs enough of each to know a line is NOT a paragraph line. Duplicating
  * a handful of small regexes here keeps this module self-contained the
  * same way its two siblings are.
+ *
+ * F04 Phase 5d generalized the internal walker (now `scanBlocks`, see
+ * below) to report every eligible block whether or not it already
+ * carries a marker, not only ones that do: `scanBlockIds` is now a thin
+ * filter over it (unchanged output/behavior), and the same walk backs
+ * `findBlockAtOffset`, used by the new Copy block link editor action
+ * (`editor/blockLinkActions.ts`) to locate the block at the cursor and,
+ * when it has no marker yet, generate and insert one.
  */
 
 export interface BlockRecord {
@@ -117,6 +125,28 @@ export interface BlockRecord {
    * (sourceFrom). */
   line: number;
   column: number;
+}
+
+/**
+ * One block boundary found by `scanBlocks` below, whether or not it
+ * carries an existing `^id` marker. `contentFrom`/`contentTo` always
+ * exclude a marker when one is present (the same convention
+ * `BlockRecord` already uses), so a caller inserting a *new* marker can
+ * always append it at `contentTo` (or, for `"fenced-code"`, on a new
+ * line right after `contentTo`) without re-deriving where the block's
+ * real content ends. `marker` is present only when the block's own last
+ * (or, for `"fenced-code"`, immediately following) line already carries
+ * a syntactically valid, non-orphaned `^id` token.
+ */
+export interface ScannedBlock {
+  kind: BlockRecord["kind"];
+  sourceFrom: number;
+  sourceTo: number;
+  contentFrom: number;
+  contentTo: number;
+  line: number;
+  column: number;
+  marker?: { id: string; idFrom: number; idTo: number };
 }
 
 interface LineInfo {
@@ -163,49 +193,105 @@ const BLOCK_ID_RE = /[ \t]+\^([A-Za-z0-9][A-Za-z0-9-]{0,63})[ \t]*$/;
 // indentation allowance) before the caret.
 const STANDALONE_BLOCK_ID_RE = /^ {0,3}\^([A-Za-z0-9][A-Za-z0-9-]{0,63})[ \t]*$/;
 
-/** Scans a Markdown document for explicit block ID tokens attached to a
- * paragraph, a (possibly multi-line) list item or blockquote, or a fenced
- * code block (see the module doc comment above for exactly what's
- * eligible), skipping block-level HTML comments and headings, and returns
- * them in source order. */
-export function scanBlockIds(content: string): BlockRecord[] {
+/**
+ * Scans a Markdown document for every eligible block (a paragraph, a
+ * (possibly multi-line) list item or blockquote, or a fenced code block;
+ * see the module doc comment above for exactly what's eligible),
+ * skipping block-level HTML comments and headings, and returns them in
+ * source order, each annotated with its existing `^id` marker when it
+ * has one. This is the one shared walker both `scanBlockIds` (markers
+ * only, F04 Phase 3a/3b/3d/3e) and `findBlockAtOffset` (any block, F04
+ * Phase 5d's "block at the cursor" lookup for the Copy block link
+ * action) build on, so the block-boundary detection rules above are
+ * never re-derived a second time for either purpose.
+ */
+export function scanBlocks(content: string): ScannedBlock[] {
   const lines = splitLines(content);
-  const blocks: BlockRecord[] = [];
-  const keyOccurrences = new Map<string, number>();
+  const blocks: ScannedBlock[] = [];
 
-  function recordBlock(
-    kind: BlockRecord["kind"],
+  // Records a paragraph, list item, or blockquote: `last` is the block's
+  // own last accumulated line, the one line convention 7.1 allows a
+  // marker on. Called for every such block, whether or not `last` turns
+  // out to carry a valid one, so a markerless block is still reported
+  // (with `contentTo` covering the whole line) for `findBlockAtOffset`.
+  function recordInline(
+    kind: "paragraph" | "list-item" | "blockquote",
     sourceFrom: number,
     contentFrom: number,
-    contentTo: number,
-    line: LineInfo,
-    match: RegExpExecArray,
+    last: LineInfo,
   ): void {
-    // The marker's own leading whitespace must belong to the block's
-    // real content, not merely be the bullet/">" marker's own required
-    // separator: reject a bare "- ^id"/"> ^id" with nothing else on the
-    // line (see the module doc comment's "orphan-id" example). Never
-    // triggers for a fenced-code block, whose contentTo (the closing
-    // fence's own line end) is always well past contentFrom.
-    if (contentTo < contentFrom) return;
-    const id = match[1];
-    const key = id.toLowerCase();
-    const occurrence = (keyOccurrences.get(key) ?? 0) + 1;
-    keyOccurrences.set(key, occurrence);
-    const caretOffset = match.index + match[0].indexOf("^");
-    const idFrom = line.start + caretOffset;
+    const match = BLOCK_ID_RE.exec(last.text);
+    if (match) {
+      // The marker's own leading whitespace must belong to the block's
+      // real content, not merely be the bullet/">" marker's own
+      // required separator: reject a bare "- ^id"/"> ^id" with nothing
+      // else on the line (the module doc comment's "orphan-id" example)
+      // by falling through to the markerless case below instead of
+      // dropping the block outright.
+      const contentTo = last.start + match.index;
+      if (contentTo >= contentFrom) {
+        const id = match[1];
+        const caretOffset = match.index + match[0].indexOf("^");
+        const idFrom = last.start + caretOffset;
+        blocks.push({
+          kind,
+          sourceFrom,
+          sourceTo: last.end,
+          contentFrom,
+          contentTo,
+          line: last.lineNumber,
+          column: 1,
+          marker: { id, idFrom, idTo: idFrom + 1 + id.length },
+        });
+        return;
+      }
+    }
     blocks.push({
-      id,
-      key,
-      occurrence,
       kind,
       sourceFrom,
-      sourceTo: line.end,
+      sourceTo: last.end,
       contentFrom,
-      contentTo,
-      idFrom,
-      idTo: idFrom + 1 + id.length,
-      line: line.lineNumber,
+      contentTo: last.end,
+      line: last.lineNumber,
+      column: 1,
+    });
+  }
+
+  // Records a fenced code block (open fence through close fence).
+  // `markerLine`, when given, is the one line right after the close
+  // fence that gets exactly one chance to be a marker (spec 7.2); absent
+  // when no such line exists (end of document) or a new fence opened
+  // immediately, forfeiting the check (see the two call sites below).
+  // Unlike `recordInline`, `contentTo` never depends on whether a marker
+  // was actually found: the marker, when present, is always a wholly
+  // separate line, never part of the fenced block's own content.
+  function recordFencedCode(blockFrom: number, blockTo: number, closeLine: LineInfo, markerLine?: LineInfo): void {
+    if (markerLine) {
+      const idMatch = STANDALONE_BLOCK_ID_RE.exec(markerLine.text);
+      if (idMatch) {
+        const id = idMatch[1];
+        const caretOffset = idMatch.index + idMatch[0].indexOf("^");
+        const idFrom = markerLine.start + caretOffset;
+        blocks.push({
+          kind: "fenced-code",
+          sourceFrom: blockFrom,
+          sourceTo: markerLine.end,
+          contentFrom: blockFrom,
+          contentTo: blockTo,
+          line: markerLine.lineNumber,
+          column: 1,
+          marker: { id, idFrom, idTo: idFrom + 1 + id.length },
+        });
+        return;
+      }
+    }
+    blocks.push({
+      kind: "fenced-code",
+      sourceFrom: blockFrom,
+      sourceTo: blockTo,
+      contentFrom: blockFrom,
+      contentTo: blockTo,
+      line: closeLine.lineNumber,
       column: 1,
     });
   }
@@ -247,21 +333,28 @@ export function scanBlockIds(content: string): BlockRecord[] {
     if (!openBlock) return;
     const { kind, contentFrom, lines } = openBlock;
     openBlock = null;
-    const first = lines[0];
-    const last = lines[lines.length - 1];
-    const match = BLOCK_ID_RE.exec(last.text);
-    if (match) recordBlock(kind, first.start, contentFrom, last.start + match.index, last, match);
+    recordInline(kind, lines[0].start, contentFrom, lines[lines.length - 1]);
   }
 
   let inFence = false;
   let fenceChar = "";
   let fenceLength = 0;
   let fenceStartLine: LineInfo | null = null;
-  // Set the instant a fence closes, to the fence's own [start, end)
-  // span (start of the opening line through end of the closing line);
-  // consumed (accepted or forfeited) by exactly the one line right after
-  // it, per spec 7.2's "immediately following line."
-  let pendingFencedCode: { blockFrom: number; blockTo: number } | null = null;
+  // Set the instant a fence closes, to the fence's own [start, end) span
+  // (start of the opening line through end of the closing line) plus the
+  // closing line itself; consumed (its marker accepted or forfeited, the
+  // block itself always recorded either way) by exactly the one line
+  // right after it, per spec 7.2's "immediately following line," or by
+  // `flushPendingFencedCode` below when no such line ever arrives.
+  let pendingFencedCode: { blockFrom: number; blockTo: number; closeLine: LineInfo } | null = null;
+
+  function flushPendingFencedCode(markerLine?: LineInfo): void {
+    if (!pendingFencedCode) return;
+    const { blockFrom, blockTo, closeLine } = pendingFencedCode;
+    pendingFencedCode = null;
+    recordFencedCode(blockFrom, blockTo, closeLine, markerLine);
+  }
+
   let inComment = false;
   let paragraphLines: LineInfo[] = [];
 
@@ -269,8 +362,7 @@ export function scanBlockIds(content: string): BlockRecord[] {
     if (paragraphLines.length === 0) return;
     const first = paragraphLines[0];
     const last = paragraphLines[paragraphLines.length - 1];
-    const match = BLOCK_ID_RE.exec(last.text);
-    if (match) recordBlock("paragraph", first.start, first.start, last.start + match.index, last, match);
+    recordInline("paragraph", first.start, first.start, last);
     paragraphLines = [];
   }
 
@@ -282,7 +374,7 @@ export function scanBlockIds(content: string): BlockRecord[] {
       const close = FENCE_RE.exec(line.text);
       if (close && close[1][0] === fenceChar && close[1].length >= fenceLength && line.text.trim() === close[1]) {
         inFence = false;
-        pendingFencedCode = { blockFrom: fenceStartLine!.start, blockTo: line.end };
+        pendingFencedCode = { blockFrom: fenceStartLine!.start, blockTo: line.end, closeLine: line };
       }
       continue;
     }
@@ -291,8 +383,9 @@ export function scanBlockIds(content: string): BlockRecord[] {
       flushParagraph();
       flushOpenBlock();
       // A fence opening immediately (no id line arrived in between)
-      // forfeits any pending marker check from the previous fence.
-      pendingFencedCode = null;
+      // forfeits the previous fence's own marker check, but the
+      // previous fenced-code block itself is still recorded, markerless.
+      flushPendingFencedCode();
       inFence = true;
       fenceChar = fenceOpen[1][0];
       fenceLength = fenceOpen[1].length;
@@ -312,16 +405,13 @@ export function scanBlockIds(content: string): BlockRecord[] {
     }
 
     if (pendingFencedCode !== null) {
-      const { blockFrom, blockTo } = pendingFencedCode;
-      pendingFencedCode = null;
-      const idMatch = STANDALONE_BLOCK_ID_RE.exec(line.text);
-      if (idMatch) {
-        recordBlock("fenced-code", blockFrom, blockFrom, blockTo, line, idMatch);
-        continue;
-      }
-      // Not a marker line: forfeited, per the module doc comment. Fall
-      // through so this line is still classified normally below (it
-      // could itself be a blank line, a heading, a new fence, etc.).
+      const idMatch = STANDALONE_BLOCK_ID_RE.test(line.text);
+      flushPendingFencedCode(idMatch ? line : undefined);
+      if (idMatch) continue;
+      // Not a marker line: forfeited, per the module doc comment (the
+      // fenced-code block is still recorded, markerless). Fall through
+      // so this line is still classified normally below (it could
+      // itself be a blank line, a heading, a new fence, etc.).
     }
 
     if (inComment) {
@@ -378,8 +468,58 @@ export function scanBlockIds(content: string): BlockRecord[] {
 
     paragraphLines.push(line);
   }
+  // A fenced code block that closes as the very last thing in the
+  // document has no following line to ever consume its pending marker
+  // check; still record the block itself, markerless.
+  flushPendingFencedCode();
   flushParagraph();
   flushOpenBlock();
 
   return blocks;
+}
+
+/** Scans a Markdown document for explicit block ID tokens attached to a
+ * paragraph, a (possibly multi-line) list item or blockquote, or a fenced
+ * code block (see the module doc comment above for exactly what's
+ * eligible), skipping block-level HTML comments and headings, and returns
+ * them in source order. */
+export function scanBlockIds(content: string): BlockRecord[] {
+  const records: BlockRecord[] = [];
+  const keyOccurrences = new Map<string, number>();
+  for (const block of scanBlocks(content)) {
+    if (!block.marker) continue;
+    const key = block.marker.id.toLowerCase();
+    const occurrence = (keyOccurrences.get(key) ?? 0) + 1;
+    keyOccurrences.set(key, occurrence);
+    records.push({
+      id: block.marker.id,
+      key,
+      occurrence,
+      kind: block.kind,
+      sourceFrom: block.sourceFrom,
+      sourceTo: block.sourceTo,
+      contentFrom: block.contentFrom,
+      contentTo: block.contentTo,
+      idFrom: block.marker.idFrom,
+      idTo: block.marker.idTo,
+      line: block.line,
+      column: block.column,
+    });
+  }
+  return records;
+}
+
+/**
+ * Finds the innermost eligible block (per the module doc comment's scope)
+ * whose source range contains `offset`, whether or not it already carries
+ * a `^id` marker. Built for F04 Phase 5d's "Copy block link" action
+ * (spec section 7.4 step 1, "determine the selected Markdown block from
+ * the current cursor"): the caller decides separately whether the found
+ * block already has a unique marker (reuse it) or needs one created (see
+ * `ScannedBlock.contentFrom`/`contentTo` for exactly where to insert one).
+ * Blocks are non-overlapping and returned in source order by `scanBlocks`,
+ * so the first one containing `offset` is the only one that can.
+ */
+export function findBlockAtOffset(content: string, offset: number): ScannedBlock | undefined {
+  return scanBlocks(content).find((block) => offset >= block.sourceFrom && offset <= block.sourceTo);
 }

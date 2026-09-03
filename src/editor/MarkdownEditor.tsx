@@ -21,6 +21,8 @@ import { livePreviewExtension } from "./livePreview";
 import { attachmentsInsertText, type PastedOrDroppedFile } from "./attachments";
 import { minimalChange } from "./textDiff";
 import { parseSnippets, snippetExpansion } from "./snippets";
+import { resolveBlockLinkAtCursor } from "./blockLinkActions";
+import type { BlockLinkCopyRequest } from "./blockLinkRequest";
 
 export interface MarkdownEditorProps {
   path: string;
@@ -53,6 +55,18 @@ export interface MarkdownEditorProps {
    * `requestId` must change for a repeat request with the same text to
    * re-apply; `null` means no pending request. */
   insertRequest?: { text: string; requestId: number } | null;
+  /** A request to run F04 Phase 5d's "Copy block link" action (spec
+   * section 7.4) against the current cursor position, e.g. from the
+   * command palette's "Copy block link" entry (see
+   * editor/blockLinkRequest.ts's `requestCopyBlockLinkAtCursor`). Unlike
+   * `insertRequest` above, this never touches the current selection
+   * itself: it locates the block *at* the cursor (not necessarily the
+   * selection), inserts a fresh id there only if the block doesn't
+   * already have one, and copies the resulting link to the clipboard,
+   * all in one CodeMirror transaction plus a clipboard write.
+   * `requestId` must change for a repeat request to re-apply; `null`
+   * means no pending request. */
+  blockLinkCopyRequest?: BlockLinkCopyRequest | null;
   /** Reports the primary selection head (character offset) after every
    * transaction that changes it, including typing and the reveal effect
    * above; used by HeadingBreadcrumbs for Source-mode active-section
@@ -437,6 +451,7 @@ export function MarkdownEditor({
   snippets,
   reveal,
   insertRequest,
+  blockLinkCopyRequest,
   onCursorChange,
 }: MarkdownEditorProps) {
   const hostRef = useRef<HTMLDivElement>(null);
@@ -577,6 +592,39 @@ export function MarkdownEditor({
       scrollIntoView: true,
     });
   }, [insertRequest]);
+
+  // Applies a "Copy block link" request (spec section 7.4): reads the
+  // live document and cursor position (never the stale `value` prop,
+  // which can lag an in-flight keystroke) straight from the CodeMirror
+  // view, since only this effect has one; see
+  // editor/blockLinkActions.ts's resolveBlockLinkAtCursor for the actual
+  // block-lookup/id-generation logic this only drives. Unlike the reveal
+  // and insertRequest effects above, this never touches the current
+  // selection: the id, when one needs creating, is inserted at the
+  // found block's own content end regardless of where the cursor sits
+  // inside that block, and CodeMirror maps the existing selection
+  // forward across that edit on its own (no explicit `selection` in the
+  // dispatched spec), exactly like any other edit typed elsewhere on the
+  // same line would.
+  const lastBlockLinkRequestIdRef = useRef<number | null>(null);
+  useEffect(() => {
+    const view = viewRef.current;
+    if (
+      !view ||
+      !blockLinkCopyRequest ||
+      blockLinkCopyRequest.requestId === lastBlockLinkRequestIdRef.current
+    ) {
+      return;
+    }
+    lastBlockLinkRequestIdRef.current = blockLinkCopyRequest.requestId;
+    const cursor = view.state.selection.main.head;
+    const resolution = resolveBlockLinkAtCursor(view.state.doc.toString(), cursor);
+    if (!resolution) return;
+    if (resolution.insertion) {
+      view.dispatch({ changes: { from: resolution.insertion.from, insert: resolution.insertion.text } });
+    }
+    void navigator.clipboard.writeText(resolution.linkText);
+  }, [blockLinkCopyRequest]);
 
   return <div class="markdown-editor" ref={hostRef} />;
 }

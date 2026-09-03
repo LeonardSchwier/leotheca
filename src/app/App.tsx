@@ -45,6 +45,7 @@ import { WorkspaceSwitcher } from "../settings/WorkspaceSwitcher";
 import { BacklinksPanel } from "../linking/BacklinksPanel";
 import { OutlinePanel } from "../outline/OutlinePanel";
 import { outlineInsertRequest, outlineRevealRequest, requestOutlineReveal } from "../outline/outlineNavigation";
+import { blockLinkCopyRequest, requestCopyBlockLinkAtCursor } from "../editor/blockLinkRequest";
 import { HeadingBreadcrumbs } from "../outline/HeadingBreadcrumbs";
 import { nextSplitAuthority, type SplitAuthority } from "../outline/splitAuthority";
 import { scanHeadings } from "../markdown/headings";
@@ -629,6 +630,15 @@ export function App() {
           label: currentBookmark ? "Remove bookmark from this note" : "Bookmark this note",
           run: toggleCurrentNoteBookmark,
         },
+        ...(workspaceSettings.value.headingLinksEnabled && viewMode.value !== "preview"
+          ? [
+              {
+                id: "copy-block-link",
+                label: "Copy block link",
+                run: requestCopyBlockLinkAtCursor,
+              },
+            ]
+          : []),
         { id: "rename-tab", label: "Rename current note", run: () => setTabRename(current) },
         {
           id: "close-tab",
@@ -947,6 +957,7 @@ export function App() {
                       snippets={workspaceSettings.value.snippets}
                       reveal={outlineRevealRequest.value}
                       insertRequest={outlineInsertRequest.value}
+                      blockLinkCopyRequest={blockLinkCopyRequest.value}
                       onCursorChange={(pos) => {
                         setCursorPos(pos);
                         setSplitAuthority(nextSplitAuthority("source-cursor"));

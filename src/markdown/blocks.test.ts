@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { scanBlockIds } from "./blocks";
+import { findBlockAtOffset, scanBlockIds, scanBlocks } from "./blocks";
 
 describe("scanBlockIds", () => {
   it("returns an empty array for a note with no block ID markers", () => {
@@ -305,5 +305,126 @@ describe("scanBlockIds", () => {
     const listSource = "-   Extra spaces after the bullet. ^spaced-list";
     const [listBlock] = scanBlockIds(listSource);
     expect(listSource.slice(listBlock.contentFrom, listBlock.contentTo)).toBe("Extra spaces after the bullet.");
+  });
+});
+
+describe("scanBlocks (F04 Phase 5d: markerless boundaries too)", () => {
+  it("reports a markerless paragraph, not just marked ones", () => {
+    const source = "Just a paragraph with no marker.";
+    const [block] = scanBlocks(source);
+    expect(block).toBeDefined();
+    expect(block.kind).toBe("paragraph");
+    expect(block.marker).toBeUndefined();
+    expect(block.contentFrom).toBe(0);
+    expect(block.contentTo).toBe(source.length);
+    expect(block.sourceTo).toBe(source.length);
+  });
+
+  it("reports a markerless list item and blockquote with contentTo at the line end", () => {
+    const source = "- A list item with no marker\n\n> A quote with no marker";
+    const blocks = scanBlocks(source);
+    expect(blocks).toHaveLength(2);
+    expect(blocks[0].kind).toBe("list-item");
+    expect(blocks[0].marker).toBeUndefined();
+    expect(source.slice(blocks[0].contentFrom, blocks[0].contentTo)).toBe("A list item with no marker");
+    expect(blocks[1].kind).toBe("blockquote");
+    expect(blocks[1].marker).toBeUndefined();
+  });
+
+  it("reports a markerless fenced code block, contentTo at the closing fence", () => {
+    const source = "```\ncode here\n```\n\nAfter.";
+    const blocks = scanBlocks(source);
+    expect(blocks[0].kind).toBe("fenced-code");
+    expect(blocks[0].marker).toBeUndefined();
+    expect(blocks[0].contentTo).toBe(source.indexOf("```\n\nAfter") + 3);
+  });
+
+  it("reports a fenced code block as markerless when it closes at the very end of the document", () => {
+    // A genuine pre-existing edge case this phase also closes: previously
+    // a fenced code block with no line after it was never recorded at
+    // all (scanBlockIds), even markerless, since nothing ever consumed
+    // the deferred marker check.
+    const source = "```\ncode here\n```";
+    const blocks = scanBlocks(source);
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0].kind).toBe("fenced-code");
+    expect(blocks[0].marker).toBeUndefined();
+    expect(blocks[0].sourceTo).toBe(source.length);
+  });
+
+  it("still marks a fenced code block markerless when a new fence opens immediately after (forfeited check)", () => {
+    const source = "```\nfirst\n```\n```\nsecond\n```";
+    const blocks = scanBlocks(source);
+    expect(blocks).toHaveLength(2);
+    expect(blocks.every((b) => b.kind === "fenced-code" && !b.marker)).toBe(true);
+  });
+
+  it("still returns marker info for a block that has a valid marker", () => {
+    const source = "A marked paragraph. ^has-marker";
+    const [block] = scanBlocks(source);
+    expect(block.marker?.id).toBe("has-marker");
+    expect(source.slice(block.marker!.idFrom, block.marker!.idTo)).toBe("^has-marker");
+  });
+
+  it("scanBlockIds and scanBlocks agree on every marked block (thin-filter equivalence)", () => {
+    const source = [
+      "A paragraph. ^p1",
+      "",
+      "- A list item. ^l1",
+      "",
+      "> A quote. ^q1",
+      "",
+      "```",
+      "code",
+      "```",
+      "^c1",
+    ].join("\n");
+    const ids = scanBlockIds(source);
+    const markedBoundaries = scanBlocks(source).filter((b) => b.marker);
+    expect(markedBoundaries).toHaveLength(4);
+    expect(ids.map((b) => b.id)).toEqual(markedBoundaries.map((b) => b.marker!.id));
+  });
+});
+
+describe("findBlockAtOffset", () => {
+  it("finds the markerless paragraph containing a given offset", () => {
+    const source = "First paragraph.\n\nSecond paragraph, no marker yet.";
+    const offset = source.indexOf("Second") + 3;
+    const block = findBlockAtOffset(source, offset);
+    expect(block?.kind).toBe("paragraph");
+    expect(source.slice(block!.sourceFrom, block!.sourceTo)).toBe("Second paragraph, no marker yet.");
+  });
+
+  it("finds the already-marked block containing the offset and reports its existing marker", () => {
+    const source = "Paragraph one.\n\nParagraph two. ^existing-id";
+    const offset = source.indexOf("two") + 1;
+    const block = findBlockAtOffset(source, offset);
+    expect(block?.marker?.id).toBe("existing-id");
+  });
+
+  it("finds a list item, not the whole list, when the offset is inside one item", () => {
+    const source = "- First item\n- Second item, cursor here\n- Third item";
+    const offset = source.indexOf("cursor");
+    const block = findBlockAtOffset(source, offset);
+    expect(block?.kind).toBe("list-item");
+    expect(source.slice(block!.sourceFrom, block!.sourceTo)).toBe("- Second item, cursor here");
+  });
+
+  it("finds a fenced code block when the offset is inside the fence", () => {
+    const source = "Intro.\n\n```\nconst x = 1;\n```\n\nOutro.";
+    const offset = source.indexOf("const");
+    const block = findBlockAtOffset(source, offset);
+    expect(block?.kind).toBe("fenced-code");
+  });
+
+  it("returns undefined for an offset inside a heading or a blank line between blocks", () => {
+    const source = "# A heading\n\nA paragraph.";
+    expect(findBlockAtOffset(source, source.indexOf("heading"))).toBeUndefined();
+    expect(findBlockAtOffset(source, source.indexOf("\n\n") + 1)).toBeUndefined();
+  });
+
+  it("returns undefined for an offset past the end of the document", () => {
+    const source = "A paragraph.";
+    expect(findBlockAtOffset(source, source.length + 10)).toBeUndefined();
   });
 });

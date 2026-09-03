@@ -829,19 +829,62 @@ function renderWikilinksStructured(source: string, context: RenderContext): stri
  * the CodeMirror editor itself displays; this function's output is used
  * for `marked.parse` alone, never re-scanned or revealed against.
  *
- * Only the deterministic DOM ID / `data-lt-block-id` attribute and the
- * copy-link affordance spec 7.3 also describes are deferred to a
- * follow-up (see ROADMAP.md): this phase makes the marker invisible and
- * makes an existing block reference resolvable and navigable, but does
- * not yet expose a stable anchor on the rendered element itself.
+ * F04 Phase 5d adds the deterministic DOM ID / `data-lt-block-id`
+ * attribute spec 7.3 also describes: a block whose id is unique in this
+ * document (an ambiguous, duplicate id gets the old plain-strip
+ * treatment below, unchanged, since a duplicate id has no single
+ * rendered element it could unambiguously name) has its marker replaced,
+ * not merely deleted, with an invisible marker element (see
+ * `blockAnchorMarkerHtml` below) carrying
+ * `data-lt-block-anchor`/`data-lt-block-kind`; a `useEffect`
+ * below (once this HTML is actually in the DOM) moves those into a real
+ * `id`/`data-lt-block-id` on the block's own rendered element and
+ * discards the anchor. The still-deferred copy-link affordance spec 7.3
+ * separately describes (an on-hover/focus/long-press button rendered
+ * directly on the block) is not implemented; see ROADMAP.md.
  */
+/**
+ * A fenced code block's anchor sits on its own line (see
+ * stripBlockIdMarkers below), where it must be a tag `marked` recognizes
+ * as a block-level HTML passthrough (CommonMark HTML block type 6,
+ * `embedFrameHtml` above's own precedent) rather than inline content, or
+ * it gets wrapped in an auto-generated `<p>` instead of standing alone;
+ * every other kind's anchor is spliced into the block's own inline text
+ * stream, where a block-level tag like `div` would instead split that
+ * text's surrounding `<p>`/`<li>` in two (the browser's HTML parser does
+ * not allow a block element inside one), so it needs an inline tag.
+ */
+function blockAnchorTag(kind: BlockRecord["kind"]): "div" | "span" {
+  return kind === "fenced-code" ? "div" : "span";
+}
+
+function blockAnchorMarkerHtml(id: string, kind: BlockRecord["kind"]): string {
+  const tag = blockAnchorTag(kind);
+  return `<${tag} data-lt-block-anchor="${escapeAttr(id)}" data-lt-block-kind="${kind}" style="display:none"></${tag}>`;
+}
+
 function stripBlockIdMarkers(source: string, blocks: BlockRecord[]): string {
   if (blocks.length === 0) return source;
+  const keyCounts = new Map<string, number>();
+  for (const block of blocks) keyCounts.set(block.key, (keyCounts.get(block.key) ?? 0) + 1);
+
   let result = "";
   let cursor = 0;
   for (const block of blocks) {
     result += source.slice(cursor, block.contentTo);
     cursor = block.sourceTo;
+    if ((keyCounts.get(block.key) ?? 0) === 1) {
+      // Fenced code's marker is its own separate line right after the
+      // closing fence (contentTo already sits at that fence's own end,
+      // see markdown/blocks.ts): the anchor needs a blank line before it
+      // to reliably parse as its own raw-HTML block rather than trailing
+      // content of the fence, the same blank-line-padding convention
+      // embedFrameHtml above already relies on for the identical reason.
+      // Every other kind's marker sits inline at the end of the block's
+      // own text, where the anchor can simply replace it in place.
+      result += block.kind === "fenced-code" ? "\n\n" : "";
+      result += blockAnchorMarkerHtml(block.id, block.kind);
+    }
   }
   result += source.slice(cursor);
   return result;
@@ -1001,6 +1044,44 @@ export function MarkdownPreview({
     return () => {
       cancelled = true;
     };
+  }, [html]);
+
+  // F04 Phase 5d: turns each invisible marker element (`blockAnchorMarkerHtml`)
+  // `stripBlockIdMarkers` above emitted for a uniquely-identified block
+  // into a real, stable `id`/`data-lt-block-id` on that block's own
+  // rendered element (spec 7.3), then discards the marker. `data-lt-
+  // block-kind` says which ancestor/sibling relationship names the real
+  // host, mirroring exactly how `stripBlockIdMarkers` positioned the
+  // marker for that kind: a "paragraph"/"list-item"/"blockquote" marker
+  // was spliced inline into the block's own text, so its nearest
+  // matching ancestor *is* the host; a "fenced-code" marker was placed
+  // as its own raw-HTML block on the line right after the closing fence
+  // (never inside the code block's own verbatim content, which `marked`
+  // never runs inline HTML parsing over), so the host is the element
+  // immediately before it in the DOM. A host that can't be found (the
+  // marker's own containing structure changed shape in some way this
+  // simple lookup doesn't anticipate) is a silent no-op for that one
+  // marker, never a crash: the block just renders without its anchor,
+  // same as before this phase existed.
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const anchors = Array.from(container.querySelectorAll<HTMLElement>("[data-lt-block-anchor]"));
+    for (const anchor of anchors) {
+      const id = anchor.getAttribute("data-lt-block-anchor")!;
+      const kind = anchor.getAttribute("data-lt-block-kind");
+      const host: HTMLElement | null =
+        kind === "fenced-code"
+          ? (anchor.previousElementSibling as HTMLElement | null)
+          : anchor.closest<HTMLElement>(
+              kind === "list-item" ? "li" : kind === "blockquote" ? "blockquote" : "p",
+            );
+      if (host) {
+        host.id = `lt-block-${id}`;
+        host.setAttribute("data-lt-block-id", id);
+      }
+      anchor.remove();
+    }
   }, [html]);
 
   // F04 Phase 4a: resolves each cross-note embed placeholder

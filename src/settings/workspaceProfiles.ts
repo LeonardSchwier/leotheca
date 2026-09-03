@@ -2,22 +2,25 @@ import type { WorkspaceIcon, WorkspaceProfile } from "./globalConfig";
 import { WORKSPACE_ICONS } from "./globalConfig";
 
 /** Pure validation/sort/naming/dedup helpers for workspace profiles (F20
- * Phase 1, spec `leotheca-workspace-profiles-sdd.md` sections 7.5, 12,
+ * Phase 1/2a, spec `leotheca-workspace-profiles-sdd.md` sections 7.5, 12,
  * 13.1). No signal reads, no platform calls: every function here is a
  * plain data transform, so `settings/store.ts`'s actions stay thin
  * wrappers around them plus the transition coordinator, and both sides
  * are independently testable. */
 
-const MAX_PROFILE_NAME_LENGTH = 120;
+const MAX_PROFILE_NAME_LENGTH = 80;
 
-/** Section 13.1: trimmed, non-empty, capped. Returns `null` for a name
- * that is empty after trimming (whitespace-only input included) rather
- * than silently substituting a placeholder — callers decide what to do
- * with an invalid name (reject the edit, fall back to a computed
- * default), which differs by call site. */
+/** Section 13.1: names are trimmed, non-empty, contain no line breaks, and
+ * contain at most 80 Unicode scalar values. JavaScript string length counts
+ * UTF-16 code units, so Array.from is deliberate here: supplementary-plane
+ * characters count as one scalar rather than two. Returns `null` instead of
+ * silently truncating an invalid user edit. */
 export function normalizeProfileName(raw: string): string | null {
-  const trimmed = raw.trim().slice(0, MAX_PROFILE_NAME_LENGTH);
-  return trimmed === "" ? null : trimmed;
+  const trimmed = raw.trim();
+  if (trimmed === "" || /[\r\n]/.test(trimmed)) return null;
+  const scalars = Array.from(trimmed);
+  if (scalars.length > MAX_PROFILE_NAME_LENGTH) return null;
+  return trimmed;
 }
 
 /** Section 11 step 6's default-name fallback chain for a brand-new
@@ -30,7 +33,10 @@ export function defaultProfileName(path: string, suggestedName?: string): string
   const suggested = suggestedName ? normalizeProfileName(suggestedName) : null;
   if (suggested) return suggested;
   const basename = path.split("/").filter(Boolean).pop();
-  if (basename && basename !== "workspace") return basename;
+  if (basename && basename !== "workspace") {
+    const normalized = normalizeProfileName(basename);
+    if (normalized) return normalized;
+  }
   return "Workspace";
 }
 
@@ -94,6 +100,7 @@ export function matchesWorkspaceSearch(profile: WorkspaceProfile, query: string)
   const q = query.trim().toLocaleLowerCase();
   if (q === "") return true;
   if (profile.name.toLocaleLowerCase().includes(q)) return true;
+  if (profile.token) return false;
   const basename = profile.path.split("/").filter(Boolean).pop() ?? "";
   return basename.toLocaleLowerCase().includes(q) || profile.path.toLocaleLowerCase().includes(q);
 }

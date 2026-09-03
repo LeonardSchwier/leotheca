@@ -13,6 +13,7 @@ Read `AGENTS.md` and `CONSTITUTION.md` first, always. Come here when
 you're about to do one of the following:
 
 - **`roadmap-workflow.md`** — claiming, implementing, verifying, and landing one `ROADMAP.md` item, start to finish, including the direct-to-`main` landing steps.
+- **`autonomous-roadmap-delivery.md`** - repeatedly integrating and landing multiple roadmap items in one autonomous or scheduled session, with complete candidate bookkeeping before final exact-head CI and productive read-only preparation while CI runs.
 - **`verification-suite.md`** — the exact commands this project's "verify before declaring done" rule means in practice, including a real pitfall (nested agent worktrees inflating test/lint counts) and the cloud-sandbox Rust bootstrap steps.
 - **`merge-conflict-resolution.md`** — resolving a `ROADMAP.md`/`CHANGELOG.md` (or source file) conflict against a `main` that moved while you were working.
 - **`phase-splitting-large-specs.md`** — narrowing a large `spec/*.md` feature into an honestly-scoped, single-session-sized first phase, and what to do when a phase already on the roadmap turns out too big.

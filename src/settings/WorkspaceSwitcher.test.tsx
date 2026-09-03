@@ -66,16 +66,17 @@ describe("WorkspaceSwitcher", () => {
     expect(getByText("Personal")).toBeTruthy();
   });
 
-  it("opens the menu listing every profile, checkmarking the active one", () => {
+  it("opens the dialog listing every profile and announces the active one", () => {
     workspaceProfiles.value = [PROFILE_A, PROFILE_B];
     activeWorkspaceId.value = "a";
     const { getByLabelText, getByRole, getAllByRole } = render(<WorkspaceSwitcher />);
     fireEvent.click(getByLabelText("Switch workspace"));
-    expect(getByRole("listbox")).toBeTruthy();
-    expect(getAllByRole("option")).toHaveLength(2);
+    expect(getByRole("dialog", { name: "Workspaces" })).toBeTruthy();
+    expect(getAllByRole("listitem")).toHaveLength(2);
+    expect(getByRole("listitem", { name: "Personal, current workspace" })).toBeTruthy();
   });
 
-  it("activates a profile when its row is clicked and closes the menu", async () => {
+  it("activates a profile when its row is clicked and closes the dialog", async () => {
     workspaceProfiles.value = [PROFILE_A, PROFILE_B];
     activeWorkspaceId.value = "a";
     const { getByLabelText, getByText, queryByRole } = render(<WorkspaceSwitcher />);
@@ -83,7 +84,7 @@ describe("WorkspaceSwitcher", () => {
     fireEvent.click(getByText("Work"));
     await Promise.resolve();
     expect(activateWorkspaceProfile).toHaveBeenCalledWith("b");
-    expect(queryByRole("listbox")).toBeNull();
+    expect(queryByRole("dialog", { name: "Workspaces" })).toBeNull();
   });
 
   it("selecting the already-active profile closes without a filesystem activation", async () => {
@@ -91,7 +92,8 @@ describe("WorkspaceSwitcher", () => {
     activeWorkspaceId.value = "a";
     const { getByLabelText, getByRole } = render(<WorkspaceSwitcher />);
     fireEvent.click(getByLabelText("Switch workspace"));
-    fireEvent.click(within(getByRole("option", { selected: true })).getByRole("button"));
+    const activeRow = getByRole("listitem", { name: "Personal, current workspace" });
+    fireEvent.click(within(activeRow).getByRole("button", { name: /Personal/ }));
     await Promise.resolve();
     expect(activateWorkspaceProfile).not.toHaveBeenCalled();
   });
@@ -115,7 +117,7 @@ describe("WorkspaceSwitcher", () => {
     expect(forgetWorkspaceProfile).toHaveBeenCalledWith("b");
   });
 
-  it("calls addWorkspaceFromPicker and closes the menu when Add workspace is clicked", async () => {
+  it("calls addWorkspaceFromPicker and closes the dialog when Add workspace is clicked", async () => {
     workspaceProfiles.value = [PROFILE_A];
     activeWorkspaceId.value = "a";
     const { getByLabelText, getByText, queryByRole } = render(<WorkspaceSwitcher />);
@@ -123,7 +125,7 @@ describe("WorkspaceSwitcher", () => {
     fireEvent.click(getByText("+ Add workspace"));
     await Promise.resolve();
     expect(addWorkspaceFromPicker).toHaveBeenCalledTimes(1);
-    expect(queryByRole("listbox")).toBeNull();
+    expect(queryByRole("dialog", { name: "Workspaces" })).toBeNull();
   });
 
   it("handles rejected switch, forget, and add actions without unhandled promises", async () => {
@@ -179,26 +181,26 @@ describe("WorkspaceSwitcher", () => {
     expect(activateWorkspaceProfile).toHaveBeenCalledWith("b");
   });
 
-  it("closes the menu on Escape and returns focus to the trigger", () => {
+  it("closes the dialog on Escape and returns focus to the trigger", () => {
     workspaceProfiles.value = [PROFILE_A];
     activeWorkspaceId.value = "a";
     const { getByLabelText, queryByRole } = render(<WorkspaceSwitcher />);
     const trigger = getByLabelText("Switch workspace");
     fireEvent.click(trigger);
-    expect(queryByRole("listbox")).toBeTruthy();
+    expect(queryByRole("dialog", { name: "Workspaces" })).toBeTruthy();
     fireEvent.keyDown(window, { key: "Escape" });
-    expect(queryByRole("listbox")).toBeNull();
+    expect(queryByRole("dialog", { name: "Workspaces" })).toBeNull();
     expect(document.activeElement).toBe(trigger);
   });
 
-  it("closes the menu when clicking outside it", () => {
+  it("closes the dialog when clicking outside it", () => {
     workspaceProfiles.value = [PROFILE_A];
     activeWorkspaceId.value = "a";
     const { getByLabelText, queryByRole } = render(<WorkspaceSwitcher />);
     fireEvent.click(getByLabelText("Switch workspace"));
-    expect(queryByRole("listbox")).toBeTruthy();
+    expect(queryByRole("dialog", { name: "Workspaces" })).toBeTruthy();
     fireEvent.mouseDown(document.body);
-    expect(queryByRole("listbox")).toBeNull();
+    expect(queryByRole("dialog", { name: "Workspaces" })).toBeNull();
   });
 
   it("shows an empty-state message when there are no profiles yet", () => {
@@ -212,7 +214,7 @@ describe("WorkspaceSwitcher", () => {
     activeWorkspaceId.value = "a";
     const { getByRole } = render(<WorkspaceSwitcher />);
     workspaceSwitcherOpenRequest.value++;
-    await waitFor(() => expect(getByRole("listbox")).toBeTruthy());
+    await waitFor(() => expect(getByRole("dialog", { name: "Workspaces" })).toBeTruthy());
     workspaceAddRequest.value++;
     workspaceManageRequest.value++;
     await waitFor(() => {

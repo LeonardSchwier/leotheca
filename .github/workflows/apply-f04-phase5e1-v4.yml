@@ -1,0 +1,42 @@
+name: Apply F04 Phase 5e1 v4
+
+on:
+  push:
+    branches:
+      - automation/apply-f04-phase5e1-v4-2101
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Copy transformation script
+        run: cp .github/f04-phase5e1-apply.py /tmp/f04-phase5e1-apply.py
+      - name: Checkout claimed feature branch
+        run: |
+          git fetch origin agent/f04-phase5e1-heading-block-ids
+          git checkout -B work origin/agent/f04-phase5e1-heading-block-ids
+      - name: Apply transformation
+        run: python /tmp/f04-phase5e1-apply.py
+      - name: Verify focused frontend scope
+        run: |
+          npm ci
+          npx tsc --noEmit
+          npx vitest run src/markdown/headings.test.ts src/markdown/blocks.test.ts src/markdown/headingBlockIds.test.ts src/editor/MarkdownPreview.headingBlocks.test.tsx src/editor/blockLinkActions.test.ts src/linking/store.test.ts
+      - name: Commit and push candidate
+        run: |
+          git config user.name Leonardschwier
+          git config user.email github@leonardschwier.de
+          git add src CHANGELOG.md documentation/ARCHITECTURE.md ROADMAP.md
+          git diff --cached --check
+          git commit -m "Implement F04 Phase 5e1 heading block IDs"
+          git push origin HEAD:agent/f04-phase5e1-heading-block-ids

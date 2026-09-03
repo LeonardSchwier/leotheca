@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import {
   activateWorkspaceProfile,
   activeWorkspaceId,
@@ -47,11 +47,9 @@ export function WorkspaceSwitcher() {
   const openRequest = workspaceSwitcherOpenRequest.value;
   const addRequest = workspaceAddRequest.value;
   const manageRequest = workspaceManageRequest.value;
-  const active = workspaceProfiles.value.find((p) => p.id === activeWorkspaceId.value);
-  const filtered = useMemo(
-    () => workspaceProfiles.value.filter((profile) => matchesWorkspaceSearch(profile, query)),
-    [workspaceProfiles.value, query],
-  );
+  const profiles = workspaceProfiles.value;
+  const active = profiles.find((p) => p.id === activeWorkspaceId.value);
+  const filtered = profiles.filter((profile) => matchesWorkspaceSearch(profile, query));
 
   const close = (restoreFocus = true) => {
     setOpen(false);
@@ -157,7 +155,7 @@ export function WorkspaceSwitcher() {
             value={query}
             onInput={(event) => { setQuery(event.currentTarget.value); setHighlighted(0); }}
           />
-          {workspaceProfiles.value.length === 0 ? (
+          {profiles.length === 0 ? (
             <div class="workspace-switcher-empty">No workspaces yet</div>
           ) : filtered.length === 0 ? (
             <div class="workspace-switcher-empty">No matching workspaces</div>

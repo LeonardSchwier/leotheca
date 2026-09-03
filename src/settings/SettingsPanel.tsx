@@ -1,4 +1,4 @@
-import { useState } from "preact/hooks";
+import { useEffect, useState } from "preact/hooks";
 import licenseText from "../../LICENSE?raw";
 import {
   addWorkspaceFromPicker,
@@ -9,6 +9,7 @@ import {
   retryWorkspaceSettingsSave,
   theme,
   updateWorkspaceSettings,
+  viewMode,
   workspacePath,
   workspaceSettingsCorrupted,
   workspaceSettingsSaveError,
@@ -29,6 +30,7 @@ import { getWorkspaceStats } from "../workspace/tauriBridge";
 import { VaultStatsPanel } from "./VaultStatsPanel";
 import { KEYBOARD_SHORTCUTS } from "../app/shortcuts";
 import { rebuildLinkIndex } from "../linking/store";
+import { DiagnosticsPanel } from "../diagnostics/DiagnosticsPanel";
 
 const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
   { value: "system", label: "Follow System" },
@@ -109,11 +111,41 @@ export function matchesSettingsSearch(query: string, ...texts: string[]): boolea
   return texts.some((text) => text.toLowerCase().includes(q));
 }
 
-export function SettingsPanel() {
+interface SettingsPanelProps {
+  /** Opens (or focuses an already-open tab for) a note, mirroring every
+   * other sidebar panel's own prop of the same name (see TagsPanel,
+   * TaskHubPanel, BookmarksPanel). Used by the Health section's Link
+   * Diagnostics list to jump to a finding's source note. */
+  onOpenFile: (path: string, name: string) => void | Promise<void>;
+}
+
+export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
   const [showLicense, setShowLicense] = useState(false);
   const [folderPickerLoading, setFolderPickerLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Link Diagnostics (Health section) reads the shared linkIndex directly,
+  // the same as it did in its old sidebar-panel home; refreshed on open so
+  // it isn't showing a stale scan from before the panel opened, mirroring
+  // the same on-open rebuildLinkIndex call every other sidebar panel already
+  // does in App.tsx.
+  useEffect(() => {
+    if (settingsPanelOpen.value && workspacePath.value) {
+      void rebuildLinkIndex(
+        workspacePath.value,
+        workspaceSettings.value.frontmatterAliasesEnabled,
+        workspaceSettings.value.tagsEnabled,
+      );
+    }
+  }, [settingsPanelOpen.value, workspacePath.value]);
+
   if (!settingsPanelOpen.value) return null;
+
+  const handleSelectDiagnostic = async (path: string, name: string) => {
+    await onOpenFile(path, name);
+    settingsPanelOpen.value = false;
+    if (viewMode.value === "preview") viewMode.value = "split";
+  };
 
   const matches = (...texts: string[]) => matchesSettingsSearch(searchQuery, ...texts);
 
@@ -178,6 +210,7 @@ export function SettingsPanel() {
   const showDefaultViewMode = matches("Default view mode", "Applied when this workspace is opened");
   const showVersion = matches("Version");
   const showLicenseRow = matches("License");
+  const showHealth = matches("Health", "Link Diagnostics", "broken or ambiguous links");
 
   const filteredShortcuts = KEYBOARD_SHORTCUTS.filter((shortcut) => matches(shortcut.description, shortcut.keys));
 
@@ -205,13 +238,15 @@ export function SettingsPanel() {
   const appearanceVisible = showTheme || Boolean(workspacePath.value && (showFontSize || showZoom || showDefaultViewMode));
   const shortcutsVisible = filteredShortcuts.length > 0;
   const aboutVisible = showVersion || showLicenseRow;
+  const healthVisible = Boolean(workspacePath.value && showHealth);
   const nothingMatches =
     searchQuery.trim() !== "" &&
     !generalVisible &&
     !featureSelectionVisible &&
     !appearanceVisible &&
     !shortcutsVisible &&
-    !aboutVisible;
+    !aboutVisible &&
+    !healthVisible;
 
   return (
     <div
@@ -840,6 +875,13 @@ export function SettingsPanel() {
               </div>
             </div>
           ))}
+        </section>
+        )}
+
+        {healthVisible && (
+        <section class="settings-section">
+          <h3>Health</h3>
+          <DiagnosticsPanel onOpenFile={handleSelectDiagnostic} />
         </section>
         )}
 

@@ -636,6 +636,14 @@ describe("App: N-002 stale file-open completions", () => {
   });
 });
 
+describe("App: Link Diagnostics moved to Settings, off the main screen (2026-09-03)", () => {
+  it("has no Link Diagnostics toolbar button", () => {
+    workspacePath.value = "/vault";
+    const { queryByLabelText } = render(<App />);
+    expect(queryByLabelText("Open Link Diagnostics")).toBeNull();
+  });
+});
+
 describe("App: Collections gated by collectionsEnabled, off by default (2026-09-03)", () => {
   it("hides the Collections toolbar button when collectionsEnabled is off (the default)", () => {
     workspacePath.value = "/vault";

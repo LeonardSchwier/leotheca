@@ -41,6 +41,7 @@ import {
 import type { ViewMode } from "../settings/workspaceSettings";
 import { SettingsPanel } from "../settings/SettingsPanel";
 import { WelcomeDialog } from "../settings/WelcomeDialog";
+import { WorkspaceSwitcher } from "../settings/WorkspaceSwitcher";
 import { BacklinksPanel } from "../linking/BacklinksPanel";
 import { OutlinePanel } from "../outline/OutlinePanel";
 import { outlineInsertRequest, outlineRevealRequest, requestOutlineReveal } from "../outline/outlineNavigation";
@@ -715,6 +716,7 @@ export function App() {
           ☰
         </button>
         <span class="app-title">Leotheca</span>
+        <WorkspaceSwitcher />
         {linkIndexBuilding.value && (
           <span class="app-title-hint" title="Building the wikilink index for this workspace">
             Indexing…

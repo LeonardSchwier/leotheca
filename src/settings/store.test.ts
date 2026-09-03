@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   drainWorkspaceOperations,
+  pickWorkspaceFolder,
   readTextFile,
   writeTextFile,
   writeWorkspaceTextFile,
@@ -13,6 +14,9 @@ const {
   getAppConfigFilePath,
 } = vi.hoisted(() => ({
   drainWorkspaceOperations: vi.fn(async () => {}),
+  pickWorkspaceFolder: vi.fn<() => Promise<{ path: string; token?: string } | null>>(
+    async () => null,
+  ),
   readTextFile: vi.fn<(path: string) => Promise<string>>(async () => {
     throw new Error("not found");
   }),
@@ -33,6 +37,7 @@ const {
 
 vi.mock("../workspace/tauriBridge", () => ({
   drainWorkspaceOperations,
+  pickWorkspaceFolder,
   readTextFile,
   writeTextFile,
   writeWorkspaceTextFile,
@@ -51,6 +56,10 @@ window.matchMedia = vi.fn().mockImplementation((query: string) => ({
 })) as unknown as typeof window.matchMedia;
 
 const {
+  activateWorkspaceProfile,
+  activeWorkspaceId,
+  addWorkspaceFromPicker,
+  forgetWorkspaceProfile,
   restoreLastOpenTabs,
   initSettings,
   repairWorkspaceSettingsFile,
@@ -58,6 +67,7 @@ const {
   settingsLoaded,
   updateWorkspaceSettings,
   workspacePath,
+  workspaceProfiles,
   workspaceSettings,
   workspaceSettingsCorrupted,
   workspaceSession,
@@ -70,6 +80,21 @@ function writesTo(path: string): unknown[] {
   return writeWorkspaceTextFile.mock.calls
     .filter(([root, relativePath]) => `${root}/${relativePath}` === path)
     .map(([, , content]) => JSON.parse(content as string));
+}
+
+interface GlobalConfigWrite {
+  version: 2;
+  theme: string;
+  activeWorkspaceId: string | null;
+  workspaceProfiles: Array<{ id: string; name: string; path: string; token?: string; lastOpenedAt: number }>;
+  lastWorkspacePath: string | null;
+  workspaceToken?: string;
+}
+
+function globalConfigWrites(): GlobalConfigWrite[] {
+  return writeTextFile.mock.calls
+    .filter(([path]) => path === "/config/config.json")
+    .map(([, content]) => JSON.parse(content as string));
 }
 
 async function flushSettingsWrites(): Promise<void> {
@@ -156,6 +181,206 @@ describe("settings hydration", () => {
     expect(openTabs.value.map((tab) => tab.path)).toEqual([
       "/workspaceA/note.md",
     ]);
+  });
+});
+
+describe("F20 Phase 1: workspace profile catalog", () => {
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    closeAllTabs();
+    workspacePath.value = null;
+    workspaceProfiles.value = [];
+    activeWorkspaceId.value = null;
+    pickWorkspaceFolder.mockResolvedValue(null);
+    settingsLoaded.value = true;
+  });
+
+  describe("activateWorkspaceProfile", () => {
+    it("activates a known profile, bumping lastOpenedAt and persisting the full catalog", async () => {
+      workspaceProfiles.value = [
+        { id: "p1", name: "Vault", icon: "folder", path: "/vaultA", lastOpenedAt: 1 },
+      ];
+
+      await activateWorkspaceProfile("p1");
+
+      expect(workspacePath.value).toBe("/vaultA");
+      expect(activeWorkspaceId.value).toBe("p1");
+      expect(workspaceProfiles.value[0].lastOpenedAt).toBeGreaterThan(1);
+      const writes = globalConfigWrites();
+      expect(writes.at(-1)?.activeWorkspaceId).toBe("p1");
+      expect(writes.at(-1)?.workspaceProfiles).toHaveLength(1);
+      expect(writes.at(-1)?.lastWorkspacePath).toBe("/vaultA");
+    });
+
+    it("is a no-op when the profile is already active: no filesystem work, no recency change", async () => {
+      workspaceProfiles.value = [
+        { id: "p1", name: "Vault", icon: "folder", path: "/vaultA", lastOpenedAt: 42 },
+      ];
+      activeWorkspaceId.value = "p1";
+      workspacePath.value = "/vaultA";
+
+      await activateWorkspaceProfile("p1");
+
+      expect(restoreWorkspaceAccess).not.toHaveBeenCalled();
+      expect(workspaceProfiles.value[0].lastOpenedAt).toBe(42);
+      expect(globalConfigWrites()).toEqual([]);
+    });
+
+    it("is a no-op for an unknown profile id", async () => {
+      await activateWorkspaceProfile("does-not-exist");
+
+      expect(restoreWorkspaceAccess).not.toHaveBeenCalled();
+      expect(workspacePath.value).toBeNull();
+    });
+  });
+
+  describe("addWorkspaceFromPicker", () => {
+    it("does nothing when the picker is cancelled", async () => {
+      pickWorkspaceFolder.mockResolvedValue(null);
+
+      await addWorkspaceFromPicker();
+
+      expect(workspaceProfiles.value).toEqual([]);
+      expect(globalConfigWrites()).toEqual([]);
+    });
+
+    it("creates and activates a new profile for a freshly picked folder", async () => {
+      pickWorkspaceFolder.mockResolvedValue({ path: "/Users/me/newvault" });
+
+      await addWorkspaceFromPicker();
+
+      expect(workspacePath.value).toBe("/Users/me/newvault");
+      expect(workspaceProfiles.value).toHaveLength(1);
+      const [created] = workspaceProfiles.value;
+      expect(created.name).toBe("newvault");
+      expect(created.icon).toBe("folder");
+      expect(created.lastOpenedAt).toBeGreaterThan(0);
+      expect(activeWorkspaceId.value).toBe(created.id);
+    });
+
+    it("activates an existing profile instead of creating a duplicate when the locator matches", async () => {
+      workspaceProfiles.value = [
+        { id: "p1", name: "Vault", icon: "folder", path: "/vaultA", lastOpenedAt: 1 },
+      ];
+      pickWorkspaceFolder.mockResolvedValue({ path: "/vaultA" });
+
+      await addWorkspaceFromPicker();
+
+      expect(workspaceProfiles.value).toHaveLength(1);
+      expect(activeWorkspaceId.value).toBe("p1");
+    });
+
+    it("leaves all state unchanged when activating the picked folder fails", async () => {
+      pickWorkspaceFolder.mockResolvedValue({ path: "/broken" });
+      restoreWorkspaceAccess.mockRejectedValueOnce(new Error("denied"));
+
+      await expect(addWorkspaceFromPicker()).rejects.toThrow();
+
+      expect(workspaceProfiles.value).toEqual([]);
+      expect(activeWorkspaceId.value).toBeNull();
+    });
+  });
+
+  describe("forgetWorkspaceProfile", () => {
+    it("removes a non-active profile from the catalog and persists", async () => {
+      workspaceProfiles.value = [
+        { id: "p1", name: "Active", icon: "folder", path: "/a", lastOpenedAt: 2 },
+        { id: "p2", name: "Other", icon: "folder", path: "/b", lastOpenedAt: 1 },
+      ];
+      activeWorkspaceId.value = "p1";
+
+      await forgetWorkspaceProfile("p2");
+
+      expect(workspaceProfiles.value.map((p) => p.id)).toEqual(["p1"]);
+      expect(globalConfigWrites().at(-1)?.workspaceProfiles.map((p) => p.id)).toEqual(["p1"]);
+    });
+
+    it("refuses to forget the active profile", async () => {
+      workspaceProfiles.value = [{ id: "p1", name: "Active", icon: "folder", path: "/a", lastOpenedAt: 1 }];
+      activeWorkspaceId.value = "p1";
+
+      await forgetWorkspaceProfile("p1");
+
+      expect(workspaceProfiles.value).toHaveLength(1);
+      expect(globalConfigWrites()).toEqual([]);
+    });
+
+    it("is a no-op for an unknown profile id", async () => {
+      workspaceProfiles.value = [{ id: "p1", name: "Active", icon: "folder", path: "/a", lastOpenedAt: 1 }];
+
+      await forgetWorkspaceProfile("does-not-exist");
+
+      expect(workspaceProfiles.value).toHaveLength(1);
+      expect(globalConfigWrites()).toEqual([]);
+    });
+  });
+
+  describe("initSettings startup activation", () => {
+    it("resolves activeWorkspaceId to a catalog profile and activates it, persisting the fresh recency", async () => {
+      readTextFile.mockImplementation(async (path) => {
+        if (path === "/config/config.json") {
+          return JSON.stringify({
+            version: 2,
+            theme: "system",
+            activeWorkspaceId: "p1",
+            workspaceProfiles: [{ id: "p1", name: "Vault", icon: "folder", path: "/vaultA", lastOpenedAt: 1 }],
+            lastWorkspacePath: "/vaultA",
+          });
+        }
+        if (path === "/vaultA/.leotheca/settings.json") return JSON.stringify(DEFAULT_WORKSPACE_SETTINGS);
+        throw new Error("not found");
+      });
+      settingsLoaded.value = false;
+
+      await initSettings();
+
+      expect(workspacePath.value).toBe("/vaultA");
+      expect(activeWorkspaceId.value).toBe("p1");
+      expect(workspaceProfiles.value[0].lastOpenedAt).toBeGreaterThan(1);
+      expect(globalConfigWrites().at(-1)?.activeWorkspaceId).toBe("p1");
+    });
+
+    it("keeps activeWorkspaceId pointing at the profile when startup access fails, without persisting anything", async () => {
+      readTextFile.mockImplementation(async (path) => {
+        if (path === "/config/config.json") {
+          return JSON.stringify({
+            version: 2,
+            activeWorkspaceId: "p1",
+            workspaceProfiles: [{ id: "p1", name: "Vault", icon: "folder", path: "/gone", lastOpenedAt: 1 }],
+          });
+        }
+        throw new Error("not found");
+      });
+      restoreWorkspaceAccess.mockRejectedValueOnce(new Error("gone"));
+      settingsLoaded.value = false;
+
+      await initSettings();
+
+      expect(workspacePath.value).toBeNull();
+      expect(activeWorkspaceId.value).toBe("p1");
+      expect(workspaceProfiles.value).toHaveLength(1);
+      expect(globalConfigWrites()).toEqual([]);
+    });
+
+    it("migrates a legacy config on startup and persists the migration only after successful activation", async () => {
+      readTextFile.mockImplementation(async (path) => {
+        if (path === "/config/config.json") {
+          return JSON.stringify({ lastWorkspacePath: "/legacyVault", theme: "dark" });
+        }
+        if (path === "/legacyVault/.leotheca/settings.json") return JSON.stringify(DEFAULT_WORKSPACE_SETTINGS);
+        throw new Error("not found");
+      });
+      settingsLoaded.value = false;
+
+      await initSettings();
+
+      expect(workspacePath.value).toBe("/legacyVault");
+      expect(workspaceProfiles.value).toHaveLength(1);
+      expect(workspaceProfiles.value[0].path).toBe("/legacyVault");
+      const writes = globalConfigWrites();
+      expect(writes.at(-1)?.version).toBe(2);
+      expect(writes.at(-1)?.workspaceProfiles).toHaveLength(1);
+    });
   });
 });
 

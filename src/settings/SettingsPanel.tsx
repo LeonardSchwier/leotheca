@@ -1,10 +1,10 @@
 import { useState } from "preact/hooks";
 import licenseText from "../../LICENSE?raw";
 import {
+  addWorkspaceFromPicker,
   appVersion,
   settingsPanelOpen,
   setTheme,
-  setWorkspacePath,
   repairWorkspaceSettingsFile,
   retryWorkspaceSettingsSave,
   theme,
@@ -25,10 +25,7 @@ import {
   type AccentColor,
   type ViewMode,
 } from "./workspaceSettings";
-import {
-  getWorkspaceStats,
-  pickWorkspaceFolder,
-} from "../workspace/tauriBridge";
+import { getWorkspaceStats } from "../workspace/tauriBridge";
 import { VaultStatsPanel } from "./VaultStatsPanel";
 import { KEYBOARD_SHORTCUTS } from "../app/shortcuts";
 import { rebuildLinkIndex } from "../linking/store";
@@ -107,8 +104,7 @@ export function SettingsPanel() {
   const handleChangeFolder = async () => {
     setFolderPickerLoading(true);
     try {
-      const folder = await pickWorkspaceFolder();
-      if (folder) await setWorkspacePath(folder.path, folder.token);
+      await addWorkspaceFromPicker();
     } finally {
       setFolderPickerLoading(false);
     }

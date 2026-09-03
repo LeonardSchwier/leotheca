@@ -3,6 +3,7 @@ import {
   drainWorkspaceOperations,
   getAppVersion,
   listDir,
+  pickWorkspaceFolder,
   readTextFile,
   restoreWorkspaceAccess,
   setStatusBarAppearance,
@@ -10,9 +11,15 @@ import {
 import {
   loadGlobalConfig,
   saveGlobalConfig,
-  type GlobalConfig,
+  type GlobalConfigV2,
   type ThemePreference,
+  type WorkspaceProfile,
 } from "./globalConfig";
+import {
+  defaultProfileName,
+  findProfileByLocator,
+  sortWorkspaceProfiles,
+} from "./workspaceProfiles";
 import {
   activeTabPath,
   closeAllTabs,
@@ -33,6 +40,18 @@ import {
 export const workspacePath = signal<string | null>(null);
 export const workspaceSession = signal(0);
 const workspaceToken = signal<string | undefined>(undefined);
+// F20 Phase 1: the local catalog of previously opened workspaces (spec
+// `leotheca-workspace-profiles-sdd.md` section 18). Always kept sorted
+// (section 7.5) so every reader — the switcher UI, search — sees
+// presentation-ready order without re-sorting itself. `activeWorkspaceId`
+// is the catalog's own notion of "last intended active profile," distinct
+// from `workspacePath` (whether a workspace is actually, currently open):
+// the two intentionally diverge while an active profile's folder is
+// unavailable (section 17.2), a state Phase 1 falls back to the ordinary
+// `WelcomeDialog` for rather than a dedicated recovery launcher (see
+// ROADMAP.md's F20 Phase 2 entry).
+export const workspaceProfiles = signal<WorkspaceProfile[]>([]);
+export const activeWorkspaceId = signal<string | null>(null);
 export const workspaceSettings = signal<WorkspaceSettings>(
   DEFAULT_WORKSPACE_SETTINGS,
 );
@@ -142,24 +161,70 @@ window
 // Global-config writes can overlap workspace transitions. Serialize them so a
 // slower write from transition A can never land after the later B write.
 let globalConfigWriteTail: Promise<void> = Promise.resolve();
-function saveGlobalConfigOrdered(config: GlobalConfig): Promise<void> {
+function saveGlobalConfigOrdered(config: GlobalConfigV2): Promise<void> {
   const write = globalConfigWriteTail.then(() => saveGlobalConfig(config));
   globalConfigWriteTail = write.catch(() => {});
   return write;
+}
+
+/** F20 Phase 1, spec section 18.4: "a write operation receives or reads
+ * the latest canonical in-memory document immediately before
+ * serialization." Every global-config write in this module goes through
+ * this one function so theme changes, recency changes, and profile
+ * catalog edits always serialize the *current* signal values together,
+ * never a stale shape reconstructed piecemeal at each call site (the
+ * pre-Phase-1 code built a fresh `{lastWorkspacePath, theme,
+ * workspaceToken}` object per call site instead; this replaces every one
+ * of those with a single source of truth). The compatibility mirror
+ * (section 19.3) is derived from whichever profile `activeWorkspaceId`
+ * currently resolves to, not tracked as separate signal state that could
+ * drift from it. */
+function persistGlobalConfig(): Promise<void> {
+  const active = activeWorkspaceId.value
+    ? workspaceProfiles.value.find((p) => p.id === activeWorkspaceId.value)
+    : undefined;
+  return saveGlobalConfigOrdered({
+    version: 2,
+    theme: theme.value,
+    activeWorkspaceId: activeWorkspaceId.value,
+    workspaceProfiles: workspaceProfiles.value,
+    lastWorkspacePath: active?.path ?? null,
+    workspaceToken: active?.token,
+  });
+}
+
+/** Marks `profile` as just-opened (section 7.5's `lastOpenedAt`) and makes
+ * it the catalog's active profile, re-sorting so the switcher's own
+ * ordering stays current. Does not itself persist — every caller either
+ * follows with `persistGlobalConfig()` directly or relies on
+ * `setWorkspacePath`'s own `afterPublish` doing so once the transition
+ * that necessitated this update has actually succeeded. */
+function markProfileOpened(profile: WorkspaceProfile): void {
+  const opened: WorkspaceProfile = { ...profile, lastOpenedAt: Date.now() };
+  workspaceProfiles.value = sortWorkspaceProfiles([
+    ...workspaceProfiles.value.filter((p) => p.id !== opened.id),
+    opened,
+  ]);
+  activeWorkspaceId.value = opened.id;
 }
 
 export async function initSettings(): Promise<void> {
   appVersion.value = await getAppVersion();
   const global = await loadGlobalConfig();
   theme.value = global.theme;
-  if (global.lastWorkspacePath) {
+  workspaceProfiles.value = sortWorkspaceProfiles(global.workspaceProfiles);
+  activeWorkspaceId.value = global.activeWorkspaceId;
+  const activeProfile = global.activeWorkspaceId
+    ? global.workspaceProfiles.find((p) => p.id === global.activeWorkspaceId)
+    : undefined;
+  if (activeProfile) {
     try {
-      await restoreWorkspaceAccess(global.lastWorkspacePath, global.workspaceToken);
+      await restoreWorkspaceAccess(activeProfile.path, activeProfile.token);
       // Skip the listDir probe — if the path is invalid, the first real
       // file operation will fail with a clear error. This saves ~20-100ms
       // on startup by avoiding one unnecessary SAF round trip.
       const { settings: loadedWorkspaceSettings, corrupt } =
-        await loadWorkspaceSettings(global.lastWorkspacePath);
+        await loadWorkspaceSettings(activeProfile.path);
       const { lastOpenPaths, lastActivePath } = loadedWorkspaceSettings;
       lastPersistedTabsKey = JSON.stringify([lastOpenPaths, lastActivePath]);
       isRestoringTabs = true;
@@ -168,9 +233,10 @@ export async function initSettings(): Promise<void> {
           workspaceSettings.value = loadedWorkspaceSettings;
           workspaceSettingsCorrupted.value = corrupt;
           viewMode.value = loadedWorkspaceSettings.defaultViewMode;
-          workspacePath.value = global.lastWorkspacePath;
-          workspaceToken.value = global.workspaceToken;
+          workspacePath.value = activeProfile.path;
+          workspaceToken.value = activeProfile.token;
           workspaceSession.value++;
+          markProfileOpened(activeProfile);
         });
         const active = lastActivePath ?? lastOpenPaths[0] ?? null;
         if (active) {
@@ -191,9 +257,16 @@ export async function initSettings(): Promise<void> {
       // Do NOT restoreLastOpenTabs() here — only the active tab loads.
       // Other tabs load lazily when the user switches to them via
       // the tab bar's open handler.
+      await persistGlobalConfig();
     } catch {
+      // Section 17.2: retain the profile and its locator in the catalog;
+      // do not overwrite global configuration merely because access
+      // failed, and do not null out activeWorkspaceId — it stays the
+      // user's last intended profile. workspacePath itself does become
+      // null (no workspace is actually open), which falls back to the
+      // ordinary WelcomeDialog rather than a dedicated recovery launcher
+      // (deferred, see ROADMAP.md's F20 Phase 2 entry).
       workspacePath.value = null;
-      await saveGlobalConfigOrdered({ lastWorkspacePath: null, theme: theme.value });
     }
   }
   settingsLoaded.value = true;
@@ -214,86 +287,155 @@ export async function initSettings(): Promise<void> {
  * from whatever the outgoing workspace's flag happened to be. A transition
  * that fails closed clears the flag entirely, since no settings file is
  * loaded for the resulting inactive state.
+ *
+ * F20 Phase 1: `profile`, when given, is the catalog entry this
+ * transition activates — an existing profile (`activateWorkspaceProfile`)
+ * or a not-yet-committed candidate (`addWorkspaceFromPicker`, per spec
+ * section 11 step 8: "only after successful activation is the candidate
+ * committed"). Only on success is it marked opened (`lastOpenedAt`,
+ * `activeWorkspaceId`) and the full catalog persisted; a failed
+ * transition leaves the catalog completely untouched, matching section
+ * 16.4's "B remains in the catalog; B's recency is unchanged." This
+ * function itself is no longer called directly by any UI surface (spec
+ * section 20); it remains exported for existing tests exercising the
+ * transition mechanics itself, and for the two profile actions below,
+ * which are the only real callers now.
  */
-export async function setWorkspacePath(path: string, token?: string): Promise<void> {
+export async function setWorkspacePath(path: string, token?: string, profile?: WorkspaceProfile): Promise<void> {
   settingsLoaded.value = true;
   workspaceSelectionError.value = null;
   const outgoingPath = workspacePath.value;
   const outgoingToken = workspaceToken.value;
   const outgoingSession = workspaceSession.value;
 
-  try {
-    await workspaceTransitions.run({
-      prepareOutgoing: async () => {
-        // pickWorkspaceFolder() currently activates its picked SAF token before
-        // returning. Rebind the old grant immediately so pending old-session
-        // work cannot resolve against the newly picked tree while it drains.
-        if (outgoingPath) await restoreWorkspaceAccess(outgoingPath, outgoingToken);
-        await Promise.all([
-          workspaceSaves.prepareForTransition(outgoingSession),
-          drainWorkspaceSettingsWrites(),
-        ]);
-        await drainWorkspaceOperations();
+  // Section 16.4/17.2: a failed activation changes nothing about the
+  // catalog (no profile is marked opened, nothing below touches
+  // `workspaceProfiles`/`activeWorkspaceId`), so there is nothing to
+  // persist on failure — persisting then would only risk overwriting a
+  // concurrent, unrelated in-flight write with a stale snapshot (section
+  // 16.5), not recover anything. `workspaceTransitions.run` itself
+  // already rejects past this point, so callers see the failure without
+  // a local catch here.
+  await workspaceTransitions.run({
+    prepareOutgoing: async () => {
+      // pickWorkspaceFolder() currently activates its picked SAF token before
+      // returning. Rebind the old grant immediately so pending old-session
+      // work cannot resolve against the newly picked tree while it drains.
+      if (outgoingPath) await restoreWorkspaceAccess(outgoingPath, outgoingToken);
+      await Promise.all([
+        workspaceSaves.prepareForTransition(outgoingSession),
+        drainWorkspaceSettingsWrites(),
+      ]);
+      await drainWorkspaceOperations();
 
-        // Clear tabs before the new grant is active. Preseed the persistence
-        // key so this internal clear cannot overwrite the outgoing workspace's
-        // remembered tabs while the transition is in progress.
-        lastPersistedTabsKey = JSON.stringify([[], null]);
-        closeAllTabs();
-      },
-      connectIncoming: async () => {
-        await restoreWorkspaceAccess(path, token);
-        // A successful restore alone is not proof the root remains readable,
-        // especially for an expired Android persistable grant. Validate the
-        // root before publishing the incoming session.
-        await listDir(path);
-      },
-      loadIncoming: () => loadWorkspaceSettings(path),
-      publishIncoming: ({ settings: loadedWorkspaceSettings, corrupt }) => {
-        batch(() => {
-          workspaceSettings.value = loadedWorkspaceSettings;
-          workspaceSettingsCorrupted.value = corrupt;
-          viewMode.value = loadedWorkspaceSettings.defaultViewMode;
-          workspacePath.value = path;
-          workspaceToken.value = token;
-          workspaceSession.value++;
-        });
-      },
-      publishFailure: (error) => {
-        lastPersistedTabsKey = JSON.stringify([[], null]);
-        closeAllTabs();
-        batch(() => {
-          workspaceSettings.value = DEFAULT_WORKSPACE_SETTINGS;
-          workspaceSettingsCorrupted.value = false;
-          viewMode.value = DEFAULT_WORKSPACE_SETTINGS.defaultViewMode;
-          workspacePath.value = null;
-          workspaceToken.value = undefined;
-          workspaceSession.value++;
-          workspaceSelectionError.value =
-            error instanceof Error && error.message
-              ? `Could not open that workspace: ${error.message}`
-              : "Could not open that workspace. Choose the folder again or select another folder.";
-        });
-      },
-      afterPublish: async (isCurrent) => {
-        await saveGlobalConfigOrdered({ lastWorkspacePath: path, theme: theme.value, workspaceToken: token });
-        if (!isCurrent()) return;
-        await restoreLastOpenTabs(isCurrent);
-      },
-    });
-  } catch (error) {
-    await saveGlobalConfigOrdered({ lastWorkspacePath: null, theme: theme.value });
-    throw error;
-  }
+      // Clear tabs before the new grant is active. Preseed the persistence
+      // key so this internal clear cannot overwrite the outgoing workspace's
+      // remembered tabs while the transition is in progress.
+      lastPersistedTabsKey = JSON.stringify([[], null]);
+      closeAllTabs();
+    },
+    connectIncoming: async () => {
+      await restoreWorkspaceAccess(path, token);
+      // A successful restore alone is not proof the root remains readable,
+      // especially for an expired Android persistable grant. Validate the
+      // root before publishing the incoming session.
+      await listDir(path);
+    },
+    loadIncoming: () => loadWorkspaceSettings(path),
+    publishIncoming: ({ settings: loadedWorkspaceSettings, corrupt }) => {
+      batch(() => {
+        workspaceSettings.value = loadedWorkspaceSettings;
+        workspaceSettingsCorrupted.value = corrupt;
+        viewMode.value = loadedWorkspaceSettings.defaultViewMode;
+        workspacePath.value = path;
+        workspaceToken.value = token;
+        workspaceSession.value++;
+      });
+    },
+    publishFailure: (error) => {
+      lastPersistedTabsKey = JSON.stringify([[], null]);
+      closeAllTabs();
+      batch(() => {
+        workspaceSettings.value = DEFAULT_WORKSPACE_SETTINGS;
+        workspaceSettingsCorrupted.value = false;
+        viewMode.value = DEFAULT_WORKSPACE_SETTINGS.defaultViewMode;
+        workspacePath.value = null;
+        workspaceToken.value = undefined;
+        workspaceSession.value++;
+        workspaceSelectionError.value =
+          error instanceof Error && error.message
+            ? `Could not open that workspace: ${error.message}`
+            : "Could not open that workspace. Choose the folder again or select another folder.";
+      });
+    },
+    afterPublish: async (isCurrent) => {
+      if (profile) markProfileOpened(profile);
+      await persistGlobalConfig();
+      if (!isCurrent()) return;
+      await restoreLastOpenTabs(isCurrent);
+    },
+  });
 }
 
 export async function setTheme(next: ThemePreference): Promise<void> {
   theme.value = next;
-  await saveGlobalConfigOrdered({
-    lastWorkspacePath: workspacePath.value,
-    theme: next,
-    workspaceToken: workspaceToken.value,
-  });
+  await persistGlobalConfig();
+}
+
+/** F20 Phase 1, spec section 20/10.4: activates a known catalog profile.
+ * Selecting the already-active profile is a genuine no-op (spec 10.4:
+ * "performs no filesystem work, does not increment the workspace
+ * session, and does not alter recency"), checked before touching
+ * anything. A stale switcher entry (an id no longer in the catalog, e.g.
+ * a very fast double-forget) is likewise a silent no-op rather than an
+ * error a caller must handle. */
+export async function activateWorkspaceProfile(id: string): Promise<void> {
+  if (id === activeWorkspaceId.value) return;
+  const profile = workspaceProfiles.value.find((p) => p.id === id);
+  if (!profile) return;
+  await setWorkspacePath(profile.path, profile.token, profile);
+}
+
+/** F20 Phase 1, spec section 11's add-workspace flow. Picker cancellation
+ * (a `null` result) leaves all state unchanged, per step 9's own closing
+ * note. A folder matching an already-known profile's locator (section
+ * 12.2) activates that profile instead of creating a duplicate (step 5);
+ * `lastOpenedAt: 0` on a brand-new candidate is a placeholder only —
+ * `setWorkspacePath`'s own `afterPublish` overwrites it with the real
+ * open time via `markProfileOpened`, and only on success, per step 8's
+ * "only after successful activation is the candidate committed." */
+export async function addWorkspaceFromPicker(): Promise<void> {
+  const folder = await pickWorkspaceFolder();
+  if (!folder) return;
+  const existing = findProfileByLocator(workspaceProfiles.value, folder.path, folder.token);
+  if (existing) {
+    await activateWorkspaceProfile(existing.id);
+    return;
+  }
+  const candidate: WorkspaceProfile = {
+    id: crypto.randomUUID(),
+    name: defaultProfileName(folder.path),
+    icon: "folder",
+    path: folder.path,
+    token: folder.token,
+    lastOpenedAt: 0,
+  };
+  await setWorkspacePath(candidate.path, candidate.token, candidate);
+}
+
+/** F20 Phase 1, spec section 7.7/15.1: removes only the catalog entry —
+ * never the folder, its notes, `.leotheca/settings.json`, or platform
+ * permission state. Narrowed to a non-active profile only, per this
+ * phase's own claimed scope (see ROADMAP.md): forgetting the *active*
+ * profile needs section 15.2's zero-active-workspace recovery flow,
+ * deferred to F20 Phase 2. The switcher UI itself never offers this
+ * action for the active profile, and this function additionally refuses
+ * it defensively rather than trusting the UI alone. */
+export async function forgetWorkspaceProfile(id: string): Promise<void> {
+  if (id === activeWorkspaceId.value) return;
+  if (!workspaceProfiles.value.some((p) => p.id === id)) return;
+  workspaceProfiles.value = workspaceProfiles.value.filter((p) => p.id !== id);
+  await persistGlobalConfig();
 }
 
 interface PendingWorkspaceSettingsWrite {

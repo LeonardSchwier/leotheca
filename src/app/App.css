@@ -48,6 +48,106 @@
   color: #c0392b;
 }
 
+/* F20 Phase 1: minimal workspace switcher (spec
+   leotheca-workspace-profiles-sdd.md section 10.1). */
+.workspace-switcher {
+  position: relative;
+}
+
+.workspace-switcher-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  max-width: 220px;
+}
+
+.workspace-switcher-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-switcher-caret {
+  font-size: 10px;
+  color: var(--text-faint);
+}
+
+.workspace-switcher-menu {
+  position: absolute;
+  top: calc(100% + var(--space-1));
+  left: 0;
+  z-index: 20;
+  min-width: 240px;
+  max-height: 320px;
+  overflow-y: auto;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  padding: var(--space-1);
+}
+
+.workspace-switcher-empty {
+  padding: var(--space-2) var(--space-3);
+  color: var(--text-faint);
+  font-size: 12px;
+}
+
+.workspace-switcher-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  border-radius: var(--radius-sm);
+}
+
+.workspace-switcher-row.active {
+  background: var(--bg-hover);
+}
+
+.workspace-switcher-row-button {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  border: none;
+  background: transparent;
+  text-align: left;
+  padding: var(--space-1) var(--space-2);
+}
+
+.workspace-switcher-row-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-switcher-check {
+  color: var(--text-primary);
+}
+
+.workspace-switcher-forget {
+  border: none;
+  background: transparent;
+  color: var(--text-faint);
+  padding: var(--space-1) var(--space-2);
+  min-height: 44px;
+}
+
+.workspace-switcher-forget:hover {
+  color: #c0392b;
+}
+
+.workspace-switcher-add {
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  min-height: 44px;
+  padding: var(--space-1) var(--space-2);
+}
+
 .toolbar button {
   font: inherit;
   background: var(--bg-sunken);

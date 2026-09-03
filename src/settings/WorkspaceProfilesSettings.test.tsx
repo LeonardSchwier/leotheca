@@ -7,8 +7,8 @@ import type { WorkspaceProfile } from "./globalConfig";
 vi.mock("./store", () => ({
   workspaceProfiles: signal<WorkspaceProfile[]>([]),
   activeWorkspaceId: signal<string | null>(null),
-  addWorkspaceFromPicker: vi.fn(),
-  forgetWorkspaceProfile: vi.fn(),
+  addWorkspaceFromPicker: vi.fn(async () => {}),
+  forgetWorkspaceProfile: vi.fn(async () => {}),
   renameWorkspaceProfile: vi.fn(async () => true),
   setWorkspaceProfileIcon: vi.fn(async () => true),
 }));
@@ -44,6 +44,10 @@ afterEach(() => {
   workspaceProfiles.value = [];
   activeWorkspaceId.value = null;
   vi.restoreAllMocks();
+  vi.mocked(addWorkspaceFromPicker).mockReset().mockResolvedValue(undefined);
+  vi.mocked(forgetWorkspaceProfile).mockReset().mockResolvedValue(undefined);
+  vi.mocked(renameWorkspaceProfile).mockReset().mockResolvedValue(true);
+  vi.mocked(setWorkspaceProfileIcon).mockReset().mockResolvedValue(true);
 });
 
 describe("WorkspaceProfilesSettings", () => {
@@ -96,6 +100,25 @@ describe("WorkspaceProfilesSettings", () => {
     expect(getAllByText("Forget")).toHaveLength(1);
     fireEvent.click(getByText("Forget"));
     expect(forgetWorkspaceProfile).toHaveBeenCalledWith("android");
+  });
+
+  it("reports failed forget and add actions without leaving rejected promises unhandled", async () => {
+    workspaceProfiles.value = [DESKTOP, ANDROID];
+    activeWorkspaceId.value = "desktop";
+    const alert = vi.spyOn(window, "alert").mockImplementation(() => {});
+    vi.mocked(forgetWorkspaceProfile).mockRejectedValueOnce(new Error("disk full"));
+    vi.mocked(addWorkspaceFromPicker).mockRejectedValueOnce(new Error("picker failure"));
+
+    const { getByText } = render(<WorkspaceProfilesSettings />);
+    fireEvent.click(getByText("Forget"));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(alert).toHaveBeenCalledWith("Could not forget workspace profile. Try again.");
+
+    fireEvent.click(getByText("Add workspace"));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(alert).toHaveBeenCalledWith("Could not add workspace. Try again.");
   });
 
   it("routes Add workspace through the profile-aware picker flow", () => {

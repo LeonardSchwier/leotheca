@@ -163,6 +163,13 @@ const READING_THRESHOLD_FRACTION = 0.25;
 const ATTACHMENT_SRC_PREFIX = "#leotheca-attachment=";
 const ATTACHMENT_READ_CONCURRENCY = 6;
 
+// F04 Phase 4b, spec section 11.4's three numeric embed-recursion limits:
+// implementation constants for the first release, not yet user-facing
+// settings, per that section's own closing note.
+const MAX_EMBED_DEPTH = 3;
+const MAX_EMBED_INSTANCES = 25;
+const MAX_EMBED_BYTES = 1024 * 1024;
+
 // Any URI with a scheme (http:, https:, data:, etc.) is left for marked's
 // own default image rendering: an absolute remote URL is exactly what
 // CONSTITUTION.md's "Offline by design" rule already relies on the app's
@@ -334,9 +341,12 @@ function defaultWikilinkLabel(record: WikiLinkRecord, headingStatus: "resolved" 
  * App.tsx (see onOpenFile's `blockId` option).
  *
  * F04 Phase 4a adds `![[Note]]`/`![[Note#Heading]]`/`![[Note#^block-id]]`
- * embeds (`record.kind === "embed"`, see `RenderContext.allowEmbeds` and
- * the embed helper functions directly below this doc comment for how
- * they render, resolve, and degrade).
+ * embeds (`record.kind === "embed"`, see `RenderContext.embedRecursion`
+ * and the embed helper functions directly below this doc comment for how
+ * they render, resolve, and degrade). Phase 4b adds real recursion up to
+ * spec 11.4's max depth 3, cycle detection against the active recursion
+ * chain, and a shared per-preview instance-count/byte-load budget (see
+ * `EmbedRecursionState`/`EmbedBudget`).
  */
 /** Escapes `&`, `"`, `<`, and `>` for safe embedding inside a
  * double-quoted HTML attribute value built by hand (as opposed to
@@ -353,6 +363,53 @@ function escapeAttr(text: string): string {
  * fields on top of Phase 1/3a's existing heading/block ones). Mirrors
  * `wikiResolver.ts`'s `WikiResolutionContext` in spirit: one options
  * object per call, not a growing positional argument list. */
+/** Mutable, shared across an entire host preview's whole embed tree (F04
+ * Phase 4b, spec 11.4): the same object reference is threaded through
+ * every same-note extraction and every cross-note resolution, nested ones
+ * included, so "maximum resolved embed instances" and "maximum total
+ * source bytes loaded" are enforced against the *whole preview*, not
+ * reset per recursion level. Decremented only when an embed actually
+ * resolves into rendered content ("ok"), never for an attempt that ends
+ * in a not-found/ambiguous/cycle placeholder, matching "resolved
+ * instances" wording. Deliberately allowed to go negative rather than
+ * truncating a single oversized embed mid-render to fit the remaining
+ * byte budget: an embed already in progress always renders whole, and
+ * only the *next* attempted embed sees the budget exhausted. */
+interface EmbedBudget {
+  instancesRemaining: number;
+  bytesRemaining: number;
+}
+
+function createEmbedBudget(): EmbedBudget {
+  return { instancesRemaining: MAX_EMBED_INSTANCES, bytesRemaining: MAX_EMBED_BYTES };
+}
+
+/** Everything needed to decide whether, and how, to expand a nested
+ * `![[...]]` one level deeper (F04 Phase 4b). `embedAncestryPaths` is the
+ * chain of embed identities (see `embedIdentity` below: note path plus
+ * fragment, so two different headings/blocks in the same note are
+ * distinct entries) reached by *already expanding* an embed, empty at the
+ * host preview's own root (the host's top-level render is not itself an
+ * embed of anything, so an ordinary same-note embed referencing the host
+ * note, `![[#Heading]]`, is not by itself a cycle); a target whose exact
+ * identity already appears in this chain is a cycle, at any depth, not
+ * merely an immediate repeat, while a same-note chain of *different*
+ * headings/blocks (`![[#H1]]` containing `![[#H2]]`) is not, even though
+ * every level shares one note path. `embedBudget` is the one shared
+ * object described above.
+ * `crossNoteEmbedsOut` is the flat, ever-growing queue of not-yet-read
+ * cross-note embeds for this whole preview (nested ones append to the
+ * exact same array the top-level render started, rather than a
+ * per-level list), so `MarkdownPreview`'s single resolution effect keeps
+ * draining it, newly discovered entries included, without a second
+ * effect or a second queue. */
+interface EmbedRecursionState {
+  embedDepth: number;
+  embedAncestryPaths: readonly string[];
+  embedBudget: EmbedBudget;
+  crossNoteEmbedsOut: CrossNoteEmbedRequest[];
+}
+
 interface RenderContext {
   currentHeadings: HeadingRecord[];
   currentBlocks: BlockRecord[];
@@ -369,22 +426,14 @@ interface RenderContext {
   pristineNoteSource: string;
   noteDir: string | null;
   workspaceRoot: string | null;
-  /** False inside an embedded section's own recursive render pass (F04
-   * Phase 4a): a nested `![[...]]` is not expanded into a further
-   * embed frame, since this phase implements no recursion depth limit,
-   * cycle detection, or load-size budget (spec section 11.4), all
-   * disclosed as a follow-up rather than attempted here. A nested embed
-   * marker instead falls through to this function's ordinary link
-   * rendering, exactly as if its leading `!` were not there: still a
-   * working, clickable link to the same target, just not expanded
-   * inline. */
-  allowEmbeds: boolean;
-  /** Cross-note embeds discovered during this render pass, pushed to in
-   * source order; only ever populated when `allowEmbeds` is true, since
-   * a nested render pass never emits new embed placeholders. Each
-   * entry's index is the placeholder's own `data-lt-embed-id`, letting
-   * `MarkdownPreview`'s post-render effect find and resolve it. */
-  crossNoteEmbedsOut: CrossNoteEmbedRequest[];
+  /** F04 Phase 4b: real recursion state (depth/ancestry/budget/queue),
+   * replacing Phase 4a's plain `allowEmbeds` boolean. A `![[...]]`
+   * encountered once `embedDepth >= MAX_EMBED_DEPTH` is not expanded,
+   * falling through to this function's ordinary link rendering exactly
+   * as if its leading `!` were not there: still a working, clickable
+   * link to the same target, just not expanded inline, the same degrade
+   * Phase 4a used for every nesting level. */
+  embedRecursion: EmbedRecursionState;
 }
 
 /** One cross-note embed placeholder emitted synchronously during render,
@@ -392,10 +441,15 @@ interface RenderContext {
  * note's content must be read from disk before its section/block can be
  * extracted and rendered, the same reason `ATTACHMENT_SRC_PREFIX` images
  * above resolve in a follow-up effect rather than during this synchronous
- * render pass. */
+ * render pass. `nextRecursion` (F04 Phase 4b) is the state to render this
+ * embed's own resolved content with, once read: depth already incremented
+ * and this embed's own target path already appended to the ancestry
+ * chain, computed at enqueue time since both only depend on the
+ * synchronously-known target note path, not its (not yet read) content. */
 interface CrossNoteEmbedRequest {
   notePath: string;
   fragment?: WikiLinkFragment;
+  nextRecursion: EmbedRecursionState;
 }
 
 type EmbedExtraction =
@@ -450,15 +504,18 @@ function extractEmbedSection(
  * note's directory," not the host's), and processes its own wikilinks
  * with `notePath` as the same-note context, so a same-note link inside
  * the embedded section correctly refers to the embedded note (spec 11.3),
- * not the host note previewing it. `allowEmbeds: false` on the recursive
- * call is what actually enforces this phase's single-level-only embed
- * depth (see `RenderContext.allowEmbeds`'s own doc comment).
+ * not the host note previewing it. `recursion` (F04 Phase 4b) carries this
+ * embed's own already-incremented depth and already-extended ancestry
+ * chain, so a further nested `![[...]]` this section's own text contains
+ * is itself checked against real recursion limits rather than always
+ * degrading to a link.
  */
 function renderEmbeddedMarkdownToHtml(
   text: string,
   notePath: string,
   noteDir: string | null,
   workspaceRoot: string | null,
+  recursion: EmbedRecursionState,
 ): string {
   if (text.trim() === "") {
     return '<p class="embed-frame-message">This section is empty</p>';
@@ -474,20 +531,26 @@ function renderEmbeddedMarkdownToHtml(
     pristineNoteSource: text,
     noteDir,
     workspaceRoot,
-    allowEmbeds: false,
-    crossNoteEmbedsOut: [],
+    embedRecursion: recursion,
   });
   return marked.parse(withWikilinks, { async: false }) as string;
 }
 
 /** Converts an `EmbedExtraction` result into the embed frame's body HTML:
  * a placeholder message for a status spec section 11.4 explicitly
- * requires one for, or the fully rendered section for "ok". */
+ * requires one for, or the fully rendered section for "ok". `nextRecursion`
+ * (F04 Phase 4b) is the recursion state to render an "ok" section's own
+ * content with; the shared `embedBudget` it carries is checked and, only
+ * on success, decremented here, immediately before actually rendering,
+ * since only a truly resolved (not not-found/ambiguous) embed counts
+ * against "maximum resolved embed instances"/"maximum total source bytes
+ * loaded" (spec 11.4). */
 function embedExtractionHtml(
   extraction: EmbedExtraction,
   notePath: string,
   noteDir: string | null,
   workspaceRoot: string | null,
+  nextRecursion: EmbedRecursionState,
 ): string {
   switch (extraction.status) {
     case "missing-heading":
@@ -498,8 +561,16 @@ function embedExtractionHtml(
       return '<p class="embed-frame-message">Embedded block not found</p>';
     case "ambiguous-block":
       return '<p class="embed-frame-message">Embedded block matches more than one block in the note</p>';
-    case "ok":
-      return renderEmbeddedMarkdownToHtml(extraction.text, notePath, noteDir, workspaceRoot);
+    case "ok": {
+      const { embedBudget } = nextRecursion;
+      const textBytes = new TextEncoder().encode(extraction.text).length;
+      if (embedBudget.instancesRemaining <= 0 || embedBudget.bytesRemaining <= 0) {
+        return '<p class="embed-frame-message">Embed limit reached</p>';
+      }
+      embedBudget.instancesRemaining -= 1;
+      embedBudget.bytesRemaining -= textBytes;
+      return renderEmbeddedMarkdownToHtml(extraction.text, notePath, noteDir, workspaceRoot, nextRecursion);
+    }
   }
 }
 
@@ -533,8 +604,21 @@ function embedFrameHtml(params: {
   );
 }
 
+/** The exact "target" an embed's cycle detection should compare against
+ * (F04 Phase 4b, spec 11.4's "duplicate target in the active recursion
+ * chain"): a note path alone is not enough, since same-note embeds of
+ * two different headings/blocks legitimately share one note path without
+ * being a cycle (`![[#H1]]` containing `![[#H2]]` is a normal 2-level
+ * chain, not H1 re-embedding itself) — only the *same* note+fragment
+ * combination recurring is. A plain whole-note embed (`fragment`
+ * undefined) still keys on the note path alone, correctly catching
+ * `![[NoteA]]` containing `![[NoteB]]` containing `![[NoteA]]` again. */
+function embedIdentity(notePath: string, fragment: WikiLinkFragment | undefined): string {
+  return fragment ? `${notePath}#${fragment.kind}:${fragment.value}` : notePath;
+}
+
 function renderWikilinksStructured(source: string, context: RenderContext): string {
-  const { currentHeadings, currentBlocks, currentNotePath, pristineNoteSource, noteDir, workspaceRoot, allowEmbeds, crossNoteEmbedsOut } =
+  const { currentHeadings, currentBlocks, currentNotePath, pristineNoteSource, noteDir, workspaceRoot, embedRecursion } =
     context;
   const records = parseWikiLinks(source);
   if (records.length === 0) return source;
@@ -557,7 +641,7 @@ function renderWikilinksStructured(source: string, context: RenderContext): stri
       targetBlocks: sameNote ? currentBlocks : undefined,
     });
 
-    if (record.kind === "embed" && allowEmbeds) {
+    if (record.kind === "embed" && embedRecursion.embedDepth < MAX_EMBED_DEPTH) {
       if (target.status === "missing-note" || !target.notePath) {
         result += embedFrameHtml({
           labelName: record.noteTarget || "this note",
@@ -575,17 +659,44 @@ function renderWikilinksStructured(source: string, context: RenderContext): stri
         fragment: record.fragment?.value,
       });
 
+      // F04 Phase 4b, spec 11.4: a target already in the active
+      // recursion chain is a cycle regardless of remaining depth or
+      // budget, checked before either is consulted. Keyed by
+      // note+fragment (see embedIdentity's own doc comment), not the
+      // note path alone: a same-note chain of *different* headings/blocks
+      // (`![[#H1]]` containing `![[#H2]]`) is a normal multi-level embed,
+      // not a cycle, even though every level shares one note path
+      // (`notePath` for a same-note fragment is `currentNotePath` itself,
+      // see wikiResolver.ts's own `sameNote ? context.currentNotePath :
+      // ...`).
+      const identity = embedIdentity(notePath, record.fragment);
+      if (embedRecursion.embedAncestryPaths.includes(identity)) {
+        result += embedFrameHtml({
+          labelName,
+          openHref,
+          bodyHtml: '<p class="embed-frame-message">Embed cycle stopped</p>',
+        });
+        continue;
+      }
+
+      const nextRecursion: EmbedRecursionState = {
+        embedDepth: embedRecursion.embedDepth + 1,
+        embedAncestryPaths: [...embedRecursion.embedAncestryPaths, identity],
+        embedBudget: embedRecursion.embedBudget,
+        crossNoteEmbedsOut: embedRecursion.crossNoteEmbedsOut,
+      };
+
       if (sameNote) {
         const extraction = extractEmbedSection(pristineNoteSource, record.fragment, currentHeadings, currentBlocks);
         result += embedFrameHtml({
           labelName,
           openHref,
           sectionLabel: extraction.status === "ok" ? extraction.sectionLabel : undefined,
-          bodyHtml: embedExtractionHtml(extraction, notePath, noteDir, workspaceRoot),
+          bodyHtml: embedExtractionHtml(extraction, notePath, noteDir, workspaceRoot, nextRecursion),
         });
       } else {
-        const embedId = crossNoteEmbedsOut.length;
-        crossNoteEmbedsOut.push({ notePath, fragment: record.fragment });
+        const embedId = embedRecursion.crossNoteEmbedsOut.length;
+        embedRecursion.crossNoteEmbedsOut.push({ notePath, fragment: record.fragment, nextRecursion });
         result += embedFrameHtml({
           embedId,
           labelName,
@@ -775,6 +886,22 @@ export function MarkdownPreview({
     const withoutBlockMarkers = headingLinksEnabled ? stripBlockIdMarkers(source, currentBlocks) : source;
     const withAttachments = markLocalImageAttachments(withoutBlockMarkers, noteDir, workspaceRoot);
     const crossNoteEmbedsOut: CrossNoteEmbedRequest[] = [];
+    // F04 Phase 4b: the host preview's own recursion root. Depth 0, one
+    // shared budget for this whole preview render, and an empty ancestry
+    // chain: the host's own top-level render is not itself an embed of
+    // anything, so a same-note embed referencing the host note (the
+    // ordinary, already-shipped Phase 3a/4a case) is not a cycle merely
+    // because its target equals the host's own path. Only a target
+    // actually reached by expanding an embed (see `nextRecursion` below)
+    // joins the chain, so a *repeated* self-embed further down (a section
+    // that embeds another section of the same note that was already
+    // being expanded) is still caught.
+    const embedRecursion: EmbedRecursionState = {
+      embedDepth: 0,
+      embedAncestryPaths: [],
+      embedBudget: createEmbedBudget(),
+      crossNoteEmbedsOut,
+    };
     const withWikilinks = headingLinksEnabled
       ? renderWikilinksStructured(withAttachments, {
           currentHeadings,
@@ -783,8 +910,7 @@ export function MarkdownPreview({
           pristineNoteSource: source,
           noteDir,
           workspaceRoot,
-          allowEmbeds: true,
-          crossNoteEmbedsOut,
+          embedRecursion,
         })
       : renderWikilinksLegacy(withAttachments);
     const rendered = marked.parse(withWikilinks, {
@@ -835,6 +961,18 @@ export function MarkdownPreview({
   // contains are queued through the same `resolveAttachmentImages` helper
   // immediately after insertion, since they were not yet part of the DOM
   // when the image effect above ran.
+  //
+  // F04 Phase 4b: `embedExtractionHtml`'s recursive render of a resolved
+  // "ok" section can itself append further cross-note requests onto this
+  // exact `crossNoteEmbeds` array (via each request's own `nextRecursion.
+  // crossNoteEmbedsOut`, the same object reference the top-level render
+  // started, not a fresh one per level), and each such newly-inserted
+  // placeholder already exists in the DOM by the time `body.innerHTML` is
+  // set below (the recursive render is synchronous). No second effect or
+  // queue is needed: the worker loop below re-reads `crossNoteEmbeds.
+  // length` on every iteration, so a still-running worker naturally picks
+  // up entries appended after the effect started, the standard
+  // growing-work-queue pattern.
   useEffect(() => {
     const container = containerRef.current;
     if (!container || crossNoteEmbeds.length === 0) return;
@@ -858,7 +996,7 @@ export function MarkdownPreview({
 
       const extraction = extractEmbedSection(content, request.fragment, scanHeadings(content), scanBlockIds(content));
       const embedNoteDir = dirname(request.notePath);
-      const bodyHtml = embedExtractionHtml(extraction, request.notePath, embedNoteDir, workspaceRoot);
+      const bodyHtml = embedExtractionHtml(extraction, request.notePath, embedNoteDir, workspaceRoot, request.nextRecursion);
       // A fresh DOM mutation from freshly-read note content, outside the
       // synchronous render pass DOMPurify.sanitize(rendered) above already
       // covers: this is a second, genuinely necessary sanitize call, not

@@ -949,7 +949,7 @@ describe("MarkdownPreview: F04 Phase 4a embeds", () => {
     });
   });
 
-  it("does not expand a nested embed inside a cross-note embed's own content, falling back to a plain link", async () => {
+  it("expands a cross-note embed nested inside another cross-note embed's own content (F04 Phase 4b recursion)", async () => {
     linkIndex.value = {
       backlinksByPath: new Map(),
       pathsByNoteName: new Map([
@@ -962,20 +962,219 @@ describe("MarkdownPreview: F04 Phase 4a embeds", () => {
       tagsByPath: new Map(),
       tasksByPath: new Map(),
     };
-    vi.mocked(readTextFile).mockResolvedValue("Has a nested ![[Other]] reference.");
+    vi.mocked(readTextFile).mockImplementation(async (path: string) => {
+      if (path === "/vault/target.md") return "Has a nested ![[Other]] reference.";
+      if (path === "/vault/other.md") return "The innermost content.";
+      throw new Error(`unexpected path: ${path}`);
+    });
     const { container } = render(<MarkdownPreview source="![[Target]]" />);
 
     await waitFor(() => {
-      expect(container.querySelector(".embed-frame-body")?.textContent).toContain("Has a nested");
+      expect(container.querySelectorAll(".embed-frame")).toHaveLength(2);
     });
+    const frames = container.querySelectorAll(".embed-frame");
+    expect(frames[0].querySelector(".embed-frame-body")?.textContent).toContain("Has a nested");
+    await waitFor(() => {
+      expect(frames[0].querySelector(".embed-frame-body")?.textContent).toContain("The innermost content.");
+    });
+    // The nested embed expanded into a real frame (its own header and
+    // "Open source note" link included), not a bare degraded link
+    // replacing the whole frame.
+    expect(frames[1].querySelector(".embed-frame-label")?.textContent).toBe("other.md");
+  });
 
-    // Only the outer frame exists; the inner "![[Other]]" (only ever
-    // present in the freshly-read target note's own content, never in the
-    // host document) was not expanded into a second, nested frame.
-    expect(container.querySelectorAll(".embed-frame")).toHaveLength(1);
-    const bodyLink = container.querySelector('.embed-frame-body a[href^="#leotheca-wikilink="]');
-    expect(bodyLink).toBeTruthy();
-    expect(bodyLink?.textContent).toBe("Other");
+  it("caps recursion at the maximum depth (3), degrading the next level to a plain link", async () => {
+    // Four distinct notes, each only ever containing the *next* level's
+    // own embed marker in its own separately-read content (never
+    // duplicated into the host's own top-level source): Host (depth 0,
+    // not itself an embed) -> Note1 (depth 1) -> Note2 (depth 2) ->
+    // Note3 (depth 3) -> Note4 would be depth 4, over MAX_EMBED_DEPTH, so
+    // the marker inside Note3's own content degrades to a plain link
+    // instead of a fourth frame, and Note4 is never even read.
+    linkIndex.value = {
+      backlinksByPath: new Map(),
+      pathsByNoteName: new Map([
+        ["note1", ["/vault/note1.md"]],
+        ["note2", ["/vault/note2.md"]],
+        ["note3", ["/vault/note3.md"]],
+        ["note4", ["/vault/note4.md"]],
+      ]),
+      pathsByAlias: new Map(),
+      aliasesByPath: new Map(),
+      pathsByTag: new Map(),
+      tagsByPath: new Map(),
+      tasksByPath: new Map(),
+    };
+    vi.mocked(readTextFile).mockImplementation(async (path: string) => {
+      if (path === "/vault/note1.md") return "Level one. ![[Note2]]";
+      if (path === "/vault/note2.md") return "Level two. ![[Note3]]";
+      if (path === "/vault/note3.md") return "Level three. ![[Note4]]";
+      throw new Error(`unexpected path: ${path}`);
+    });
+    const { container } = render(<MarkdownPreview source="![[Note1]]" />);
+
+    await waitFor(() => {
+      expect(container.querySelectorAll(".embed-frame")).toHaveLength(3);
+    });
+    const frames = container.querySelectorAll(".embed-frame");
+    await waitFor(() => {
+      expect(frames[2].querySelector(".embed-frame-body")?.textContent).toContain("Level three.");
+    });
+    // Two-step, not a chained `.embed-frame-body a[...]` selector off
+    // frames[2] directly: frames[2] (Note3's own frame) is itself nested
+    // inside Note2's .embed-frame-body, so a descendant-combinator
+    // selector scoped to frames[2] would still match Note3's own "Open
+    // source note" anchor too (its ancestor chain reaches Note2's body,
+    // outside frames[2]'s own subtree boundary but still a real
+    // ancestor) — Element.querySelector does not clip ancestor-matching
+    // to the calling element. Narrowing to frames[2]'s own direct-child
+    // body first avoids that.
+    const note3Body = frames[2].querySelector(".embed-frame-body")!;
+    const link = note3Body.querySelector('a[href^="#leotheca-wikilink="]');
+    expect(link).toBeTruthy();
+    expect(link?.textContent).toBe("Note4");
+    expect(readTextFile).not.toHaveBeenCalledWith("/vault/note4.md");
+  });
+
+  it("stops a same-note cycle where an embedded section re-embeds the section already being expanded", () => {
+    // "## Loop"'s own extracted section (heading through end of document,
+    // its only heading) literally contains the same "![[#Loop]]" marker
+    // again: expanding it a second time would recurse forever without
+    // cycle detection.
+    const source = "![[#Loop]]\n\n## Loop\n\nSelf-referential. ![[#Loop]]";
+    const { container } = render(<MarkdownPreview source={source} notePath="/vault/loop.md" />);
+
+    const outer = container.querySelector(".embed-frame");
+    expect(outer?.querySelector(".embed-frame-body")?.textContent).toContain("Self-referential.");
+    const inner = outer?.querySelector(".embed-frame");
+    expect(inner?.querySelector(".embed-frame-body")?.textContent).toBe("Embed cycle stopped");
+  });
+
+  it("stops a cross-note cycle where the embedded note re-embeds a note already being expanded", async () => {
+    linkIndex.value = {
+      backlinksByPath: new Map(),
+      pathsByNoteName: new Map([
+        ["note a", ["/vault/note-a.md"]],
+        ["note b", ["/vault/note-b.md"]],
+      ]),
+      pathsByAlias: new Map(),
+      aliasesByPath: new Map(),
+      pathsByTag: new Map(),
+      tagsByPath: new Map(),
+      tasksByPath: new Map(),
+    };
+    vi.mocked(readTextFile).mockImplementation(async (path: string) => {
+      if (path === "/vault/note-a.md") return "A embeds ![[Note B]].";
+      if (path === "/vault/note-b.md") return "B embeds back: ![[Note A]].";
+      throw new Error(`unexpected path: ${path}`);
+    });
+    const { container } = render(<MarkdownPreview source="![[Note A]]" />);
+
+    // Three frames total: A's own frame, B's nested inside it, and the
+    // re-attempted embed of A nested inside B's own frame, whose body is
+    // the cycle placeholder rather than a third real expansion of A.
+    await waitFor(() => {
+      expect(container.querySelectorAll(".embed-frame")).toHaveLength(3);
+    });
+    const [outer, inner, cycleFrame] = container.querySelectorAll(".embed-frame");
+    await waitFor(() => {
+      expect(outer.querySelector(".embed-frame-body")?.textContent).toContain("A embeds");
+    });
+    expect(inner.querySelector(".embed-frame-body")?.textContent).toContain("B embeds back:");
+    expect(cycleFrame.querySelector(".embed-frame-body")?.textContent).toBe("Embed cycle stopped");
+    // No further expansion after the cycle is stopped.
+    await waitFor(() => {
+      expect(container.querySelectorAll(".embed-frame")).toHaveLength(3);
+    });
+  });
+
+  it("shows 'Embed limit reached' once the maximum resolved-instance count (25) is exceeded", () => {
+    const embeds = Array.from({ length: 26 }, (_, i) => `![[#H${i + 1}]]`).join("\n\n");
+    const headings = Array.from({ length: 26 }, (_, i) => `## H${i + 1}\n\nBody ${i + 1}.`).join("\n\n");
+    const source = `${embeds}\n\n${headings}`;
+    const { container } = render(<MarkdownPreview source={source} notePath="/vault/many.md" />);
+
+    const frames = container.querySelectorAll(".embed-frame");
+    expect(frames).toHaveLength(26);
+    for (let i = 0; i < 25; i++) {
+      expect(frames[i].querySelector(".embed-frame-body")?.textContent).toContain(`Body ${i + 1}.`);
+    }
+    expect(frames[25].querySelector(".embed-frame-body")?.textContent).toBe("Embed limit reached");
+  });
+
+  it("shows 'Embed limit reached' once the total-bytes-loaded budget (1 MiB) is exceeded", () => {
+    const bigBody = "x".repeat(1_100_000);
+    const source = ["![[#Big]]", "", "![[#Small]]", "", "## Big", "", bigBody, "", "## Small", "", "Tiny body."].join(
+      "\n",
+    );
+    const { container } = render(<MarkdownPreview source={source} notePath="/vault/big.md" />);
+
+    const [bigFrame, smallFrame] = container.querySelectorAll(".embed-frame");
+    expect(bigFrame.querySelector(".embed-frame-body")?.textContent).toContain(bigBody);
+    expect(smallFrame.querySelector(".embed-frame-body")?.textContent).toBe("Embed limit reached");
+  });
+
+  it("resolves two independent sibling cross-note embeds concurrently without cross-contaminating their ancestry", async () => {
+    // Both siblings are queued for the bounded worker pool at once (2
+    // pending embeds, workerCount = min(concurrency, 2) = 2 concurrent
+    // workers): each branch's own ancestry array is built via spread,
+    // never mutated in place, so resolving NoteX must not make NoteX's
+    // own path appear to block NoteY's independent recursion, or vice
+    // versa.
+    linkIndex.value = {
+      backlinksByPath: new Map(),
+      pathsByNoteName: new Map([
+        ["notex", ["/vault/notex.md"]],
+        ["notey", ["/vault/notey.md"]],
+      ]),
+      pathsByAlias: new Map(),
+      aliasesByPath: new Map(),
+      pathsByTag: new Map(),
+      tagsByPath: new Map(),
+      tasksByPath: new Map(),
+    };
+    vi.mocked(readTextFile).mockImplementation(async (path: string) => {
+      if (path === "/vault/notex.md") return "Content X.";
+      if (path === "/vault/notey.md") return "Content Y.";
+      throw new Error(`unexpected path: ${path}`);
+    });
+    const { container } = render(<MarkdownPreview source={"![[NoteX]]\n\n![[NoteY]]"} />);
+
+    await waitFor(() => {
+      expect(container.textContent).toContain("Content X.");
+      expect(container.textContent).toContain("Content Y.");
+    });
+    const frames = container.querySelectorAll(".embed-frame");
+    expect(frames).toHaveLength(2);
+    expect(frames[0].querySelector(".embed-frame-body")?.textContent).toContain("Content X.");
+    expect(frames[1].querySelector(".embed-frame-body")?.textContent).toContain("Content Y.");
+  });
+
+  it("expands a same-note embed nested inside a cross-note embed's own content, resolving against the embedded note (not the host)", async () => {
+    linkIndex.value = {
+      backlinksByPath: new Map(),
+      pathsByNoteName: new Map([["reference", ["/vault/reference.md"]]]),
+      pathsByAlias: new Map(),
+      aliasesByPath: new Map(),
+      pathsByTag: new Map(),
+      tagsByPath: new Map(),
+      tasksByPath: new Map(),
+    };
+    vi.mocked(readTextFile).mockResolvedValue(
+      "Intro text. ![[#Details]]\n\n## Details\n\nThe embedded note's own section.",
+    );
+    const { container } = render(<MarkdownPreview source="![[Reference]]" />);
+
+    await waitFor(() => {
+      expect(container.querySelectorAll(".embed-frame")).toHaveLength(2);
+    });
+    const [outer, inner] = container.querySelectorAll(".embed-frame");
+    await waitFor(() => {
+      expect(outer.querySelector(".embed-frame-body")?.textContent).toContain("Intro text.");
+    });
+    // The nested same-note fragment ("#Details") resolved against
+    // reference.md's own headings, not the (pathless) host note's.
+    expect(inner.querySelector(".embed-frame-body")?.textContent).toContain("The embedded note's own section.");
   });
 
   it("still strips block-id markers from a same-note embed's own extracted content", () => {

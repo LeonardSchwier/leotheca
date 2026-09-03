@@ -247,6 +247,15 @@ button.icon-button.active {
   text-decoration: underline dotted;
   text-underline-offset: 2px;
 }
+/* F04 Phase 3c: the same treatment as the heading-missing/ambiguous rule
+   above, for a block-link (`[[Note#^block-id]]`/`[[#^block-id]]`) whose
+   note resolves but whose block id is missing or ambiguous. */
+.cm-live-wikilink-block-missing,
+.cm-live-wikilink-block-ambiguous {
+  color: var(--text-secondary);
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
+}
 .cm-live-list-bullet {
   color: var(--text-faint);
 }

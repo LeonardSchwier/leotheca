@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { scanHeadings } from "../markdown/headings";
+import { scanBlockIds } from "../markdown/blocks";
 import { linkIndex } from "./store";
 import { parseWikiLinks } from "./wikiSyntax";
-import { resolveHeadingFragment, resolveWikiLinkTarget } from "./wikiResolver";
+import { resolveBlockFragment, resolveHeadingFragment, resolveWikiLinkTarget } from "./wikiResolver";
 
 function setNotes(namesToPaths: Record<string, string[]>) {
   linkIndex.value = {
@@ -48,6 +49,31 @@ describe("resolveHeadingFragment", () => {
 
   it("reports ambiguous-fragment, not the first match, for duplicate headings", () => {
     const result = resolveHeadingFragment(headings, "Design");
+    expect(result.status).toBe("ambiguous-fragment");
+    if (result.status === "ambiguous-fragment") expect(result.candidates).toHaveLength(2);
+  });
+});
+
+describe("resolveBlockFragment", () => {
+  const blocks = scanBlockIds("First paragraph. ^first-id\n\nSecond. ^dup\n\nThird. ^dup");
+
+  it("resolves a unique block id", () => {
+    const result = resolveBlockFragment(blocks, "first-id");
+    expect(result.status).toBe("resolved");
+    if (result.status === "resolved") expect(result.block.id).toBe("first-id");
+  });
+
+  it("is case-insensitive, per spec 7.1's duplicate-detection rule", () => {
+    const result = resolveBlockFragment(blocks, "FIRST-ID");
+    expect(result.status).toBe("resolved");
+  });
+
+  it("reports missing-fragment for a block id that doesn't exist", () => {
+    expect(resolveBlockFragment(blocks, "nonexistent").status).toBe("missing-fragment");
+  });
+
+  it("reports ambiguous-fragment, not the first match, for duplicate ids", () => {
+    const result = resolveBlockFragment(blocks, "dup");
     expect(result.status).toBe("ambiguous-fragment");
     if (result.status === "ambiguous-fragment") expect(result.candidates).toHaveLength(2);
   });
@@ -125,11 +151,51 @@ describe("resolveWikiLinkTarget", () => {
     expect(result.candidateHeadings).toHaveLength(2);
   });
 
-  it("degrades a block fragment to a note-level link, since block resolution is a later phase", () => {
+  it("resolves a block fragment to a note-level link when the target's blocks are not supplied yet (cross-note, unread)", () => {
     setNotes({ note: ["/vault/note.md"] });
     const [record] = parseWikiLinks("[[Note#^release-decision]]");
     const result = resolveWikiLinkTarget(record, {});
     expect(result).toEqual({ status: "resolved", notePath: "/vault/note.md" });
+  });
+
+  it("resolves a cross-note block link once the target note's blocks are supplied", () => {
+    setNotes({ note: ["/vault/note.md"] });
+    const [record] = parseWikiLinks("[[Note#^release-decision]]");
+    const targetBlocks = scanBlockIds("This decision is final. ^release-decision");
+    const result = resolveWikiLinkTarget(record, { targetBlocks });
+    expect(result.status).toBe("resolved");
+    expect(result.notePath).toBe("/vault/note.md");
+    expect(result.block?.id).toBe("release-decision");
+  });
+
+  it("resolves a same-note block link against the current note's own blocks", () => {
+    const [record] = parseWikiLinks("[[#^local-first]]");
+    const targetBlocks = scanBlockIds("The user owns the files. ^local-first");
+    const result = resolveWikiLinkTarget(record, {
+      currentNotePath: "/vault/plan.md",
+      targetBlocks,
+    });
+    expect(result.status).toBe("resolved");
+    expect(result.notePath).toBe("/vault/plan.md");
+    expect(result.block?.id).toBe("local-first");
+  });
+
+  it("reports missing-fragment when the note resolves but the block id does not exist", () => {
+    setNotes({ note: ["/vault/note.md"] });
+    const [record] = parseWikiLinks("[[Note#^nonexistent]]");
+    const targetBlocks = scanBlockIds("Some content. ^actual-id");
+    const result = resolveWikiLinkTarget(record, { targetBlocks });
+    expect(result.status).toBe("missing-fragment");
+    expect(result.notePath).toBe("/vault/note.md");
+  });
+
+  it("reports ambiguous-fragment, never silently picking the first occurrence, for duplicate block ids", () => {
+    setNotes({ note: ["/vault/note.md"] });
+    const [record] = parseWikiLinks("[[Note#^dup]]");
+    const targetBlocks = scanBlockIds("One. ^dup\n\nTwo. ^dup");
+    const result = resolveWikiLinkTarget(record, { targetBlocks });
+    expect(result.status).toBe("ambiguous-fragment");
+    expect(result.candidateBlocks).toHaveLength(2);
   });
 
   describe("legacy compatibility fallback (spec 5.3)", () => {

@@ -43,3 +43,79 @@
 .markdown-preview a[href*="headingStatus=ambiguous"] {
   text-decoration-style: dotted;
 }
+
+/* F04 Phase 3a: the same distinct-but-not-fully-broken treatment as the
+ * heading-status rule above, for a [[Note#^block-id]]/[[#^block-id]] link
+ * whose note resolved but whose block id doesn't (or matches more than
+ * one paragraph in the target note, spec 7.1's own duplicate-detection
+ * rule). */
+.markdown-preview a[href*="blockStatus=missing"],
+.markdown-preview a[href*="blockStatus=ambiguous"] {
+  text-decoration-style: dotted;
+}
+
+/* F04 Phase 4a: the read-only embed "application frame" (spec section
+ * 11.2). Visually quiet (a faint border and a sunken background, not a
+ * card-like shadow or an editable-looking input border) and deliberately
+ * not styled to look editable or interactive beyond its one real action;
+ * text selection stays native (no user-select restriction), matching
+ * spec 11.2's "text selection and local link activation remain
+ * available." */
+.markdown-preview .embed-frame {
+  margin: var(--space-3) 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-sunken);
+  overflow: hidden;
+}
+
+.markdown-preview .embed-frame-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-raised);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.markdown-preview .embed-frame-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.markdown-preview .embed-frame-open {
+  flex-shrink: 0;
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 12px;
+}
+
+.markdown-preview .embed-frame-open:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.markdown-preview .embed-frame-body {
+  padding: var(--space-2) var(--space-3);
+}
+
+/* The embed body's own rendered content (headings, paragraphs, lists)
+ * keeps its normal reading typography; only the outer frame chrome above
+ * is deliberately understated, per spec 11.2's "must not make the
+ * embedded content look editable." */
+.markdown-preview .embed-frame-body > :first-child {
+  margin-top: 0;
+}
+
+.markdown-preview .embed-frame-body > :last-child {
+  margin-bottom: 0;
+}
+
+.markdown-preview .embed-frame-message {
+  color: var(--text-faint);
+  font-style: italic;
+}

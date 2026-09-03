@@ -15,6 +15,7 @@ import {
 import { linkIndex, resolveWikilink } from "../linking/store";
 import { escapeWikiLinkText } from "../linking/wikiSyntax";
 import { scanHeadings, type HeadingRecord } from "../markdown/headings";
+import { scanBlockIds, type BlockRecord } from "../markdown/blocks";
 import { readTextFile } from "../workspace/tauriBridge";
 import { livePreviewExtension } from "./livePreview";
 import { attachmentsInsertText, type PastedOrDroppedFile } from "./attachments";
@@ -101,10 +102,10 @@ export function wikilinkCompletions(context: CompletionContext): CompletionResul
  * an optional note-name portion (no `[`, `]`, newline, or `#`, mirroring
  * wikilinkCompletions' own note-name character class above), a `#`, then
  * the heading text typed so far. The `(?!\^)` right after the `#` excludes
- * a block-reference fragment (`[[Note#^block-id]]`, spec section 7): block
- * completion is explicitly out of scope for this phase (see the F04
- * Phases 3-5 follow-up in ROADMAP.md), so typing `^` there simply shows no
- * heading suggestions rather than misclassifying it as a heading query. */
+ * a block-reference fragment (`[[Note#^block-id]]`, spec section 7): that
+ * one instead triggers F04 Phase 3c's blockLinkCompletions below, a
+ * separate completion source rather than one regex trying to serve both
+ * heading and block queries. */
 const HEADING_LINK_TRIGGER = /\[\[([^[\]\n#]*)#(?!\^)([^[\]\n]*)$/;
 
 /** Builds one heading-completion option, escaping the heading's own
@@ -178,6 +179,92 @@ export function headingLinkCompletions(path: string) {
     const options = headings
       .filter((heading) => heading.displayText.toLowerCase().includes(query))
       .map((heading) => headingCompletionOption(heading, (occurrenceCounts.get(heading.key) ?? 0) > 1));
+
+    if (options.length === 0) return null;
+    return { from, options, filter: false };
+  };
+}
+
+/** Matches the trigger point for F04 Phase 3c's block-id completion:
+ * `[[`, an optional note-name portion, `#^`, then the id text typed so
+ * far. The mirror image of HEADING_LINK_TRIGGER above (that one's
+ * `(?!\^)` is exactly what routes a `#^` query here instead). */
+const BLOCK_LINK_TRIGGER = /\[\[([^[\]\n#]*)#\^([^[\]\n]*)$/;
+
+/** Builds one block-completion option per spec section 9.3: the id itself
+ * as both label and inserted text (block ids are already wikilink-safe,
+ * grammar `[A-Za-z0-9-]`, so unlike a heading's own display text this
+ * never needs escapeWikiLinkText), with a short sanitized plain-text
+ * preview of the block's own content and its line number in `detail`
+ * ("a short sanitized plain-text preview and line number... does not show
+ * full sensitive note bodies beyond the local UI"). */
+function blockCompletionOption(block: BlockRecord, previewText: string, isDuplicate: boolean) {
+  const preview = previewText.length > 60 ? `${previewText.slice(0, 60)}…` : previewText;
+  return {
+    label: block.id,
+    apply: `${block.id}]]`,
+    type: "text",
+    detail: `${preview} · line ${block.line}${isDuplicate ? " · duplicate" : ""}`,
+  };
+}
+
+/**
+ * Suggests explicit block ids for a `[[Note#^` (or same-note `[[#^`)
+ * block-link fragment being typed, reusing the shared block scanner
+ * (markdown/blocks.ts) rather than a second matching implementation, the
+ * same "one parser/scanner per consumer" rule headingLinkCompletions
+ * above already follows. Mirrors that function's same-note/cross-note/
+ * unreadable-note handling exactly, down to reading a different note
+ * fresh from disk on every trigger (no metadata index exists yet for
+ * this either). "Create block ID at cursor" (spec 9.3's other half, for
+ * when no suitable block exists) is not implemented: it needs spec
+ * section 7.4's generated-id insertion flow, a disclosed follow-up (see
+ * ROADMAP.md), not attempted here.
+ */
+export function blockLinkCompletions(path: string) {
+  return async function (context: CompletionContext): Promise<CompletionResult | null> {
+    const match = context.matchBefore(BLOCK_LINK_TRIGGER);
+    if (!match) return null;
+    const groups = BLOCK_LINK_TRIGGER.exec(match.text);
+    if (!groups) return null;
+    const [, noteName, idQuery] = groups;
+    const from = context.pos - idQuery.length;
+
+    let docText: string;
+    if (noteName === "") {
+      docText = context.state.doc.toString();
+    } else {
+      const targetPath = resolveWikilink(noteName);
+      if (!targetPath) return null;
+      if (targetPath === path) {
+        docText = context.state.doc.toString();
+      } else {
+        try {
+          docText = await readTextFile(targetPath);
+        } catch {
+          // Unreadable target note: no suggestions, same as
+          // headingLinkCompletions' identical handling above.
+          return null;
+        }
+      }
+    }
+
+    const blocks = scanBlockIds(docText);
+    const query = idQuery.trim().toLowerCase();
+    const occurrenceCounts = new Map<string, number>();
+    for (const block of blocks) {
+      occurrenceCounts.set(block.key, (occurrenceCounts.get(block.key) ?? 0) + 1);
+    }
+
+    const options = blocks
+      .filter((block) => block.id.toLowerCase().includes(query))
+      .map((block) =>
+        blockCompletionOption(
+          block,
+          docText.slice(block.contentFrom, block.contentTo).trim(),
+          (occurrenceCounts.get(block.key) ?? 0) > 1,
+        ),
+      );
 
     if (options.length === 0) return null;
     return { from, options, filter: false };
@@ -304,7 +391,7 @@ function buildExtensions(
     lineNumbers(),
     highlightActiveLine(),
     history(),
-    autocompletion({ override: [wikilinkCompletions, headingLinkCompletions(path)] }),
+    autocompletion({ override: [wikilinkCompletions, headingLinkCompletions(path), blockLinkCompletions(path)] }),
     keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap, ...completionKeymap]),
     markdown({ codeLanguages: languages }),
     syntaxHighlighting(defaultHighlightStyle, { fallback: true }),

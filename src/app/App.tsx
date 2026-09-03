@@ -27,6 +27,7 @@ import {
   updateTabContent,
 } from "../workspace/store";
 import { readTextFile } from "../workspace/tauriBridge";
+import { beginFileOpenAuthority, isCurrentFileOpen } from "../workspace/fileOpenAuthority";
 import {
   initSettings,
   settingsLoaded,
@@ -46,7 +47,8 @@ import { outlineInsertRequest, outlineRevealRequest, requestOutlineReveal } from
 import { HeadingBreadcrumbs } from "../outline/HeadingBreadcrumbs";
 import { nextSplitAuthority, type SplitAuthority } from "../outline/splitAuthority";
 import { scanHeadings } from "../markdown/headings";
-import { resolveHeadingFragment } from "../linking/wikiResolver";
+import { scanBlockIds } from "../markdown/blocks";
+import { resolveBlockFragment, resolveHeadingFragment } from "../linking/wikiResolver";
 import {
   linkIndexBuilding,
   linkIndexUnreadablePaths,
@@ -303,26 +305,49 @@ export function App() {
 
   const handleOpenFile = useCallback(
     /**
-     * `options.headingKey` (F04 Phase 1, see MarkdownPreview.tsx's
-     * `onOpenFile` doc comment) is the raw heading text a resolved
-     * cross-note `[[Note#Heading]]` Preview link named. It's resolved
-     * here, against the content this function just read to open the
-     * tab, rather than in MarkdownPreview: this is the one place that
-     * already reads the target note's fresh content, and the note-open
-     * (`openOrFocusTab`) and the outline reveal request are batched into
-     * one signal update together so MarkdownEditor's `reveal` effect
-     * (keyed only on the `reveal` prop's identity) never fires against
-     * the *previous* note's still-displayed content in between. A
-     * heading that turns out missing or ambiguous in the freshly-read
-     * note is a silent no-op reveal: the note still opens, matching spec
-     * section 10.4's "open the note if its path still resolves."
+     * `options.headingKey`/`options.blockId` (F04 Phase 1 for headings,
+     * see MarkdownPreview.tsx's `onOpenFile` doc comment; F04 Phase 3a
+     * for blocks) is the raw heading text or block id a resolved
+     * cross-note `[[Note#Heading]]`/`[[Note#^block-id]]` Preview link
+     * named. It's resolved here, against the content this function just
+     * read to open the tab, rather than in MarkdownPreview: this is the
+     * one place that already reads the target note's fresh content, and
+     * the note-open (`openOrFocusTab`) and the outline reveal request are
+     * batched into one signal update together so MarkdownEditor's
+     * `reveal` effect (keyed only on the `reveal` prop's identity) never
+     * fires against the *previous* note's still-displayed content in
+     * between. A target that turns out missing or ambiguous in the
+     * freshly-read note is a silent no-op reveal: the note still opens,
+     * matching spec section 10.4's "open the note if its path still
+     * resolves."
+     *
+     * N-002: `beginFileOpenAuthority()` runs synchronously, before any
+     * await, so it invalidates every open request already in flight,
+     * including a synchronous image-tab open that never itself awaits
+     * anything. The one await below (`readTextFile`) re-checks it before
+     * touching tabs, focus, or sidebar state, so an older request that
+     * resolves after a newer one (or after a workspace switch, via the
+     * transition generation `fileOpenAuthority.ts` also captures) is a
+     * silent no-op rather than overriding the newer selection. A
+     * rejected read is only rethrown if this request was still current
+     * when it failed; a stale request's own read failure is not this
+     * call's problem to report, since a newer request already
+     * superseded it.
      */
-    async (path: string, name: string, options?: { headingKey?: string }) => {
+    async (path: string, name: string, options?: { headingKey?: string; blockId?: string }) => {
+      const authority = beginFileOpenAuthority();
       const kind = classifyWorkspaceResource(path);
       if (kind === "image") {
         openOrFocusTab(path, name, "", "image");
       } else {
-        const content = await readTextFile(path);
+        let content: string;
+        try {
+          content = await readTextFile(path);
+        } catch (error) {
+          if (!isCurrentFileOpen(authority)) return;
+          throw error;
+        }
+        if (!isCurrentFileOpen(authority)) return;
         // An already-open tab keeps its own (possibly unsaved, dirty)
         // content; openOrFocusTab only focuses it rather than
         // overwriting it with what's on disk. Reveal against whichever
@@ -335,6 +360,11 @@ export function App() {
             const match = resolveHeadingFragment(scanHeadings(effectiveContent), options.headingKey);
             if (match.status === "resolved") {
               requestOutlineReveal(match.heading.contentFrom, match.heading.contentTo);
+            }
+          } else if (options?.blockId) {
+            const match = resolveBlockFragment(scanBlockIds(effectiveContent), options.blockId);
+            if (match.status === "resolved") {
+              requestOutlineReveal(match.block.contentFrom, match.block.contentTo);
             }
           }
         });

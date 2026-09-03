@@ -189,6 +189,16 @@ export function hasFrontmatterBlock(source: string): boolean {
   return findBlock(source) !== null;
 }
 
+/** The absolute character offset where `source`'s body starts, i.e. right
+ * after its frontmatter block (delimiters and all) if it has one, or `0`
+ * otherwise. Used by F04 Phase 4a's whole-note embed rendering
+ * (`![[Note]]`, spec/f04-heading-block-links-embeds.md section 11.1: "the
+ * note body after frontmatter"), reusing `findBlock`'s existing delimiter
+ * detection rather than a second frontmatter-boundary scan. */
+export function frontmatterBodyStart(source: string): number {
+  return findBlock(source)?.blockEnd ?? 0;
+}
+
 export function parseFrontmatterProperties(source: string): ParsedFrontmatterProperties {
   const block = findBlock(source);
   if (!block) return { properties: [] };

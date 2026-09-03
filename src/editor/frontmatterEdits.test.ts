@@ -1,10 +1,34 @@
 import { describe, expect, it } from "vitest";
 import {
   addFrontmatterProperty,
+  frontmatterBodyStart,
   parseFrontmatterProperties,
   removeFrontmatterProperty,
   updateFrontmatterProperty,
 } from "./frontmatterEdits";
+
+describe("frontmatterBodyStart", () => {
+  it("returns 0 for a note with no frontmatter block", () => {
+    expect(frontmatterBodyStart("Just a paragraph.")).toBe(0);
+  });
+
+  it("returns the offset right after the closing delimiter for a note with frontmatter", () => {
+    const source = "---\ntitle: Plan\n---\nThe body starts here.";
+    const start = frontmatterBodyStart(source);
+    expect(source.slice(start)).toBe("The body starts here.");
+  });
+
+  it("handles CRLF line endings", () => {
+    const source = "---\r\ntitle: Plan\r\n---\r\nBody.";
+    const start = frontmatterBodyStart(source);
+    expect(source.slice(start)).toBe("Body.");
+  });
+
+  it("returns 0 for a document that only looks like frontmatter but never closes", () => {
+    const source = "---\ntitle: Plan\nno closing delimiter";
+    expect(frontmatterBodyStart(source)).toBe(0);
+  });
+});
 
 describe("source-preserving frontmatter property edits", () => {
   it("changes only the selected scalar range and preserves CRLF, scalar types, comments, and unsupported structures", () => {

@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { writeActiveWorkspaceTextFile } = vi.hoisted(() => ({
-  writeActiveWorkspaceTextFile: vi.fn<(path: string, content: string) => Promise<void>>(),
+const { writeTextFile } = vi.hoisted(() => ({
+  writeTextFile: vi.fn<(path: string, content: string) => Promise<void>>(),
 }));
 
-vi.mock("./tauriBridge", () => ({ writeActiveWorkspaceTextFile }));
+vi.mock("./tauriBridge", () => ({ writeTextFile }));
 
 import { createSaveCoordinator } from "./saveCoordinator";
 
@@ -21,13 +21,13 @@ function deferred<T = void>() {
 describe("save coordinator workspace transitions", () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    writeActiveWorkspaceTextFile.mockReset();
+    writeTextFile.mockReset();
   });
 
   afterEach(() => vi.useRealTimers());
 
   it("cancels pending outgoing debounces and rejects later edits for that session", async () => {
-    writeActiveWorkspaceTextFile.mockResolvedValue();
+    writeTextFile.mockResolvedValue();
     const saves = createSaveCoordinator();
     saves.change(3, "/workspace/note.md", "outgoing");
 
@@ -35,19 +35,19 @@ describe("save coordinator workspace transitions", () => {
     saves.change(3, "/workspace/note.md", "late outgoing");
     await vi.advanceTimersByTimeAsync(1000);
 
-    expect(writeActiveWorkspaceTextFile).not.toHaveBeenCalled();
+    expect(writeTextFile).not.toHaveBeenCalled();
     expect(saves.entryCount()).toBe(0);
   });
 
   it("drains an invoked write before transition completion and suppresses its late callback", async () => {
     const nativeWrite = deferred<void>();
-    writeActiveWorkspaceTextFile.mockReturnValueOnce(nativeWrite.promise);
+    writeTextFile.mockReturnValueOnce(nativeWrite.promise);
     const onSaved = vi.fn();
     const saves = createSaveCoordinator({ onSaved });
 
     saves.change(4, "/workspace/note.md", "revision A");
     await vi.advanceTimersByTimeAsync(400);
-    expect(writeActiveWorkspaceTextFile).toHaveBeenCalledTimes(1);
+    expect(writeTextFile).toHaveBeenCalledTimes(1);
 
     let transitionDone = false;
     const transition = saves.prepareForTransition(4).then(() => { transitionDone = true; });
@@ -62,11 +62,11 @@ describe("save coordinator workspace transitions", () => {
     expect(onSaved).not.toHaveBeenCalled();
     expect(saves.entryCount()).toBe(0);
     await vi.advanceTimersByTimeAsync(1000);
-    expect(writeActiveWorkspaceTextFile).toHaveBeenCalledTimes(1);
+    expect(writeTextFile).toHaveBeenCalledTimes(1);
   });
 
   it("allows the same synthetic path in a new monotonic workspace session", async () => {
-    writeActiveWorkspaceTextFile.mockResolvedValue();
+    writeTextFile.mockResolvedValue();
     const saves = createSaveCoordinator();
     saves.change(7, "/workspace/same.md", "old");
     await saves.prepareForTransition(7);
@@ -74,6 +74,6 @@ describe("save coordinator workspace transitions", () => {
     saves.change(8, "/workspace/same.md", "new");
     await vi.advanceTimersByTimeAsync(400);
 
-    expect(writeActiveWorkspaceTextFile).toHaveBeenCalledWith("/workspace/same.md", "new");
+    expect(writeTextFile).toHaveBeenCalledWith("/workspace/same.md", "new");
   });
 });

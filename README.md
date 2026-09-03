@@ -6,7 +6,7 @@ A free and open source markdown viewer and editor for a local folder of plain te
 
 [![License: MIT](https://img.shields.io/github/license/LeonardSchwier/leotheca)](LICENSE)
 [![CI](https://github.com/LeonardSchwier/leotheca/actions/workflows/ci.yml/badge.svg)](https://github.com/LeonardSchwier/leotheca/actions/workflows/ci.yml)
-![Platforms](https://img.shields.io/badge/platform-Linux%20%7C%20Android-informational)
+![Platforms](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows%20%7C%20Android-informational)
 
 ## Why this exists
 

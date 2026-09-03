@@ -73,9 +73,14 @@
 }
 
 .workspace-switcher-menu {
-  position: absolute;
-  top: calc(100% + var(--space-1));
-  left: 0;
+  /* `fixed`, not `absolute`: `.toolbar` sets `overflow-x: auto` on narrow
+     viewports (see the `max-width: 720px` block below) to let its buttons
+     scroll horizontally, which clips any `absolute` descendant that
+     overflows the toolbar's box — this menu was rendering but invisible on
+     Android because of it. `top`/`left` come from an inline style computed
+     from the trigger's own bounding rect in WorkspaceSwitcher.tsx, the same
+     approach FileContextMenu.tsx already uses for `.context-menu`. */
+  position: fixed;
   z-index: 20;
   min-width: 240px;
   max-height: 320px;

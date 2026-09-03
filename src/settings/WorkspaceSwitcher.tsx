@@ -38,6 +38,7 @@ function iconGlyph(icon: string): string {
 
 export function WorkspaceSwitcher() {
   const [open, setOpen] = useState(false);
+  const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const active = workspaceProfiles.value.find((p) => p.id === activeWorkspaceId.value);
@@ -45,6 +46,23 @@ export function WorkspaceSwitcher() {
   const close = () => {
     setOpen(false);
     triggerRef.current?.focus();
+  };
+
+  /** `.toolbar` scrolls horizontally on narrow viewports (`overflow-x: auto`
+   * in App.css's mobile media query), which clips any `position: absolute`
+   * descendant that overflows its box — the dropdown was rendering but
+   * invisible, clipped by the toolbar, on Android. `position: fixed` with a
+   * viewport coordinate computed from the trigger's own rect escapes that
+   * clipping entirely, matching how FileContextMenu.tsx already positions
+   * its own floating menu. */
+  const toggle = () => {
+    if (open) {
+      close();
+      return;
+    }
+    const rect = triggerRef.current?.getBoundingClientRect();
+    if (rect) setMenuPosition({ top: rect.bottom + 4, left: rect.left });
+    setOpen(true);
   };
 
   useEffect(() => {
@@ -83,7 +101,7 @@ export function WorkspaceSwitcher() {
         aria-label={active ? "Switch workspace" : "Open workspace"}
         aria-haspopup="listbox"
         aria-expanded={open}
-        onClick={() => setOpen((o) => !o)}
+        onClick={toggle}
       >
         <span class="workspace-switcher-icon" aria-hidden="true">
           {active ? iconGlyph(active.icon) : "📂"}
@@ -93,8 +111,14 @@ export function WorkspaceSwitcher() {
           ▾
         </span>
       </button>
-      {open && (
-        <div ref={menuRef} class="workspace-switcher-menu" role="listbox" aria-label="Workspaces">
+      {open && menuPosition && (
+        <div
+          ref={menuRef}
+          class="workspace-switcher-menu"
+          role="listbox"
+          aria-label="Workspaces"
+          style={{ top: `${menuPosition.top}px`, left: `${menuPosition.left}px` }}
+        >
           {workspaceProfiles.value.length === 0 && (
             <div class="workspace-switcher-empty">No workspaces yet</div>
           )}

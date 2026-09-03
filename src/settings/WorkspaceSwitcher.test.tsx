@@ -140,4 +140,34 @@ describe("WorkspaceSwitcher", () => {
     fireEvent.click(getByLabelText("Open workspace"));
     expect(getByText("No workspaces yet")).toBeTruthy();
   });
+
+  it("positions the menu from the trigger's own rect, not a CSS-relative offset (Android clipping bug)", () => {
+    // `.toolbar` sets `overflow-x: auto` on narrow viewports, which clips a
+    // `position: absolute` dropdown positioned only via CSS `top`/`left`
+    // (the App.css rule this used to rely on). The fix computes fixed
+    // viewport coordinates from the trigger's own bounding rect instead, so
+    // this asserts the menu's inline style actually reflects that rect
+    // rather than being static/CSS-only.
+    workspaceProfiles.value = [PROFILE_A];
+    activeWorkspaceId.value = "a";
+    const { getByLabelText, getByRole } = render(<WorkspaceSwitcher />);
+    const trigger = getByLabelText("Switch workspace");
+    vi.spyOn(trigger, "getBoundingClientRect").mockReturnValue({
+      top: 40,
+      bottom: 64,
+      left: 120,
+      right: 300,
+      width: 180,
+      height: 24,
+      x: 120,
+      y: 40,
+      toJSON: () => {},
+    });
+
+    fireEvent.click(trigger);
+
+    const menu = getByRole("listbox") as HTMLElement;
+    expect(menu.style.top).toBe("68px");
+    expect(menu.style.left).toBe("120px");
+  });
 });

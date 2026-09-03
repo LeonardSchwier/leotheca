@@ -29,8 +29,7 @@ function formatModified(ms: number | undefined): string {
 function propertyText(property: FrontmatterProperty | undefined): string {
   if (!property) return "";
   if (property.kind === "list") return property.value.join(", ");
-  if (property.kind === "scalar") return property.value;
-  return property.rawValue.trim();
+  return property.value;
 }
 
 function visiblePropertyKeys(results: NoteRecord[], configured: string[] | undefined): string[] {

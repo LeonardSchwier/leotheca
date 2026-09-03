@@ -4,42 +4,37 @@ import { cleanup, fireEvent, render } from "@testing-library/preact";
 import { signal } from "@preact/signals";
 
 vi.mock("./store", () => ({
-  setWorkspacePath: vi.fn(),
+  addWorkspaceFromPicker: vi.fn(),
   workspaceSelectionError: signal<string | null>(null),
-}));
-vi.mock("../workspace/tauriBridge", () => ({
-  pickWorkspaceFolder: vi.fn(),
 }));
 
 import { WelcomeDialog } from "./WelcomeDialog";
-import { setWorkspacePath, workspaceSelectionError } from "./store";
-import { pickWorkspaceFolder } from "../workspace/tauriBridge";
+import { addWorkspaceFromPicker, workspaceSelectionError } from "./store";
 
 afterEach(() => {
   cleanup();
-  vi.mocked(setWorkspacePath).mockReset();
-  vi.mocked(pickWorkspaceFolder).mockReset();
+  vi.mocked(addWorkspaceFromPicker).mockReset();
   workspaceSelectionError.value = null;
 });
 
 describe("WelcomeDialog", () => {
-  it("opens the workspace at the chosen folder's path and token", async () => {
-    vi.mocked(pickWorkspaceFolder).mockResolvedValue({ path: "/home/user/vault", token: "tok-1" });
+  it("adds a workspace from the picker when Choose Folder is clicked", async () => {
+    vi.mocked(addWorkspaceFromPicker).mockResolvedValue(undefined);
     const { getByText } = render(<WelcomeDialog />);
 
     await fireEvent.click(getByText("Choose Folder"));
     await Promise.resolve();
 
-    expect(setWorkspacePath).toHaveBeenCalledWith("/home/user/vault", "tok-1");
+    expect(addWorkspaceFromPicker).toHaveBeenCalledTimes(1);
   });
 
-  it("does nothing when the folder picker is cancelled", async () => {
-    vi.mocked(pickWorkspaceFolder).mockResolvedValue(null);
+  it("stays open and swallows a rejection so the user can retry", async () => {
+    vi.mocked(addWorkspaceFromPicker).mockRejectedValue(new Error("boom"));
     const { getByText } = render(<WelcomeDialog />);
 
     await fireEvent.click(getByText("Choose Folder"));
     await Promise.resolve();
 
-    expect(setWorkspacePath).not.toHaveBeenCalled();
+    expect(getByText("Choose Folder")).toBeTruthy();
   });
 });

@@ -20,6 +20,11 @@ vi.mock("../settings/store", () => {
     viewMode: signal("source"),
     initSettings: vi.fn(),
     workspaceSettings,
+    workspaceProfiles: signal([]),
+    activeWorkspaceId: signal<string | null>(null),
+    activateWorkspaceProfile: vi.fn(),
+    addWorkspaceFromPicker: vi.fn(),
+    forgetWorkspaceProfile: vi.fn(),
     updateWorkspaceSettings: async (
       patch: Partial<typeof DEFAULT_WORKSPACE_SETTINGS>,
     ) => {

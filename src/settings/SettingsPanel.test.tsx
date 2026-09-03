@@ -10,10 +10,10 @@ import type { ThemePreference } from "./globalConfig";
 // component's reactive reads/writes work exactly like the real module,
 // without pulling in that side effect.
 vi.mock("./store", () => ({
+  addWorkspaceFromPicker: vi.fn(),
   appVersion: signal(""),
   settingsPanelOpen: signal(true),
   setTheme: vi.fn(),
-  setWorkspacePath: vi.fn(),
   repairWorkspaceSettingsFile: vi.fn(),
   retryWorkspaceSettingsSave: vi.fn(),
   theme: signal<ThemePreference>("system"),
@@ -25,7 +25,6 @@ vi.mock("./store", () => ({
 }));
 vi.mock("../workspace/tauriBridge", () => ({
   getWorkspaceStats: vi.fn(),
-  pickWorkspaceFolder: vi.fn(),
 }));
 // Out of scope for this file (its own loadStats/effect behavior); a plain
 // stand-in keeps these tests focused on SettingsPanel's own logic.
@@ -35,10 +34,10 @@ vi.mock("./VaultStatsPanel", () => ({
 
 import { SettingsPanel } from "./SettingsPanel";
 import {
+  addWorkspaceFromPicker,
   appVersion,
   settingsPanelOpen,
   setTheme,
-  setWorkspacePath,
   repairWorkspaceSettingsFile,
   retryWorkspaceSettingsSave,
   theme,
@@ -48,7 +47,6 @@ import {
   workspaceSettingsSaveError,
   workspaceSettings,
 } from "./store";
-import { pickWorkspaceFolder } from "../workspace/tauriBridge";
 
 afterEach(() => {
   cleanup();
@@ -58,13 +56,12 @@ afterEach(() => {
   theme.value = "system";
   appVersion.value = "";
   vi.mocked(setTheme).mockReset();
-  vi.mocked(setWorkspacePath).mockReset();
+  vi.mocked(addWorkspaceFromPicker).mockReset();
   vi.mocked(updateWorkspaceSettings).mockReset();
   vi.mocked(retryWorkspaceSettingsSave).mockReset();
   vi.mocked(repairWorkspaceSettingsFile).mockReset();
   workspaceSettingsSaveError.value = null;
   workspaceSettingsCorrupted.value = false;
-  vi.mocked(pickWorkspaceFolder).mockReset();
 });
 
 describe("SettingsPanel", () => {
@@ -112,11 +109,8 @@ describe("SettingsPanel", () => {
     expect(settingsPanelOpen.value).toBe(false);
   });
 
-  it("Change Folder opens the picked folder, and does nothing if cancelled", async () => {
-    vi.mocked(pickWorkspaceFolder).mockResolvedValue({
-      path: "/vault",
-      token: "tok",
-    });
+  it("Change Folder routes through the workspace-profile picker flow", async () => {
+    vi.mocked(addWorkspaceFromPicker).mockResolvedValue(undefined);
     const { container } = render(<SettingsPanel />);
     // Find the "Change Folder" button by text content
     const buttons = container.querySelectorAll("button");
@@ -126,13 +120,7 @@ describe("SettingsPanel", () => {
     expect(folderBtn).toBeTruthy();
     await fireEvent.click(folderBtn!);
     await Promise.resolve();
-    expect(setWorkspacePath).toHaveBeenCalledWith("/vault", "tok");
-
-    vi.mocked(setWorkspacePath).mockClear();
-    vi.mocked(pickWorkspaceFolder).mockResolvedValue(null);
-    await fireEvent.click(folderBtn!);
-    await Promise.resolve();
-    expect(setWorkspacePath).not.toHaveBeenCalled();
+    expect(addWorkspaceFromPicker).toHaveBeenCalledTimes(1);
   });
 
   it("hides workspace-scoped rows (delete behavior, font size, zoom, view mode) with no workspace open", () => {

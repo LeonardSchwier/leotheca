@@ -1,5 +1,4 @@
-import { setWorkspacePath, workspaceSelectionError } from "./store";
-import { pickWorkspaceFolder } from "../workspace/tauriBridge";
+import { addWorkspaceFromPicker, workspaceSelectionError } from "./store";
 import { useState } from "preact/hooks";
 
 export function WelcomeDialog() {
@@ -9,8 +8,7 @@ export function WelcomeDialog() {
     setLoading(true);
     workspaceSelectionError.value = null;
     try {
-      const folder = await pickWorkspaceFolder();
-      if (folder) await setWorkspacePath(folder.path, folder.token);
+      await addWorkspaceFromPicker();
     } catch {
       // setWorkspacePath publishes the actionable, non-sensitive error and
       // leaves no active workspace. The dialog stays open for a retry.

@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Workspace profiles can now be renamed and assigned a built-in icon from Settings. The workspace switcher is searchable and keyboard-navigable, and the command palette can open it, add a workspace, or jump to profile management. Profile metadata edits keep newer concurrent changes intact if an older config write fails.
 - Smart Collections now support persisted list, table, and card result views. Table view can edit already-supported top-level scalar and simple-list frontmatter values in place through the same lossless source-range editor and app-owned save authority as normal note editing; stale/conflicting values and unsupported YAML remain read-only. Card view renders selected metadata fields without reading note bodies, and collection evaluation now has deterministic multi-key sorting; the UI for configuring sort keys is still deferred.
 - Cold-starting the Android New note widget now shows native "Creating note" progress until the existing quick-note flow creates its expected file, instead of leaving the user staring at startup with no indication that the widget action is still working.
 - Canvas files now keep every card, connection, and unrecognized field an editor doesn't understand instead of silently dropping them the next time any card is edited. A canvas card's linked file path is now resolved against the canvas file's own location and verified to stay inside the open workspace before it can be opened, the same containment check already applied to note attachments.

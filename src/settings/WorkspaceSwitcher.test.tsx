@@ -13,9 +13,9 @@ vi.mock("./store", () => ({
   workspaceProfiles: signal<WorkspaceProfile[]>([]),
   activeWorkspaceId: signal<string | null>(null),
   settingsPanelOpen: signal(false),
-  activateWorkspaceProfile: vi.fn(),
-  addWorkspaceFromPicker: vi.fn(),
-  forgetWorkspaceProfile: vi.fn(),
+  activateWorkspaceProfile: vi.fn(async () => {}),
+  addWorkspaceFromPicker: vi.fn(async () => {}),
+  forgetWorkspaceProfile: vi.fn(async () => {}),
 }));
 
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
@@ -47,9 +47,9 @@ afterEach(() => {
   workspaceSwitcherOpenRequest.value = 0;
   workspaceAddRequest.value = 0;
   workspaceManageRequest.value = 0;
-  vi.mocked(activateWorkspaceProfile).mockReset();
-  vi.mocked(addWorkspaceFromPicker).mockReset();
-  vi.mocked(forgetWorkspaceProfile).mockReset();
+  vi.mocked(activateWorkspaceProfile).mockReset().mockResolvedValue(undefined);
+  vi.mocked(addWorkspaceFromPicker).mockReset().mockResolvedValue(undefined);
+  vi.mocked(forgetWorkspaceProfile).mockReset().mockResolvedValue(undefined);
 });
 
 describe("WorkspaceSwitcher", () => {
@@ -126,6 +126,33 @@ describe("WorkspaceSwitcher", () => {
     expect(queryByRole("listbox")).toBeNull();
   });
 
+  it("handles rejected switch, forget, and add actions without unhandled promises", async () => {
+    workspaceProfiles.value = [PROFILE_A, PROFILE_B];
+    activeWorkspaceId.value = "a";
+    const alert = vi.spyOn(window, "alert").mockImplementation(() => {});
+    vi.mocked(activateWorkspaceProfile).mockRejectedValueOnce(new Error("cannot open"));
+    vi.mocked(forgetWorkspaceProfile).mockRejectedValueOnce(new Error("disk full"));
+    vi.mocked(addWorkspaceFromPicker).mockRejectedValueOnce(new Error("picker failed"));
+
+    const { getByLabelText, getByText } = render(<WorkspaceSwitcher />);
+    fireEvent.click(getByLabelText("Switch workspace"));
+    fireEvent.click(getByText("Work"));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(alert).not.toHaveBeenCalled();
+
+    fireEvent.click(getByLabelText("Switch workspace"));
+    fireEvent.click(getByLabelText("Forget Work"));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(alert).toHaveBeenCalledWith("Could not forget workspace. Try again.");
+
+    fireEvent.click(getByText("+ Add workspace"));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(alert).toHaveBeenCalledWith("Could not add workspace. Try again.");
+  });
+
   it("filters desktop profiles by name/path without exposing Android locator secrets", () => {
     workspaceProfiles.value = [PROFILE_A, PROFILE_B, PROFILE_ANDROID];
     activeWorkspaceId.value = "a";
@@ -192,5 +219,15 @@ describe("WorkspaceSwitcher", () => {
       expect(addWorkspaceFromPicker).toHaveBeenCalledTimes(1);
       expect(settingsPanelOpen.value).toBe(true);
     });
+  });
+
+  it("reports a command-palette Add failure instead of leaving it unhandled", async () => {
+    workspaceProfiles.value = [PROFILE_A];
+    activeWorkspaceId.value = "a";
+    const alert = vi.spyOn(window, "alert").mockImplementation(() => {});
+    vi.mocked(addWorkspaceFromPicker).mockRejectedValueOnce(new Error("picker failed"));
+    render(<WorkspaceSwitcher />);
+    workspaceAddRequest.value++;
+    await waitFor(() => expect(alert).toHaveBeenCalledWith("Could not add workspace. Try again."));
   });
 });

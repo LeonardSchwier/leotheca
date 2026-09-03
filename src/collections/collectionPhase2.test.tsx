@@ -71,7 +71,7 @@ describe("F09 Phase 2 result views", () => {
         results={[note("Alpha.md")]}
         onOpenFile={vi.fn()}
         onViewChange={onViewChange}
-        onEditProperty={vi.fn(async () => "ok")}
+        onEditProperty={vi.fn(async () => "ok" as const)}
       />,
     );
 
@@ -88,7 +88,7 @@ describe("F09 Phase 2 result views", () => {
         results={[entry]}
         onOpenFile={onOpenFile}
         onViewChange={vi.fn()}
-        onEditProperty={vi.fn(async () => "ok")}
+        onEditProperty={vi.fn(async () => "ok" as const)}
       />,
     );
 
@@ -128,7 +128,7 @@ describe("F09 Phase 2 result views", () => {
         results={[entry]}
         onOpenFile={vi.fn()}
         onViewChange={vi.fn()}
-        onEditProperty={vi.fn(async () => "ok")}
+        onEditProperty={vi.fn(async () => "ok" as const)}
       />,
     );
 
@@ -144,7 +144,7 @@ describe("F09 Phase 2 result views", () => {
         results={[entry]}
         onOpenFile={vi.fn()}
         onViewChange={vi.fn()}
-        onEditProperty={vi.fn(async () => "ok")}
+        onEditProperty={vi.fn(async () => "ok" as const)}
       />,
     );
 

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "preact/hooks";
+import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import {
   activateWorkspaceProfile,
   activeWorkspaceId,
@@ -6,20 +6,9 @@ import {
   forgetWorkspaceProfile,
   workspaceProfiles,
 } from "./store";
-import { displayWorkspaceIcon } from "./workspaceProfiles";
+import { displayWorkspaceIcon, matchesWorkspaceSearch } from "./workspaceProfiles";
+import { workspaceSwitcherOpenRequest } from "./workspaceSwitcherControl";
 import type { WorkspaceIcon } from "./globalConfig";
-
-/** F20 Phase 1, spec `leotheca-workspace-profiles-sdd.md` section 10:
- * a minimal switcher — an ordered profile list, click-to-switch, "Add
- * workspace," and "Forget" for a non-active profile — reachable from the
- * app header (section 9.1). Deliberately narrowed, per this claim's own
- * scope: no search field (10.2), no arrow-key row navigation (10.3's
- * fuller keyboard model), no command-palette entries (9.2), and no
- * Settings-panel management section (9.3), all left for F20 Phase 2 (see
- * ROADMAP.md). Escape-to-close, outside-click-to-close, and returning
- * focus to the opener are kept even in this narrowed slice: they are
- * baseline dropdown behavior already established elsewhere in this
- * codebase (see workspace/FileContextMenu.tsx), not "10.3 polish." */
 
 const ICON_GLYPHS: Record<WorkspaceIcon, string> = {
   folder: "📁",
@@ -32,42 +21,62 @@ const ICON_GLYPHS: Record<WorkspaceIcon, string> = {
   archive: "🗄️",
 };
 
-function iconGlyph(icon: string): string {
+export function workspaceIconGlyph(icon: string): string {
   return ICON_GLYPHS[displayWorkspaceIcon(icon)];
+}
+
+function locatorLabel(path: string, token: string | undefined): string {
+  if (token) return "Android workspace";
+  return path;
 }
 
 export function WorkspaceSwitcher() {
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [highlighted, setHighlighted] = useState(0);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const previousRequest = useRef(workspaceSwitcherOpenRequest.value);
   const active = workspaceProfiles.value.find((p) => p.id === activeWorkspaceId.value);
+  const filtered = useMemo(
+    () => workspaceProfiles.value.filter((profile) => matchesWorkspaceSearch(profile, query)),
+    [workspaceProfiles.value, query],
+  );
 
-  const close = () => {
+  const close = (restoreFocus = true) => {
     setOpen(false);
-    triggerRef.current?.focus();
+    setQuery("");
+    setHighlighted(0);
+    if (restoreFocus) queueMicrotask(() => triggerRef.current?.focus());
   };
+
+  if (workspaceSwitcherOpenRequest.value !== previousRequest.current) {
+    previousRequest.current = workspaceSwitcherOpenRequest.value;
+    if (!open) setOpen(true);
+  }
 
   useEffect(() => {
     if (!open) return;
+    setHighlighted(0);
+    queueMicrotask(() => searchRef.current?.focus());
     const handlePointer = (e: MouseEvent) => {
       if (menuRef.current?.contains(e.target as Node)) return;
       if (triggerRef.current?.contains(e.target as Node)) return;
-      setOpen(false);
-    };
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") close();
+      close(false);
     };
     window.addEventListener("mousedown", handlePointer);
-    window.addEventListener("keydown", handleKey);
-    return () => {
-      window.removeEventListener("mousedown", handlePointer);
-      window.removeEventListener("keydown", handleKey);
-    };
+    return () => window.removeEventListener("mousedown", handlePointer);
   }, [open]);
 
+  useEffect(() => {
+    if (highlighted >= filtered.length) setHighlighted(Math.max(0, filtered.length - 1));
+  }, [filtered.length, highlighted]);
+
   const handleActivate = async (id: string) => {
+    const alreadyActive = id === activeWorkspaceId.value;
     close();
-    await activateWorkspaceProfile(id);
+    if (!alreadyActive) await activateWorkspaceProfile(id);
   };
 
   const handleAdd = async () => {
@@ -75,48 +84,88 @@ export function WorkspaceSwitcher() {
     await addWorkspaceFromPicker();
   };
 
+  const handleMenuKeyDown = (event: KeyboardEvent) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      close();
+      return;
+    }
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      if (filtered.length) setHighlighted((value) => (value + 1) % filtered.length);
+      return;
+    }
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      if (filtered.length) setHighlighted((value) => (value - 1 + filtered.length) % filtered.length);
+      return;
+    }
+    if (event.key === "Enter" && filtered[highlighted]) {
+      event.preventDefault();
+      void handleActivate(filtered[highlighted].id);
+    }
+  };
+
   return (
     <div class="workspace-switcher">
       <button
         ref={triggerRef}
         class="workspace-switcher-trigger"
-        aria-label={active ? "Switch workspace" : "Open workspace"}
+        aria-label={active ? `Switch workspace, current workspace ${active.name}` : "Open workspace"}
         aria-haspopup="listbox"
         aria-expanded={open}
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => (open ? close(false) : setOpen(true))}
       >
         <span class="workspace-switcher-icon" aria-hidden="true">
-          {active ? iconGlyph(active.icon) : "📂"}
+          {active ? workspaceIconGlyph(active.icon) : "📂"}
         </span>
         <span class="workspace-switcher-name">{active ? active.name : "Open workspace"}</span>
-        <span class="workspace-switcher-caret" aria-hidden="true">
-          ▾
-        </span>
+        <span class="workspace-switcher-caret" aria-hidden="true">▾</span>
       </button>
       {open && (
-        <div ref={menuRef} class="workspace-switcher-menu" role="listbox" aria-label="Workspaces">
-          {workspaceProfiles.value.length === 0 && (
-            <div class="workspace-switcher-empty">No workspaces yet</div>
-          )}
-          {workspaceProfiles.value.map((profile) => {
+        <div
+          ref={menuRef}
+          class="workspace-switcher-menu"
+          role="listbox"
+          aria-label="Workspaces"
+          onKeyDown={(event) => handleMenuKeyDown(event as unknown as KeyboardEvent)}
+        >
+          <input
+            ref={searchRef}
+            class="workspace-switcher-search"
+            type="search"
+            aria-label="Search workspaces"
+            placeholder="Search workspaces"
+            value={query}
+            onInput={(event) => {
+              setQuery(event.currentTarget.value);
+              setHighlighted(0);
+            }}
+          />
+          {filtered.length === 0 && <div class="workspace-switcher-empty">No matching workspaces</div>}
+          {filtered.map((profile, index) => {
             const isActive = profile.id === activeWorkspaceId.value;
+            const isHighlighted = index === highlighted;
             return (
               <div
                 key={profile.id}
-                class={`workspace-switcher-row ${isActive ? "active" : ""}`}
+                class={`workspace-switcher-row ${isActive ? "active" : ""} ${isHighlighted ? "highlighted" : ""}`}
                 role="option"
                 aria-selected={isActive}
+                aria-current={isActive ? "true" : undefined}
               >
-                <button class="workspace-switcher-row-button" onClick={() => void handleActivate(profile.id)}>
-                  <span class="workspace-switcher-icon" aria-hidden="true">
-                    {iconGlyph(profile.icon)}
+                <button
+                  class="workspace-switcher-row-button"
+                  tabIndex={-1}
+                  onMouseEnter={() => setHighlighted(index)}
+                  onClick={() => void handleActivate(profile.id)}
+                >
+                  <span class="workspace-switcher-icon" aria-hidden="true">{workspaceIconGlyph(profile.icon)}</span>
+                  <span class="workspace-switcher-row-name">
+                    {profile.name}
+                    <small>{locatorLabel(profile.path, profile.token)}</small>
                   </span>
-                  <span class="workspace-switcher-row-name">{profile.name}</span>
-                  {isActive && (
-                    <span class="workspace-switcher-check" aria-hidden="true">
-                      ✓
-                    </span>
-                  )}
+                  {isActive && <span class="workspace-switcher-check" aria-hidden="true">✓</span>}
                 </button>
                 {!isActive && (
                   <button
@@ -124,16 +173,12 @@ export function WorkspaceSwitcher() {
                     aria-label={`Forget ${profile.name}`}
                     title="Forget"
                     onClick={() => void forgetWorkspaceProfile(profile.id)}
-                  >
-                    ×
-                  </button>
+                  >×</button>
                 )}
               </div>
             );
           })}
-          <button class="workspace-switcher-add" onClick={() => void handleAdd()}>
-            + Add workspace
-          </button>
+          <button class="workspace-switcher-add" onClick={() => void handleAdd()}>+ Add workspace</button>
         </div>
       )}
     </div>

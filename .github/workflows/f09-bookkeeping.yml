@@ -1,0 +1,78 @@
+name: F09 bookkeeping
+
+on:
+  push:
+    branches:
+      - agent/f09-phase2-table-card-editing
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    if: ${{ !contains(github.event.head_commit.message, '[f09-bookkeeping]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/f09-phase2-table-card-editing
+          fetch-depth: 0
+      - name: Update roadmap and architecture
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          roadmap = Path("ROADMAP.md")
+          lines = roadmap.read_text().splitlines()
+          claim_indices = [
+              i for i, line in enumerate(lines)
+              if line.startswith("- 🚧 **F09 Phase 2: table/card views and in-view frontmatter editing**")
+          ]
+          assert len(claim_indices) == 1, claim_indices
+          del lines[claim_indices[0]]
+          implemented = (
+              "- ✅ **F09 Phase 2: table/card views and in-view frontmatter editing** "
+              "(claim: ChatGPT-GPT-5.6-Sol-automation-20260903T0553Z, branch: agent/f09-phase2-table-card-editing, "
+              "spec: `spec/f09-smart-collections-property-views.md`): Adds persisted list/table/card result modes and safe "
+              "single-cell table editing for supported top-level scalar/simple-list frontmatter values only. Every edit reads "
+              "the freshest canonical content (open tab or disk), reparses frontmatter, requires the expected key/kind/source-range/value "
+              "to still match, applies the existing lossless source-range-preserving frontmatter editor, and routes persistence through "
+              "the app-owned SaveCoordinator; stale/conflicting values fail closed and unsupported nested YAML remains read-only. Card "
+              "views render only configured metadata from the shared index without body reads. Collection evaluation gains deterministic "
+              "multi-key sort semantics (up to three system/property fields, configurable missing placement, path tie-breaker); sort-key "
+              "configuration UI is still deferred. Final integration preserves F-004's capability-aware autosave path rather than reviving "
+              "the branch's stale coordinator. Exact implementation-head CI run 33726596769 validates frontend typecheck/lint/version/tests/build, "
+              "Rust fmt/Clippy/tests/check, Android JVM tests/debug APK/emulator install, and AppImage build/extract/launch. No physical Android-device "
+              "verification is claimed."
+          )
+          marker = lines.index("## Implemented")
+          lines.insert(marker + 2, implemented)
+          roadmap.write_text("\n".join(lines) + "\n")
+
+          arch = Path("documentation/ARCHITECTURE.md")
+          arch_lines = arch.read_text().splitlines()
+          indices = [i for i, line in enumerate(arch_lines) if line.startswith("| `collections/` |")]
+          assert len(indices) == 1, indices
+          index = indices[0]
+          old = (
+              "F09 Phase 1 (`spec/f09-smart-collections-property-views.md`, narrowed to a first slice, see `ROADMAP.md`): "
+              "Smart Collections, saved queries over note metadata rendered as a read-only list."
+          )
+          new = (
+              "F09 Phases 1–2 (`spec/f09-smart-collections-property-views.md`, see `ROADMAP.md`): Smart Collections, saved queries "
+              "over note metadata rendered as persisted list, table, or card views. Phase 2 table edits reuse the existing lossless "
+              "source-range frontmatter editor and the app-owned save coordinator after a fresh conflict check; unsupported nested YAML "
+              "remains read-only."
+          )
+          assert old in arch_lines[index]
+          arch_lines[index] = arch_lines[index].replace(old, new, 1)
+          arch.write_text("\n".join(arch_lines) + "\n")
+          PY
+          git rm .github/workflows/f09-bookkeeping.yml
+      - name: Commit bookkeeping
+        run: |
+          git config user.name Leonardschwier
+          git config user.email github@leonardschwier.de
+          git add ROADMAP.md documentation/ARCHITECTURE.md .github/workflows/f09-bookkeeping.yml
+          git commit -m "Finalize F09 Phase 2 roadmap and architecture [f09-bookkeeping]"
+          git push origin HEAD:agent/f09-phase2-table-card-editing

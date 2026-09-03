@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
-import { addWorkspaceFromPicker, settingsPanelOpen } from "../settings/store";
-import { requestWorkspaceSwitcherOpen } from "../settings/workspaceSwitcherControl";
+import {
+  requestWorkspaceAdd,
+  requestWorkspaceManage,
+  requestWorkspaceSwitcherOpen,
+} from "../settings/workspaceSwitcherControl";
 
 export interface Command {
   id: string;
@@ -14,21 +17,9 @@ interface CommandPaletteProps {
 }
 
 const workspaceCommands: Command[] = [
-  {
-    id: "switch-workspace",
-    label: "Switch workspace...",
-    run: requestWorkspaceSwitcherOpen,
-  },
-  {
-    id: "add-workspace",
-    label: "Add workspace...",
-    run: () => void addWorkspaceFromPicker(),
-  },
-  {
-    id: "manage-workspace-profiles",
-    label: "Manage workspace profiles...",
-    run: () => (settingsPanelOpen.value = true),
-  },
+  { id: "switch-workspace", label: "Switch workspace...", run: requestWorkspaceSwitcherOpen },
+  { id: "add-workspace", label: "Add workspace...", run: requestWorkspaceAdd },
+  { id: "manage-workspace-profiles", label: "Manage workspace profiles...", run: requestWorkspaceManage },
 ];
 
 export function CommandPalette({ commands, onClose }: CommandPaletteProps) {

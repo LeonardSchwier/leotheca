@@ -144,11 +144,45 @@ export async function writeWorkspaceBinaryFile(
   });
 }
 
+/** Creates a brand-new text file and fails with `already_exists` if the
+ * target exists. Unlike writeWorkspaceTextFile, this never replaces data. */
+export async function createWorkspaceTextFileNew(
+  workspaceRoot: string,
+  relativePath: string,
+  contents: string,
+): Promise<void> {
+  return invoke("create_workspace_text_file_new", {
+    workspaceRoot,
+    relativePath,
+    contents,
+  });
+}
+
+/** Binary counterpart to createWorkspaceTextFileNew, for attachments. */
+export async function createWorkspaceBinaryFileNew(
+  workspaceRoot: string,
+  relativePath: string,
+  data: Uint8Array,
+): Promise<void> {
+  return invoke("create_workspace_binary_file_new", {
+    workspaceRoot,
+    relativePath,
+    data: Array.from(data),
+  });
+}
+
 export async function createWorkspaceDir(
   workspaceRoot: string,
   relativePath: string,
 ): Promise<void> {
   return invoke("create_workspace_dir", { workspaceRoot, relativePath });
+}
+
+export async function createWorkspaceDirNew(
+  workspaceRoot: string,
+  relativePath: string,
+): Promise<void> {
+  return invoke("create_workspace_dir_new", { workspaceRoot, relativePath });
 }
 
 export async function renameWorkspacePath(
@@ -157,6 +191,14 @@ export async function renameWorkspacePath(
   to: string,
 ): Promise<void> {
   return invoke("rename_workspace_path", { workspaceRoot, from, to });
+}
+
+export async function renameWorkspacePathNoReplace(
+  workspaceRoot: string,
+  from: string,
+  to: string,
+): Promise<void> {
+  return invoke("rename_workspace_path_no_replace", { workspaceRoot, from, to });
 }
 
 export async function deleteWorkspacePathPermanent(

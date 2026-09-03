@@ -11,10 +11,17 @@ const { readTextFile, writeTextFile } = vi.hoisted(() => ({
 // overridden, but this module transitively pulls in settings/store.ts,
 // whose own top-level effects call other real tauriBridge exports
 // (setStatusBarAppearance, etc.) that must stay real, not become
-// `undefined`, or module import itself throws.
+// `undefined`, or module import itself throws. The save coordinator's
+// capability-aware writer is mapped to the same spy because this suite
+// tests task mutation ordering, while tauriBridge.test.ts owns containment.
 vi.mock("../workspace/tauriBridge", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../workspace/tauriBridge")>();
-  return { ...actual, readTextFile, writeTextFile };
+  return {
+    ...actual,
+    readTextFile,
+    writeTextFile,
+    writeActiveWorkspaceTextFile: writeTextFile,
+  };
 });
 
 // taskMutation.ts imports settings/store.ts (for workspaceSession), whose

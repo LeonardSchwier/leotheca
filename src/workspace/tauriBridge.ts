@@ -1,6 +1,7 @@
 import { Capacitor } from "@capacitor/core";
 import * as desktop from "./tauriBridgeImpl";
 import * as android from "./capacitorBridgeImpl";
+import { isPathWithinWorkspace, relativePathBetween } from "./paths";
 
 /**
  * Platform dispatcher. Every other file in this project imports storage
@@ -9,6 +10,58 @@ import * as android from "./capacitorBridgeImpl";
  * place that needs to know Tauri and Capacitor exist.
  */
 const impl = Capacitor.isNativePlatform() ? android : desktop;
+
+export type WorkspaceMutationErrorCode =
+  | "invalid_name"
+  | "outside_workspace"
+  | "already_exists"
+  | "permission_denied"
+  | "io_failure";
+
+/** Stable cross-platform mutation failure exposed to UI and retry logic. */
+export class WorkspaceMutationError extends Error {
+  constructor(
+    public readonly code: WorkspaceMutationErrorCode,
+    message: string,
+  ) {
+    super(message);
+    this.name = "WorkspaceMutationError";
+  }
+}
+
+const MUTATION_CODES = new Set<WorkspaceMutationErrorCode>([
+  "invalid_name",
+  "outside_workspace",
+  "already_exists",
+  "permission_denied",
+  "io_failure",
+]);
+
+function normalizeMutationError(error: unknown): WorkspaceMutationError {
+  if (error instanceof WorkspaceMutationError) return error;
+  const raw = error instanceof Error ? error.message : String(error);
+  const match = /^([a-z_]+):\s*(.*)$/.exec(raw);
+  if (match && MUTATION_CODES.has(match[1] as WorkspaceMutationErrorCode)) {
+    return new WorkspaceMutationError(
+      match[1] as WorkspaceMutationErrorCode,
+      match[2] || match[1],
+    );
+  }
+  return new WorkspaceMutationError("io_failure", raw);
+}
+
+export function isWorkspaceMutationError(
+  error: unknown,
+  code: WorkspaceMutationErrorCode,
+): error is WorkspaceMutationError {
+  return error instanceof WorkspaceMutationError && error.code === code;
+}
+
+function trackMutation(operation: Promise<void>): Promise<void> {
+  return trackWorkspaceOperation(operation).catch((error) => {
+    throw normalizeMutationError(error);
+  });
+}
 
 /** Whether this session is running on the Android/Capacitor bridge rather
  * than the Tauri desktop shell. A function, not a precomputed constant, so
@@ -44,9 +97,20 @@ export function drainWorkspaceOperations(): Promise<void> {
 }
 
 export const pickWorkspaceFolder = impl.pickWorkspaceFolder;
-// Grant activation is transition infrastructure itself, so it must not be
-// counted as an operation that waits for the transition to finish.
-export const restoreWorkspaceAccess = impl.restoreWorkspaceAccess;
+
+// The transition layer calls this before it publishes a workspace, both on
+// startup and on every later workspace switch. Keep the active root beside
+// the platform grant at this same boundary: clear the capability before an
+// activation attempt, and publish it only after the underlying activation
+// succeeds. An autosave can therefore never reuse a root from a failed or
+// superseded grant activation.
+let activeWorkspaceRoot: string | null = null;
+
+export async function restoreWorkspaceAccess(path: string, token?: string): Promise<void> {
+  activeWorkspaceRoot = null;
+  await impl.restoreWorkspaceAccess(path, token);
+  activeWorkspaceRoot = path;
+}
 
 export const listDir: typeof impl.listDir = (path: string) =>
   trackWorkspaceOperation(impl.listDir(path));
@@ -72,11 +136,7 @@ export const trashPath: typeof impl.trashPath = (workspaceRoot: string, path: st
   trackWorkspaceOperation(impl.trashPath(workspaceRoot, path));
 export const deletePathPermanent: typeof impl.deletePathPermanent = (path: string) =>
   trackWorkspaceOperation(impl.deletePathPermanent(path));
-// Audit follow-up F-004's containment-checked counterparts to the functions
-// above. Same drain participation: a rename or delete resolved and verified
-// against the workspace root on the native side is still a native mutation
-// in flight, so a transition must wait for it the same as for the unchecked
-// calls above.
+
 export const writeWorkspaceTextFile: typeof impl.writeWorkspaceTextFile = (
   workspaceRoot: string,
   relativePath: string,
@@ -87,19 +147,62 @@ export const writeWorkspaceBinaryFile: typeof impl.writeWorkspaceBinaryFile = (
   relativePath: string,
   data: Uint8Array,
 ) => trackWorkspaceOperation(impl.writeWorkspaceBinaryFile(workspaceRoot, relativePath, data));
+export const createWorkspaceTextFileNew: typeof impl.createWorkspaceTextFileNew = (
+  workspaceRoot: string,
+  relativePath: string,
+  contents: string,
+) => trackMutation(impl.createWorkspaceTextFileNew(workspaceRoot, relativePath, contents));
+export const createWorkspaceBinaryFileNew: typeof impl.createWorkspaceBinaryFileNew = (
+  workspaceRoot: string,
+  relativePath: string,
+  data: Uint8Array,
+) => trackMutation(impl.createWorkspaceBinaryFileNew(workspaceRoot, relativePath, data));
 export const createWorkspaceDir: typeof impl.createWorkspaceDir = (
   workspaceRoot: string,
   relativePath: string,
 ) => trackWorkspaceOperation(impl.createWorkspaceDir(workspaceRoot, relativePath));
+export const createWorkspaceDirNew: typeof impl.createWorkspaceDirNew = (
+  workspaceRoot: string,
+  relativePath: string,
+) => trackMutation(impl.createWorkspaceDirNew(workspaceRoot, relativePath));
 export const renameWorkspacePath: typeof impl.renameWorkspacePath = (
   workspaceRoot: string,
   from: string,
   to: string,
 ) => trackWorkspaceOperation(impl.renameWorkspacePath(workspaceRoot, from, to));
+export const renameWorkspacePathNoReplace: typeof impl.renameWorkspacePathNoReplace = (
+  workspaceRoot: string,
+  from: string,
+  to: string,
+) => trackMutation(impl.renameWorkspacePathNoReplace(workspaceRoot, from, to));
 export const deleteWorkspacePathPermanent: typeof impl.deleteWorkspacePathPermanent = (
   workspaceRoot: string,
   relativePath: string,
 ) => trackWorkspaceOperation(impl.deleteWorkspacePathPermanent(workspaceRoot, relativePath));
+
+/**
+ * Saves an already-open workspace file through the active workspace
+ * capability rather than the older unrestricted absolute-path writer.
+ * This is intentionally an overwrite operation: the note already exists,
+ * and F-003's save coordinator owns revision ordering. New file creation
+ * uses the separate no-replace mutation contract from F-004.
+ */
+export function writeActiveWorkspaceTextFile(path: string, contents: string): Promise<void> {
+  const workspaceRoot = activeWorkspaceRoot;
+  if (!workspaceRoot) {
+    return Promise.reject(new Error("No active workspace is available for this write."));
+  }
+  if (path === workspaceRoot || !isPathWithinWorkspace(workspaceRoot, path)) {
+    return Promise.reject(
+      new Error(`Cannot save "${path}" outside workspace root "${workspaceRoot}".`),
+    );
+  }
+  return writeWorkspaceTextFile(
+    workspaceRoot,
+    relativePathBetween(workspaceRoot, path),
+    contents,
+  );
+}
 
 // App-private config, app metadata, and status-bar appearance are not bound to
 // a selected workspace grant and therefore do not participate in the drain.

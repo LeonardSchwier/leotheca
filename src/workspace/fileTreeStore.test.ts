@@ -45,8 +45,13 @@ vi.mock("./tauriBridge", () => ({
   readTextFile,
   readTextFilesBatch,
   writeWorkspaceTextFile,
+  createWorkspaceTextFileNew: writeWorkspaceTextFile,
   createWorkspaceDir,
+  createWorkspaceDirNew: createWorkspaceDir,
   renameWorkspacePath,
+  renameWorkspacePathNoReplace: renameWorkspacePath,
+  isWorkspaceMutationError: (error: unknown, code: string) =>
+    error instanceof Error && error.message.startsWith(`${code}:`),
   trashPath,
   deleteWorkspacePathPermanent,
   getAppVersion: vi.fn(async () => "1.0"),
@@ -80,6 +85,7 @@ const {
   sortEntries,
   createNote,
   createNoteQuick,
+  createCanvasQuick,
   createFolder,
   createNoteFromTemplate,
   listTemplates,
@@ -189,6 +195,18 @@ describe("createNote", () => {
     );
     expect(writeWorkspaceTextFile).not.toHaveBeenCalled();
   });
+
+  it("treats the native no-replace result as authoritative when a file races the preflight", async () => {
+    listDir.mockResolvedValue([]);
+    writeWorkspaceTextFile.mockRejectedValueOnce(
+      new Error("already_exists: target exists"),
+    );
+
+    await expect(createNote("/workspace", "Raced")).rejects.toThrow(
+      '"Raced.md" already exists in this folder.',
+    );
+    expect(writeWorkspaceTextFile).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("createNoteQuick", () => {
@@ -213,6 +231,24 @@ describe("createNoteQuick", () => {
     expect(result.path).toBe("/workspace/Untitled 4.md");
   });
 
+  it("retries with the next generated name when the native create detects a race", async () => {
+    listDir.mockResolvedValue([]);
+    writeWorkspaceTextFile
+      .mockRejectedValueOnce(new Error("already_exists: raced"))
+      .mockResolvedValueOnce();
+
+    const result = await createNoteQuick("/workspace", "body");
+
+    expect(result).toEqual({
+      path: "/workspace/Untitled 2.md",
+      name: "Untitled 2.md",
+    });
+    expect(writeWorkspaceTextFile.mock.calls.map((call) => call[1])).toEqual([
+      "Untitled.md",
+      "Untitled 2.md",
+    ]);
+  });
+
   it("stamps the usual blank frontmatter when no content is given", async () => {
     listDir.mockResolvedValue([]);
     await createNoteQuick("/workspace");
@@ -234,6 +270,30 @@ describe("createNoteQuick", () => {
   });
 });
 
+describe("createCanvasQuick", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("retries the numbered canvas name when the native create detects a race", async () => {
+    listDir.mockResolvedValue([]);
+    writeWorkspaceTextFile
+      .mockRejectedValueOnce(new Error("already_exists: raced"))
+      .mockResolvedValueOnce();
+
+    const result = await createCanvasQuick("/workspace");
+
+    expect(result).toEqual({
+      path: "/workspace/Untitled canvas 2.canvas",
+      name: "Untitled canvas 2.canvas",
+    });
+    expect(writeWorkspaceTextFile.mock.calls.map((call) => call[1])).toEqual([
+      "Untitled canvas.canvas",
+      "Untitled canvas 2.canvas",
+    ]);
+  });
+});
+
 describe("createFolder", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -252,6 +312,17 @@ describe("createFolder", () => {
       /already exists/,
     );
     expect(createWorkspaceDir).not.toHaveBeenCalled();
+  });
+
+  it("refuses a raced folder collision reported by the native boundary", async () => {
+    listDir.mockResolvedValue([]);
+    createWorkspaceDir.mockRejectedValueOnce(
+      new Error("already_exists: target exists"),
+    );
+
+    await expect(createFolder("/workspace", "New Folder")).rejects.toThrow(
+      '"New Folder" already exists in this folder.',
+    );
   });
 });
 
@@ -330,6 +401,22 @@ describe("createNoteFromTemplate", () => {
       name: "Meeting Notes 3.md",
     });
   });
+
+  it("retries the next template-derived name after a native create collision", async () => {
+    listDir.mockResolvedValue([]);
+    readTextFile.mockResolvedValue("template body");
+    writeWorkspaceTextFile
+      .mockRejectedValueOnce(new Error("already_exists: raced"))
+      .mockResolvedValueOnce();
+
+    const result = await createNoteFromTemplate("/workspace", template);
+
+    expect(result.name).toBe("Meeting Notes 2.md");
+    expect(writeWorkspaceTextFile.mock.calls.map((call) => call[1])).toEqual([
+      "Meeting Notes.md",
+      "Meeting Notes 2.md",
+    ]);
+  });
 });
 
 describe("renameEntry", () => {
@@ -354,6 +441,17 @@ describe("renameEntry", () => {
       /already exists/,
     );
     expect(renameWorkspacePath).not.toHaveBeenCalled();
+  });
+
+  it("refuses a raced rename collision reported after the sibling preflight", async () => {
+    listDir.mockResolvedValue([entry("old.md")]);
+    renameWorkspacePath.mockRejectedValueOnce(
+      new Error("already_exists: target exists"),
+    );
+
+    await expect(renameEntry("/workspace/old.md", "taken.md")).rejects.toThrow(
+      '"taken.md" already exists in this folder.',
+    );
   });
 });
 

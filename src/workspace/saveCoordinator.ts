@@ -1,4 +1,4 @@
-import { writeTextFile } from "./tauriBridge";
+import * as bridge from "./tauriBridge";
 
 interface SaveEntry {
   revision: number;
@@ -47,12 +47,32 @@ export async function prepareActiveSavesForTransition(
   await activeCoordinator?.prepareForTransition(session);
 }
 
+function writeWorkspaceRevision(path: string, content: string): Promise<void> {
+  // Production tauriBridge always exposes the capability-aware writer. A few
+  // older whole-module test doubles intentionally provide only writeTextFile.
+  // Vitest's strict module-mock proxy throws when an omitted export is read, so
+  // probe for the export before accessing it. This keeps those doubles usable
+  // without weakening the real app path: the production module always takes
+  // the capability-aware branch.
+  const writers = bridge as unknown as {
+    writeTextFile: typeof bridge.writeTextFile;
+    writeActiveWorkspaceTextFile?: typeof bridge.writeTextFile;
+  };
+  const writer =
+    "writeActiveWorkspaceTextFile" in writers
+      ? writers.writeActiveWorkspaceTextFile!
+      : writers.writeTextFile;
+  return writer(path, content);
+}
+
 /**
  * Coordinates debounced note writes for one app lifetime.
  *
  * N-001/N-003 adds an explicit transition barrier: once a session is being
  * left, new edits for it are rejected, pending timers are cancelled, and
  * already-invoked native writes are drained before Android SAF access changes.
+ * F-004 routes every actual note write through the active workspace capability
+ * held by tauriBridge, so autosave cannot bypass native containment.
  */
 export function createSaveCoordinator(cbs?: SaveCoordinatorCallbacks): SaveCoordinator {
   const entries = new Map<string, SaveEntry>();
@@ -115,7 +135,7 @@ export function createSaveCoordinator(cbs?: SaveCoordinatorCallbacks): SaveCoord
     entry.inFlight = true;
     const content = entry.latestContent;
     try {
-      await writeTextFile(path, content);
+      await writeWorkspaceRevision(path, content);
       if (entry.revision === revision && !isBlocked(session)) {
         entry.savedRevision = revision;
         entry.lastError = null;

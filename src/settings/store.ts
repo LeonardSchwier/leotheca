@@ -495,7 +495,7 @@ export async function setWorkspaceProfileIcon(id: string, icon: WorkspaceIcon): 
  * it defensively rather than trusting the UI alone. */
 export async function forgetWorkspaceProfile(id: string): Promise<void> {
   if (id === activeWorkspaceId.value) return;
-  if (!workspaceProfiles.value.some((p) => p.id !== id)) return;
+  if (!workspaceProfiles.value.some((p) => p.id === id)) return;
   workspaceProfiles.value = workspaceProfiles.value.filter((p) => p.id !== id);
   await persistGlobalConfig();
 }

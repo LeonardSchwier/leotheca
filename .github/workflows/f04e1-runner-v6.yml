@@ -1,0 +1,40 @@
+name: F04 Phase 5e1 runner v6
+
+on:
+  push:
+    branches:
+      - automation/f04e1-runner-v6-2115
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Build and verify candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin agent/f04-phase5e1-heading-block-ids
+          git checkout -B work origin/agent/f04-phase5e1-heading-block-ids
+          git show origin/automation/f04e1-runner-v6-2115:.automation/f04e1_apply.py > /tmp/f04e1_apply.py
+          git show origin/automation/f04e1-runner-v6-2115:.github/workflows/f04e1-direct.yml > .github/workflows/f04e1-direct.yml
+          python /tmp/f04e1_apply.py
+          rm -f .github/workflows/f04e1-direct.yml
+          npm ci
+          npx tsc --noEmit
+          npx vitest run src/markdown/headings.test.ts src/markdown/blocks.test.ts src/markdown/headingBlockIds.test.ts src/editor/MarkdownPreview.headingBlocks.test.tsx src/editor/blockLinkActions.test.ts src/linking/store.test.ts
+          git config user.name "Leonardschwier"
+          git config user.email "github@leonardschwier.de"
+          git add src/markdown/headings.ts src/markdown/blocks.ts src/markdown/blocks.test.ts src/linking/store.ts src/linking/store.test.ts src/editor/MarkdownPreview.tsx src/editor/blockLinkActions.test.ts src/markdown/headingBlockIds.test.ts src/editor/MarkdownPreview.headingBlocks.test.tsx CHANGELOG.md documentation/ARCHITECTURE.md ROADMAP.md
+          git diff --cached --quiet && { echo "candidate produced no change"; exit 1; }
+          git commit -m "Implement F04 Phase 5e1 heading block IDs"
+          git push origin HEAD:agent/f04-phase5e1-heading-block-ids

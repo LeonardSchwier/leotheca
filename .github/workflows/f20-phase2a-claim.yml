@@ -1,0 +1,36 @@
+name: Claim F20 Phase 2a
+
+on:
+  push:
+    branches:
+      - agent/f09-phase2-table-card-editing
+
+permissions:
+  contents: write
+
+jobs:
+  claim:
+    if: ${{ contains(github.event.head_commit.message, '[claim-f20-phase2a]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Claim and split F20 Phase 2
+        run: |
+          git config user.name Leonardschwier
+          git config user.email github@leonardschwier.de
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('ROADMAP.md')
+          text = path.read_text()
+          old = '- ⬜ **F20 Phase 2: profile management UI, relink/recovery, and switcher polish** (spec: `spec/leotheca-workspace-profiles-sdd.md`): The remainder of F20 after Phase 1 above: rename/icon editing, relink and access-recovery flows for an unavailable or forgotten-while-active profile including the full typed transition-state error UI, switcher search and keyboard navigation, the Settings panel\'s profile management section, command-palette entries, and Android safe-display-name polish. Read the Phase 1 entry\'s own disclosed scope before claiming.'
+          new = '- 🚧 **F20 Phase 2a: profile rename/icon editing, searchable keyboard switcher, and management entry points** (claim: ChatGPT-GPT-5.6-Sol-automation-20260903T0742Z, branch: agent/f20-phase2a-profile-editing-switcher, spec: `spec/leotheca-workspace-profiles-sdd.md`; split from the former Phase 2 per `skills/phase-splitting-large-specs.md`): Add validated profile rename and fixed-icon editing, switcher search plus ArrowUp/ArrowDown/Enter/Escape keyboard operation and focus restoration, the Settings panel Workspace profiles management section, and command-palette entries for switch/add/manage. This phase deliberately does not change workspace transition sequencing or Android grants. Relink/access recovery, active-profile forget/no-workspace recovery, typed transition error/discard UI, Android safe display-name polish, and physical-device release verification remain in Phase 2b below.\n- ⬜ **F20 Phase 2b: relink/access recovery, active-profile forget, typed transition errors, and Android recovery polish** (spec: `spec/leotheca-workspace-profiles-sdd.md`): The remaining F20 scope after Phase 2a: relink and access-recovery flows, forgetting the active profile through the authoritative no-workspace transition including explicit unsaved-work handling, the full typed transition-state/error/retry/discard UI, Android safe-display-name polish, startup recovery launcher integration where still missing, and the specification\'s required real-platform release verification. Read Phase 1 and Phase 2a disclosures before claiming.'
+          if text.count(old) != 1:
+              raise SystemExit('Expected exactly one unclaimed F20 Phase 2 entry; refusing to overlap or overwrite a changed ledger')
+          path.write_text(text.replace(old, new))
+          PY
+          git add ROADMAP.md
+          git commit -m "Claim F20 Phase 2a: profile editing and switcher polish"
+          git push origin HEAD:main

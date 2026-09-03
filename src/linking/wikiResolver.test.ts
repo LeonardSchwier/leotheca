@@ -4,6 +4,7 @@ import { scanBlockIds } from "../markdown/blocks";
 import { linkIndex } from "./store";
 import { parseWikiLinks } from "./wikiSyntax";
 import {
+  crossNoteBlocksFor,
   crossNoteHeadingsFor,
   resolveBlockFragment,
   resolveHeadingFragment,
@@ -303,5 +304,73 @@ describe("crossNoteHeadingsFor (F04 Phase 5a)", () => {
     const result = resolveWikiLinkTarget(record, { targetHeadings: crossNoteHeadingsFor(record) });
     expect(result.status).toBe("ambiguous-fragment");
     expect(result.candidateHeadings).toHaveLength(2);
+  });
+});
+
+describe("crossNoteBlocksFor (F04 Phase 5c)", () => {
+  it("returns undefined for a same-note record", () => {
+    const [record] = parseWikiLinks("[[#^some-block]]");
+    expect(crossNoteBlocksFor(record)).toBeUndefined();
+  });
+
+  it("returns undefined for a plain whole-note link with no fragment", () => {
+    setNotes({ note: ["/vault/note.md"] });
+    const [record] = parseWikiLinks("[[Note]]");
+    expect(crossNoteBlocksFor(record)).toBeUndefined();
+  });
+
+  it("returns undefined for a non-block (heading) fragment, out of this bridge's scope", () => {
+    setNotes({ note: ["/vault/note.md"] });
+    const [record] = parseWikiLinks("[[Note#Heading]]");
+    expect(crossNoteBlocksFor(record)).toBeUndefined();
+  });
+
+  it("returns undefined when the target note itself does not resolve", () => {
+    const [record] = parseWikiLinks("[[Nowhere#^some-block]]");
+    expect(crossNoteBlocksFor(record)).toBeUndefined();
+  });
+
+  it("returns the target note's scanned blocks from LinkIndex.blocksByPath", () => {
+    setNotes({ "project plan": ["/vault/project-plan.md"] });
+    linkIndex.value = {
+      ...linkIndex.value,
+      blocksByPath: new Map([["/vault/project-plan.md", scanBlockIds("A key decision. ^decision-1")]]),
+    };
+    const [record] = parseWikiLinks("[[Project Plan#^decision-1]]");
+    const blocks = crossNoteBlocksFor(record);
+    expect(blocks?.map((b) => b.id)).toEqual(["decision-1"]);
+  });
+
+  it("returns an empty array, not undefined, when the resolving note has no entry in the sparse blocksByPath map", () => {
+    setNotes({ "empty note": ["/vault/empty-note.md"] });
+    linkIndex.value = { ...linkIndex.value, blocksByPath: new Map() };
+    const [record] = parseWikiLinks("[[Empty Note#^anything]]");
+    expect(crossNoteBlocksFor(record)).toEqual([]);
+  });
+
+  it("lets resolveWikiLinkTarget report missing-fragment for a genuinely nonexistent cross-note block", () => {
+    setNotes({ "project plan": ["/vault/project-plan.md"] });
+    linkIndex.value = {
+      ...linkIndex.value,
+      blocksByPath: new Map([["/vault/project-plan.md", scanBlockIds("A key decision. ^decision-1")]]),
+    };
+    const [record] = parseWikiLinks("[[Project Plan#^nonexistent]]");
+    const result = resolveWikiLinkTarget(record, { targetBlocks: crossNoteBlocksFor(record) });
+    expect(result.status).toBe("missing-fragment");
+    expect(result.notePath).toBe("/vault/project-plan.md");
+  });
+
+  it("lets resolveWikiLinkTarget report ambiguous-fragment for duplicate cross-note block ids", () => {
+    setNotes({ "project plan": ["/vault/project-plan.md"] });
+    linkIndex.value = {
+      ...linkIndex.value,
+      blocksByPath: new Map([
+        ["/vault/project-plan.md", scanBlockIds("First. ^dup\n\nSecond. ^dup")],
+      ]),
+    };
+    const [record] = parseWikiLinks("[[Project Plan#^dup]]");
+    const result = resolveWikiLinkTarget(record, { targetBlocks: crossNoteBlocksFor(record) });
+    expect(result.status).toBe("ambiguous-fragment");
+    expect(result.candidateBlocks).toHaveLength(2);
   });
 });

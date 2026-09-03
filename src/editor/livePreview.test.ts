@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { EditorSelection, EditorState } from "@codemirror/state";
 import { linkIndex } from "../linking/store";
 import { scanHeadings } from "../markdown/headings";
+import { scanBlockIds } from "../markdown/blocks";
 
 /** CodeMirror only tracks one selection range unless this facet is
  * explicitly enabled — without it, EditorState silently collapses any
@@ -359,14 +360,37 @@ describe("buildLiveDecorations: block-links (F04 Phase 3c)", () => {
     expect(marked).toContainEqual({ text: "[[#^dup]]", class: "cm-live-wikilink-block-ambiguous" });
   });
 
-  it("styles a cross-note [[Note#^block-id]] link as resolved once the note exists, without verifying the block", () => {
-    // "nonexistent-block" is never scanned anywhere: this phase does not
-    // read Beta.md's content just to decorate Source mode, matching
-    // MarkdownPreview's own disclosed cross-note scope narrowing.
+  it("styles a cross-note [[Note#^block-id]] link as resolved when the target note actually has that block (F04 Phase 5c)", () => {
+    linkIndex.value = {
+      ...linkIndex.value,
+      blocksByPath: new Map([["/workspace/Beta.md", scanBlockIds("A key decision. ^decision-1")]]),
+    };
+    const doc = "See [[Beta#^decision-1]] here.\n\nOther line.";
+    const state = stateFor(doc, { anchor: doc.length });
+    const { marked } = summarize(state);
+    expect(marked).toContainEqual({ text: "[[Beta#^decision-1]]", class: "cm-live-wikilink-resolved" });
+  });
+
+  it("styles a cross-note [[Note#^block-id]] link as block-missing when the target note has no such block (F04 Phase 5c)", () => {
+    linkIndex.value = {
+      ...linkIndex.value,
+      blocksByPath: new Map([["/workspace/Beta.md", scanBlockIds("A key decision. ^decision-1")]]),
+    };
     const doc = "See [[Beta#^nonexistent-block]] here.\n\nOther line.";
     const state = stateFor(doc, { anchor: doc.length });
     const { marked } = summarize(state);
-    expect(marked).toContainEqual({ text: "[[Beta#^nonexistent-block]]", class: "cm-live-wikilink-resolved" });
+    expect(marked).toContainEqual({ text: "[[Beta#^nonexistent-block]]", class: "cm-live-wikilink-block-missing" });
+  });
+
+  it("styles a cross-note [[Note#^block-id]] link as block-ambiguous when the target note has duplicate block ids (F04 Phase 5c)", () => {
+    linkIndex.value = {
+      ...linkIndex.value,
+      blocksByPath: new Map([["/workspace/Beta.md", scanBlockIds("First. ^dup\n\nSecond. ^dup")]]),
+    };
+    const doc = "See [[Beta#^dup]] here.\n\nOther line.";
+    const state = stateFor(doc, { anchor: doc.length });
+    const { marked } = summarize(state);
+    expect(marked).toContainEqual({ text: "[[Beta#^dup]]", class: "cm-live-wikilink-block-ambiguous" });
   });
 
   it("styles a cross-note [[Note#^block-id]] link as broken when the note itself does not exist", () => {
@@ -517,6 +541,31 @@ describe("buildLiveDecorations: embeds (F04 Phase 3f)", () => {
     const state = stateFor(doc, { anchor: doc.length });
     const { marked } = summarize(state);
     expect(marked).toContainEqual({ text: "![[Nope#Heading]]", class: "cm-live-embed-broken" });
+  });
+
+  it("styles a cross-note ![[Note#^block-id]] embed as resolved when the target note actually has that block (F04 Phase 5c)", () => {
+    linkIndex.value = {
+      ...linkIndex.value,
+      blocksByPath: new Map([["/workspace/Beta.md", scanBlockIds("A key decision. ^decision-1")]]),
+    };
+    const doc = "See ![[Beta#^decision-1]] here.\n\nOther line.";
+    const state = stateFor(doc, { anchor: doc.length });
+    const { marked } = summarize(state);
+    expect(marked).toContainEqual({ text: "![[Beta#^decision-1]]", class: "cm-live-embed-resolved" });
+  });
+
+  it("styles a cross-note ![[Note#^block-id]] embed with the block-missing class when the target note has no such block (F04 Phase 5c)", () => {
+    linkIndex.value = {
+      ...linkIndex.value,
+      blocksByPath: new Map([["/workspace/Beta.md", scanBlockIds("A key decision. ^decision-1")]]),
+    };
+    const doc = "See ![[Beta#^nonexistent-block]] here.\n\nOther line.";
+    const state = stateFor(doc, { anchor: doc.length });
+    const { marked } = summarize(state);
+    expect(marked).toContainEqual({
+      text: "![[Beta#^nonexistent-block]]",
+      class: "cm-live-wikilink-block-missing",
+    });
   });
 
   it("decorates an embed exactly once, never also with a plain-wikilink or heading/block-link class", () => {

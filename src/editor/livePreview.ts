@@ -11,6 +11,7 @@ import {
 import { resolveWikilink } from "../linking/store";
 import { parseWikiLinks, type WikiLinkRecord } from "../linking/wikiSyntax";
 import {
+  crossNoteBlocksFor,
   crossNoteHeadingsFor,
   resolveBlockFragment,
   resolveHeadingFragment,
@@ -59,12 +60,13 @@ import { scanBlockIds, type BlockRecord } from "../markdown/blocks";
  * (`classifyBlockLink` below, reusing F04 Phase 3a/3b's `resolveBlockFragment`
  * and `markdown/blocks.ts`'s `scanBlockIds` exactly the way the heading
  * pass reuses `resolveHeadingFragment`/`scanHeadings`): a same-note
- * fragment resolves fully against this document's own scanned blocks, a
- * cross-note fragment resolves at the note level only, the same disclosed
- * scope narrowing as headings above (and as `MarkdownPreview.tsx`'s own
- * block-link rendering). A record whose fragment is neither a heading nor
- * a block (a plain `[[Note]]`/`[[Note|Label]]` link) is left to the
- * WIKILINK_PATTERN pass below exactly as before either phase.
+ * fragment resolves fully against this document's own scanned blocks, and
+ * (as of F04 Phase 5c, the exact analog of Phase 5a for headings) a
+ * cross-note fragment resolves fully too, against `LinkIndex.blocksByPath`,
+ * rendering "broken" only when the note itself does not exist. A record
+ * whose fragment is neither a heading nor a block (a plain
+ * `[[Note]]`/`[[Note|Label]]` link) is left to the WIKILINK_PATTERN pass
+ * below exactly as before either phase.
  *
  * F04 Phase 3f adds the same decoration for an embed
  * (`![[Note]]`/`![[Note#Heading]]`/`![[Note#^block-id]]`,
@@ -183,9 +185,10 @@ const BLOCK_LINK_CLASS: Record<BlockLinkStatus, string> = {
 
 /** F04 Phase 3c's analog of classifyHeadingLink above, for a `^block-id`
  * fragment: `currentBlocksRef` is the same lazily-populated one-call cache
- * pattern, and a cross-note fragment is likewise never verified against
- * the target note's actual blocks in this synchronous decoration pass
- * (only ever "resolved" or "broken" at the note level). */
+ * pattern. F04 Phase 5c: a cross-note fragment (`record.noteTarget !==
+ * ""`) can now reach "missing"/"ambiguous" too, verified against
+ * `LinkIndex.blocksByPath` via `crossNoteBlocksFor`, the exact analog of
+ * classifyHeadingLink's own Phase 5a treatment. */
 function classifyBlockLink(
   record: WikiLinkRecord,
   currentBlocksRef: { value: BlockRecord[] | null },
@@ -199,8 +202,14 @@ function classifyBlockLink(
     return "missing";
   }
 
-  const target = resolveWikiLinkTarget(record, { currentNotePath: undefined, targetBlocks: undefined });
-  return target.status === "resolved" ? "resolved" : "broken";
+  const target = resolveWikiLinkTarget(record, {
+    currentNotePath: undefined,
+    targetBlocks: crossNoteBlocksFor(record),
+  });
+  if (target.status === "resolved") return "resolved";
+  if (target.status === "missing-fragment") return "missing";
+  if (target.status === "ambiguous-fragment") return "ambiguous";
+  return "broken";
 }
 
 /** F04 Phase 3f's analog of classifyHeadingLink/classifyBlockLink above,

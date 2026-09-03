@@ -6,6 +6,7 @@ import "katex/dist/katex.min.css";
 import { fileNameFromPath, resolveWikilink } from "../linking/store";
 import { parseWikiLinks, type WikiLinkFragment, type WikiLinkRecord } from "../linking/wikiSyntax";
 import {
+  crossNoteBlocksFor,
   crossNoteHeadingsFor,
   resolveBlockFragment,
   resolveHeadingFragment,
@@ -686,13 +687,12 @@ function renderWikilinksStructured(source: string, context: RenderContext): stri
     const sameNote = record.noteTarget === "";
     const target = resolveWikiLinkTarget(record, {
       currentNotePath,
-      // F04 Phase 5a: a cross-note heading fragment is now verified
-      // against LinkIndex.headingsByPath too, not just the note's own
-      // existence (see crossNoteHeadingsFor's own doc comment). Block
-      // fragments remain note-level-only cross-note, see the "F04 Phase
-      // 5b" roadmap entry.
+      // F04 Phase 5a/5c: a cross-note heading or block fragment is now
+      // verified against LinkIndex.headingsByPath/blocksByPath too, not
+      // just the note's own existence (see crossNoteHeadingsFor/
+      // crossNoteBlocksFor's own doc comments).
       targetHeadings: sameNote ? currentHeadings : crossNoteHeadingsFor(record),
-      targetBlocks: sameNote ? currentBlocks : undefined,
+      targetBlocks: sameNote ? currentBlocks : crossNoteBlocksFor(record),
     });
 
     if (record.kind === "embed" && embedRecursion.embedDepth < MAX_EMBED_DEPTH) {

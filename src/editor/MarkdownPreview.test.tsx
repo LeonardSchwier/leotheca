@@ -15,6 +15,7 @@ vi.mock("../settings/store", async () => {
 import { MarkdownPreview } from "./MarkdownPreview";
 import { linkIndex } from "../linking/store";
 import { scanHeadings } from "../markdown/headings";
+import { scanBlockIds } from "../markdown/blocks";
 import { workspacePath } from "../settings/store";
 import { fileSrc, readTextFile } from "../workspace/tauriBridge";
 import { outlineRevealRequest } from "../outline/outlineNavigation";
@@ -758,7 +759,7 @@ describe("MarkdownPreview: F04 Phase 3a block references", () => {
     expect(anchor?.getAttribute("href")).toContain("blockStatus=ambiguous");
   });
 
-  it("resolves a cross-note [[Note#^block-id]] link at the note level, styled as resolved", () => {
+  it("resolves a cross-note [[Note#^block-id]] link against the target note's actual blocks (F04 Phase 5c)", () => {
     linkIndex.value = {
       backlinksByPath: new Map(),
       pathsByNoteName: new Map([["project plan", ["/vault/project-plan.md"]]]),
@@ -767,14 +768,52 @@ describe("MarkdownPreview: F04 Phase 3a block references", () => {
       pathsByTag: new Map(),
       tagsByPath: new Map(),
       tasksByPath: new Map(),
+      blocksByPath: new Map([
+        ["/vault/project-plan.md", scanBlockIds("A key decision. ^release-decision")],
+      ]),
     };
     const { container } = render(<MarkdownPreview source="[[Project Plan#^release-decision]]" />);
     const anchor = container.querySelector('a[href^="#leotheca-wikilink="]');
     expect(anchor?.getAttribute("href")).toContain("resolved=1");
-    // The cross-note block itself is not verified during this render pass
-    // (the same disclosed scope narrowing as the equivalent heading test
-    // above): no explicit blockStatus is claimed for it.
-    expect(anchor?.getAttribute("href")).not.toContain("blockStatus=");
+    expect(anchor?.getAttribute("href")).toContain("blockStatus=resolved");
+  });
+
+  it("renders a cross-note block link as missing, not resolved, when the target note has no such block (F04 Phase 5c)", () => {
+    linkIndex.value = {
+      backlinksByPath: new Map(),
+      pathsByNoteName: new Map([["project plan", ["/vault/project-plan.md"]]]),
+      pathsByAlias: new Map(),
+      aliasesByPath: new Map(),
+      pathsByTag: new Map(),
+      tagsByPath: new Map(),
+      tasksByPath: new Map(),
+      blocksByPath: new Map([
+        ["/vault/project-plan.md", scanBlockIds("A key decision. ^release-decision")],
+      ]),
+    };
+    const { container } = render(<MarkdownPreview source="[[Project Plan#^nonexistent]]" />);
+    const anchor = container.querySelector('a[href^="#leotheca-wikilink="]');
+    expect(anchor?.getAttribute("href")).not.toContain("resolved=1");
+    expect(anchor?.getAttribute("href")).toContain("blockStatus=missing");
+  });
+
+  it("renders a cross-note block link as ambiguous when the target note has duplicate block ids (F04 Phase 5c)", () => {
+    linkIndex.value = {
+      backlinksByPath: new Map(),
+      pathsByNoteName: new Map([["project plan", ["/vault/project-plan.md"]]]),
+      pathsByAlias: new Map(),
+      aliasesByPath: new Map(),
+      pathsByTag: new Map(),
+      tagsByPath: new Map(),
+      tasksByPath: new Map(),
+      blocksByPath: new Map([
+        ["/vault/project-plan.md", scanBlockIds("First. ^dup\n\nSecond. ^dup")],
+      ]),
+    };
+    const { container } = render(<MarkdownPreview source="[[Project Plan#^dup]]" />);
+    const anchor = container.querySelector('a[href^="#leotheca-wikilink="]');
+    expect(anchor?.getAttribute("href")).not.toContain("resolved=1");
+    expect(anchor?.getAttribute("href")).toContain("blockStatus=ambiguous");
   });
 
   it("clicking a resolved cross-note block link opens the note and passes the block id through onOpenFile", () => {

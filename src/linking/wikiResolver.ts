@@ -22,8 +22,9 @@
  * `LinkIndex.headingsByPath` (`./store`) so a cross-note heading
  * fragment can be verified the same way a same-note one already is,
  * without a second file read (see that field's own doc comment: it
- * exists specifically for this). Block fragments are not covered by
- * this bridge yet; see the "F04 Phase 5b" roadmap entry.
+ * exists specifically for this). F04 Phase 5c adds `crossNoteBlocksFor`,
+ * the exact analog for a cross-note `^block-id` fragment against the new
+ * `LinkIndex.blocksByPath`.
  */
 
 import { normalizeHeadingKey, type HeadingRecord } from "../markdown/headings";
@@ -142,6 +143,23 @@ export function crossNoteHeadingsFor(record: WikiLinkRecord): HeadingRecord[] | 
   const notePath = resolveWikilink(record.noteTarget);
   if (!notePath) return undefined;
   return linkIndex.value.headingsByPath?.get(notePath) ?? [];
+}
+
+/**
+ * F04 Phase 5c: the `targetBlocks` a cross-note `^block-id` fragment needs
+ * for `resolveWikiLinkTarget` to actually verify it, read from the
+ * already-in-memory `LinkIndex.blocksByPath` rather than a fresh file
+ * read. Exact analog of `crossNoteHeadingsFor` above, including its
+ * "undefined means don't verify" / "empty array means verified zero
+ * blocks" contract and its LinkIndex startup-timing characteristics; see
+ * that function's own doc comment for the full rationale, which applies
+ * here unchanged with "heading" replaced by "block".
+ */
+export function crossNoteBlocksFor(record: WikiLinkRecord): BlockRecord[] | undefined {
+  if (record.noteTarget === "" || !record.fragment || record.fragment.kind !== "block") return undefined;
+  const notePath = resolveWikilink(record.noteTarget);
+  if (!notePath) return undefined;
+  return linkIndex.value.blocksByPath?.get(notePath) ?? [];
 }
 
 export interface WikiResolutionContext {

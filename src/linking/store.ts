@@ -17,6 +17,7 @@ import {
 } from "../editor/frontmatterEdits";
 import { parseWikiLinks, type WikiLinkRecord } from "./wikiSyntax";
 import { scanHeadings, type HeadingRecord } from "../markdown/headings";
+import { scanBlockIds, type BlockRecord } from "../markdown/blocks";
 
 export interface LinkIndex {
   backlinksByPath: Map<string, string[]>;
@@ -95,6 +96,13 @@ export interface LinkIndex {
    * without a second file read per link. Only notes with at least one
    * heading are present, same sparse-map convention as `tasksByPath`. */
   headingsByPath?: Map<string, HeadingRecord[]>;
+  /** Note path -> that note's own scanned block IDs (`markdown/blocks.ts`'s
+   * `scanBlockIds`), the exact same-shaped sparse map as `headingsByPath`
+   * above and for the same reason (F04 Phase 5c): verifying a *cross-note*
+   * `[[Note#^block-id]]` fragment without a second file read per link.
+   * Only notes with at least one block ID are present, same sparse-map
+   * convention as `headingsByPath`/`tasksByPath`. */
+  blocksByPath?: Map<string, BlockRecord[]>;
 }
 
 const emptyLinkIndex = (): LinkIndex => ({
@@ -110,6 +118,7 @@ const emptyLinkIndex = (): LinkIndex => ({
   frontmatterPropertiesByPath: new Map(),
   wikiLinksByPath: new Map(),
   headingsByPath: new Map(),
+  blocksByPath: new Map(),
 });
 
 export const linkIndex = signal<LinkIndex>(emptyLinkIndex());
@@ -342,6 +351,33 @@ function isValidHeadingRecord(raw: unknown): raw is HeadingRecord {
   );
 }
 
+/** Same rationale as isValidHeadingRecord above, for the F04 Phase 5c
+ * cached field: a `BlockRecord` (markdown/blocks.ts) has enough
+ * numeric/kind fields that a malformed one is a real decode risk. */
+function isValidBlockRecord(raw: unknown): raw is BlockRecord {
+  if (typeof raw !== "object" || raw === null) return false;
+  const record = raw as Record<string, unknown>;
+  const isFiniteNumber = (v: unknown): v is number =>
+    typeof v === "number" && Number.isFinite(v);
+  return (
+    typeof record.id === "string" &&
+    typeof record.key === "string" &&
+    isFiniteNumber(record.occurrence) &&
+    (record.kind === "paragraph" ||
+      record.kind === "list-item" ||
+      record.kind === "blockquote" ||
+      record.kind === "fenced-code") &&
+    isFiniteNumber(record.sourceFrom) &&
+    isFiniteNumber(record.sourceTo) &&
+    isFiniteNumber(record.contentFrom) &&
+    isFiniteNumber(record.contentTo) &&
+    isFiniteNumber(record.idFrom) &&
+    isFiniteNumber(record.idTo) &&
+    isFiniteNumber(record.line) &&
+    isFiniteNumber(record.column)
+  );
+}
+
 function isValidCachedNote(raw: unknown): raw is CachedNote {
   if (typeof raw !== "object" || raw === null) return false;
   const record = raw as Record<string, unknown>;
@@ -368,7 +404,9 @@ function isValidCachedNote(raw: unknown): raw is CachedNote {
     Array.isArray(record.wikiLinks) &&
     record.wikiLinks.every(isValidWikiLinkRecord) &&
     Array.isArray(record.headings) &&
-    record.headings.every(isValidHeadingRecord)
+    record.headings.every(isValidHeadingRecord) &&
+    Array.isArray(record.blocks) &&
+    record.blocks.every(isValidBlockRecord)
   );
 }
 
@@ -429,6 +467,9 @@ interface CachedNote {
   /** F03 Phase 1: this note's own scanned headings (see
    * LinkIndex.headingsByPath's doc comment). */
   headings: HeadingRecord[];
+  /** F04 Phase 5c: this note's own scanned block IDs (see
+   * LinkIndex.blocksByPath's doc comment). */
+  blocks: BlockRecord[];
 }
 
 // Bumped from 3 (audit follow-up F-012): cache identity now also requires
@@ -460,7 +501,12 @@ interface CachedNote {
 // mtime/size and be reused as a cache hit, silently reporting the note as
 // having no wikilinks or headings at all to the new diagnostics feature
 // until it's next edited.
-const LINK_INDEX_CACHE_VERSION = 6;
+// Bumped again from 6 (F04 Phase 5c): CachedNote gained `blocks`, the same
+// precedent again: an old-shaped cache entry has no `blocks` field, and
+// without the bump could still "match" a current file's mtime/size and be
+// reused as a cache hit, silently reporting the note as having zero block
+// IDs to the new cross-note block pre-check until it's next edited.
+const LINK_INDEX_CACHE_VERSION = 7;
 const LINK_INDEX_CACHE_FILENAME = ".leotheca/link-index-cache.json";
 
 /** path -> the wikilinks extracted from that note the last time it was
@@ -580,6 +626,7 @@ export async function rebuildLinkIndex(
     const frontmatterPropertiesByPath = new Map<string, FrontmatterProperty[]>();
     const wikiLinksByPath = new Map<string, WikiLinkRecord[]>();
     const headingsByPath = new Map<string, HeadingRecord[]>();
+    const blocksByPath = new Map<string, BlockRecord[]>();
 
     for (const entry of noteEntries) {
       const key = noteNameFromPath(entry.path).toLocaleLowerCase();
@@ -623,6 +670,7 @@ export async function rebuildLinkIndex(
         let frontmatterProperties: FrontmatterProperty[];
         let wikiLinks: WikiLinkRecord[];
         let headings: HeadingRecord[];
+        let blocks: BlockRecord[];
         if (
           cached &&
           entry.mtime !== undefined &&
@@ -638,6 +686,7 @@ export async function rebuildLinkIndex(
           frontmatterProperties = cached.frontmatterProperties;
           wikiLinks = cached.wikiLinks;
           headings = cached.headings;
+          blocks = cached.blocks;
         } else {
           let source: string;
           try {
@@ -682,6 +731,7 @@ export async function rebuildLinkIndex(
             }
             if (cached?.wikiLinks.length) wikiLinksByPath.set(entry.path, cached.wikiLinks);
             if (cached?.headings.length) headingsByPath.set(entry.path, cached.headings);
+            if (cached?.blocks.length) blocksByPath.set(entry.path, cached.blocks);
             return;
           }
           if (!isCurrentRequest()) return;
@@ -693,6 +743,7 @@ export async function rebuildLinkIndex(
           frontmatterProperties = parseFrontmatterProperties(source).properties;
           wikiLinks = parseWikiLinks(source);
           headings = scanHeadings(source);
+          blocks = scanBlockIds(source);
         }
         if (entry.mtime !== undefined && entry.size !== undefined) {
           freshCache.set(entry.path, {
@@ -706,6 +757,7 @@ export async function rebuildLinkIndex(
             frontmatterProperties,
             wikiLinks,
             headings,
+            blocks,
           });
         }
         wikilinksByPath.set(entry.path, wikilinks);
@@ -716,6 +768,7 @@ export async function rebuildLinkIndex(
         }
         if (wikiLinks.length > 0) wikiLinksByPath.set(entry.path, wikiLinks);
         if (headings.length > 0) headingsByPath.set(entry.path, headings);
+        if (blocks.length > 0) blocksByPath.set(entry.path, blocks);
 
         if (aliasesEnabled && aliases.length > 0) {
           aliasesByPath.set(entry.path, aliases);
@@ -766,6 +819,7 @@ export async function rebuildLinkIndex(
       frontmatterPropertiesByPath,
       wikiLinksByPath,
       headingsByPath,
+      blocksByPath,
     };
     linkIndexUnreadablePaths.value = unreadablePaths;
     await savePersistedCache(rootPath, freshCache);

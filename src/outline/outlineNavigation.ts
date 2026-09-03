@@ -26,7 +26,7 @@ export function requestOutlineReveal(from: number, to: number): void {
  * A request to insert literal text at the current selection in
  * MarkdownEditor, raised by F06 Phase 3's insert-heading-link action
  * (OutlinePanel and HeadingBreadcrumbs, via
- * outline/headingLinkActions.ts) and consumed by MarkdownEditor's
+ * outline/headingLinkOperations.ts) and consumed by MarkdownEditor's
  * `insertRequest` prop. Mirrors OutlineRevealRequest's `requestId`
  * pattern above: a monotonically increasing counter, not content
  * equality, so inserting the exact same link text twice in a row still

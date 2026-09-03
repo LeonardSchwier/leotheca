@@ -6,7 +6,7 @@ import {
   headingLinkDisabledReason,
   headingLinkText,
   insertHeadingLink,
-} from "./headingLinkActions";
+} from "./headingLinkOperations";
 import { outlineInsertRequest } from "./outlineNavigation";
 
 afterEach(() => {

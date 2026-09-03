@@ -98,7 +98,7 @@ export function unescapeWikiLinkText(text: string): string {
  * being reinterpreted as a delimiter by parseWikiLinks. Used by F04 Phase
  * 2's heading-link completion (MarkdownEditor.tsx) when inserting a
  * selected heading's text, and by F06 Phase 3's `serializeWikiLink` below
- * (outline/headingLinkActions.ts's copy/insert-link actions); kept here
+ * (outline/headingLinkOperations.ts's copy/insert-link actions); kept here
  * rather than duplicated at either call site since this module owns the
  * escaping grammar (spec section 5.2).
  */
@@ -126,7 +126,7 @@ export interface WikiLinkTarget {
  * produce heading/block link text in this codebase (F04's "one shared
  * serializer" rule, spec/f04-heading-block-links-embeds.md section 2):
  * F06's copy-heading-link and insert-heading-link actions
- * (outline/headingLinkActions.ts) build their `[[Note#Heading]]` /
+ * (outline/headingLinkOperations.ts) build their `[[Note#Heading]]` /
  * `[[#Heading]]` text through here, never by concatenating the pieces
  * themselves.
  */

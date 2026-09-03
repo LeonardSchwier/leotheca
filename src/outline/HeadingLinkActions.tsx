@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import type { HeadingRecord } from "../markdown/headings";
-import { copyHeadingLink, headingLinkDisabledReason, insertHeadingLink } from "./headingLinkActions";
+import { copyHeadingLink, headingLinkDisabledReason, insertHeadingLink } from "./headingLinkOperations";
 
 interface HeadingLinkActionsProps {
   heading: HeadingRecord;
@@ -30,7 +30,7 @@ const COPY_CONFIRMATION_MS = 1500;
  * surfaces the spec asks for ("reachable from both the Outline panel and
  * the heading breadcrumbs") never drift apart in behavior, disabled
  * reasoning, or confirmation UX. Both actions build their link text
- * through outline/headingLinkActions.ts, which itself builds only
+ * through outline/headingLinkOperations.ts, which itself builds only
  * through wikiSyntax.ts's serializeWikiLink (F04's one allowed creator of
  * `[[...]]` link text).
  */

@@ -45,14 +45,14 @@ export const workspaceSession = signal(0);
 const workspaceToken = signal<string | undefined>(undefined);
 // F20 Phase 1: the local catalog of previously opened workspaces (spec
 // `leotheca-workspace-profiles-sdd.md` section 18). Always kept sorted
-// (section 7.5) so every reader — the switcher UI, search — sees
+// (section 7.5) so every reader, the switcher UI and search, sees
 // presentation-ready order without re-sorting itself. `activeWorkspaceId`
 // is the catalog's own notion of "last intended active profile," distinct
 // from `workspacePath` (whether a workspace is actually, currently open):
 // the two intentionally diverge while an active profile's folder is
 // unavailable (section 17.2), a state Phase 1 falls back to the ordinary
 // `WelcomeDialog` for rather than a dedicated recovery launcher (see
-// ROADMAP.md's F20 Phase 2 entry).
+// ROADMAP.md's F20 Phase 2b entry).
 export const workspaceProfiles = signal<WorkspaceProfile[]>([]);
 export const activeWorkspaceId = signal<string | null>(null);
 export const workspaceSettings = signal<WorkspaceSettings>(
@@ -161,11 +161,40 @@ window
     }
   });
 
-// Global-config writes can overlap workspace transitions. Serialize them so a
-// slower write from transition A can never land after the later B write.
+// Global-config writes can overlap workspace transitions and profile edits.
+// Each queued write reads the canonical signals only when its turn begins.
+// Failure compensation runs inside that serialized turn before a later write
+// can sample state, so a failed optimistic edit cannot leak back to disk via a
+// different edit that happened while the first write was still in flight.
 let globalConfigWriteTail: Promise<void> = Promise.resolve();
-function saveGlobalConfigOrdered(config: GlobalConfigV2): Promise<void> {
-  const write = globalConfigWriteTail.then(() => saveGlobalConfig(config));
+type GlobalConfigWriteFailureHandler = (error: unknown) => void;
+
+function readCurrentGlobalConfig(): GlobalConfigV2 {
+  const active = activeWorkspaceId.value
+    ? workspaceProfiles.value.find((p) => p.id === activeWorkspaceId.value)
+    : undefined;
+  return {
+    version: 2,
+    theme: theme.value,
+    activeWorkspaceId: activeWorkspaceId.value,
+    workspaceProfiles: workspaceProfiles.value,
+    lastWorkspacePath: active?.path ?? null,
+    workspaceToken: active?.token,
+  };
+}
+
+function saveGlobalConfigOrdered(
+  readConfig: () => GlobalConfigV2,
+  onFailure?: GlobalConfigWriteFailureHandler,
+): Promise<void> {
+  const write = globalConfigWriteTail.then(async () => {
+    try {
+      await saveGlobalConfig(readConfig());
+    } catch (error) {
+      onFailure?.(error);
+      throw error;
+    }
+  });
   globalConfigWriteTail = write.catch(() => {});
   return write;
 }
@@ -174,31 +203,19 @@ function saveGlobalConfigOrdered(config: GlobalConfigV2): Promise<void> {
  * the latest canonical in-memory document immediately before
  * serialization." Every global-config write in this module goes through
  * this one function so theme changes, recency changes, and profile
- * catalog edits always serialize the *current* signal values together,
- * never a stale shape reconstructed piecemeal at each call site (the
- * pre-Phase-1 code built a fresh `{lastWorkspacePath, theme,
- * workspaceToken}` object per call site instead; this replaces every one
- * of those with a single source of truth). The compatibility mirror
- * (section 19.3) is derived from whichever profile `activeWorkspaceId`
- * currently resolves to, not tracked as separate signal state that could
- * drift from it. */
-function persistGlobalConfig(): Promise<void> {
-  const active = activeWorkspaceId.value
-    ? workspaceProfiles.value.find((p) => p.id === activeWorkspaceId.value)
-    : undefined;
-  return saveGlobalConfigOrdered({
-    version: 2,
-    theme: theme.value,
-    activeWorkspaceId: activeWorkspaceId.value,
-    workspaceProfiles: workspaceProfiles.value,
-    lastWorkspacePath: active?.path ?? null,
-    workspaceToken: active?.token,
-  });
+ * catalog edits always serialize the current signal values together,
+ * never a stale shape reconstructed piecemeal at each call site. The
+ * compatibility mirror (section 19.3) is derived from whichever profile
+ * `activeWorkspaceId` currently resolves to, not tracked as separate
+ * signal state that could drift from it. `onFailure`, when supplied by an
+ * optimistic profile edit, runs before the next queued write reads state. */
+function persistGlobalConfig(onFailure?: GlobalConfigWriteFailureHandler): Promise<void> {
+  return saveGlobalConfigOrdered(readCurrentGlobalConfig, onFailure);
 }
 
 /** Marks `profile` as just-opened (section 7.5's `lastOpenedAt`) and makes
  * it the catalog's active profile, re-sorting so the switcher's own
- * ordering stays current. Does not itself persist — every caller either
+ * ordering stays current. Does not itself persist. Every caller either
  * follows with `persistGlobalConfig()` directly or relies on
  * `setWorkspacePath`'s own `afterPublish` doing so once the transition
  * that necessitated this update has actually succeeded. */
@@ -223,7 +240,7 @@ export async function initSettings(): Promise<void> {
   if (activeProfile) {
     try {
       await restoreWorkspaceAccess(activeProfile.path, activeProfile.token);
-      // Skip the listDir probe — if the path is invalid, the first real
+      // Skip the listDir probe. If the path is invalid, the first real
       // file operation will fail with a clear error. This saves ~20-100ms
       // on startup by avoiding one unnecessary SAF round trip.
       const { settings: loadedWorkspaceSettings, corrupt } =
@@ -257,18 +274,18 @@ export async function initSettings(): Promise<void> {
       } finally {
         isRestoringTabs = false;
       }
-      // Do NOT restoreLastOpenTabs() here — only the active tab loads.
+      // Do NOT restoreLastOpenTabs() here. Only the active tab loads.
       // Other tabs load lazily when the user switches to them via
       // the tab bar's open handler.
       await persistGlobalConfig();
     } catch {
       // Section 17.2: retain the profile and its locator in the catalog;
       // do not overwrite global configuration merely because access
-      // failed, and do not null out activeWorkspaceId — it stays the
+      // failed, and do not null out activeWorkspaceId. It stays the
       // user's last intended profile. workspacePath itself does become
       // null (no workspace is actually open), which falls back to the
       // ordinary WelcomeDialog rather than a dedicated recovery launcher
-      // (deferred, see ROADMAP.md's F20 Phase 2 entry).
+      // (deferred, see ROADMAP.md's F20 Phase 2b entry).
       workspacePath.value = null;
     }
   }
@@ -292,17 +309,17 @@ export async function initSettings(): Promise<void> {
  * loaded for the resulting inactive state.
  *
  * F20 Phase 1: `profile`, when given, is the catalog entry this
- * transition activates — an existing profile (`activateWorkspaceProfile`)
- * or a not-yet-committed candidate (`addWorkspaceFromPicker`, per spec
- * section 11 step 8: "only after successful activation is the candidate
- * committed"). Only on success is it marked opened (`lastOpenedAt`,
- * `activeWorkspaceId`) and the full catalog persisted; a failed
- * transition leaves the catalog completely untouched, matching section
- * 16.4's "B remains in the catalog; B's recency is unchanged." This
- * function itself is no longer called directly by any UI surface (spec
- * section 20); it remains exported for existing tests exercising the
- * transition mechanics itself, and for the two profile actions below,
- * which are the only real callers now.
+ * transition activates, either an existing profile
+ * (`activateWorkspaceProfile`) or a not-yet-committed candidate
+ * (`addWorkspaceFromPicker`, per spec section 11 step 8: "only after
+ * successful activation is the candidate committed"). Only on success is
+ * it marked opened (`lastOpenedAt`, `activeWorkspaceId`) and the full
+ * catalog persisted; a failed transition leaves the catalog completely
+ * untouched, matching section 16.4's "B remains in the catalog; B's
+ * recency is unchanged." This function itself is no longer called
+ * directly by any UI surface (spec section 20); it remains exported for
+ * existing tests exercising the transition mechanics itself, and for the
+ * two profile actions below, which are the only real callers now.
  */
 export async function setWorkspacePath(path: string, token?: string, profile?: WorkspaceProfile): Promise<void> {
   settingsLoaded.value = true;
@@ -314,11 +331,10 @@ export async function setWorkspacePath(path: string, token?: string, profile?: W
   // Section 16.4/17.2: a failed activation changes nothing about the
   // catalog (no profile is marked opened, nothing below touches
   // `workspaceProfiles`/`activeWorkspaceId`), so there is nothing to
-  // persist on failure — persisting then would only risk overwriting a
-  // concurrent, unrelated in-flight write with a stale snapshot (section
-  // 16.5), not recover anything. `workspaceTransitions.run` itself
-  // already rejects past this point, so callers see the failure without
-  // a local catch here.
+  // persist on failure. Persisting then would only risk overwriting a
+  // concurrent, unrelated in-flight write with stale state, not recover
+  // anything. `workspaceTransitions.run` itself rejects past this point,
+  // so callers see the failure without a local catch here.
   await workspaceTransitions.run({
     prepareOutgoing: async () => {
       // pickWorkspaceFolder() currently activates its picked SAF token before
@@ -403,7 +419,7 @@ export async function activateWorkspaceProfile(id: string): Promise<void> {
  * (a `null` result) leaves all state unchanged, per step 9's own closing
  * note. A folder matching an already-known profile's locator (section
  * 12.2) activates that profile instead of creating a duplicate (step 5);
- * `lastOpenedAt: 0` on a brand-new candidate is a placeholder only —
+ * `lastOpenedAt: 0` on a brand-new candidate is a placeholder only.
  * `setWorkspacePath`'s own `afterPublish` overwrites it with the real
  * open time via `markProfileOpened`, and only on success, per step 8's
  * "only after successful activation is the candidate committed." */
@@ -428,9 +444,9 @@ export async function addWorkspaceFromPicker(): Promise<void> {
 
 /** F20 Phase 2a: rename catalog metadata only. Validation follows section
  * 13.1 exactly; the action never opens a workspace or changes recency. A
- * persistence failure restores only this action's own optimistic name if
- * it still owns that field; a later concurrent edit must never be rolled
- * back by an older failed write. */
+ * persistence failure restores only this action's optimistic name if it
+ * still owns that field. The compensation runs within the global write
+ * queue before any later write reads the canonical profile catalog. */
 export async function renameWorkspaceProfile(id: string, rawName: string): Promise<boolean> {
   const name = normalizeProfileName(rawName);
   if (!name) return false;
@@ -441,26 +457,22 @@ export async function renameWorkspaceProfile(id: string, rawName: string): Promi
   const next = [...workspaceProfiles.value];
   next[index] = { ...current, name };
   workspaceProfiles.value = sortWorkspaceProfiles(next);
-  try {
-    await persistGlobalConfig();
-    return true;
-  } catch (error) {
+  await persistGlobalConfig(() => {
     const latest = workspaceProfiles.value.find((profile) => profile.id === id);
-    if (latest?.name === name) {
-      workspaceProfiles.value = sortWorkspaceProfiles([
-        ...workspaceProfiles.value.filter((profile) => profile.id !== id),
-        { ...latest, name: current.name },
-      ]);
-    }
-    throw error;
-  }
+    if (latest?.name !== name) return;
+    workspaceProfiles.value = sortWorkspaceProfiles([
+      ...workspaceProfiles.value.filter((profile) => profile.id !== id),
+      { ...latest, name: current.name },
+    ]);
+  });
+  return true;
 }
 
 /** F20 Phase 2a: choose only one of the bundled icon IDs. Unknown icon
  * strings may still round-trip from future config versions, but cannot be
  * newly persisted through this UI action. Recency and activation are untouched.
- * A failed persistence restores only this action's own optimistic icon when
- * that value is still current, preserving any later concurrent edit. */
+ * A failed persistence restores only this action's optimistic icon when
+ * that value is still current, before any later queued write reads state. */
 export async function setWorkspaceProfileIcon(id: string, icon: WorkspaceIcon): Promise<boolean> {
   if (!isKnownWorkspaceIcon(icon)) return false;
   const index = workspaceProfiles.value.findIndex((profile) => profile.id === id);
@@ -470,34 +482,34 @@ export async function setWorkspaceProfileIcon(id: string, icon: WorkspaceIcon): 
   const next = [...workspaceProfiles.value];
   next[index] = { ...current, icon };
   workspaceProfiles.value = sortWorkspaceProfiles(next);
-  try {
-    await persistGlobalConfig();
-    return true;
-  } catch (error) {
+  await persistGlobalConfig(() => {
     const latest = workspaceProfiles.value.find((profile) => profile.id === id);
-    if (latest?.icon === icon) {
-      workspaceProfiles.value = sortWorkspaceProfiles([
-        ...workspaceProfiles.value.filter((profile) => profile.id !== id),
-        { ...latest, icon: current.icon },
-      ]);
-    }
-    throw error;
-  }
+    if (latest?.icon !== icon) return;
+    workspaceProfiles.value = sortWorkspaceProfiles([
+      ...workspaceProfiles.value.filter((profile) => profile.id !== id),
+      { ...latest, icon: current.icon },
+    ]);
+  });
+  return true;
 }
 
-/** F20 Phase 1, spec section 7.7/15.1: removes only the catalog entry —
+/** F20 Phase 1/2a, spec section 7.7/15.1: removes only the catalog entry,
  * never the folder, its notes, `.leotheca/settings.json`, or platform
- * permission state. Narrowed to a non-active profile only, per this
- * phase's own claimed scope (see ROADMAP.md): forgetting the *active*
- * profile needs section 15.2's zero-active-workspace recovery flow,
- * deferred to F20 Phase 2. The switcher UI itself never offers this
- * action for the active profile, and this function additionally refuses
- * it defensively rather than trusting the UI alone. */
+ * permission state. Narrowed to a non-active profile only; forgetting the
+ * active profile needs section 15.2's zero-active-workspace recovery flow,
+ * deferred to F20 Phase 2b. The UI never offers this action for the active
+ * profile, and this function additionally refuses it defensively. A failed
+ * config write restores the removed catalog entry before the next queued
+ * global-config write can observe state. */
 export async function forgetWorkspaceProfile(id: string): Promise<void> {
   if (id === activeWorkspaceId.value) return;
-  if (!workspaceProfiles.value.some((p) => p.id === id)) return;
-  workspaceProfiles.value = workspaceProfiles.value.filter((p) => p.id !== id);
-  await persistGlobalConfig();
+  const removed = workspaceProfiles.value.find((profile) => profile.id === id);
+  if (!removed) return;
+  workspaceProfiles.value = workspaceProfiles.value.filter((profile) => profile.id !== id);
+  await persistGlobalConfig(() => {
+    if (workspaceProfiles.value.some((profile) => profile.id === id)) return;
+    workspaceProfiles.value = sortWorkspaceProfiles([...workspaceProfiles.value, removed]);
+  });
 }
 
 interface PendingWorkspaceSettingsWrite {

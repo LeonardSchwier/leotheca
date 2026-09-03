@@ -635,3 +635,18 @@ describe("App: N-002 stale file-open completions", () => {
     expect(openTabs.value.map((t) => t.path)).toEqual(["/vault/b.md"]);
   });
 });
+
+describe("App: Collections gated by collectionsEnabled, off by default (2026-09-03)", () => {
+  it("hides the Collections toolbar button when collectionsEnabled is off (the default)", () => {
+    workspacePath.value = "/vault";
+    const { queryByLabelText } = render(<App />);
+    expect(queryByLabelText("Open Collections")).toBeNull();
+  });
+
+  it("shows the Collections toolbar button once collectionsEnabled is turned on", () => {
+    workspacePath.value = "/vault";
+    workspaceSettings.value = { ...DEFAULT_WORKSPACE_SETTINGS, collectionsEnabled: true };
+    const { queryByLabelText } = render(<App />);
+    expect(queryByLabelText("Open Collections")).toBeTruthy();
+  });
+});

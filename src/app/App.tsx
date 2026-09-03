@@ -286,8 +286,9 @@ export function App() {
   }, [bookmarksOpen.value, workspacePath.value]);
 
   useEffect(() => {
-    if (collectionsOpen.value && workspacePath.value) void loadCollections(workspacePath.value);
-  }, [collectionsOpen.value, workspacePath.value]);
+    if (collectionsOpen.value && workspaceSettings.value.collectionsEnabled && workspacePath.value)
+      void loadCollections(workspacePath.value);
+  }, [collectionsOpen.value, workspaceSettings.value.collectionsEnabled, workspacePath.value]);
 
   effect(() => {
     const root = document.documentElement;
@@ -583,11 +584,15 @@ export function App() {
         label: taskHubOpen.value ? "Hide Task Hub" : "Open Task Hub",
         run: openTaskHubPanel,
       },
-      {
-        id: "toggle-collections",
-        label: collectionsOpen.value ? "Hide Collections" : "Open Collections",
-        run: openCollectionsPanel,
-      },
+      ...(workspaceSettings.value.collectionsEnabled
+        ? [
+            {
+              id: "toggle-collections",
+              label: collectionsOpen.value ? "Hide Collections" : "Open Collections",
+              run: openCollectionsPanel,
+            },
+          ]
+        : []),
       {
         id: "toggle-diagnostics",
         label: diagnosticsOpen.value ? "Hide Link Diagnostics" : "Open Link Diagnostics",
@@ -688,6 +693,7 @@ export function App() {
     workspaceSettings.value.tagsEnabled,
     workspaceSettings.value.templatesEnabled,
     workspaceSettings.value.canvasEnabled,
+    workspaceSettings.value.collectionsEnabled,
     openTabs.value,
   ]);
 
@@ -788,14 +794,16 @@ export function App() {
         >
           <TaskIcon />
         </button>
-        <button
-          class={`icon-button ${collectionsOpen.value ? "active" : ""}`}
-          aria-label="Open Collections"
-          title="Open Collections"
-          onClick={openCollectionsPanel}
-        >
-          <CollectionsIcon />
-        </button>
+        {workspaceSettings.value.collectionsEnabled && (
+          <button
+            class={`icon-button ${collectionsOpen.value ? "active" : ""}`}
+            aria-label="Open Collections"
+            title="Open Collections"
+            onClick={openCollectionsPanel}
+          >
+            <CollectionsIcon />
+          </button>
+        )}
         <button
           class={`icon-button ${diagnosticsOpen.value ? "active" : ""}`}
           aria-label="Open Link Diagnostics"
@@ -876,7 +884,7 @@ export function App() {
                           if (viewMode.value === "preview") viewMode.value = "split";
                         }}
                       />
-                    ) : collectionsOpen.value ? (
+                    ) : collectionsOpen.value && workspaceSettings.value.collectionsEnabled ? (
                       <CollectionsPanel onOpenFile={handleOpenFile} />
                     ) : bookmarksOpen.value ? (
                       <BookmarksPanel

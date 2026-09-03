@@ -168,6 +168,10 @@ export function SettingsPanel() {
     'Offer a "New note from template" command that starts a note from a file in the templates folder',
   );
   const showTemplatesFolder = matches("Templates folder", "Where template notes live, relative to the workspace root");
+  const showCollections = matches(
+    "Collections",
+    "Group notes by a saved search or a manual list, off by default",
+  );
   const showTheme = matches("Theme");
   const showFontSize = matches("Font size");
   const showZoom = matches("Zoom", "Scales the whole app; use Ctrl+Plus, Ctrl+Minus, or Ctrl+0");
@@ -183,25 +187,31 @@ export function SettingsPanel() {
     workspaceSettingsCorrupted.value ||
     Boolean(
       workspacePath.value &&
-        (showAccentThemes ||
-          showEditorSnippets ||
-          showCanvas ||
-          showDeleteBehavior ||
+        (showDeleteBehavior ||
           showFrontmatterAliases ||
           showHeadingLinks ||
           showMathRendering ||
           showPasteImages ||
           showAttachmentsFolder ||
           showFrontmatterProperties ||
-          showTags ||
-          showTemplates ||
-          showTemplatesFolder),
+          (workspaceSettings.value.themesEnabled && showAccentColor) ||
+          (workspaceSettings.value.snippetsEnabled && showSnippetDefinitions) ||
+          (workspaceSettings.value.templatesEnabled && showTemplatesFolder)),
     );
+  const featureSelectionVisible = Boolean(
+    workspacePath.value &&
+      (showAccentThemes || showEditorSnippets || showCanvas || showTags || showTemplates || showCollections),
+  );
   const appearanceVisible = showTheme || Boolean(workspacePath.value && (showFontSize || showZoom || showDefaultViewMode));
   const shortcutsVisible = filteredShortcuts.length > 0;
   const aboutVisible = showVersion || showLicenseRow;
   const nothingMatches =
-    searchQuery.trim() !== "" && !generalVisible && !appearanceVisible && !shortcutsVisible && !aboutVisible;
+    searchQuery.trim() !== "" &&
+    !generalVisible &&
+    !featureSelectionVisible &&
+    !appearanceVisible &&
+    !shortcutsVisible &&
+    !aboutVisible;
 
   return (
     <div
@@ -280,35 +290,6 @@ export function SettingsPanel() {
 
           {workspacePath.value && (
             <>
-              {showAccentThemes && (
-              <div class="settings-row">
-                <div>
-                  <div class="settings-label">Accent themes</div>
-                  <div class="settings-hint">
-                    Use this workspace's restrained accent color
-                  </div>
-                </div>
-                <div class="settings-switch">
-                  {OPTIONAL_FEATURE_OPTIONS.map((option) => (
-                    <button
-                      key={String(option.value)}
-                      class={
-                        workspaceSettings.value.themesEnabled === option.value
-                          ? "active"
-                          : ""
-                      }
-                      onClick={() =>
-                        void updateWorkspaceSettings({
-                          themesEnabled: option.value,
-                        })
-                      }
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              )}
               {workspaceSettings.value.themesEnabled && showAccentColor && (
                 <div class="settings-row">
                   <div>
@@ -339,35 +320,6 @@ export function SettingsPanel() {
                   </div>
                 </div>
               )}
-              {showEditorSnippets && (
-              <div class="settings-row">
-                <div>
-                  <div class="settings-label">Editor snippets</div>
-                  <div class="settings-hint">
-                    Type ;trigger then Tab to expand a local writing shortcut
-                  </div>
-                </div>
-                <div class="settings-switch">
-                  {OPTIONAL_FEATURE_OPTIONS.map((option) => (
-                    <button
-                      key={String(option.value)}
-                      class={
-                        workspaceSettings.value.snippetsEnabled === option.value
-                          ? "active"
-                          : ""
-                      }
-                      onClick={() =>
-                        void updateWorkspaceSettings({
-                          snippetsEnabled: option.value,
-                        })
-                      }
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              )}
               {workspaceSettings.value.snippetsEnabled && showSnippetDefinitions && (
                 <div class="settings-row">
                   <div>
@@ -389,36 +341,6 @@ export function SettingsPanel() {
                 </div>
               )}
             </>
-          )}
-
-          {workspacePath.value && showCanvas && (
-            <div class="settings-row">
-              <div>
-                <div class="settings-label">Canvas</div>
-                <div class="settings-hint">
-                  Allow creation and viewing of local canvas files
-                </div>
-              </div>
-              <div class="settings-switch">
-                {CANVAS_OPTIONS.map((option) => (
-                  <button
-                    key={String(option.value)}
-                    class={
-                      workspaceSettings.value.canvasEnabled === option.value
-                        ? "active"
-                        : ""
-                    }
-                    onClick={() =>
-                      void updateWorkspaceSettings({
-                        canvasEnabled: option.value,
-                      })
-                    }
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-            </div>
           )}
 
           {workspacePath.value && showDeleteBehavior && (
@@ -640,69 +562,7 @@ export function SettingsPanel() {
             </div>
           )}
 
-          {workspacePath.value && showTags && (
-            <div class="settings-row">
-              <div>
-                <div class="settings-label">Tags</div>
-                <div class="settings-hint">
-                  Recognize #tag syntax and a note's tags: frontmatter field in
-                  the Tags panel
-                </div>
-              </div>
-              <div class="settings-switch">
-                {TAGS_OPTIONS.map((option) => (
-                  <button
-                    key={String(option.value)}
-                    class={
-                      workspaceSettings.value.tagsEnabled === option.value
-                        ? "active"
-                        : ""
-                    }
-                    onClick={() =>
-                      void updateWorkspaceSettings({
-                        tagsEnabled: option.value,
-                      })
-                    }
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {workspacePath.value && showTemplates && (
-            <div class="settings-row">
-              <div>
-                <div class="settings-label">Templates</div>
-                <div class="settings-hint">
-                  Offer a "New note from template" command that starts a note
-                  from a file in the templates folder
-                </div>
-              </div>
-              <div class="settings-switch">
-                {TEMPLATES_OPTIONS.map((option) => (
-                  <button
-                    key={String(option.value)}
-                    class={
-                      workspaceSettings.value.templatesEnabled === option.value
-                        ? "active"
-                        : ""
-                    }
-                    onClick={() =>
-                      void updateWorkspaceSettings({
-                        templatesEnabled: option.value,
-                      })
-                    }
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {workspacePath.value && showTemplatesFolder && (
+          {workspacePath.value && workspaceSettings.value.templatesEnabled && showTemplatesFolder && (
             <div class="settings-row">
               <div>
                 <div class="settings-label">Templates folder</div>
@@ -721,6 +581,138 @@ export function SettingsPanel() {
                     });
                   }}
                 />
+              </div>
+            </div>
+          )}
+        </section>
+        )}
+
+        {featureSelectionVisible && (
+        <section class="settings-section">
+          <h3>Feature selection</h3>
+          {showAccentThemes && (
+            <div class="settings-row">
+              <div>
+                <div class="settings-label">Accent themes</div>
+                <div class="settings-hint settings-hint-italic">
+                  Use this workspace's restrained accent color
+                </div>
+              </div>
+              <div class="settings-switch">
+                {OPTIONAL_FEATURE_OPTIONS.map((option) => (
+                  <button
+                    key={String(option.value)}
+                    class={workspaceSettings.value.themesEnabled === option.value ? "active" : ""}
+                    onClick={() => void updateWorkspaceSettings({ themesEnabled: option.value })}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {showEditorSnippets && (
+            <div class="settings-row">
+              <div>
+                <div class="settings-label">Editor snippets</div>
+                <div class="settings-hint settings-hint-italic">
+                  Type ;trigger then Tab to expand a local writing shortcut
+                </div>
+              </div>
+              <div class="settings-switch">
+                {OPTIONAL_FEATURE_OPTIONS.map((option) => (
+                  <button
+                    key={String(option.value)}
+                    class={workspaceSettings.value.snippetsEnabled === option.value ? "active" : ""}
+                    onClick={() => void updateWorkspaceSettings({ snippetsEnabled: option.value })}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {showCanvas && (
+            <div class="settings-row">
+              <div>
+                <div class="settings-label">Canvas</div>
+                <div class="settings-hint settings-hint-italic">
+                  Allow creation and viewing of local canvas files
+                </div>
+              </div>
+              <div class="settings-switch">
+                {CANVAS_OPTIONS.map((option) => (
+                  <button
+                    key={String(option.value)}
+                    class={workspaceSettings.value.canvasEnabled === option.value ? "active" : ""}
+                    onClick={() => void updateWorkspaceSettings({ canvasEnabled: option.value })}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {showTags && (
+            <div class="settings-row">
+              <div>
+                <div class="settings-label">Tags</div>
+                <div class="settings-hint settings-hint-italic">
+                  Recognize #tag syntax and a note's tags: frontmatter field in the Tags panel
+                </div>
+              </div>
+              <div class="settings-switch">
+                {TAGS_OPTIONS.map((option) => (
+                  <button
+                    key={String(option.value)}
+                    class={workspaceSettings.value.tagsEnabled === option.value ? "active" : ""}
+                    onClick={() => void updateWorkspaceSettings({ tagsEnabled: option.value })}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {showTemplates && (
+            <div class="settings-row">
+              <div>
+                <div class="settings-label">Templates</div>
+                <div class="settings-hint settings-hint-italic">
+                  Offer a "New note from template" command that starts a note from a file in the templates folder
+                </div>
+              </div>
+              <div class="settings-switch">
+                {TEMPLATES_OPTIONS.map((option) => (
+                  <button
+                    key={String(option.value)}
+                    class={workspaceSettings.value.templatesEnabled === option.value ? "active" : ""}
+                    onClick={() => void updateWorkspaceSettings({ templatesEnabled: option.value })}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {showCollections && (
+            <div class="settings-row">
+              <div>
+                <div class="settings-label">Collections</div>
+                <div class="settings-hint settings-hint-italic">
+                  Group notes by a saved search or a manual list, in their own panel. Off by default
+                </div>
+              </div>
+              <div class="settings-switch">
+                {OPTIONAL_FEATURE_OPTIONS.map((option) => (
+                  <button
+                    key={String(option.value)}
+                    class={workspaceSettings.value.collectionsEnabled === option.value ? "active" : ""}
+                    onClick={() => void updateWorkspaceSettings({ collectionsEnabled: option.value })}
+                  >
+                    {option.label}
+                  </button>
+                ))}
               </div>
             </div>
           )}

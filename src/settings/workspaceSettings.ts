@@ -158,6 +158,16 @@ export interface WorkspaceSettings {
    * net-new functionality, matching every other feature flag in this
    * file. */
   headingLinksEnabled: boolean;
+  /** Whether file-backed Collections (see collections/collectionStore.ts,
+   * `.leotheca/collections.json`) can be created and opened at all.
+   * Unlike every other feature flag in this file, this one defaults to
+   * **off**: a deliberate, explicit deviation from CONSTITUTION.md's
+   * "Daily competitor feature scan" opt-out-by-default convention, per
+   * the maintainer's own direct instruction (2026-09-03) rather than a
+   * competitor-parity claim. Off, the toolbar button, command palette
+   * entry, and sidebar panel are all hidden, the same as before this
+   * feature existed. */
+  collectionsEnabled: boolean;
 }
 
 export const MIN_UI_ZOOM = 50;
@@ -193,6 +203,7 @@ export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   snippetsEnabled: true,
   snippets: "todo\t- [ ] ",
   headingLinksEnabled: true,
+  collectionsEnabled: false,
 };
 
 // Plain string join is intentional here (not a path-resolution API call):
@@ -369,6 +380,10 @@ export function decodeWorkspaceSettings(
     record.headingLinksEnabled,
     DEFAULT_WORKSPACE_SETTINGS.headingLinksEnabled,
   );
+  const collectionsEnabled = decodeBoolean(
+    record.collectionsEnabled,
+    DEFAULT_WORKSPACE_SETTINGS.collectionsEnabled,
+  );
 
   // Only version 1 exists today. An unrecognized version is flagged as
   // corrupt (so it is never silently persisted back over) but its actual
@@ -402,6 +417,7 @@ export function decodeWorkspaceSettings(
     snippetsEnabled: snippetsEnabled.value,
     snippets: snippets.value,
     headingLinksEnabled: headingLinksEnabled.value,
+    collectionsEnabled: collectionsEnabled.value,
   } as unknown as WorkspaceSettings;
 
   const corrupt =
@@ -429,6 +445,7 @@ export function decodeWorkspaceSettings(
       snippetsEnabled,
       snippets,
       headingLinksEnabled,
+      collectionsEnabled,
     );
 
   return { settings, corrupt };

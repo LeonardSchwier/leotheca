@@ -874,6 +874,14 @@ button.icon-button.active {
   color: var(--text-faint);
 }
 
+/* Feature selection's own switch descriptions only, not every
+   .settings-hint in the panel: a scoped modifier rather than italicizing
+   .settings-hint everywhere, so this styling choice for "which optional
+   features are on" doesn't ripple into unrelated settings rows. */
+.settings-hint-italic {
+  font-style: italic;
+}
+
 .settings-value input[type="number"] {
   width: 4em;
 }

@@ -307,6 +307,43 @@ describe("SettingsPanel", () => {
     });
   });
 
+  describe("Feature selection (Collections off by default, 2026-09-03)", () => {
+    it("groups Accent themes, Editor snippets, Canvas, Tags, Templates, and Collections under their own section, not General", () => {
+      workspacePath.value = "/vault";
+      const { getByText } = render(<SettingsPanel />);
+      const featureSection = getByText("Feature selection").closest(".settings-section") as HTMLElement;
+      for (const label of ["Accent themes", "Editor snippets", "Canvas", "Tags", "Templates", "Collections"]) {
+        expect(within(featureSection).getByText(label)).toBeTruthy();
+      }
+      const generalSection = getByText("General").closest(".settings-section") as HTMLElement;
+      expect(within(generalSection).queryByText("Collections")).toBeNull();
+      expect(within(generalSection).queryByText("Tags")).toBeNull();
+    });
+
+    it("shows and wires the collections switch, off by default", () => {
+      workspacePath.value = "/vault";
+      workspaceSettings.value = { ...DEFAULT_WORKSPACE_SETTINGS, collectionsEnabled: false };
+      const { getByText } = render(<SettingsPanel />);
+      const row = getByText("Collections").closest(".settings-row") as HTMLElement;
+      expect(within(row).getByText("Off").className).toContain("active");
+      fireEvent.click(within(row).getByText("On"));
+      expect(updateWorkspaceSettings).toHaveBeenCalledWith({
+        collectionsEnabled: true,
+      });
+    });
+
+    it("DEFAULT_WORKSPACE_SETTINGS defaults collectionsEnabled to false, unlike every other feature flag", () => {
+      expect(DEFAULT_WORKSPACE_SETTINGS.collectionsEnabled).toBe(false);
+    });
+
+    it("gives each Feature selection row's description the italic hint class", () => {
+      workspacePath.value = "/vault";
+      const { getByText } = render(<SettingsPanel />);
+      const hint = getByText("Group notes by a saved search or a manual list, in their own panel. Off by default");
+      expect(hint.className).toContain("settings-hint-italic");
+    });
+  });
+
   it("wires the default view mode switch and marks the active option", () => {
     workspacePath.value = "/vault";
     workspaceSettings.value = {

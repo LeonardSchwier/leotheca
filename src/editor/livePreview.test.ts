@@ -377,6 +377,148 @@ describe("buildLiveDecorations: block-links (F04 Phase 3c)", () => {
   });
 });
 
+describe("buildLiveDecorations: embeds (F04 Phase 3f)", () => {
+  beforeEach(() => {
+    linkIndex.value = {
+      backlinksByPath: new Map(),
+      pathsByNoteName: new Map([["beta", ["/workspace/Beta.md"]]]),
+      pathsByAlias: new Map(),
+      aliasesByPath: new Map(),
+      pathsByTag: new Map(),
+      tagsByPath: new Map(),
+      tasksByPath: new Map(),
+    };
+  });
+
+  it("hides only the '[[' and ']]' markers, never the leading '!', and leaves no stray bracket behind", () => {
+    // Regression for a real bug this phase fixes: before it, a heading- or
+    // block-fragment embed fell through to the heading/block link passes,
+    // which hid `from, from + 2` assuming that's always "[[" — for an
+    // embed, whose source range includes the leading "!", that instead hid
+    // "![" and left a stray "[" visible in front of the fragment text.
+    const doc = "# Intro\n\nSee ![[#Intro]] here.\n\nOther line.";
+    const state = stateFor(doc, { anchor: doc.length });
+    const { hidden, marked } = summarize(state);
+    expect(hidden).toContain("[[");
+    expect(hidden).toContain("]]");
+    expect(hidden).not.toContain("![");
+    expect(marked).toContainEqual({ text: "![[#Intro]]", class: "cm-live-embed-resolved" });
+  });
+
+  it("styles a same-note ![[#Heading]] embed as resolved when the heading exists", () => {
+    const doc = "# Intro\n\nSee ![[#Intro]] here.\n\nOther line.";
+    const state = stateFor(doc, { anchor: doc.length });
+    const { marked } = summarize(state);
+    expect(marked).toContainEqual({ text: "![[#Intro]]", class: "cm-live-embed-resolved" });
+  });
+
+  it("styles a same-note ![[#Heading]] embed as heading-missing when no heading matches, reusing the link pass's own class", () => {
+    const doc = "# Intro\n\nSee ![[#Nope]] here.\n\nOther line.";
+    const state = stateFor(doc, { anchor: doc.length });
+    const { marked } = summarize(state);
+    expect(marked).toContainEqual({ text: "![[#Nope]]", class: "cm-live-wikilink-heading-missing" });
+  });
+
+  it("styles a same-note ![[#Heading]] embed as heading-ambiguous when more than one heading shares the name", () => {
+    const doc = "# Intro\n\n# Intro\n\nSee ![[#Intro]] here.\n\nOther line.";
+    const state = stateFor(doc, { anchor: doc.length });
+    const { marked } = summarize(state);
+    expect(marked).toContainEqual({ text: "![[#Intro]]", class: "cm-live-wikilink-heading-ambiguous" });
+  });
+
+  it("styles a same-note ![[#^block-id]] embed as resolved when the block exists", () => {
+    const doc = "The decision is final. ^decision\n\nSee ![[#^decision]] here.\n\nOther line.";
+    const state = stateFor(doc, { anchor: doc.length });
+    const { marked } = summarize(state);
+    expect(marked).toContainEqual({ text: "![[#^decision]]", class: "cm-live-embed-resolved" });
+  });
+
+  it("styles a same-note ![[#^block-id]] embed as block-missing when no block matches, reusing the link pass's own class", () => {
+    const doc = "See ![[#^nope]] here.\n\nOther line.";
+    const state = stateFor(doc, { anchor: doc.length });
+    const { marked } = summarize(state);
+    expect(marked).toContainEqual({ text: "![[#^nope]]", class: "cm-live-wikilink-block-missing" });
+  });
+
+  it("styles a same-note ![[#^block-id]] embed as block-ambiguous when more than one block shares the id", () => {
+    const doc = "One. ^dup\n\nTwo. ^dup\n\nSee ![[#^dup]] here.\n\nOther line.";
+    const state = stateFor(doc, { anchor: doc.length });
+    const { marked } = summarize(state);
+    expect(marked).toContainEqual({ text: "![[#^dup]]", class: "cm-live-wikilink-block-ambiguous" });
+  });
+
+  it("styles a whole-note ![[Note]] embed as resolved once the note exists", () => {
+    const doc = "See ![[Beta]] here.\n\nOther line.";
+    const state = stateFor(doc, { anchor: doc.length });
+    const { hidden, marked } = summarize(state);
+    expect(hidden).toContain("[[");
+    expect(hidden).toContain("]]");
+    expect(marked).toContainEqual({ text: "![[Beta]]", class: "cm-live-embed-resolved" });
+  });
+
+  it("styles a whole-note ![[Note]] embed as broken when the note does not exist", () => {
+    const doc = "See ![[Nope]] here.\n\nOther line.";
+    const state = stateFor(doc, { anchor: doc.length });
+    const { marked } = summarize(state);
+    expect(marked).toContainEqual({ text: "![[Nope]]", class: "cm-live-embed-broken" });
+  });
+
+  it("styles a cross-note ![[Note#Heading]] embed as resolved once the note exists, without verifying the heading", () => {
+    const doc = "See ![[Beta#Nonexistent Heading]] here.\n\nOther line.";
+    const state = stateFor(doc, { anchor: doc.length });
+    const { marked } = summarize(state);
+    expect(marked).toContainEqual({ text: "![[Beta#Nonexistent Heading]]", class: "cm-live-embed-resolved" });
+  });
+
+  it("styles a cross-note ![[Note#Heading]] embed as broken when the note itself does not exist", () => {
+    const doc = "See ![[Nope#Heading]] here.\n\nOther line.";
+    const state = stateFor(doc, { anchor: doc.length });
+    const { marked } = summarize(state);
+    expect(marked).toContainEqual({ text: "![[Nope#Heading]]", class: "cm-live-embed-broken" });
+  });
+
+  it("decorates an embed exactly once, never also with a plain-wikilink or heading/block-link class", () => {
+    const doc = "# Intro\n\nSee ![[#Intro]] here.\n\nOther line.";
+    const state = stateFor(doc, { anchor: doc.length });
+    const { marked } = summarize(state);
+    const forThisEmbed = marked.filter((m) => m.text === "![[#Intro]]" || m.text === "[[#Intro]]");
+    expect(forThisEmbed).toHaveLength(1);
+    expect(forThisEmbed[0]).toEqual({ text: "![[#Intro]]", class: "cm-live-embed-resolved" });
+  });
+
+  it("keeps the '!', '[[', and ']]' markers visible while actively editing an embed's own line", () => {
+    const doc = "# Intro\n\nSee ![[#Intro]] here.";
+    const state = stateFor(doc, { anchor: 20 });
+    const { hidden } = summarize(state);
+    expect(hidden).not.toContain("[[");
+    expect(hidden).not.toContain("]]");
+  });
+
+  it("does not treat an embed inside an inline code span as a real embed", () => {
+    const doc = "# Intro\n\nUse `![[#Intro]]` literally.\n\nOther line.";
+    const state = stateFor(doc, { anchor: doc.length });
+    const { hidden, marked } = summarize(state);
+    expect(hidden).not.toContain("[[");
+    expect(marked).not.toContainEqual({ text: "![[#Intro]]", class: "cm-live-embed-resolved" });
+  });
+
+  it("leaves a plain [[Note]] link's own decoration unaffected alongside an embed in the same document", () => {
+    const doc = "# Intro\n\nSee [[Beta]] and ![[#Intro]] here.\n\nOther line.";
+    const state = stateFor(doc, { anchor: doc.length });
+    const { marked } = summarize(state);
+    expect(marked).toContainEqual({ text: "[[Beta]]", class: "cm-live-wikilink-resolved" });
+    expect(marked).toContainEqual({ text: "![[#Intro]]", class: "cm-live-embed-resolved" });
+  });
+
+  it("leaves a heading-link's own decoration unaffected alongside an embed in the same document", () => {
+    const doc = "# Intro\n\nSee [[#Intro]] and ![[#Intro]] here.\n\nOther line.";
+    const state = stateFor(doc, { anchor: doc.length });
+    const { marked } = summarize(state);
+    expect(marked).toContainEqual({ text: "[[#Intro]]", class: "cm-live-wikilink-resolved" });
+    expect(marked).toContainEqual({ text: "![[#Intro]]", class: "cm-live-embed-resolved" });
+  });
+});
+
 describe("buildLiveDecorations: multiple cursors", () => {
   it("keeps a line's markup visible if any selection range (not just the first) touches it", () => {
     const doc = "# One\n\n# Two";

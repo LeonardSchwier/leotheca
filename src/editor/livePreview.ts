@@ -60,6 +60,15 @@ import { scanBlockIds, type BlockRecord } from "../markdown/blocks";
  * block-link rendering). A record whose fragment is neither a heading nor
  * a block (a plain `[[Note]]`/`[[Note|Label]]` link) is left to the
  * WIKILINK_PATTERN pass below exactly as before either phase.
+ *
+ * F04 Phase 3f adds the same decoration for an embed
+ * (`![[Note]]`/`![[Note#Heading]]`/`![[Note#^block-id]]`,
+ * `record.kind === "embed"`), excluded from the heading/block passes above
+ * and handled by its own dedicated pass further down (`embedLinkClass`):
+ * unlike a link, an embed's source range includes its leading `!`, so it
+ * needs its own from/to and marker-hide offsets rather than reusing the
+ * link passes' fixed "the opening `[[` is always the first two characters"
+ * assumption.
  */
 
 /** Matches the same `[[target]]` shape the wikilink autocomplete and link
@@ -180,6 +189,47 @@ function classifyBlockLink(
 
   const target = resolveWikiLinkTarget(record, { currentNotePath: undefined, targetBlocks: undefined });
   return target.status === "resolved" ? "resolved" : "broken";
+}
+
+/** F04 Phase 3f's analog of classifyHeadingLink/classifyBlockLink above,
+ * for an embed record (`record.kind === "embed"`), returning the CSS class
+ * to apply directly rather than a separate status enum. An embed's
+ * fragment can be a heading, a block, or absent entirely (a plain
+ * `![[Note]]` whole-note embed, which has no fragment-specific state at
+ * all: only whether its target note itself resolves). Delegates to the
+ * existing classifyHeadingLink/classifyBlockLink for the two fragment
+ * cases rather than a second, duplicate resolution implementation: both
+ * functions key only on `record.noteTarget`/`record.fragment`, never on
+ * `record.kind`, so they already work correctly for an embed record as-is.
+ * A missing or ambiguous fragment reuses the exact same
+ * HEADING_LINK_CLASS/BLOCK_LINK_CLASS lookup a plain link's own decoration
+ * pass already uses (a missing heading or block is exactly as meaningful
+ * for an embed, its target section doesn't exist, as it is for a link);
+ * only "resolved" and "broken" get embed-specific classes
+ * (cm-live-embed-resolved/broken, styled in App.css as the link pair's own
+ * italic variant), so an embed still reads as visually distinct from a
+ * plain link at a glance even when both ultimately point at valid
+ * targets. */
+function embedLinkClass(
+  record: WikiLinkRecord,
+  currentHeadingsRef: { value: HeadingRecord[] | null },
+  currentBlocksRef: { value: BlockRecord[] | null },
+  docText: string,
+): string {
+  if (!record.fragment) {
+    const target = resolveWikiLinkTarget(record, { currentNotePath: undefined });
+    return target.status === "resolved" ? "cm-live-embed-resolved" : "cm-live-embed-broken";
+  }
+  if (record.fragment.kind === "heading") {
+    const status = classifyHeadingLink(record, currentHeadingsRef, docText);
+    if (status === "resolved") return "cm-live-embed-resolved";
+    if (status === "broken") return "cm-live-embed-broken";
+    return HEADING_LINK_CLASS[status];
+  }
+  const status = classifyBlockLink(record, currentBlocksRef, docText);
+  if (status === "resolved") return "cm-live-embed-resolved";
+  if (status === "broken") return "cm-live-embed-broken";
+  return BLOCK_LINK_CLASS[status];
 }
 
 interface SimpleRange {
@@ -326,13 +376,18 @@ export function buildLiveDecorations(
   // WIKILINK_PATTERN pass right after can skip them rather than
   // double-decorating the same occurrence with an incorrect "broken" look
   // (a fragment's `#` makes the literal bracket contents an unresolvable
-  // note name to that regex).
+  // note name to that regex). Both loops below exclude an embed record
+  // (`record.kind === "embed"`, a leading `!` before `[[`): F04 Phase 3f's
+  // dedicated embed pass further down handles those, since an embed's
+  // source range includes that extra leading `!` character and needs a
+  // different hide/mark offset than a plain link's identical-looking
+  // `[[...]]` shape.
   const fragmentLinkRanges = new Set<string>();
   const currentHeadingsRef: { value: HeadingRecord[] | null } = { value: null };
   for (const range of scanRanges) {
     const text = docText.slice(range.from, range.to);
     for (const record of parseWikiLinks(text)) {
-      if (record.parseStatus !== "valid" || record.fragment?.kind !== "heading") continue;
+      if (record.parseStatus !== "valid" || record.fragment?.kind !== "heading" || record.kind === "embed") continue;
       const from = range.from + record.sourceFrom;
       const to = range.from + record.sourceTo;
       if (fragmentLinkRanges.has(`${from}:${to}`)) continue;
@@ -353,7 +408,7 @@ export function buildLiveDecorations(
   for (const range of scanRanges) {
     const text = docText.slice(range.from, range.to);
     for (const record of parseWikiLinks(text)) {
-      if (record.parseStatus !== "valid" || record.fragment?.kind !== "block") continue;
+      if (record.parseStatus !== "valid" || record.fragment?.kind !== "block" || record.kind === "embed") continue;
       const from = range.from + record.sourceFrom;
       const to = range.from + record.sourceTo;
       if (fragmentLinkRanges.has(`${from}:${to}`)) continue;
@@ -365,6 +420,52 @@ export function buildLiveDecorations(
 
       if (!overlapsSelectedLines(state.doc, selectionRanges, from, to)) {
         hide(hidden, from, from + 2); // the opening "[["
+        hide(hidden, to - 2, to); // the closing "]]"
+      }
+    }
+  }
+
+  // F04 Phase 3f: an embed record (`![[Note]]`/`![[Note#Heading]]`/
+  // `![[Note#^block-id]]`, `record.kind === "embed"`) is decorated here,
+  // never through the plain-wikilink regex below or the heading/block
+  // passes above (both now explicitly exclude embeds). `record.sourceFrom`
+  // includes the leading `!` for an embed (see wikiSyntax.ts's own doc
+  // comment on that field), so `from` below points at the `!`, one
+  // character before the opening `[[` — the WIKILINK_PATTERN pass below is
+  // blind to that `!` and would otherwise independently match and
+  // re-decorate the exact same `[[...]]` substring with an unrelated
+  // plain-link status, so this loop also registers that inner range (the
+  // one WIKILINK_PATTERN's own `from`/`to` would compute) into
+  // fragmentLinkRanges to suppress it, the same dedup mechanism the
+  // heading/block passes above already use for their own (non-`!`-shifted)
+  // ranges. Prior to this phase, an embed carrying a heading or block
+  // fragment was actually decorated by the heading/block passes above
+  // (they filtered only on `record.fragment?.kind`, not `record.kind`),
+  // which then hid `from, from + 2`, the `!` and the first `[`, not the
+  // real `[[` two characters later, leaving a stray unhidden `[` behind; a
+  // regression test for that exact case now guards this fix.
+  for (const range of scanRanges) {
+    const text = docText.slice(range.from, range.to);
+    for (const record of parseWikiLinks(text)) {
+      if (record.parseStatus !== "valid" || record.kind !== "embed") continue;
+      const from = range.from + record.sourceFrom;
+      const to = range.from + record.sourceTo;
+      if (fragmentLinkRanges.has(`${from}:${to}`)) continue;
+      fragmentLinkRanges.add(`${from}:${to}`);
+      fragmentLinkRanges.add(`${from + 1}:${to}`);
+      if (codeRanges.some((codeRange) => from < codeRange.to && to > codeRange.from)) continue;
+
+      // Reuses the exact same lazily-populated heading/block caches the
+      // passes above already share, rather than a fresh scan: most
+      // documents contain at most one of a same-note heading link, block
+      // link, or embed, so this cache is very likely already empty and
+      // cheap either way, but sharing it means a document with more than
+      // one never scans twice.
+      const cls = embedLinkClass(record, currentHeadingsRef, currentBlocksRef, docText);
+      marks.push({ from, to, class: cls });
+
+      if (!overlapsSelectedLines(state.doc, selectionRanges, from, to)) {
+        hide(hidden, from + 1, from + 3); // the opening "[[", after the leading "!"
         hide(hidden, to - 2, to); // the closing "]]"
       }
     }

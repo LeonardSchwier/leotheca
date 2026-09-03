@@ -256,6 +256,25 @@ button.icon-button.active {
   text-decoration: underline dotted;
   text-underline-offset: 2px;
 }
+/* F04 Phase 3f: an embed (`![[Note]]`/`![[Note#Heading]]`/
+   `![[Note#^block-id]]`) whose target fully resolves or is fully broken
+   (a missing/ambiguous fragment reuses the heading/block classes above
+   as-is, since that state means the same thing for an embed as for a
+   link). Same color pairing as cm-live-wikilink-resolved/broken, with an
+   added italic so an embed still reads as visually distinct from a plain
+   link even when both point at a fully valid target. */
+.cm-live-embed-resolved {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  font-style: italic;
+}
+.cm-live-embed-broken {
+  color: var(--text-secondary);
+  text-decoration: underline dashed;
+  text-underline-offset: 2px;
+  font-style: italic;
+}
 .cm-live-list-bullet {
   color: var(--text-faint);
 }

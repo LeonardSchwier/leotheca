@@ -409,7 +409,7 @@ describe("rebuildLinkIndex: mtime-based caching", () => {
     readTextFile.mockImplementation(async (path: string) => {
       if (path === CACHE_PATH) {
         return JSON.stringify({
-          version: 7,
+          version: 8,
           entries: {
             "/workspace/a.md": {
               mtime: 1000,
@@ -496,7 +496,7 @@ describe("rebuildLinkIndex: mtime-based caching", () => {
         // error inside mapWithConcurrency's worker propagates out of the
         // whole rebuildLinkIndex call, not just this one entry.
         return JSON.stringify({
-          version: 7,
+          version: 8,
           entries: {
             "/workspace/a.md": {
               mtime: 1000,
@@ -538,7 +538,7 @@ describe("rebuildLinkIndex: mtime-based caching", () => {
         // cached.tasks` downstream would trust a garbage shape instead
         // of forcing a real re-read.
         return JSON.stringify({
-          version: 7,
+          version: 8,
           entries: {
             "/workspace/a.md": {
               mtime: 1000,
@@ -570,7 +570,7 @@ describe("rebuildLinkIndex: mtime-based caching", () => {
     readTextFile.mockImplementation(async (path: string) => {
       if (path === CACHE_PATH) {
         return JSON.stringify({
-          version: 7,
+          version: 8,
           entries: {
             "/workspace/a.md": {
               mtime: 1000,
@@ -632,7 +632,7 @@ describe("rebuildLinkIndex: mtime-based caching", () => {
     ]);
     readTextFile.mockImplementation(async (path: string) => {
       if (path === CACHE_PATH) {
-        return JSON.stringify({ version: 7, entries: ["not", "a", "record"] });
+        return JSON.stringify({ version: 8, entries: ["not", "a", "record"] });
       }
       return "[[c]]";
     });
@@ -659,7 +659,7 @@ describe("rebuildLinkIndex: mtime-based caching", () => {
     expect(savedRoot).toBe("/workspace");
     expect(savedRelativePath).toBe(CACHE_RELATIVE_PATH);
     const saved = JSON.parse(savedContent);
-    expect(saved.version).toBe(7);
+    expect(saved.version).toBe(8);
     expect(saved.entries["/workspace/a.md"]).toEqual({
       mtime: 1000,
       size: 5,
@@ -1143,7 +1143,7 @@ describe("F09 Phase 1: mtime and frontmatter property indexing", () => {
     readTextFile.mockImplementation(async (path: string) => {
       if (path === CACHE_PATH) {
         return JSON.stringify({
-          version: 7,
+          version: 8,
           entries: {
             "/workspace/a.md": {
               mtime: 1000,
@@ -1281,7 +1281,7 @@ describe("rebuildLinkIndex: wikiLinksByPath/headingsByPath (F03 Phase 1)", () =>
     readTextFile.mockImplementation(async (path: string) => {
       if (path === CACHE_PATH) {
         return JSON.stringify({
-          version: 7,
+          version: 8,
           entries: {
             "/workspace/a.md": {
               mtime: 1000,
@@ -1316,7 +1316,7 @@ describe("rebuildLinkIndex: wikiLinksByPath/headingsByPath (F03 Phase 1)", () =>
     readTextFile.mockImplementation(async (path: string) => {
       if (path === CACHE_PATH) {
         return JSON.stringify({
-          version: 7,
+          version: 8,
           entries: {
             "/workspace/a.md": {
               mtime: 1000,
@@ -1369,7 +1369,7 @@ describe("rebuildLinkIndex: blocksByPath (F04 Phase 5c)", () => {
     ]);
     readTextFile.mockImplementation(async (path: string) => {
       if (path === CACHE_PATH) throw new Error("no cache file yet");
-      if (path.endsWith("Alpha.md")) return "A paragraph with an id. ^my-block";
+      if (path.endsWith("Alpha.md")) return "# Section ^heading-id\n\nA paragraph with an id. ^my-block";
       return "No block ids here.";
     });
 
@@ -1377,7 +1377,7 @@ describe("rebuildLinkIndex: blocksByPath (F04 Phase 5c)", () => {
 
     expect(findMarkdownFiles).toHaveBeenCalledTimes(1);
     const alphaBlocks = linkIndex.value.blocksByPath?.get("/workspace/Alpha.md");
-    expect(alphaBlocks?.map((b) => b.id)).toEqual(["my-block"]);
+    expect(alphaBlocks?.map((b) => b.id)).toEqual(["heading-id", "my-block"]);
     expect(linkIndex.value.blocksByPath?.has("/workspace/Beta.md")).toBe(false);
   });
 
@@ -1430,7 +1430,7 @@ describe("rebuildLinkIndex: blocksByPath (F04 Phase 5c)", () => {
     readTextFile.mockImplementation(async (path: string) => {
       if (path === CACHE_PATH) {
         return JSON.stringify({
-          version: 7,
+          version: 8,
           entries: {
             "/workspace/a.md": {
               mtime: 1000,

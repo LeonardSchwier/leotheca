@@ -21,6 +21,8 @@ export interface HeadingRecord {
   /** 1-based count of this exact key seen so far in the document, in
    * source order. The first occurrence of a key is 1. */
   occurrence: number;
+  /** Optional explicit block ID attached to this heading. */
+  blockId?: { id: string; idFrom: number; idTo: number };
   level: 1 | 2 | 3 | 4 | 5 | 6;
   /** The heading's visible text with inline Markdown formatting removed,
    * but not case-folded or whitespace-collapsed beyond trimming. */
@@ -90,6 +92,7 @@ const FENCE_RE = /^ {0,3}(`{3,}|~{3,})/;
 const ATX_OPEN_RE = /^ {0,3}(#{1,6})/;
 const SETEXT_RE = /^ {0,3}(=+|-+)[ \t]*$/;
 const CLOSING_HASH_RE = /[ \t]+#+$/;
+const HEADING_BLOCK_ID_RE = /[ \t]+\^([A-Za-z0-9][A-Za-z0-9-]{0,63})[ \t]*$/;
 
 const HTML_ENTITIES: Record<string, string> = {
   amp: "&",
@@ -177,6 +180,15 @@ interface RawHeading {
   contentTo: number;
   line: number;
   column: number;
+  blockId?: { id: string; idFrom: number; idTo: number };
+}
+
+function extractHeadingBlockId(rawText: string, absoluteContentStart: number): { rawText: string; contentTo: number; blockId?: { id: string; idFrom: number; idTo: number } } {
+  const match = HEADING_BLOCK_ID_RE.exec(rawText);
+  if (!match) return { rawText, contentTo: absoluteContentStart + rawText.length };
+  const id = match[1];
+  const idFrom = absoluteContentStart + match.index + match[0].indexOf("^");
+  return { rawText: rawText.slice(0, match.index), contentTo: absoluteContentStart + match.index, blockId: { id, idFrom, idTo: idFrom + 1 + id.length } };
 }
 
 function tryParseAtx(line: LineInfo): RawHeading | null {
@@ -212,6 +224,9 @@ function tryParseAtx(line: LineInfo): RawHeading | null {
     contentEnd -= closing[0].length;
     raw = raw.slice(0, raw.length - closing[0].length);
   }
+  const parsedBlockId = extractHeadingBlockId(raw, line.start + contentStart);
+  raw = parsedBlockId.rawText;
+  contentEnd = parsedBlockId.contentTo - line.start;
   return {
     level: hashes.length as RawHeading["level"],
     rawText: raw,
@@ -221,6 +236,7 @@ function tryParseAtx(line: LineInfo): RawHeading | null {
     contentTo: line.start + contentEnd,
     line: line.lineNumber,
     column: 1,
+    blockId: parsedBlockId.blockId,
   };
 }
 
@@ -304,17 +320,23 @@ export function scanHeadings(content: string): HeadingRecord[] {
         ) {
           contentEnd -= 1;
         }
+        const parsedBlockId = extractHeadingBlockId(
+          textLine.text.slice(contentStart, contentEnd),
+          textLine.start + contentStart,
+        );
+        contentEnd = parsedBlockId.contentTo - textLine.start;
         consumedLines.add(i - 1);
         consumedLines.add(i);
         raw.push({
           level: setextLevel,
-          rawText: textLine.text.slice(contentStart, contentEnd),
+          rawText: parsedBlockId.rawText,
           sourceFrom: textLine.start,
           sourceTo: line.end,
           contentFrom: textLine.start + contentStart,
           contentTo: textLine.start + contentEnd,
           line: textLine.lineNumber,
           column: 1,
+          blockId: parsedBlockId.blockId,
         });
       }
     }
@@ -330,6 +352,7 @@ export function scanHeadings(content: string): HeadingRecord[] {
     return {
       key,
       occurrence,
+      blockId: h.blockId,
       level: h.level,
       rawText: h.rawText.trim(),
       displayText,

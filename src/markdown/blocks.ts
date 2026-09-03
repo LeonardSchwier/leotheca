@@ -1,3 +1,5 @@
+import { scanHeadings } from "./headings";
+
 /**
  * F04 Phase 3a/3b/3d/3e's block-reference scanner
  * (spec/f04-heading-block-links-embeds.md section 7). Detects an explicit
@@ -103,7 +105,7 @@ export interface BlockRecord {
    * "fenced-code" is a whole fenced code block (open fence through close
    * fence), whose marker sits on its own separate line right after the
    * closing fence rather than being part of the block's own content. */
-  kind: "paragraph" | "list-item" | "blockquote" | "fenced-code";
+  kind: "paragraph" | "list-item" | "blockquote" | "fenced-code" | "heading";
   /** Absolute character offsets spanning the whole block, its own marker
    * line included. */
   sourceFrom: number;
@@ -474,6 +476,22 @@ export function scanBlocks(content: string): ScannedBlock[] {
   flushPendingFencedCode();
   flushParagraph();
   flushOpenBlock();
+
+  for (const heading of scanHeadings(content)) {
+    blocks.push({
+      kind: "heading",
+      sourceFrom: heading.sourceFrom,
+      sourceTo: heading.sourceTo,
+      contentFrom: heading.contentFrom,
+      contentTo: heading.contentTo,
+      line: heading.line,
+      column: heading.column,
+      marker: heading.blockId
+        ? { id: heading.blockId.id, idFrom: heading.blockId.idFrom, idTo: heading.blockId.idTo }
+        : undefined,
+    });
+  }
+  blocks.sort((a, b) => a.sourceFrom - b.sourceFrom);
 
   return blocks;
 }

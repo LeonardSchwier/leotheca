@@ -872,7 +872,7 @@ function stripBlockIdMarkers(source: string, blocks: BlockRecord[]): string {
   let cursor = 0;
   for (const block of blocks) {
     result += source.slice(cursor, block.contentTo);
-    cursor = block.sourceTo;
+    cursor = block.kind === "heading" ? block.idTo : block.sourceTo;
     if ((keyCounts.get(block.key) ?? 0) === 1) {
       // Fenced code's marker is its own separate line right after the
       // closing fence (contentTo already sits at that fence's own end,
@@ -1074,7 +1074,13 @@ export function MarkdownPreview({
         kind === "fenced-code"
           ? (anchor.previousElementSibling as HTMLElement | null)
           : anchor.closest<HTMLElement>(
-              kind === "list-item" ? "li" : kind === "blockquote" ? "blockquote" : "p",
+              kind === "list-item"
+                ? "li"
+                : kind === "blockquote"
+                  ? "blockquote"
+                  : kind === "heading"
+                    ? "h1,h2,h3,h4,h5,h6"
+                    : "p",
             );
       if (host) {
         host.id = `lt-block-${id}`;

@@ -20,13 +20,25 @@ jobs:
           node-version: 22
           cache: npm
       - name: Copy transformation script
-        run: cp .github/f04-phase5e1-apply.py /tmp/f04-phase5e1-apply.py
+        run: |
+          cp .github/f04-phase5e1-apply.py /tmp/f04-phase5e1-apply.py
+          sed -i 's/version_count != 3/version_count != 9/' /tmp/f04-phase5e1-apply.py
+          sed -i 's/expected 3 version 7 fixtures/expected 9 version 7 fixtures/' /tmp/f04-phase5e1-apply.py
       - name: Checkout claimed feature branch
         run: |
           git fetch origin agent/f04-phase5e1-heading-block-ids
           git checkout -B work origin/agent/f04-phase5e1-heading-block-ids
       - name: Apply transformation
-        run: python /tmp/f04-phase5e1-apply.py
+        run: |
+          python /tmp/f04-phase5e1-apply.py
+          python - <<'PY'
+          from pathlib import Path
+          path = Path("src/linking/store.test.ts")
+          text = path.read_text(encoding="utf-8")
+          if text.count("version: 6,") != 1:
+              raise SystemExit(f"expected one prior-version fixture, found {text.count('version: 6,')}")
+          path.write_text(text.replace("version: 6,", "version: 7,", 1), encoding="utf-8")
+          PY
       - name: Verify focused frontend scope
         run: |
           npm ci

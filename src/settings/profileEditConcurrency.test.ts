@@ -51,6 +51,7 @@ window.matchMedia = vi.fn().mockImplementation((query: string) => ({
 
 const {
   activeWorkspaceId,
+  forgetWorkspaceProfile,
   renameWorkspaceProfile,
   setWorkspaceProfileIcon,
   workspaceProfiles,
@@ -141,5 +142,53 @@ describe("F20 Phase 2a profile edit persistence races", () => {
       .map(([, contents]) => JSON.parse(contents));
     expect(persisted).toHaveLength(2);
     expect(persisted[1].workspaceProfiles[0].icon).toBe("briefcase");
+  });
+
+  it("does not re-persist a failed rename through a later different-field edit", async () => {
+    const { rejectFirst } = failFirstConfigWrite();
+
+    const rename = renameWorkspaceProfile("p1", "First");
+    await waitForFirstConfigWrite();
+    const icon = setWorkspaceProfileIcon("p1", "book");
+    rejectFirst();
+
+    await expect(rename).rejects.toThrow("disk full");
+    await expect(icon).resolves.toBe(true);
+    expect(workspaceProfiles.value[0]).toMatchObject({ name: "Original", icon: "book" });
+
+    const persisted = writeTextFile.mock.calls
+      .filter(([path]) => path === "/config/config.json")
+      .map(([, contents]) => JSON.parse(contents));
+    expect(persisted).toHaveLength(2);
+    expect(persisted[1].workspaceProfiles[0]).toMatchObject({ name: "Original", icon: "book" });
+  });
+
+  it("restores a failed forget before a later config write is serialized", async () => {
+    workspaceProfiles.value = [
+      workspaceProfiles.value[0],
+      {
+        id: "p2",
+        name: "Archive",
+        icon: "archive",
+        path: "/archive",
+        lastOpenedAt: 0,
+      },
+    ];
+    const { rejectFirst } = failFirstConfigWrite();
+
+    const forget = forgetWorkspaceProfile("p2");
+    await waitForFirstConfigWrite();
+    const icon = setWorkspaceProfileIcon("p1", "book");
+    rejectFirst();
+
+    await expect(forget).rejects.toThrow("disk full");
+    await expect(icon).resolves.toBe(true);
+    expect(workspaceProfiles.value.map((profile) => profile.id)).toContain("p2");
+
+    const persisted = writeTextFile.mock.calls
+      .filter(([path]) => path === "/config/config.json")
+      .map(([, contents]) => JSON.parse(contents));
+    expect(persisted).toHaveLength(2);
+    expect(persisted[1].workspaceProfiles.map((profile: { id: string }) => profile.id)).toContain("p2");
   });
 });

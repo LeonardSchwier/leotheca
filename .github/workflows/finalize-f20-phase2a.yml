@@ -1,0 +1,31 @@
+name: Finalize F20 Phase 2a bookkeeping
+
+on:
+  push:
+    branches:
+      - agent/f20-phase2a-profile-editing-switcher
+    paths:
+      - scripts/finalize_f20_phase2a.py
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/f20-phase2a-profile-editing-switcher
+          fetch-depth: 0
+      - name: Apply exact ledger and docs update
+        run: |
+          python scripts/finalize_f20_phase2a.py
+          rm scripts/finalize_f20_phase2a.py
+          rm .github/workflows/finalize-f20-phase2a.yml
+          git config user.name "Leonardschwier"
+          git config user.email "github@leonardschwier.de"
+          git add -A
+          git diff --cached --check
+          git commit -m "Finalize F20 Phase 2a metadata"
+          git push origin HEAD:agent/f20-phase2a-profile-editing-switcher

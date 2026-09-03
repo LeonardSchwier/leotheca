@@ -221,7 +221,6 @@ function tryParseAtx(line: LineInfo): RawHeading | null {
   let raw = line.text.slice(contentStart, contentEnd);
   const closing = CLOSING_HASH_RE.exec(raw);
   if (closing) {
-    contentEnd -= closing[0].length;
     raw = raw.slice(0, raw.length - closing[0].length);
   }
   const parsedBlockId = extractHeadingBlockId(raw, line.start + contentStart);

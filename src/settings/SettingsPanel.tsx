@@ -96,10 +96,26 @@ const ACCENT_OPTIONS: { value: AccentColor; label: string }[] = [
   { value: "plum", label: "Plum" },
 ];
 
+/**
+ * Case-insensitive substring match of `query` against any of `texts` (a
+ * setting's own label, plus its hint when it has one). An empty or
+ * whitespace-only query matches everything, so the panel looks exactly as
+ * it did before this feature existed until the user actually types
+ * something (competitor-queued item, see ROADMAP.md's "Settings search").
+ */
+export function matchesSettingsSearch(query: string, ...texts: string[]): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  return texts.some((text) => text.toLowerCase().includes(q));
+}
+
 export function SettingsPanel() {
   const [showLicense, setShowLicense] = useState(false);
   const [folderPickerLoading, setFolderPickerLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   if (!settingsPanelOpen.value) return null;
+
+  const matches = (...texts: string[]) => matchesSettingsSearch(searchQuery, ...texts);
 
   const handleChangeFolder = async () => {
     setFolderPickerLoading(true);
@@ -109,6 +125,83 @@ export function SettingsPanel() {
       setFolderPickerLoading(false);
     }
   };
+
+  // Filter matches for every row a search query could plausibly find,
+  // computed once per render and reused both to hide/show the individual
+  // row and to decide whether the section holding it has anything left to
+  // show at all. The two workspace-scoped alerts (save error, corrupted
+  // settings file) are deliberately never hidden by a search query: they
+  // are transient status, not an "option" to find, and hiding an active
+  // error because it doesn't match the search text would be a real UX
+  // regression, not a filtering convenience.
+  const showRootFolder = matches("Root folder", "Change Folder");
+  const showAccentThemes = matches("Accent themes", "Use this workspace's restrained accent color");
+  const showAccentColor = matches("Accent color", "Changes highlights without replacing the light or dark palette");
+  const showEditorSnippets = matches("Editor snippets", "Type ;trigger then Tab to expand a local writing shortcut");
+  const showSnippetDefinitions = matches("Snippet definitions", "One per line: trigger, a tab, then replacement text");
+  const showCanvas = matches("Canvas", "Allow creation and viewing of local canvas files");
+  const showDeleteBehavior = matches("Delete behavior", "Where deleted notes and folders go");
+  const showFrontmatterAliases = matches(
+    "Frontmatter aliases",
+    "Resolve [[wikilinks]], autocomplete, and backlinks by a note's aliases: frontmatter field too, not just its file name",
+  );
+  const showHeadingLinks = matches(
+    "Heading links",
+    "Resolve [[Note#Heading]] and [[#Heading]] links to a specific heading, with Preview click navigation to it. Off, [[wikilinks]] parse exactly as before this feature existed",
+  );
+  const showMathRendering = matches("Math rendering", "Render $inline$ and $$block$$ LaTeX math in Preview, via KaTeX");
+  const showPasteImages = matches(
+    "Paste images as attachments",
+    "Pasting or dropping an image into a note saves it as a file and inserts a link to it",
+  );
+  const showAttachmentsFolder = matches(
+    "Attachments folder",
+    "Where a pasted/dropped image is saved; empty means next to the note that embeds it",
+  );
+  const showFrontmatterProperties = matches(
+    "Frontmatter properties panel",
+    "Show a note's frontmatter fields above the editor as editable rows",
+  );
+  const showTags = matches("Tags", "Recognize #tag syntax and a note's tags: frontmatter field in the Tags panel");
+  const showTemplates = matches(
+    "Templates",
+    'Offer a "New note from template" command that starts a note from a file in the templates folder',
+  );
+  const showTemplatesFolder = matches("Templates folder", "Where template notes live, relative to the workspace root");
+  const showTheme = matches("Theme");
+  const showFontSize = matches("Font size");
+  const showZoom = matches("Zoom", "Scales the whole app; use Ctrl+Plus, Ctrl+Minus, or Ctrl+0");
+  const showDefaultViewMode = matches("Default view mode", "Applied when this workspace is opened");
+  const showVersion = matches("Version");
+  const showLicenseRow = matches("License");
+
+  const filteredShortcuts = KEYBOARD_SHORTCUTS.filter((shortcut) => matches(shortcut.description, shortcut.keys));
+
+  const generalVisible =
+    showRootFolder ||
+    Boolean(workspaceSettingsSaveError.value) ||
+    workspaceSettingsCorrupted.value ||
+    Boolean(
+      workspacePath.value &&
+        (showAccentThemes ||
+          showEditorSnippets ||
+          showCanvas ||
+          showDeleteBehavior ||
+          showFrontmatterAliases ||
+          showHeadingLinks ||
+          showMathRendering ||
+          showPasteImages ||
+          showAttachmentsFolder ||
+          showFrontmatterProperties ||
+          showTags ||
+          showTemplates ||
+          showTemplatesFolder),
+    );
+  const appearanceVisible = showTheme || Boolean(workspacePath.value && (showFontSize || showZoom || showDefaultViewMode));
+  const shortcutsVisible = filteredShortcuts.length > 0;
+  const aboutVisible = showVersion || showLicenseRow;
+  const nothingMatches =
+    searchQuery.trim() !== "" && !generalVisible && !appearanceVisible && !shortcutsVisible && !aboutVisible;
 
   return (
     <div
@@ -126,8 +219,25 @@ export function SettingsPanel() {
           </button>
         </div>
 
+        <div class="settings-search">
+          <input
+            type="text"
+            class="settings-search-input"
+            placeholder="Search settings…"
+            aria-label="Search settings"
+            value={searchQuery}
+            onInput={(e) => setSearchQuery((e.target as HTMLInputElement).value)}
+          />
+        </div>
+
+        {nothingMatches && (
+          <p class="empty-hint">No settings match &quot;{searchQuery.trim()}&quot;.</p>
+        )}
+
+        {generalVisible && (
         <section class="settings-section">
           <h3>General</h3>
+          {showRootFolder && (
           <div class="settings-row">
             <div>
               <div class="settings-label">Root folder</div>
@@ -139,6 +249,7 @@ export function SettingsPanel() {
               {folderPickerLoading ? "Opening folder picker…" : "Change Folder"}
             </button>
           </div>
+          )}
 
           {workspaceSettingsSaveError.value && (
             <div class="settings-row" role="alert">
@@ -169,6 +280,7 @@ export function SettingsPanel() {
 
           {workspacePath.value && (
             <>
+              {showAccentThemes && (
               <div class="settings-row">
                 <div>
                   <div class="settings-label">Accent themes</div>
@@ -196,7 +308,8 @@ export function SettingsPanel() {
                   ))}
                 </div>
               </div>
-              {workspaceSettings.value.themesEnabled && (
+              )}
+              {workspaceSettings.value.themesEnabled && showAccentColor && (
                 <div class="settings-row">
                   <div>
                     <div class="settings-label">Accent color</div>
@@ -226,6 +339,7 @@ export function SettingsPanel() {
                   </div>
                 </div>
               )}
+              {showEditorSnippets && (
               <div class="settings-row">
                 <div>
                   <div class="settings-label">Editor snippets</div>
@@ -253,7 +367,8 @@ export function SettingsPanel() {
                   ))}
                 </div>
               </div>
-              {workspaceSettings.value.snippetsEnabled && (
+              )}
+              {workspaceSettings.value.snippetsEnabled && showSnippetDefinitions && (
                 <div class="settings-row">
                   <div>
                     <div class="settings-label">Snippet definitions</div>
@@ -276,7 +391,7 @@ export function SettingsPanel() {
             </>
           )}
 
-          {workspacePath.value && (
+          {workspacePath.value && showCanvas && (
             <div class="settings-row">
               <div>
                 <div class="settings-label">Canvas</div>
@@ -306,7 +421,7 @@ export function SettingsPanel() {
             </div>
           )}
 
-          {workspacePath.value && (
+          {workspacePath.value && showDeleteBehavior && (
             <div class="settings-row">
               <div>
                 <div class="settings-label">Delete behavior</div>
@@ -336,7 +451,7 @@ export function SettingsPanel() {
             </div>
           )}
 
-          {workspacePath.value && (
+          {workspacePath.value && showFrontmatterAliases && (
             <div class="settings-row">
               <div>
                 <div class="settings-label">Frontmatter aliases</div>
@@ -373,7 +488,7 @@ export function SettingsPanel() {
             </div>
           )}
 
-          {workspacePath.value && (
+          {workspacePath.value && showHeadingLinks && (
             <div class="settings-row">
               <div>
                 <div class="settings-label">Heading links</div>
@@ -406,7 +521,7 @@ export function SettingsPanel() {
             </div>
           )}
 
-          {workspacePath.value && (
+          {workspacePath.value && showMathRendering && (
             <div class="settings-row">
               <div>
                 <div class="settings-label">Math rendering</div>
@@ -437,7 +552,7 @@ export function SettingsPanel() {
             </div>
           )}
 
-          {workspacePath.value && (
+          {workspacePath.value && showPasteImages && (
             <div class="settings-row">
               <div>
                 <div class="settings-label">Paste images as attachments</div>
@@ -469,7 +584,7 @@ export function SettingsPanel() {
             </div>
           )}
 
-          {workspacePath.value && (
+          {workspacePath.value && showAttachmentsFolder && (
             <div class="settings-row">
               <div>
                 <div class="settings-label">Attachments folder</div>
@@ -493,7 +608,7 @@ export function SettingsPanel() {
             </div>
           )}
 
-          {workspacePath.value && (
+          {workspacePath.value && showFrontmatterProperties && (
             <div class="settings-row">
               <div>
                 <div class="settings-label">Frontmatter properties panel</div>
@@ -525,7 +640,7 @@ export function SettingsPanel() {
             </div>
           )}
 
-          {workspacePath.value && (
+          {workspacePath.value && showTags && (
             <div class="settings-row">
               <div>
                 <div class="settings-label">Tags</div>
@@ -556,7 +671,7 @@ export function SettingsPanel() {
             </div>
           )}
 
-          {workspacePath.value && (
+          {workspacePath.value && showTemplates && (
             <div class="settings-row">
               <div>
                 <div class="settings-label">Templates</div>
@@ -587,7 +702,7 @@ export function SettingsPanel() {
             </div>
           )}
 
-          {workspacePath.value && (
+          {workspacePath.value && showTemplatesFolder && (
             <div class="settings-row">
               <div>
                 <div class="settings-label">Templates folder</div>
@@ -610,9 +725,12 @@ export function SettingsPanel() {
             </div>
           )}
         </section>
+        )}
 
+        {appearanceVisible && (
         <section class="settings-section">
           <h3>Appearance</h3>
+          {showTheme && (
           <div class="settings-row">
             <div class="settings-label">Theme</div>
             <div class="settings-switch">
@@ -627,9 +745,11 @@ export function SettingsPanel() {
               ))}
             </div>
           </div>
+          )}
 
           {workspacePath.value && (
             <>
+              {showFontSize && (
               <div class="settings-row">
                 <div class="settings-label">Font size</div>
                 <div class="settings-value">
@@ -648,6 +768,8 @@ export function SettingsPanel() {
                   />
                 </div>
               </div>
+              )}
+              {showZoom && (
               <div class="settings-row">
                 <div>
                   <div class="settings-label">Zoom</div>
@@ -673,6 +795,8 @@ export function SettingsPanel() {
                   %
                 </div>
               </div>
+              )}
+              {showDefaultViewMode && (
               <div class="settings-row">
                 <div>
                   <div class="settings-label">Default view mode</div>
@@ -700,9 +824,11 @@ export function SettingsPanel() {
                   ))}
                 </div>
               </div>
+              )}
             </>
           )}
         </section>
+        )}
 
         {workspacePath.value && (
           <VaultStatsPanel
@@ -711,9 +837,10 @@ export function SettingsPanel() {
           />
         )}
 
+        {shortcutsVisible && (
         <section class="settings-section" aria-label="Keyboard shortcuts">
           <h3>Keyboard shortcuts</h3>
-          {KEYBOARD_SHORTCUTS.map((shortcut) => (
+          {filteredShortcuts.map((shortcut) => (
             <div class="settings-row" key={shortcut.keys}>
               <div class="settings-label">{shortcut.description}</div>
               <div class="settings-value">
@@ -722,20 +849,27 @@ export function SettingsPanel() {
             </div>
           ))}
         </section>
+        )}
 
+        {aboutVisible && (
         <section class="settings-section">
           <h3>About</h3>
+          {showVersion && (
           <div class="settings-row">
             <div>
               <div class="settings-label">Version</div>
               <div class="settings-value">{appVersion.value || "..."}</div>
             </div>
           </div>
+          )}
+          {showLicenseRow && (
           <div class="settings-row">
             <div class="settings-label">License</div>
             <button onClick={() => setShowLicense(true)}>View License</button>
           </div>
+          )}
         </section>
+        )}
       </div>
 
       {showLicense && (

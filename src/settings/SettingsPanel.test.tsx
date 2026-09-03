@@ -32,7 +32,7 @@ vi.mock("./VaultStatsPanel", () => ({
   VaultStatsPanel: () => null,
 }));
 
-import { SettingsPanel } from "./SettingsPanel";
+import { matchesSettingsSearch, SettingsPanel } from "./SettingsPanel";
 import {
   addWorkspaceFromPicker,
   appVersion,
@@ -62,6 +62,30 @@ afterEach(() => {
   vi.mocked(repairWorkspaceSettingsFile).mockReset();
   workspaceSettingsSaveError.value = null;
   workspaceSettingsCorrupted.value = false;
+});
+
+describe("matchesSettingsSearch", () => {
+  it("matches everything for an empty or whitespace-only query", () => {
+    expect(matchesSettingsSearch("", "Theme")).toBe(true);
+    expect(matchesSettingsSearch("   ", "Theme")).toBe(true);
+  });
+
+  it("matches case-insensitively against any given text", () => {
+    expect(matchesSettingsSearch("THEME", "Theme")).toBe(true);
+    expect(matchesSettingsSearch("theme", "Theme")).toBe(true);
+  });
+
+  it("matches a substring, not just a whole-word or prefix match", () => {
+    expect(matchesSettingsSearch("emplate", "Templates folder")).toBe(true);
+  });
+
+  it("matches against a hint even when the label itself doesn't match", () => {
+    expect(matchesSettingsSearch("clipboard", "Copy link", "Copies the link to your clipboard")).toBe(true);
+  });
+
+  it("returns false when none of the given texts contain the query", () => {
+    expect(matchesSettingsSearch("nonexistent", "Theme", "Follow your OS")).toBe(false);
+  });
 });
 
 describe("SettingsPanel", () => {
@@ -336,5 +360,70 @@ describe("SettingsPanel", () => {
 
     expect(container.querySelector(".license-viewer")).toBeNull();
     expect(settingsPanelOpen.value).toBe(true);
+  });
+
+  describe("search (competitor-queued 2026-09-03)", () => {
+    it("shows every setting when the search box is empty", () => {
+      const { getByText } = render(<SettingsPanel />);
+      expect(getByText("Theme")).toBeTruthy();
+      expect(getByText("Version")).toBeTruthy();
+    });
+
+    it("filters rows by label text as the user types", () => {
+      const { getByLabelText, getByText, queryByText } = render(<SettingsPanel />);
+      const search = getByLabelText("Search settings") as HTMLInputElement;
+      fireEvent.input(search, { target: { value: "theme" } });
+      expect(getByText("Theme")).toBeTruthy();
+      expect(queryByText("Version")).toBeNull();
+      expect(queryByText("Keyboard shortcuts")).toBeNull();
+    });
+
+    it("matches a row by its hint text even when the label itself doesn't match", () => {
+      workspacePath.value = "/vault";
+      const { getByLabelText, getByText } = render(<SettingsPanel />);
+      const search = getByLabelText("Search settings") as HTMLInputElement;
+      // "Heading links"'s own hint text mentions "click navigation", which
+      // doesn't appear in its label at all.
+      fireEvent.input(search, { target: { value: "click navigation" } });
+      expect(getByText("Heading links")).toBeTruthy();
+    });
+
+    it("filters keyboard shortcuts by description", () => {
+      const { getByLabelText, getByText, queryByText } = render(<SettingsPanel />);
+      const search = getByLabelText("Search settings") as HTMLInputElement;
+      fireEvent.input(search, { target: { value: "command palette" } });
+      expect(getByText("Command palette")).toBeTruthy();
+      expect(queryByText("Theme")).toBeNull();
+    });
+
+    it("hides a section's own header once none of its rows match", () => {
+      const { getByLabelText, queryByText } = render(<SettingsPanel />);
+      const search = getByLabelText("Search settings") as HTMLInputElement;
+      fireEvent.input(search, { target: { value: "theme" } });
+      // Only "Appearance" (Theme) should remain; "About" has no match.
+      expect(queryByText("About")).toBeNull();
+    });
+
+    it("shows a 'no settings match' message when the query matches nothing at all", () => {
+      const { getByLabelText, getByText } = render(<SettingsPanel />);
+      const search = getByLabelText("Search settings") as HTMLInputElement;
+      fireEvent.input(search, { target: { value: "xyznonexistent" } });
+      expect(getByText('No settings match "xyznonexistent".')).toBeTruthy();
+    });
+
+    it("never hides an active save-error or corrupted-settings alert, regardless of the search query", () => {
+      workspaceSettingsSaveError.value = "Could not save settings.";
+      const { getByLabelText, getByText } = render(<SettingsPanel />);
+      const search = getByLabelText("Search settings") as HTMLInputElement;
+      fireEvent.input(search, { target: { value: "xyznonexistent" } });
+      expect(getByText("Could not save settings.")).toBeTruthy();
+    });
+
+    it("the search box itself stays visible no matter what is typed into it", () => {
+      const { getByLabelText } = render(<SettingsPanel />);
+      const search = getByLabelText("Search settings") as HTMLInputElement;
+      fireEvent.input(search, { target: { value: "xyznonexistent" } });
+      expect(getByLabelText("Search settings")).toBeTruthy();
+    });
   });
 });

@@ -19,6 +19,7 @@ you're about to do one of the following:
 - **`writing-scanner-modules.md`** — the established shape for a new Markdown structure scanner (the heading outline and table parser are the existing examples), and how to wire it into a hook and a panel/component without duplicating navigation or debouncing logic.
 - **`ci-failure-triage.md`** — diagnosing why a CI run (yours or someone else's) actually failed: getting the real failing step, classifying the failure (your diff, a drifted generated artifact, external/upstream, or a flake) with evidence rather than a guess, and what to record before moving on.
 - **`packaging-submission-pipelines.md`** — hard-won, non-obvious gotchas specific to the F-Droid and Flathub submission pipelines (`packaging/f-droid/`, `flatpak/`): pinned-commit mismatches, offline dependency source lists generated from the wrong commit, `npm ci --offline` still needing `--legacy-peer-deps`, and the official F-Droid buildserver image's own floating-tag regressions.
+- **`competitor-changelog-scan.md`** — the daily Market Solution #1/#2 changelog scan: how to tell what's already covered without a reliable "last run" log, fetching and filtering each changelog for genuinely new features, applying the auto-reject/sign-off-gated categories, the exact `ROADMAP.md` entry format, and the pseudonym rule for naming either competitor.
 
 If you add a new skill file, list it here too, and keep each file
 self-contained: a future session (in any tool) should be able to open one

@@ -34,6 +34,10 @@ function locatorLabel(path: string, token: string | undefined): string {
   return token ? "Android workspace" : path;
 }
 
+function reportWorkspaceActionFailure(action: string): void {
+  window.alert(`Could not ${action} workspace. Try again.`);
+}
+
 export function WorkspaceSwitcher() {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -67,7 +71,7 @@ export function WorkspaceSwitcher() {
   useEffect(() => {
     if (addRequest === previousAddRequest.current) return;
     previousAddRequest.current = addRequest;
-    void addWorkspaceFromPicker();
+    void addWorkspaceFromPicker().catch(() => reportWorkspaceActionFailure("add"));
   }, [addRequest]);
 
   useEffect(() => {
@@ -106,12 +110,31 @@ export function WorkspaceSwitcher() {
   const handleActivate = async (id: string) => {
     const alreadyActive = id === activeWorkspaceId.value;
     close();
-    if (!alreadyActive) await activateWorkspaceProfile(id);
+    if (alreadyActive) return;
+    try {
+      await activateWorkspaceProfile(id);
+    } catch {
+      // The store publishes workspaceSelectionError for activation failures.
+      // Swallow the rejected action here so the UI error remains the one source
+      // of truth instead of also producing an unhandled promise rejection.
+    }
   };
 
   const handleAdd = async () => {
     close();
-    await addWorkspaceFromPicker();
+    try {
+      await addWorkspaceFromPicker();
+    } catch {
+      reportWorkspaceActionFailure("add");
+    }
+  };
+
+  const handleForget = async (id: string) => {
+    try {
+      await forgetWorkspaceProfile(id);
+    } catch {
+      reportWorkspaceActionFailure("forget");
+    }
   };
 
   const handleMenuKeyDown = (event: KeyboardEvent) => {
@@ -169,7 +192,7 @@ export function WorkspaceSwitcher() {
                   <span class="workspace-switcher-row-name">{profile.name}<small>{locatorLabel(profile.path, profile.token)}</small></span>
                   {isActive && <span class="workspace-switcher-check" aria-hidden="true">✓</span>}
                 </button>
-                {!isActive && <button class="workspace-switcher-forget" aria-label={`Forget ${profile.name}`} title="Forget" onClick={() => void forgetWorkspaceProfile(profile.id)}>×</button>}
+                {!isActive && <button class="workspace-switcher-forget" aria-label={`Forget ${profile.name}`} title="Forget" onClick={() => void handleForget(profile.id)}>×</button>}
               </div>
             );
           })}

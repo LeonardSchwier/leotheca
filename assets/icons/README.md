@@ -4,4 +4,4 @@
 
 It contains no third-party artwork, fonts, trademarks, or embedded raster material. It can be used, changed, and redistributed without attribution, including in FOSS distributions and app-store packaging.
 
-The SVG uses a 512 by 512 view box and remains legible at small launcher-icon sizes. Its emblem combines a lion with an open reference volume: the lion represents the project's name, while the paired page blocks and sparse page rules signal bibliography, reading, and local knowledge. Its charcoal field, warm paper pages, and brass accent work on both light and dark surfaces.
+The SVG uses a 512 by 512 view box and remains legible at small launcher-icon sizes, including a 16px favicon. Its emblem is a single cream page holding a gold notched bookmark ribbon, on a dark navy rounded-square background: a "theca" (case, container) motif reduced to its simplest form, reading as "a kept, findable note" rather than a generic document glyph. The notch in the ribbon is what keeps the mark from reading as a plain two-tone square. Its navy, cream, and gold palette works on both light and dark surfaces.

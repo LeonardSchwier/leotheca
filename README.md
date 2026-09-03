@@ -1,3 +1,5 @@
+<p align="center"><img src="assets/icons/leotheca.svg" alt="Leotheca app icon: a cream page holding a gold notched bookmark ribbon on a dark navy background" width="96" height="96"></p>
+
 # Leotheca
 
 A free and open source markdown viewer and editor for a local folder of plain text notes. No account, no telemetry, no proprietary sync, and no network calls of any kind, it runs fully offline.

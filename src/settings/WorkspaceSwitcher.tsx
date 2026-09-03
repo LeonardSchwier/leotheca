@@ -159,7 +159,7 @@ export function WorkspaceSwitcher() {
         ref={triggerRef}
         class="workspace-switcher-trigger"
         aria-label={active ? "Switch workspace" : "Open workspace"}
-        aria-haspopup="listbox"
+        aria-haspopup="dialog"
         aria-expanded={open}
         onClick={() => (open ? close(false) : setOpen(true))}
       >
@@ -168,7 +168,7 @@ export function WorkspaceSwitcher() {
         <span class="workspace-switcher-caret" aria-hidden="true">▾</span>
       </button>
       {open && (
-        <div ref={menuRef} class="workspace-switcher-menu" role="listbox" aria-label="Workspaces" onKeyDown={(event) => handleMenuKeyDown(event as unknown as KeyboardEvent)}>
+        <div ref={menuRef} class="workspace-switcher-menu" role="dialog" aria-label="Workspaces" onKeyDown={(event) => handleMenuKeyDown(event as unknown as KeyboardEvent)}>
           <input
             ref={searchRef}
             class="workspace-switcher-search"
@@ -183,19 +183,32 @@ export function WorkspaceSwitcher() {
           ) : filtered.length === 0 ? (
             <div class="workspace-switcher-empty">No matching workspaces</div>
           ) : null}
-          {filtered.map((profile, index) => {
-            const isActive = profile.id === activeWorkspaceId.value;
-            return (
-              <div key={profile.id} class={`workspace-switcher-row ${isActive ? "active" : ""} ${index === highlighted ? "highlighted" : ""}`} role="option" aria-selected={isActive} aria-current={isActive ? "true" : undefined}>
-                <button class="workspace-switcher-row-button" tabIndex={-1} onMouseEnter={() => setHighlighted(index)} onClick={() => void handleActivate(profile.id)}>
-                  <span class="workspace-switcher-icon" aria-hidden="true">{workspaceIconGlyph(profile.icon)}</span>
-                  <span class="workspace-switcher-row-name">{profile.name}<small>{locatorLabel(profile.path, profile.token)}</small></span>
-                  {isActive && <span class="workspace-switcher-check" aria-hidden="true">✓</span>}
-                </button>
-                {!isActive && <button class="workspace-switcher-forget" aria-label={`Forget ${profile.name}`} title="Forget" onClick={() => void handleForget(profile.id)}>×</button>}
-              </div>
-            );
-          })}
+          <div role="list" aria-label="Workspace profiles">
+            {filtered.map((profile, index) => {
+              const isActive = profile.id === activeWorkspaceId.value;
+              return (
+                <div
+                  key={profile.id}
+                  class={`workspace-switcher-row ${isActive ? "active" : ""} ${index === highlighted ? "highlighted" : ""}`}
+                  role="listitem"
+                  aria-label={isActive ? `${profile.name}, current workspace` : profile.name}
+                >
+                  <button
+                    class="workspace-switcher-row-button"
+                    tabIndex={-1}
+                    aria-current={isActive ? "true" : undefined}
+                    onMouseEnter={() => setHighlighted(index)}
+                    onClick={() => void handleActivate(profile.id)}
+                  >
+                    <span class="workspace-switcher-icon" aria-hidden="true">{workspaceIconGlyph(profile.icon)}</span>
+                    <span class="workspace-switcher-row-name">{profile.name}<small>{locatorLabel(profile.path, profile.token)}</small></span>
+                    {isActive && <span class="workspace-switcher-check" aria-hidden="true">✓</span>}
+                  </button>
+                  {!isActive && <button class="workspace-switcher-forget" aria-label={`Forget ${profile.name}`} title="Forget" onClick={() => void handleForget(profile.id)}>×</button>}
+                </div>
+              );
+            })}
+          </div>
           <button class="workspace-switcher-add" onClick={() => void handleAdd()}>+ Add workspace</button>
         </div>
       )}

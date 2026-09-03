@@ -18,13 +18,15 @@ const {
   getAppVersion: vi.fn(async () => "1.0"),
   listDir: vi.fn(async () => []),
   pickWorkspaceFolder: vi.fn(async () => null),
-  readTextFile: vi.fn(async () => {
+  readTextFile: vi.fn<(path: string) => Promise<string>>(async () => {
     throw new Error("not found");
   }),
   restoreWorkspaceAccess: vi.fn(async () => {}),
   setStatusBarAppearance: vi.fn(async () => {}),
-  writeTextFile: vi.fn(async () => {}),
-  writeWorkspaceTextFile: vi.fn(async () => {}),
+  writeTextFile: vi.fn<(path: string, contents: string) => Promise<void>>(async () => {}),
+  writeWorkspaceTextFile: vi.fn<
+    (root: string, relativePath: string, contents: string) => Promise<void>
+  >(async () => {}),
 }));
 
 vi.mock("../workspace/tauriBridge", () => ({
@@ -115,7 +117,7 @@ describe("F20 Phase 2a profile edit persistence races", () => {
 
     const persisted = writeTextFile.mock.calls
       .filter(([path]) => path === "/config/config.json")
-      .map(([, contents]) => JSON.parse(contents as string));
+      .map(([, contents]) => JSON.parse(contents));
     expect(persisted).toHaveLength(2);
     expect(persisted[1].workspaceProfiles[0].name).toBe("Second");
   });
@@ -136,7 +138,7 @@ describe("F20 Phase 2a profile edit persistence races", () => {
 
     const persisted = writeTextFile.mock.calls
       .filter(([path]) => path === "/config/config.json")
-      .map(([, contents]) => JSON.parse(contents as string));
+      .map(([, contents]) => JSON.parse(contents));
     expect(persisted).toHaveLength(2);
     expect(persisted[1].workspaceProfiles[0].icon).toBe("briefcase");
   });

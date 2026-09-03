@@ -10,7 +10,12 @@ import {
 } from "@codemirror/view";
 import { resolveWikilink } from "../linking/store";
 import { parseWikiLinks, type WikiLinkRecord } from "../linking/wikiSyntax";
-import { resolveBlockFragment, resolveHeadingFragment, resolveWikiLinkTarget } from "../linking/wikiResolver";
+import {
+  crossNoteHeadingsFor,
+  resolveBlockFragment,
+  resolveHeadingFragment,
+  resolveWikiLinkTarget,
+} from "../linking/wikiResolver";
 import { scanHeadings, type HeadingRecord } from "../markdown/headings";
 import { scanBlockIds, type BlockRecord } from "../markdown/blocks";
 
@@ -43,12 +48,12 @@ import { scanBlockIds, type BlockRecord } from "../markdown/blocks";
  * rule MarkdownPreview.tsx's renderWikilinksStructured already follows
  * (spec section 2). A same-note fragment resolves fully against this
  * document's own headings (resolved/missing/ambiguous, see
- * classifyHeadingLink below); a cross-note fragment resolves at
- * the note level only, the same disclosed scope narrowing Preview uses
- * (verifying a cross-note heading would mean reading another note's file
- * from inside this synchronous decoration pass, deferred to a follow-up
- * in ROADMAP.md), rendering with the plain "resolved" look once its
- * target note exists, or "broken" if the note itself does not.
+ * classifyHeadingLink below); a cross-note fragment resolves fully too,
+ * as of F04 Phase 5a, against `LinkIndex.headingsByPath` (no file read
+ * needed from inside this synchronous decoration pass, since that map is
+ * already in memory, see `linking/wikiResolver.ts`'s `crossNoteHeadingsFor`
+ * and `linking/store.ts`'s own doc comment on the field), rendering
+ * "broken" only when the note itself does not exist.
  *
  * F04 Phase 3c adds the identical treatment for `^block-id` fragments
  * (`classifyBlockLink` below, reusing F04 Phase 3a/3b's `resolveBlockFragment`
@@ -132,13 +137,14 @@ const HEADING_LINK_CLASS: Record<HeadingLinkStatus, string> = {
  * every keystroke and selection change, and most documents contain no
  * same-note heading link at all.
  *
- * A cross-note fragment (`record.noteTarget !== ""`) never reaches
- * "missing"/"ambiguous": this phase does not read another note's file
- * just to verify its heading (see the module doc comment above), so a
- * cross-note heading link is only ever "resolved" (its note exists,
- * including spec 5.3's legacy-filename fallback) or "broken" (it does
- * not), matching MarkdownPreview.tsx's own disclosed scope narrowing for
- * the same case.
+ * F04 Phase 5a: a cross-note fragment (`record.noteTarget !== ""`) can
+ * now reach "missing"/"ambiguous" too, verified against
+ * `LinkIndex.headingsByPath` via `crossNoteHeadingsFor` — no file read
+ * needed, that map is already in memory (see its own doc comment in
+ * `linking/store.ts`). "broken" is reserved for the note itself not
+ * resolving; a resolving note with a missing/ambiguous heading gets the
+ * more specific status, matching MarkdownPreview.tsx's own equivalent
+ * handling for the same case.
  */
 function classifyHeadingLink(
   record: WikiLinkRecord,
@@ -153,8 +159,14 @@ function classifyHeadingLink(
     return "missing";
   }
 
-  const target = resolveWikiLinkTarget(record, { currentNotePath: undefined, targetHeadings: undefined });
-  return target.status === "resolved" ? "resolved" : "broken";
+  const target = resolveWikiLinkTarget(record, {
+    currentNotePath: undefined,
+    targetHeadings: crossNoteHeadingsFor(record),
+  });
+  if (target.status === "resolved") return "resolved";
+  if (target.status === "missing-fragment") return "missing";
+  if (target.status === "ambiguous-fragment") return "ambiguous";
+  return "broken";
 }
 
 type BlockLinkStatus = "resolved" | "missing" | "ambiguous" | "broken";

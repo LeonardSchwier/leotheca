@@ -17,11 +17,18 @@
  * resolver has no way to distinguish "not implemented yet" from "not
  * there" without reading the note a second time through a different
  * scanner just to tell them apart.
+ *
+ * F04 Phase 5a adds `crossNoteHeadingsFor`, a small bridge into
+ * `LinkIndex.headingsByPath` (`./store`) so a cross-note heading
+ * fragment can be verified the same way a same-note one already is,
+ * without a second file read (see that field's own doc comment: it
+ * exists specifically for this). Block fragments are not covered by
+ * this bridge yet; see the "F04 Phase 5b" roadmap entry.
  */
 
 import { normalizeHeadingKey, type HeadingRecord } from "../markdown/headings";
 import type { BlockRecord } from "../markdown/blocks";
-import { resolveWikilink } from "./store";
+import { linkIndex, resolveWikilink } from "./store";
 import type { WikiLinkRecord } from "./wikiSyntax";
 
 export interface ResolvedWikiTarget {
@@ -101,6 +108,40 @@ export function resolveBlockFragment(
   if (matches.length === 0) return { status: "missing-fragment" };
   if (matches.length > 1) return { status: "ambiguous-fragment", candidates: matches };
   return { status: "resolved", block: matches[0] };
+}
+
+/**
+ * F04 Phase 5a: the `targetHeadings` a cross-note heading fragment needs
+ * for `resolveWikiLinkTarget` to actually verify it, read from the
+ * already-in-memory `LinkIndex.headingsByPath` rather than a fresh file
+ * read (see that field's own doc comment in `store.ts`: it was added
+ * specifically for this). Returns `undefined` — meaning "don't verify,
+ * resolve at the note level only" in `resolveWikiLinkTarget`'s own
+ * contract — for anything this bridge doesn't cover: a same-note record
+ * (the caller already has its own scanned headings for that case), a
+ * non-heading fragment (block fragments aren't covered by this phase),
+ * or a note target that doesn't itself resolve (`resolveWikiLinkTarget`'s
+ * own note-resolution, including its section 5.3 legacy-filename
+ * fallback, already handles that case correctly without a fragment
+ * check). Returns an array — including an empty one, deliberately, since
+ * `LinkIndex.headingsByPath` is a sparse map where an absent path means
+ * "this note has zero headings", not "not looked up yet" — once the note
+ * itself resolves, so a genuinely nonexistent heading in an existing
+ * cross-note target correctly reports "missing-fragment" instead of
+ * silently passing as note-level "resolved".
+ *
+ * Shares `LinkIndex`'s own startup-timing characteristics: like a
+ * cross-note link's note-level "does this note exist" check (already
+ * driven by the same index), a heading check can transiently read as
+ * unverified during the very first index build right after a workspace
+ * opens. This phase does not change that pre-existing behavior, only
+ * extends the same authority one level deeper.
+ */
+export function crossNoteHeadingsFor(record: WikiLinkRecord): HeadingRecord[] | undefined {
+  if (record.noteTarget === "" || !record.fragment || record.fragment.kind !== "heading") return undefined;
+  const notePath = resolveWikilink(record.noteTarget);
+  if (!notePath) return undefined;
+  return linkIndex.value.headingsByPath?.get(notePath) ?? [];
 }
 
 export interface WikiResolutionContext {

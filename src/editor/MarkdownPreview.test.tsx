@@ -14,6 +14,7 @@ vi.mock("../settings/store", async () => {
 
 import { MarkdownPreview } from "./MarkdownPreview";
 import { linkIndex } from "../linking/store";
+import { scanHeadings } from "../markdown/headings";
 import { workspacePath } from "../settings/store";
 import { fileSrc, readTextFile } from "../workspace/tauriBridge";
 import { outlineRevealRequest } from "../outline/outlineNavigation";
@@ -527,7 +528,7 @@ describe("MarkdownPreview: F04 Phase 1 heading links", () => {
     expect(outlineRevealRequest.value).toBeNull();
   });
 
-  it("resolves a cross-note [[Note#Heading]] link at the note level, styled as resolved", () => {
+  it("resolves a cross-note [[Note#Heading]] link against the target note's actual headings (F04 Phase 5a)", () => {
     linkIndex.value = {
       backlinksByPath: new Map(),
       pathsByNoteName: new Map([["project plan", ["/vault/project-plan.md"]]]),
@@ -536,15 +537,50 @@ describe("MarkdownPreview: F04 Phase 1 heading links", () => {
       pathsByTag: new Map(),
       tagsByPath: new Map(),
       tasksByPath: new Map(),
+      headingsByPath: new Map([["/vault/project-plan.md", scanHeadings("# Milestones\n\ntext")]]),
     };
     const { container } = render(<MarkdownPreview source="[[Project Plan#Milestones]]" />);
     const anchor = container.querySelector('a[href^="#leotheca-wikilink="]');
     expect(anchor?.getAttribute("href")).toContain("resolved=1");
-    // The cross-note heading itself is not verified during this render
-    // pass (see MarkdownPreview.tsx's renderWikilinksStructured doc
-    // comment): no explicit headingStatus is claimed for it.
-    expect(anchor?.getAttribute("href")).not.toContain("headingStatus=");
+    expect(anchor?.getAttribute("href")).toContain("headingStatus=resolved");
   });
+
+  it("renders a cross-note heading link as missing, not resolved, when the target note has no such heading (F04 Phase 5a)", () => {
+    linkIndex.value = {
+      backlinksByPath: new Map(),
+      pathsByNoteName: new Map([["project plan", ["/vault/project-plan.md"]]]),
+      pathsByAlias: new Map(),
+      aliasesByPath: new Map(),
+      pathsByTag: new Map(),
+      tagsByPath: new Map(),
+      tasksByPath: new Map(),
+      headingsByPath: new Map([["/vault/project-plan.md", scanHeadings("# Milestones\n\ntext")]]),
+    };
+    const { container } = render(<MarkdownPreview source="[[Project Plan#Nonexistent]]" />);
+    const anchor = container.querySelector('a[href^="#leotheca-wikilink="]');
+    expect(anchor?.getAttribute("href")).not.toContain("resolved=1");
+    expect(anchor?.getAttribute("href")).toContain("headingStatus=missing");
+  });
+
+  it("renders a cross-note heading link as ambiguous when the target note has duplicate headings (F04 Phase 5a)", () => {
+    linkIndex.value = {
+      backlinksByPath: new Map(),
+      pathsByNoteName: new Map([["project plan", ["/vault/project-plan.md"]]]),
+      pathsByAlias: new Map(),
+      aliasesByPath: new Map(),
+      pathsByTag: new Map(),
+      tagsByPath: new Map(),
+      tasksByPath: new Map(),
+      headingsByPath: new Map([
+        ["/vault/project-plan.md", scanHeadings("## Design\n\ntext\n\n## Design\n\nmore")],
+      ]),
+    };
+    const { container } = render(<MarkdownPreview source="[[Project Plan#Design]]" />);
+    const anchor = container.querySelector('a[href^="#leotheca-wikilink="]');
+    expect(anchor?.getAttribute("href")).not.toContain("resolved=1");
+    expect(anchor?.getAttribute("href")).toContain("headingStatus=ambiguous");
+  });
+
 
   it("clicking a resolved cross-note heading link opens the note and passes the heading key through onOpenFile", () => {
     linkIndex.value = {

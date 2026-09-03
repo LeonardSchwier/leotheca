@@ -2,9 +2,17 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render } from "@testing-library/preact";
 import { CommandPalette, type Command } from "./CommandPalette";
+import {
+  workspaceAddRequest,
+  workspaceManageRequest,
+  workspaceSwitcherOpenRequest,
+} from "../settings/workspaceSwitcherControl";
 
 afterEach(() => {
   cleanup();
+  workspaceSwitcherOpenRequest.value = 0;
+  workspaceAddRequest.value = 0;
+  workspaceManageRequest.value = 0;
 });
 
 function makeCommands(): Command[] {
@@ -16,9 +24,12 @@ function makeCommands(): Command[] {
 }
 
 describe("CommandPalette", () => {
-  it("lists every command with none typed", () => {
-    const { getAllByRole } = render(<CommandPalette commands={makeCommands()} onClose={vi.fn()} />);
-    expect(getAllByRole("listitem")).toHaveLength(3);
+  it("lists app commands plus the three workspace-profile commands", () => {
+    const { getAllByRole, getByText } = render(<CommandPalette commands={makeCommands()} onClose={vi.fn()} />);
+    expect(getAllByRole("listitem")).toHaveLength(6);
+    expect(getByText("Switch workspace...")).toBeTruthy();
+    expect(getByText("Add workspace...")).toBeTruthy();
+    expect(getByText("Manage workspace profiles...")).toBeTruthy();
   });
 
   it("filters commands by substring, case-insensitively", () => {
@@ -56,11 +67,12 @@ describe("CommandPalette", () => {
     expect(commands[0].run).not.toHaveBeenCalled();
   });
 
-  it("ArrowDown does not move past the last command", () => {
+  it("can reach the last provided app command before the workspace commands", () => {
     const commands = makeCommands();
     const { getByPlaceholderText } = render(<CommandPalette commands={commands} onClose={vi.fn()} />);
     const input = getByPlaceholderText("Type a command...");
-    for (let i = 0; i < 10; i++) fireEvent.keyDown(input, { key: "ArrowDown" });
+    fireEvent.keyDown(input, { key: "ArrowDown" });
+    fireEvent.keyDown(input, { key: "ArrowDown" });
     fireEvent.keyDown(input, { key: "Enter" });
     expect(commands[2].run).toHaveBeenCalledTimes(1);
   });
@@ -79,10 +91,10 @@ describe("CommandPalette", () => {
     const { getByPlaceholderText } = render(<CommandPalette commands={commands} onClose={vi.fn()} />);
     const input = getByPlaceholderText("Type a command...");
     fireEvent.keyDown(input, { key: "ArrowDown" });
-    fireEvent.keyDown(input, { key: "ArrowDown" }); // selection now at index 2, "Open Settings"
-    fireEvent.input(input, { target: { value: "new" } }); // filters to 2 items, should reset to index 0
+    fireEvent.keyDown(input, { key: "ArrowDown" });
+    fireEvent.input(input, { target: { value: "new" } });
     fireEvent.keyDown(input, { key: "Enter" });
-    expect(commands[0].run).toHaveBeenCalledTimes(1); // "New note", not "New folder"
+    expect(commands[0].run).toHaveBeenCalledTimes(1);
   });
 
   it("Escape closes without running anything", () => {
@@ -92,6 +104,17 @@ describe("CommandPalette", () => {
     fireEvent.keyDown(getByPlaceholderText("Type a command..."), { key: "Escape" });
     expect(onClose).toHaveBeenCalledTimes(1);
     for (const c of commands) expect(c.run).not.toHaveBeenCalled();
+    expect(workspaceSwitcherOpenRequest.value).toBe(0);
+    expect(workspaceAddRequest.value).toBe(0);
+    expect(workspaceManageRequest.value).toBe(0);
+  });
+
+  it("workspace commands publish their request and close the palette", () => {
+    const onClose = vi.fn();
+    const { getByText } = render(<CommandPalette commands={makeCommands()} onClose={onClose} />);
+    fireEvent.click(getByText("Switch workspace..."));
+    expect(workspaceSwitcherOpenRequest.value).toBe(1);
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   it("clicking a command runs that one specifically, not whatever was keyboard-selected", () => {

@@ -28,6 +28,7 @@ import {
 } from "./workspaceSettings";
 import { getWorkspaceStats } from "../workspace/tauriBridge";
 import { VaultStatsPanel } from "./VaultStatsPanel";
+import { WorkspaceProfilesSettings } from "./WorkspaceProfilesSettings";
 import { KEYBOARD_SHORTCUTS } from "../app/shortcuts";
 import { rebuildLinkIndex } from "../linking/store";
 import { DiagnosticsPanel } from "../diagnostics/DiagnosticsPanel";
@@ -204,6 +205,10 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
     "Collections",
     "Group notes by a saved search or a manual list, off by default",
   );
+  const showWorkspaceProfiles = matches(
+    "Workspace profiles",
+    "Rename, identify, add, and forget known workspaces without deleting their files",
+  );
   const showTheme = matches("Theme");
   const showFontSize = matches("Font size");
   const showZoom = matches("Zoom", "Scales the whole app; use Ctrl+Plus, Ctrl+Minus, or Ctrl+0");
@@ -235,6 +240,7 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
     workspacePath.value &&
       (showAccentThemes || showEditorSnippets || showCanvas || showTags || showTemplates || showCollections),
   );
+  const profilesVisible = showWorkspaceProfiles;
   const appearanceVisible = showTheme || Boolean(workspacePath.value && (showFontSize || showZoom || showDefaultViewMode));
   const shortcutsVisible = filteredShortcuts.length > 0;
   const aboutVisible = showVersion || showLicenseRow;
@@ -243,6 +249,7 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
     searchQuery.trim() !== "" &&
     !generalVisible &&
     !featureSelectionVisible &&
+    !profilesVisible &&
     !appearanceVisible &&
     !shortcutsVisible &&
     !aboutVisible &&
@@ -621,6 +628,8 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
           )}
         </section>
         )}
+
+        {profilesVisible && <WorkspaceProfilesSettings />}
 
         {featureSelectionVisible && (
         <section class="settings-section">

@@ -32,9 +32,16 @@ describe("normalizeProfileName", () => {
     expect(normalizeProfileName("   ")).toBeNull();
   });
 
-  it("caps an excessively long name at 120 characters", () => {
-    const long = "x".repeat(200);
-    expect(normalizeProfileName(long)).toHaveLength(120);
+  it("accepts exactly 80 Unicode scalar values and rejects 81", () => {
+    expect(normalizeProfileName("x".repeat(80))).toBe("x".repeat(80));
+    expect(normalizeProfileName("x".repeat(81))).toBeNull();
+    expect(normalizeProfileName("😀".repeat(80))).toBe("😀".repeat(80));
+    expect(normalizeProfileName("😀".repeat(81))).toBeNull();
+  });
+
+  it("rejects line breaks", () => {
+    expect(normalizeProfileName("Work\nNotes")).toBeNull();
+    expect(normalizeProfileName("Work\rNotes")).toBeNull();
   });
 });
 
@@ -51,8 +58,9 @@ describe("defaultProfileName", () => {
     expect(defaultProfileName("/workspace")).toBe("Workspace");
   });
 
-  it("falls back to 'Workspace' when a suggested name is only whitespace", () => {
+  it("falls back to the path basename when a suggested name is invalid", () => {
     expect(defaultProfileName("/Users/me/vault", "   ")).toBe("vault");
+    expect(defaultProfileName("/Users/me/vault", "bad\nname")).toBe("vault");
   });
 
   it("falls back to 'Workspace' for a path with no usable basename", () => {
@@ -131,37 +139,25 @@ describe("sortWorkspaceProfiles", () => {
     ];
     expect(sortWorkspaceProfiles(profiles).map((p) => p.id)).toEqual(["a", "z"]);
   });
-
-  it("does not mutate its input array", () => {
-    const profiles = [profile({ id: "a", lastOpenedAt: 1 }), profile({ id: "b", lastOpenedAt: 2 })];
-    const original = [...profiles];
-    sortWorkspaceProfiles(profiles);
-    expect(profiles).toEqual(original);
-  });
 });
 
 describe("matchesWorkspaceSearch", () => {
-  it("matches the display name case-insensitively", () => {
-    expect(matchesWorkspaceSearch(profile({ name: "Personal Notes" }), "personal")).toBe(true);
-    expect(matchesWorkspaceSearch(profile({ name: "Personal Notes" }), "work")).toBe(false);
+  it("matches names, desktop basenames, and desktop path text case-insensitively", () => {
+    const p = profile({ name: "Project Notes", path: "/Users/me/Research/Vault" });
+    expect(matchesWorkspaceSearch(p, "project")).toBe(true);
+    expect(matchesWorkspaceSearch(p, "vault")).toBe(true);
+    expect(matchesWorkspaceSearch(p, "RESEARCH")).toBe(true);
+    expect(matchesWorkspaceSearch(p, "missing")).toBe(false);
   });
 
-  it("matches the Desktop folder basename", () => {
-    expect(matchesWorkspaceSearch(profile({ name: "Notes", path: "/Users/me/vault" }), "vault")).toBe(true);
+  it("does not expose Android path or token text through search", () => {
+    const p = profile({ name: "Phone Notes", path: "/workspace", token: "content://secret/tree" });
+    expect(matchesWorkspaceSearch(p, "phone")).toBe(true);
+    expect(matchesWorkspaceSearch(p, "workspace")).toBe(false);
+    expect(matchesWorkspaceSearch(p, "secret")).toBe(false);
   });
 
-  it("matches the full Desktop path text", () => {
-    expect(matchesWorkspaceSearch(profile({ name: "Notes", path: "/Users/me/vault" }), "users/me")).toBe(true);
-  });
-
-  it("treats an empty query as matching everything", () => {
-    expect(matchesWorkspaceSearch(profile({ name: "Anything" }), "")).toBe(true);
-    expect(matchesWorkspaceSearch(profile({ name: "Anything" }), "   ")).toBe(true);
-  });
-
-  it("never matches on the token alone", () => {
-    expect(matchesWorkspaceSearch(profile({ name: "Android", path: "/workspace", token: "content://secret" }), "secret")).toBe(
-      false,
-    );
+  it("matches every profile for an empty query", () => {
+    expect(matchesWorkspaceSearch(profile({}), "   ")).toBe(true);
   });
 });

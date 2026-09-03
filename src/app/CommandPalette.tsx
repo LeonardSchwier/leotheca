@@ -1,4 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
+import {
+  requestWorkspaceAdd,
+  requestWorkspaceManage,
+  requestWorkspaceSwitcherOpen,
+} from "../settings/workspaceSwitcherControl";
 
 export interface Command {
   id: string;
@@ -11,10 +16,17 @@ interface CommandPaletteProps {
   onClose: () => void;
 }
 
+const workspaceCommands: Command[] = [
+  { id: "switch-workspace", label: "Switch workspace...", run: requestWorkspaceSwitcherOpen },
+  { id: "add-workspace", label: "Add workspace...", run: requestWorkspaceAdd },
+  { id: "manage-workspace-profiles", label: "Manage workspace profiles...", run: requestWorkspaceManage },
+];
+
 export function CommandPalette({ commands, onClose }: CommandPaletteProps) {
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const allCommands = useMemo(() => [...commands, ...workspaceCommands], [commands]);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -22,9 +34,9 @@ export function CommandPalette({ commands, onClose }: CommandPaletteProps) {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return commands;
-    return commands.filter((c) => c.label.toLowerCase().includes(q));
-  }, [commands, query]);
+    if (!q) return allCommands;
+    return allCommands.filter((c) => c.label.toLowerCase().includes(q));
+  }, [allCommands, query]);
 
   const runAndClose = (command: Command) => {
     command.run();

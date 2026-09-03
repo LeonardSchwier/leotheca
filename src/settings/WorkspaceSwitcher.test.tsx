@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render } from "@testing-library/preact";
+import { cleanup, fireEvent, render, waitFor, within } from "@testing-library/preact";
 import { signal } from "@preact/signals";
 import type { WorkspaceProfile } from "./globalConfig";
 import {
@@ -89,9 +89,9 @@ describe("WorkspaceSwitcher", () => {
   it("selecting the already-active profile closes without a filesystem activation", async () => {
     workspaceProfiles.value = [PROFILE_A, PROFILE_B];
     activeWorkspaceId.value = "a";
-    const { getByLabelText, getByText } = render(<WorkspaceSwitcher />);
+    const { getByLabelText, getByRole } = render(<WorkspaceSwitcher />);
     fireEvent.click(getByLabelText("Switch workspace"));
-    fireEvent.click(getByText("Personal"));
+    fireEvent.click(within(getByRole("option", { selected: true })).getByRole("button"));
     await Promise.resolve();
     expect(activateWorkspaceProfile).not.toHaveBeenCalled();
   });
@@ -185,12 +185,12 @@ describe("WorkspaceSwitcher", () => {
     activeWorkspaceId.value = "a";
     const { getByRole } = render(<WorkspaceSwitcher />);
     workspaceSwitcherOpenRequest.value++;
-    await Promise.resolve();
-    expect(getByRole("listbox")).toBeTruthy();
+    await waitFor(() => expect(getByRole("listbox")).toBeTruthy());
     workspaceAddRequest.value++;
     workspaceManageRequest.value++;
-    await Promise.resolve();
-    expect(addWorkspaceFromPicker).toHaveBeenCalledTimes(1);
-    expect(settingsPanelOpen.value).toBe(true);
+    await waitFor(() => {
+      expect(addWorkspaceFromPicker).toHaveBeenCalledTimes(1);
+      expect(settingsPanelOpen.value).toBe(true);
+    });
   });
 });

@@ -2,6 +2,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { EditorSelection, EditorState } from "@codemirror/state";
 import { linkIndex } from "../linking/store";
+import { scanHeadings } from "../markdown/headings";
 
 /** CodeMirror only tracks one selection range unless this facet is
  * explicitly enabled — without it, EditorState silently collapses any
@@ -239,14 +240,37 @@ describe("buildLiveDecorations: heading-links (F04 Phase 2)", () => {
     expect(marked).toContainEqual({ text: "[[#Intro]]", class: "cm-live-wikilink-heading-ambiguous" });
   });
 
-  it("styles a cross-note [[Note#Heading]] link as resolved once the note exists, without verifying the heading", () => {
-    // "Nonexistent Heading" is never scanned anywhere: this phase does not
-    // read Beta.md's content just to decorate Source mode, matching
-    // MarkdownPreview's own disclosed cross-note scope narrowing.
+  it("styles a cross-note [[Note#Heading]] link as resolved when the target note actually has that heading (F04 Phase 5a)", () => {
+    linkIndex.value = {
+      ...linkIndex.value,
+      headingsByPath: new Map([["/workspace/Beta.md", scanHeadings("# Roadmap\n\ntext")]]),
+    };
+    const doc = "See [[Beta#Roadmap]] here.\n\nOther line.";
+    const state = stateFor(doc, { anchor: doc.length });
+    const { marked } = summarize(state);
+    expect(marked).toContainEqual({ text: "[[Beta#Roadmap]]", class: "cm-live-wikilink-resolved" });
+  });
+
+  it("styles a cross-note [[Note#Heading]] link as heading-missing when the target note has no such heading (F04 Phase 5a)", () => {
+    linkIndex.value = {
+      ...linkIndex.value,
+      headingsByPath: new Map([["/workspace/Beta.md", scanHeadings("# Roadmap\n\ntext")]]),
+    };
     const doc = "See [[Beta#Nonexistent Heading]] here.\n\nOther line.";
     const state = stateFor(doc, { anchor: doc.length });
     const { marked } = summarize(state);
-    expect(marked).toContainEqual({ text: "[[Beta#Nonexistent Heading]]", class: "cm-live-wikilink-resolved" });
+    expect(marked).toContainEqual({ text: "[[Beta#Nonexistent Heading]]", class: "cm-live-wikilink-heading-missing" });
+  });
+
+  it("styles a cross-note [[Note#Heading]] link as heading-ambiguous when the target note has duplicate headings (F04 Phase 5a)", () => {
+    linkIndex.value = {
+      ...linkIndex.value,
+      headingsByPath: new Map([["/workspace/Beta.md", scanHeadings("## Design\n\ntext\n\n## Design\n\nmore")]]),
+    };
+    const doc = "See [[Beta#Design]] here.\n\nOther line.";
+    const state = stateFor(doc, { anchor: doc.length });
+    const { marked } = summarize(state);
+    expect(marked).toContainEqual({ text: "[[Beta#Design]]", class: "cm-live-wikilink-heading-ambiguous" });
   });
 
   it("styles a cross-note [[Note#Heading]] link as broken when the note itself does not exist", () => {
@@ -463,11 +487,29 @@ describe("buildLiveDecorations: embeds (F04 Phase 3f)", () => {
     expect(marked).toContainEqual({ text: "![[Nope]]", class: "cm-live-embed-broken" });
   });
 
-  it("styles a cross-note ![[Note#Heading]] embed as resolved once the note exists, without verifying the heading", () => {
+  it("styles a cross-note ![[Note#Heading]] embed as resolved when the target note actually has that heading (F04 Phase 5a)", () => {
+    linkIndex.value = {
+      ...linkIndex.value,
+      headingsByPath: new Map([["/workspace/Beta.md", scanHeadings("# Roadmap\n\ntext")]]),
+    };
+    const doc = "See ![[Beta#Roadmap]] here.\n\nOther line.";
+    const state = stateFor(doc, { anchor: doc.length });
+    const { marked } = summarize(state);
+    expect(marked).toContainEqual({ text: "![[Beta#Roadmap]]", class: "cm-live-embed-resolved" });
+  });
+
+  it("styles a cross-note ![[Note#Heading]] embed with the heading-missing class when the target note has no such heading (F04 Phase 5a)", () => {
+    linkIndex.value = {
+      ...linkIndex.value,
+      headingsByPath: new Map([["/workspace/Beta.md", scanHeadings("# Roadmap\n\ntext")]]),
+    };
     const doc = "See ![[Beta#Nonexistent Heading]] here.\n\nOther line.";
     const state = stateFor(doc, { anchor: doc.length });
     const { marked } = summarize(state);
-    expect(marked).toContainEqual({ text: "![[Beta#Nonexistent Heading]]", class: "cm-live-embed-resolved" });
+    expect(marked).toContainEqual({
+      text: "![[Beta#Nonexistent Heading]]",
+      class: "cm-live-wikilink-heading-missing",
+    });
   });
 
   it("styles a cross-note ![[Note#Heading]] embed as broken when the note itself does not exist", () => {

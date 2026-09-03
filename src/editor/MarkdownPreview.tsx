@@ -5,7 +5,12 @@ import katex from "katex";
 import "katex/dist/katex.min.css";
 import { fileNameFromPath, resolveWikilink } from "../linking/store";
 import { parseWikiLinks, type WikiLinkFragment, type WikiLinkRecord } from "../linking/wikiSyntax";
-import { resolveBlockFragment, resolveHeadingFragment, resolveWikiLinkTarget } from "../linking/wikiResolver";
+import {
+  crossNoteHeadingsFor,
+  resolveBlockFragment,
+  resolveHeadingFragment,
+  resolveWikiLinkTarget,
+} from "../linking/wikiResolver";
 import { scanHeadings, type HeadingRecord } from "../markdown/headings";
 import { scanBlockIds, type BlockRecord } from "../markdown/blocks";
 import { frontmatterBodyStart } from "./frontmatterEdits";
@@ -681,7 +686,12 @@ function renderWikilinksStructured(source: string, context: RenderContext): stri
     const sameNote = record.noteTarget === "";
     const target = resolveWikiLinkTarget(record, {
       currentNotePath,
-      targetHeadings: sameNote ? currentHeadings : undefined,
+      // F04 Phase 5a: a cross-note heading fragment is now verified
+      // against LinkIndex.headingsByPath too, not just the note's own
+      // existence (see crossNoteHeadingsFor's own doc comment). Block
+      // fragments remain note-level-only cross-note, see the "F04 Phase
+      // 5b" roadmap entry.
+      targetHeadings: sameNote ? currentHeadings : crossNoteHeadingsFor(record),
       targetBlocks: sameNote ? currentBlocks : undefined,
     });
 

@@ -66,8 +66,12 @@ function PropertyCell({ note, property, onEditProperty }: PropertyCellProps) {
     setStatus("saving");
     const value = property.kind === "list" ? draft.split(",").map((v) => v.trim()).filter(Boolean) : draft;
     const result = await onEditProperty(note, property, value);
-    setStatus(result);
-    if (result === "ok") setEditing(false);
+    if (result === "ok") {
+      setStatus("idle");
+      setEditing(false);
+    } else {
+      setStatus(result);
+    }
   }
 
   if (editing) {

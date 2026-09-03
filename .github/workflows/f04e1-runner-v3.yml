@@ -1,0 +1,54 @@
+name: F04 Phase 5e1 runner v3
+
+on:
+  push:
+    branches:
+      - automation/f04e1-runner-v3-2108
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Execute hardened isolated patcher
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          source = Path('.github/workflows/f04e1-direct.yml').read_text(encoding='utf-8')
+          marker = "          python - <<'PY'\n"
+          start = source.index(marker) + len(marker)
+          end = source.index("          PY\n", start)
+          body = source[start:end]
+          body = "\n".join(line[10:] if line.startswith("          ") else line for line in body.splitlines()) + "\n"
+          block_start = body.index("old_setext = '''")
+          block_end_marker = 'exact("src/markdown/headings.ts", old_setext, new_setext)'
+          block_end = body.index(block_end_marker, block_start) + len(block_end_marker)
+          old_lines = ["        consumedLines.add(i - 1);", "        consumedLines.add(i);", "        raw.push({", "          level: setextLevel,", "          rawText: textLine.text.slice(contentStart, contentEnd),", "          sourceFrom: textLine.start,", "          sourceTo: line.end,", "          contentFrom: textLine.start + contentStart,", "          contentTo: textLine.start + contentEnd,", "          line: textLine.lineNumber,", "          column: 1,", "        });"]
+          new_lines = ["        const parsedBlockId = extractHeadingBlockId(", "          textLine.text.slice(contentStart, contentEnd),", "          textLine.start + contentStart,", "        );", "        contentEnd = parsedBlockId.contentTo - textLine.start;", "        consumedLines.add(i - 1);", "        consumedLines.add(i);", "        raw.push({", "          level: setextLevel,", "          rawText: parsedBlockId.rawText,", "          sourceFrom: textLine.start,", "          sourceTo: line.end,", "          contentFrom: textLine.start + contentStart,", "          contentTo: textLine.start + contentEnd,", "          line: textLine.lineNumber,", "          column: 1,", "          blockId: parsedBlockId.blockId,", "        });"]
+          replacement = "old_setext = " + repr("\n".join(old_lines)) + "\nnew_setext = " + repr("\n".join(new_lines)) + "\n" + block_end_marker
+          body = body[:block_start] + replacement + body[block_end:]
+          Path('/tmp/f04e1.py').write_text(body, encoding='utf-8')
+          PY
+          git fetch origin agent/f04-phase5e1-heading-block-ids
+          git checkout -B work origin/agent/f04-phase5e1-heading-block-ids
+          python /tmp/f04e1.py
+          npm ci
+          npx tsc --noEmit
+          npx vitest run src/markdown/headings.test.ts src/markdown/blocks.test.ts src/markdown/headingBlockIds.test.ts src/editor/MarkdownPreview.headingBlocks.test.tsx src/editor/blockLinkActions.test.ts src/linking/store.test.ts
+          git config user.name "Leonardschwier"
+          git config user.email "github@leonardschwier.de"
+          git add src/markdown/headings.ts src/markdown/blocks.ts src/markdown/blocks.test.ts src/linking/store.ts src/linking/store.test.ts src/editor/MarkdownPreview.tsx src/markdown/headingBlockIds.test.ts src/editor/MarkdownPreview.headingBlocks.test.tsx CHANGELOG.md documentation/ARCHITECTURE.md ROADMAP.md
+          git diff --cached --quiet && { echo "candidate produced no change"; exit 1; }
+          git commit -m "Implement F04 Phase 5e1 heading block IDs"
+          git push origin HEAD:agent/f04-phase5e1-heading-block-ids

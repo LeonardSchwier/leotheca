@@ -46,7 +46,7 @@ function enqueuePropertyEdit<T>(path: string, run: () => Promise<T>): Promise<T>
 }
 
 function sameEditableProperty(a: FrontmatterProperty | undefined, b: EditableProperty): a is EditableProperty {
-  if (!a || a.kind !== b.kind || a.key !== b.key || a.kind === "readonly") return false;
+  if (!a || a.kind !== b.kind || a.key !== b.key) return false;
   if (a.replaceRange.start !== b.replaceRange.start || a.replaceRange.end !== b.replaceRange.end) return false;
   if (a.kind === "list" && b.kind === "list") {
     return a.value.length === b.value.length && a.value.every((value, index) => value === b.value[index]);

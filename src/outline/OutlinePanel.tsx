@@ -1,6 +1,7 @@
-import { useState } from "preact/hooks";
+import { useEffect, useState } from "preact/hooks";
 import type { HeadingRecord } from "../markdown/headings";
 import { requestOutlineReveal } from "./outlineNavigation";
+import { announceOutline, headingNavigationAnnouncement } from "./outlineAnnouncements";
 import { useNoteHeadings } from "./useNoteHeadings";
 import { OutlineRowContent } from "./OutlineRowContent";
 import { headingKeyId, LARGE_OUTLINE_THRESHOLD } from "./outlineVirtualization";
@@ -31,6 +32,13 @@ interface OutlinePanelProps {
 // headings that scanning the list by eye stops being the faster option.
 const FILTER_THRESHOLD = 20;
 
+// section 15.2: "Filter counts update through a polite live region after
+// debounce", so a screen reader hears one summary once typing pauses
+// rather than a new count on every keystroke. Long enough to cover a
+// normal typing cadence, short enough the announcement still reads as a
+// direct response to what was just typed.
+const FILTER_ANNOUNCE_DEBOUNCE_MS = 300;
+
 /** A heading's key is a duplicate exactly when some other heading in the
  * document shares the same normalized key, including its own first
  * occurrence, per spec section 6.3 ("duplicate-heading warning when
@@ -60,6 +68,16 @@ export function computeVisibleIndexes(headings: HeadingRecord[], filterLower: st
     }
   });
   return visible;
+}
+
+/** How many headings actually match the filter text, as opposed to
+ * `computeVisibleIndexes`'s size, which also counts non-matching
+ * ancestors kept visible for context (section 6.5). Section 15.2's
+ * "filter counts" live-region announcement describes matches, not the
+ * larger visible set, so this is a separate, smaller count. Exported for
+ * testing. */
+export function computeMatchCount(headings: HeadingRecord[], filterLower: string): number {
+  return headings.filter((heading) => heading.displayText.toLowerCase().includes(filterLower)).length;
 }
 
 interface OutlineRowProps {
@@ -173,6 +191,21 @@ export function OutlinePanel({ content, noteTitle, canInsertLink = true, onNavig
     if (heading.childIndexes.length > 0) hasAnyChildren = true;
   });
 
+  useEffect(() => {
+    if (!filterActive) return;
+    const timer = setTimeout(() => {
+      const count = computeMatchCount(headings, filterLower);
+      announceOutline(
+        count === 0
+          ? "No headings match."
+          : count === 1
+            ? "1 heading matches."
+            : `${count} headings match.`,
+      );
+    }, FILTER_ANNOUNCE_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [filterActive, filterLower, headings]);
+
   function toggleCollapse(keyId: string) {
     setCollapsedKeys((current) => {
       const next = new Set(current);
@@ -184,6 +217,9 @@ export function OutlinePanel({ content, noteTitle, canInsertLink = true, onNavig
 
   function handleSelect(heading: HeadingRecord) {
     requestOutlineReveal(heading.contentFrom, heading.contentTo);
+    announceOutline(
+      headingNavigationAnnouncement(heading.displayText || "heading", content, heading.contentFrom),
+    );
     onNavigated?.();
   }
 

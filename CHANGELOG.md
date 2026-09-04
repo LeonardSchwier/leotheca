@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Screen readers now announce navigating to a heading, a filtered heading count, and a copied heading link in the note outline and breadcrumbs.
 - Notes can now be locked against accidental edits. Locking uses a plainly visible frontmatter marker, disables editing and write commands, and can be turned off per workspace in Settings.
 - Smart Collections now include a Board view. Choose an indexed frontmatter property to group notes into ordered columns, with unassigned notes clearly separated. Boards are read-only, and selecting a card opens its note as usual.
 

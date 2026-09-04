@@ -150,6 +150,7 @@ const { settingsPanelOpen, workspacePath, workspaceSettings, viewMode } =
   await import("../settings/store");
 const { linkIndex } = await import("../linking/store");
 const { outlineRevealRequest } = await import("../outline/outlineNavigation");
+const { outlineAnnouncement } = await import("../outline/outlineAnnouncements");
 const { workspaceTransitions } = await import("../workspace/workspaceTransition");
 const defaultViewportWidth = window.innerWidth;
 
@@ -173,6 +174,7 @@ afterEach(() => {
   viewMode.value = "source";
   linkIndex.value = emptyLinkIndex();
   outlineRevealRequest.value = null;
+  outlineAnnouncement.value = null;
   updateWorkspaceSettingsSpy.mockClear();
   Object.defineProperty(window, "innerWidth", {
     configurable: true,
@@ -392,6 +394,32 @@ describe("App: Split-mode breadcrumb authority (spec section 7.5)", () => {
     expect(
       getByRole("navigation", { name: "Breadcrumb (following Source)" }),
     ).toBeTruthy();
+  });
+});
+
+describe("App: breadcrumb navigation announcements (spec section 15.2)", () => {
+  it("announces the destination heading and line when a breadcrumb segment is clicked", () => {
+    viewMode.value = "split";
+    // The heading starts at offset 0 so the mock editor's cursor stand-in
+    // (which always reports position 0, see the MarkdownEditor mock above)
+    // lands exactly on it, making it the Source-tracked active heading.
+    openOrFocusTab("/vault/note.md", "note.md", "## Section one\n\nBody.", "text");
+    const { getByRole, container } = render(<App />);
+    fireEvent.click(container.querySelector('[data-testid="mock-editor-cursor-move"]')!);
+
+    fireEvent.click(getByRole("button", { name: "Section one" }));
+
+    expect(outlineAnnouncement.value?.message).toBe("Navigated to Section one, line 1.");
+  });
+
+  it("announces the note title and line 1 when the breadcrumb root segment is clicked", () => {
+    viewMode.value = "split";
+    openOrFocusTab("/vault/note.md", "note.md", "Intro\n\n## Section one\n\nBody.", "text");
+    const { getByRole } = render(<App />);
+
+    fireEvent.click(getByRole("button", { name: "note.md" }));
+
+    expect(outlineAnnouncement.value?.message).toBe("Navigated to note.md, line 1.");
   });
 });
 

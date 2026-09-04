@@ -47,6 +47,8 @@ import { WorkspaceTransitionBanner } from "../settings/WorkspaceTransitionBanner
 import { WorkspaceSwitcher } from "../settings/WorkspaceSwitcher";
 import { BacklinksPanel } from "../linking/BacklinksPanel";
 import { OutlinePanel } from "../outline/OutlinePanel";
+import { OutlineLiveRegion } from "../outline/OutlineLiveRegion";
+import { announceOutline, headingNavigationAnnouncement } from "../outline/outlineAnnouncements";
 import { outlineInsertRequest, outlineRevealRequest, requestOutlineReveal } from "../outline/outlineNavigation";
 import {
   blockLinkCopyRequest,
@@ -750,6 +752,7 @@ export function App() {
 
   return (
     <div class="app-shell">
+      <OutlineLiveRegion />
       <header class="toolbar">
         <button
           class={`icon-button ${sidebarOpen.value ? "active" : ""}`}
@@ -1000,8 +1003,20 @@ export function App() {
                         ? { kind: "cursor", offset: cursorPos }
                         : { kind: "none" }
                   }
-                  onSelectRoot={() => requestOutlineReveal(0, 0)}
-                  onSelectHeading={(heading) => requestOutlineReveal(heading.contentFrom, heading.contentTo)}
+                  onSelectRoot={() => {
+                    requestOutlineReveal(0, 0);
+                    announceOutline(`Navigated to ${current.name}, line 1.`);
+                  }}
+                  onSelectHeading={(heading) => {
+                    requestOutlineReveal(heading.contentFrom, heading.contentTo);
+                    announceOutline(
+                      headingNavigationAnnouncement(
+                        heading.displayText || "heading",
+                        current.content,
+                        heading.contentFrom,
+                      ),
+                    );
+                  }}
                   canInsertLink={viewMode.value !== "preview"}
                 />
                 <FrontmatterPropertiesPanel

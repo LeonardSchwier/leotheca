@@ -105,6 +105,28 @@
   outline-offset: 2px;
 }
 
+/* Visually hides content while keeping it in the accessibility tree (a
+ * screen-reader-only label or live region), the standard clip-based
+ * technique rather than `display: none`/`visibility: hidden`, both of
+ * which would remove the element from that tree too. Referenced by
+ * WorkspaceProfilesSettings.tsx's icon-select label and
+ * outline/OutlineLiveRegion.tsx; this class previously had no rule at
+ * all, so that label rendered as plain visible text next to its own
+ * already-sufficient `aria-label`, a real, small, pre-existing bug fixed
+ * here in passing since this rule's absence is exactly what
+ * OutlineLiveRegion.tsx now also depends on. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 html,
 body,
 #app {

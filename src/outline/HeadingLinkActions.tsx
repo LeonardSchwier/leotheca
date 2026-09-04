@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import type { HeadingRecord } from "../markdown/headings";
 import { copyHeadingLink, headingLinkDisabledReason, insertHeadingLink } from "./headingLinkOperations";
+import { announceOutline } from "./outlineAnnouncements";
 
 interface HeadingLinkActionsProps {
   heading: HeadingRecord;
@@ -52,6 +53,11 @@ export function HeadingLinkActions({
   async function handleCopy() {
     await copyHeadingLink(heading, noteTitle);
     setCopied(true);
+    // section 15.2: "Copy success is announced once." The visible button
+    // label already changes to "Copied" above, but that alone is not a
+    // reliable screen-reader announcement, so this fires it explicitly,
+    // exactly once per click (never re-fired by the label reverting back).
+    announceOutline(`Copied link to ${headingLabel}.`);
     clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => setCopied(false), COPY_CONFIRMATION_MS);
   }

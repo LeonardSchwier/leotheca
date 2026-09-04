@@ -1,14 +1,16 @@
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render } from "@testing-library/preact";
-import { computeDuplicateFlags, computeVisibleIndexes, OutlinePanel } from "./OutlinePanel";
+import { computeDuplicateFlags, computeMatchCount, computeVisibleIndexes, OutlinePanel } from "./OutlinePanel";
 import { scanHeadings } from "../markdown/headings";
 import { outlineInsertRequest, outlineRevealRequest } from "./outlineNavigation";
+import { outlineAnnouncement } from "./outlineAnnouncements";
 
 afterEach(() => {
   cleanup();
   outlineRevealRequest.value = null;
   outlineInsertRequest.value = null;
+  outlineAnnouncement.value = null;
 });
 
 // Every fixture below scans as a text note; noteTitle only matters to the
@@ -54,6 +56,13 @@ describe("OutlinePanel", () => {
     expect(outlineRevealRequest.value?.from).toBe(expected.contentFrom);
     expect(outlineRevealRequest.value?.to).toBe(expected.contentTo);
     expect(onNavigated).toHaveBeenCalledTimes(1);
+  });
+
+  it("announces the destination heading and its line number when a row is clicked (section 15.2)", () => {
+    const content = "Intro\n\n## Section one\n\nBody.";
+    const { getByText } = render(<OutlinePanel content={content} noteTitle={noteTitle} />);
+    fireEvent.click(getByText("Section one"));
+    expect(outlineAnnouncement.value?.message).toBe("Navigated to Section one, line 3.");
   });
 
   it("does not show a filter field under the heading-count threshold", () => {
@@ -142,6 +151,29 @@ describe("OutlinePanel: copy and insert heading-link actions (F06 Phase 3)", () 
       await Promise.resolve();
     });
     expect(writeText).toHaveBeenCalledWith("[[My Note#Section one]]");
+  });
+
+  it("announces copy success once (section 15.2)", async () => {
+    setClipboard();
+    const content = "## Section one\nBody.";
+    const { getByRole } = render(<OutlinePanel content={content} noteTitle="My Note" />);
+    await act(async () => {
+      fireEvent.click(getByRole("button", { name: "Copy link to Section one" }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(outlineAnnouncement.value?.message).toBe("Copied link to Section one.");
+    const requestId = outlineAnnouncement.value?.requestId;
+
+    await act(async () => {
+      fireEvent.click(getByRole("button", { name: "Copy link to Section one" }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    // A second copy re-announces (a new requestId), not a no-op repeat of
+    // the unchanged message, but each click still only announces once.
+    expect(outlineAnnouncement.value?.message).toBe("Copied link to Section one.");
+    expect(outlineAnnouncement.value?.requestId).not.toBe(requestId);
   });
 
   it("shows a local confirmation after copying, then reverts", async () => {
@@ -256,6 +288,62 @@ describe("OutlinePanel content updates", () => {
   });
 });
 
+describe("OutlinePanel filter-count announcement (section 15.2)", () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  function largeContent(count = 25) {
+    const lines: string[] = [];
+    for (let i = 0; i < count; i++) lines.push(`## Heading ${i}`);
+    return lines.join("\n");
+  }
+
+  it("announces the match count only after the debounce, not on every keystroke", () => {
+    const { getByLabelText } = render(<OutlinePanel content={largeContent()} noteTitle={noteTitle} />);
+    fireEvent.input(getByLabelText("Filter headings"), { target: { value: "Heading 1" } });
+    expect(outlineAnnouncement.value).toBeNull();
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
+    // "Heading 1", "Heading 11".."Heading 19" all match.
+    expect(outlineAnnouncement.value?.message).toBe("11 headings match.");
+  });
+
+  it("uses singular wording for exactly one match", () => {
+    const { getByLabelText } = render(<OutlinePanel content={largeContent()} noteTitle={noteTitle} />);
+    fireEvent.input(getByLabelText("Filter headings"), { target: { value: "Heading 7" } });
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
+    expect(outlineAnnouncement.value?.message).toBe("1 heading matches.");
+  });
+
+  it("announces the no-match state using the same wording as the visible empty state", () => {
+    const { getByLabelText } = render(<OutlinePanel content={largeContent()} noteTitle={noteTitle} />);
+    fireEvent.input(getByLabelText("Filter headings"), { target: { value: "nothing matches this" } });
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
+    expect(outlineAnnouncement.value?.message).toBe("No headings match.");
+  });
+
+  it("a later keystroke before the debounce elapses replaces the pending announcement rather than adding a second one", () => {
+    const { getByLabelText } = render(<OutlinePanel content={largeContent()} noteTitle={noteTitle} />);
+    const filter = getByLabelText("Filter headings");
+    fireEvent.input(filter, { target: { value: "Heading 1" } });
+    act(() => {
+      vi.advanceTimersByTime(200);
+    });
+    fireEvent.input(filter, { target: { value: "Heading 2" } });
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
+    // Only "Heading 2" itself and "Heading 20".."Heading 24" match; the
+    // superseded "Heading 1" filter's own count (11) never gets announced.
+    expect(outlineAnnouncement.value?.message).toBe("6 headings match.");
+  });
+});
+
 describe("computeDuplicateFlags", () => {
   it("flags every heading sharing a normalized key", () => {
     const headings = scanHeadings("# One\n## one\n# Two\n");
@@ -273,5 +361,22 @@ describe("computeVisibleIndexes", () => {
     expect(visible.has(byText.get("Grandparent")!)).toBe(true);
     expect(visible.has(byText.get("Unrelated")!)).toBe(false);
     expect(visible.has(byText.get("Other")!)).toBe(false);
+  });
+});
+
+describe("computeMatchCount", () => {
+  it("counts only headings whose own text matches, unlike computeVisibleIndexes's larger ancestor-inclusive set", () => {
+    const headings = scanHeadings("# Grandparent\n## Parent\n### Match\n### Unrelated\n# Other\n");
+    expect(computeMatchCount(headings, "match")).toBe(1);
+  });
+
+  it("is case-insensitive, matching computeVisibleIndexes's own behavior", () => {
+    const headings = scanHeadings("# Alpha\n# Beta\n");
+    expect(computeMatchCount(headings, "beta")).toBe(1);
+  });
+
+  it("returns 0 when nothing matches", () => {
+    const headings = scanHeadings("# Alpha\n# Beta\n");
+    expect(computeMatchCount(headings, "nothing matches this")).toBe(0);
   });
 });

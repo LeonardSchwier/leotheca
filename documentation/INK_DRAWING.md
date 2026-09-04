@@ -20,6 +20,10 @@ The initial tool enum contains `pen` and `highlighter`; erasing is an editing op
 
 `src/ink/strokeProcessing.ts` contains DOM-independent math shared by desktop and Android WebViews. Raw samples normalize into stable persisted values. Paths are smoothed with Catmull-Rom interpolation over position rather than drawing the raw samples as jagged line segments. Pressure, tilt, and time interpolate linearly between measured samples so spline overshoot cannot invent impossible physical values. Brush width varies continuously with pressure, with a bounded secondary tilt contribution.
 
+## Edit history
+
+`src/ink/inkEditing.ts` is pure, DOM-independent history and eraser logic, fully unit-tested but not wired to any UI: `createInkHistory`/`commitInkEdit`/`undoInkEdit`/`redoInkEdit` manage a past/present/future stack of stroke-list snapshots, and `eraseStrokeParts`/`eraseInkAtPoint` remove only the sampled points within a given radius of an eraser point, splitting a stroke into its surviving runs rather than only supporting whole-stroke deletion.
+
 ## Deferred to later phases
 
-Phase 1 does **not** add a new workspace `TabKind`, toolbar command, file creation flow, canvas renderer, color picker, eraser interaction, undo/redo stack, pinch-zoom/pan gesture handling, coalesced-event collection, or palm-rejection policy. Those require UI/input integration and real pen-device testing. In particular, no Android physical-device stylus or palm-rejection verification is claimed by this foundation.
+Phase 1 does **not** add a new workspace `TabKind`, toolbar command, file creation flow, canvas renderer, color picker, a pointer-capture drawing surface to actually invoke this module's logic, pinch-zoom/pan gesture handling, coalesced-event collection, or palm-rejection policy. Those require UI/input integration and real pen-device testing, and are tracked as the roadmap's "Freehand Phase 2" item. In particular, no Android physical-device stylus or palm-rejection verification is claimed by this foundation. (The undo/redo stack and eraser interaction themselves are already implemented, see "Edit history" above; what's deferred is only wiring them to a real drawing surface.)

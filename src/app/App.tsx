@@ -10,6 +10,7 @@ import { TabBar } from "../workspace/TabBar";
 import { MarkdownEditor } from "../editor/MarkdownEditor";
 import { MarkdownPreview } from "../editor/MarkdownPreview";
 import { FrontmatterPropertiesPanel } from "../editor/FrontmatterPropertiesPanel";
+import { isNoteReadOnly, setNoteReadOnly } from "../editor/noteReadOnly";
 import { ImageViewer } from "../editor/ImageViewer";
 import { classifyWorkspaceResource } from "../workspace/types";
 import { CanvasView } from "../canvas/CanvasView";
@@ -439,6 +440,8 @@ export function App() {
 
   const handleChange = useCallback(
     (path: string, content: string) => {
+      const tab = openTabs.value.find((candidate) => candidate.path === path);
+      if (tab && isNoteReadOnly(tab.content)) return;
       updateTabContent(path, content);
       save.change(session, path, content);
     },
@@ -506,6 +509,7 @@ export function App() {
   }, []);
 
   const current = activeTab();
+  const currentNoteReadOnly = current?.kind === "text" && isNoteReadOnly(current.content);
   const currentBookmark =
     current && bookmarks.value.find((b) => b.kind === "file" && b.path === current.path);
 
@@ -524,6 +528,13 @@ export function App() {
       void addFileBookmark(current.path, current.name);
     }
   };
+
+  const toggleCurrentNoteReadOnly = useCallback(() => {
+    if (!current || current.kind !== "text") return;
+    const content = setNoteReadOnly(current.content, !currentNoteReadOnly);
+    updateTabContent(current.path, content);
+    save.change(session, current.path, content);
+  }, [current, currentNoteReadOnly, save, session]);
 
   const openTagsPanel = () => {
     toggleSidebarPanel(tagsOpen);
@@ -654,7 +665,14 @@ export function App() {
           label: currentBookmark ? "Remove bookmark from this note" : "Bookmark this note",
           run: toggleCurrentNoteBookmark,
         },
-        ...(workspaceSettings.value.headingLinksEnabled && viewMode.value !== "preview"
+        ...(workspaceSettings.value.noteReadOnlyLockEnabled
+          ? [{
+              id: "toggle-note-read-only",
+              label: currentNoteReadOnly ? "Unlock current note" : "Lock current note",
+              run: toggleCurrentNoteReadOnly,
+            }]
+          : []),
+        ...(!currentNoteReadOnly && workspaceSettings.value.headingLinksEnabled && viewMode.value !== "preview"
           ? [
               {
                 id: "copy-block-link",
@@ -668,7 +686,7 @@ export function App() {
               },
             ]
           : []),
-        ...(viewMode.value !== "preview"
+        ...(!currentNoteReadOnly && viewMode.value !== "preview"
           ? [
               { id: "table-add-row", label: "Table: add row below", run: () => requestTableCommand("add-row-below") },
               { id: "table-delete-row", label: "Table: delete row", run: () => requestTableCommand("delete-row") },
@@ -711,6 +729,9 @@ export function App() {
     workspaceSettings.value.templatesEnabled,
     workspaceSettings.value.canvasEnabled,
     workspaceSettings.value.collectionsEnabled,
+    workspaceSettings.value.noteReadOnlyLockEnabled,
+    currentNoteReadOnly,
+    toggleCurrentNoteReadOnly,
     openTabs.value,
   ]);
 
@@ -950,6 +971,14 @@ export function App() {
               refresh();
             }}
           />
+          {current?.kind === "text" && workspaceSettings.value.noteReadOnlyLockEnabled && (
+            <div class="note-lock-bar" role="status">
+              <span>{currentNoteReadOnly ? "This note is locked." : "This note is editable."}</span>
+              <button type="button" onClick={toggleCurrentNoteReadOnly}>
+                {currentNoteReadOnly ? "Unlock note" : "Lock note"}
+              </button>
+            </div>
+          )}
           {current ? (
             current.kind === "image" ? (
               <ImageViewer path={current.path} />
@@ -980,6 +1009,7 @@ export function App() {
                   source={current.content}
                   onChange={(value) => handleChange(current.path, value)}
                   enabled={workspaceSettings.value.frontmatterPropertiesEnabled}
+                  readOnly={currentNoteReadOnly}
                 />
                 <div class={`editor-panes mode-${viewMode.value}`}>
                   {viewMode.value !== "preview" && (
@@ -990,6 +1020,7 @@ export function App() {
                       workspaceRoot={rootPath ?? ""}
                       attachmentsFolder={workspaceSettings.value.attachmentsFolder}
                       pasteImagesEnabled={workspaceSettings.value.pasteImagesEnabled}
+                      readOnly={currentNoteReadOnly}
                       snippetsEnabled={workspaceSettings.value.snippetsEnabled}
                       snippets={workspaceSettings.value.snippets}
                       reveal={outlineRevealRequest.value}

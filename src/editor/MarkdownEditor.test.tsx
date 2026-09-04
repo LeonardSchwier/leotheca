@@ -972,4 +972,22 @@ describe("MarkdownEditor: onCursorChange", () => {
     );
     expect(onCursorChange).toHaveBeenCalledWith(0);
   });
+
+  it("rejects a direct CodeMirror edit while the note is locked", () => {
+    const onChange = vi.fn();
+    const { container } = render(
+      <MarkdownEditor
+        path="/vault/a.md"
+        value="locked"
+        {...baseEditorProps()}
+        onChange={onChange}
+        readOnly
+      />,
+    );
+    const view = editorView(container);
+    expect(view.state.readOnly).toBe(true);
+    view.dispatch({ changes: { from: 0, insert: "x" } });
+    expect(view.state.doc.toString()).toBe("locked");
+    expect(onChange).not.toHaveBeenCalled();
+  });
 });

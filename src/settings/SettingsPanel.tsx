@@ -208,6 +208,10 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
     "Collections",
     "Group notes by a saved search or a manual list, off by default",
   );
+  const showNoteReadOnlyLock = matches(
+    "Note read-only lock",
+    "Allow individual notes to be locked against accidental edits",
+  );
   const showWorkspaceProfiles = matches(
     "Workspace profiles",
     "Rename, identify, add, and forget known workspaces without deleting their files",
@@ -234,7 +238,7 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
           showMathRendering ||
           showPasteImages ||
           showAttachmentsFolder ||
-          showFrontmatterProperties ||
+          showFrontmatterProperties || showNoteReadOnlyLock ||
           (workspaceSettings.value.themesEnabled && showAccentColor) ||
           (workspaceSettings.value.snippetsEnabled && showSnippetDefinitions) ||
           (workspaceSettings.value.templatesEnabled && showTemplatesFolder)),
@@ -620,6 +624,25 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                         frontmatterPropertiesEnabled: option.value,
                       })
                     }
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {workspacePath.value && showNoteReadOnlyLock && (
+            <div class="settings-row">
+              <div>
+                <div class="settings-label">Note read-only lock</div>
+                <div class="settings-hint">Allow individual notes to be locked against accidental edits</div>
+              </div>
+              <div class="settings-switch">
+                {OPTIONAL_FEATURE_OPTIONS.map((option) => (
+                  <button
+                    key={String(option.value)}
+                    class={workspaceSettings.value.noteReadOnlyLockEnabled === option.value ? "active" : ""}
+                    onClick={() => void updateWorkspaceSettings({ noteReadOnlyLockEnabled: option.value })}
                   >
                     {option.label}
                   </button>

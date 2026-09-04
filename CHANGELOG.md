@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Notes can now be locked against accidental edits. Locking uses a plainly visible frontmatter marker, disables editing and write commands, and can be turned off per workspace in Settings.
+
 - The command palette can now add or delete a row or column in the Markdown table under your cursor. Table edits keep the table's alignment and use normal undo.
 
 - If Leotheca finds invalid data in its app-wide configuration, Settings now explains the problem and offers an explicit rewrite action. Normal theme and workspace-profile changes no longer silently replace the original configuration while it awaits repair.

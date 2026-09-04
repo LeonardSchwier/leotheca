@@ -259,4 +259,13 @@ describe("toggleTaskCompletion: closed note", () => {
     expect(result).toEqual({ status: "stale" });
     expect(writeTextFile).not.toHaveBeenCalled();
   });
+
+  it("fails closed for a locked closed note before writing", async () => {
+    const content = "---\nleotheca-read-only: true\n---\n- [ ] Task\n";
+    readTextFile.mockResolvedValue(content);
+    const save = createSaveCoordinator();
+    const result = await toggleTaskCompletion("/vault/a.md", scanTasks(content)[0], { save });
+    expect(result).toEqual({ status: "locked" });
+    expect(writeTextFile).not.toHaveBeenCalled();
+  });
 });

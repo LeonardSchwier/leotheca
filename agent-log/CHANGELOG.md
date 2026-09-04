@@ -1,5 +1,7 @@
 # Private session log, not the public release changelog
 
+- 2026-09-04, Codex: Implemented the non-encrypting per-note read-only lock with a portable frontmatter marker, CodeMirror-level enforcement, mutation guards, Settings opt-out, and 6 focused regression tests. Full frontend and Rust verification passed after redirecting temporary test/build output from the quota-constrained `/tmp` worktree volume.
+
 - 2026-09-04, Codex: Added command-palette Markdown table row/column edits using the existing scanner and serializer. Six regression tests, including a revert-confirmed planner failure, accompanied the feature; full frontend and Rust verification passed before branch CI.
 
 - 2026-09-04, Codex: Fixed global configuration corruption recovery: `loadGlobalConfig` now preserves the decoder's corruption state, `initSettings` publishes it, normal global writes are blocked until explicit repair, and Settings exposes the rewrite action. Regression was revert-confirmed; full verification passed with 99 Vitest files / 1731 tests and 57 Rust tests.

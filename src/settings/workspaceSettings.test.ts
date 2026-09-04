@@ -73,6 +73,10 @@ describe("DEFAULT_WORKSPACE_SETTINGS", () => {
   it("defaults heading links to on, per the opt-out policy for net-new functionality", () => {
     expect(DEFAULT_WORKSPACE_SETTINGS.headingLinksEnabled).toBe(true);
   });
+
+  it("defaults the accidental-edit note lock to on", () => {
+    expect(DEFAULT_WORKSPACE_SETTINGS.noteReadOnlyLockEnabled).toBe(true);
+  });
 });
 
 describe("loadWorkspaceSettings", () => {

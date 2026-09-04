@@ -659,6 +659,18 @@ describe("App: Collections gated by collectionsEnabled, off by default (2026-09-
   });
 });
 
+describe("App: accent color applies live (2026-09-04 repro)", () => {
+  it("updates document.documentElement's data-accent when workspaceSettings.accentColor changes after mount", () => {
+    workspacePath.value = "/vault";
+    render(<App />);
+    expect(document.documentElement.getAttribute("data-accent")).toBe("warm");
+
+    workspaceSettings.value = { ...workspaceSettings.value, accentColor: "ocean" };
+
+    expect(document.documentElement.getAttribute("data-accent")).toBe("ocean");
+  });
+});
+
 describe("App: Tags toolbar button gated by tagsEnabled (2026-09-04)", () => {
   it("shows the Tags toolbar button when tagsEnabled is on (the default)", () => {
     workspacePath.value = "/vault";

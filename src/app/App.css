@@ -979,6 +979,10 @@ button.icon-button.active {
   flex-shrink: 0;
 }
 
+.workspace-transition-banner-danger {
+  color: #c0392b;
+}
+
 .workspace-transition-banner-dismiss {
   background: none;
   border: none;

@@ -26,8 +26,8 @@ describe("classifyTransitionErrorKind", () => {
 });
 
 describe("recoveryActionsFor", () => {
-  it("offers only retry for save_failed (no 'switch without saving' yet, see this module's own doc comment)", () => {
-    expect(recoveryActionsFor("save_failed").map((a) => a.id)).toEqual(["retry"]);
+  it("offers retry and a destructive discard for save_failed, matching spec 16.6", () => {
+    expect(recoveryActionsFor("save_failed").map((a) => a.id)).toEqual(["retry", "discard"]);
   });
 
   it("offers grant-access, open-another, and forget for permission_missing, matching spec 23 exactly (no bare retry)", () => {

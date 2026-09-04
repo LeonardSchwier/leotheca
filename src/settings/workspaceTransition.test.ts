@@ -156,6 +156,38 @@ describe("workspace transition integration", () => {
     expect(workspaceSelectionError.value).toContain("permission denied");
   });
 
+  it("F20 Phase 2b-iii-b follow-up, spec 16.3 step 6: aborts a switch when an outgoing note genuinely fails to flush, restoring A", async () => {
+    const saves = createSaveCoordinator();
+    await setWorkspacePath("/old", "old-token");
+    const oldSession = workspaceSession.value;
+    writeTextFile.mockRejectedValueOnce(new Error("disk full"));
+    saves.change(oldSession, "/old/note.md", "unsaved edit");
+
+    await expect(setWorkspacePath("/new", "new-token")).rejects.toThrow('Could not save "/old/note.md"');
+
+    expect(workspacePath.value).toBe("/old");
+    expect(workspaceSelectionError.value).toContain('Could not save "/old/note.md"');
+    expect(saves.entryCount()).toBe(1);
+  });
+
+  it("F20 Phase 2b-iii-b follow-up, spec 16.6: discardUnsaved proceeds despite the same failure", async () => {
+    const saves = createSaveCoordinator();
+    await setWorkspacePath("/old", "old-token");
+    const oldSession = workspaceSession.value;
+    // Only the specific note write fails; other writes this transition makes
+    // along the way (global config, workspace settings) must not be swept up
+    // by an overly broad permanent rejection.
+    writeTextFile.mockImplementation(async (path) => {
+      if (path === "/old/note.md") throw new Error("disk full");
+    });
+    saves.change(oldSession, "/old/note.md", "unsaved edit");
+
+    await setWorkspacePath("/new", "new-token", undefined, { discardUnsaved: true });
+
+    expect(workspacePath.value).toBe("/new");
+    expect(saves.entryCount()).toBe(0);
+  });
+
   it("F20 Phase 2b-iii-a's own startup case is unchanged: fails fully closed (null) when there was no prior workspace", async () => {
     createSaveCoordinator();
     workspacePath.value = null;

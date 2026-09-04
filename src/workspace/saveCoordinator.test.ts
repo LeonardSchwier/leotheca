@@ -26,16 +26,87 @@ describe("save coordinator workspace transitions", () => {
 
   afterEach(() => vi.useRealTimers());
 
-  it("cancels pending outgoing debounces and rejects later edits for that session", async () => {
+  it("F20 Phase 2b-iii-b follow-up: flushes (actually writes) a pending outgoing debounce instead of cancelling it", async () => {
     writeTextFile.mockResolvedValue();
     const saves = createSaveCoordinator();
     saves.change(3, "/workspace/note.md", "outgoing");
 
     await saves.prepareForTransition(3);
+
+    expect(writeTextFile).toHaveBeenCalledWith("/workspace/note.md", "outgoing");
+    expect(saves.entryCount()).toBe(0);
+  });
+
+  it("still rejects an edit for the session once it has started transitioning", async () => {
+    writeTextFile.mockResolvedValue();
+    const saves = createSaveCoordinator();
+    saves.change(3, "/workspace/note.md", "outgoing");
+    await saves.prepareForTransition(3);
+    writeTextFile.mockClear();
+
     saves.change(3, "/workspace/note.md", "late outgoing");
     await vi.advanceTimersByTimeAsync(1000);
 
     expect(writeTextFile).not.toHaveBeenCalled();
+  });
+
+  it("F20 Phase 2b-iii-b follow-up: throws, preserves the entry, and un-blocks the session when the flush itself fails", async () => {
+    writeTextFile.mockRejectedValueOnce(new Error("disk full"));
+    const saves = createSaveCoordinator();
+    saves.change(5, "/workspace/note.md", "outgoing");
+
+    await expect(saves.prepareForTransition(5)).rejects.toThrow('Could not save "/workspace/note.md"');
+
+    expect(saves.entryCount()).toBe(1);
+    expect(saves.getError(5, "/workspace/note.md")).toBe("disk full");
+
+    // The session is un-blocked again (spec 16.3 step 6: "keep A
+    // authoritative and editable"), so a real edit resumes normal autosave.
+    writeTextFile.mockResolvedValue();
+    saves.change(5, "/workspace/note.md", "retry content");
+    await vi.advanceTimersByTimeAsync(400);
+    expect(writeTextFile).toHaveBeenCalledWith("/workspace/note.md", "retry content");
+  });
+
+  it("F20 Phase 2b-iii-b follow-up: throws when an already in-flight write fails", async () => {
+    const nativeWrite = deferred<void>();
+    writeTextFile.mockReturnValueOnce(nativeWrite.promise);
+    const saves = createSaveCoordinator();
+    saves.change(6, "/workspace/note.md", "revision A");
+    await vi.advanceTimersByTimeAsync(400);
+    expect(writeTextFile).toHaveBeenCalledTimes(1);
+
+    const transition = saves.prepareForTransition(6);
+    await Promise.resolve();
+    nativeWrite.reject(new Error("permission denied"));
+
+    await expect(transition).rejects.toThrow('Could not save "/workspace/note.md"');
+    expect(saves.entryCount()).toBe(1);
+  });
+
+  it("F20 Phase 2b-iii-b follow-up: flushes a newer revision that arrived while the original write was still in flight", async () => {
+    const nativeWrite = deferred<void>();
+    writeTextFile.mockReturnValueOnce(nativeWrite.promise);
+    const saves = createSaveCoordinator();
+    saves.change(9, "/workspace/note.md", "v1");
+    await vi.advanceTimersByTimeAsync(400);
+    expect(writeTextFile).toHaveBeenCalledTimes(1);
+
+    // A second edit lands while the first write is still in flight: change()
+    // bumps the revision but deliberately does not schedule a new timer
+    // while inFlight, so this content is only reachable through
+    // prepareForTransition's own second round, not an ordinary debounce.
+    saves.change(9, "/workspace/note.md", "v2");
+
+    const transition = saves.prepareForTransition(9);
+    await Promise.resolve();
+    writeTextFile.mockResolvedValueOnce(undefined);
+    nativeWrite.resolve();
+
+    await transition;
+
+    expect(writeTextFile).toHaveBeenNthCalledWith(1, "/workspace/note.md", "v1");
+    expect(writeTextFile).toHaveBeenNthCalledWith(2, "/workspace/note.md", "v2");
     expect(saves.entryCount()).toBe(0);
   });
 

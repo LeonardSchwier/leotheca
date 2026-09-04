@@ -48,17 +48,16 @@ export function classifyTransitionErrorKind(
 }
 
 export interface WorkspaceTransitionRecoveryAction {
-  id: "retry" | "relink" | "grant-access" | "open-another" | "forget";
+  id: "retry" | "discard" | "relink" | "grant-access" | "open-another" | "forget";
   label: string;
 }
 
-/** Section 23's own per-kind action lists, minus `save_failed`'s "Switch
- * without saving" (spec 16.6): that action is only meaningfully distinct
- * from a bare retry once `prepareOutgoing` actually flushes pending work
- * before waiting on it (spec 16.3 step 3), rather than only cancelling a
- * pending debounce outright the way it does today, see `setWorkspacePath`'s
- * own disclosure comment in `store.ts`. Offering it now would be a second
- * button that does exactly the same thing as the first. "Grant access
+/** Section 23's own per-kind action lists. `save_failed`'s "Switch without
+ * saving" (spec 16.6) is meaningful now that `prepareForTransition`
+ * (`saveCoordinator.ts`) actually flushes pending work and reports a
+ * genuine failure rather than merely "something was pending"; `discard`
+ * skips that flush-and-check entirely (an explicit, user-confirmed choice
+ * to lose the unsaved edit) rather than duplicating `retry`. "Grant access
  * again" and "Relink folder" both resolve to the existing
  * `relinkWorkspaceProfile` action in this app (there is no separate "just
  * re-grant the same folder" native primitive on either platform, see F20
@@ -67,7 +66,10 @@ export interface WorkspaceTransitionRecoveryAction {
 export function recoveryActionsFor(kind: WorkspaceTransitionErrorKind): WorkspaceTransitionRecoveryAction[] {
   switch (kind) {
     case "save_failed":
-      return [{ id: "retry", label: "Retry" }];
+      return [
+        { id: "retry", label: "Retry" },
+        { id: "discard", label: "Switch without saving" },
+      ];
     case "permission_missing":
       return [
         { id: "grant-access", label: "Grant access again" },

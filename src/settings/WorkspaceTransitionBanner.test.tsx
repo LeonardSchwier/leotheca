@@ -37,6 +37,7 @@ function makeRecovery(overrides: Partial<WorkspaceTransitionRecoveryInfo> = {}):
       { id: "forget", label: "Forget this workspace" },
     ],
     retry: vi.fn(async () => {}),
+    discard: vi.fn(async () => {}),
     relink: vi.fn(async () => {}),
     openAnother: vi.fn(async () => {}),
     forget: vi.fn(async () => {}),
@@ -117,6 +118,43 @@ describe("WorkspaceTransitionBanner", () => {
     fireEvent.click(getByText("Grant access again"));
 
     expect(recovery.relink).toHaveBeenCalledTimes(1);
+  });
+
+  it("gates discard behind window.confirm and does nothing if declined", () => {
+    const recovery = makeRecovery({
+      kind: "save_failed",
+      actions: [
+        { id: "retry", label: "Retry" },
+        { id: "discard", label: "Switch without saving" },
+      ],
+    });
+    workspaceTransitionRecovery.value = recovery;
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
+
+    const { getByText } = render(<WorkspaceTransitionBanner />);
+    fireEvent.click(getByText("Switch without saving"));
+
+    expect(confirmSpy).toHaveBeenCalledTimes(1);
+    expect(recovery.discard).not.toHaveBeenCalled();
+    confirmSpy.mockRestore();
+  });
+
+  it("calls discard once window.confirm is accepted", () => {
+    const recovery = makeRecovery({
+      kind: "save_failed",
+      actions: [
+        { id: "retry", label: "Retry" },
+        { id: "discard", label: "Switch without saving" },
+      ],
+    });
+    workspaceTransitionRecovery.value = recovery;
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
+
+    const { getByText } = render(<WorkspaceTransitionBanner />);
+    fireEvent.click(getByText("Switch without saving"));
+
+    expect(recovery.discard).toHaveBeenCalledTimes(1);
+    confirmSpy.mockRestore();
   });
 
   it("dismisses by resetting workspaceTransitions.state to idle, without calling any recovery action", () => {

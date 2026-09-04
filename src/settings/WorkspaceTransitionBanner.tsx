@@ -5,6 +5,7 @@ import type { WorkspaceTransitionRecoveryAction } from "../workspace/workspaceTr
 
 const ACTION_LABELS: Record<WorkspaceTransitionRecoveryAction["id"], string> = {
   retry: "Retry",
+  discard: "Switch without saving",
   relink: "Relink folder",
   "grant-access": "Grant access again",
   "open-another": "Open another workspace",
@@ -26,11 +27,10 @@ const ACTION_LABELS: Record<WorkspaceTransitionRecoveryAction["id"], string> = {
  * `actions` list (see that signal's doc comment in `store.ts` for why each
  * kind only ever offers a subset), so this component only needs to map an
  * action id to its label and its already-bound closure, never re-derive
- * which ids are valid for which kind itself. There is deliberately no
- * "switch without saving" action yet (spec 16.6): see
- * `recoveryActionsFor`'s own doc comment in `workspaceTransitionRecovery.ts`
- * for why that needs a `saveCoordinator.ts` fix outside this phase's scope,
- * not a button here.
+ * which ids are valid for which kind itself. `discard`'s destructive intent
+ * (spec 16.6: "requires explicit confirmation... unsaved editor changes can
+ * be lost") gets a `window.confirm` gate the other, non-destructive actions
+ * don't need.
  */
 export function WorkspaceTransitionBanner() {
   const [busy, setBusy] = useState<WorkspaceTransitionRecoveryAction["id"] | null>(null);
@@ -52,6 +52,12 @@ export function WorkspaceTransitionBanner() {
   };
 
   const handleAction = (action: WorkspaceTransitionRecoveryAction) => {
+    if (action.id === "discard") {
+      if (!recovery.discard) return;
+      if (!window.confirm("Unsaved changes in this workspace will be lost. Switch anyway?")) return;
+      void run("discard", recovery.discard);
+      return;
+    }
     const handler =
       action.id === "retry"
         ? recovery.retry
@@ -71,7 +77,12 @@ export function WorkspaceTransitionBanner() {
       </p>
       <div class="workspace-transition-banner-actions">
         {recovery.actions.map((action) => (
-          <button key={action.id} onClick={() => handleAction(action)} disabled={busy !== null}>
+          <button
+            key={action.id}
+            class={action.id === "discard" ? "workspace-transition-banner-danger" : undefined}
+            onClick={() => handleAction(action)}
+            disabled={busy !== null}
+          >
             {busy === action.id ? "Working…" : ACTION_LABELS[action.id]}
           </button>
         ))}

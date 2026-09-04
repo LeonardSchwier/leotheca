@@ -4,6 +4,16 @@ interface SaveEntry {
   revision: number;
   latestContent: string;
   inFlight: boolean;
+  /** The exact revision the current in-flight write (if any) is for, `null`
+   * otherwise. Lets `prepareForTransition` tell "the write we waited for
+   * settled for a now-stale revision" (a genuinely newer edit arrived while
+   * it was running, so it deserves its own follow-up write) apart from
+   * "the write we waited for is the most recent edit and it failed" (a real
+   * failure, not a stale-revision race), which `entry.lastError` alone
+   * cannot: a write settling for a stale revision leaves `lastError`
+   * whatever it already was, which could itself be a leftover error from an
+   * even earlier failed attempt. */
+  inFlightRevision: number | null;
   savedRevision: number;
   timer: ReturnType<typeof setTimeout> | null;
   lastError: string | null;
@@ -27,7 +37,7 @@ export interface SaveCoordinator {
   change(session: string | number | null, path: string, content: string): void;
   flush(session: string | number | null, path: string): Promise<void>;
   waitForInflight(session: string | number | null, path: string): Promise<void>;
-  prepareForTransition(session: string | number | null): Promise<void>;
+  prepareForTransition(session: string | number | null, options?: { discard?: boolean }): Promise<void>;
   resetForSession(currentSession: string | number | null): void;
   retry(session: string | number | null, path: string): Promise<void>;
   getError(session: string | number | null, path: string): string | null;
@@ -52,8 +62,9 @@ export function getActiveSaveCoordinator(): SaveCoordinator | null {
 
 export async function prepareActiveSavesForTransition(
   session: string | number | null,
+  options?: { discard?: boolean },
 ): Promise<void> {
-  await activeCoordinator?.prepareForTransition(session);
+  await activeCoordinator?.prepareForTransition(session, options);
 }
 
 /** No registered coordinator (the editor shell hasn't initialized, or a
@@ -106,6 +117,7 @@ export function createSaveCoordinator(cbs?: SaveCoordinatorCallbacks): SaveCoord
         revision: 0,
         latestContent: "",
         inFlight: false,
+        inFlightRevision: null,
         savedRevision: 0,
         timer: null,
         lastError: null,
@@ -141,27 +153,43 @@ export function createSaveCoordinator(cbs?: SaveCoordinatorCallbacks): SaveCoord
     }, 400);
   }
 
+  /** `bypassBlockGate` lets `prepareForTransition` below issue an authorized
+   * write for a session it has *itself* just blocked, without opening that
+   * gate to any other caller (every other call site still passes the
+   * default `false`, unchanged). Bookkeeping (`savedRevision`/`lastError`)
+   * always updates on the actual write outcome regardless of block state,
+   * since a blocked session is still alive in memory and its own drain
+   * needs an accurate answer to "did this actually land"; only the
+   * `onSaved`/`onError` *callbacks* (which the app wires to live UI) stay
+   * suppressed for a blocked session, the original reason this gate
+   * existed. The reschedule-on-a-newer-revision below intentionally stays
+   * blocked-gated too: `prepareForTransition`'s own explicit follow-up pass
+   * is what picks up a newer revision that arrives while blocked, not an
+   * implicit reschedule that could race its own drain. */
   async function writeRevision(
     session: string | number | null,
     path: string,
     entry: SaveEntry,
     revision: number,
+    bypassBlockGate = false,
   ): Promise<void> {
-    if (isBlocked(session)) return;
+    if (!bypassBlockGate && isBlocked(session)) return;
     entry.inFlight = true;
+    entry.inFlightRevision = revision;
     const content = entry.latestContent;
     try {
       await writeWorkspaceRevision(path, content);
-      if (entry.revision === revision && !isBlocked(session)) {
+      if (entry.revision === revision) {
         entry.savedRevision = revision;
         entry.lastError = null;
-        cbs?.onSaved?.(path);
+        if (!isBlocked(session)) cbs?.onSaved?.(path);
       }
     } catch (error) {
       entry.lastError = error instanceof Error ? error.message : String(error);
       if (!isBlocked(session)) cbs?.onError?.(path, entry.lastError);
     } finally {
       entry.inFlight = false;
+      entry.inFlightRevision = null;
       resolveWaiters(entry);
       if (!isBlocked(session) && entry.revision > revision && !entry.timer) {
         schedule(session, path, entry, entry.revision);
@@ -196,22 +224,102 @@ export function createSaveCoordinator(cbs?: SaveCoordinatorCallbacks): SaveCoord
     return entry ? waitForEntry(entry) : Promise.resolve();
   }
 
-  async function prepareForTransition(session: string | number | null): Promise<void> {
+  /** F20 Phase 2b-iii-b follow-up (spec `leotheca-workspace-profiles-sdd.md`
+   * section 16.3 steps 3/4/6): actually *flushes* delayed saves (writes
+   * them) rather than only cancelling their timer, then waits for
+   * already-in-flight writes, matching step 3's own word "flush." Throws
+   * (leaving every entry for `session` intact and un-blocking it, so
+   * editing can resume) if anything for this session still hasn't reached
+   * disk once that settles, per step 6's "abort on a save failure." Only a
+   * clean drain (every entry's `revision === savedRevision`) deletes the
+   * session's entries and lets the caller proceed to actually open the
+   * target workspace. A write that fails here is reported, not silently
+   * retried: retrying automatically would mask which failure actually
+   * caused the abort and double real disk/network cost for what might be a
+   * persistent, not transient, failure; `writeRevision`'s own `entry.retry`
+   * path (already exposed elsewhere) is how a deliberate retry happens.
+   *
+   * The one deliberate second pass is narrower than "retry everything
+   * again": an entry that was already in flight when this function started
+   * may pick up a *newer* revision once that write settles, since
+   * `change()` bumps `revision` but deliberately skips scheduling a new
+   * timer while `inFlight` (see `change` above), and the ordinary
+   * reschedule-on-finish in `writeRevision` is itself gated on the session
+   * not being blocked, which it now is. That follow-up write only ever
+   * fires for entries whose revision has genuinely moved past what the
+   * write we waited for was actually for (`entry.inFlightRevision`, not
+   * `entry.lastError`: a write settling for a now-stale revision leaves
+   * `lastError` exactly as it already was, which could itself be a leftover
+   * error from an even earlier, unrelated failed attempt), never for one
+   * that was written directly here and failed at its own, still-current
+   * revision. Blocking happens synchronously, before any `await` in this
+   * function, so no further generation of edits can arrive once the first
+   * pass has started.
+   *
+   * `discard` (spec section 16.6, "Switch without saving," an explicitly
+   * user-confirmed destructive fallback for exactly the failure this
+   * function itself would otherwise report) skips every write attempt
+   * above entirely and reverts to only cancelling pending timers and
+   * waiting for whatever was already in flight, the same as this function
+   * always did before this disclosure; it never throws and always deletes
+   * the session's entries, since the caller has already accepted the loss. */
+  async function prepareForTransition(
+    session: string | number | null,
+    options?: { discard?: boolean },
+  ): Promise<void> {
     const prefix = `${sessionKey(session)}::`;
-    blockedSessions.add(sessionKey(session));
-    const waits: Promise<void>[] = [];
+    const pending: Array<[string, SaveEntry]> = [];
+    const wasInFlight: Array<[string, SaveEntry, number | null]> = [];
     for (const [key, entry] of entries) {
       if (!key.startsWith(prefix)) continue;
       if (entry.timer) {
         clearTimeout(entry.timer);
         entry.timer = null;
       }
-      if (entry.inFlight) waits.push(waitForEntry(entry));
+      pending.push([key, entry]);
+      if (entry.inFlight) wasInFlight.push([key, entry, entry.inFlightRevision]);
     }
-    await Promise.all(waits);
-    for (const key of Array.from(entries.keys())) {
-      if (key.startsWith(prefix)) entries.delete(key);
+    blockedSessions.add(sessionKey(session));
+
+    if (options?.discard) {
+      await Promise.all(wasInFlight.map(([, entry]) => waitForEntry(entry)));
+      for (const [key] of pending) entries.delete(key);
+      return;
     }
+
+    await Promise.all(
+      pending.map(([key, entry]) =>
+        entry.inFlight
+          ? waitForEntry(entry)
+          : entry.revision !== entry.savedRevision
+            ? writeRevision(session, key.slice(prefix.length), entry, entry.revision, true)
+            : undefined,
+      ),
+    );
+
+    await Promise.all(
+      wasInFlight
+        .filter(
+          ([, entry, waitedForRevision]) =>
+            !entry.inFlight && entry.revision !== entry.savedRevision && entry.revision !== waitedForRevision,
+        )
+        .map(([key, entry]) => writeRevision(session, key.slice(prefix.length), entry, entry.revision, true)),
+    );
+
+    const failedPaths = pending
+      .filter(([, entry]) => entry.revision !== entry.savedRevision)
+      .map(([key]) => key.slice(prefix.length));
+
+    if (failedPaths.length > 0) {
+      blockedSessions.delete(sessionKey(session));
+      throw new Error(
+        failedPaths.length === 1
+          ? `Could not save "${failedPaths[0]}".`
+          : `Could not save ${failedPaths.length} notes: ${failedPaths.join(", ")}.`,
+      );
+    }
+
+    for (const [key] of pending) entries.delete(key);
   }
 
   /** Defensive cleanup after a new session publishes. The authoritative drain
@@ -246,13 +354,14 @@ export function createSaveCoordinator(cbs?: SaveCoordinatorCallbacks): SaveCoord
   /** F20 Phase 2b-ii, spec section 15.2: whether `session` has any note whose
    * latest edit has not actually reached disk yet, pending (not yet fired),
    * in flight, or failed (a failed write never advances `savedRevision`).
-   * Must be checked *before* calling `prepareForTransition`, which discards
-   * exactly this state for an ordinary transition by design (see this
-   * module's own tests): a pending debounce is cancelled outright, an
-   * in-flight write is only awaited, never retried, and every entry for the
-   * session is deleted once drained, whether or not it ever actually
-   * landed. `forgetWorkspaceProfile`'s active-profile path uses this to
-   * decide whether to run that drain at all, rather than running it first
+   * Checked *before* calling `prepareForTransition` so `forgetWorkspaceProfile`
+   * can ask for confirmation up front, matching that action's own "aborted
+   * by default" design (forgetting has no "stay on A and keep editing"
+   * recovery the way an ordinary switch failure now does, see
+   * `prepareForTransition`'s own doc comment below for how *that* path
+   * actually flushes rather than discards this same state as of F20 Phase
+   * 2b-iii-b's follow-up fix). `forgetWorkspaceProfile`'s active-profile path
+   * uses this to decide whether to even attempt the drain, rather than running it first
    * and discovering the loss afterward. */
   function hasUnsavedWork(session: string | number | null): boolean {
     const prefix = `${sessionKey(session)}::`;
@@ -277,6 +386,7 @@ export function createSaveCoordinator(cbs?: SaveCoordinatorCallbacks): SaveCoord
         revision: entry.revision,
         latestContent: entry.latestContent,
         inFlight: entry.inFlight,
+        inFlightRevision: entry.inFlightRevision,
         savedRevision: entry.savedRevision,
         lastError: entry.lastError,
       },

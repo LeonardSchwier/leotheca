@@ -96,10 +96,10 @@ export const viewMode = signal<ViewMode>(
  * real target (the active-profile-forget transition targets "no workspace",
  * spec 15.2; that failure path is handled by `WorkspaceForgetUnsavedWorkError`
  * and its own confirmation UI, not this banner, see `forgetWorkspaceProfile`).
- * `actions` names which of `retry`/`relink`/`openAnother`/`forget` apply
- * for this failure's kind (`classifyTransitionErrorKind`); only those are
- * ever set, so a consumer can render exactly the buttons `actions` lists
- * without runtime `undefined` checks scattered through its JSX. */
+ * `actions` names which of `retry`/`discard`/`relink`/`openAnother`/`forget`
+ * apply for this failure's kind (`classifyTransitionErrorKind`); only those
+ * are ever set, so a consumer can render exactly the buttons `actions`
+ * lists without runtime `undefined` checks scattered through its JSX. */
 export interface WorkspaceTransitionRecoveryInfo {
   targetProfileId: string;
   targetProfileName: string;
@@ -111,6 +111,7 @@ export interface WorkspaceTransitionRecoveryInfo {
    * busy state and its own catch block for the exact button clicked,
    * instead of only ever reacting to whatever this effect recomputes next. */
   retry: () => Promise<unknown>;
+  discard?: () => Promise<unknown>;
   relink?: () => Promise<unknown>;
   openAnother?: () => Promise<unknown>;
   forget?: () => Promise<unknown>;
@@ -140,6 +141,9 @@ effect(() => {
     message: transition.message,
     actions,
     retry: () => activateWorkspaceProfile(targetProfileId),
+    discard: has("discard")
+      ? () => setWorkspacePath(profile.path, profile.token, profile, { discardUnsaved: true })
+      : undefined,
     relink: has("relink") || has("grant-access") ? () => relinkWorkspaceProfile(targetProfileId) : undefined,
     openAnother: has("open-another") ? () => addWorkspaceFromPicker() : undefined,
     forget: has("forget") ? () => forgetWorkspaceProfile(targetProfileId) : undefined,
@@ -408,32 +412,25 @@ export async function initSettings(): Promise<void> {
  * `WelcomeDialog`'s own recovery, F20 Phase 2b-iii-a, needs to handle)
  * keeps exactly its previous null/defaulted behavior.
  *
- * F20 Phase 2b-iii-b disclosure, spec section 16.3 steps 3/4/6 and 16.6:
- * this phase deliberately does NOT add an abort-by-default "unsaved work"
- * guard here the way `forgetWorkspaceProfile` (2b-ii) has for the
- * active-forget action. `workspaceSaves.hasUnsavedWork` (that guard's own
- * check) is true for merely *pending or in-flight* work, not just a
- * genuine failure, and `prepareOutgoing` below only *cancels* a pending
- * debounce rather than actually flushing it (step 3's own word) before
- * waiting for in-flight work to settle (step 4); a real fix needs
- * `saveCoordinator.ts`'s `prepareForTransition` itself to flush pending
- * work for real and report whether anything genuinely failed, which is a
- * change to shared, heavily-relied-on drain mechanics every transition
- * (including the already-shipped 2b-i/2b-ii) uses, not a small addition to
- * this phase's own scope. Adding a naive pre-check here (tried, then
- * reverted during this phase's own implementation once a real integration
- * test showed it aborting a switch that should have simply waited for an
- * in-flight save to finish) would make ordinary switching worse, not
- * safer. Logged as its own Open Bug in `ROADMAP.md` rather than guessed at
- * here. The `save` phase and `save_failed` classification below remain
- * real and reachable (a `prepareOutgoing` failure for any other reason,
- * e.g. `drainWorkspaceOperations` itself rejecting), just not driven by
- * this specific, deliberately-not-yet-built check.
+ * F20 Phase 2b-iii-b follow-up, spec section 16.3 steps 3/4/6 and 16.6:
+ * `prepareOutgoing` below drains outgoing saves via
+ * `workspaceSaves.prepareForTransition`, which now actually flushes (writes)
+ * a pending debounced save and waits for an in-flight one, then throws if
+ * anything genuinely failed to reach disk, rather than silently cancelling
+ * pending work the way it used to (see that function's own doc comment in
+ * `saveCoordinator.ts`). A thrown save failure lands in `workspaceTransitions`
+ * as an ordinary `phase: "save"` / `save_failed` error, same as any other
+ * `prepareOutgoing` failure, surfaced through the same in-session recovery
+ * banner. `options.discardUnsaved` (spec 16.6's explicitly-confirmed "Switch
+ * without saving") skips the flush-and-check entirely, reverting to a plain
+ * cancel-and-wait so the transition can never be blocked by unsaved work the
+ * user has deliberately chosen to lose.
  */
 export async function setWorkspacePath(
   path: string,
   token?: string,
   profile?: WorkspaceProfile,
+  options?: { discardUnsaved?: boolean },
 ): Promise<void> {
   settingsLoaded.value = true;
   workspaceSelectionError.value = null;
@@ -441,6 +438,7 @@ export async function setWorkspacePath(
   const outgoingToken = workspaceToken.value;
   const outgoingSession = workspaceSession.value;
   const targetProfileId = profile?.id ?? null;
+  const discard = options?.discardUnsaved ?? false;
 
   // Section 16.4/17.2: a failed activation changes nothing about the
   // catalog (no profile is marked opened, nothing below touches
@@ -457,7 +455,7 @@ export async function setWorkspacePath(
         // work cannot resolve against the newly picked tree while it drains.
         if (outgoingPath) await restoreWorkspaceAccess(outgoingPath, outgoingToken);
         await Promise.all([
-          workspaceSaves.prepareForTransition(outgoingSession),
+          workspaceSaves.prepareForTransition(outgoingSession, { discard }),
           drainWorkspaceSettingsWrites(),
         ]);
         await drainWorkspaceOperations();

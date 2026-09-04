@@ -9,6 +9,7 @@ import { cleanup, fireEvent, render, waitFor } from "@testing-library/preact";
 // selectedDir signals this test drives directly — running for real.
 vi.mock("../settings/store", () => ({
   workspaceSettings: { value: { sortOrder: "name-asc" } },
+  workspaceSession: { value: 0 },
   updateWorkspaceSettings: vi.fn(),
 }));
 vi.mock("./tauriBridge", () => ({

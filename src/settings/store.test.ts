@@ -382,7 +382,11 @@ describe("F20 Phase 1: workspace profile catalog", () => {
         workspaceProfiles.value = [{ id: "p1", name: "Active", icon: "folder", path: "/a", lastOpenedAt: 1 }];
         activeWorkspaceId.value = "p1";
         workspacePath.value = "/a";
-        hasUnsavedWork.mockReturnValue(true);
+        // discardUnsaved short-circuits the hasUnsavedWork check entirely
+        // (see forgetWorkspaceProfile itself), so this test doesn't need to
+        // stub a return value for it at all; queuing an unconsumed
+        // mockReturnValueOnce here previously leaked into whichever later
+        // test called hasUnsavedWork next.
 
         await forgetWorkspaceProfile("p1", { discardUnsaved: true });
 

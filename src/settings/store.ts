@@ -34,6 +34,12 @@ import { classifyWorkspaceResource } from "../workspace/types";
 import { workspaceSaves } from "../workspace/workspaceSaves";
 import { workspaceTransitions } from "../workspace/workspaceTransition";
 import {
+  classifyTransitionErrorKind,
+  recoveryActionsFor,
+  type WorkspaceTransitionErrorKind,
+  type WorkspaceTransitionRecoveryAction,
+} from "../workspace/workspaceTransitionRecovery";
+import {
   DEFAULT_WORKSPACE_SETTINGS,
   loadWorkspaceSettings,
   saveWorkspaceSettings,
@@ -81,6 +87,64 @@ export const theme = signal<ThemePreference>("system");
 export const viewMode = signal<ViewMode>(
   DEFAULT_WORKSPACE_SETTINGS.defaultViewMode,
 );
+
+/** F20 Phase 2b-iii-b, spec sections 16.4 and 23: the recovery affordances
+ * for a failed *in-session* transition to a real target profile (an
+ * ordinary switch, or an active-profile relink), derived from
+ * `workspaceTransitions.state` below rather than duplicating its lifecycle.
+ * `null` whenever there is nothing to recover from, or the failure has no
+ * real target (the active-profile-forget transition targets "no workspace",
+ * spec 15.2; that failure path is handled by `WorkspaceForgetUnsavedWorkError`
+ * and its own confirmation UI, not this banner, see `forgetWorkspaceProfile`).
+ * `actions` names which of `retry`/`relink`/`openAnother`/`forget` apply
+ * for this failure's kind (`classifyTransitionErrorKind`); only those are
+ * ever set, so a consumer can render exactly the buttons `actions` lists
+ * without runtime `undefined` checks scattered through its JSX. */
+export interface WorkspaceTransitionRecoveryInfo {
+  targetProfileId: string;
+  targetProfileName: string;
+  kind: WorkspaceTransitionErrorKind;
+  message: string;
+  actions: WorkspaceTransitionRecoveryAction[];
+  /** Each of these returns its own operation's real promise, unwrapped,
+   * rather than a fire-and-forget `void`, so a UI consumer can show real
+   * busy state and its own catch block for the exact button clicked,
+   * instead of only ever reacting to whatever this effect recomputes next. */
+  retry: () => Promise<unknown>;
+  relink?: () => Promise<unknown>;
+  openAnother?: () => Promise<unknown>;
+  forget?: () => Promise<unknown>;
+}
+
+export const workspaceTransitionRecovery = signal<WorkspaceTransitionRecoveryInfo | null>(null);
+
+effect(() => {
+  const transition = workspaceTransitions.state.value;
+  if (transition.status !== "error" || transition.targetProfileId === null) {
+    workspaceTransitionRecovery.value = null;
+    return;
+  }
+  const targetProfileId = transition.targetProfileId;
+  const profile = workspaceProfiles.value.find((p) => p.id === targetProfileId);
+  if (!profile) {
+    workspaceTransitionRecovery.value = null;
+    return;
+  }
+  const kind = classifyTransitionErrorKind(transition.phase, isNativePlatform());
+  const actions = recoveryActionsFor(kind);
+  const has = (id: WorkspaceTransitionRecoveryAction["id"]) => actions.some((action) => action.id === id);
+  workspaceTransitionRecovery.value = {
+    targetProfileId,
+    targetProfileName: profile.name,
+    kind,
+    message: transition.message,
+    actions,
+    retry: () => activateWorkspaceProfile(targetProfileId),
+    relink: has("relink") || has("grant-access") ? () => relinkWorkspaceProfile(targetProfileId) : undefined,
+    openAnother: has("open-another") ? () => addWorkspaceFromPicker() : undefined,
+    forget: has("forget") ? () => forgetWorkspaceProfile(targetProfileId) : undefined,
+  };
+});
 
 effect(() => {
   document.documentElement.style.setProperty("--content-font-size", `${workspaceSettings.value.fontSize}px`);
@@ -321,13 +385,62 @@ export async function initSettings(): Promise<void> {
  * directly by any UI surface (spec section 20); it remains exported for
  * existing tests exercising the transition mechanics itself, and for the
  * two profile actions below, which are the only real callers now.
+ *
+ * F20 Phase 2b-iii-b, spec section 16.4: "A remains or becomes authoritative
+ * again" when B cannot be opened. Before this phase, `publishFailure` reset
+ * `workspacePath`/`workspaceToken` to `null`/`undefined` unconditionally,
+ * even when there was a real outgoing workspace A whose access had just been
+ * reconnected two steps earlier in `prepareOutgoing` below, silently
+ * bouncing the user out to the "no workspace" welcome screen (losing their
+ * open tabs) on any in-session switch failure instead of leaving them on A.
+ * `outgoingPath`/`outgoingToken` are still captured before anything runs, so
+ * restoring them on failure needs no new state; `workspaceSettings` itself
+ * was never touched either, since `publishIncoming` never ran. What the
+ * transition's own reset sweep (the `for (const reset of resets) reset()`
+ * loop inside `workspaceTransitions.run`, always run before B's access is
+ * even attempted) already cleared does need explicit repopulating, since
+ * nothing here changes `workspacePath`'s *value* enough to retrigger a
+ * `[rootPath]`-keyed effect: `FileTree.tsx`'s mount effect additionally
+ * depends on `workspaceSession` for exactly this reason (see its own
+ * comment), so bumping the session below is what makes the file tree
+ * reload; tabs are restored explicitly via `restoreLastOpenTabs` since nothing
+ * else does. A workspace with no prior A (startup, the only case
+ * `WelcomeDialog`'s own recovery, F20 Phase 2b-iii-a, needs to handle)
+ * keeps exactly its previous null/defaulted behavior.
+ *
+ * F20 Phase 2b-iii-b disclosure, spec section 16.3 steps 3/4/6 and 16.6:
+ * this phase deliberately does NOT add an abort-by-default "unsaved work"
+ * guard here the way `forgetWorkspaceProfile` (2b-ii) has for the
+ * active-forget action. `workspaceSaves.hasUnsavedWork` (that guard's own
+ * check) is true for merely *pending or in-flight* work, not just a
+ * genuine failure, and `prepareOutgoing` below only *cancels* a pending
+ * debounce rather than actually flushing it (step 3's own word) before
+ * waiting for in-flight work to settle (step 4); a real fix needs
+ * `saveCoordinator.ts`'s `prepareForTransition` itself to flush pending
+ * work for real and report whether anything genuinely failed, which is a
+ * change to shared, heavily-relied-on drain mechanics every transition
+ * (including the already-shipped 2b-i/2b-ii) uses, not a small addition to
+ * this phase's own scope. Adding a naive pre-check here (tried, then
+ * reverted during this phase's own implementation once a real integration
+ * test showed it aborting a switch that should have simply waited for an
+ * in-flight save to finish) would make ordinary switching worse, not
+ * safer. Logged as its own Open Bug in `ROADMAP.md` rather than guessed at
+ * here. The `save` phase and `save_failed` classification below remain
+ * real and reachable (a `prepareOutgoing` failure for any other reason,
+ * e.g. `drainWorkspaceOperations` itself rejecting), just not driven by
+ * this specific, deliberately-not-yet-built check.
  */
-export async function setWorkspacePath(path: string, token?: string, profile?: WorkspaceProfile): Promise<void> {
+export async function setWorkspacePath(
+  path: string,
+  token?: string,
+  profile?: WorkspaceProfile,
+): Promise<void> {
   settingsLoaded.value = true;
   workspaceSelectionError.value = null;
   const outgoingPath = workspacePath.value;
   const outgoingToken = workspaceToken.value;
   const outgoingSession = workspaceSession.value;
+  const targetProfileId = profile?.id ?? null;
 
   // Section 16.4/17.2: a failed activation changes nothing about the
   // catalog (no profile is marked opened, nothing below touches
@@ -336,65 +449,81 @@ export async function setWorkspacePath(path: string, token?: string, profile?: W
   // concurrent, unrelated in-flight write with stale state, not recover
   // anything. `workspaceTransitions.run` itself rejects past this point,
   // so callers see the failure without a local catch here.
-  await workspaceTransitions.run({
-    prepareOutgoing: async () => {
-      // pickWorkspaceFolder() currently activates its picked SAF token before
-      // returning. Rebind the old grant immediately so pending old-session
-      // work cannot resolve against the newly picked tree while it drains.
-      if (outgoingPath) await restoreWorkspaceAccess(outgoingPath, outgoingToken);
-      await Promise.all([
-        workspaceSaves.prepareForTransition(outgoingSession),
-        drainWorkspaceSettingsWrites(),
-      ]);
-      await drainWorkspaceOperations();
+  await workspaceTransitions.run(
+    {
+      prepareOutgoing: async () => {
+        // pickWorkspaceFolder() currently activates its picked SAF token before
+        // returning. Rebind the old grant immediately so pending old-session
+        // work cannot resolve against the newly picked tree while it drains.
+        if (outgoingPath) await restoreWorkspaceAccess(outgoingPath, outgoingToken);
+        await Promise.all([
+          workspaceSaves.prepareForTransition(outgoingSession),
+          drainWorkspaceSettingsWrites(),
+        ]);
+        await drainWorkspaceOperations();
 
-      // Clear tabs before the new grant is active. Preseed the persistence
-      // key so this internal clear cannot overwrite the outgoing workspace's
-      // remembered tabs while the transition is in progress.
-      lastPersistedTabsKey = JSON.stringify([[], null]);
-      closeAllTabs();
-    },
-    connectIncoming: async () => {
-      await restoreWorkspaceAccess(path, token);
-      // A successful restore alone is not proof the root remains readable,
-      // especially for an expired Android persistable grant. Validate the
-      // root before publishing the incoming session.
-      await listDir(path);
-    },
-    loadIncoming: () => loadWorkspaceSettings(path),
-    publishIncoming: ({ settings: loadedWorkspaceSettings, corrupt }) => {
-      batch(() => {
-        workspaceSettings.value = loadedWorkspaceSettings;
-        workspaceSettingsCorrupted.value = corrupt;
-        viewMode.value = loadedWorkspaceSettings.defaultViewMode;
-        workspacePath.value = path;
-        workspaceToken.value = token;
-        workspaceSession.value++;
-      });
-    },
-    publishFailure: (error) => {
-      lastPersistedTabsKey = JSON.stringify([[], null]);
-      closeAllTabs();
-      batch(() => {
-        workspaceSettings.value = DEFAULT_WORKSPACE_SETTINGS;
-        workspaceSettingsCorrupted.value = false;
-        viewMode.value = DEFAULT_WORKSPACE_SETTINGS.defaultViewMode;
-        workspacePath.value = null;
-        workspaceToken.value = undefined;
-        workspaceSession.value++;
-        workspaceSelectionError.value =
+        // Clear tabs before the new grant is active. Preseed the persistence
+        // key so this internal clear cannot overwrite the outgoing workspace's
+        // remembered tabs while the transition is in progress.
+        lastPersistedTabsKey = JSON.stringify([[], null]);
+        closeAllTabs();
+      },
+      connectIncoming: async () => {
+        await restoreWorkspaceAccess(path, token);
+        // A successful restore alone is not proof the root remains readable,
+        // especially for an expired Android persistable grant. Validate the
+        // root before publishing the incoming session.
+        await listDir(path);
+      },
+      loadIncoming: () => loadWorkspaceSettings(path),
+      publishIncoming: ({ settings: loadedWorkspaceSettings, corrupt }) => {
+        batch(() => {
+          workspaceSettings.value = loadedWorkspaceSettings;
+          workspaceSettingsCorrupted.value = corrupt;
+          viewMode.value = loadedWorkspaceSettings.defaultViewMode;
+          workspacePath.value = path;
+          workspaceToken.value = token;
+          workspaceSession.value++;
+        });
+      },
+      publishFailure: (error, _phase, isCurrent) => {
+        const message =
           error instanceof Error && error.message
             ? `Could not open that workspace: ${error.message}`
             : "Could not open that workspace. Choose the folder again or select another folder.";
-      });
+        if (outgoingPath) {
+          batch(() => {
+            workspacePath.value = outgoingPath;
+            workspaceToken.value = outgoingToken;
+            workspaceSession.value++;
+            workspaceSelectionError.value = message;
+          });
+          void (async () => {
+            await restoreLastOpenTabs(isCurrent);
+          })();
+          return;
+        }
+        lastPersistedTabsKey = JSON.stringify([[], null]);
+        closeAllTabs();
+        batch(() => {
+          workspaceSettings.value = DEFAULT_WORKSPACE_SETTINGS;
+          workspaceSettingsCorrupted.value = false;
+          viewMode.value = DEFAULT_WORKSPACE_SETTINGS.defaultViewMode;
+          workspacePath.value = null;
+          workspaceToken.value = undefined;
+          workspaceSession.value++;
+          workspaceSelectionError.value = message;
+        });
+      },
+      afterPublish: async (isCurrent) => {
+        if (profile) markProfileOpened(profile);
+        await persistGlobalConfig();
+        if (!isCurrent()) return;
+        await restoreLastOpenTabs(isCurrent);
+      },
     },
-    afterPublish: async (isCurrent) => {
-      if (profile) markProfileOpened(profile);
-      await persistGlobalConfig();
-      if (!isCurrent()) return;
-      await restoreLastOpenTabs(isCurrent);
-    },
-  });
+    targetProfileId,
+  );
 }
 
 export async function setTheme(next: ThemePreference): Promise<void> {

@@ -41,6 +41,7 @@ import {
 import type { ViewMode } from "../settings/workspaceSettings";
 import { SettingsPanel } from "../settings/SettingsPanel";
 import { WelcomeDialog } from "../settings/WelcomeDialog";
+import { WorkspaceTransitionBanner } from "../settings/WorkspaceTransitionBanner";
 import { WorkspaceSwitcher } from "../settings/WorkspaceSwitcher";
 import { BacklinksPanel } from "../linking/BacklinksPanel";
 import { OutlinePanel } from "../outline/OutlinePanel";
@@ -986,6 +987,7 @@ export function App() {
         </main>
       </div>
       <SettingsPanel onOpenFile={handleOpenFile} />
+      {rootPath && <WorkspaceTransitionBanner />}
       {settingsLoaded.value && !rootPath && <WelcomeDialog />}
       {tabRename && (
         <NamePrompt

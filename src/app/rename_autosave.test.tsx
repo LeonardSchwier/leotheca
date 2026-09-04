@@ -25,6 +25,7 @@ vi.mock("../settings/store", () => {
     activateWorkspaceProfile: vi.fn(),
     addWorkspaceFromPicker: vi.fn(),
     forgetWorkspaceProfile: vi.fn(),
+    workspaceTransitionRecovery: signal(null),
     updateWorkspaceSettings: async (
       patch: Partial<typeof DEFAULT_WORKSPACE_SETTINGS>,
     ) => {

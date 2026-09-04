@@ -62,6 +62,7 @@ vi.mock("./store", () => ({
 
 vi.mock("../settings/store", () => ({
   workspaceSettings: signal({ deleteBehavior: "project-trash", sortOrder: "name-asc" }),
+  workspaceSession: signal(0),
 }));
 
 const { Sidebar } = await import("./Sidebar");

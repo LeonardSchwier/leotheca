@@ -11,6 +11,7 @@ import {
   sortEntries,
   toggleExpanded,
 } from "./fileTreeStore";
+import { workspaceSession } from "../settings/store";
 import type { FsEntry } from "./types";
 
 interface FileTreeProps {
@@ -19,9 +20,15 @@ interface FileTreeProps {
 }
 
 export function FileTree({ rootPath, onOpenFile }: FileTreeProps) {
+  // Also re-expands when only workspaceSession changes and rootPath stays
+  // the same string: F20 Phase 2b-iii-b's in-session transition-failure
+  // recovery restores the outgoing workspace's own path value (never
+  // actually cleared) but still bumps the session after a mid-transition
+  // reset already emptied dirChildren, so rootPath alone would never
+  // re-trigger this effect and the tree would stay stuck empty.
   useEffect(() => {
     void expandFirstLevel(rootPath);
-  }, [rootPath]);
+  }, [rootPath, workspaceSession.value]);
 
   const entries = dirChildren.value.get(rootPath);
   if (!entries) return null;

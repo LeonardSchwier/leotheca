@@ -951,6 +951,44 @@ button.icon-button.active {
   margin: 0 0 var(--space-2);
 }
 
+/* F20 Phase 2b-iii-b: in-session failed-transition recovery banner (spec
+   sections 16.4/23). Sits inline at the top of the app shell rather than as
+   a modal overlay, deliberately: the previously-active workspace stays
+   authoritative and visible underneath it, unlike WelcomeDialog's
+   full-screen startup-failure surface. */
+.workspace-transition-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-sunken);
+  border-bottom: 1px solid var(--border);
+}
+
+.workspace-transition-banner-message {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.workspace-transition-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+.workspace-transition-banner-dismiss {
+  background: none;
+  border: none;
+  color: var(--text-faint);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  padding: var(--space-1);
+}
+
 .name-prompt-actions {
   display: flex;
   justify-content: flex-end;

@@ -127,7 +127,7 @@ describe("workspace transition integration", () => {
     expect(workspacePath.value).toBe("/B");
   });
 
-  it("fails closed when the incoming grant cannot be restored", async () => {
+  it("F20 Phase 2b-iii-b, spec 16.4: restores the outgoing workspace (not null) when the incoming grant cannot be restored", async () => {
     createSaveCoordinator();
     await setWorkspacePath("/old", "old-token");
     const previousSession = workspaceSession.value;
@@ -137,13 +137,13 @@ describe("workspace transition integration", () => {
 
     await expect(setWorkspacePath("/workspace", "bad-token")).rejects.toThrow("grant expired");
 
-    expect(workspacePath.value).toBeNull();
+    expect(workspacePath.value).toBe("/old");
     expect(workspaceSession.value).toBe(previousSession + 1);
     expect(workspaceSelectionError.value).toContain("Could not open that workspace");
     expect(workspaceSelectionError.value).not.toContain("bad-token");
   });
 
-  it("fails closed when the incoming root is no longer readable", async () => {
+  it("F20 Phase 2b-iii-b, spec 16.4: restores the outgoing workspace (not null) when the incoming root is no longer readable", async () => {
     createSaveCoordinator();
     await setWorkspacePath("/old", "old-token");
     listDir.mockImplementation(async (path) => {
@@ -152,7 +152,18 @@ describe("workspace transition integration", () => {
     });
 
     await expect(setWorkspacePath("/unreadable", "new-token")).rejects.toThrow("permission denied");
-    expect(workspacePath.value).toBeNull();
+    expect(workspacePath.value).toBe("/old");
     expect(workspaceSelectionError.value).toContain("permission denied");
+  });
+
+  it("F20 Phase 2b-iii-a's own startup case is unchanged: fails fully closed (null) when there was no prior workspace", async () => {
+    createSaveCoordinator();
+    workspacePath.value = null;
+    restoreWorkspaceAccess.mockRejectedValueOnce(new Error("no such folder"));
+
+    await expect(setWorkspacePath("/gone", "token")).rejects.toThrow("no such folder");
+
+    expect(workspacePath.value).toBeNull();
+    expect(workspaceSelectionError.value).toContain("Could not open that workspace");
   });
 });

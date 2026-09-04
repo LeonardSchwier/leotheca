@@ -982,6 +982,35 @@ describe("MarkdownPreview: F04 Phase 5d block anchor rendering hook", () => {
     expect(container.querySelector('[data-lt-block-id="first"]')?.textContent).toBe("First paragraph.");
     expect(container.querySelector('[data-lt-block-id="second"]')?.textContent).toBe("Second paragraph.");
   });
+
+  it("adds a keyboard-focusable copy-link control that reuses the block link syntax", () => {
+    const writeText = vi.fn();
+    Object.assign(navigator, { clipboard: { writeText } });
+    const { container } = render(
+      <MarkdownPreview source="This decision is final. ^release-decision" notePath="/vault/plan.md" />,
+    );
+    const button = container.querySelector<HTMLButtonElement>(".block-link-copy");
+    expect(button?.getAttribute("aria-label")).toBe("Copy link to block release-decision");
+    fireEvent.click(button!);
+    expect(writeText).toHaveBeenCalledWith("[[#^release-decision]]");
+  });
+
+  it("copies on a stationary touch long-press but cancels when the pointer moves", () => {
+    vi.useFakeTimers();
+    const writeText = vi.fn();
+    Object.assign(navigator, { clipboard: { writeText } });
+    const { container } = render(
+      <MarkdownPreview source="This decision is final. ^release-decision" notePath="/vault/plan.md" />,
+    );
+    const block = container.querySelector<HTMLElement>("[data-lt-block-id]")!;
+    fireEvent.pointerDown(block, { pointerType: "touch", clientX: 10, clientY: 10 });
+    vi.advanceTimersByTime(550);
+    expect(writeText).toHaveBeenCalledWith("[[#^release-decision]]");
+    fireEvent.pointerDown(block, { pointerType: "touch", clientX: 10, clientY: 10 });
+    fireEvent.pointerMove(block, { pointerType: "touch", clientX: 25, clientY: 10 });
+    vi.advanceTimersByTime(550);
+    expect(writeText).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("MarkdownPreview: F04 Phase 4a embeds", () => {

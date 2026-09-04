@@ -22,6 +22,7 @@ vi.mock("./store", () => ({
   workspacePath: signal<string | null>(null),
   workspaceSettingsCorrupted: signal(false),
   workspaceSettingsSaveError: signal<string | null>(null),
+  workspaceSettingsSaving: signal(false),
   workspaceSettings: signal(DEFAULT_WORKSPACE_SETTINGS),
 }));
 vi.mock("../workspace/tauriBridge", () => ({
@@ -67,6 +68,7 @@ import {
   workspacePath,
   workspaceSettingsCorrupted,
   workspaceSettingsSaveError,
+  workspaceSettingsSaving,
   workspaceSettings,
 } from "./store";
 
@@ -85,6 +87,7 @@ afterEach(() => {
   vi.mocked(repairWorkspaceSettingsFile).mockReset();
   workspaceSettingsSaveError.value = null;
   workspaceSettingsCorrupted.value = false;
+  workspaceSettingsSaving.value = false;
 });
 
 describe("matchesSettingsSearch", () => {
@@ -512,6 +515,22 @@ describe("SettingsPanel", () => {
       expect(onOpenFile).toHaveBeenCalledWith("/vault/broken.md", "broken.md");
       expect(settingsPanelOpen.value).toBe(false);
       expect(viewMode.value).toBe("split");
+    });
+  });
+
+  describe("Saving indicator (2026-09-04)", () => {
+    it("shows a Saving… status in the header while workspaceSettingsSaving is true", () => {
+      workspacePath.value = "/vault";
+      workspaceSettingsSaving.value = true;
+      const { getByRole } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+      expect(getByRole("status").textContent).toContain("Saving");
+    });
+
+    it("shows no Saving… status when nothing is writing", () => {
+      workspacePath.value = "/vault";
+      workspaceSettingsSaving.value = false;
+      const { queryByRole } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+      expect(queryByRole("status")).toBeNull();
     });
   });
 });

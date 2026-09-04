@@ -83,6 +83,7 @@ const {
   workspaceSelectionError,
   workspaceSettings,
   workspaceSettingsCorrupted,
+  workspaceSettingsSaving,
   workspaceSession,
   WorkspaceForgetUnsavedWorkError,
   WorkspaceRelinkConflictError,
@@ -882,5 +883,69 @@ describe("workspace settings corruption recovery", () => {
         fontSize: number;
       }).fontSize,
     ).toBe(20);
+  });
+});
+
+describe("workspaceSettingsSaving (2026-09-04)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // A prior describe block's own readTextFile.mockImplementation override
+    // survives vi.clearAllMocks() (that only clears call history, not a
+    // custom implementation), so without resetting it here, setWorkspacePath
+    // below can pick up leftover invalid-JSON settings content from whatever
+    // test last customized it and mark this workspace corrupted before this
+    // block's own tests ever run, exactly the leak this restores against.
+    readTextFile.mockImplementation(async () => {
+      throw new Error("not found");
+    });
+    workspaceSettingsCorrupted.value = false;
+  });
+
+  it("is true synchronously once a write is queued, and false again once it drains", async () => {
+    await setWorkspacePath("/workspaceA");
+    await flushSettingsWrites();
+    vi.clearAllMocks();
+    expect(workspaceSettingsSaving.value).toBe(false);
+
+    let resolveWrite: () => void = () => {};
+    writeWorkspaceTextFile.mockImplementationOnce(
+      () => new Promise<void>((resolve) => (resolveWrite = resolve)),
+    );
+
+    const updatePromise = updateWorkspaceSettings({ fontSize: 20 });
+    // No await yet: the native write is still pending, so the indicator
+    // must already be showing, not just eventually.
+    expect(workspaceSettingsSaving.value).toBe(true);
+
+    resolveWrite();
+    await updatePromise;
+
+    expect(workspaceSettingsSaving.value).toBe(false);
+  });
+
+  it("stays true across a second update that arrives while the first write is still in flight", async () => {
+    await setWorkspacePath("/workspaceA");
+    await flushSettingsWrites();
+    vi.clearAllMocks();
+
+    let resolveFirstWrite: () => void = () => {};
+    writeWorkspaceTextFile.mockImplementationOnce(
+      () => new Promise<void>((resolve) => (resolveFirstWrite = resolve)),
+    );
+    const first = updateWorkspaceSettings({ fontSize: 20 });
+    expect(workspaceSettingsSaving.value).toBe(true);
+
+    // Arrives before the first write settles: queued as a follow-up write,
+    // not dropped, per updateWorkspaceSettings's own merge-into-pending path.
+    const second = updateWorkspaceSettings({ fontSize: 22 });
+    expect(workspaceSettingsSaving.value).toBe(true);
+
+    resolveFirstWrite();
+    await first;
+    // The follow-up write for fontSize: 22 is now in flight; still saving.
+    expect(workspaceSettingsSaving.value).toBe(true);
+
+    await second;
+    expect(workspaceSettingsSaving.value).toBe(false);
   });
 });

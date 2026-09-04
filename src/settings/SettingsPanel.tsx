@@ -13,6 +13,7 @@ import {
   workspacePath,
   workspaceSettingsCorrupted,
   workspaceSettingsSaveError,
+  workspaceSettingsSaving,
   workspaceSettings,
 } from "./store";
 import type { ThemePreference } from "./globalConfig";
@@ -263,6 +264,11 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
       <div class="modal settings-panel" onClick={(e) => e.stopPropagation()}>
         <div class="modal-header">
           <h2>Settings</h2>
+          {workspaceSettingsSaving.value && (
+            <span class="settings-saving-indicator" role="status">
+              Saving…
+            </span>
+          )}
           <button
             class="modal-close"
             onClick={() => (settingsPanelOpen.value = false)}

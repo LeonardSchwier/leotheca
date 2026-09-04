@@ -68,6 +68,13 @@ export const workspaceSettings = signal<WorkspaceSettings>(
 );
 export const settingsLoaded = signal(false);
 export const workspaceSettingsSaveError = signal<string | null>(null);
+/** True while at least one workspace-settings write is queued or in flight
+ * (see queueWorkspaceSettingsWrite/resolveWorkspaceSettingsDrainWaiters
+ * below), so SettingsPanel can show a "Saving…" indicator. The in-memory
+ * `workspaceSettings` signal itself already updates synchronously on every
+ * toggle (see updateWorkspaceSettings), so this exists purely for user
+ * feedback on the disk write, not because anything else waits on it. */
+export const workspaceSettingsSaving = signal(false);
 export const workspaceSelectionError = signal<string | null>(null);
 // Set when the workspace's settings.json existed but didn't fully decode as
 // written (see workspaceSettings.ts's decodeWorkspaceSettings): a JSON
@@ -831,6 +838,7 @@ const workspaceSettingsDrainWaiters = new Set<() => void>();
 
 function resolveWorkspaceSettingsDrainWaiters(): void {
   if (workspaceSettingsWriteInFlight || pendingWorkspaceSettingsWrite) return;
+  workspaceSettingsSaving.value = false;
   for (const resolve of workspaceSettingsDrainWaiters) resolve();
   workspaceSettingsDrainWaiters.clear();
 }
@@ -867,6 +875,7 @@ function queueWorkspaceSettingsWrite(
   path: string,
   settings: WorkspaceSettings,
 ): Promise<void> {
+  workspaceSettingsSaving.value = true;
   return new Promise((resolve, reject) => {
     if (pendingWorkspaceSettingsWrite?.path === path) {
       pendingWorkspaceSettingsWrite.settings = settings;

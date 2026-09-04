@@ -494,22 +494,93 @@ export async function setWorkspaceProfileIcon(id: string, icon: WorkspaceIcon): 
   return true;
 }
 
-/** F20 Phase 1/2a, spec section 7.7/15.1: removes only the catalog entry,
+/** F20 Phase 2b-ii, spec section 15.2: thrown when forgetting the active
+ * profile is aborted because there is note content that has not actually
+ * reached disk yet (pending, in flight, or failed; see
+ * `saveCoordinator.ts`'s `hasUnsavedWork`). The abort is the default
+ * behavior, not a special case; a caller that wants the destructive
+ * override re-calls with `{ discardUnsaved: true }` after its own explicit
+ * second confirmation (spec: "must not be the primary action"). */
+export class WorkspaceForgetUnsavedWorkError extends Error {
+  constructor() {
+    super("This workspace has changes that have not been saved yet.");
+    this.name = "WorkspaceForgetUnsavedWorkError";
+  }
+}
+
+/** F20 Phase 1/2a/2b-ii, spec section 7.7/15: removes a catalog entry,
  * never the folder, its notes, `.leotheca/settings.json`, or platform
- * permission state. Narrowed to a non-active profile only; forgetting the
- * active profile needs section 15.2's zero-active-workspace recovery flow,
- * deferred to F20 Phase 2b. The UI never offers this action for the active
- * profile, and this function additionally refuses it defensively. A failed
- * config write restores the removed catalog entry before the next queued
- * global-config write can observe state. */
-export async function forgetWorkspaceProfile(id: string): Promise<void> {
-  if (id === activeWorkspaceId.value) return;
-  const removed = workspaceProfiles.value.find((profile) => profile.id === id);
-  if (!removed) return;
-  workspaceProfiles.value = workspaceProfiles.value.filter((profile) => profile.id !== id);
-  await persistGlobalConfig(() => {
-    if (workspaceProfiles.value.some((profile) => profile.id === id)) return;
-    workspaceProfiles.value = sortWorkspaceProfiles([...workspaceProfiles.value, removed]);
+ * permission state (section 15.3).
+ *
+ * Forgetting a *non-active* profile (section 15.1) is unchanged from
+ * Phase 1/2a: a plain catalog edit, no transition, `options` ignored. A
+ * failed config write restores the removed catalog entry before the next
+ * queued global-config write can observe state.
+ *
+ * Forgetting the *active* profile (section 15.2) is a real transition to
+ * the no-workspace state, not just a catalog edit, since a workspace is
+ * actually open: it must flush/drain outgoing work the same way any other
+ * transition does, then clear workspace-scoped UI state, before the
+ * profile can be safely removed. Unlike an ordinary switch, this one must
+ * not silently lose unsaved note content along the way (section 15.2's
+ * "aborted by default" requirement, `saveCoordinator.ts`'s own tests show
+ * `prepareForTransition` doesn't report that loss on its own), so
+ * `workspaceSaves.hasUnsavedWork` is checked *before* starting the
+ * transition; a caller that wants to proceed anyway passes
+ * `{ discardUnsaved: true }` (the spec's secondary, non-primary "forget
+ * without saving" action). `connectIncoming`/`loadIncoming` are no-ops
+ * here since there is no incoming workspace to activate, only an outgoing
+ * one to leave; `publishIncoming` both clears workspace state and removes
+ * the profile from the catalog together, so a reader can never observe a
+ * moment where the active id still names a profile no longer in the
+ * catalog, or vice versa. */
+export async function forgetWorkspaceProfile(
+  id: string,
+  options?: { discardUnsaved?: boolean },
+): Promise<void> {
+  if (id !== activeWorkspaceId.value) {
+    const removed = workspaceProfiles.value.find((profile) => profile.id === id);
+    if (!removed) return;
+    workspaceProfiles.value = workspaceProfiles.value.filter((profile) => profile.id !== id);
+    await persistGlobalConfig(() => {
+      if (workspaceProfiles.value.some((profile) => profile.id === id)) return;
+      workspaceProfiles.value = sortWorkspaceProfiles([...workspaceProfiles.value, removed]);
+    });
+    return;
+  }
+
+  if (!options?.discardUnsaved && workspaceSaves.hasUnsavedWork(workspaceSession.value)) {
+    throw new WorkspaceForgetUnsavedWorkError();
+  }
+
+  await workspaceTransitions.run({
+    prepareOutgoing: async () => {
+      const outgoingSession = workspaceSession.value;
+      await Promise.all([
+        workspaceSaves.prepareForTransition(outgoingSession),
+        drainWorkspaceSettingsWrites(),
+      ]);
+      await drainWorkspaceOperations();
+      lastPersistedTabsKey = JSON.stringify([[], null]);
+      closeAllTabs();
+    },
+    connectIncoming: async () => {},
+    loadIncoming: async () => undefined,
+    publishIncoming: () => {
+      batch(() => {
+        workspaceSettings.value = DEFAULT_WORKSPACE_SETTINGS;
+        workspaceSettingsCorrupted.value = false;
+        viewMode.value = DEFAULT_WORKSPACE_SETTINGS.defaultViewMode;
+        workspacePath.value = null;
+        workspaceToken.value = undefined;
+        workspaceSession.value++;
+        activeWorkspaceId.value = null;
+        workspaceProfiles.value = workspaceProfiles.value.filter((profile) => profile.id !== id);
+      });
+    },
+    afterPublish: async () => {
+      await persistGlobalConfig();
+    },
   });
 }
 

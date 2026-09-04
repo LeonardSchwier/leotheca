@@ -9,6 +9,10 @@ import {
   workspaceSwitcherOpenRequest,
 } from "./workspaceSwitcherControl";
 
+const { MockWorkspaceForgetUnsavedWorkError } = vi.hoisted(() => ({
+  MockWorkspaceForgetUnsavedWorkError: class extends Error {},
+}));
+
 vi.mock("./store", () => ({
   workspaceProfiles: signal<WorkspaceProfile[]>([]),
   activeWorkspaceId: signal<string | null>(null),
@@ -16,6 +20,7 @@ vi.mock("./store", () => ({
   activateWorkspaceProfile: vi.fn(async () => {}),
   addWorkspaceFromPicker: vi.fn(async () => {}),
   forgetWorkspaceProfile: vi.fn(async () => {}),
+  WorkspaceForgetUnsavedWorkError: MockWorkspaceForgetUnsavedWorkError,
 }));
 
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
@@ -115,17 +120,17 @@ describe("WorkspaceSwitcher", () => {
     const { getByLabelText, getByRole } = render(<WorkspaceSwitcher />);
     fireEvent.click(getByLabelText("Switch workspace"));
     const activeRow = getByRole("listitem", { name: "Personal, current workspace" });
-    fireEvent.click(within(activeRow).getByRole("button", { name: /Personal/ }));
+    fireEvent.click(within(activeRow).getByRole("button", { name: /^Personal/ }));
     await Promise.resolve();
     expect(activateWorkspaceProfile).not.toHaveBeenCalled();
   });
 
-  it("does not show a Forget button for the active profile, only for others", () => {
+  it("shows a Forget button for every profile, including the active one", () => {
     workspaceProfiles.value = [PROFILE_A, PROFILE_B];
     activeWorkspaceId.value = "a";
-    const { getByLabelText, queryByLabelText } = render(<WorkspaceSwitcher />);
+    const { getByLabelText } = render(<WorkspaceSwitcher />);
     fireEvent.click(getByLabelText("Switch workspace"));
-    expect(queryByLabelText("Forget Personal")).toBeNull();
+    expect(getByLabelText("Forget Personal")).toBeTruthy();
     expect(getByLabelText("Forget Work")).toBeTruthy();
   });
 
@@ -137,6 +142,51 @@ describe("WorkspaceSwitcher", () => {
     fireEvent.click(getByLabelText("Forget Work"));
     await Promise.resolve();
     expect(forgetWorkspaceProfile).toHaveBeenCalledWith("b");
+  });
+
+  it("forgets the active profile via its Forget button when nothing is unsaved", async () => {
+    workspaceProfiles.value = [PROFILE_A, PROFILE_B];
+    activeWorkspaceId.value = "a";
+    const { getByLabelText } = render(<WorkspaceSwitcher />);
+    fireEvent.click(getByLabelText("Switch workspace"));
+    fireEvent.click(getByLabelText("Forget Personal"));
+    await Promise.resolve();
+    expect(forgetWorkspaceProfile).toHaveBeenCalledWith("a");
+  });
+
+  it("offers a confirmed 'forget without saving' retry when unsaved work blocks forgetting the active profile", async () => {
+    workspaceProfiles.value = [PROFILE_A];
+    activeWorkspaceId.value = "a";
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+    vi.mocked(forgetWorkspaceProfile).mockRejectedValueOnce(
+      new MockWorkspaceForgetUnsavedWorkError("unsaved"),
+    );
+
+    const { getByLabelText } = render(<WorkspaceSwitcher />);
+    fireEvent.click(getByLabelText("Switch workspace"));
+    fireEvent.click(getByLabelText("Forget Personal"));
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(confirm).toHaveBeenCalled();
+    expect(forgetWorkspaceProfile).toHaveBeenNthCalledWith(2, "a", { discardUnsaved: true });
+  });
+
+  it("does not retry forgetting the active profile when the unsaved-work confirmation is declined", async () => {
+    workspaceProfiles.value = [PROFILE_A];
+    activeWorkspaceId.value = "a";
+    vi.spyOn(window, "confirm").mockReturnValue(false);
+    vi.mocked(forgetWorkspaceProfile).mockRejectedValueOnce(
+      new MockWorkspaceForgetUnsavedWorkError("unsaved"),
+    );
+
+    const { getByLabelText } = render(<WorkspaceSwitcher />);
+    fireEvent.click(getByLabelText("Switch workspace"));
+    fireEvent.click(getByLabelText("Forget Personal"));
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(forgetWorkspaceProfile).toHaveBeenCalledTimes(1);
   });
 
   it("calls addWorkspaceFromPicker and closes the dialog when Add workspace is clicked", async () => {

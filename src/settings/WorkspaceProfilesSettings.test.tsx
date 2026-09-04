@@ -4,7 +4,8 @@ import { cleanup, fireEvent, render } from "@testing-library/preact";
 import { signal } from "@preact/signals";
 import type { WorkspaceProfile } from "./globalConfig";
 
-const { MockWorkspaceRelinkConflictError } = vi.hoisted(() => ({
+const { MockWorkspaceForgetUnsavedWorkError, MockWorkspaceRelinkConflictError } = vi.hoisted(() => ({
+  MockWorkspaceForgetUnsavedWorkError: class extends Error {},
   MockWorkspaceRelinkConflictError: class extends Error {
     constructor(public readonly conflictingProfileName: string) {
       super(`This folder is already used by workspace "${conflictingProfileName}".`);
@@ -21,6 +22,7 @@ vi.mock("./store", () => ({
   relinkWorkspaceProfile: vi.fn(async () => true),
   renameWorkspaceProfile: vi.fn(async () => true),
   setWorkspaceProfileIcon: vi.fn(async () => true),
+  WorkspaceForgetUnsavedWorkError: MockWorkspaceForgetUnsavedWorkError,
   WorkspaceRelinkConflictError: MockWorkspaceRelinkConflictError,
 }));
 
@@ -106,13 +108,55 @@ describe("WorkspaceProfilesSettings", () => {
     expect(alert).toHaveBeenCalledWith("Could not update workspace profile. Try again.");
   });
 
-  it("does not offer Forget for the active profile, but does for an inactive one", () => {
+  it("offers Forget for both the active and an inactive profile", () => {
     workspaceProfiles.value = [DESKTOP, ANDROID];
     activeWorkspaceId.value = "desktop";
-    const { getByText, getAllByText } = render(<WorkspaceProfilesSettings />);
-    expect(getAllByText("Forget")).toHaveLength(1);
-    fireEvent.click(getByText("Forget"));
+    const { getAllByText } = render(<WorkspaceProfilesSettings />);
+    expect(getAllByText("Forget")).toHaveLength(2);
+    fireEvent.click(getAllByText("Forget")[1]);
     expect(forgetWorkspaceProfile).toHaveBeenCalledWith("android");
+  });
+
+  it("forgets the active profile via Forget when nothing is unsaved", async () => {
+    workspaceProfiles.value = [DESKTOP];
+    activeWorkspaceId.value = "desktop";
+    const { getByText } = render(<WorkspaceProfilesSettings />);
+    fireEvent.click(getByText("Forget"));
+    await Promise.resolve();
+    expect(forgetWorkspaceProfile).toHaveBeenCalledWith("desktop");
+  });
+
+  it("offers a confirmed 'forget without saving' retry when unsaved work blocks forgetting the active profile", async () => {
+    workspaceProfiles.value = [DESKTOP];
+    activeWorkspaceId.value = "desktop";
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+    vi.mocked(forgetWorkspaceProfile).mockRejectedValueOnce(
+      new MockWorkspaceForgetUnsavedWorkError("unsaved"),
+    );
+
+    const { getByText } = render(<WorkspaceProfilesSettings />);
+    fireEvent.click(getByText("Forget"));
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(confirm).toHaveBeenCalled();
+    expect(forgetWorkspaceProfile).toHaveBeenNthCalledWith(2, "desktop", { discardUnsaved: true });
+  });
+
+  it("does not retry forgetting the active profile when the unsaved-work confirmation is declined", async () => {
+    workspaceProfiles.value = [DESKTOP];
+    activeWorkspaceId.value = "desktop";
+    vi.spyOn(window, "confirm").mockReturnValue(false);
+    vi.mocked(forgetWorkspaceProfile).mockRejectedValueOnce(
+      new MockWorkspaceForgetUnsavedWorkError("unsaved"),
+    );
+
+    const { getByText } = render(<WorkspaceProfilesSettings />);
+    fireEvent.click(getByText("Forget"));
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(forgetWorkspaceProfile).toHaveBeenCalledTimes(1);
   });
 
   it("reports failed forget and add actions without leaving rejected promises unhandled", async () => {
@@ -122,11 +166,11 @@ describe("WorkspaceProfilesSettings", () => {
     vi.mocked(forgetWorkspaceProfile).mockRejectedValueOnce(new Error("disk full"));
     vi.mocked(addWorkspaceFromPicker).mockRejectedValueOnce(new Error("picker failure"));
 
-    const { getByText } = render(<WorkspaceProfilesSettings />);
-    fireEvent.click(getByText("Forget"));
+    const { getAllByText, getByText } = render(<WorkspaceProfilesSettings />);
+    fireEvent.click(getAllByText("Forget")[1]);
     await Promise.resolve();
     await Promise.resolve();
-    expect(alert).toHaveBeenCalledWith("Could not forget workspace profile. Try again.");
+    expect(alert).toHaveBeenCalledWith("Could not forget workspace. Try again.");
 
     fireEvent.click(getByText("Add workspace"));
     await Promise.resolve();

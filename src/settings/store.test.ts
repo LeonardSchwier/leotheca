@@ -13,6 +13,8 @@ const {
   restoreWorkspaceAccess,
   setStatusBarAppearance,
   getAppConfigFilePath,
+  hasUnsavedWork,
+  prepareForTransition,
 } = vi.hoisted(() => ({
   drainWorkspaceOperations: vi.fn(async () => {}),
   isNativePlatform: vi.fn(() => false),
@@ -35,6 +37,8 @@ const {
   restoreWorkspaceAccess: vi.fn(async () => {}),
   setStatusBarAppearance: vi.fn(async () => {}),
   getAppConfigFilePath: vi.fn(async (name: string) => `/config/${name}`),
+  hasUnsavedWork: vi.fn(() => false),
+  prepareForTransition: vi.fn(async () => {}),
 }));
 
 vi.mock("../workspace/tauriBridge", () => ({
@@ -49,6 +53,10 @@ vi.mock("../workspace/tauriBridge", () => ({
   restoreWorkspaceAccess,
   setStatusBarAppearance,
   getAppConfigFilePath,
+}));
+
+vi.mock("../workspace/workspaceSaves", () => ({
+  workspaceSaves: { hasUnsavedWork, prepareForTransition },
 }));
 
 window.matchMedia = vi.fn().mockImplementation((query: string) => ({
@@ -76,6 +84,7 @@ const {
   workspaceSettings,
   workspaceSettingsCorrupted,
   workspaceSession,
+  WorkspaceForgetUnsavedWorkError,
   WorkspaceRelinkConflictError,
 } = await import("./store");
 const { activeTabPath, closeAllTabs, openOrFocusTab, openTabs } =
@@ -301,16 +310,6 @@ describe("F20 Phase 1: workspace profile catalog", () => {
       expect(globalConfigWrites().at(-1)?.workspaceProfiles.map((p) => p.id)).toEqual(["p1"]);
     });
 
-    it("refuses to forget the active profile", async () => {
-      workspaceProfiles.value = [{ id: "p1", name: "Active", icon: "folder", path: "/a", lastOpenedAt: 1 }];
-      activeWorkspaceId.value = "p1";
-
-      await forgetWorkspaceProfile("p1");
-
-      expect(workspaceProfiles.value).toHaveLength(1);
-      expect(globalConfigWrites()).toEqual([]);
-    });
-
     it("is a no-op for an unknown profile id", async () => {
       workspaceProfiles.value = [{ id: "p1", name: "Active", icon: "folder", path: "/a", lastOpenedAt: 1 }];
 
@@ -318,6 +317,65 @@ describe("F20 Phase 1: workspace profile catalog", () => {
 
       expect(workspaceProfiles.value).toHaveLength(1);
       expect(globalConfigWrites()).toEqual([]);
+    });
+
+    describe("forgetting the active profile (F20 Phase 2b-ii)", () => {
+      it("transitions to no workspace and removes the profile when there is nothing unsaved", async () => {
+        workspaceProfiles.value = [{ id: "p1", name: "Active", icon: "folder", path: "/a", lastOpenedAt: 1 }];
+        activeWorkspaceId.value = "p1";
+        workspacePath.value = "/a";
+        hasUnsavedWork.mockReturnValueOnce(false);
+
+        await forgetWorkspaceProfile("p1");
+
+        expect(workspaceProfiles.value).toEqual([]);
+        expect(activeWorkspaceId.value).toBeNull();
+        expect(workspacePath.value).toBeNull();
+        expect(globalConfigWrites().at(-1)?.activeWorkspaceId).toBeNull();
+        expect(globalConfigWrites().at(-1)?.workspaceProfiles).toEqual([]);
+      });
+
+      it("clears open tabs as part of the transition", async () => {
+        workspaceProfiles.value = [{ id: "p1", name: "Active", icon: "folder", path: "/a", lastOpenedAt: 1 }];
+        activeWorkspaceId.value = "p1";
+        workspacePath.value = "/a";
+        openOrFocusTab("/a/note.md", "note.md", "content", "text");
+        hasUnsavedWork.mockReturnValueOnce(false);
+
+        await forgetWorkspaceProfile("p1");
+
+        expect(openTabs.value).toEqual([]);
+      });
+
+      it("aborts by default, leaving the catalog and workspace untouched, when there is unsaved work", async () => {
+        workspaceProfiles.value = [{ id: "p1", name: "Active", icon: "folder", path: "/a", lastOpenedAt: 1 }];
+        activeWorkspaceId.value = "p1";
+        workspacePath.value = "/a";
+        hasUnsavedWork.mockReturnValueOnce(true);
+
+        await expect(forgetWorkspaceProfile("p1")).rejects.toBeInstanceOf(
+          WorkspaceForgetUnsavedWorkError,
+        );
+
+        expect(workspaceProfiles.value).toHaveLength(1);
+        expect(activeWorkspaceId.value).toBe("p1");
+        expect(workspacePath.value).toBe("/a");
+        expect(globalConfigWrites()).toEqual([]);
+        expect(prepareForTransition).not.toHaveBeenCalled();
+      });
+
+      it("proceeds despite unsaved work when discardUnsaved is explicitly passed", async () => {
+        workspaceProfiles.value = [{ id: "p1", name: "Active", icon: "folder", path: "/a", lastOpenedAt: 1 }];
+        activeWorkspaceId.value = "p1";
+        workspacePath.value = "/a";
+        hasUnsavedWork.mockReturnValue(true);
+
+        await forgetWorkspaceProfile("p1", { discardUnsaved: true });
+
+        expect(workspaceProfiles.value).toEqual([]);
+        expect(activeWorkspaceId.value).toBeNull();
+        expect(workspacePath.value).toBeNull();
+      });
     });
   });
 

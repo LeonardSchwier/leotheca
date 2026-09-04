@@ -5,6 +5,7 @@ import {
   addWorkspaceFromPicker,
   forgetWorkspaceProfile,
   settingsPanelOpen,
+  WorkspaceForgetUnsavedWorkError,
   workspaceProfiles,
 } from "./store";
 import { displayWorkspaceIcon, matchesWorkspaceSearch } from "./workspaceProfiles";
@@ -36,6 +37,31 @@ function locatorLabel(path: string, token: string | undefined): string {
 
 function reportWorkspaceActionFailure(action: string): void {
   window.alert(`Could not ${action} workspace. Try again.`);
+}
+
+/** F20 Phase 2b-ii, spec section 15.2/16.6: shared by both places Forget
+ * appears (this switcher and `WorkspaceProfilesSettings.tsx`). Forgetting
+ * the active profile can be aborted by unsaved note content; this offers
+ * the spec's secondary, explicitly-confirmed "forget without saving"
+ * override rather than failing silently or reporting a generic error. */
+export async function forgetWithUnsavedWorkConfirmation(id: string): Promise<void> {
+  try {
+    await forgetWorkspaceProfile(id);
+  } catch (error) {
+    if (error instanceof WorkspaceForgetUnsavedWorkError) {
+      const discard = window.confirm(
+        "This workspace has changes that have not been saved yet. Forget it anyway and lose those changes?",
+      );
+      if (!discard) return;
+      try {
+        await forgetWorkspaceProfile(id, { discardUnsaved: true });
+      } catch {
+        reportWorkspaceActionFailure("forget");
+      }
+      return;
+    }
+    reportWorkspaceActionFailure("forget");
+  }
 }
 
 export function WorkspaceSwitcher() {
@@ -143,14 +169,6 @@ export function WorkspaceSwitcher() {
     }
   };
 
-  const handleForget = async (id: string) => {
-    try {
-      await forgetWorkspaceProfile(id);
-    } catch {
-      reportWorkspaceActionFailure("forget");
-    }
-  };
-
   const handleMenuKeyDown = (event: KeyboardEvent) => {
     if (event.key === "Escape") {
       event.preventDefault();
@@ -225,7 +243,7 @@ export function WorkspaceSwitcher() {
                     <span class="workspace-switcher-row-name">{profile.name}<small>{locatorLabel(profile.path, profile.token)}</small></span>
                     {isActive && <span class="workspace-switcher-check" aria-hidden="true">✓</span>}
                   </button>
-                  {!isActive && <button class="workspace-switcher-forget" aria-label={`Forget ${profile.name}`} title="Forget" onClick={() => void handleForget(profile.id)}>×</button>}
+                  <button class="workspace-switcher-forget" aria-label={`Forget ${profile.name}`} title="Forget" onClick={() => void forgetWithUnsavedWorkConfirmation(profile.id)}>×</button>
                 </div>
               );
             })}

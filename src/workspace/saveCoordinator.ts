@@ -31,6 +31,7 @@ export interface SaveCoordinator {
   resetForSession(currentSession: string | number | null): void;
   retry(session: string | number | null, path: string): Promise<void>;
   getError(session: string | number | null, path: string): string | null;
+  hasUnsavedWork(session: string | number | null): boolean;
   entryCount(): number;
   debugEntries(): Array<{ key: string; entry: Omit<SaveEntry, "timer" | "waiters"> }>;
 }
@@ -53,6 +54,13 @@ export async function prepareActiveSavesForTransition(
   session: string | number | null,
 ): Promise<void> {
   await activeCoordinator?.prepareForTransition(session);
+}
+
+/** No registered coordinator (the editor shell hasn't initialized, or a
+ * test constructed its own isolated instance) means there is nothing this
+ * session could possibly have left unsaved. */
+export function hasActiveUnsavedWork(session: string | number | null): boolean {
+  return activeCoordinator?.hasUnsavedWork(session) ?? false;
 }
 
 function writeWorkspaceRevision(path: string, content: string): Promise<void> {
@@ -235,6 +243,25 @@ export function createSaveCoordinator(cbs?: SaveCoordinatorCallbacks): SaveCoord
     return entries.get(makeKey(session, path))?.lastError ?? null;
   }
 
+  /** F20 Phase 2b-ii, spec section 15.2: whether `session` has any note whose
+   * latest edit has not actually reached disk yet, pending (not yet fired),
+   * in flight, or failed (a failed write never advances `savedRevision`).
+   * Must be checked *before* calling `prepareForTransition`, which discards
+   * exactly this state for an ordinary transition by design (see this
+   * module's own tests): a pending debounce is cancelled outright, an
+   * in-flight write is only awaited, never retried, and every entry for the
+   * session is deleted once drained, whether or not it ever actually
+   * landed. `forgetWorkspaceProfile`'s active-profile path uses this to
+   * decide whether to run that drain at all, rather than running it first
+   * and discovering the loss afterward. */
+  function hasUnsavedWork(session: string | number | null): boolean {
+    const prefix = `${sessionKey(session)}::`;
+    for (const [key, entry] of entries) {
+      if (key.startsWith(prefix) && entry.revision !== entry.savedRevision) return true;
+    }
+    return false;
+  }
+
   function entryCount(): number {
     return entries.size;
   }
@@ -264,6 +291,7 @@ export function createSaveCoordinator(cbs?: SaveCoordinatorCallbacks): SaveCoord
     resetForSession,
     retry,
     getError,
+    hasUnsavedWork,
     entryCount,
     debugEntries,
   };

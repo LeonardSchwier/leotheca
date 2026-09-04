@@ -2,7 +2,6 @@ import { WORKSPACE_ICONS, type WorkspaceIcon } from "./globalConfig";
 import {
   activeWorkspaceId,
   addWorkspaceFromPicker,
-  forgetWorkspaceProfile,
   relinkWorkspaceProfile,
   renameWorkspaceProfile,
   setWorkspaceProfileIcon,
@@ -10,7 +9,7 @@ import {
   workspaceProfiles,
 } from "./store";
 import { displayWorkspaceIcon } from "./workspaceProfiles";
-import { workspaceIconGlyph } from "./WorkspaceSwitcher";
+import { forgetWithUnsavedWorkConfirmation, workspaceIconGlyph } from "./WorkspaceSwitcher";
 
 function reportProfileWriteFailure(action: string): void {
   window.alert(`Could not ${action} workspace profile. Try again.`);
@@ -20,10 +19,10 @@ function reportWorkspaceActionFailure(action: string): void {
   window.alert(`Could not ${action} workspace. Try again.`);
 }
 
-/** F20 Phase 2a/2b-i settings management surface. Active-profile forget,
- * the typed transition-state/error UI, and the startup recovery launcher
- * deliberately stay out of this component because they belong to the
- * remaining F20 Phase 2b-ii/2b-iii work (see ROADMAP.md). */
+/** F20 Phase 2a/2b-i/2b-ii settings management surface. The typed
+ * transition-state/error UI and the startup recovery launcher deliberately
+ * stay out of this component because they belong to the remaining F20
+ * Phase 2b-iii work (see ROADMAP.md). */
 export function WorkspaceProfilesSettings() {
   const rename = async (id: string, currentName: string) => {
     const next = window.prompt("Workspace profile name", currentName);
@@ -41,14 +40,6 @@ export function WorkspaceProfilesSettings() {
       await setWorkspaceProfileIcon(id, icon);
     } catch {
       reportProfileWriteFailure("update");
-    }
-  };
-
-  const forget = async (id: string) => {
-    try {
-      await forgetWorkspaceProfile(id);
-    } catch {
-      reportProfileWriteFailure("forget");
     }
   };
 
@@ -97,9 +88,7 @@ export function WorkspaceProfilesSettings() {
                 {WORKSPACE_ICONS.map((icon) => <option key={icon} value={icon}>{icon}</option>)}
               </select>
             </label>
-            {!isActive && (
-              <button type="button" onClick={() => void forget(profile.id)}>Forget</button>
-            )}
+            <button type="button" onClick={() => void forgetWithUnsavedWorkConfirmation(profile.id)}>Forget</button>
           </div>
         );
       })}

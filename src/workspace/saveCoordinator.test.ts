@@ -77,3 +77,72 @@ describe("save coordinator workspace transitions", () => {
     expect(writeTextFile).toHaveBeenCalledWith("/workspace/same.md", "new");
   });
 });
+
+// F20 Phase 2b-ii, spec section 15.2: forgetting the active profile must
+// know whether there is anything left to lose *before* prepareForTransition
+// runs, since that drain discards exactly this state (see the tests above)
+// rather than reporting it back.
+describe("hasUnsavedWork", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    writeTextFile.mockReset();
+  });
+
+  afterEach(() => vi.useRealTimers());
+
+  it("is false for a session with no entries at all", () => {
+    const saves = createSaveCoordinator();
+    expect(saves.hasUnsavedWork(1)).toBe(false);
+  });
+
+  it("is true for a pending edit that has not fired its debounce yet", () => {
+    const saves = createSaveCoordinator();
+    saves.change(1, "/workspace/note.md", "edited");
+    expect(saves.hasUnsavedWork(1)).toBe(true);
+  });
+
+  it("is true while a write is in flight, false once it lands", async () => {
+    const nativeWrite = deferred<void>();
+    writeTextFile.mockReturnValueOnce(nativeWrite.promise);
+    const saves = createSaveCoordinator();
+    saves.change(1, "/workspace/note.md", "edited");
+    await vi.advanceTimersByTimeAsync(400);
+    expect(writeTextFile).toHaveBeenCalledTimes(1);
+    expect(saves.hasUnsavedWork(1)).toBe(true);
+
+    nativeWrite.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(saves.hasUnsavedWork(1)).toBe(false);
+  });
+
+  it("stays true after a write fails", async () => {
+    writeTextFile.mockRejectedValueOnce(new Error("disk full"));
+    const saves = createSaveCoordinator();
+    saves.change(1, "/workspace/note.md", "edited");
+    await vi.advanceTimersByTimeAsync(400);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(saves.hasUnsavedWork(1)).toBe(true);
+    expect(saves.getError(1, "/workspace/note.md")).toBe("disk full");
+  });
+
+  it("is scoped to the given session, not any other session's entries", () => {
+    const saves = createSaveCoordinator();
+    saves.change(1, "/workspace/note.md", "edited");
+    expect(saves.hasUnsavedWork(2)).toBe(false);
+  });
+
+  it("is false again after prepareForTransition drains the session", async () => {
+    writeTextFile.mockResolvedValue();
+    const saves = createSaveCoordinator();
+    saves.change(1, "/workspace/note.md", "edited");
+    expect(saves.hasUnsavedWork(1)).toBe(true);
+
+    await saves.prepareForTransition(1);
+
+    expect(saves.hasUnsavedWork(1)).toBe(false);
+  });
+});

@@ -72,6 +72,14 @@ describe("decodeCollectionsFile: valid input", () => {
     expect(corrupt).toBe(false);
     expect(file.collections[0].query).toEqual(nested);
   });
+
+  it("decodes a board view with its required grouping property", () => {
+    const { file, corrupt } = decodeCollectionsFile(
+      fileWith([validCollection({ view: { mode: "kanban", groupBy: "status" } })]),
+    );
+    expect(corrupt).toBe(false);
+    expect(file.collections[0].view).toEqual({ mode: "kanban", groupBy: "status" });
+  });
 });
 
 describe("decodeCollectionsFile: missing input", () => {
@@ -194,6 +202,14 @@ describe("decodeCollectionsFile: malformed input", () => {
   it("falls back an invalid view to list mode", () => {
     const raw = validCollection() as unknown as Record<string, unknown>;
     raw.view = { mode: "not-a-real-mode" };
+    const { file, corrupt } = decodeCollectionsFile(fileWith([raw]));
+    expect(corrupt).toBe(true);
+    expect(file.collections[0].view).toEqual({ mode: "list" });
+  });
+
+  it("rejects a board view without a non-blank grouping property", () => {
+    const raw = validCollection() as unknown as Record<string, unknown>;
+    raw.view = { mode: "kanban", groupBy: "   " };
     const { file, corrupt } = decodeCollectionsFile(fileWith([raw]));
     expect(corrupt).toBe(true);
     expect(file.collections[0].view).toEqual({ mode: "list" });

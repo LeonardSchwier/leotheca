@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, waitFor } from "@testing-library/preact";
 import { parseFrontmatterProperties } from "../editor/frontmatterEdits";
-import { CollectionResults, type CollectionResultsProps } from "./CollectionResults";
+import { CollectionResults, groupKanbanColumns, type CollectionResultsProps } from "./CollectionResults";
 import { sortCollectionResults, type NoteRecord } from "./collectionQuery";
 import type { SmartCollectionV1 } from "./collectionTypes";
 
@@ -83,6 +83,22 @@ describe("F09 Phase 2 result views", () => {
     expect(onViewChange).toHaveBeenCalledWith({ mode: "table" });
   });
 
+  it("switches to a board using the first indexed property", () => {
+    const onViewChange = vi.fn();
+    const { getByRole } = render(
+      <CollectionResults
+        collection={collection({ mode: "list" })}
+        results={[note("Alpha.md", "---\nstatus: active\n---\n")]}
+        onOpenFile={vi.fn()}
+        onViewChange={onViewChange}
+        onEditProperty={successfulEdit()}
+      />,
+    );
+
+    fireEvent.click(getByRole("radio", { name: "Board" }));
+    expect(onViewChange).toHaveBeenCalledWith({ mode: "kanban", groupBy: "status" });
+  });
+
   it("renders configured table property cells and keeps note activation separate", () => {
     const onOpenFile = vi.fn();
     const entry = note("Projects/Alpha.md", "---\nstatus: active\n---\n");
@@ -155,5 +171,43 @@ describe("F09 Phase 2 result views", () => {
     expect(getByRole("region", { name: "Collection cards" })).toBeTruthy();
     expect(getByText("active")).toBeTruthy();
     expect(getByText("Sam")).toBeTruthy();
+  });
+
+  it("renders a read-only board, opens cards, and lets its grouping change", () => {
+    const onOpenFile = vi.fn();
+    const onViewChange = vi.fn();
+    const { getByRole, getByText } = render(
+      <CollectionResults
+        collection={collection({ mode: "kanban", groupBy: "status" })}
+        results={[
+          note("Projects/Alpha.md", "---\nstatus: active\nowner: Sam\n---\n"),
+          note("Projects/Beta.md", "---\nowner: Sam\n---\n"),
+        ]}
+        onOpenFile={onOpenFile}
+        onViewChange={onViewChange}
+        onEditProperty={successfulEdit()}
+      />,
+    );
+
+    expect(getByRole("region", { name: "Collection board grouped by status" })).toBeTruthy();
+    expect(getByText("Unassigned")).toBeTruthy();
+    fireEvent.click(getByRole("button", { name: "Alpha" }));
+    expect(onOpenFile).toHaveBeenCalledWith("Projects/Alpha.md", "Alpha.md");
+    fireEvent.change(getByRole("combobox", { name: "Board grouping property" }), {
+      target: { value: "owner" },
+    });
+    expect(onViewChange).toHaveBeenCalledWith({ mode: "kanban", groupBy: "owner" });
+  });
+
+  it("orders board columns deterministically and keeps list values unassigned", () => {
+    const columns = groupKanbanColumns([
+      note("z/Done.md", "---\nstatus: done\n---\n"),
+      note("a/Active.md", "---\nstatus: active\n---\n"),
+      note("b/Tags.md", "---\nstatus: [one, two]\n---\n"),
+      note("c/Missing.md", "---\nowner: Sam\n---\n"),
+    ], "status");
+
+    expect(columns.map((column) => column.label)).toEqual(["active", "done", "Unassigned"]);
+    expect(columns[2].notes.map((entry) => entry.path)).toEqual(["b/Tags.md", "c/Missing.md"]);
   });
 });

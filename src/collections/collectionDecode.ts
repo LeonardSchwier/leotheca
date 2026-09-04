@@ -160,6 +160,11 @@ function decodeCollectionView(raw: unknown): { value: CollectionViewV1; corrupt:
           : undefined;
       return { value: { mode: "card", ...(fields ? { fields } : {}) }, corrupt: false };
     }
+    if (record.mode === "kanban") {
+      return typeof record.groupBy === "string" && record.groupBy.trim() !== ""
+        ? { value: { mode: "kanban", groupBy: record.groupBy }, corrupt: false }
+        : { value: { mode: "list" }, corrupt: true };
+    }
   }
   return { value: { mode: "list" }, corrupt: true };
 }

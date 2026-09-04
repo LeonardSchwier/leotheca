@@ -1,6 +1,7 @@
 # Private session log, not the public release changelog
 
 - 2026-09-04, Codex: Implemented the non-encrypting per-note read-only lock with a portable frontmatter marker, CodeMirror-level enforcement, mutation guards, Settings opt-out, and 6 focused regression tests. Full frontend and Rust verification passed after redirecting temporary test/build output from the quota-constrained `/tmp` worktree volume.
+- 2026-09-04, Codex: Added a read-only Smart Collections Board view with strict persisted grouping configuration, deterministic scalar-property columns, explicit Unassigned handling, and normal note activation. Full verification passed: 100 Vitest files / 1752 tests, TypeScript, ESLint (0 errors, 7 existing warnings), production build, version check, and Rust fmt/Clippy/test/check (57 tests).
 
 - 2026-09-04, Codex: Added command-palette Markdown table row/column edits using the existing scanner and serializer. Six regression tests, including a revert-confirmed planner failure, accompanied the feature; full frontend and Rust verification passed before branch CI.
 

@@ -16,23 +16,35 @@ import { serializeWikiLink } from "../linking/wikiSyntax";
  * codebase (typing itself included) goes through, so there is nothing
  * further to wait on.
  *
- * Deliberately narrower than spec 7.4's full text in two disclosed ways,
- * tracked as still-open in ROADMAP.md rather than silently assumed:
- * - Only "Copy block link" exists; a separate "Create block link" action
- *   is not implemented. Copy already performs the create-if-needed flow
- *   itself (spec steps 3-6), the only way a "Create" action's own result
- *   would differ, so a second, separately-labeled entry point would
- *   invoke the identical underlying operation for no distinguishable
- *   outcome; Copy alone matches the established precedent this
- *   ecosystem already converges on for "the block has no id yet, get me
- *   a link to it anyway."
- * - A block whose *existing* marker is itself a duplicate (ambiguous
- *   with another block's marker elsewhere in the note) is left alone
- *   rather than silently minted a second, different id: this action
- *   never rewrites an existing marker, only ever adds one where none
- *   exists yet, the same "never touch what's already there" restraint
- *   `outline/headingLinkOperations.ts` already applies to a duplicate
- *   heading (see that module's own `headingLinkDisabledReason`).
+ * Deliberately narrower than spec 7.4's full text in one disclosed way,
+ * tracked as still-open in ROADMAP.md rather than silently assumed: a
+ * block whose *existing* marker is itself a duplicate (ambiguous with
+ * another block's marker elsewhere in the note) is left alone rather
+ * than silently minted a second, different id. This action never
+ * rewrites an existing marker, only ever adds one where none exists
+ * yet, the same "never touch what's already there" restraint
+ * `outline/headingLinkOperations.ts` already applies to a duplicate
+ * heading (see that module's own `headingLinkDisabledReason`).
+ *
+ * **Copy vs. Create (F04 Phase 5e3, spec section 21 Phase 5)**: both
+ * actions share this exact resolution (steps 1-6 below); the only
+ * difference is spec step 7, "copy or insert the structured link."
+ * Unlike a heading link's own Copy/Insert pair (`outline/
+ * headingLinkOperations.ts`), which is invoked from a separate panel
+ * listing every heading, decoupling "which heading" from "where the
+ * cursor currently is," a block link is always resolved *at* the
+ * cursor: there is no separate block-picker to decouple the two.
+ * Literally inserting the resulting `[[#^id]]` text back at that same
+ * cursor would splice a self-reference into the middle of the very
+ * block it names, an actively broken outcome, not a smaller version of
+ * the heading feature. Create is therefore steps 1-6 only, with no
+ * step 7 at all: it stamps a stable id onto the block at the cursor
+ * without writing anything to the clipboard, genuinely useful for a
+ * user who wants a block's id to exist (to reference later, or by
+ * hand) without overwriting whatever they currently have copied. A
+ * true "pick any block and insert a link to it here" action, mirroring
+ * the heading precedent exactly, would need its own block-picker panel
+ * first; that is out of this item's scope.
  */
 
 /**

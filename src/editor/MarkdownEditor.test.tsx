@@ -721,6 +721,153 @@ describe("MarkdownEditor: blockLinkCopyRequest (F04 Phase 5d's Copy block link a
   });
 });
 
+describe("MarkdownEditor: blockLinkCreateRequest (F04 Phase 5e3's Create block link action)", () => {
+  it("creates a new block id at the block containing the cursor, without touching the clipboard or the selection", async () => {
+    const writeText = vi.fn();
+    Object.assign(navigator, { clipboard: { writeText } });
+    const value = "First paragraph.\n\nSecond paragraph, no marker yet.";
+    const { container, rerender } = render(
+      <MarkdownEditor
+        path="/vault/a.md"
+        value={value}
+        {...baseEditorProps()}
+        blockLinkCreateRequest={null}
+      />,
+    );
+    const view = editorView(container);
+    const cursorPos = value.indexOf("Second") + 3;
+    view.dispatch({ selection: { anchor: cursorPos } });
+
+    rerender(
+      <MarkdownEditor
+        path="/vault/a.md"
+        value={value}
+        {...baseEditorProps()}
+        blockLinkCreateRequest={{ requestId: 1 }}
+      />,
+    );
+
+    const finalView = editorView(container);
+    const doc = finalView.state.doc.toString();
+    expect(doc).toMatch(/Second paragraph, no marker yet\. \^b-[a-f0-9]{8}$/);
+    expect(doc.startsWith("First paragraph.\n\nSecond paragraph, no marker yet.")).toBe(true);
+    expect(writeText).not.toHaveBeenCalled();
+    expect(finalView.state.selection.main.head).toBe(cursorPos);
+  });
+
+  it("does nothing when the block at the cursor already has a unique id", async () => {
+    const writeText = vi.fn();
+    Object.assign(navigator, { clipboard: { writeText } });
+    const value = "A paragraph with an id already. ^existing-id";
+    const { container, rerender } = render(
+      <MarkdownEditor
+        path="/vault/a.md"
+        value={value}
+        {...baseEditorProps()}
+        blockLinkCreateRequest={null}
+      />,
+    );
+    const view = editorView(container);
+    view.dispatch({ selection: { anchor: value.indexOf("with") } });
+
+    rerender(
+      <MarkdownEditor
+        path="/vault/a.md"
+        value={value}
+        {...baseEditorProps()}
+        blockLinkCreateRequest={{ requestId: 1 }}
+      />,
+    );
+
+    expect(editorView(container).state.doc.toString()).toBe(value);
+    expect(writeText).not.toHaveBeenCalled();
+  });
+
+  it("does nothing when the cursor is not inside any eligible block", async () => {
+    const writeText = vi.fn();
+    Object.assign(navigator, { clipboard: { writeText } });
+    const value = "<!-- hidden -->\n\nA paragraph.";
+    const { container, rerender } = render(
+      <MarkdownEditor
+        path="/vault/a.md"
+        value={value}
+        {...baseEditorProps()}
+        blockLinkCreateRequest={null}
+      />,
+    );
+    const view = editorView(container);
+    view.dispatch({ selection: { anchor: value.indexOf("hidden") } });
+
+    rerender(
+      <MarkdownEditor
+        path="/vault/a.md"
+        value={value}
+        {...baseEditorProps()}
+        blockLinkCreateRequest={{ requestId: 1 }}
+      />,
+    );
+
+    expect(editorView(container).state.doc.toString()).toBe(value);
+  });
+
+  it("does not re-apply the same requestId twice", async () => {
+    const value = "A paragraph.";
+    const { container, rerender } = render(
+      <MarkdownEditor
+        path="/vault/a.md"
+        value={value}
+        {...baseEditorProps()}
+        blockLinkCreateRequest={{ requestId: 1 }}
+      />,
+    );
+    const firstDoc = editorView(container).state.doc.toString();
+    expect(firstDoc).toMatch(/^A paragraph\. \^b-[a-f0-9]{8}$/);
+
+    rerender(
+      <MarkdownEditor
+        path="/vault/a.md"
+        value={firstDoc}
+        {...baseEditorProps()}
+        blockLinkCreateRequest={{ requestId: 1 }}
+      />,
+    );
+    expect(editorView(container).state.doc.toString()).toBe(firstDoc);
+  });
+
+  it("copy and create requests are independent: creating does not consume a pending copy requestId or vice versa", async () => {
+    const writeText = vi.fn();
+    Object.assign(navigator, { clipboard: { writeText } });
+    const value = "A paragraph.";
+    const { container, rerender } = render(
+      <MarkdownEditor
+        path="/vault/a.md"
+        value={value}
+        {...baseEditorProps()}
+        blockLinkCopyRequest={{ requestId: 1 }}
+        blockLinkCreateRequest={null}
+      />,
+    );
+    expect(writeText).toHaveBeenCalledTimes(1);
+
+    const afterCopy = editorView(container).state.doc.toString();
+    rerender(
+      <MarkdownEditor
+        path="/vault/a.md"
+        value={afterCopy}
+        {...baseEditorProps()}
+        blockLinkCopyRequest={{ requestId: 1 }}
+        blockLinkCreateRequest={{ requestId: 1 }}
+      />,
+    );
+
+    // The block already has a unique id from the copy request above, so
+    // create is a no-op; the copy requestId is unchanged, so it must not
+    // re-fire either.
+    expect(editorView(container).state.doc.toString()).toBe(afterCopy);
+    expect(writeText).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("MarkdownEditor: onCursorChange", () => {
   it("reports the initial cursor position on mount", () => {
     const onCursorChange = vi.fn();

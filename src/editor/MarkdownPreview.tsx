@@ -184,6 +184,8 @@ const MAX_EMBED_BYTES = 1024 * 1024;
 // within an otherwise still-current preview. An implementation constant,
 // same footing as the three limits directly above.
 const EMBED_LOAD_TIMEOUT_MS = 8000;
+const BLOCK_COPY_LONG_PRESS_MS = 550;
+const BLOCK_COPY_LONG_PRESS_MOVE_PX = 8;
 
 /** Races a cross-note embed's own `readTextFile` call against
  * `EMBED_LOAD_TIMEOUT_MS`, rejecting with an `Error` (caught uniformly by
@@ -1046,6 +1048,69 @@ export function MarkdownPreview({
     };
   }, [html]);
 
+  // F04 Phase 5e2: anchored Preview blocks get one native button rather
+  // than HTML injected into Markdown. That keeps the control outside the
+  // sanitization boundary and lets every block kind share the established
+  // `[[#^id]]` serialization without another link implementation.
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const cleanups: Array<() => void> = [];
+    const install = () => {
+      for (const host of Array.from(container.querySelectorAll<HTMLElement>("[data-lt-block-id]"))) {
+        if (host.querySelector(".block-link-copy")) continue;
+      const id = host.dataset.ltBlockId;
+      if (!id) continue;
+      const copy = () => void navigator.clipboard.writeText(`[[#^${id}]]`);
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "block-link-copy";
+      button.setAttribute("aria-label", `Copy link to block ${id}`);
+      button.title = "Copy block link";
+      button.addEventListener("click", copy);
+      host.append(button);
+
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      let startX = 0;
+      let startY = 0;
+      const cancel = () => {
+        if (timer !== undefined) clearTimeout(timer);
+        timer = undefined;
+      };
+      const onPointerDown = (event: PointerEvent) => {
+        if (event.pointerType !== "touch" && event.pointerType !== "pen") return;
+        startX = event.clientX;
+        startY = event.clientY;
+        timer = setTimeout(() => {
+          timer = undefined;
+          copy();
+        }, BLOCK_COPY_LONG_PRESS_MS);
+      };
+      const onPointerMove = (event: PointerEvent) => {
+        if (Math.hypot(event.clientX - startX, event.clientY - startY) > BLOCK_COPY_LONG_PRESS_MOVE_PX) cancel();
+      };
+      host.addEventListener("pointerdown", onPointerDown);
+      host.addEventListener("pointermove", onPointerMove);
+      host.addEventListener("pointerup", cancel);
+      host.addEventListener("pointercancel", cancel);
+        cleanups.push(() => {
+        cancel();
+        button.removeEventListener("click", copy);
+        host.removeEventListener("pointerdown", onPointerDown);
+        host.removeEventListener("pointermove", onPointerMove);
+        host.removeEventListener("pointerup", cancel);
+        host.removeEventListener("pointercancel", cancel);
+        });
+      }
+    };
+    install();
+    container.addEventListener("leotheca-block-anchors-ready", install);
+    return () => {
+      container.removeEventListener("leotheca-block-anchors-ready", install);
+      cleanups.forEach((cleanup) => cleanup());
+    };
+  }, [html]);
+
   // F04 Phase 5d: turns each invisible marker element (`blockAnchorMarkerHtml`)
   // `stripBlockIdMarkers` above emitted for a uniquely-identified block
   // into a real, stable `id`/`data-lt-block-id` on that block's own
@@ -1088,6 +1153,7 @@ export function MarkdownPreview({
       }
       anchor.remove();
     }
+    container.dispatchEvent(new Event("leotheca-block-anchors-ready"));
   }, [html]);
 
   // F04 Phase 4a: resolves each cross-note embed placeholder

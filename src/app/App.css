@@ -432,6 +432,35 @@ button.icon-button.active {
   max-width: 100%;
 }
 
+.markdown-preview [data-lt-block-id] {
+  position: relative;
+}
+
+.block-link-copy {
+  position: absolute;
+  top: 0;
+  right: 0;
+  opacity: 0;
+  padding: 2px var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-raised);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.75em;
+  cursor: pointer;
+}
+
+.block-link-copy::after {
+  content: "Copy link";
+}
+
+.markdown-preview [data-lt-block-id]:hover .block-link-copy,
+.markdown-preview [data-lt-block-id]:focus-within .block-link-copy,
+.block-link-copy:focus-visible {
+  opacity: 1;
+}
+
 .image-viewer {
   flex: 1;
   display: flex;

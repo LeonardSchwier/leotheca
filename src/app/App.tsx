@@ -47,7 +47,12 @@ import { WorkspaceSwitcher } from "../settings/WorkspaceSwitcher";
 import { BacklinksPanel } from "../linking/BacklinksPanel";
 import { OutlinePanel } from "../outline/OutlinePanel";
 import { outlineInsertRequest, outlineRevealRequest, requestOutlineReveal } from "../outline/outlineNavigation";
-import { blockLinkCopyRequest, requestCopyBlockLinkAtCursor } from "../editor/blockLinkRequest";
+import {
+  blockLinkCopyRequest,
+  blockLinkCreateRequest,
+  requestCopyBlockLinkAtCursor,
+  requestCreateBlockLinkAtCursor,
+} from "../editor/blockLinkRequest";
 import { HeadingBreadcrumbs } from "../outline/HeadingBreadcrumbs";
 import { nextSplitAuthority, type SplitAuthority } from "../outline/splitAuthority";
 import { scanHeadings } from "../markdown/headings";
@@ -655,6 +660,11 @@ export function App() {
                 label: "Copy block link",
                 run: requestCopyBlockLinkAtCursor,
               },
+              {
+                id: "create-block-link",
+                label: "Create block link",
+                run: requestCreateBlockLinkAtCursor,
+              },
             ]
           : []),
         { id: "rename-tab", label: "Rename current note", run: () => setTabRename(current) },
@@ -976,6 +986,7 @@ export function App() {
                       reveal={outlineRevealRequest.value}
                       insertRequest={outlineInsertRequest.value}
                       blockLinkCopyRequest={blockLinkCopyRequest.value}
+                      blockLinkCreateRequest={blockLinkCreateRequest.value}
                       onCursorChange={(pos) => {
                         setCursorPos(pos);
                         setSplitAuthority(nextSplitAuthority("source-cursor"));

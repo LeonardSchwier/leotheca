@@ -22,7 +22,7 @@ import { attachmentsInsertText, type PastedOrDroppedFile } from "./attachments";
 import { minimalChange } from "./textDiff";
 import { parseSnippets, snippetExpansion } from "./snippets";
 import { resolveBlockLinkAtCursor } from "./blockLinkActions";
-import type { BlockLinkCopyRequest } from "./blockLinkRequest";
+import type { BlockLinkCopyRequest, BlockLinkCreateRequest } from "./blockLinkRequest";
 
 export interface MarkdownEditorProps {
   path: string;
@@ -67,6 +67,16 @@ export interface MarkdownEditorProps {
    * `requestId` must change for a repeat request to re-apply; `null`
    * means no pending request. */
   blockLinkCopyRequest?: BlockLinkCopyRequest | null;
+  /** A request to run F04 Phase 5e3's "Create block link" action (spec
+   * section 21 Phase 5), e.g. from the command palette's "Create block
+   * link" entry (see editor/blockLinkRequest.ts's
+   * `requestCreateBlockLinkAtCursor`). Identical to `blockLinkCopyRequest`
+   * above except it never writes to the clipboard: see
+   * editor/blockLinkActions.ts's module doc comment for why Create is
+   * scoped to stamping an id only, not inserting a link, unlike a
+   * heading's own Copy/Insert pair. `requestId` must change for a repeat
+   * request to re-apply; `null` means no pending request. */
+  blockLinkCreateRequest?: BlockLinkCreateRequest | null;
   /** Reports the primary selection head (character offset) after every
    * transaction that changes it, including typing and the reveal effect
    * above; used by HeadingBreadcrumbs for Source-mode active-section
@@ -452,6 +462,7 @@ export function MarkdownEditor({
   reveal,
   insertRequest,
   blockLinkCopyRequest,
+  blockLinkCreateRequest,
   onCursorChange,
 }: MarkdownEditorProps) {
   const hostRef = useRef<HTMLDivElement>(null);
@@ -625,6 +636,31 @@ export function MarkdownEditor({
     }
     void navigator.clipboard.writeText(resolution.linkText);
   }, [blockLinkCopyRequest]);
+
+  // Applies a "Create block link" request (spec section 21 Phase 5): the
+  // identical block-lookup/id-generation steps as "Copy block link"
+  // above, dispatched the same way, but with no clipboard write at all.
+  // See editor/blockLinkActions.ts's module doc comment for why Create
+  // stops there instead of also inserting the link text (unlike a
+  // heading's own Insert action): a block link is always resolved at the
+  // cursor, so inserting its own link back at that same cursor would
+  // splice a self-reference into the block it names.
+  const lastBlockLinkCreateRequestIdRef = useRef<number | null>(null);
+  useEffect(() => {
+    const view = viewRef.current;
+    if (
+      !view ||
+      !blockLinkCreateRequest ||
+      blockLinkCreateRequest.requestId === lastBlockLinkCreateRequestIdRef.current
+    ) {
+      return;
+    }
+    lastBlockLinkCreateRequestIdRef.current = blockLinkCreateRequest.requestId;
+    const cursor = view.state.selection.main.head;
+    const resolution = resolveBlockLinkAtCursor(view.state.doc.toString(), cursor);
+    if (!resolution?.insertion) return;
+    view.dispatch({ changes: { from: resolution.insertion.from, insert: resolution.insertion.text } });
+  }, [blockLinkCreateRequest]);
 
   return <div class="markdown-editor" ref={hostRef} />;
 }

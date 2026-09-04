@@ -3,6 +3,8 @@ import licenseText from "../../LICENSE?raw";
 import {
   addWorkspaceFromPicker,
   appVersion,
+  globalConfigCorrupted,
+  repairGlobalConfigFile,
   settingsPanelOpen,
   setTheme,
   repairWorkspaceSettingsFile,
@@ -326,6 +328,22 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
               </div>
               <button onClick={() => void repairWorkspaceSettingsFile()}>
                 Rewrite settings file
+              </button>
+            </div>
+          )}
+
+          {globalConfigCorrupted.value && (
+            <div class="settings-row" role="alert">
+              <div>
+                <div class="settings-label">App configuration had invalid data</div>
+                <div class="settings-hint">
+                  Some saved app settings or workspace profiles could not be
+                  read as written. The original configuration is left
+                  untouched until you rewrite it here.
+                </div>
+              </div>
+              <button onClick={() => void repairGlobalConfigFile()}>
+                Rewrite app configuration
               </button>
             </div>
           )}

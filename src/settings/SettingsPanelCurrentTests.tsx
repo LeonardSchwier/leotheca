@@ -12,6 +12,8 @@ import type { ThemePreference } from "./globalConfig";
 vi.mock("./store", () => ({
   addWorkspaceFromPicker: vi.fn(),
   appVersion: signal(""),
+  globalConfigCorrupted: signal(false),
+  repairGlobalConfigFile: vi.fn(),
   settingsPanelOpen: signal(true),
   setTheme: vi.fn(),
   repairWorkspaceSettingsFile: vi.fn(),
@@ -57,6 +59,8 @@ import { matchesSettingsSearch, SettingsPanel } from "./SettingsPanel";
 import {
   addWorkspaceFromPicker,
   appVersion,
+  globalConfigCorrupted,
+  repairGlobalConfigFile,
   settingsPanelOpen,
   setTheme,
   repairWorkspaceSettingsFile,
@@ -83,8 +87,10 @@ afterEach(() => {
   vi.mocked(updateWorkspaceSettings).mockReset();
   vi.mocked(retryWorkspaceSettingsSave).mockReset();
   vi.mocked(repairWorkspaceSettingsFile).mockReset();
+  vi.mocked(repairGlobalConfigFile).mockReset();
   workspaceSettingsSaveError.value = null;
   workspaceSettingsCorrupted.value = false;
+  globalConfigCorrupted.value = false;
 });
 
 describe("matchesSettingsSearch", () => {
@@ -139,6 +145,14 @@ describe("SettingsPanel", () => {
     const button = getByText("Rewrite settings file");
     fireEvent.click(button);
     expect(repairWorkspaceSettingsFile).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows a global configuration repair action only when needed", () => {
+    globalConfigCorrupted.value = true;
+    const { getByText } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+    expect(getByText("App configuration had invalid data")).toBeTruthy();
+    fireEvent.click(getByText("Rewrite app configuration"));
+    expect(repairGlobalConfigFile).toHaveBeenCalledTimes(1);
   });
 
   it("closes on backdrop click but not on a click inside the panel", () => {

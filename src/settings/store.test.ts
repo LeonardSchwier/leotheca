@@ -74,7 +74,10 @@ const {
   relinkWorkspaceProfile,
   restoreLastOpenTabs,
   initSettings,
+  globalConfigCorrupted,
+  repairGlobalConfigFile,
   repairWorkspaceSettingsFile,
+  setTheme,
   setWorkspacePath,
   settingsLoaded,
   updateWorkspaceSettings,
@@ -199,6 +202,61 @@ describe("settings hydration", () => {
   });
 });
 
+describe("global configuration corruption recovery", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    globalConfigCorrupted.value = false;
+    workspaceProfiles.value = [];
+    activeWorkspaceId.value = null;
+  });
+
+  it("keeps malformed config.json on disk through ordinary settings changes", async () => {
+    readTextFile.mockImplementation(async (path) => {
+      if (path === "/config/config.json") return "{ not valid json";
+      throw new Error("not found");
+    });
+
+    await initSettings();
+    await setTheme("dark");
+    await flushSettingsWrites();
+
+    expect(globalConfigCorrupted.value).toBe(true);
+    expect(globalConfigWrites()).toEqual([]);
+  });
+
+  it("rewrites config.json only after explicit repair and then resumes persistence", async () => {
+    readTextFile.mockImplementation(async (path) => {
+      if (path === "/config/config.json") return "{ not valid json";
+      throw new Error("not found");
+    });
+
+    await initSettings();
+    await repairGlobalConfigFile();
+    await flushSettingsWrites();
+
+    expect(globalConfigCorrupted.value).toBe(false);
+    expect(globalConfigWrites()).toHaveLength(1);
+    expect(globalConfigWrites()[0]).toMatchObject({ version: 2, theme: "system" });
+
+    await setTheme("dark");
+    await flushSettingsWrites();
+    expect(globalConfigWrites().at(-1)?.theme).toBe("dark");
+  });
+
+  it("keeps the recovery warning active if its rewrite fails", async () => {
+    readTextFile.mockImplementation(async (path) => {
+      if (path === "/config/config.json") return "{ not valid json";
+      throw new Error("not found");
+    });
+    writeTextFile.mockRejectedValueOnce(new Error("disk full"));
+
+    await initSettings();
+    await expect(repairGlobalConfigFile()).rejects.toThrow("disk full");
+
+    expect(globalConfigCorrupted.value).toBe(true);
+  });
+});
+
 describe("F20 Phase 1: workspace profile catalog", () => {
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -206,6 +264,7 @@ describe("F20 Phase 1: workspace profile catalog", () => {
     workspacePath.value = null;
     workspaceProfiles.value = [];
     activeWorkspaceId.value = null;
+    globalConfigCorrupted.value = false;
     pickWorkspaceFolder.mockResolvedValue(null);
     settingsLoaded.value = true;
   });

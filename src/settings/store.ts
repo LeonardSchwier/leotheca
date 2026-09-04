@@ -79,6 +79,10 @@ export const workspaceSelectionError = signal<string | null>(null);
 // corrupt file is never silently overwritten just because the app happened
 // to load it.
 export const workspaceSettingsCorrupted = signal(false);
+// Mirrors workspaceSettingsCorrupted for the app-level config.json. Its
+// decoded defaults remain usable in memory, but ordinary profile/theme
+// changes must not silently replace malformed on-disk bytes.
+export const globalConfigCorrupted = signal(false);
 export const settingsPanelOpen = signal(false);
 export const appVersion = signal("");
 export const theme = signal<ThemePreference>("system");
@@ -280,7 +284,17 @@ function saveGlobalConfigOrdered(
  * signal state that could drift from it. `onFailure`, when supplied by an
  * optimistic profile edit, runs before the next queued write reads state. */
 function persistGlobalConfig(onFailure?: GlobalConfigWriteFailureHandler): Promise<void> {
+  if (globalConfigCorrupted.value) return Promise.resolve();
   return saveGlobalConfigOrdered(readCurrentGlobalConfig, onFailure);
+}
+
+/** Explicit recovery for a malformed app-level config.json. The current
+ * decoded state is only written when the user invokes this action; ordinary
+ * theme and profile changes remain in memory while the corrupt flag is set. */
+export async function repairGlobalConfigFile(): Promise<void> {
+  if (!globalConfigCorrupted.value) return;
+  await saveGlobalConfigOrdered(readCurrentGlobalConfig);
+  globalConfigCorrupted.value = false;
 }
 
 /** Marks `profile` as just-opened (section 7.5's `lastOpenedAt`) and makes
@@ -300,7 +314,8 @@ function markProfileOpened(profile: WorkspaceProfile): void {
 
 export async function initSettings(): Promise<void> {
   appVersion.value = await getAppVersion();
-  const global = await loadGlobalConfig();
+  const { config: global, corrupt: globalCorrupt } = await loadGlobalConfig();
+  globalConfigCorrupted.value = globalCorrupt;
   theme.value = global.theme;
   workspaceProfiles.value = sortWorkspaceProfiles(global.workspaceProfiles);
   activeWorkspaceId.value = global.activeWorkspaceId;

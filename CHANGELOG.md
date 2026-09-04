@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- If Leotheca finds invalid data in its app-wide configuration, Settings now explains the problem and offers an explicit rewrite action. Normal theme and workspace-profile changes no longer silently replace the original configuration while it awaits repair.
+
 - Block references now support headings. A trailing `^id` on an ATX or setext heading stays hidden in Preview, shares the normal block-ID namespace, and works with Copy block link.
 
 - Workspace profiles can now be renamed and assigned a built-in icon. The workspace switcher is searchable and keyboard-operable, Settings has a Workspace profiles management section, and the command palette can switch, add, or manage workspaces without bypassing the existing workspace-transition coordinator.

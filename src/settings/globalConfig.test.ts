@@ -31,17 +31,19 @@ const DEFAULTS: GlobalConfigV2 = {
 describe("loadGlobalConfig", () => {
   it("falls back to defaults when the config file doesn't exist yet", async () => {
     readTextFile.mockRejectedValueOnce(new Error("not found"));
-    const config = await loadGlobalConfig();
+    const { config, corrupt } = await loadGlobalConfig();
     expect(config).toEqual(DEFAULTS);
+    expect(corrupt).toBe(false);
   });
 
   it("fills in fields missing from an older config file with today's defaults", async () => {
     readTextFile.mockResolvedValueOnce(JSON.stringify({ theme: "dark" }));
-    const config = await loadGlobalConfig();
+    const { config, corrupt } = await loadGlobalConfig();
     expect(config.theme).toBe("dark");
     expect(config.lastWorkspacePath).toBeNull();
     expect(config.workspaceProfiles).toEqual([]);
     expect(config.activeWorkspaceId).toBeNull();
+    expect(corrupt).toBe(false);
   });
 
   it("keeps every field from a v2 config file that already has them all, including the Android-only token", async () => {
@@ -56,8 +58,16 @@ describe("loadGlobalConfig", () => {
       workspaceToken: "content://tree/abc",
     };
     readTextFile.mockResolvedValueOnce(JSON.stringify(saved));
-    const config = await loadGlobalConfig();
+    const { config, corrupt } = await loadGlobalConfig();
     expect(config).toEqual(saved);
+    expect(corrupt).toBe(false);
+  });
+
+  it("surfaces decoder corruption alongside the usable fallback config", async () => {
+    readTextFile.mockResolvedValueOnce("{ not valid json");
+    const { config, corrupt } = await loadGlobalConfig();
+    expect(config).toEqual(DEFAULTS);
+    expect(corrupt).toBe(true);
   });
 });
 

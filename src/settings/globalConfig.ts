@@ -221,14 +221,24 @@ export function decodeGlobalConfig(raw: string): {
   };
 }
 
-export async function loadGlobalConfig(): Promise<GlobalConfigV2> {
+/** The decoded global configuration together with whether its on-disk source
+ * could be read fully as written. Callers use `corrupt` to preserve the
+ * original bytes until the user explicitly chooses to rewrite the file. */
+export interface GlobalConfigLoadResult {
+  config: GlobalConfigV2;
+  corrupt: boolean;
+}
+
+export async function loadGlobalConfig(): Promise<GlobalConfigLoadResult> {
   let raw: string;
   try {
     raw = await readTextFile(await globalConfigPath());
   } catch {
-    return DEFAULT_GLOBAL_CONFIG;
+    // A first launch has no config file yet, which is not corruption and
+    // should not show a recovery warning.
+    return { config: DEFAULT_GLOBAL_CONFIG, corrupt: false };
   }
-  return decodeGlobalConfig(raw).config;
+  return decodeGlobalConfig(raw);
 }
 
 export async function saveGlobalConfig(config: GlobalConfigV2): Promise<void> {

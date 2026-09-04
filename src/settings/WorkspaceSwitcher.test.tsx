@@ -16,6 +16,7 @@ const { MockWorkspaceForgetUnsavedWorkError } = vi.hoisted(() => ({
 vi.mock("./store", () => ({
   workspaceProfiles: signal<WorkspaceProfile[]>([]),
   activeWorkspaceId: signal<string | null>(null),
+  workspacePath: signal<string | null>("/placeholder"),
   settingsPanelOpen: signal(false),
   activateWorkspaceProfile: vi.fn(async () => {}),
   addWorkspaceFromPicker: vi.fn(async () => {}),
@@ -30,6 +31,7 @@ import {
   addWorkspaceFromPicker,
   forgetWorkspaceProfile,
   settingsPanelOpen,
+  workspacePath,
   workspaceProfiles,
 } from "./store";
 
@@ -48,6 +50,7 @@ afterEach(() => {
   cleanup();
   workspaceProfiles.value = [];
   activeWorkspaceId.value = null;
+  workspacePath.value = "/placeholder";
   settingsPanelOpen.value = false;
   workspaceSwitcherOpenRequest.value = 0;
   workspaceAddRequest.value = 0;
@@ -123,6 +126,18 @@ describe("WorkspaceSwitcher", () => {
     fireEvent.click(within(activeRow).getByRole("button", { name: /^Personal/ }));
     await Promise.resolve();
     expect(activateWorkspaceProfile).not.toHaveBeenCalled();
+  });
+
+  it("F20 Phase 2b-iii-a: re-selecting the active-but-unavailable profile retries instead of no-op", async () => {
+    workspaceProfiles.value = [PROFILE_A, PROFILE_B];
+    activeWorkspaceId.value = "a";
+    workspacePath.value = null;
+    const { getByLabelText, getByRole } = render(<WorkspaceSwitcher />);
+    fireEvent.click(getByLabelText("Switch workspace"));
+    const activeRow = getByRole("listitem", { name: "Personal, current workspace" });
+    fireEvent.click(within(activeRow).getByRole("button", { name: /^Personal/ }));
+    await Promise.resolve();
+    expect(activateWorkspaceProfile).toHaveBeenCalledWith("a");
   });
 
   it("shows a Forget button for every profile, including the active one", () => {

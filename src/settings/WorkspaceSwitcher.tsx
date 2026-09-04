@@ -6,6 +6,7 @@ import {
   forgetWorkspaceProfile,
   settingsPanelOpen,
   WorkspaceForgetUnsavedWorkError,
+  workspacePath,
   workspaceProfiles,
 } from "./store";
 import { displayWorkspaceIcon, matchesWorkspaceSearch } from "./workspaceProfiles";
@@ -148,9 +149,13 @@ export function WorkspaceSwitcher() {
   }, [filtered.length, highlighted]);
 
   const handleActivate = async (id: string) => {
-    const alreadyActive = id === activeWorkspaceId.value;
+    // F20 Phase 2b-iii-a: matches `activateWorkspaceProfile`'s own guard.
+    // `activeWorkspaceId` alone isn't proof the workspace is actually open
+    // (section 17.2 keeps it pointed at a profile that failed to open), so
+    // re-selecting that same row must still retry rather than no-op.
+    const alreadyOpen = id === activeWorkspaceId.value && workspacePath.value !== null;
     close();
-    if (alreadyActive) return;
+    if (alreadyOpen) return;
     try {
       await activateWorkspaceProfile(id);
     } catch {

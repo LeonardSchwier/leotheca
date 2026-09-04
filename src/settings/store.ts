@@ -402,15 +402,24 @@ export async function setTheme(next: ThemePreference): Promise<void> {
   await persistGlobalConfig();
 }
 
-/** F20 Phase 1, spec section 20/10.4: activates a known catalog profile.
- * Selecting the already-active profile is a genuine no-op (spec 10.4:
- * "performs no filesystem work, does not increment the workspace
- * session, and does not alter recency"), checked before touching
- * anything. A stale switcher entry (an id no longer in the catalog, e.g.
- * a very fast double-forget) is likewise a silent no-op rather than an
- * error a caller must handle. */
+/** F20 Phase 1/2b-iii-a, spec section 20/10.4: activates a known catalog
+ * profile. Selecting the already-active *and actually open* profile is a
+ * genuine no-op (spec 10.4: "performs no filesystem work, does not
+ * increment the workspace session, and does not alter recency"), checked
+ * before touching anything. A stale switcher entry (an id no longer in the
+ * catalog, e.g. a very fast double-forget) is likewise a silent no-op
+ * rather than an error a caller must handle.
+ *
+ * Checking `workspacePath.value` too, not just the id match, matters for
+ * section 17.2's retry: after a startup or switch failure,
+ * `activeWorkspaceId` deliberately keeps pointing at the profile that
+ * failed (it's still "the user's last intended profile"), but
+ * `workspacePath` is null since nothing actually opened. Before this
+ * check existed, re-selecting that same profile to retry silently did
+ * nothing at all, since the id-only comparison already treated it as
+ * "already active." */
 export async function activateWorkspaceProfile(id: string): Promise<void> {
-  if (id === activeWorkspaceId.value) return;
+  if (id === activeWorkspaceId.value && workspacePath.value !== null) return;
   const profile = workspaceProfiles.value.find((p) => p.id === id);
   if (!profile) return;
   await setWorkspacePath(profile.path, profile.token, profile);

@@ -909,6 +909,31 @@ button.icon-button.active {
   margin-bottom: var(--space-4);
 }
 
+/* F20 Phase 2b-iii-a: the recovery/recent-profiles variant of the welcome
+   dialog (spec sections 17.2/17.3). Reuses .workspace-switcher-row's own
+   left-aligned row styling for the profile list, overriding
+   .welcome-dialog's centered text just for that list. */
+.workspace-launcher-actions {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.workspace-launcher-label {
+  text-align: left;
+  color: var(--text-faint);
+  font-size: 12px;
+  margin-bottom: var(--space-1);
+}
+
+.workspace-launcher-list {
+  text-align: left;
+  margin-bottom: var(--space-4);
+  max-height: 240px;
+  overflow-y: auto;
+}
+
 .name-prompt input {
   width: 100%;
   font: inherit;

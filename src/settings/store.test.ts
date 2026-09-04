@@ -247,6 +247,20 @@ describe("F20 Phase 1: workspace profile catalog", () => {
       expect(restoreWorkspaceAccess).not.toHaveBeenCalled();
       expect(workspacePath.value).toBeNull();
     });
+
+    it("F20 Phase 2b-iii-a: retries (not a no-op) when activeWorkspaceId matches but no workspace is actually open", async () => {
+      workspaceProfiles.value = [
+        { id: "p1", name: "Vault", icon: "folder", path: "/vaultA", lastOpenedAt: 1 },
+      ];
+      activeWorkspaceId.value = "p1";
+      workspacePath.value = null;
+
+      await activateWorkspaceProfile("p1");
+
+      expect(restoreWorkspaceAccess).toHaveBeenCalled();
+      expect(workspacePath.value).toBe("/vaultA");
+      expect(globalConfigWrites().length).toBeGreaterThan(0);
+    });
   });
 
   describe("addWorkspaceFromPicker", () => {

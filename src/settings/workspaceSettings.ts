@@ -168,6 +168,8 @@ export interface WorkspaceSettings {
    * entry, and sidebar panel are all hidden, the same as before this
    * feature existed. */
   collectionsEnabled: boolean;
+  /** Whether the per-note frontmatter lock UI and its edit guards are active. */
+  noteReadOnlyLockEnabled: boolean;
 }
 
 export const MIN_UI_ZOOM = 50;
@@ -204,6 +206,7 @@ export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   snippets: "todo\t- [ ] ",
   headingLinksEnabled: true,
   collectionsEnabled: false,
+  noteReadOnlyLockEnabled: true,
 };
 
 // Plain string join is intentional here (not a path-resolution API call):
@@ -384,6 +387,10 @@ export function decodeWorkspaceSettings(
     record.collectionsEnabled,
     DEFAULT_WORKSPACE_SETTINGS.collectionsEnabled,
   );
+  const noteReadOnlyLockEnabled = decodeBoolean(
+    record.noteReadOnlyLockEnabled,
+    DEFAULT_WORKSPACE_SETTINGS.noteReadOnlyLockEnabled,
+  );
 
   // Only version 1 exists today. An unrecognized version is flagged as
   // corrupt (so it is never silently persisted back over) but its actual
@@ -418,6 +425,7 @@ export function decodeWorkspaceSettings(
     snippets: snippets.value,
     headingLinksEnabled: headingLinksEnabled.value,
     collectionsEnabled: collectionsEnabled.value,
+    noteReadOnlyLockEnabled: noteReadOnlyLockEnabled.value,
   } as unknown as WorkspaceSettings;
 
   const corrupt =
@@ -446,6 +454,7 @@ export function decodeWorkspaceSettings(
       snippets,
       headingLinksEnabled,
       collectionsEnabled,
+      noteReadOnlyLockEnabled,
     );
 
   return { settings, corrupt };

@@ -41,6 +41,7 @@ type RowStatus =
   | { kind: "idle" }
   | { kind: "pending" }
   | { kind: "stale" }
+  | { kind: "locked" }
   | { kind: "error"; message: string };
 
 function rowKey(entry: TaskEntry): string {
@@ -118,6 +119,8 @@ export function TaskHubPanel({ onOpenFile, onNavigated, save }: TaskHubPanelProp
       setRowStatusFor(key, { kind: "idle" });
     } else if (result.status === "stale") {
       setRowStatusFor(key, { kind: "stale" });
+    } else if (result.status === "locked") {
+      setRowStatusFor(key, { kind: "locked" });
     } else {
       setRowStatusFor(key, { kind: "error", message: result.message });
     }
@@ -315,6 +318,11 @@ export function TaskHubPanel({ onOpenFile, onNavigated, save }: TaskHubPanelProp
                       {status.kind === "stale" && (
                         <p class="task-hub-row-error" role="alert">
                           Task changed. Refresh the Task Hub and try again.
+                        </p>
+                      )}
+                      {status.kind === "locked" && (
+                        <p class="task-hub-row-error" role="alert">
+                          This note is locked. Unlock it before changing tasks.
                         </p>
                       )}
                       {status.kind === "error" && (

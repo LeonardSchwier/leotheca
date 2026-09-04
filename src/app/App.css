@@ -275,6 +275,22 @@ button.icon-button.active {
   min-width: 0;
 }
 
+.note-lock-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  color: var(--text-secondary);
+  background: var(--bg-sunken);
+  border-bottom: 1px solid var(--border);
+  font-size: 0.875rem;
+}
+
+.note-lock-bar button {
+  flex: none;
+}
+
 .editor-panes {
   flex: 1;
   display: flex;

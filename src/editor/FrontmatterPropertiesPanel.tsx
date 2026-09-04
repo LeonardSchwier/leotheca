@@ -15,6 +15,7 @@ export interface FrontmatterPropertiesPanelProps {
   /** WorkspaceSettings.frontmatterPropertiesEnabled; when false, renders
    * nothing and the note's frontmatter is edited as raw text. */
   enabled: boolean;
+  readOnly?: boolean;
 }
 
 const INVALID_KEY_CHARS = /[^A-Za-z0-9_.-]/g;
@@ -38,6 +39,7 @@ export function FrontmatterPropertiesPanel({
   source,
   onChange,
   enabled,
+  readOnly = false,
 }: FrontmatterPropertiesPanelProps) {
   const [newKey, setNewKey] = useState("");
   const [adding, setAdding] = useState(false);
@@ -74,7 +76,7 @@ export function FrontmatterPropertiesPanel({
   if (properties.length === 0 && !adding) {
     return (
       <div class="frontmatter-properties frontmatter-properties-empty">
-        <button class="frontmatter-add-button" onClick={() => setAdding(true)}>
+        <button class="frontmatter-add-button" disabled={readOnly} onClick={() => setAdding(true)}>
           + Add property
         </button>
       </div>
@@ -94,6 +96,7 @@ export function FrontmatterPropertiesPanel({
               onInput={(event) =>
                 updateValue(property, (event.target as HTMLInputElement).value)
               }
+              disabled={readOnly}
             />
           ) : (
             <input
@@ -110,6 +113,7 @@ export function FrontmatterPropertiesPanel({
               class="frontmatter-remove"
               aria-label={`Remove ${property.key}`}
               onClick={() => removeField(index)}
+              disabled={readOnly}
             >
               ×
             </button>
@@ -128,13 +132,14 @@ export function FrontmatterPropertiesPanel({
               if (event.key === "Enter") confirmAdd();
               if (event.key === "Escape") cancelAdd();
             }}
+            disabled={readOnly}
           />
-          <button class="frontmatter-add-confirm" onClick={confirmAdd}>
+          <button class="frontmatter-add-confirm" onClick={confirmAdd} disabled={readOnly}>
             Add
           </button>
         </div>
       ) : (
-        <button class="frontmatter-add-button" onClick={() => setAdding(true)}>
+        <button class="frontmatter-add-button" onClick={() => setAdding(true)} disabled={readOnly}>
           + Add property
         </button>
       )}

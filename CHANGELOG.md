@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- The command palette can now add or delete a row or column in the Markdown table under your cursor. Table edits keep the table's alignment and use normal undo.
+
 - If Leotheca finds invalid data in its app-wide configuration, Settings now explains the problem and offers an explicit rewrite action. Normal theme and workspace-profile changes no longer silently replace the original configuration while it awaits repair.
 
 - Block references now support headings. A trailing `^id` on an ATX or setext heading stays hidden in Preview, shares the normal block-ID namespace, and works with Copy block link.

@@ -53,6 +53,7 @@ import {
   requestCopyBlockLinkAtCursor,
   requestCreateBlockLinkAtCursor,
 } from "../editor/blockLinkRequest";
+import { requestTableCommand, tableCommandRequest } from "../editor/tableCommandRequest";
 import { HeadingBreadcrumbs } from "../outline/HeadingBreadcrumbs";
 import { nextSplitAuthority, type SplitAuthority } from "../outline/splitAuthority";
 import { scanHeadings } from "../markdown/headings";
@@ -667,6 +668,14 @@ export function App() {
               },
             ]
           : []),
+        ...(viewMode.value !== "preview"
+          ? [
+              { id: "table-add-row", label: "Table: add row below", run: () => requestTableCommand("add-row-below") },
+              { id: "table-delete-row", label: "Table: delete row", run: () => requestTableCommand("delete-row") },
+              { id: "table-add-column", label: "Table: add column right", run: () => requestTableCommand("add-column-right") },
+              { id: "table-delete-column", label: "Table: delete column", run: () => requestTableCommand("delete-column") },
+            ]
+          : []),
         { id: "rename-tab", label: "Rename current note", run: () => setTabRename(current) },
         {
           id: "close-tab",
@@ -987,6 +996,7 @@ export function App() {
                       insertRequest={outlineInsertRequest.value}
                       blockLinkCopyRequest={blockLinkCopyRequest.value}
                       blockLinkCreateRequest={blockLinkCreateRequest.value}
+                      tableCommandRequest={tableCommandRequest.value}
                       onCursorChange={(pos) => {
                         setCursorPos(pos);
                         setSplitAuthority(nextSplitAuthority("source-cursor"));

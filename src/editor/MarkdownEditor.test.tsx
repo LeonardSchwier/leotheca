@@ -868,6 +868,43 @@ describe("MarkdownEditor: blockLinkCreateRequest (F04 Phase 5e3's Create block l
   });
 });
 
+describe("MarkdownEditor: table command requests", () => {
+  it("rewrites the scanner-confirmed table at the live cursor and does not repeat a request", () => {
+    const value = "| A | B |\n| --- | --- |\n| one | two |";
+    const { container, rerender } = render(
+      <MarkdownEditor
+        path="/vault/a.md"
+        value={value}
+        {...baseEditorProps()}
+        tableCommandRequest={null}
+      />,
+    );
+    const view = editorView(container);
+    view.dispatch({ selection: { anchor: value.indexOf("one") } });
+
+    rerender(
+      <MarkdownEditor
+        path="/vault/a.md"
+        value={value}
+        {...baseEditorProps()}
+        tableCommandRequest={{ command: "add-column-right", requestId: 1 }}
+      />,
+    );
+    const afterFirst = editorView(container).state.doc.toString();
+    expect(afterFirst).toContain("| one |  | two |");
+
+    rerender(
+      <MarkdownEditor
+        path="/vault/a.md"
+        value={afterFirst}
+        {...baseEditorProps()}
+        tableCommandRequest={{ command: "add-column-right", requestId: 1 }}
+      />,
+    );
+    expect(editorView(container).state.doc.toString()).toBe(afterFirst);
+  });
+});
+
 describe("MarkdownEditor: onCursorChange", () => {
   it("reports the initial cursor position on mount", () => {
     const onCursorChange = vi.fn();

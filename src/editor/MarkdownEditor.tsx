@@ -23,6 +23,8 @@ import { minimalChange } from "./textDiff";
 import { parseSnippets, snippetExpansion } from "./snippets";
 import { resolveBlockLinkAtCursor } from "./blockLinkActions";
 import type { BlockLinkCopyRequest, BlockLinkCreateRequest } from "./blockLinkRequest";
+import { tableEditAtCursor, type MarkdownTableCommand } from "../markdown/tableCommands";
+import type { TableCommandRequest } from "./tableCommandRequest";
 
 export interface MarkdownEditorProps {
   path: string;
@@ -77,6 +79,9 @@ export interface MarkdownEditorProps {
    * heading's own Copy/Insert pair. `requestId` must change for a repeat
    * request to re-apply; `null` means no pending request. */
   blockLinkCreateRequest?: BlockLinkCreateRequest | null;
+  /** A cursor-local Markdown table edit requested by the command palette.
+   * It is accepted only for a table confirmed by the shared scanner. */
+  tableCommandRequest?: TableCommandRequest | null;
   /** Reports the primary selection head (character offset) after every
    * transaction that changes it, including typing and the reveal effect
    * above; used by HeadingBreadcrumbs for Source-mode active-section
@@ -463,6 +468,7 @@ export function MarkdownEditor({
   insertRequest,
   blockLinkCopyRequest,
   blockLinkCreateRequest,
+  tableCommandRequest,
   onCursorChange,
 }: MarkdownEditorProps) {
   const hostRef = useRef<HTMLDivElement>(null);
@@ -661,6 +667,25 @@ export function MarkdownEditor({
     if (!resolution?.insertion) return;
     view.dispatch({ changes: { from: resolution.insertion.from, insert: resolution.insertion.text } });
   }, [blockLinkCreateRequest]);
+
+  const lastTableCommandRequestIdRef = useRef<number | null>(null);
+  useEffect(() => {
+    const view = viewRef.current;
+    if (
+      !view ||
+      !tableCommandRequest ||
+      tableCommandRequest.requestId === lastTableCommandRequestIdRef.current
+    ) {
+      return;
+    }
+    lastTableCommandRequestIdRef.current = tableCommandRequest.requestId;
+    const edit = tableEditAtCursor(
+      view.state.doc.toString(),
+      view.state.selection.main.head,
+      tableCommandRequest.command as MarkdownTableCommand,
+    );
+    if (edit) view.dispatch({ changes: edit, scrollIntoView: true });
+  }, [tableCommandRequest]);
 
   return <div class="markdown-editor" ref={hostRef} />;
 }

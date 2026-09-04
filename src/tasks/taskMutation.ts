@@ -68,8 +68,15 @@ function flipMarker(content: string, task: TaskRecord): string {
  * `tasksByPath` field: this phase does not attempt incremental updates for
  * the index's other projections (backlinks, aliases, tags), which today
  * only ever refresh via a full `rebuildLinkIndex` call, a pre-existing
- * gap this change does not introduce and does not attempt to close. */
-function replaceIndexedTasks(path: string, content: string): void {
+ * gap this change does not introduce and does not attempt to close.
+ *
+ * Exported so `App.tsx`'s own save-success path can call it directly for
+ * an ordinary editor edit, not just this module's own toggle flow: the
+ * Task Hub otherwise only ever sees a note's latest tasks when its own
+ * checkbox drives the write, or the panel is closed and reopened (which
+ * forces a full `rebuildLinkIndex`), never for a task checked or edited by
+ * typing in the editor while the panel stays open. */
+export function replaceIndexedTasks(path: string, content: string): void {
   const tasksByPath = new Map(linkIndex.value.tasksByPath);
   const tasks = scanTasks(content);
   if (tasks.length === 0) tasksByPath.delete(path);

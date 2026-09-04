@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render } from "@testing-library/preact";
 import { signal } from "@preact/signals";
 import { DEFAULT_WORKSPACE_SETTINGS } from "../settings/workspaceSettings";
-import type { TaskRecord } from "../markdown/tasks";
+import { scanTasks, type TaskRecord } from "../markdown/tasks";
 
 const { updateWorkspaceSettingsSpy } = vi.hoisted(() => ({
   updateWorkspaceSettingsSpy: vi.fn(),
@@ -656,5 +656,58 @@ describe("App: Collections gated by collectionsEnabled, off by default (2026-09-
     workspaceSettings.value = { ...DEFAULT_WORKSPACE_SETTINGS, collectionsEnabled: true };
     const { queryByLabelText } = render(<App />);
     expect(queryByLabelText("Open Collections")).toBeTruthy();
+  });
+});
+
+describe("App: Task Hub index stays fresh after an ordinary editor save (2026-09-04)", () => {
+  it("updates LinkIndex.tasksByPath for a task checked by typing in the editor, without touching the Task Hub panel", async () => {
+    vi.useFakeTimers();
+    linkIndex.value = {
+      ...emptyLinkIndex(),
+      tasksByPath: new Map([["/vault/note.md", scanTasks("- [ ] Buy milk\n")]]),
+    };
+    openOrFocusTab("/vault/note.md", "note.md", "- [ ] Buy milk\n", "text");
+    const { container } = render(<App />);
+
+    const editor = container.querySelector(
+      '[data-testid="mock-editor"]',
+    ) as HTMLTextAreaElement;
+    fireEvent.input(editor, { target: { value: "- [x] Buy milk\n" } });
+
+    await act(async () => {
+      fireEvent.keyDown(window, { key: "s", ctrlKey: true });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(writeTextFile).toHaveBeenCalledWith("/vault/note.md", "- [x] Buy milk\n");
+    const tasks = linkIndex.value.tasksByPath.get("/vault/note.md");
+    expect(tasks?.[0].checked).toBe(true);
+  });
+
+  it("leaves the index untouched on a save that fails, rather than recording tasks from unwritten content", async () => {
+    vi.useFakeTimers();
+    writeTextFile.mockRejectedValueOnce(new Error("disk full"));
+    linkIndex.value = {
+      ...emptyLinkIndex(),
+      tasksByPath: new Map([["/vault/note.md", scanTasks("- [ ] Buy milk\n")]]),
+    };
+    openOrFocusTab("/vault/note.md", "note.md", "- [ ] Buy milk\n", "text");
+    const { container } = render(<App />);
+
+    const editor = container.querySelector(
+      '[data-testid="mock-editor"]',
+    ) as HTMLTextAreaElement;
+    fireEvent.input(editor, { target: { value: "- [x] Buy milk\n" } });
+
+    await act(async () => {
+      fireEvent.keyDown(window, { key: "s", ctrlKey: true });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(writeTextFile).toHaveBeenCalledTimes(1);
+    const tasks = linkIndex.value.tasksByPath.get("/vault/note.md");
+    expect(tasks?.[0].checked).toBe(false);
   });
 });

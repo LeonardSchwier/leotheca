@@ -64,6 +64,7 @@ import { addFileBookmark, bookmarks, loadBookmarks, removeBookmark } from "../bo
 import { resetWorkspaceTree } from "../workspace/fileTreeStore";
 import { TagsPanel } from "../tags/TagsPanel";
 import { TaskHubPanel } from "../tasks/TaskHubPanel";
+import { replaceIndexedTasks } from "../tasks/taskMutation";
 import { CollectionsPanel } from "../collections/CollectionsPanel";
 import { loadCollections } from "../collections/collectionStore";
 import {
@@ -230,7 +231,22 @@ export function App() {
   const rootPath = workspacePath.value;
   const session = workspaceSession.value;
   const save = useMemo(() => createSaveCoordinator({
-    onSaved: (path: string) => { markTabSaved(path); refresh(); },
+    // Keeps the Task Hub's own `tasksByPath` projection current for an
+    // ordinary editor edit (typing a task's checkbox open/closed, or any
+    // other edit to a task line), not just a toggle driven by the Task
+    // Hub's own checkbox: without this, a note saved while the panel is
+    // already open never updates it until the panel is closed and
+    // reopened (which forces a full rebuildLinkIndex). The tab's own
+    // current content is read here rather than threaded through the
+    // coordinator's callback signature, since it is already the same
+    // content this save just wrote (a still-open tab is the only source
+    // `save.change` ever writes from).
+    onSaved: (path: string) => {
+      markTabSaved(path);
+      const content = openTabs.value.find((tab) => tab.path === path)?.content;
+      if (content !== undefined) replaceIndexedTasks(path, content);
+      refresh();
+    },
     onError: (path: string, error: string) => markTabSaveError(path, error),
   }), []);
   const [tabRename, setTabRename] = useState<{ path: string; name: string } | null>(null);

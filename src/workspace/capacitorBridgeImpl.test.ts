@@ -31,6 +31,7 @@ import {
   findAllFiles,
   findMarkdownFiles,
   getWorkspaceStats,
+  pickWorkspaceFolder,
   readTextFile,
   renamePath,
   renameWorkspacePath,
@@ -43,6 +44,40 @@ import {
 afterEach(async () => {
   await restoreWorkspaceAccess(WORKSPACE_ROOT, "content://workspace");
   vi.clearAllMocks();
+});
+
+describe("pickWorkspaceFolder", () => {
+  it("returns null when the picker is cancelled", async () => {
+    folderAccess.pickFolder.mockResolvedValue({ uri: null });
+
+    await expect(pickWorkspaceFolder()).resolves.toBeNull();
+  });
+
+  it("surfaces the picked tree's real display name (F20 Phase 2b-iv)", async () => {
+    folderAccess.pickFolder.mockResolvedValue({
+      uri: "content://tree/abc",
+      name: "MyNotes",
+    });
+
+    await expect(pickWorkspaceFolder()).resolves.toEqual({
+      path: WORKSPACE_ROOT,
+      token: "content://tree/abc",
+      name: "MyNotes",
+    });
+  });
+
+  it("omits name when the native side has none for this provider", async () => {
+    folderAccess.pickFolder.mockResolvedValue({
+      uri: "content://tree/abc",
+      name: null,
+    });
+
+    await expect(pickWorkspaceFolder()).resolves.toEqual({
+      path: WORKSPACE_ROOT,
+      token: "content://tree/abc",
+      name: undefined,
+    });
+  });
 });
 
 interface NativeMarkdownFile {

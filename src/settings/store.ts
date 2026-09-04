@@ -593,7 +593,7 @@ export async function addWorkspaceFromPicker(): Promise<void> {
   }
   const candidate: WorkspaceProfile = {
     id: crypto.randomUUID(),
-    name: defaultProfileName(folder.path),
+    name: defaultProfileName(folder.path, folder.name),
     icon: "folder",
     path: folder.path,
     token: folder.token,

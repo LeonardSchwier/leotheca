@@ -18,9 +18,9 @@ const {
 } = vi.hoisted(() => ({
   drainWorkspaceOperations: vi.fn(async () => {}),
   isNativePlatform: vi.fn(() => false),
-  pickWorkspaceFolder: vi.fn<() => Promise<{ path: string; token?: string } | null>>(
-    async () => null,
-  ),
+  pickWorkspaceFolder: vi.fn<
+    () => Promise<{ path: string; token?: string; name?: string } | null>
+  >(async () => null),
   readTextFile: vi.fn<(path: string) => Promise<string>>(async () => {
     throw new Error("not found");
   }),
@@ -345,6 +345,31 @@ describe("F20 Phase 1: workspace profile catalog", () => {
       expect(created.icon).toBe("folder");
       expect(created.lastOpenedAt).toBeGreaterThan(0);
       expect(activeWorkspaceId.value).toBe(created.id);
+    });
+
+    it("F20 Phase 2b-iv: names a new profile from the picker's real folder name when the path is the Android synthetic root", async () => {
+      pickWorkspaceFolder.mockResolvedValue({
+        path: "/workspace",
+        token: "content://tree/abc",
+        name: "MyNotes",
+      });
+
+      await addWorkspaceFromPicker();
+
+      expect(workspaceProfiles.value).toHaveLength(1);
+      expect(workspaceProfiles.value[0].name).toBe("MyNotes");
+    });
+
+    it("falls back to 'Workspace' when the picker has no real folder name (synthetic root)", async () => {
+      pickWorkspaceFolder.mockResolvedValue({
+        path: "/workspace",
+        token: "content://tree/abc",
+      });
+
+      await addWorkspaceFromPicker();
+
+      expect(workspaceProfiles.value).toHaveLength(1);
+      expect(workspaceProfiles.value[0].name).toBe("Workspace");
     });
 
     it("activates an existing profile instead of creating a duplicate when the locator matches", async () => {

@@ -8,9 +8,14 @@ import type { WorkspaceStats } from "../settings/VaultStatsPanel";
 export async function pickWorkspaceFolder(): Promise<{
   path: string;
   token?: string;
+  name?: string;
 } | null> {
   const selected = await open({ directory: true, multiple: false });
   const path = Array.isArray(selected) ? (selected[0] ?? null) : selected;
+  // No separate display name on Desktop: `path` is already the real
+  // folder path, so `defaultProfileName`'s own basename fallback already
+  // produces the right name without one, unlike Android's opaque,
+  // synthetic "/workspace" root.
   return path ? { path } : null;
 }
 

@@ -72,6 +72,16 @@ public class FolderAccessPlugin extends Plugin {
                     Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
                 );
             ret.put("uri", treeUri.toString());
+            // The picked tree's real display name (e.g. "MyNotes"), not the
+            // synthetic "/workspace" path this plugin otherwise exposes to
+            // the shared frontend: DocumentFile.getName() resolves the SAF
+            // tree's own document metadata, so a null here (a provider that
+            // doesn't expose a name for its root) is a real "unknown," not
+            // a bug, and the caller falls back to a generic default the
+            // same way it already does for any other unnamed folder.
+            DocumentFile treeDoc = DocumentFile.fromTreeUri(getContext(), treeUri);
+            String treeName = treeDoc != null ? treeDoc.getName() : null;
+            ret.put("name", treeName != null ? treeName : JSObject.NULL);
             call.resolve(ret);
         } catch (Exception e) {
             call.reject(e.getMessage(), e);

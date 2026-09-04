@@ -61,7 +61,7 @@ interface NativeAllEntry {
 }
 
 interface FolderAccessPlugin {
-  pickFolder(): Promise<{ uri: string | null }>;
+  pickFolder(): Promise<{ uri: string | null; name?: string | null }>;
   listDir(options: { uri: string }): Promise<{ entries: NativeEntry[] }>;
   findMarkdownFiles(options: { uri: string }): Promise<WorkspaceWalkResult>;
   findAllFiles(options: { uri: string }): Promise<{ files: NativeFile[] }>;
@@ -221,13 +221,17 @@ async function ensureDirUri(path: string): Promise<string> {
   return created.uri;
 }
 
-export async function pickWorkspaceFolder(): Promise<{ path: string; token?: string } | null> {
+export async function pickWorkspaceFolder(): Promise<{
+  path: string;
+  token?: string;
+  name?: string;
+} | null> {
   const result = await FolderAccess.pickFolder();
   if (!result.uri) return null;
   pathToUri.clear();
   pathToUri.set(WORKSPACE_ROOT, result.uri);
   walkCache.clear();
-  return { path: WORKSPACE_ROOT, token: result.uri };
+  return { path: WORKSPACE_ROOT, token: result.uri, name: result.name ?? undefined };
 }
 
 export async function restoreWorkspaceAccess(path: string, token: string | undefined): Promise<void> {

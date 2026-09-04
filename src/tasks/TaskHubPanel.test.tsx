@@ -25,7 +25,6 @@ vi.mock("../workspace/tauriBridge", async (importOriginal) => {
 });
 
 import { scanTasks, type TaskRecord } from "../markdown/tasks";
-import type { OpenTab } from "../workspace/types";
 
 // This panel transitively imports settings/store.ts (via workspace/store.ts
 // and its own createSaveCoordinator usage in tests below), whose top-level
@@ -47,7 +46,7 @@ const { flattenTasks, TaskHubPanel } = await import("./TaskHubPanel");
 const { linkIndex } = await import("../linking/store");
 const { outlineRevealRequest } = await import("../outline/outlineNavigation");
 const { createSaveCoordinator } = await import("../workspace/saveCoordinator");
-const { openTabs } = await import("../workspace/store");
+const { closeAllTabs, openOrFocusTab, openTabs, updateTabContent } = await import("../workspace/store");
 const { workspaceSession } = await import("../settings/store");
 
 function emptyLinkIndex() {
@@ -66,8 +65,9 @@ function setTasksByPath(tasksByPath: Map<string, TaskRecord[]>, tagsByPath?: Map
   linkIndex.value = { ...emptyLinkIndex(), tasksByPath, tagsByPath: tagsByPath ?? new Map() };
 }
 
-function openTab(path: string, content: string): OpenTab {
-  return { path, name: path.split("/").pop() ?? path, kind: "text", content, dirty: true, saveError: null };
+function openDocument(path: string, content: string) {
+  openOrFocusTab(path, path.split("/").pop() ?? path, content, "text");
+  updateTabContent(path, content);
 }
 
 beforeEach(() => {
@@ -80,7 +80,7 @@ afterEach(() => {
   cleanup();
   setTasksByPath(new Map());
   outlineRevealRequest.value = null;
-  openTabs.value = [];
+  closeAllTabs();
   workspaceSession.value = 0;
 });
 
@@ -397,7 +397,7 @@ describe("TaskHubPanel: toggle completion", () => {
   it("toggles an open (dirty) tab's in-memory content rather than reading the file", async () => {
     const content = "- [ ] Task\n";
     setTasksByPath(new Map([["/vault/a.md", scanTasks(content)]]));
-    openTabs.value = [openTab("/vault/a.md", content)];
+    openDocument("/vault/a.md", content);
     const { getByLabelText } = renderPanel();
     fireEvent.click(getByLabelText(/^Open task: Task/));
 

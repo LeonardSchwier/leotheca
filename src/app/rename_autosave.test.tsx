@@ -117,7 +117,7 @@ vi.mock("../settings/SettingsPanel", () => ({
   SettingsPanel: () => null,
 }));
 
-const { openOrFocusTab, openTabs, activeTabPath } =
+const { closeAllTabs, openOrFocusTab, openTabs } =
   await import("../workspace/store");
 const { settingsPanelOpen, workspacePath, workspaceSettings } =
   await import("../settings/store");
@@ -128,8 +128,7 @@ const defaultViewportWidth = window.innerWidth;
 afterEach(() => {
   cleanup();
   vi.useRealTimers();
-  openTabs.value = [];
-  activeTabPath.value = null;
+  closeAllTabs();
   settingsPanelOpen.value = false;
   workspacePath.value = null;
   workspaceSettings.value = DEFAULT_WORKSPACE_SETTINGS;

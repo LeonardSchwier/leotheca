@@ -6,7 +6,10 @@ import {
   closeOtherTabs,
   closeTab,
   closeTabsUnder,
+  editorLayout,
+  focusTab,
   markTabSaved,
+  openDocuments,
   openOrFocusTab,
   openTabs,
   renameOpenTab,
@@ -14,8 +17,7 @@ import {
 } from "./store";
 
 afterEach(() => {
-  openTabs.value = [];
-  activeTabPath.value = null;
+  closeAllTabs();
 });
 
 describe("openOrFocusTab", () => {
@@ -35,6 +37,16 @@ describe("openOrFocusTab", () => {
     expect(openTabs.value).toHaveLength(2);
     expect(openTabs.value[0].content).toBe("content"); // untouched by the re-open
     expect(activeTabPath.value).toBe("/a.md");
+  });
+
+  it("keeps one canonical document record and primary-group path for a reopened note", () => {
+    openOrFocusTab("/a.md", "a.md", "content", "text");
+    openOrFocusTab("/a.md", "a.md", "replacement must not win", "text");
+
+    expect(openDocuments.value).toEqual(openTabs.value);
+    expect(editorLayout.value.groups.primary.tabPaths).toEqual(["/a.md"]);
+    expect(editorLayout.value.groups.primary.activePath).toBe("/a.md");
+    expect(editorLayout.value.activeGroupId).toBe("primary");
   });
 });
 
@@ -77,7 +89,7 @@ describe("closeTab", () => {
     openOrFocusTab("/a.md", "a.md", "", "text");
     openOrFocusTab("/b.md", "b.md", "", "text");
     openOrFocusTab("/c.md", "c.md", "", "text");
-    activeTabPath.value = "/c.md";
+    focusTab("/c.md");
 
     closeTab("/c.md");
 
@@ -95,12 +107,22 @@ describe("closeTab", () => {
   it("leaves activeTabPath untouched when closing a tab that isn't the active one", () => {
     openOrFocusTab("/a.md", "a.md", "", "text");
     openOrFocusTab("/b.md", "b.md", "", "text");
-    activeTabPath.value = "/b.md";
+    focusTab("/b.md");
 
     closeTab("/a.md");
 
     expect(openTabs.value.map((t) => t.path)).toEqual(["/b.md"]);
     expect(activeTabPath.value).toBe("/b.md");
+  });
+
+  it("repairs the primary group to the remaining canonical document", () => {
+    openOrFocusTab("/a.md", "a.md", "", "text");
+    openOrFocusTab("/b.md", "b.md", "", "text");
+
+    closeTab("/b.md");
+
+    expect(editorLayout.value.groups.primary.tabPaths).toEqual(["/a.md"]);
+    expect(editorLayout.value.groups.primary.activePath).toBe("/a.md");
   });
 });
 
@@ -134,7 +156,7 @@ describe("closeTabsUnder", () => {
     openOrFocusTab("/folder/a.md", "a.md", "", "text");
     openOrFocusTab("/folder/sub/b.md", "b.md", "", "text");
     openOrFocusTab("/other.md", "other.md", "", "text");
-    activeTabPath.value = "/folder/sub/b.md";
+    focusTab("/folder/sub/b.md");
 
     closeTabsUnder("/folder");
 
@@ -153,7 +175,7 @@ describe("closeTabsUnder", () => {
   it("leaves activeTabPath alone when the active tab isn't affected", () => {
     openOrFocusTab("/folder/a.md", "a.md", "", "text");
     openOrFocusTab("/keep.md", "keep.md", "", "text");
-    activeTabPath.value = "/keep.md";
+    focusTab("/keep.md");
 
     closeTabsUnder("/folder");
 
@@ -174,7 +196,7 @@ describe("closeTabsUnder", () => {
 describe("renameOpenTab", () => {
   it("rewrites the exact matching tab's path and name", () => {
     openOrFocusTab("/old.md", "old.md", "content", "text");
-    activeTabPath.value = "/old.md";
+    focusTab("/old.md");
 
     renameOpenTab("/old.md", "/new.md", "new.md");
 
@@ -196,7 +218,7 @@ describe("renameOpenTab", () => {
   it("leaves unrelated tabs and an unrelated activeTabPath untouched", () => {
     openOrFocusTab("/a.md", "a.md", "", "text");
     openOrFocusTab("/b.md", "b.md", "", "text");
-    activeTabPath.value = "/b.md";
+    focusTab("/b.md");
 
     renameOpenTab("/a.md", "/renamed.md", "renamed.md");
 

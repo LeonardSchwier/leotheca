@@ -27,6 +27,7 @@ import {
 import {
   activeTabPath,
   closeAllTabs,
+  focusTab,
   openOrFocusTab,
   openTabs,
 } from "../workspace/store";
@@ -182,10 +183,10 @@ export async function restoreLastOpenTabs(isCurrent: () => boolean = () => true)
     }
     if (!isCurrent()) return;
     const restoredPaths = new Set(openTabs.value.map((tab) => tab.path));
-    activeTabPath.value =
-      lastActivePath && restoredPaths.has(lastActivePath)
-        ? lastActivePath
-        : (openTabs.value.at(-1)?.path ?? null);
+    const restoredActivePath = lastActivePath && restoredPaths.has(lastActivePath)
+      ? lastActivePath
+      : (openTabs.value.at(-1)?.path ?? null);
+    if (restoredActivePath) focusTab(restoredActivePath);
     lastPersistedTabsKey = JSON.stringify([
       openTabs.value.map((tab) => tab.path),
       activeTabPath.value,

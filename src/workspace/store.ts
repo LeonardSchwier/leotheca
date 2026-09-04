@@ -1,23 +1,57 @@
-import { batch, signal } from "@preact/signals";
-import type { OpenTab, TabKind } from "./types";
+import { batch, computed, signal } from "@preact/signals";
+import { createPrimaryEditorLayout, synchronizePrimaryEditorLayout } from "./documentGroups";
+import type { EditorLayoutState, OpenDocument, OpenTab, TabKind } from "./types";
 
-export const openTabs = signal<OpenTab[]>([]);
-export const activeTabPath = signal<string | null>(null);
+/** Canonical open-document store. Editor groups hold only references to
+ * these records, ensuring one content and save authority per path. */
+export const openDocuments = signal<OpenDocument[]>([]);
+/** Compatibility selector for the present flat tab UI. It follows the
+ * primary group's placement references, not a second writable tab store. */
+export const openTabs = computed<OpenTab[]>(() => {
+  const documentsByPath = new Map(openDocuments.value.map((document) => [document.path, document]));
+  return editorLayout.value.groups.primary.tabPaths.flatMap((path) => {
+    const document = documentsByPath.get(path);
+    return document ? [document] : [];
+  });
+});
+/** Compatibility selector for the primary group's active document. */
+export const activeTabPath = computed(() => editorLayout.value.groups.primary.activePath);
+/** F07 Phase 1's logical group state. The UI remains a single primary group
+ * until later phases add pins and a secondary editor group. */
+export const editorLayout = signal<EditorLayoutState>(createPrimaryEditorLayout([], null));
+
+function updatePrimaryGroup(documents: OpenDocument[], activePath: string | null) {
+  openDocuments.value = documents;
+  editorLayout.value = synchronizePrimaryEditorLayout(
+    editorLayout.value,
+    documents.map((document) => document.path),
+    activePath,
+  );
+}
 
 export function activeTab(): OpenTab | undefined {
-  return openTabs.value.find((t) => t.path === activeTabPath.value);
+  return openDocuments.value.find((t) => t.path === activeTabPath.value);
+}
+
+/** Activates an already-open document through the primary group, preserving
+ * the old tab-selection behavior while keeping group state authoritative. */
+export function focusTab(path: string) {
+  if (!openDocuments.value.some((document) => document.path === path)) return;
+  batch(() => updatePrimaryGroup(openDocuments.value, path));
 }
 
 export function openOrFocusTab(path: string, name: string, content: string, kind: TabKind) {
-  const existing = openTabs.value.find((t) => t.path === path);
-  if (!existing) {
-    openTabs.value = [...openTabs.value, { path, name, content, kind, dirty: false, saveError: null }];
-  }
-  activeTabPath.value = path;
+  const existing = openDocuments.value.find((document) => document.path === path);
+  batch(() => updatePrimaryGroup(
+    existing
+      ? openDocuments.value
+      : [...openDocuments.value, { path, name, content, kind, dirty: false, saveError: null }],
+    path,
+  ));
 }
 
 export function updateTabContent(path: string, content: string) {
-  openTabs.value = openTabs.value.map((t) =>
+  openDocuments.value = openDocuments.value.map((t) =>
     t.path === path ? { ...t, content, dirty: true } : t,
   );
 }
@@ -27,19 +61,19 @@ export function updateTabContent(path: string, content: string) {
  * flight — never for a stale revision. The tab stays dirty until its
  * revision reaches the value of the last change() call. */
 export function markTabSaved(path: string) {
-  openTabs.value = openTabs.value.map((t) =>
+  openDocuments.value = openDocuments.value.map((t) =>
     t.path === path ? { ...t, dirty: false } : t,
   );
 }
 
 export function markTabSaveError(path: string, error: string) {
-  openTabs.value = openTabs.value.map((t) =>
+  openDocuments.value = openDocuments.value.map((t) =>
     t.path === path ? { ...t, saveError: error } : t,
   );
 }
 
 export function clearTabSaveError(path: string) {
-  openTabs.value = openTabs.value.map((t) =>
+  openDocuments.value = openDocuments.value.map((t) =>
     t.path === path ? { ...t, saveError: null } : t,
   );
 }
@@ -51,24 +85,20 @@ export function clearTabSaveError(path: string) {
  * intermediate step of getting there. */
 export function closeTab(path: string) {
   batch(() => {
-    openTabs.value = openTabs.value.filter((t) => t.path !== path);
-    if (activeTabPath.value === path) {
-      activeTabPath.value = openTabs.value.at(-1)?.path ?? null;
-    }
+    const documents = openDocuments.value.filter((document) => document.path !== path);
+    updatePrimaryGroup(documents, activeTabPath.value === path ? documents.at(-1)?.path ?? null : activeTabPath.value);
   });
 }
 
 export function closeOtherTabs(path: string) {
   batch(() => {
-    openTabs.value = openTabs.value.filter((t) => t.path === path);
-    activeTabPath.value = path;
+    updatePrimaryGroup(openDocuments.value.filter((document) => document.path === path), path);
   });
 }
 
 export function closeAllTabs() {
   batch(() => {
-    openTabs.value = [];
-    activeTabPath.value = null;
+    updatePrimaryGroup([], null);
   });
 }
 
@@ -76,13 +106,13 @@ export function closeAllTabs() {
  * (used when a folder is trashed). */
 export function closeTabsUnder(path: string) {
   const isUnder = (tabPath: string) => tabPath === path || tabPath.startsWith(`${path}/`);
-  const stillOpen = openTabs.value.filter((t) => !isUnder(t.path));
-  if (stillOpen.length === openTabs.value.length) return;
+  const stillOpen = openDocuments.value.filter((t) => !isUnder(t.path));
+  if (stillOpen.length === openDocuments.value.length) return;
   batch(() => {
-    openTabs.value = stillOpen;
-    if (activeTabPath.value && isUnder(activeTabPath.value)) {
-      activeTabPath.value = stillOpen.at(-1)?.path ?? null;
-    }
+    updatePrimaryGroup(
+      stillOpen,
+      activeTabPath.value && isUnder(activeTabPath.value) ? stillOpen.at(-1)?.path ?? null : activeTabPath.value,
+    );
   });
 }
 
@@ -94,16 +124,18 @@ export function renameOpenTab(oldPath: string, newPath: string, newName: string)
 
   batch(() => {
     let changed = false;
-    openTabs.value = openTabs.value.map((t) => {
+    const documents = openDocuments.value.map((t) => {
       const rewritten = rewrite(t.path);
       if (rewritten === null) return t;
       changed = true;
       return { ...t, path: rewritten, name: rewritten === newPath ? newName : t.name };
     });
 
-    if (changed && activeTabPath.value) {
-      const rewritten = rewrite(activeTabPath.value);
-      if (rewritten !== null) activeTabPath.value = rewritten;
+    let activePath = activeTabPath.value;
+    if (changed && activePath) {
+      const rewritten = rewrite(activePath);
+      if (rewritten !== null) activePath = rewritten;
     }
+    if (changed) updatePrimaryGroup(documents, activePath);
   });
 }

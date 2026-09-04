@@ -18,6 +18,7 @@ import {
   activeTabPath,
   closeAllTabs,
   closeOtherTabs,
+  focusTab,
   closeTab,
   markTabSaved,
   markTabSaveError,
@@ -454,7 +455,7 @@ export function App() {
         const currentIndex = tabs.findIndex((t) => t.path === activeTabPath.value);
         const delta = e.shiftKey ? -1 : 1;
         const nextIndex = (currentIndex + delta + tabs.length) % tabs.length;
-        activeTabPath.value = tabs[nextIndex].path;
+        focusTab(tabs[nextIndex].path);
         refresh();
       } else if (key === "s" && activeTabPath.value) {
         e.preventDefault();
@@ -897,7 +898,7 @@ export function App() {
             tabs={openTabs.value}
             activePath={activeTabPath.value}
             onSelect={(path) => {
-              activeTabPath.value = path;
+              focusTab(path);
               refresh();
             }}
             onRename={(path, name) => setTabRename({ path, name })}

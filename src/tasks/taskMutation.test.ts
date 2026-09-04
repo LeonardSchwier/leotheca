@@ -1,6 +1,5 @@
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { OpenTab } from "../workspace/types";
 
 const { readTextFile, writeTextFile } = vi.hoisted(() => ({
   readTextFile: vi.fn<(path: string) => Promise<string>>(),
@@ -41,7 +40,7 @@ window.matchMedia = vi.fn().mockImplementation((query: string) => ({
 
 const { toggleTaskCompletion } = await import("./taskMutation");
 const { createSaveCoordinator } = await import("../workspace/saveCoordinator");
-const { openTabs } = await import("../workspace/store");
+const { closeAllTabs, openOrFocusTab, openTabs, updateTabContent } = await import("../workspace/store");
 const { linkIndex } = await import("../linking/store");
 const { workspaceSession } = await import("../settings/store");
 const { scanTasks } = await import("../markdown/tasks");
@@ -58,21 +57,22 @@ function emptyLinkIndex() {
   };
 }
 
-function openTab(path: string, content: string): OpenTab {
-  return { path, name: path.split("/").pop() ?? path, kind: "text", content, dirty: true, saveError: null };
+function openDocument(path: string, content: string) {
+  openOrFocusTab(path, path.split("/").pop() ?? path, content, "text");
+  updateTabContent(path, content);
 }
 
 beforeEach(() => {
   readTextFile.mockReset();
   writeTextFile.mockReset();
   writeTextFile.mockResolvedValue();
-  openTabs.value = [];
+  closeAllTabs();
   linkIndex.value = emptyLinkIndex();
   workspaceSession.value = 0;
 });
 
 afterEach(() => {
-  openTabs.value = [];
+  closeAllTabs();
   linkIndex.value = emptyLinkIndex();
   workspaceSession.value = 0;
 });
@@ -80,7 +80,7 @@ afterEach(() => {
 describe("toggleTaskCompletion: open (in-tab) note", () => {
   it("flips the marker in the tab content, leaving the rest of the file byte-identical, and calls the save coordinator", async () => {
     const content = "Intro text\n- [ ] Call the dentist\nTrailing text\n";
-    openTabs.value = [openTab("/vault/a.md", content)];
+    openDocument("/vault/a.md", content);
     const save = createSaveCoordinator();
     const task = scanTasks(content)[0];
 
@@ -100,20 +100,21 @@ describe("toggleTaskCompletion: open (in-tab) note", () => {
 
   it("writes lowercase x when completing, and a plain space (never preserving case) when reopening", async () => {
     const openContent = "- [ ] Task\n";
-    openTabs.value = [openTab("/vault/a.md", openContent)];
+    openDocument("/vault/a.md", openContent);
     const save = createSaveCoordinator();
     await toggleTaskCompletion("/vault/a.md", scanTasks(openContent)[0], { save });
     expect(openTabs.value[0].content).toBe("- [x] Task\n");
 
     const doneContent = "- [X] Task\n";
-    openTabs.value = [openTab("/vault/a.md", doneContent)];
+    closeAllTabs();
+    openDocument("/vault/a.md", doneContent);
     await toggleTaskCompletion("/vault/a.md", scanTasks(doneContent)[0], { save });
     expect(openTabs.value[0].content).toBe("- [ ] Task\n");
   });
 
   it("incrementally replaces only this note's tasks in the shared index on success", async () => {
     const content = "- [ ] One\n- [ ] Two\n";
-    openTabs.value = [openTab("/vault/a.md", content)];
+    openDocument("/vault/a.md", content);
     linkIndex.value = { ...emptyLinkIndex(), tasksByPath: new Map([["/vault/a.md", scanTasks(content)]]) };
     const save = createSaveCoordinator();
 
@@ -127,7 +128,7 @@ describe("toggleTaskCompletion: open (in-tab) note", () => {
     const original = "- [ ] Call the dentist\n";
     const task = scanTasks(original)[0];
     // The note changed underneath the Task Hub's last render (task text edited).
-    openTabs.value = [openTab("/vault/a.md", "- [ ] Call the vet instead\n")];
+    openDocument("/vault/a.md", "- [ ] Call the vet instead\n");
     const save = createSaveCoordinator();
 
     const result = await toggleTaskCompletion("/vault/a.md", task, { save });
@@ -139,7 +140,7 @@ describe("toggleTaskCompletion: open (in-tab) note", () => {
 
   it("reports a save error without touching the index when the write fails", async () => {
     const content = "- [ ] Task\n";
-    openTabs.value = [openTab("/vault/a.md", content)];
+    openDocument("/vault/a.md", content);
     linkIndex.value = { ...emptyLinkIndex(), tasksByPath: new Map([["/vault/a.md", scanTasks(content)]]) };
     writeTextFile.mockRejectedValue(new Error("disk full"));
     const save = createSaveCoordinator();
@@ -153,7 +154,7 @@ describe("toggleTaskCompletion: open (in-tab) note", () => {
 
   it("fails closed and skips the index update when the workspace session changes mid-write", async () => {
     const content = "- [ ] Task\n";
-    openTabs.value = [openTab("/vault/a.md", content)];
+    openDocument("/vault/a.md", content);
     linkIndex.value = { ...emptyLinkIndex(), tasksByPath: new Map([["/vault/a.md", scanTasks(content)]]) };
     writeTextFile.mockImplementation(async () => {
       workspaceSession.value = 1;

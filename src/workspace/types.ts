@@ -25,7 +25,10 @@ export type EditorMode = "live" | "source" | "reading";
 
 export type TabKind = "text" | "image" | "canvas";
 
-export interface OpenTab {
+/** The one in-memory document record for an open workspace resource. Its
+ * content and save state are never copied into an editor group, so future
+ * split views cannot create competing save authorities for one path. */
+export interface OpenDocument {
   path: string;
   name: string;
   kind: TabKind;
@@ -35,6 +38,31 @@ export interface OpenTab {
   /** Non-null when the last save attempt failed. The user can see this
    * error and retry; the tab stays dirty until a successful write. */
   saveError: string | null;
+}
+
+/** Compatibility name for the current one-group tab UI. F07 Phase 1 keeps
+ * this alias so callers can migrate to `OpenDocument` without changing the
+ * visible tab behavior. */
+export type OpenTab = OpenDocument;
+
+export type EditorGroupId = "primary" | "secondary";
+
+export interface EditorGroupState {
+  id: EditorGroupId;
+  tabPaths: string[];
+  pinnedPaths: string[];
+  activePath: string | null;
+}
+
+/** Logical editor placement, deliberately separate from OpenDocument
+ * content. Phase 1 only exposes the permanent primary group; later F07
+ * phases add pinning, secondary placement, view modes, and persistence. */
+export interface EditorLayoutState {
+  activeGroupId: EditorGroupId;
+  groups: {
+    primary: EditorGroupState;
+    secondary?: EditorGroupState;
+  };
 }
 
 const IMAGE_EXTENSIONS = new Set([

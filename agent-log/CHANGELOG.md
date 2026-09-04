@@ -1,5 +1,7 @@
 # Private session log, not the public release changelog
 
+- 2026-09-04, Codex: Added a read-only Smart Collections Board view with strict persisted grouping configuration, deterministic scalar-property columns, explicit Unassigned handling, and normal note activation. Full verification passed: 100 Vitest files / 1752 tests, TypeScript, ESLint (0 errors, 7 existing warnings), production build, version check, and Rust fmt/Clippy/test/check (57 tests).
+
 - 2026-09-04, Codex: Added command-palette Markdown table row/column edits using the existing scanner and serializer. Six regression tests, including a revert-confirmed planner failure, accompanied the feature; full frontend and Rust verification passed before branch CI.
 
 - 2026-09-04, Codex: Fixed global configuration corruption recovery: `loadGlobalConfig` now preserves the decoder's corruption state, `initSettings` publishes it, normal global writes are blocked until explicit repair, and Settings exposes the rewrite action. Regression was revert-confirmed; full verification passed with 99 Vitest files / 1731 tests and 57 Rust tests.

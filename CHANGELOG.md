@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Smart Collections now include a Board view. Choose an indexed frontmatter property to group notes into ordered columns, with unassigned notes clearly separated. Boards are read-only, and selecting a card opens its note as usual.
+
 - The command palette can now add or delete a row or column in the Markdown table under your cursor. Table edits keep the table's alignment and use normal undo.
 
 - If Leotheca finds invalid data in its app-wide configuration, Settings now explains the problem and offers an explicit rewrite action. Normal theme and workspace-profile changes no longer silently replace the original configuration while it awaits repair.

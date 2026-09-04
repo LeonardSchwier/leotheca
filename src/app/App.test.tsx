@@ -659,6 +659,21 @@ describe("App: Collections gated by collectionsEnabled, off by default (2026-09-
   });
 });
 
+describe("App: Tags toolbar button gated by tagsEnabled (2026-09-04)", () => {
+  it("shows the Tags toolbar button when tagsEnabled is on (the default)", () => {
+    workspacePath.value = "/vault";
+    const { queryByLabelText } = render(<App />);
+    expect(queryByLabelText("View tags")).toBeTruthy();
+  });
+
+  it("hides the Tags toolbar button once a workspace has tagsEnabled turned off", () => {
+    workspacePath.value = "/vault";
+    workspaceSettings.value = { ...DEFAULT_WORKSPACE_SETTINGS, tagsEnabled: false };
+    const { queryByLabelText } = render(<App />);
+    expect(queryByLabelText("View tags")).toBeNull();
+  });
+});
+
 describe("App: Task Hub index stays fresh after an ordinary editor save (2026-09-04)", () => {
   it("updates LinkIndex.tasksByPath for a task checked by typing in the editor, without touching the Task Hub panel", async () => {
     vi.useFakeTimers();

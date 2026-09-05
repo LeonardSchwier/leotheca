@@ -526,7 +526,9 @@ export function App() {
   }, []);
 
   const current = activeTab();
-  const currentNoteReadOnly =\n    current?.kind === "text" &&\n    isNoteReadOnlyActive(current.content, workspaceSettings.value.noteReadOnlyLockEnabled);
+  const currentNoteReadOnly =
+    current?.kind === "text" &&
+    isNoteReadOnlyActive(current.content, workspaceSettings.value.noteReadOnlyLockEnabled);
   const currentBookmark =
     current && bookmarks.value.find((b) => b.kind === "file" && b.path === current.path);
   const currentIsPinned = current && editorLayout.value.groups.primary.pinnedPaths.includes(current.path);

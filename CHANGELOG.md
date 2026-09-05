@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Turning off per-note read-only locking in workspace Settings now fully disables lock enforcement, including editor read-only state and Task Hub checkbox mutations, while keeping the portable frontmatter marker intact for when the feature is enabled again.
 - Renaming a note now shows which links elsewhere reference it before the rename happens, so you can see what still needs updating by hand.
 - Screen readers now announce navigating to a heading, a filtered heading count, and a copied heading link in the note outline and breadcrumbs.
 - Notes can now be locked against accidental edits. Locking uses a plainly visible frontmatter marker, disables editing and write commands, and can be turned off per workspace in Settings.

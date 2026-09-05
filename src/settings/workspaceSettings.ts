@@ -69,9 +69,9 @@ export interface WorkspaceSettings {
   lastOpenPaths: string[];
   lastActivePath: string | null;
   /** F07 Phase 2b: persisted editor layout state including split groups,
-   * pinned tabs, view modes, and active paths. Version 2+ only; version 1
+   * pinned tabs, and active paths. Version 2+ only; version 1
    * workspaces continue to use lastOpenPaths/lastActivePath for backward
-   * compatibility and are migrated on first load. */
+   * compatibility. Legacy migration is planned for a future phase. */
   editorLayout?: EditorLayoutState;
   /** Whole-UI scale, as a percentage (100 = no scaling). Applied via the
    * CSS `zoom` property (see settings/store.ts), not `transform: scale()`:
@@ -260,6 +260,146 @@ export interface DecodedWorkspaceSettings {
  * through `saveWorkspaceSettings` doesn't silently drop them. Exported
  * separately from `loadWorkspaceSettings` so its fixtures can exercise it
  * directly, without a native file read in the way. */
+
+// F07 Phase 2b: validate editorLayout if present (version 2+).
+// Version 1 workspaces won't have this field and continue to use
+// lastOpenPaths/lastActivePath. This validator enforces all F07 spec
+// invariants from section 9.1: primary always exists; path uniqueness;
+// every pinned path occurs in its group's tabPaths; active path membership;
+// ratio clamped to [0.30, 0.70]; all paths workspace-relative strings.
+export function isValidEditorLayoutState(
+  value: unknown,
+  _workspaceRoot: string,
+): value is EditorLayoutState {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
+  const layout = value as Record<string, unknown>;
+  
+  // Check required fields per spec 9.1 interface - these must be present and valid
+  if (typeof layout.splitEnabled !== "boolean") return false;
+  if (typeof layout.preferredRatio !== "number" || !Number.isFinite(layout.preferredRatio)) return false;
+  // Spec 6.6: ratio clamped to [0.30, 0.70] for persistence; runtime may temporarily clamp tighter
+  if (layout.preferredRatio < 0.30 || layout.preferredRatio > 0.70) return false;
+  if (layout.activeGroupId !== "primary" && layout.activeGroupId !== "secondary") return false;
+  if (layout.compactVisibleGroupId !== "primary" && layout.compactVisibleGroupId !== "secondary") return false;
+  
+  // Check groups structure
+  if (typeof layout.groups !== "object" || layout.groups === null) return false;
+  const groups = layout.groups as Record<string, unknown>;
+  
+  // Invariant: primary always exists
+  if (!groups.primary || typeof groups.primary !== "object") return false;
+  const primary = groups.primary as Record<string, unknown>;
+  if (primary.id !== "primary") return false;
+  
+  // Check primary group structure
+  if (!Array.isArray(primary.tabPaths)) return false;
+  if (!Array.isArray(primary.pinnedPaths)) return false;
+  if (primary.activePath !== undefined && primary.activePath !== null && typeof primary.activePath !== "string") return false;
+  
+  // Invariant: all paths are normalized contained workspace-relative strings
+  const allPaths: string[] = [];
+  const primaryTabPaths = primary.tabPaths as string[];
+  
+  // Validate all paths in primary
+  for (const path of primaryTabPaths) {
+    if (typeof path !== "string") return false;
+    // Reject null bytes
+    if (path.includes("\u0000")) return false;
+    // Reject path traversal, absolute paths, and backslashes
+    if (path.includes("..") || path.startsWith("/") || path.includes("\\")) return false;
+    // Reject empty paths (they should not appear in tab arrays)
+    if (path === "") return false;
+    allPaths.push(path);
+  }
+  
+  // Check optional secondary group
+  if (groups.secondary !== undefined) {
+    const secondary = groups.secondary as Record<string, unknown>;
+    if (typeof secondary !== "object" || secondary === null) return false;
+    if (secondary.id !== "secondary") return false;
+    if (!Array.isArray(secondary.tabPaths)) return false;
+    if (!Array.isArray(secondary.pinnedPaths)) return false;
+    if (secondary.activePath !== undefined && secondary.activePath !== null && typeof secondary.activePath !== "string") return false;
+    
+    const secondaryTabPaths = secondary.tabPaths as string[];
+    // Validate all paths in secondary
+    for (const path of secondaryTabPaths) {
+      if (typeof path !== "string") return false;
+      // Reject null bytes
+      if (path.includes("\u0000")) return false;
+      // Reject path traversal, absolute paths, and backslashes
+      if (path.includes("..") || path.startsWith("/") || path.includes("\\")) return false;
+      // Reject empty paths (they should not appear in tab arrays)
+      if (path === "") return false;
+      allPaths.push(path);
+    }
+  }
+  
+  // Invariant: path occurs in at most one tabPaths array (uniqueness)
+  const seenPaths = new Set<string>();
+  for (const path of allPaths) {
+    if (seenPaths.has(path)) return false;
+    seenPaths.add(path);
+  }
+  
+  // Invariant: every pinned path occurs in its group's tabPaths
+  const primaryPinnedPaths = primary.pinnedPaths as unknown[];
+  if (!Array.isArray(primaryPinnedPaths)) return false;
+  const primaryTabSet = new Set(primaryTabPaths);
+  for (const pinnedPath of primaryPinnedPaths) {
+    if (typeof pinnedPath !== "string") return false;
+    // Pinned paths must also be valid paths (no null bytes, traversal, etc.)
+    if (pinnedPath.includes("\u0000") || pinnedPath.includes("..") || pinnedPath.startsWith("/") || pinnedPath.includes("\\")) return false;
+    if (!primaryTabSet.has(pinnedPath)) return false;
+  }
+  
+  if (groups.secondary !== undefined) {
+    const secondary = groups.secondary as Record<string, unknown>;
+    const secondaryPinnedPaths = secondary.pinnedPaths as unknown[];
+    if (!Array.isArray(secondaryPinnedPaths)) return false;
+    const secondaryTabPaths = secondary.tabPaths as string[];
+    const secondaryTabSet = new Set(secondaryTabPaths);
+    for (const pinnedPath of secondaryPinnedPaths) {
+      if (typeof pinnedPath !== "string") return false;
+      // Pinned paths must also be valid paths (no null bytes, traversal, etc.)
+      if (pinnedPath.includes("\u0000") || pinnedPath.includes("..") || pinnedPath.startsWith("/") || pinnedPath.includes("\\")) return false;
+      if (!secondaryTabSet.has(pinnedPath)) return false;
+    }
+  }
+  
+  // Invariant: active path is absent only when the group has no tabs; active path belongs to its group
+  if (primaryTabPaths.length === 0) {
+    if (primary.activePath !== undefined && primary.activePath !== null) return false;
+  } else {
+    if (primary.activePath !== undefined && primary.activePath !== null) {
+      if (typeof primary.activePath !== "string") return false;
+      if (!primaryTabSet.has(primary.activePath)) return false;
+    }
+  }
+  
+  if (groups.secondary !== undefined) {
+    const secondary = groups.secondary as Record<string, unknown>;
+    const secondaryTabPaths = secondary.tabPaths as string[];
+    const secondaryTabSet = new Set(secondaryTabPaths);
+    if (secondaryTabPaths.length === 0) {
+      if (secondary.activePath !== undefined && secondary.activePath !== null) return false;
+    } else {
+      if (secondary.activePath !== undefined && secondary.activePath !== null) {
+        if (typeof secondary.activePath !== "string") return false;
+        if (!secondaryTabSet.has(secondary.activePath)) return false;
+      }
+    }
+  }
+  
+  // Invariant: activeGroupId must reference an existing group
+  if (layout.activeGroupId === "secondary" && groups.secondary === undefined) return false;
+  
+  // Invariant: compactVisibleGroupId must reference an existing group (though secondary can exist but be hidden)
+  if (layout.compactVisibleGroupId === "secondary" && groups.secondary === undefined) return false;
+  
+  return true;
+}
+
 export function decodeWorkspaceSettings(
   raw: string,
   workspaceRoot: string,
@@ -400,52 +540,11 @@ export function decodeWorkspaceSettings(
     DEFAULT_WORKSPACE_SETTINGS.noteReadOnlyLockEnabled,
   );
 
-  // F07 Phase 2b: validate editorLayout if present (version 2+).
-// Version 1 workspaces won't have this field and continue to use
-// lastOpenPaths/lastActivePath with automatic migration on first load.
-function isValidEditorLayoutState(value: unknown): value is EditorLayoutState {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
-  const layout = value as Record<string, unknown>;
-  
-  // Check required fields
-  if (layout.activeGroupId !== "primary" && layout.activeGroupId !== "secondary") return false;
-  
-  if (typeof layout.groups !== "object" || layout.groups === null) return false;
-  const groups = layout.groups as Record<string, unknown>;
-  
-  // Must have primary group
-  if (!groups.primary || typeof groups.primary !== "object") return false;
-  const primary = groups.primary as Record<string, unknown>;
-  
-  // Check primary group structure
-  if (primary.id !== "primary") return false;
-  if (!Array.isArray(primary.tabPaths)) return false;
-  if (!Array.isArray(primary.pinnedPaths)) return false;
-  if (primary.activePath !== undefined && typeof primary.activePath !== "string" && primary.activePath !== null) return false;
-  
-  // Check optional secondary group
-  if (groups.secondary !== undefined) {
-    if (typeof groups.secondary !== "object" || groups.secondary === null) return false;
-    const secondary = groups.secondary as Record<string, unknown>;
-    if (secondary.id !== "secondary") return false;
-    if (!Array.isArray(secondary.tabPaths)) return false;
-    if (!Array.isArray(secondary.pinnedPaths)) return false;
-    if (secondary.activePath !== undefined && typeof secondary.activePath !== "string" && secondary.activePath !== null) return false;
-  }
-  
-  // Check split fields
-  if (layout.splitEnabled !== undefined && typeof layout.splitEnabled !== "boolean") return false;
-  if (layout.preferredRatio !== undefined && typeof layout.preferredRatio !== "number") return false;
-  if (layout.compactVisibleGroupId !== undefined && 
-      layout.compactVisibleGroupId !== "primary" && 
-      layout.compactVisibleGroupId !== "secondary") return false;
-  
-  return true;
-}
+
 
   // F07 Phase 2b: decode editorLayout if present (version 2+)
   const editorLayoutRaw = record.editorLayout;
-  const editorLayout = isValidEditorLayoutState(editorLayoutRaw)
+  const editorLayout = isValidEditorLayoutState(editorLayoutRaw, workspaceRoot)
     ? editorLayoutRaw
     : DEFAULT_WORKSPACE_SETTINGS.editorLayout;
 
@@ -486,7 +585,7 @@ function isValidEditorLayoutState(value: unknown): value is EditorLayoutState {
     noteReadOnlyLockEnabled: noteReadOnlyLockEnabled.value,
   } as unknown as WorkspaceSettings;
 
-  const editorLayoutCorrupt = editorLayoutRaw !== undefined && !isValidEditorLayoutState(editorLayoutRaw);
+  const editorLayoutCorrupt = editorLayoutRaw !== undefined && !isValidEditorLayoutState(editorLayoutRaw, workspaceRoot);
 
   const corrupt =
     versionCorrupt ||

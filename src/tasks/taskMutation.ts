@@ -2,9 +2,9 @@ import { readTextFile, writeTextFile } from "../workspace/tauriBridge";
 import { scanTasks, type TaskRecord } from "../markdown/tasks";
 import { openTabs, updateTabContent } from "../workspace/store";
 import { linkIndex } from "../linking/store";
-import { workspaceSession } from "../settings/store";
+import { workspaceSession, workspaceSettings } from "../settings/store";
 import type { SaveCoordinator } from "../workspace/saveCoordinator";
-import { isNoteReadOnly } from "../editor/noteReadOnly";
+import { isNoteReadOnlyActive } from "../editor/noteReadOnly";
 
 /**
  * Conflict-checked, minimal completion-marker toggle (spec
@@ -138,7 +138,7 @@ export async function toggleTaskCompletion(
   const openTab = openTabs.value.find((tab) => tab.path === path);
 
   if (openTab) {
-    if (isNoteReadOnly(openTab.content)) return { status: "locked" };
+    if (isNoteReadOnlyActive(openTab.content, workspaceSettings.value.noteReadOnlyLockEnabled)) return { status: "locked" };
     const matched = findMatchingTask(openTab.content, task);
     if (!matched) return { status: "stale" };
 
@@ -162,7 +162,7 @@ export async function toggleTaskCompletion(
       return { status: "error", message: error instanceof Error ? error.message : String(error) };
     }
     if (workspaceSession.value !== sessionAtStart) return { status: "stale" };
-    if (isNoteReadOnly(diskContent)) return { status: "locked" };
+    if (isNoteReadOnlyActive(diskContent, workspaceSettings.value.noteReadOnlyLockEnabled)) return { status: "locked" };
 
     const matched = findMatchingTask(diskContent, task);
     if (!matched) return { status: "stale" };

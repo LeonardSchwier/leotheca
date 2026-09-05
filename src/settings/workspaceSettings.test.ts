@@ -3,6 +3,7 @@ import {
   clamp,
   decodeWorkspaceSettings,
   DEFAULT_WORKSPACE_SETTINGS,
+  isValidEditorLayoutState,
   loadWorkspaceSettings,
   saveWorkspaceSettings,
 } from "./workspaceSettings";
@@ -322,5 +323,852 @@ describe("decodeWorkspaceSettings", () => {
     );
     expect(settings.version).toBe(1);
     expect(corrupt).toBe(false);
+  });
+});
+
+// F07 Phase 2b: Comprehensive tests for isValidEditorLayoutState validation
+// These tests cover all the specific failure cases mentioned in the feedback
+// for commit 07820fa7, ensuring the validator rejects structurally invalid state.
+
+describe("isValidEditorLayoutState", () => {
+  const WORKSPACE_ROOT = "/workspace";
+
+  describe("valid cases", () => {
+    it("accepts a minimal valid primary-only layout", () => {
+      const validLayout = {
+        activeGroupId: "primary",
+        splitEnabled: false,
+        preferredRatio: 0.5,
+        compactVisibleGroupId: "primary",
+        groups: {
+          primary: {
+            id: "primary",
+            tabPaths: ["notes/today.md"],
+            pinnedPaths: [],
+            activePath: "notes/today.md",
+          },
+        },
+      };
+      expect(isValidEditorLayoutState(validLayout, WORKSPACE_ROOT)).toBe(true);
+    });
+
+    it("accepts a valid layout with secondary group", () => {
+      const validLayout = {
+        activeGroupId: "primary",
+        splitEnabled: true,
+        preferredRatio: 0.5,
+        compactVisibleGroupId: "primary",
+        groups: {
+          primary: {
+            id: "primary",
+            tabPaths: ["notes/primary.md"],
+            pinnedPaths: [],
+            activePath: "notes/primary.md",
+          },
+          secondary: {
+            id: "secondary",
+            tabPaths: ["notes/secondary.md"],
+            pinnedPaths: [],
+            activePath: "notes/secondary.md",
+          },
+        },
+      };
+      expect(isValidEditorLayoutState(validLayout, WORKSPACE_ROOT)).toBe(true);
+    });
+
+    it("accepts valid pinned tabs", () => {
+      const validLayout = {
+        activeGroupId: "primary",
+        splitEnabled: false,
+        preferredRatio: 0.5,
+        compactVisibleGroupId: "primary",
+        groups: {
+          primary: {
+            id: "primary",
+            tabPaths: ["notes/pinned.md", "notes/normal.md"],
+            pinnedPaths: ["notes/pinned.md"],
+            activePath: "notes/pinned.md",
+          },
+        },
+      };
+      expect(isValidEditorLayoutState(validLayout, WORKSPACE_ROOT)).toBe(true);
+    });
+
+    it("accepts valid ratio at boundaries [0.30, 0.70]", () => {
+      const layoutWithMinRatio = {
+        activeGroupId: "primary",
+        splitEnabled: true,
+        preferredRatio: 0.30,
+        compactVisibleGroupId: "primary",
+        groups: {
+          primary: {
+            id: "primary",
+            tabPaths: [],
+            pinnedPaths: [],
+            activePath: null,
+          },
+        },
+      };
+      const layoutWithMaxRatio = {
+        ...layoutWithMinRatio,
+        preferredRatio: 0.70,
+      };
+      expect(isValidEditorLayoutState(layoutWithMinRatio, WORKSPACE_ROOT)).toBe(true);
+      expect(isValidEditorLayoutState(layoutWithMaxRatio, WORKSPACE_ROOT)).toBe(true);
+    });
+
+    it("accepts empty tab arrays with null activePath", () => {
+      const validLayout = {
+        activeGroupId: "primary",
+        splitEnabled: false,
+        preferredRatio: 0.5,
+        compactVisibleGroupId: "primary",
+        groups: {
+          primary: {
+            id: "primary",
+            tabPaths: [],
+            pinnedPaths: [],
+            activePath: null,
+          },
+        },
+      };
+      expect(isValidEditorLayoutState(validLayout, WORKSPACE_ROOT)).toBe(true);
+    });
+  });
+
+  describe("required field validation", () => {
+    it("rejects missing splitEnabled", () => {
+      const invalidLayout = {
+        activeGroupId: "primary",
+        preferredRatio: 0.5,
+        compactVisibleGroupId: "primary",
+        groups: {
+          primary: {
+            id: "primary",
+            tabPaths: [],
+            pinnedPaths: [],
+            activePath: null,
+          },
+        },
+      };
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+    });
+
+    it("rejects missing preferredRatio", () => {
+      const invalidLayout = {
+        activeGroupId: "primary",
+        splitEnabled: false,
+        compactVisibleGroupId: "primary",
+        groups: {
+          primary: {
+            id: "primary",
+            tabPaths: [],
+            pinnedPaths: [],
+            activePath: null,
+          },
+        },
+      };
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+    });
+
+    it("rejects missing activeGroupId", () => {
+      const invalidLayout = {
+        splitEnabled: false,
+        preferredRatio: 0.5,
+        compactVisibleGroupId: "primary",
+        groups: {
+          primary: {
+            id: "primary",
+            tabPaths: [],
+            pinnedPaths: [],
+            activePath: null,
+          },
+        },
+      };
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+    });
+
+    it("rejects missing compactVisibleGroupId", () => {
+      const invalidLayout = {
+        activeGroupId: "primary",
+        splitEnabled: false,
+        preferredRatio: 0.5,
+        groups: {
+          primary: {
+            id: "primary",
+            tabPaths: [],
+            pinnedPaths: [],
+            activePath: null,
+          },
+        },
+      };
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+    });
+
+    it("rejects missing groups", () => {
+      const invalidLayout = {
+        activeGroupId: "primary",
+        splitEnabled: false,
+        preferredRatio: 0.5,
+        compactVisibleGroupId: "primary",
+      };
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+    });
+
+    it("rejects missing primary group", () => {
+      const invalidLayout = {
+        activeGroupId: "primary",
+        splitEnabled: false,
+        preferredRatio: 0.5,
+        compactVisibleGroupId: "primary",
+        groups: {},
+      };
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+    });
+  });
+
+  describe("type validation", () => {
+    it("rejects non-object values", () => {
+      expect(isValidEditorLayoutState(null, WORKSPACE_ROOT)).toBe(false);
+      expect(isValidEditorLayoutState(undefined, WORKSPACE_ROOT)).toBe(false);
+      expect(isValidEditorLayoutState("string", WORKSPACE_ROOT)).toBe(false);
+      expect(isValidEditorLayoutState(42, WORKSPACE_ROOT)).toBe(false);
+      expect(isValidEditorLayoutState([], WORKSPACE_ROOT)).toBe(false);
+    });
+
+    it("rejects wrong type for splitEnabled", () => {
+      const invalidLayout = {
+        activeGroupId: "primary",
+        splitEnabled: "true", // should be boolean
+        preferredRatio: 0.5,
+        compactVisibleGroupId: "primary",
+        groups: {
+          primary: {
+            id: "primary",
+            tabPaths: [],
+            pinnedPaths: [],
+            activePath: null,
+          },
+        },
+      };
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+    });
+
+    it("rejects wrong type for preferredRatio", () => {
+      const invalidLayout = {
+        activeGroupId: "primary",
+        splitEnabled: false,
+        preferredRatio: "0.5", // should be number
+        compactVisibleGroupId: "primary",
+        groups: {
+          primary: {
+            id: "primary",
+            tabPaths: [],
+            pinnedPaths: [],
+            activePath: null,
+          },
+        },
+      };
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+    });
+
+    it("rejects NaN and Infinity for preferredRatio", () => {
+      const nanLayout = {
+        activeGroupId: "primary",
+        splitEnabled: false,
+        preferredRatio: NaN,
+        compactVisibleGroupId: "primary",
+        groups: {
+          primary: {
+            id: "primary",
+            tabPaths: [],
+            pinnedPaths: [],
+            activePath: null,
+          },
+        },
+      };
+      const infLayout = {
+        ...nanLayout,
+        preferredRatio: Infinity,
+      };
+      expect(isValidEditorLayoutState(nanLayout, WORKSPACE_ROOT)).toBe(false);
+      expect(isValidEditorLayoutState(infLayout, WORKSPACE_ROOT)).toBe(false);
+    });
+
+    it("rejects invalid activeGroupId values", () => {
+      const invalidLayout = {
+        activeGroupId: "tertiary", // invalid
+        splitEnabled: false,
+        preferredRatio: 0.5,
+        compactVisibleGroupId: "primary",
+        groups: {
+          primary: {
+            id: "primary",
+            tabPaths: [],
+            pinnedPaths: [],
+            activePath: null,
+          },
+        },
+      };
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+    });
+
+    it("rejects invalid compactVisibleGroupId values", () => {
+      const invalidLayout = {
+        activeGroupId: "primary",
+        splitEnabled: false,
+        preferredRatio: 0.5,
+        compactVisibleGroupId: "none", // invalid
+        groups: {
+          primary: {
+            id: "primary",
+            tabPaths: [],
+            pinnedPaths: [],
+            activePath: null,
+          },
+        },
+      };
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+    });
+  });
+
+  describe("ratio range validation", () => {
+    it("rejects preferredRatio below 0.30", () => {
+      const invalidLayout = {
+        activeGroupId: "primary",
+        splitEnabled: false,
+        preferredRatio: 0.29,
+        compactVisibleGroupId: "primary",
+        groups: {
+          primary: {
+            id: "primary",
+            tabPaths: [],
+            pinnedPaths: [],
+            activePath: null,
+          },
+        },
+      };
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+    });
+
+    it("rejects preferredRatio above 0.70", () => {
+      const invalidLayout = {
+        activeGroupId: "primary",
+        splitEnabled: false,
+        preferredRatio: 0.71,
+        compactVisibleGroupId: "primary",
+        groups: {
+          primary: {
+            id: "primary",
+            tabPaths: [],
+            pinnedPaths: [],
+            activePath: null,
+          },
+        },
+      };
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+    });
+
+    it("rejects preferredRatio at 0.29 (below minimum)", () => {
+      const invalidLayout = {
+        activeGroupId: "primary",
+        splitEnabled: false,
+        preferredRatio: 0.29,
+        compactVisibleGroupId: "primary",
+        groups: {
+          primary: {
+            id: "primary",
+            tabPaths: [],
+            pinnedPaths: [],
+            activePath: null,
+          },
+        },
+      };
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+    });
+
+    it("rejects preferredRatio at 0.71 (above maximum)", () => {
+      const invalidLayout = {
+        activeGroupId: "primary",
+        splitEnabled: false,
+        preferredRatio: 0.71,
+        compactVisibleGroupId: "primary",
+        groups: {
+          primary: {
+            id: "primary",
+            tabPaths: [],
+            pinnedPaths: [],
+            activePath: null,
+          },
+        },
+      };
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+    });
+  });
+
+  describe("path validation", () => {
+    it("rejects non-string paths in tabPaths", () => {
+      const invalidLayout = {
+        activeGroupId: "primary",
+        splitEnabled: false,
+        preferredRatio: 0.5,
+        compactVisibleGroupId: "primary",
+        groups: {
+          primary: {
+            id: "primary",
+            tabPaths: [42, "valid.md"], // 42 is not a string
+            pinnedPaths: [],
+            activePath: null,
+          },
+        },
+      };
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+    });
+
+    it("rejects null in tabPaths", () => {
+      const invalidLayout = {
+        activeGroupId: "primary",
+        splitEnabled: false,
+        preferredRatio: 0.5,
+        compactVisibleGroupId: "primary",
+        groups: {
+          primary: {
+            id: "primary",
+            tabPaths: [null, "valid.md"], // null is not a valid path
+            pinnedPaths: [],
+            activePath: null,
+          },
+        },
+      };
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+    });
+
+    it("rejects paths with null bytes", () => {
+      const invalidLayout = {
+        activeGroupId: "primary",
+        splitEnabled: false,
+        preferredRatio: 0.5,
+        compactVisibleGroupId: "primary",
+        groups: {
+          primary: {
+            id: "primary",
+            tabPaths: ["notes\u0000evil.md"], // null byte
+            pinnedPaths: [],
+            activePath: null,
+          },
+        },
+      };
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+    });
+
+    it("rejects workspace-escaping paths with ..", () => {
+      const invalidLayout = {
+        activeGroupId: "primary",
+        splitEnabled: false,
+        preferredRatio: 0.5,
+        compactVisibleGroupId: "primary",
+        groups: {
+          primary: {
+            id: "primary",
+            tabPaths: ["../../outside.md"], // path traversal
+            pinnedPaths: [],
+            activePath: null,
+          },
+        },
+      };
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+    });
+
+    it("rejects absolute paths starting with /", () => {
+      const invalidLayout = {
+        activeGroupId: "primary",
+        splitEnabled: false,
+        preferredRatio: 0.5,
+        compactVisibleGroupId: "primary",
+        groups: {
+          primary: {
+            id: "primary",
+            tabPaths: ["/etc/passwd"], // absolute path
+            pinnedPaths: [],
+            activePath: null,
+          },
+        },
+      };
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+    });
+
+    it("rejects paths with backslashes", () => {
+      const invalidLayout = {
+        activeGroupId: "primary",
+        splitEnabled: false,
+        preferredRatio: 0.5,
+        compactVisibleGroupId: "primary",
+        groups: {
+          primary: {
+            id: "primary",
+            tabPaths: ["notes\\evil.md"], // backslash
+            pinnedPaths: [],
+            activePath: null,
+          },
+        },
+      };
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+    });
+
+    it("rejects empty string paths", () => {
+      const invalidLayout = {
+        activeGroupId: "primary",
+        splitEnabled: false,
+        preferredRatio: 0.5,
+        compactVisibleGroupId: "primary",
+        groups: {
+          primary: {
+            id: "primary",
+            tabPaths: [""], // empty path
+            pinnedPaths: [],
+            activePath: null,
+          },
+        },
+      };
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+    });
+
+    it("rejects non-string pinned paths", () => {
+      const invalidLayout = {
+        activeGroupId: "primary",
+        splitEnabled: false,
+        preferredRatio: 0.5,
+        compactVisibleGroupId: "primary",
+        groups: {
+          primary: {
+            id: "primary",
+            tabPaths: ["notes/valid.md"],
+            pinnedPaths: [42], // not a string
+            activePath: null,
+          },
+        },
+      };
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+    });
+
+    it("rejects pinned paths that are not in tabPaths", () => {
+      const invalidLayout = {
+        activeGroupId: "primary",
+        splitEnabled: false,
+        preferredRatio: 0.5,
+        compactVisibleGroupId: "primary",
+        groups: {
+          primary: {
+            id: "primary",
+            tabPaths: ["notes/valid.md"],
+            pinnedPaths: ["notes/pinned.md"], // not in tabPaths
+            activePath: null,
+          },
+        },
+      };
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+    });
+
+    it("rejects pinned paths with traversal", () => {
+      const invalidLayout = {
+        activeGroupId: "primary",
+        splitEnabled: false,
+        preferredRatio: 0.5,
+        compactVisibleGroupId: "primary",
+        groups: {
+          primary: {
+            id: "primary",
+            tabPaths: ["notes/valid.md", "../evil.md"],
+            pinnedPaths: ["../evil.md"], // traversal in pinned
+            activePath: null,
+          },
+        },
+      };
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+    });
+  });
+
+  describe("path uniqueness validation", () => {
+    it("rejects duplicate paths within primary group", () => {
+      const invalidLayout = {
+        activeGroupId: "primary",
+        splitEnabled: false,
+        preferredRatio: 0.5,
+        compactVisibleGroupId: "primary",
+        groups: {
+          primary: {
+            id: "primary",
+            tabPaths: ["notes/duplicate.md", "notes/duplicate.md"],
+            pinnedPaths: [],
+            activePath: null,
+          },
+        },
+      };
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+    });
+
+    it("rejects same path in both primary and secondary", () => {
+      const invalidLayout = {
+        activeGroupId: "primary",
+        splitEnabled: true,
+        preferredRatio: 0.5,
+        compactVisibleGroupId: "primary",
+        groups: {
+          primary: {
+            id: "primary",
+            tabPaths: ["notes/duplicate.md"],
+            pinnedPaths: [],
+            activePath: null,
+          },
+          secondary: {
+            id: "secondary",
+            tabPaths: ["notes/duplicate.md"], // same path in both groups
+            pinnedPaths: [],
+            activePath: null,
+          },
+        },
+      };
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+    });
+  });
+
+  describe("active path validation", () => {
+    it("rejects activePath when group has no tabs", () => {
+      const invalidLayout = {
+        activeGroupId: "primary",
+        splitEnabled: false,
+        preferredRatio: 0.5,
+        compactVisibleGroupId: "primary",
+        groups: {
+          primary: {
+            id: "primary",
+            tabPaths: [],
+            pinnedPaths: [],
+            activePath: "notes/nonexistent.md", // has activePath but no tabs
+          },
+        },
+      };
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+    });
+
+    it("rejects activePath not in tabPaths", () => {
+      const invalidLayout = {
+        activeGroupId: "primary",
+        splitEnabled: false,
+        preferredRatio: 0.5,
+        compactVisibleGroupId: "primary",
+        groups: {
+          primary: {
+            id: "primary",
+            tabPaths: ["notes/valid.md"],
+            pinnedPaths: [],
+            activePath: "notes/nonexistent.md", // not in tabPaths
+          },
+        },
+      };
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+    });
+
+    it("rejects non-string activePath", () => {
+      const invalidLayout = {
+        activeGroupId: "primary",
+        splitEnabled: false,
+        preferredRatio: 0.5,
+        compactVisibleGroupId: "primary",
+        groups: {
+          primary: {
+            id: "primary",
+            tabPaths: ["notes/valid.md"],
+            pinnedPaths: [],
+            activePath: 42, // not a string
+          },
+        },
+      };
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+    });
+  });
+
+  describe("secondary group validation", () => {
+    it("rejects activeGroupId=secondary when no secondary group exists", () => {
+      const invalidLayout = {
+        activeGroupId: "secondary", // references non-existent group
+        splitEnabled: false,
+        preferredRatio: 0.5,
+        compactVisibleGroupId: "primary",
+        groups: {
+          primary: {
+            id: "primary",
+            tabPaths: [],
+            pinnedPaths: [],
+            activePath: null,
+          },
+        },
+      };
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+    });
+
+    it("rejects compactVisibleGroupId=secondary when no secondary group exists", () => {
+      const invalidLayout = {
+        activeGroupId: "primary",
+        splitEnabled: false,
+        preferredRatio: 0.5,
+        compactVisibleGroupId: "secondary", // references non-existent group
+        groups: {
+          primary: {
+            id: "primary",
+            tabPaths: [],
+            pinnedPaths: [],
+            activePath: null,
+          },
+        },
+      };
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+    });
+
+    it("rejects wrong id for secondary group", () => {
+      const invalidLayout = {
+        activeGroupId: "primary",
+        splitEnabled: false,
+        preferredRatio: 0.5,
+        compactVisibleGroupId: "primary",
+        groups: {
+          primary: {
+            id: "primary",
+            tabPaths: [],
+            pinnedPaths: [],
+            activePath: null,
+          },
+          secondary: {
+            id: "wrong", // should be "secondary"
+            tabPaths: [],
+            pinnedPaths: [],
+            activePath: null,
+          },
+        },
+      };
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+    });
+
+    it("accepts valid secondary group with correct id", () => {
+      const validLayout = {
+        activeGroupId: "primary",
+        splitEnabled: true,
+        preferredRatio: 0.5,
+        compactVisibleGroupId: "primary",
+        groups: {
+          primary: {
+            id: "primary",
+            tabPaths: ["notes/primary.md"],
+            pinnedPaths: [],
+            activePath: "notes/primary.md",
+          },
+          secondary: {
+            id: "secondary",
+            tabPaths: ["notes/secondary.md"],
+            pinnedPaths: [],
+            activePath: "notes/secondary.md",
+          },
+        },
+      };
+      expect(isValidEditorLayoutState(validLayout, WORKSPACE_ROOT)).toBe(true);
+    });
+  });
+
+  describe("group structure validation", () => {
+    it("rejects groups not being an object", () => {
+      const invalidLayout = {
+        activeGroupId: "primary",
+        splitEnabled: false,
+        preferredRatio: 0.5,
+        compactVisibleGroupId: "primary",
+        groups: "not an object",
+      };
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+    });
+
+    it("rejects primary group not being an object", () => {
+      const invalidLayout = {
+        activeGroupId: "primary",
+        splitEnabled: false,
+        preferredRatio: 0.5,
+        compactVisibleGroupId: "primary",
+        groups: {
+          primary: "not an object",
+        },
+      };
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+    });
+
+    it("rejects missing id field in primary group", () => {
+      const invalidLayout = {
+        activeGroupId: "primary",
+        splitEnabled: false,
+        preferredRatio: 0.5,
+        compactVisibleGroupId: "primary",
+        groups: {
+          primary: {
+            // missing id
+            tabPaths: [],
+            pinnedPaths: [],
+            activePath: null,
+          },
+        },
+      };
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+    });
+
+    it("rejects wrong id in primary group", () => {
+      const invalidLayout = {
+        activeGroupId: "primary",
+        splitEnabled: false,
+        preferredRatio: 0.5,
+        compactVisibleGroupId: "primary",
+        groups: {
+          primary: {
+            id: "wrong", // should be "primary"
+            tabPaths: [],
+            pinnedPaths: [],
+            activePath: null,
+          },
+        },
+      };
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+    });
+
+    it("rejects non-array tabPaths in primary", () => {
+      const invalidLayout = {
+        activeGroupId: "primary",
+        splitEnabled: false,
+        preferredRatio: 0.5,
+        compactVisibleGroupId: "primary",
+        groups: {
+          primary: {
+            id: "primary",
+            tabPaths: "not an array",
+            pinnedPaths: [],
+            activePath: null,
+          },
+        },
+      };
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+    });
+
+    it("rejects non-array pinnedPaths in primary", () => {
+      const invalidLayout = {
+        activeGroupId: "primary",
+        splitEnabled: false,
+        preferredRatio: 0.5,
+        compactVisibleGroupId: "primary",
+        groups: {
+          primary: {
+            id: "primary",
+            tabPaths: [],
+            pinnedPaths: "not an array",
+            activePath: null,
+          },
+        },
+      };
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+    });
   });
 });

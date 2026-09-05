@@ -55,8 +55,8 @@ export interface EditorGroupState {
 }
 
 /** Logical editor placement, deliberately separate from OpenDocument
- * content. Phase 1 only exposes the permanent primary group; later F07
- * phases add pinning, secondary placement, view modes, and persistence. */
+ * content. The primary group now owns its pin region; later F07 phases add
+ * secondary placement, view modes, and persistence. */
 export interface EditorLayoutState {
   activeGroupId: EditorGroupId;
   groups: {

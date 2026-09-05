@@ -160,6 +160,31 @@ describe("TabBar", () => {
     expect(onCloseOthers).toHaveBeenCalledWith("/b.md");
   });
 
+  it("keeps a pinned tab out of ordinary close actions and exposes explicit unpin controls", () => {
+    const onClose = vi.fn();
+    const onUnpinAndClose = vi.fn();
+    const { getByText, queryByLabelText } = render(
+      <TabBar
+        tabs={[tab("/a.md", "a.md"), tab("/b.md", "b.md")]}
+        pinnedPaths={["/a.md"]}
+        activePath="/a.md"
+        onSelect={noop}
+        onClose={onClose}
+        onCloseOthers={noop}
+        onCloseAll={noop}
+        onRename={noop}
+        onUnpinAndClose={onUnpinAndClose}
+      />,
+    );
+
+    expect(queryByLabelText("Close a.md")).toBeNull();
+    expect(getByText("Pinned")).toBeTruthy();
+    fireEvent.contextMenu(getByText("a.md"));
+    fireEvent.click(getByText("Unpin and close"));
+    expect(onUnpinAndClose).toHaveBeenCalledWith("/a.md");
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
   it("clicking elsewhere in the window dismisses the open context menu", () => {
     const tabs = [tab("/a.md", "a.md")];
     const { getByText, queryByText } = render(

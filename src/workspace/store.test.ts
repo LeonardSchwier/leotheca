@@ -3,6 +3,7 @@ import {
   activeTab,
   activeTabPath,
   closeAllTabs,
+  closeAllUnpinnedTabs,
   closeOtherTabs,
   closeTab,
   closeTabsUnder,
@@ -12,7 +13,9 @@ import {
   openDocuments,
   openOrFocusTab,
   openTabs,
+  pinTab,
   renameOpenTab,
+  unpinAndCloseTab,
   updateTabContent,
 } from "./store";
 
@@ -137,6 +140,17 @@ describe("closeOtherTabs", () => {
     expect(openTabs.value.map((t) => t.path)).toEqual(["/b.md"]);
     expect(activeTabPath.value).toBe("/b.md");
   });
+
+  it("keeps pinned tabs alongside the requested tab", () => {
+    openOrFocusTab("/a.md", "a.md", "", "text");
+    openOrFocusTab("/b.md", "b.md", "", "text");
+    openOrFocusTab("/c.md", "c.md", "", "text");
+    pinTab("/a.md");
+
+    closeOtherTabs("/b.md");
+
+    expect(openTabs.value.map((tab) => tab.path)).toEqual(["/a.md", "/b.md"]);
+  });
 });
 
 describe("closeAllTabs", () => {
@@ -148,6 +162,39 @@ describe("closeAllTabs", () => {
 
     expect(openTabs.value).toEqual([]);
     expect(activeTabPath.value).toBeNull();
+  });
+
+  it("retains pinned tabs for the user-facing broad close operation", () => {
+    openOrFocusTab("/a.md", "a.md", "", "text");
+    openOrFocusTab("/b.md", "b.md", "", "text");
+    pinTab("/a.md");
+
+    closeAllUnpinnedTabs();
+
+    expect(openTabs.value.map((tab) => tab.path)).toEqual(["/a.md"]);
+    expect(activeTabPath.value).toBe("/a.md");
+  });
+});
+
+describe("pinned tabs", () => {
+  it("cannot close until explicitly unpinned and closed", () => {
+    openOrFocusTab("/a.md", "a.md", "", "text");
+    pinTab("/a.md");
+
+    closeTab("/a.md");
+    expect(openTabs.value.map((tab) => tab.path)).toEqual(["/a.md"]);
+
+    unpinAndCloseTab("/a.md");
+    expect(openTabs.value).toEqual([]);
+  });
+
+  it("preserves a pin when an open path is renamed", () => {
+    openOrFocusTab("/old.md", "old.md", "", "text");
+    pinTab("/old.md");
+
+    renameOpenTab("/old.md", "/new.md", "new.md");
+
+    expect(editorLayout.value.groups.primary.pinnedPaths).toEqual(["/new.md"]);
   });
 });
 

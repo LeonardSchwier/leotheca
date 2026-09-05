@@ -17,15 +17,19 @@ import { CanvasView } from "../canvas/CanvasView";
 import {
   activeTab,
   activeTabPath,
-  closeAllTabs,
+  closeAllUnpinnedTabs,
   closeOtherTabs,
   focusTab,
   closeTab,
+  editorLayout,
   markTabSaved,
   markTabSaveError,
   openOrFocusTab,
   openTabs,
+  pinTab,
   renameOpenTab,
+  unpinAndCloseTab,
+  unpinTab,
   updateTabContent,
 } from "../workspace/store";
 import { readTextFile } from "../workspace/tauriBridge";
@@ -713,9 +717,9 @@ export function App() {
     if (openTabs.value.length > 0) {
       list.push({
         id: "close-all-tabs",
-        label: "Close all tabs",
+        label: "Close all unpinned tabs",
         run: () => {
-          closeAllTabs();
+          closeAllUnpinnedTabs();
           refresh();
         },
       });
@@ -959,6 +963,7 @@ export function App() {
         <main class="editor-area">
           <TabBar
             tabs={openTabs.value}
+            pinnedPaths={editorLayout.value.groups.primary.pinnedPaths}
             activePath={activeTabPath.value}
             onSelect={(path) => {
               focusTab(path);
@@ -974,7 +979,19 @@ export function App() {
               refresh();
             }}
             onCloseAll={() => {
-              closeAllTabs();
+              closeAllUnpinnedTabs();
+              refresh();
+            }}
+            onPin={(path) => {
+              pinTab(path);
+              refresh();
+            }}
+            onUnpin={(path) => {
+              unpinTab(path);
+              refresh();
+            }}
+            onUnpinAndClose={(path) => {
+              unpinAndCloseTab(path);
               refresh();
             }}
           />

@@ -3,11 +3,15 @@ import type { OpenTab } from "./types";
 
 interface TabBarProps {
   tabs: OpenTab[];
+  pinnedPaths?: string[];
   activePath: string | null;
   onSelect: (path: string) => void;
   onClose: (path: string) => void;
   onCloseOthers: (path: string) => void;
   onCloseAll: () => void;
+  onPin?: (path: string) => void;
+  onUnpin?: (path: string) => void;
+  onUnpinAndClose?: (path: string) => void;
   onRename: (path: string, currentName: string) => void;
 }
 
@@ -19,11 +23,15 @@ interface ContextMenuState {
 
 export function TabBar({
   tabs,
+  pinnedPaths = [],
   activePath,
   onSelect,
   onClose,
   onCloseOthers,
   onCloseAll,
+  onPin = () => {},
+  onUnpin = () => {},
+  onUnpinAndClose = () => {},
   onRename,
 }: TabBarProps) {
   const [menu, setMenu] = useState<ContextMenuState | null>(null);
@@ -43,7 +51,9 @@ export function TabBar({
 
   return (
     <div class="tab-bar">
-      {tabs.map((tab) => (
+      {tabs.map((tab) => {
+        const pinned = pinnedPaths.includes(tab.path);
+        return (
         <div
           key={tab.path}
           class={`tab ${tab.path === activePath ? "tab-active" : ""}`}
@@ -57,7 +67,8 @@ export function TabBar({
             {tab.name}
             {tab.dirty ? " •" : ""}
           </span>
-          <button
+          {pinned && <span class="tab-pin" aria-label={`${tab.name} is pinned`}>Pinned</span>}
+          {!pinned && <button
             class="tab-close"
             onClick={(e) => {
               e.stopPropagation();
@@ -66,9 +77,10 @@ export function TabBar({
             aria-label={`Close ${tab.name}`}
           >
             x
-          </button>
+          </button>}
         </div>
-      ))}
+      );
+      })}
       {menu && (
         <div class="context-menu" style={{ left: `${menu.x}px`, top: `${menu.y}px` }}>
           <button
@@ -79,11 +91,24 @@ export function TabBar({
           >
             Rename
           </button>
-          <button onClick={() => onClose(menu.path)}>Close</button>
-          <button onClick={() => onCloseOthers(menu.path)} disabled={tabs.length < 2}>
+          {pinnedPaths.includes(menu.path) ? (
+            <>
+              <button onClick={() => onUnpin(menu.path)}>Unpin</button>
+              <button onClick={() => onUnpinAndClose(menu.path)}>Unpin and close</button>
+            </>
+          ) : (
+            <>
+              <button onClick={() => onPin(menu.path)}>Pin</button>
+              <button onClick={() => onClose(menu.path)}>Close</button>
+            </>
+          )}
+          <button
+            onClick={() => onCloseOthers(menu.path)}
+            disabled={!tabs.some((tab) => tab.path !== menu.path && !pinnedPaths.includes(tab.path))}
+          >
             Close Others
           </button>
-          <button onClick={onCloseAll}>Close All</button>
+          <button onClick={onCloseAll}>Close All Unpinned</button>
         </div>
       )}
     </div>

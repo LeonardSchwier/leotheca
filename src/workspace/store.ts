@@ -1,5 +1,10 @@
 import { batch, computed, signal } from "@preact/signals";
-import { createPrimaryEditorLayout, synchronizePrimaryEditorLayout } from "./documentGroups";
+import {
+  createPrimaryEditorLayout,
+  pinPrimaryEditorLayout,
+  synchronizePrimaryEditorLayout,
+  unpinPrimaryEditorLayout,
+} from "./documentGroups";
 import type { EditorLayoutState, OpenDocument, OpenTab, TabKind } from "./types";
 
 /** Canonical open-document store. Editor groups hold only references to
@@ -84,6 +89,7 @@ export function clearTabSaveError(path: string) {
  * settings/store.ts, should only ever see states that were real, not an
  * intermediate step of getting there. */
 export function closeTab(path: string) {
+  if (editorLayout.value.groups.primary.pinnedPaths.includes(path)) return;
   batch(() => {
     const documents = openDocuments.value.filter((document) => document.path !== path);
     updatePrimaryGroup(documents, activeTabPath.value === path ? documents.at(-1)?.path ?? null : activeTabPath.value);
@@ -92,13 +98,50 @@ export function closeTab(path: string) {
 
 export function closeOtherTabs(path: string) {
   batch(() => {
-    updatePrimaryGroup(openDocuments.value.filter((document) => document.path === path), path);
+    const pinnedPaths = new Set(editorLayout.value.groups.primary.pinnedPaths);
+    updatePrimaryGroup(
+      openDocuments.value.filter((document) => document.path === path || pinnedPaths.has(document.path)),
+      path,
+    );
   });
 }
 
+/** Lifecycle cleanup, deliberately including pinned documents when a
+ * workspace closes or changes. User-facing broad-close controls call the
+ * unpinned variant instead. */
 export function closeAllTabs() {
   batch(() => {
     updatePrimaryGroup([], null);
+  });
+}
+
+/** Closes only ordinary tabs. Pinned tabs require an explicit unpin action. */
+export function closeAllUnpinnedTabs() {
+  batch(() => {
+    const pinnedPaths = new Set(editorLayout.value.groups.primary.pinnedPaths);
+    const documents = openDocuments.value.filter((document) => pinnedPaths.has(document.path));
+    const activePath = activeTabPath.value;
+    const nextActivePath = activePath && documents.some((document) => document.path === activePath)
+      ? activePath
+      : documents.at(-1)?.path ?? null;
+    updatePrimaryGroup(documents, nextActivePath);
+  });
+}
+
+export function pinTab(path: string) {
+  editorLayout.value = pinPrimaryEditorLayout(editorLayout.value, path);
+}
+
+export function unpinTab(path: string) {
+  editorLayout.value = unpinPrimaryEditorLayout(editorLayout.value, path);
+}
+
+/** The only user-facing removal path for a pinned tab. */
+export function unpinAndCloseTab(path: string) {
+  if (!editorLayout.value.groups.primary.pinnedPaths.includes(path)) return;
+  batch(() => {
+    editorLayout.value = unpinPrimaryEditorLayout(editorLayout.value, path);
+    closeTab(path);
   });
 }
 
@@ -136,6 +179,19 @@ export function renameOpenTab(oldPath: string, newPath: string, newName: string)
       const rewritten = rewrite(activePath);
       if (rewritten !== null) activePath = rewritten;
     }
-    if (changed) updatePrimaryGroup(documents, activePath);
+    if (changed) {
+      const primary = editorLayout.value.groups.primary;
+      editorLayout.value = {
+        ...editorLayout.value,
+        groups: {
+          ...editorLayout.value.groups,
+          primary: {
+            ...primary,
+            pinnedPaths: primary.pinnedPaths.map((path) => rewrite(path) ?? path),
+          },
+        },
+      };
+      updatePrimaryGroup(documents, activePath);
+    }
   });
 }

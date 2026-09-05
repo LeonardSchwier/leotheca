@@ -687,6 +687,12 @@ button.icon-button.active {
   background: var(--bg-base);
 }
 
+.tab-pin {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  margin-left: 0.35rem;
+}
+
 .tab-close {
   background: none;
   border: none;

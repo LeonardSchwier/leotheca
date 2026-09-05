@@ -59,6 +59,9 @@ export interface EditorGroupState {
  * secondary placement, view modes, and persistence. */
 export interface EditorLayoutState {
   activeGroupId: EditorGroupId;
+  splitEnabled: boolean;
+  preferredRatio: number;
+  compactVisibleGroupId: EditorGroupId;
   groups: {
     primary: EditorGroupState;
     secondary?: EditorGroupState;

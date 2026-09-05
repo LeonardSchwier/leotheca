@@ -290,16 +290,29 @@ describe("decodeWorkspaceSettings", () => {
     const { settings, corrupt } = decodeWorkspaceSettings(
       JSON.stringify({
         ...DEFAULT_WORKSPACE_SETTINGS,
-        version: 2,
-        aFieldVersion2Added: true,
+        version: 3,
+        aFieldVersion3Added: true,
       }),
       ROOT,
     );
-    expect((settings as unknown as Record<string, unknown>).version).toBe(2);
+    expect((settings as unknown as Record<string, unknown>).version).toBe(3);
     expect(
-      (settings as unknown as Record<string, unknown>).aFieldVersion2Added,
+      (settings as unknown as Record<string, unknown>).aFieldVersion3Added,
     ).toBe(true);
     expect(corrupt).toBe(true);
+  });
+
+  it("accepts version 2 settings without flagging corruption (F07 Phase 2b)", () => {
+    const { settings, corrupt } = decodeWorkspaceSettings(
+      JSON.stringify({
+        ...DEFAULT_WORKSPACE_SETTINGS,
+        version: 2,
+        editorLayout: { activeGroupId: "primary", splitEnabled: false, preferredRatio: 0.5, compactVisibleGroupId: "primary", groups: { primary: { id: "primary", tabPaths: [], pinnedPaths: [], activePath: null } } },
+      }),
+      ROOT,
+    );
+    expect(settings.version).toBe(2);
+    expect(corrupt).toBe(false);
   });
 
   it("defaults a missing version to 1 without flagging corruption", () => {

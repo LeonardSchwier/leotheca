@@ -17,12 +17,18 @@ export function createPrimaryEditorLayout(
     pinnedPaths: [],
     activePath: repairedActivePath,
   };
-  return { activeGroupId: "primary", groups: { primary } };
+  return {
+    activeGroupId: "primary",
+    splitEnabled: false,
+    preferredRatio: 0.5,
+    compactVisibleGroupId: "primary",
+    groups: { primary },
+  };
 }
 
 /** Repairs the primary layout from canonical documents after a tab operation,
- * preserving its valid pin region while later phases still defer secondary
- * groups and persisted layout. */
+ * preserving its valid pin region and split fields while later phases still
+ * defer secondary groups and persisted layout. */
 export function synchronizePrimaryEditorLayout(
   layout: EditorLayoutState,
   tabPaths: readonly string[],
@@ -35,6 +41,10 @@ export function synchronizePrimaryEditorLayout(
   const unpinnedPaths = repaired.groups.primary.tabPaths.filter((path) => !pinnedPaths.includes(path));
   return {
     ...repaired,
+    // Preserve split-related fields from the original layout
+    splitEnabled: layout.splitEnabled,
+    preferredRatio: layout.preferredRatio,
+    compactVisibleGroupId: layout.compactVisibleGroupId,
     activeGroupId: "primary",
     groups: {
       primary: { ...repaired.groups.primary, tabPaths: [...pinnedPaths, ...unpinnedPaths], pinnedPaths },

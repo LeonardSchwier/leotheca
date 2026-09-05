@@ -12,6 +12,9 @@ describe("createPrimaryEditorLayout", () => {
 
     expect(layout).toEqual({
       activeGroupId: "primary",
+      splitEnabled: false,
+      preferredRatio: 0.5,
+      compactVisibleGroupId: "primary",
       groups: {
         primary: {
           id: "primary",

@@ -11,6 +11,8 @@ import {
 } from "./decode";
 import { isPathWithinWorkspace } from "../workspace/paths";
 import { readTextFile, writeWorkspaceTextFile } from "../workspace/tauriBridge";
+import { createPrimaryEditorLayout } from "../workspace/documentGroups";
+import type { EditorLayoutState } from "../workspace/types";
 
 export type SortOrder = "name-asc" | "name-desc";
 const SORT_ORDERS: readonly SortOrder[] = ["name-asc", "name-desc"];
@@ -54,7 +56,7 @@ export interface GraphColorGroup {
  * self-contained and portable, the same way a project-local config
  * folder works. */
 export interface WorkspaceSettings {
-  version: 1;
+  version: 1 | 2;
   sortOrder: SortOrder;
   /** Applied to both the editor and the preview's reading font, in px. */
   fontSize: number;
@@ -66,6 +68,11 @@ export interface WorkspaceSettings {
    * the next launch so the editor isn't blank every time the app starts. */
   lastOpenPaths: string[];
   lastActivePath: string | null;
+  /** F07 Phase 2b: persisted editor layout state including split groups,
+   * pinned tabs, view modes, and active paths. Version 2+ only; version 1
+   * workspaces continue to use lastOpenPaths/lastActivePath for backward
+   * compatibility and are migrated on first load. */
+  editorLayout?: EditorLayoutState;
   /** Whole-UI scale, as a percentage (100 = no scaling). Applied via the
    * CSS `zoom` property (see settings/store.ts), not `transform: scale()`:
    * `zoom` genuinely reflows layout and keeps pointer-event coordinates
@@ -189,6 +196,7 @@ export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   deleteBehavior: "project-trash",
   lastOpenPaths: [],
   lastActivePath: null,
+  editorLayout: createPrimaryEditorLayout([], null),
   uiZoom: 100,
   frontmatterAliasesEnabled: true,
   mathRenderingEnabled: true,
@@ -392,12 +400,61 @@ export function decodeWorkspaceSettings(
     DEFAULT_WORKSPACE_SETTINGS.noteReadOnlyLockEnabled,
   );
 
-  // Only version 1 exists today. An unrecognized version is flagged as
+  // F07 Phase 2b: validate editorLayout if present (version 2+).
+// Version 1 workspaces won't have this field and continue to use
+// lastOpenPaths/lastActivePath with automatic migration on first load.
+function isValidEditorLayoutState(value: unknown): value is EditorLayoutState {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
+  const layout = value as Record<string, unknown>;
+  
+  // Check required fields
+  if (layout.activeGroupId !== "primary" && layout.activeGroupId !== "secondary") return false;
+  
+  if (typeof layout.groups !== "object" || layout.groups === null) return false;
+  const groups = layout.groups as Record<string, unknown>;
+  
+  // Must have primary group
+  if (!groups.primary || typeof groups.primary !== "object") return false;
+  const primary = groups.primary as Record<string, unknown>;
+  
+  // Check primary group structure
+  if (primary.id !== "primary") return false;
+  if (!Array.isArray(primary.tabPaths)) return false;
+  if (!Array.isArray(primary.pinnedPaths)) return false;
+  if (primary.activePath !== undefined && typeof primary.activePath !== "string" && primary.activePath !== null) return false;
+  
+  // Check optional secondary group
+  if (groups.secondary !== undefined) {
+    if (typeof groups.secondary !== "object" || groups.secondary === null) return false;
+    const secondary = groups.secondary as Record<string, unknown>;
+    if (secondary.id !== "secondary") return false;
+    if (!Array.isArray(secondary.tabPaths)) return false;
+    if (!Array.isArray(secondary.pinnedPaths)) return false;
+    if (secondary.activePath !== undefined && typeof secondary.activePath !== "string" && secondary.activePath !== null) return false;
+  }
+  
+  // Check split fields
+  if (layout.splitEnabled !== undefined && typeof layout.splitEnabled !== "boolean") return false;
+  if (layout.preferredRatio !== undefined && typeof layout.preferredRatio !== "number") return false;
+  if (layout.compactVisibleGroupId !== undefined && 
+      layout.compactVisibleGroupId !== "primary" && 
+      layout.compactVisibleGroupId !== "secondary") return false;
+  
+  return true;
+}
+
+  // F07 Phase 2b: decode editorLayout if present (version 2+)
+  const editorLayoutRaw = record.editorLayout;
+  const editorLayout = isValidEditorLayoutState(editorLayoutRaw)
+    ? editorLayoutRaw
+    : DEFAULT_WORKSPACE_SETTINGS.editorLayout;
+
+// Only versions 1 and 2 are supported. An unrecognized version is flagged as
   // corrupt (so it is never silently persisted back over) but its actual
   // value in `record` is left untouched by the spread below, rather than
-  // forced to 1, so a genuinely newer file's version marker survives a
+  // forced to current, so a genuinely newer file's version marker survives a
   // round trip through an older app build instead of being downgraded.
-  const versionCorrupt = record.version !== undefined && record.version !== 1;
+  const versionCorrupt = record.version !== undefined && record.version !== 1 && record.version !== 2;
 
   const settings = {
     ...record,
@@ -408,6 +465,7 @@ export function decodeWorkspaceSettings(
     deleteBehavior: deleteBehavior.value,
     lastOpenPaths: lastOpenPaths.value,
     lastActivePath: lastActivePath.value,
+    editorLayout: editorLayout,
     uiZoom: uiZoom.value,
     frontmatterAliasesEnabled: frontmatterAliasesEnabled.value,
     mathRenderingEnabled: mathRenderingEnabled.value,
@@ -428,8 +486,11 @@ export function decodeWorkspaceSettings(
     noteReadOnlyLockEnabled: noteReadOnlyLockEnabled.value,
   } as unknown as WorkspaceSettings;
 
+  const editorLayoutCorrupt = editorLayoutRaw !== undefined && !isValidEditorLayoutState(editorLayoutRaw);
+
   const corrupt =
     versionCorrupt ||
+    editorLayoutCorrupt ||
     anyCorrupt(
       sortOrder,
       fontSize,

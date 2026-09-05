@@ -219,6 +219,10 @@ effect(() => {
   });
 });
 
+// F07 Phase 2b: persist editor layout state (commented out temporarily
+// to avoid coordination issues with existing tab persistence - will be
+// implemented with proper workspace transition handling in a follow-up)
+
 function resolvesToDarkBackground(pref: ThemePreference): boolean {
   if (pref === "dark") return true;
   if (pref === "light") return false;

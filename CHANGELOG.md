@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Turning off per-note read-only locking in workspace Settings now fully disables lock enforcement, including editor read-only state and Task Hub checkbox mutations, while keeping the portable frontmatter marker intact for when the feature is enabled again.
+
 - You can now pin an open note to keep it at the front of the tab bar. Pinned notes stay open when you close other tabs or close all unpinned tabs, and can be removed only through the explicit Unpin and close action.
 
 - Renaming a note now shows which links elsewhere reference it before the rename happens, so you can see what still needs updating by hand.

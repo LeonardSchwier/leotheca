@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isNoteReadOnly, setNoteReadOnly } from "./noteReadOnly";
+import { isNoteReadOnly, isNoteReadOnlyActive, setNoteReadOnly } from "./noteReadOnly";
 
 describe("per-note read-only marker", () => {
   it("adds a portable true marker to a note without frontmatter", () => {
@@ -17,5 +17,11 @@ describe("per-note read-only marker", () => {
 
   it("does not mistake an arbitrary string for an active lock", () => {
     expect(isNoteReadOnly("---\nleotheca-read-only: yes\n---\nBody")).toBe(false);
+  });
+
+  it("does not enforce a true marker when the workspace feature is disabled", () => {
+    const source = "---\nleotheca-read-only: true\n---\nBody\n";
+    expect(isNoteReadOnlyActive(source, true)).toBe(true);
+    expect(isNoteReadOnlyActive(source, false)).toBe(false);
   });
 });

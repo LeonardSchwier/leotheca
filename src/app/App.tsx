@@ -10,7 +10,7 @@ import { TabBar } from "../workspace/TabBar";
 import { MarkdownEditor } from "../editor/MarkdownEditor";
 import { MarkdownPreview } from "../editor/MarkdownPreview";
 import { FrontmatterPropertiesPanel } from "../editor/FrontmatterPropertiesPanel";
-import { isNoteReadOnly, setNoteReadOnly } from "../editor/noteReadOnly";
+import { isNoteReadOnlyActive, setNoteReadOnly } from "../editor/noteReadOnly";
 import { ImageViewer } from "../editor/ImageViewer";
 import { classifyWorkspaceResource } from "../workspace/types";
 import { CanvasView } from "../canvas/CanvasView";
@@ -450,7 +450,7 @@ export function App() {
   const handleChange = useCallback(
     (path: string, content: string) => {
       const tab = openTabs.value.find((candidate) => candidate.path === path);
-      if (tab && isNoteReadOnly(tab.content)) return;
+      if (tab && isNoteReadOnlyActive(tab.content, workspaceSettings.value.noteReadOnlyLockEnabled)) return;
       updateTabContent(path, content);
       save.change(session, path, content);
     },
@@ -526,7 +526,7 @@ export function App() {
   }, []);
 
   const current = activeTab();
-  const currentNoteReadOnly = current?.kind === "text" && isNoteReadOnly(current.content);
+  const currentNoteReadOnly =\n    current?.kind === "text" &&\n    isNoteReadOnlyActive(current.content, workspaceSettings.value.noteReadOnlyLockEnabled);
   const currentBookmark =
     current && bookmarks.value.find((b) => b.kind === "file" && b.path === current.path);
   const currentIsPinned = current && editorLayout.value.groups.primary.pinnedPaths.includes(current.path);

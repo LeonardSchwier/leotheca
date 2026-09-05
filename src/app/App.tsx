@@ -446,7 +446,7 @@ export function App() {
   const handleChange = useCallback(
     (path: string, content: string) => {
       const tab = openTabs.value.find((candidate) => candidate.path === path);
-      if (tab && isNoteReadOnly(tab.content)) return;
+      if (tab && isNoteReadOnlyActive(tab.content, workspaceSettings.value.noteReadOnlyLockEnabled)) return;
       updateTabContent(path, content);
       save.change(session, path, content);
     },

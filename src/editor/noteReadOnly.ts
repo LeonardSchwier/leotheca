@@ -15,6 +15,11 @@ export function isNoteReadOnly(source: string): boolean {
   return property?.kind === "scalar" && property.value.trim().toLowerCase() === "true";
 }
 
+/** Returns whether the portable marker is currently enforced for this workspace. */
+export function isNoteReadOnlyActive(source: string, featureEnabled: boolean): boolean {
+  return featureEnabled && isNoteReadOnly(source);
+}
+
 /** Updates only the lock marker, preserving unrelated frontmatter. */
 export function setNoteReadOnly(source: string, readOnly: boolean): string {
   const properties = parseFrontmatterProperties(source).properties;

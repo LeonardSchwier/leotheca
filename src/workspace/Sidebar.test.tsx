@@ -154,7 +154,12 @@ describe("Sidebar rename/delete flush the pending autosave for the affected file
 
     const nameInput = container.querySelector(".name-prompt input") as HTMLInputElement;
     fireEvent.input(nameInput, { target: { value: "renamed.md" } });
-    await fireEvent.click(getByRole("button", { name: "Rename" }));
+    fireEvent.click(getByRole("button", { name: "Rename" }));
+    // F03 Phase 2b-i's confirmRenameWithPreview gate (useRenamePreview.ts)
+    // now sits before flushPendingAutosave, itself awaiting an async
+    // planNoteRename call; a real macrotask wait, not a single microtask
+    // `await`, is needed to let that whole chain settle first.
+    await new Promise((resolve) => setTimeout(resolve, 10));
 
     expect(flushPendingAutosave).toHaveBeenCalledWith("/workspace/note.md");
     expect(renameEntry).toHaveBeenCalledWith("/workspace/note.md", "renamed.md");

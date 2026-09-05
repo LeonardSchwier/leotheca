@@ -19,6 +19,8 @@ import {
 import { closeTabsUnder, renameOpenTab } from "./store";
 import type { FsEntry } from "./types";
 import { workspaceSettings } from "../settings/store";
+import { useRenamePreview } from "../refactor/useRenamePreview";
+import { RenamePreviewDialog } from "../refactor/RenamePreviewDialog";
 
 const SEARCH_DEBOUNCE_MS = 200;
 
@@ -67,6 +69,7 @@ interface RenamePromptState {
 export function Sidebar({ rootPath, onOpenFile, flushPendingAutosave }: SidebarProps) {
   const [createPrompt, setCreatePrompt] = useState<CreatePromptState | null>(null);
   const [renamePrompt, setRenamePrompt] = useState<RenamePromptState | null>(null);
+  const renamePreview = useRenamePreview();
   const [expandAllLoading, setExpandAllLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const searchTimer = useRef<ReturnType<typeof setTimeout>>();
@@ -112,6 +115,7 @@ export function Sidebar({ rootPath, onOpenFile, flushPendingAutosave }: SidebarP
   const handleRename = async (name: string) => {
     if (!renamePrompt) return;
     try {
+      if (!(await renamePreview.confirmRenameWithPreview(renamePrompt.path, name))) return;
       await flushPendingAutosave(renamePrompt.path);
       const newPath = await renameEntry(renamePrompt.path, name);
       renameOpenTab(renamePrompt.path, newPath, name);
@@ -246,7 +250,7 @@ export function Sidebar({ rootPath, onOpenFile, flushPendingAutosave }: SidebarP
           }}
         />
       )}
-      {renamePrompt && (
+      {renamePrompt && !renamePreview.preview && (
         <NamePrompt
           title="Rename"
           submitLabel="Rename"
@@ -258,6 +262,15 @@ export function Sidebar({ rootPath, onOpenFile, flushPendingAutosave }: SidebarP
             setRenamePrompt(null);
             setError(null);
           }}
+        />
+      )}
+      {renamePreview.preview && (
+        <RenamePreviewDialog
+          oldPath={renamePreview.preview.oldPath}
+          newPath={renamePreview.preview.newPath}
+          plan={renamePreview.preview.plan}
+          onContinue={renamePreview.continueRename}
+          onCancel={renamePreview.cancelRename}
         />
       )}
     </div>

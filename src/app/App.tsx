@@ -87,6 +87,8 @@ import {
   type NoteTemplate,
 } from "../workspace/fileTreeStore";
 import { NamePrompt } from "../workspace/NamePrompt";
+import { useRenamePreview } from "../refactor/useRenamePreview";
+import { RenamePreviewDialog } from "../refactor/RenamePreviewDialog";
 import { TemplatePicker } from "../workspace/TemplatePicker";
 import { parseAutomationUrl } from "./automationCommands";
 import { useResizableSidebar } from "./useResizableSidebar";
@@ -260,6 +262,7 @@ export function App() {
   }), []);
   const [tabRename, setTabRename] = useState<{ path: string; name: string } | null>(null);
   const [tabRenameError, setTabRenameError] = useState<string | null>(null);
+  const renamePreview = useRenamePreview();
   const [templatePicker, setTemplatePicker] = useState<{
     targetDir: string;
     templates: NoteTemplate[];
@@ -740,6 +743,7 @@ export function App() {
   const handleTabRenameSubmit = useCallback(async (newName: string) => {
     if (!tabRename) return;
     try {
+      if (!(await renamePreview.confirmRenameWithPreview(tabRename.path, newName))) return;
       await flushPendingAutosave(tabRename.path);
       const newPath = await renameEntry(tabRename.path, newName);
       renameOpenTab(tabRename.path, newPath, newName);
@@ -748,7 +752,7 @@ export function App() {
     } catch (e) {
       setTabRenameError(e instanceof Error ? e.message : String(e));
     }
-  }, [tabRename, flushPendingAutosave, renameEntry, renameOpenTab, setTabRename, setTabRenameError]);
+  }, [tabRename, flushPendingAutosave, renameEntry, renameOpenTab, renamePreview, setTabRename, setTabRenameError]);
 
   return (
     <div class="app-shell">
@@ -1073,7 +1077,16 @@ export function App() {
       <SettingsPanel onOpenFile={handleOpenFile} />
       {rootPath && <WorkspaceTransitionBanner />}
       {settingsLoaded.value && !rootPath && <WelcomeDialog />}
-      {tabRename && (
+      {renamePreview.preview && (
+        <RenamePreviewDialog
+          oldPath={renamePreview.preview.oldPath}
+          newPath={renamePreview.preview.newPath}
+          plan={renamePreview.preview.plan}
+          onContinue={renamePreview.continueRename}
+          onCancel={renamePreview.cancelRename}
+        />
+      )}
+      {tabRename && !renamePreview.preview && (
         <NamePrompt
           title="Rename"
           submitLabel="Rename"

@@ -1,8 +1,10 @@
 /** @vitest-environment jsdom */
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render } from "@testing-library/preact";
+import { cleanup, fireEvent, render, waitFor } from "@testing-library/preact";
 import { signal } from "@preact/signals";
 import { DEFAULT_WORKSPACE_SETTINGS } from "../settings/workspaceSettings";
+import { linkIndex } from "../linking/store";
+import { parseWikiLinks } from "../linking/wikiSyntax";
 
 const { updateWorkspaceSettingsSpy } = vi.hoisted(() => ({
   updateWorkspaceSettingsSpy: vi.fn(),
@@ -140,6 +142,15 @@ afterEach(() => {
   writeTextFile.mockClear();
   readTextFile.mockClear();
   renameEntry.mockReset();
+  linkIndex.value = {
+    backlinksByPath: new Map(),
+    pathsByNoteName: new Map(),
+    pathsByAlias: new Map(),
+    aliasesByPath: new Map(),
+    pathsByTag: new Map(),
+    tagsByPath: new Map(),
+    tasksByPath: new Map(),
+  };
 });
 
 describe("App: tab rename while an autosave is still pending", () => {
@@ -190,5 +201,68 @@ describe("App: tab rename while an autosave is still pending", () => {
       content: "typed content",
       dirty: false,
     });
+  });
+});
+
+describe("App: rename shows a link-impact preview when a reference exists (F03 Phase 2b-i)", () => {
+  function withReferrerIndex(): void {
+    linkIndex.value = {
+      backlinksByPath: new Map(),
+      pathsByNoteName: new Map([
+        ["note", ["/vault/note.md"]],
+        ["referrer", ["/vault/referrer.md"]],
+      ]),
+      pathsByAlias: new Map(),
+      aliasesByPath: new Map(),
+      pathsByTag: new Map(),
+      tagsByPath: new Map(),
+      tasksByPath: new Map(),
+      wikiLinksByPath: new Map([["/vault/referrer.md", parseWikiLinks("See [[note]].")]]),
+    };
+    readTextFile.mockImplementation(async (path: string) =>
+      path === "/vault/referrer.md" ? "See [[note]]." : "",
+    );
+  }
+
+  it("shows the Review dialog before renaming, and Continue proceeds with the unchanged real rename", async () => {
+    withReferrerIndex();
+    renameEntry.mockImplementation(async () => "/vault/renamed.md");
+    openOrFocusTab("/vault/note.md", "note.md", "content", "text");
+    const { container, getByRole, getByText } = render(<App />);
+
+    fireEvent.contextMenu(container.querySelector(".tab")!);
+    fireEvent.click(getByRole("button", { name: "Rename" }));
+    const nameInput = container.querySelector<HTMLInputElement>(".name-prompt input")!;
+    fireEvent.input(nameInput, { target: { value: "renamed.md" } });
+    fireEvent.click(getByRole("button", { name: "Rename" }));
+
+    await waitFor(() => expect(getByText("Review rename")).toBeTruthy());
+    expect(getByText("1 link elsewhere will still need updating")).toBeTruthy();
+    expect(getByText("/vault/referrer.md")).toBeTruthy();
+    expect(renameEntry).not.toHaveBeenCalled();
+
+    fireEvent.click(getByRole("button", { name: "Continue" }));
+
+    await waitFor(() => expect(renameEntry).toHaveBeenCalledWith("/vault/note.md", "renamed.md"));
+    expect(openTabs.value[0]).toMatchObject({ path: "/vault/renamed.md", name: "renamed.md" });
+  });
+
+  it("cancelling the Review dialog renames nothing", async () => {
+    withReferrerIndex();
+    openOrFocusTab("/vault/note.md", "note.md", "content", "text");
+    const { container, getByRole, getByText, queryByText } = render(<App />);
+
+    fireEvent.contextMenu(container.querySelector(".tab")!);
+    fireEvent.click(getByRole("button", { name: "Rename" }));
+    const nameInput = container.querySelector<HTMLInputElement>(".name-prompt input")!;
+    fireEvent.input(nameInput, { target: { value: "renamed.md" } });
+    fireEvent.click(getByRole("button", { name: "Rename" }));
+
+    await waitFor(() => expect(getByText("Review rename")).toBeTruthy());
+    fireEvent.click(getByRole("button", { name: "Cancel" }));
+
+    await waitFor(() => expect(queryByText("Review rename")).toBeNull());
+    expect(renameEntry).not.toHaveBeenCalled();
+    expect(openTabs.value[0]).toMatchObject({ path: "/vault/note.md", name: "note.md" });
   });
 });

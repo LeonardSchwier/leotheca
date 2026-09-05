@@ -497,6 +497,14 @@ export function App() {
       } else if (key === ",") {
         e.preventDefault();
         settingsPanelOpen.value = true;
+      } else if (key === "p" && e.shiftKey && activeTabPath.value) {
+        e.preventDefault();
+        pinTab(activeTabPath.value);
+        refresh();
+      } else if (key === "u" && e.shiftKey && activeTabPath.value) {
+        e.preventDefault();
+        unpinTab(activeTabPath.value);
+        refresh();
       }
     }
     window.addEventListener("keydown", onKeyDown);
@@ -521,6 +529,7 @@ export function App() {
   const currentNoteReadOnly = current?.kind === "text" && isNoteReadOnly(current.content);
   const currentBookmark =
     current && bookmarks.value.find((b) => b.kind === "file" && b.path === current.path);
+  const currentIsPinned = current && editorLayout.value.groups.primary.pinnedPaths.includes(current.path);
 
   // Reset Split-mode breadcrumb authority (spec section 7.5) whenever the
   // active note changes: an authority carried over from a different
@@ -714,6 +723,39 @@ export function App() {
         },
       );
     }
+    if (current) {
+      list.push(
+        ...(currentIsPinned
+          ? [
+              {
+                id: "unpin-tab",
+                label: "Unpin current tab",
+                run: () => {
+                  unpinTab(current.path);
+                  refresh();
+                },
+              },
+              {
+                id: "unpin-and-close-tab",
+                label: "Unpin and close current tab",
+                run: () => {
+                  unpinAndCloseTab(current.path);
+                  refresh();
+                },
+              },
+            ]
+          : [
+              {
+                id: "pin-tab",
+                label: "Pin current tab",
+                run: () => {
+                  pinTab(current.path);
+                  refresh();
+                },
+              },
+            ]),
+      );
+    }
     if (openTabs.value.length > 0) {
       list.push({
         id: "close-all-tabs",
@@ -729,6 +771,8 @@ export function App() {
     rootPath,
     current,
     currentBookmark,
+    currentIsPinned,
+    editorLayout.value,
     sidebarOpen.value,
     bookmarksOpen.value,
     tagsOpen.value,

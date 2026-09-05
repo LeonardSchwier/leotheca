@@ -144,7 +144,7 @@ vi.mock("../settings/SettingsPanel", () => ({
 }));
 
 const { App } = await import("./App");
-const { activeTabPath, closeAllTabs, openOrFocusTab, openTabs } =
+const { activeTabPath, closeAllTabs, editorLayout, openOrFocusTab, openTabs } =
   await import("../workspace/store");
 const { settingsPanelOpen, workspacePath, workspaceSettings, viewMode } =
   await import("../settings/store");
@@ -194,6 +194,18 @@ describe("App: keyboard shortcuts", () => {
     fireEvent.keyDown(window, { key: "w", ctrlKey: true });
 
     expect(openTabs.value.map((t) => t.path)).toEqual(["/vault/a.md"]);
+  });
+
+  it("Ctrl+Shift+P pins the current tab and Ctrl+Shift+U unpins it", () => {
+    openOrFocusTab("/vault/a.md", "a.md", "", "text");
+    openOrFocusTab("/vault/b.md", "b.md", "", "text");
+    render(<App />);
+
+    fireEvent.keyDown(window, { key: "p", ctrlKey: true, shiftKey: true });
+    expect(editorLayout.value.groups.primary.pinnedPaths).toEqual(["/vault/b.md"]);
+
+    fireEvent.keyDown(window, { key: "u", ctrlKey: true, shiftKey: true });
+    expect(editorLayout.value.groups.primary.pinnedPaths).toEqual([]);
   });
 
   it("Ctrl+Tab cycles to the next tab, wrapping around, and Ctrl+Shift+Tab goes backward", () => {

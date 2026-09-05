@@ -243,6 +243,25 @@ describe("App: keyboard shortcuts", () => {
     expect(writeTextFile).toHaveBeenCalledTimes(1);
   });
 
+  it("allows editing a marked note when the workspace read-only feature is disabled", () => {
+    const marked = "---\nleotheca-read-only: true\n---\nBody\n";
+    openOrFocusTab("/vault/note.md", "note.md", marked, "text");
+    workspaceSettings.value = {
+      ...DEFAULT_WORKSPACE_SETTINGS,
+      noteReadOnlyLockEnabled: false,
+    };
+    const { container } = render(<App />);
+
+    const editor = container.querySelector(
+      '[data-testid="mock-editor"]',
+    ) as HTMLTextAreaElement;
+    const edited = "---\nleotheca-read-only: true\n---\nEdited\n";
+    fireEvent.input(editor, { target: { value: edited } });
+
+    expect(openTabs.value[0].content).toBe(edited);
+    expect(openTabs.value[0].dirty).toBe(true);
+  });
+
   it("Ctrl+, opens Settings", () => {
     render(<App />);
     expect(settingsPanelOpen.value).toBe(false);

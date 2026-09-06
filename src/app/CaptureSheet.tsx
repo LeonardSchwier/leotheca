@@ -3,6 +3,7 @@ import { signal } from "@preact/signals";
 import { workspacePath, workspaceSettings } from "../settings/store";
 import { createNoteQuick, selectedDir } from "../workspace/fileTreeStore";
 import { resolvePathWithinWorkspace } from "../workspace/paths";
+import { appendToInboxNote, createNoteWithTitle } from "../capture/captureCommit";
 
 /** Global state for Capture Sheet visibility */
 export const captureSheetOpen = signal(false);
@@ -24,6 +25,10 @@ interface CaptureSheetProps {
  */
 export function CaptureSheet({ onCreated }: CaptureSheetProps) {
   const [content, setContent] = useState("");
+  const [title, setTitle] = useState("");
+  const [sourceUrl, setSourceUrl] = useState("");
+  const [destinationMode, setDestinationMode] = useState<"append" | "new">("new");
+  const [openAfterCapture, setOpenAfterCapture] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -51,28 +56,59 @@ export function CaptureSheet({ onCreated }: CaptureSheetProps) {
     
     setIsSubmitting(true);
     try {
-      // F05: Use configured inbox folder or fall back to selected dir / workspace root
-      let targetDir = selectedDir.value ?? workspacePath.value;
-      
-      const inboxFolder = workspaceSettings.value.captureInboxFolder;
-      if (inboxFolder) {
-        const resolvedInbox = resolvePathWithinWorkspace(workspacePath.value, workspacePath.value, inboxFolder);
-        if (resolvedInbox) {
-          targetDir = resolvedInbox;
+      if (destinationMode === "append") {
+        // F05: Append to configured inbox note
+        const inboxNote = workspaceSettings.value.captureInboxNote || "Inbox.md";
+        const notePath = resolvePathWithinWorkspace(workspacePath.value, workspacePath.value, inboxNote);
+        if (notePath) {
+          const { path, name } = await appendToInboxNote({
+            inboxNotePath: notePath,
+            content: content,
+            title: title || undefined,
+            sourceUrl: sourceUrl || undefined
+          });
+          
+          // Notify caller
+          onCreated?.(path, name);
+          
+          // Open the note if requested
+          if (openAfterCapture) {
+            // Import here to avoid circular dependencies
+            const { handleOpenFile } = await import("../app/App");
+            await handleOpenFile(path, name);
+          }
+        }
+      } else {
+        // F05: Create new note in configured folder
+        let targetDir = selectedDir.value ?? workspacePath.value;
+        
+        const inboxFolder = workspaceSettings.value.captureInboxFolder;
+        if (inboxFolder) {
+          const resolvedInbox = resolvePathWithinWorkspace(workspacePath.value, workspacePath.value, inboxFolder);
+          if (resolvedInbox) {
+            targetDir = resolvedInbox;
+          }
+        }
+        
+        const { path, name } = await createNoteWithTitle(targetDir, content, title || undefined, workspacePath.value);
+        
+        // Notify caller
+        onCreated?.(path, name);
+        
+        // Open the note if requested
+        if (openAfterCapture) {
+          // Import here to avoid circular dependencies
+          const { handleOpenFile } = await import("../app/App");
+          await handleOpenFile(path, name);
         }
       }
-      
-      const { path, name } = await createNoteQuick(targetDir, content);
-      
-      // Notify caller
-      onCreated?.(path, name);
       
       // Close the sheet
       closeCaptureSheet();
     } finally {
       setIsSubmitting(false);
     }
-  }, [content, isSubmitting, onCreated]);
+  }, [content, destinationMode, openAfterCapture, isSubmitting, onCreated]);
 
   const handleCancel = useCallback(() => {
     closeCaptureSheet();
@@ -92,6 +128,86 @@ export function CaptureSheet({ onCreated }: CaptureSheetProps) {
     <div class="modal-overlay" onClick={handleCancel}>
       <div class="modal capture-sheet" onClick={(e) => e.stopPropagation()}>
         <h2>Quick Capture</h2>
+        
+        <div class="capture-sheet-fields">
+          <div class="capture-sheet-field">
+            <label for="capture-title">Title (optional)</label>
+            <input
+              id="capture-title"
+              type="text"
+              class="capture-sheet-input"
+              value={title}
+              onChange={(e) => setTitle(e.currentTarget.value)}
+              placeholder="Note title..."
+              disabled={isSubmitting}
+            />
+          </div>
+          
+          <div class="capture-sheet-field">
+            <label for="capture-url">Source URL (optional)</label>
+            <input
+              id="capture-url"
+              type="url"
+              class="capture-sheet-input"
+              value={sourceUrl}
+              onChange={(e) => setSourceUrl(e.currentTarget.value)}
+              placeholder="https://example.com"
+              disabled={isSubmitting}
+            />
+          </div>
+          
+          <div class="capture-sheet-field">
+            <label>Destination Mode</label>
+            <div class="capture-sheet-radio-group">
+              <label class="capture-sheet-radio">
+                <input
+                  type="radio"
+                  name="destination-mode"
+                  value="append"
+                  checked={destinationMode === "append"}
+                  onChange={() => setDestinationMode("append")}
+                  disabled={isSubmitting}
+                />
+                Append to inbox
+              </label>
+              <label class="capture-sheet-radio">
+                <input
+                  type="radio"
+                  name="destination-mode"
+                  value="new"
+                  checked={destinationMode === "new"}
+                  onChange={() => setDestinationMode("new")}
+                  disabled={isSubmitting}
+                />
+                Create new note
+              </label>
+            </div>
+          </div>
+          
+          <div class="capture-sheet-field">
+            <label class="capture-sheet-checkbox">
+              <input
+                type="checkbox"
+                checked={openAfterCapture}
+                onChange={(e) => setOpenAfterCapture(e.currentTarget.checked)}
+                disabled={isSubmitting}
+              />
+              Open after capture
+            </label>
+          </div>
+          
+          {destinationMode === "append" && (
+            <div class="capture-sheet-preview">
+              Destination: {workspaceSettings.value.captureInboxNote || "Inbox.md"}
+            </div>
+          )}
+          {destinationMode === "new" && (
+            <div class="capture-sheet-preview">
+              Destination: {workspaceSettings.value.captureInboxFolder || workspacePath.value || "Workspace root"}
+            </div>
+          )}
+        </div>
+        
         <textarea
           ref={textareaRef}
           class="capture-sheet-textarea"

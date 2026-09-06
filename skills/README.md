@@ -12,6 +12,7 @@ be updated without touching it.
 Read `AGENTS.md` and `CONSTITUTION.md` first, always. Come here when
 you're about to do one of the following:
 
+- **`multi-agent-autonomous-coordination.md`** — the PRIMARY protocol for multiple agents working simultaneously: startup, work selection, claiming, abandoned claim recovery, CI fallback, blocker resolution, landing, and the autonomous session loop. Read this first for multi-agent coordination.
 - **`roadmap-workflow.md`** — claiming, implementing, verifying, and landing one `ROADMAP.md` item, start to finish, including the direct-to-`main` landing steps.
 - **`autonomous-roadmap-delivery.md`** - repeatedly integrating and landing multiple roadmap items in one autonomous or scheduled session, with complete candidate bookkeeping before final exact-head CI and productive read-only preparation while CI runs.
 - **`verification-suite.md`** — the exact commands this project's "verify before declaring done" rule means in practice, including a real pitfall (nested agent worktrees inflating test/lint counts) and the cloud-sandbox Rust bootstrap steps.

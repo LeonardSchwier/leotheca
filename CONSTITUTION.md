@@ -189,6 +189,42 @@ An integration agent never lands red, incomplete, unverified, conflicting, or ou
 
 Direct implementation commits to `main` are allowed only after confirming no other coding session, active claim, or agent branch conflicts with the work. Scheduled Codex and Claude Code routines must assume parallel work is possible and use the claim, branch, verify, and direct-push flow above.
 
+### Autonomous multi-agent pipeline
+
+This section defines the operating model for multiple agents working simultaneously with zero human intervention. This is the primary workflow for this repository.
+
+**Core principle: agents are always busy, never blocked, and never require human review.**
+
+**Workflow for every agent, every session:**
+
+1. **Start from truth**: fetch `origin/main`, hard reset local main to match it, read `CONSTITUTION.md` and `ROADMAP.md` fresh every time, never from cached or baked-in state.
+2. **Integration pass first**: before claiming new work, inspect every open `agent/*` branch and `🚧` claim, land any finished and verified work you find, fix only within scope for items you own, leave precise notes for others' items that need help.
+3. **Claim the next eligible item**: first `⬜` in Open Bugs, then Open Features, top to bottom, skipping anything that overlaps another `🚧` claim's touch set, is high-risk without sign-off, or is externally blocked. Use the exact claim format from the Parallel agent coordination section above; the claim commit to `main` is the mutual-exclusion lock.
+4. **Implement completely**: write production-ready code with real tests for every non-trivial path (happy, error, edge, empty), documentation where the change alters existing docs, and architecture notes where module boundaries change. A change is not eligible to land until it meets the same "production-ready" bar: full verification suite green, tests added not just passing, edge cases considered, no shortcuts.
+5. **Verify exhaustively**: run the full suite from `skills/verification-suite.md` that applies to your touch set. If your environment cannot run some checks locally, push to your claimed `agent/*` branch and use its CI run instead, but never declare verified until that branch's CI is actually green for the exact head you intend to land.
+6. **Land directly to main**: move the roadmap item to `## Implemented` with `✅`, add any required `CHANGELOG.md` entry, push the complete candidate directly to `main` (fast-forward or explicit merge commit, never GitHub's PR merge button, no pull request at all), confirm the landed commit and `✅` state are both present on remote `main`.
+7. **Repeat immediately**: finishing one item ends one iteration, not the session. A session stops only when genuinely out of budget or genuinely out of eligible work.
+
+**Abandoned claim recovery (dead agent handling):**
+
+A `🚧` item is considered abandoned and eligible for reclaim if ALL of these are true for at least 4 consecutive hours: the branch `agent/<work-item-slug>` has no new commits, there have been no pushes to `main` referencing this item, and there have been no CI runs for this branch. Before reclaiming, verify there is no recent human-authored commit on that branch (a commit by the repository owner within the last hour is live human work, not an abandoned bot claim). To reclaim: replace the claim line with your own, noting it is "RECLAIMED from abandoned <old-agent-id>" in the claim text, push that claim to `main`, then create your own branch (starting from current `main`, not the abandoned branch) and proceed. Do not attempt to continue abandoned work; start fresh and mention the prior attempt in your commit message.
+
+**CI fallback for limited environments:**
+
+Not all agent environments can run the full verification suite locally. The required standard remains the same — the exact candidate that lands on `main` must be verified — but the mechanism differs by environment: full local/cloud runs everything locally; frontend-only cloud runs frontend checks locally and uses branch CI for Rust/Android; minimal cloud uses branch CI exclusively. For Rust specifically, follow the bootstrap in `skills/verification-suite.md`'s "Cloud sandbox without Rust" section. If, after a genuine bootstrap attempt, the environment still cannot run a required check, do not mark the change locally verified; push to the claimed branch and let CI provide the verification, then inspect CI's actual results before landing.
+
+**Blocker self-resolution:**
+
+Agents must never be blocked waiting for a human. When you encounter a blocker: merge conflicts get resolved locally; test failures get fixed at the root cause; missing dependencies get installed; if main moved, merge current `main` into your branch and continue. Only external blockers (maintainer sign-off, physical device, unavailable credentials) are documented and skipped.
+
+**Quality is non-negotiable:**
+
+The no-human-review constraint means code quality cannot slip. Every change must be at least as high quality as if it had gone through human code review: deliberate security checks, automated tests for happy and error/edge cases, updated documentation, and genuine self-review of the diff against CONSTITUTION.md rules.
+
+**When roadmap is exhausted:**
+
+If all implementable items in `ROADMAP.md` are either done or externally blocked, agents switch to code review and improvement mode: review recent commits for bugs and gaps, fix any bug found (with proper claim/implement/verify/land flow), improve test coverage, update stale documentation, and review competitor changelogs.
+
 ### Maintaining the skills library
 
 Any coding agent, any tool, may edit an existing `skills/*.md` file to sharpen, correct, or expand it, and may add an entirely new one for a recurring mechanical task not yet covered, as ordinary standing-authorized maintenance. This needs no `ROADMAP.md` claim, no separate maintainer sign-off, and does not fall under "High-risk feature categories" below — a skill file is process documentation for how agents work, not application code or product scope, so the risk profile that section exists to gate simply doesn't apply here. Do this proactively whenever a session actually discovers a skill file is wrong, incomplete, or missing for something it just had to work out the hard way (reading the real logs, comparing against a known-good prior state, tracing a root cause through several wrong turns) rather than leaving that knowledge to be silently re-derived, or worse mis-derived, by the next session in any tool.

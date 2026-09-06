@@ -153,7 +153,7 @@
 
 </details>
 
-- ✅ **`saveCoordinator.ts` now actually flushes a pending save before a workspace transition drains it, and Switch without saving works**
+- ✅ **saveCoordinator.ts now actually flushes a pending save before a workspace transition drains it, and Switch without saving works**
 
 <details>
     <summary>Details</summary>
@@ -598,7 +598,7 @@
     (claim: Claude-Code-cloud-20260902T1030Z, branch: agent/f06-phase4b-touch-focus, spec: `spec/f06-note-outline-heading-breadcrumbs.md` section 15.4): Delivers only section 15.4's compact-touch-target and focus-visible rules for the Outline panel and heading breadcrumbs, not the whole of the previous Phase 3/4b follow-up entry; section 15.1's full ARIA-tree keyboard semantics, section 15.2's real-screen-reader validation, and Phase 3's F04-dependent link actions remain a separate, still-unclaimed follow-up below. `src/outline/outline.css` gained a `@media (max-width: 720px)` block matching this app's existing 44px compact-touch-target convention (`src/app/App.css`), applied to the outline chevron/label rows, header actions, filter-clear, and breadcrumb segments, and an always-on `:focus-visible` outline (using the `--accent` token, not `box-shadow`, so it survives forced-colors mode) on every one of those interactive elements, none of which previously had any visible focus indicator at all beyond the browser's own default (which several engines, notably Safari, do not draw on a `border: none` button). **Deliberately excludes the virtualized large-outline path** (Phase 4a, `.outline-list--virtual`): its rows use a fixed `VIRTUAL_ROW_HEIGHT_PX` (28px) the windowing math in `outlineVirtualization.ts` depends on matching the row's actual rendered height, so enlarging it here without also making that constant viewport-responsive would either clip the enlarged button or desync the scroll math; a large note's outline rows keep their current row height at every viewport size until a follow-up makes that constant responsive too, a gap disclosed rather than silently accepted. Also recorded a real, larger gap found in passing as a new unclaimed Bugs entry rather than fixed here: there is no app-wide `:focus-visible` rule at all, so this same silently-invisible-focus problem affects most other buttons in the app outside the outline, out of scope for this claim. This is a CSS-only, presentational change with no logic to unit test; Vitest does not evaluate rendered CSS layout or focus states anywhere in this codebase, so verification here is code review against the spec text and the existing 44px convention, not a new automated test, stated plainly rather than added as token coverage. Full verification suite green: `tsc --noEmit`, 951 Vitest tests (unchanged, this item touches no test-covered logic), `eslint` (0 errors, same 4 pre-existing warnings), `vite build`. No Rust or Android source touched. No manual/on-device UI smoke test (touch-target size, focus-ring visibility, forced-colors mode) was performed in this sandbox.
 
 </details>
-- ✅ **No app-wide `:focus-visible` styling**
+- ✅ **No app-wide :focus-visible styling**
 
 <details>
     <summary>Details</summary>
@@ -974,7 +974,7 @@
     : Replace expand-all's per-directory bridge calls with a single native recursive walk (`find_all_entries` on desktop, `findAllEntries` on Android) covering both files and directories, so a directory with nothing directly inside it is still discovered and expanded, not just one containing a file somewhere in its subtree, which a files-only walk could never report. Verified with Rust unit tests (including one asserting an empty directory survives the walk) and TypeScript unit tests for the grouping logic, plus the full desktop verification suite. The Android-side walk mirrors the already-shipped `findAllFiles` pattern exactly (same `DocumentFile`/SAF APIs, same depth cap) but native Android code isn't unit-testable here; CI's Android build is this change's actual verification gate for that platform, no on-device confirmation is claimed.
 
 </details>
-- ✅ **F-005: Search memory guard — `isTextFile` whitelist, batch size pre-add flush, conservative unknown-size default**
+- ✅ **F-005: Search memory guard — isTextFile whitelist, batch size pre-add flush, conservative unknown-size default**
 
 <details>
     <summary>Details</summary>

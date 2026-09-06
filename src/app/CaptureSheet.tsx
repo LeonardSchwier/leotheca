@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from "preact/hooks";
 import { signal } from "@preact/signals";
-import { workspacePath } from "../settings/store";
+import { workspacePath, workspaceSettings } from "../settings/store";
 import { createNoteQuick, selectedDir } from "../workspace/fileTreeStore";
+import { resolvePathWithinWorkspace } from "../workspace/paths";
 
 /** Global state for Capture Sheet visibility */
 export const captureSheetOpen = signal(false);
@@ -50,7 +51,17 @@ export function CaptureSheet({ onCreated }: CaptureSheetProps) {
     
     setIsSubmitting(true);
     try {
-      const targetDir = selectedDir.value ?? workspacePath.value;
+      // F05: Use configured inbox folder or fall back to selected dir / workspace root
+      let targetDir = selectedDir.value ?? workspacePath.value;
+      
+      const inboxFolder = workspaceSettings.value.captureInboxFolder;
+      if (inboxFolder) {
+        const resolvedInbox = resolvePathWithinWorkspace(workspacePath.value, workspacePath.value, inboxFolder);
+        if (resolvedInbox) {
+          targetDir = resolvedInbox;
+        }
+      }
+      
       const { path, name } = await createNoteQuick(targetDir, content);
       
       // Notify caller

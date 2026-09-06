@@ -194,6 +194,14 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
     "Attachments folder",
     "Where a pasted/dropped image is saved; empty means next to the note that embeds it",
   );
+  const showCaptureInboxFolder = matches(
+    "Capture inbox folder",
+    "Where quick capture notes are saved, relative to the workspace root",
+  );
+  const showCaptureInboxNote = matches(
+    "Capture inbox note",
+    "Path to the inbox note for append mode, relative to the workspace root",
+  );
   const showFrontmatterProperties = matches(
     "Frontmatter properties panel",
     "Show a note's frontmatter fields above the editor as editable rows",
@@ -238,6 +246,8 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
           showMathRendering ||
           showPasteImages ||
           showAttachmentsFolder ||
+          showCaptureInboxFolder ||
+          showCaptureInboxNote ||
           showFrontmatterProperties || showNoteReadOnlyLock ||
           (workspaceSettings.value.themesEnabled && showAccentColor) ||
           (workspaceSettings.value.snippetsEnabled && showSnippetDefinitions) ||
@@ -593,6 +603,52 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                   onInput={(e) => {
                     void updateWorkspaceSettings({
                       attachmentsFolder: (e.target as HTMLInputElement).value,
+                    });
+                  }}
+                />
+              </div>
+            </div>
+          )}
+
+          {workspacePath.value && showCaptureInboxFolder && (
+            <div class="settings-row">
+              <div>
+                <div class="settings-label">Capture inbox folder</div>
+                <div class="settings-hint">
+                  Where quick capture notes are saved, relative to the workspace root
+                </div>
+              </div>
+              <div class="settings-value">
+                <input
+                  type="text"
+                  placeholder="Inbox"
+                  value={workspaceSettings.value.captureInboxFolder}
+                  onInput={(e) => {
+                    void updateWorkspaceSettings({
+                      captureInboxFolder: (e.target as HTMLInputElement).value,
+                    });
+                  }}
+                />
+              </div>
+            </div>
+          )}
+
+          {workspacePath.value && showCaptureInboxNote && (
+            <div class="settings-row">
+              <div>
+                <div class="settings-label">Capture inbox note</div>
+                <div class="settings-hint">
+                  Path to the inbox note for append mode, relative to the workspace root
+                </div>
+              </div>
+              <div class="settings-value">
+                <input
+                  type="text"
+                  placeholder="Inbox.md"
+                  value={workspaceSettings.value.captureInboxNote}
+                  onInput={(e) => {
+                    void updateWorkspaceSettings({
+                      captureInboxNote: (e.target as HTMLInputElement).value,
                     });
                   }}
                 />

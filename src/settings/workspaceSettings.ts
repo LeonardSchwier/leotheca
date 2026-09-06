@@ -177,6 +177,11 @@ export interface WorkspaceSettings {
   collectionsEnabled: boolean;
   /** Whether the per-note frontmatter lock UI and its edit guards are active. */
   noteReadOnlyLockEnabled: boolean;
+  /** F05: Default folder path for quick captures, relative to workspace root.
+   * Empty means captures go to the currently selected directory. */
+  captureInboxFolder: string;
+  /** F05: Path to the inbox note for append mode, relative to workspace root. */
+  captureInboxNote: string;
 }
 
 export const MIN_UI_ZOOM = 50;
@@ -215,6 +220,8 @@ export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   headingLinksEnabled: true,
   collectionsEnabled: false,
   noteReadOnlyLockEnabled: true,
+  captureInboxFolder: "",
+  captureInboxNote: "Inbox.md",
 };
 
 // Plain string join is intentional here (not a path-resolution API call):
@@ -538,6 +545,14 @@ export function decodeWorkspaceSettings(
     record.attachmentsFolder,
     DEFAULT_WORKSPACE_SETTINGS.attachmentsFolder,
   );
+  const captureInboxFolder = decodeRelativeFolder(
+    record.captureInboxFolder,
+    DEFAULT_WORKSPACE_SETTINGS.captureInboxFolder,
+  );
+  const captureInboxNote = decodeString(
+    record.captureInboxNote,
+    DEFAULT_WORKSPACE_SETTINGS.captureInboxNote,
+  );
   const frontmatterPropertiesEnabled = decodeBoolean(
     record.frontmatterPropertiesEnabled,
     DEFAULT_WORKSPACE_SETTINGS.frontmatterPropertiesEnabled,
@@ -656,6 +671,8 @@ export function decodeWorkspaceSettings(
     headingLinksEnabled: headingLinksEnabled.value,
     collectionsEnabled: collectionsEnabled.value,
     noteReadOnlyLockEnabled: noteReadOnlyLockEnabled.value,
+    captureInboxFolder: captureInboxFolder.value,
+    captureInboxNote: captureInboxNote.value,
   } as unknown as WorkspaceSettings;
 
   // F07 Phase 2b: Corruption only when editorLayout is invalid AND cannot be migrated from legacy
@@ -691,6 +708,8 @@ export function decodeWorkspaceSettings(
       headingLinksEnabled,
       collectionsEnabled,
       noteReadOnlyLockEnabled,
+      captureInboxFolder,
+      captureInboxNote,
     );
 
   return { settings, corrupt };

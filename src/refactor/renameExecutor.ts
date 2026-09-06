@@ -170,6 +170,8 @@ function createBasicWorkspaceSettings(): WorkspaceSettings {
     headingLinksEnabled: true,
     collectionsEnabled: false,
     noteReadOnlyLockEnabled: true,
+    captureInboxFolder: "",
+    captureInboxNote: "Inbox.md",
   };
 }
 

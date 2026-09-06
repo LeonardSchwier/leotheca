@@ -621,7 +621,7 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
               <div class="settings-value">
                 <input
                   type="text"
-                  placeholder="Inbox"
+                  placeholder="Inbox folder"
                   value={workspaceSettings.value.captureInboxFolder}
                   onInput={(e) => {
                     void updateWorkspaceSettings({
@@ -644,7 +644,7 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
               <div class="settings-value">
                 <input
                   type="text"
-                  placeholder="Inbox.md"
+                  placeholder="Inbox note path"
                   value={workspaceSettings.value.captureInboxNote}
                   onInput={(e) => {
                     void updateWorkspaceSettings({

@@ -290,6 +290,26 @@ describe("SettingsPanel", () => {
     });
   });
 
+  it("wires the capture inbox folder text input", () => {
+    workspacePath.value = "/vault";
+    const { getByPlaceholderText } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+    const input = getByPlaceholderText("Inbox folder") as HTMLInputElement;
+    fireEvent.input(input, { target: { value: "Captures" } });
+    expect(updateWorkspaceSettings).toHaveBeenCalledWith({
+      captureInboxFolder: "Captures",
+    });
+  });
+
+  it("wires the capture inbox note text input", () => {
+    workspacePath.value = "/vault";
+    const { getByPlaceholderText } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+    const input = getByPlaceholderText("Inbox note path") as HTMLInputElement;
+    fireEvent.input(input, { target: { value: "Notes/Inbox.md" } });
+    expect(updateWorkspaceSettings).toHaveBeenCalledWith({
+      captureInboxNote: "Notes/Inbox.md",
+    });
+  });
+
   it("shows and wires the frontmatter properties panel switch", () => {
     workspacePath.value = "/vault";
     workspaceSettings.value = {

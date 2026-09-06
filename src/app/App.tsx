@@ -15,7 +15,7 @@ import { ImageViewer } from "../editor/ImageViewer";
 import { ImageViewerOverlay } from "../editor/ImageViewerOverlay";
 import { CaptureSheet, captureSheetOpen, openCaptureSheet } from "./CaptureSheet";
 import { classifyWorkspaceResource } from "../workspace/types";
-import { resolvePathWithinWorkspace } from "../workspace/paths";
+import { resolvePathWithinWorkspace, dirname } from "../workspace/paths";
 import { CanvasView } from "../canvas/CanvasView";
 import {
   activeTab,
@@ -444,21 +444,43 @@ export function App() {
         return;
       }
       if (command.kind === "capture") {
-        // F05: Universal quick capture - create note in configured inbox folder or current directory
+        // F05: Universal quick capture - handle different modes and parameters
         if (!workspacePath.value) return;
         
-        // Use configured capture folder or fall back to selected dir / workspace root
-        let targetDir = selectedDir.value ?? workspacePath.value;
-        const inboxFolder = workspaceSettings.value.captureInboxFolder;
-        if (inboxFolder) {
-          const resolvedInbox = resolvePathWithinWorkspace(workspacePath.value, workspacePath.value, inboxFolder);
-          if (resolvedInbox) {
-            targetDir = resolvedInbox;
+        // Default to "new" mode if not specified
+        const mode = command.mode ?? "new";
+        const text = command.text ?? "";
+        const shouldOpen = command.open ?? true;
+        
+        if (mode === "new") {
+          // Use configured capture folder or fall back to selected dir / workspace root
+          let targetDir = selectedDir.value ?? workspacePath.value;
+          const inboxFolder = workspaceSettings.value.captureInboxFolder;
+          if (inboxFolder) {
+            const resolvedInbox = resolvePathWithinWorkspace(workspacePath.value, workspacePath.value, inboxFolder);
+            if (resolvedInbox) {
+              targetDir = resolvedInbox;
+            }
+          }
+          
+          const { path, name } = await createNoteQuick(targetDir, text);
+          if (shouldOpen) {
+            await handleOpenFile(path, name);
+          }
+        } else if (mode === "append") {
+          // F05: Append to configured inbox note
+          const inboxNote = workspaceSettings.value.captureInboxNote || "Inbox.md";
+          const notePath = resolvePathWithinWorkspace(workspacePath.value, workspacePath.value, inboxNote);
+          if (notePath) {
+            // TODO: Implement append functionality
+            // For now, fall back to creating a new note
+            const { path, name } = await createNoteQuick(dirname(notePath), text);
+            if (shouldOpen) {
+              await handleOpenFile(path, name);
+            }
           }
         }
         
-        const { path, name } = await createNoteQuick(targetDir, command.content);
-        await handleOpenFile(path, name);
         return;
       }
       if (command.kind === "new-note") {

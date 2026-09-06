@@ -23,15 +23,34 @@ describe("parseAutomationUrl", () => {
     expect(parseAutomationUrl("leotheca://open-favorites")).toEqual({ kind: "open-favorites" });
   });
 
-  it("recognizes capture with content", () => {
-    expect(parseAutomationUrl("leotheca://capture?content=Quick%20note")).toEqual({
+  it("recognizes capture with text", () => {
+    expect(parseAutomationUrl("leotheca://capture?text=Quick%20note")).toEqual({
       kind: "capture",
-      content: "Quick note",
+      text: "Quick note",
     });
   });
 
-  it("recognizes capture without content", () => {
-    expect(parseAutomationUrl("leotheca://capture")).toEqual({ kind: "capture", content: "" });
+  it("recognizes capture with content (backward compatibility)", () => {
+    expect(parseAutomationUrl("leotheca://capture?content=Quick%20note")).toEqual({
+      kind: "capture",
+      text: "Quick note",
+    });
+  });
+
+  it("recognizes capture without text", () => {
+    expect(parseAutomationUrl("leotheca://capture")).toEqual({ kind: "capture", text: "" });
+  });
+
+  it("recognizes capture with all F05 parameters", () => {
+    expect(parseAutomationUrl("leotheca://capture?text=Hello&title=Note&url=https://example.com&mode=append&profile=123&open=true")).toEqual({
+      kind: "capture",
+      text: "Hello",
+      title: "Note",
+      url: "https://example.com",
+      mode: "append",
+      profile: "123",
+      open: true,
+    });
   });
 
   it("ignores query params other than content", () => {

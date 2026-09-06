@@ -12,6 +12,7 @@ import { MarkdownPreview } from "../editor/MarkdownPreview";
 import { FrontmatterPropertiesPanel } from "../editor/FrontmatterPropertiesPanel";
 import { isNoteReadOnlyActive, setNoteReadOnly } from "../editor/noteReadOnly";
 import { ImageViewer } from "../editor/ImageViewer";
+import { ImageViewerOverlay } from "../editor/ImageViewerOverlay";
 import { classifyWorkspaceResource } from "../workspace/types";
 import { CanvasView } from "../canvas/CanvasView";
 import {
@@ -271,6 +272,14 @@ export function App() {
     targetDir: string;
     templates: NoteTemplate[];
   } | null>(null);
+  // Fullscreen image viewer overlay state
+  const [imageOverlay, setImageOverlay] = useState<{ src: string; alt: string } | null>(null);
+  const handleImageClick = useCallback((src: string, alt: string) => {
+    setImageOverlay({ src, alt });
+  }, []);
+  const handleCloseImageOverlay = useCallback(() => {
+    setImageOverlay(null);
+  }, []);
   // Source-mode cursor position for HeadingBreadcrumbs (spec section 7.3).
   // MarkdownEditor itself reports this; it is not rendered at all in a
   // preview-only view mode or for a non-text tab, so this can go stale
@@ -1129,6 +1138,7 @@ export function App() {
                         setSplitAuthority(nextSplitAuthority("preview-interaction"))
                       }
                       searchQuery={current.searchQuery}
+                      onImageClick={handleImageClick}
                     />
                   )}
                 </div>
@@ -1188,6 +1198,13 @@ export function App() {
       )}
       {commandPaletteOpen.value && (
         <CommandPalette commands={commands} onClose={() => (commandPaletteOpen.value = false)} />
+      )}
+      {imageOverlay && (
+        <ImageViewerOverlay
+          src={imageOverlay.src}
+          alt={imageOverlay.alt}
+          onClose={handleCloseImageOverlay}
+        />
       )}
     </div>
   );

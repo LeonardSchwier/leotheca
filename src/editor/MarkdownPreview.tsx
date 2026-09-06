@@ -189,6 +189,8 @@ interface MarkdownPreviewProps {
   onDirectInteraction?: () => void;
   /** Search query to highlight in the preview when opened from search results */
   searchQuery?: string;
+  /** Callback when an image is clicked in the preview. Receives the image src and alt text. */
+  onImageClick?: (src: string, alt: string) => void;
 }
 
 // spec section 7.4: "the upper 25 percent of the viewport."
@@ -991,6 +993,7 @@ export function MarkdownPreview({
   onActiveHeadingChange,
   onDirectInteraction,
   searchQuery,
+  onImageClick,
 }: MarkdownPreviewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const noteDir = notePath ? dirname(notePath) : null;
@@ -1151,6 +1154,31 @@ export function MarkdownPreview({
       cleanups.forEach((cleanup) => cleanup());
     };
   }, [html]);
+
+  // Fullscreen zoom viewer Phase 1: handle image clicks for local images
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || !onImageClick) return;
+
+    const handleImageClick = (event: MouseEvent) => {
+      const img = (event.target as HTMLElement).closest("img");
+      if (!img) return;
+
+      // Only handle clicks on local images (those with our attachment prefix)
+      const src = img.getAttribute("src");
+      if (src && src.startsWith(ATTACHMENT_SRC_PREFIX)) {
+        const alt = img.getAttribute("alt") || "";
+        event.preventDefault();
+        event.stopPropagation();
+        onImageClick(src, alt);
+      }
+    };
+
+    container.addEventListener("click", handleImageClick, { capture: true });
+    return () => {
+      container.removeEventListener("click", handleImageClick, { capture: true });
+    };
+  }, [onImageClick]);
 
   // F04 Phase 5d: turns each invisible marker element (`blockAnchorMarkerHtml`)
   // `stripBlockIdMarkers` above emitted for a uniquely-identified block

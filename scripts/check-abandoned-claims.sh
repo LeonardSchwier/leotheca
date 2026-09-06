@@ -3,6 +3,17 @@
 # Purpose: Help agents identify abandoned claims that can be reclaimed
 # Usage: ./scripts/check-abandoned-claims.sh [--hours N] [--reclaim AGENT_ID]
 
+# ====================================================================
+# PROJECT VARIABLES - UPDATE THESE FOR YOUR PROJECT
+# ====================================================================
+REPO_FULL_NAME="LeonardSchwier/leotheca"  # GitHub repository (user/repo)
+REPO_SHORT_NAME="leotheca"               # Repository name (no user)
+MAIN_BRANCH="main"                      # Default/main branch name
+ROADMAP_FILE="ROADMAP.md"               # Roadmap filename
+MAINTAINER_NAME="Leonard Schwer"        # Repository owner name
+MAINTAINER_EMAIL="leonardschwier"      # Repository owner email (for human work detection)
+# ====================================================================
+
 set -euo pipefail
 
 # Default abandonment threshold: 4 hours
@@ -35,6 +46,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 echo -e "${BLUE}=== ABANDONED CLAIM DETECTOR ===${NC}"
+echo -e "Repository: ${REPO_FULL_NAME}"
 echo -e "Abandonment threshold: ${ABANDON_HOURS} hours"
 echo ""
 
@@ -54,15 +66,14 @@ if [[ -z "$AGENT_BRANCHES" ]]; then
     exit 0
 fi
 
-# Process ROADMAP.md to find 🚧 items
-echo -e "${BLUE}=== SCANNING ROADMAP.md ===${NC}"
+# Process ROADMAP_FILE to find 🚧 items
+echo -e "${BLUE}=== SCANNING ${ROADMAP_FILE} ===${NC}"
 
 # Temporary files
-TEMP_ROADMAP=$(mktemp)
 TEMP_ABANDONED=$(mktemp)
 
 # Extract 🚧 items with their claim details
-grep -n '^\s*-\s*🚧' ROADMAP.md | while read -r line; do
+grep -n "^\s*-\s*🚧" "${ROADMAP_FILE}" | while read -r line; do
     LINE_NUM=$(echo "$line" | cut -d: -f1)
     LINE_TEXT=$(echo "$line" | cut -d: -f2-)
     
@@ -73,7 +84,7 @@ grep -n '^\s*-\s*🚧' ROADMAP.md | while read -r line; do
     
     if [[ -z "$BRANCH" ]]; then
         echo -e "${YELLOW}Line $LINE_NUM: $LINE_TEXT${NC}"
-        echo -e "  -> No branch found in claim, checking all agent branches..."
+        echo -e "  -> No branch found in claim, skipping..."
         continue
     fi
     
@@ -86,7 +97,7 @@ grep -n '^\s*-\s*🚧' ROADMAP.md | while read -r line; do
     if ! git rev-parse --quiet "origin/$BRANCH" >/dev/null 2>&1; then
         echo -e "  -> ${RED}BRANCH DOES NOT EXIST ON REMOTE${NC}"
         
-        # Check when the claim was made (from git log on main)
+        # Check when the claim was made (from git log on MAIN_BRANCH)
         CLAIM_COMMIT=$(git log --all --grep="$BRANCH" --oneline --grep="claim.*$AGENT_ID" | head -1 || true)
         if [[ -n "$CLAIM_COMMIT" ]]; then
             CLAIM_EPOCH=$(git log -1 --format='%at' "$CLAIM_COMMIT" || echo "0")
@@ -108,16 +119,10 @@ grep -n '^\s*-\s*🚧' ROADMAP.md | while read -r line; do
     
     echo -e "  -> Last commit: $LAST_COMMIT_DATE"
     
-    # Check for recent pushes to main referencing this item
-    MAIN_PUSHES=$(git log --since="$ABANDON_DATE" --grep="$BRANCH\|$AGENT_ID" --oneline origin/main | wc -l || echo "0")
-    
-    # Check for recent CI runs on this branch
-    # This is a simple check - in practice agents would need GitHub API access
-    CI_CHECK="N/A (requires GitHub API)"
+    # Check for recent pushes to MAIN_BRANCH referencing this item
+    MAIN_PUSHES=$(git log --since="$ABANDON_DATE" --grep="$BRANCH" --grep="$AGENT_ID" --oneline origin/${MAIN_BRANCH} | wc -l || echo "0")
     
     # Determine if abandoned
-    IS_ABANDONED=false
-    
     if [[ $LAST_COMMIT_EPOCH -lt $ABANDON_EPOCH ]]; then
         if [[ $MAIN_PUSHES -eq 0 ]]; then
             # Check if author is human (repository owner)
@@ -126,15 +131,15 @@ grep -n '^\s*-\s*🚧' ROADMAP.md | while read -r line; do
             
             echo -e "  -> Last author: $LAST_AUTHOR ($LAST_EMAIL)"
             
-            # Simple check for human work - this would need to be configured
-            if [[ "$LAST_AUTHOR" == "Leonard Schwier" ]] || [[ "$LAST_EMAIL" == *"@leonardschwier"* ]]; then
+            # Check for human work - repository owner
+            if [[ "$LAST_AUTHOR" == "$MAINTAINER_NAME" ]] || [[ "$LAST_EMAIL" == *"@${MAINTAINER_EMAIL}"* ]] || [[ "$LAST_EMAIL" == "$MAINTAINER_EMAIL" ]]; then
                 echo -e "  -> ${YELLOW}HUMAN WORK DETECTED - Do not reclaim${NC}"
             else
-                echo -e "  -> ${GREEN}ABANDONED: No commits for $ABANDON_HOURS+ hours, no main activity${NC}"
+                echo -e "  -> ${GREEN}ABANDONED: No commits for $ABANDON_HOURS+ hours, no $MAIN_BRANCH activity${NC}"
                 echo "$LINE_NUM:$BRANCH:$AGENT_ID" >> "$TEMP_ABANDONED"
             fi
         else
-            echo -e "  -> Recent main activity found, not abandoned"
+            echo -e "  -> Recent $MAIN_BRANCH activity found, not abandoned"
         fi
     else
         echo -e "  -> Recent commits found, not abandoned"
@@ -164,9 +169,9 @@ else
         echo -e "${GREEN}=== RECLAIM PROCEDURE ===${NC}"
         echo "To reclaim an abandoned claim:"
         echo "1. Verify it's truly abandoned (4+ hours of inactivity)"
-        echo "2. Check for human work (Leonard Schwier as recent author = DO NOT RECLAIM)"
-        echo "3. Update ROADMAP.md with your claim, noting it's RECLAIMED from abandoned <old-agent>"
-        echo "4. Push claim to main"
+        echo "2. Check for human work ($MAINTAINER_NAME as recent author = DO NOT RECLAIM)"
+        echo "3. Update $ROADMAP_FILE with your claim, noting it's RECLAIMED from abandoned <old-agent>"
+        echo "4. Push claim to $MAIN_BRANCH"
         echo "5. Create your own branch and start fresh implementation"
         echo ""
         echo "Example claim format:"
@@ -175,7 +180,7 @@ else
 fi
 
 # Cleanup
-rm -f "$TEMP_ROADMAP" "$TEMP_ABANDONED"
+rm -f "$TEMP_ABANDONED"
 
 echo ""
 echo -e "${BLUE}=== CHECK COMPLETE ===${NC}"

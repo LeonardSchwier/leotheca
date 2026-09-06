@@ -13,6 +13,7 @@ import { FrontmatterPropertiesPanel } from "../editor/FrontmatterPropertiesPanel
 import { isNoteReadOnlyActive, setNoteReadOnly } from "../editor/noteReadOnly";
 import { ImageViewer } from "../editor/ImageViewer";
 import { ImageViewerOverlay } from "../editor/ImageViewerOverlay";
+import { CaptureSheet, captureSheetOpen, openCaptureSheet } from "./CaptureSheet";
 import { classifyWorkspaceResource } from "../workspace/types";
 import { CanvasView } from "../canvas/CanvasView";
 import {
@@ -279,6 +280,17 @@ export function App() {
   }, []);
   const handleCloseImageOverlay = useCallback(() => {
     setImageOverlay(null);
+  }, []);
+  // Global keyboard shortcut for Quick Capture (Cmd/Ctrl+Shift+C)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "c" && (e.metaKey || e.ctrlKey) && e.shiftKey) {
+        e.preventDefault();
+        openCaptureSheet();
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
   }, []);
   // Source-mode cursor position for HeadingBreadcrumbs (spec section 7.3).
   // MarkdownEditor itself reports this; it is not rendered at all in a
@@ -651,6 +663,7 @@ export function App() {
         run: () => (markdownHelpOpen.value = true),
       },
       { id: "settings", label: "Open Settings", run: () => (settingsPanelOpen.value = true) },
+      { id: "capture", label: "Quick Capture", run: () => openCaptureSheet() },
     ];
     if (rootPath) {
       if (workspaceSettings.value.templatesEnabled) {
@@ -1216,6 +1229,9 @@ export function App() {
           alt={imageOverlay.alt}
           onClose={handleCloseImageOverlay}
         />
+      )}
+      {captureSheetOpen.value && (
+        <CaptureSheet onCreated={(path, name) => void handleOpenFile(path, name)} />
       )}
     </div>
   );

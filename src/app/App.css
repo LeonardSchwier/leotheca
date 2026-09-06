@@ -1370,4 +1370,71 @@ button.icon-button.active {
   .image-viewer-button:hover {
     background: var(--bg-tertiary, #444);
   }
+
+  /* F05: Capture Sheet */
+  .capture-sheet {
+    max-width: 600px;
+    width: 90vw;
+  }
+
+  .capture-sheet-textarea {
+    width: 100%;
+    min-height: 150px;
+    padding: var(--space-3);
+    margin: var(--space-3) 0;
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-2);
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: inherit;
+    resize: vertical;
+    box-sizing: border-box;
+  }
+
+  .capture-sheet-textarea:focus {
+    outline: none;
+    border-color: var(--accent-blue, #4285f4);
+    box-shadow: 0 0 0 2px rgba(66, 133, 244, 0.2);
+  }
+
+  .capture-sheet-textarea::placeholder {
+    color: var(--text-secondary);
+    opacity: 0.7;
+  }
+
+  .capture-sheet-textarea:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .capture-sheet-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-2);
+    margin-top: var(--space-2);
+  }
+
+  .capture-sheet-hint {
+    margin-top: var(--space-4);
+    font-size: 0.85em;
+    color: var(--text-secondary);
+    text-align: right;
+  }
+
+  .capture-sheet .primary {
+    background-color: var(--accent-blue, #4285f4);
+    color: white;
+    border: none;
+  }
+
+  .capture-sheet .primary:hover:not(:disabled) {
+    background-color: var(--accent-blue-dark, #3367d6);
+  }
+
+  .capture-sheet .primary:disabled {
+    background-color: var(--accent-blue, #4285f4);
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 }

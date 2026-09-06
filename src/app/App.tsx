@@ -358,11 +358,11 @@ export function App() {
      * call's problem to report, since a newer request already
      * superseded it.
      */
-    async (path: string, name: string, options?: { headingKey?: string; blockId?: string }) => {
+    async (path: string, name: string, options?: { headingKey?: string; blockId?: string; searchQuery?: string }) => {
       const authority = beginFileOpenAuthority();
       const kind = classifyWorkspaceResource(path);
       if (kind === "image") {
-        openOrFocusTab(path, name, "", "image");
+        openOrFocusTab(path, name, "", "image", options?.searchQuery);
       } else {
         let content: string;
         try {
@@ -379,7 +379,7 @@ export function App() {
         const existingTab = openTabs.value.find((tab) => tab.path === path);
         const effectiveContent = existingTab?.content ?? content;
         batch(() => {
-          openOrFocusTab(path, name, content, kind);
+          openOrFocusTab(path, name, content, kind, options?.searchQuery);
           if (options?.headingKey) {
             const match = resolveHeadingFragment(scanHeadings(effectiveContent), options.headingKey);
             if (match.status === "resolved") {
@@ -974,7 +974,7 @@ export function App() {
                     ) : (
                       <Sidebar
                         rootPath={rootPath}
-                        onOpenFile={handleOpenFile}
+                        onOpenFile={(path, name, searchQuery) => handleOpenFile(path, name, searchQuery ? { searchQuery } : undefined)}
                         flushPendingAutosave={flushPendingAutosave}
                       />
                     )}
@@ -1114,6 +1114,7 @@ export function App() {
                         setCursorPos(pos);
                         setSplitAuthority(nextSplitAuthority("source-cursor"));
                       }}
+                      searchQuery={current.searchQuery}
                     />
                   )}
                   {viewMode.value !== "source" && (
@@ -1127,6 +1128,7 @@ export function App() {
                       onDirectInteraction={() =>
                         setSplitAuthority(nextSplitAuthority("preview-interaction"))
                       }
+                      searchQuery={current.searchQuery}
                     />
                   )}
                 </div>

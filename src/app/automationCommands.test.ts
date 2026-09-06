@@ -23,6 +23,17 @@ describe("parseAutomationUrl", () => {
     expect(parseAutomationUrl("leotheca://open-favorites")).toEqual({ kind: "open-favorites" });
   });
 
+  it("recognizes capture with content", () => {
+    expect(parseAutomationUrl("leotheca://capture?content=Quick%20note")).toEqual({
+      kind: "capture",
+      content: "Quick note",
+    });
+  });
+
+  it("recognizes capture without content", () => {
+    expect(parseAutomationUrl("leotheca://capture")).toEqual({ kind: "capture", content: "" });
+  });
+
   it("ignores query params other than content", () => {
     expect(parseAutomationUrl("leotheca://new-note?content=Hi&extra=ignored")).toEqual({
       kind: "new-note",

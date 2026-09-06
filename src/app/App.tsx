@@ -430,10 +430,21 @@ export function App() {
         sidebarOpen.value = true;
         return;
       }
-      if (!workspacePath.value) return;
-      const targetDir = selectedDir.value ?? workspacePath.value;
-      const { path, name } = await createNoteQuick(targetDir, command.content);
-      await handleOpenFile(path, name);
+      if (command.kind === "capture") {
+        // F05: Universal quick capture - create note in inbox or current directory
+        if (!workspacePath.value) return;
+        const targetDir = selectedDir.value ?? workspacePath.value;
+        const { path, name } = await createNoteQuick(targetDir, command.content);
+        await handleOpenFile(path, name);
+        return;
+      }
+      if (command.kind === "new-note") {
+        if (!workspacePath.value) return;
+        const targetDir = selectedDir.value ?? workspacePath.value;
+        const { path, name } = await createNoteQuick(targetDir, command.content);
+        await handleOpenFile(path, name);
+        return;
+      }
     },
     [handleOpenFile],
   );

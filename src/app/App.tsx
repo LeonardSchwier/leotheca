@@ -15,6 +15,7 @@ import { ImageViewer } from "../editor/ImageViewer";
 import { ImageViewerOverlay } from "../editor/ImageViewerOverlay";
 import { CaptureSheet, captureSheetOpen, openCaptureSheet } from "./CaptureSheet";
 import { classifyWorkspaceResource } from "../workspace/types";
+import { resolvePathWithinWorkspace } from "../workspace/paths";
 import { CanvasView } from "../canvas/CanvasView";
 import {
   activeTab,
@@ -443,9 +444,19 @@ export function App() {
         return;
       }
       if (command.kind === "capture") {
-        // F05: Universal quick capture - create note in inbox or current directory
+        // F05: Universal quick capture - create note in configured inbox folder or current directory
         if (!workspacePath.value) return;
-        const targetDir = selectedDir.value ?? workspacePath.value;
+        
+        // Use configured capture folder or fall back to selected dir / workspace root
+        let targetDir = selectedDir.value ?? workspacePath.value;
+        const inboxFolder = workspaceSettings.value.captureInboxFolder;
+        if (inboxFolder) {
+          const resolvedInbox = resolvePathWithinWorkspace(workspacePath.value, workspacePath.value, inboxFolder);
+          if (resolvedInbox) {
+            targetDir = resolvedInbox;
+          }
+        }
+        
         const { path, name } = await createNoteQuick(targetDir, command.content);
         await handleOpenFile(path, name);
         return;

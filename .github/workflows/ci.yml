@@ -2,6 +2,11 @@ name: CI
 
 on:
   push:
+    # Lease heartbeats and handoffs change no application code. The separate
+    # agent-policy workflow validates ROADMAP state without native rebuilds.
+    paths-ignore:
+      - "ROADMAP.md"
+      - ".agents/handoffs/**"
   pull_request:
   workflow_call:
 

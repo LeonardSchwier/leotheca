@@ -7,7 +7,7 @@ name: Release
 #   mechanism Obtainium (Android) and the README's "download from GitHub
 #   Releases" instructions (Linux) both depend on. Still a draft, for the
 #   Android-signing reason explained below.
-# - Any other push to main updates a single rolling "dev-build" pre-release
+# - An implementation push to main updates a rolling "dev-build" pre-release
 #   (not a draft, so it's actually visible without the maintainer manually
 #   publishing it) so freshly built artifacts are always available on the
 #   repository's Releases page without waiting for a version tag. It is
@@ -71,6 +71,11 @@ on:
       - "v*"
     branches:
       - main
+    # Claim/heartbeat/finish records must not republish unchanged binaries.
+    # Tag pushes still run: the host does not apply path filters to tags.
+    paths-ignore:
+      - "ROADMAP.md"
+      - ".agents/handoffs/**"
   workflow_dispatch: {}
 
 jobs:

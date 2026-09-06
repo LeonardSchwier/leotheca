@@ -1,41 +1,23 @@
-# Agent skills
+<!-- Variables: POLICY = ../CONSTITUTION.md; ENTRYPOINT = ../AGENTS.md -->
 
-Plain, tool-agnostic runbooks for recurring tasks in this repository.
-They work the same way for Claude Code, Codex, opencode, or any other
-coding agent: there is no tool-specific format or loader here, just
-markdown files meant to be read directly. `CONSTITUTION.md` remains the
-single source of truth for project *policy* (what is and isn't allowed);
-these files are the mechanical *how* for carrying that policy out, kept
-separate so the policy document stays readable and these procedures can
-be updated without touching it.
+# Agent runbooks
 
-Read `AGENTS.md` and `CONSTITUTION.md` first, always. Come here when
-you're about to do one of the following:
+Read the entrypoint and current policy first. These are plain Markdown procedures usable by any agent, including a runner without native skill discovery. Load only the applicable files. Project identity and timing settings live at the top of the constitution; domain paths and command profiles live at the top of the relevant runbook.
 
-- **`multi-agent-autonomous-coordination.md`** — the PRIMARY protocol for multiple agents working simultaneously: startup, work selection, claiming, abandoned claim recovery, CI fallback, blocker resolution, landing, and the autonomous session loop. Read this first for multi-agent coordination.
-- **`roadmap-workflow.md`** — claiming, implementing, verifying, and landing one `ROADMAP.md` item, start to finish, including the direct-to-`main` landing steps.
-- **`autonomous-roadmap-delivery.md`** - repeatedly integrating and landing multiple roadmap items in one autonomous or scheduled session, with complete candidate bookkeeping before final exact-head CI and productive read-only preparation while CI runs.
-- **`verification-suite.md`** — the exact commands this project's "verify before declaring done" rule means in practice, including a real pitfall (nested agent worktrees inflating test/lint counts) and the cloud-sandbox Rust bootstrap steps.
-- **`merge-conflict-resolution.md`** — resolving a `ROADMAP.md`/`CHANGELOG.md` (or source file) conflict against a `main` that moved while you were working.
-- **`phase-splitting-large-specs.md`** — narrowing a large `spec/*.md` feature into an honestly-scoped, single-session-sized first phase, and what to do when a phase already on the roadmap turns out too big.
-- **`writing-scanner-modules.md`** — the established shape for a new Markdown structure scanner (the heading outline and table parser are the existing examples), and how to wire it into a hook and a panel/component without duplicating navigation or debouncing logic.
-- **`ci-failure-triage.md`** — diagnosing why a CI run (yours or someone else's) actually failed: getting the real failing step, classifying the failure (your diff, a drifted generated artifact, external/upstream, or a flake) with evidence rather than a guess, and what to record before moving on.
-- **`packaging-submission-pipelines.md`** — hard-won, non-obvious gotchas specific to the F-Droid and Flathub submission pipelines (`packaging/f-droid/`, `flatpak/`): pinned-commit mismatches, offline dependency source lists generated from the wrong commit, `npm ci --offline` still needing `--legacy-peer-deps`, and the official F-Droid buildserver image's own floating-tag regressions.
-- **`competitor-changelog-scan.md`** — the daily Market Solution #1/#2 changelog scan: how to tell what's already covered without a reliable "last run" log, fetching and filtering each changelog for genuinely new features, applying the auto-reject/sign-off-gated categories, the exact `ROADMAP.md` entry format, and the pseudonym rule for naming either competitor.
-- **`persistence-implementation.md`** — comprehensive checklist and templates for implementing any persistence feature, derived from F07 Phase 2b failure modes: defines required invariants, validation patterns, migration strategies, complete test coverage, and pre-commit adversarial review for any settings or persisted data changes.
+| When | Read |
+| --- | --- |
+| Start/continue an autonomous session; blockers; shutdown | [autonomous-roadmap-delivery.md](autonomous-roadmap-delivery.md) |
+| Claim, renew, publish, finish, or recover work | [roadmap-workflow.md](roadmap-workflow.md) |
+| Decide what to test; local/hosted/deferred CI | [verification-suite.md](verification-suite.md) |
+| A real job/test/build fails | [ci-failure-triage.md](ci-failure-triage.md) |
+| Main moves or a merge conflicts | [merge-conflict-resolution.md](merge-conflict-resolution.md) |
+| No feature work is currently runnable | [maintenance-review.md](maintenance-review.md) |
+| One specification is too large for a session | [phase-splitting-large-specs.md](phase-splitting-large-specs.md) |
+| Persisted settings/data or migrations change | [persistence-implementation.md](persistence-implementation.md) |
+| Add/change a Markdown structure scanner | [writing-scanner-modules.md](writing-scanner-modules.md) |
+| Work on source-built package submissions | [packaging-submission-pipelines.md](packaging-submission-pipelines.md) |
+| An existing runner invokes the optional competitor scan | [competitor-changelog-scan.md](competitor-changelog-scan.md) |
 
-If you add a new skill file, list it here too, and keep each file
-self-contained: a future session (in any tool) should be able to open one
-skill file and follow it without having to also have this index or
-`CONSTITUTION.md` open side by side, beyond the initial pointers already
-in `AGENTS.md`.
+The old `multi-agent-autonomous-coordination.md` path redirects to the current workflow. There is no second coordination protocol. `scripts/agent_ledger.py` replaces the old abandoned-claim shell script; its behavior tests cover expiry, ownership and competing pushes.
 
-Editing an existing skill file or adding a new one is ordinary,
-standing-authorized maintenance for any agent, any tool — no `ROADMAP.md`
-claim, no separate sign-off (see `CONSTITUTION.md`'s "Maintaining the
-skills library"). Do it the moment real work surfaces a gap or a mistake
-here, the same way `ci-failure-triage.md` and
-`packaging-submission-pipelines.md` came directly out of one session's
-own investigation rather than being written speculatively; that's the
-standard to hold a new or edited skill file to; a plausible-sounding
-procedure nobody actually verified is worse than no skill file at all.
+Maintain these runbooks under a normal scoped claim. Preserve verified domain knowledge and concrete failure lessons. Do not restore obsolete human gates, private coordination logs, or unconditional hosted-CI requirements.

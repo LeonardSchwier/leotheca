@@ -1,3 +1,10 @@
+<!--
+Variables: CONFIG = ../CONSTITUTION.md
+SCANNER_EXAMPLE = src/markdown/headings.ts
+HOOK_EXAMPLE = src/outline/useNoteHeadings.ts
+ROW_EXAMPLE = src/outline/OutlineRowContent.tsx
+-->
+
 # Skill: writing a Markdown structure scanner module
 
 Several features (the heading outline, tables, and any future task-list

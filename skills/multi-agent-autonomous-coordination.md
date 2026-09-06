@@ -1,11 +1,5 @@
-# Skill: Multi-Agent Autonomous Coordination Protocol
+<!-- Variables: POLICY = ../CONSTITUTION.md; LOOP = autonomous-roadmap-delivery.md; TRANSACTIONS = roadmap-workflow.md -->
 
-<!-- REPO_FULL_NAME = LeonardSchwier/leotheca -->
-<!-- REPO_NAME = leotheca -->
-<!-- PROJECT_NAME = Leotheca -->
-<!-- MAIN_BRANCH = main -->
-<!-- CONSTITUTION_FILE = CONSTITUTION.md -->
-<!-- ROADMAP_FILE = ROADMAP.md -->
-<!-- CHANGELOG_FILE = agent-log/CHANGELOG.md -->
-<!-- SKILLS_DIR = skills -->
-<!-- SCRIPTS_DIR = scripts -->
+# Compatibility entrypoint
+
+Read [the current constitution](../CONSTITUTION.md), then [the session loop](autonomous-roadmap-delivery.md) and [claim transactions](roadmap-workflow.md). Those files replace all previous coordination instructions at this path. This redirect exists for older runner prompts; it defines no independent timeout, CI requirement, or ownership rule.

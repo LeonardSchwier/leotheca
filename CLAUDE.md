@@ -1,7 +1,5 @@
-# Instructions for Claude Code
+<!-- Variables: AGENT_ENTRYPOINT = AGENTS.md -->
 
-Before doing anything else in this repository, read `CONSTITUTION.md` in the repository root. It is the single source of truth for project rules, conventions, and standing decisions, kept there (not here) so every coding agent working on this repository, regardless of tool, reads the same rules.
+# Repository instructions
 
-Before editing implementation files, complete the repository-visible integration and claim checks in its tool-neutral "Parallel agent coordination and integration" section. Claude Code shares that ledger and integration queue with Codex and every other session.
-
-Do not duplicate its content here. If you need to add a Claude Code specific instruction that has no bearing on other tools, add it below this line.
+Read `AGENTS.md` now, then follow its startup sequence and autonomous loop. It is the shared entrypoint for all agent providers. Claims, leases, handoffs, quality checks, and direct pushes use that same protocol. Do not substitute a private task list or provider-specific workflow.

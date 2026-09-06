@@ -1,6 +1,6 @@
 # Contributing to Leotheca
 
-Read [CONSTITUTION.md](CONSTITUTION.md) before opening an issue or pull request. It records the project rules, product principles, and coding conventions. See [documentation/ARCHITECTURE.md](documentation/ARCHITECTURE.md) for how the codebase is structured before making a non-trivial change.
+Read [CONSTITUTION.md](CONSTITUTION.md) and [AGENTS.md](AGENTS.md) before changing the repository. It records the project rules, product principles, and coding conventions. See [documentation/ARCHITECTURE.md](documentation/ARCHITECTURE.md) for how the codebase is structured before making a non-trivial change.
 
 ## Development setup
 
@@ -61,6 +61,8 @@ cd src-tauri
 cargo test
 ```
 
-## Pull requests
+## Autonomous contributions
 
-Keep each pull request focused. Describe what changed and why, include the commands used to test it, and update relevant documentation when a change affects building, running, or contributing. Do not add telemetry, account requirements, or dependencies that conflict with the project's distribution constraints.
+Agents use the shared claim, lease, verification, and direct-main workflow in [AGENTS.md](AGENTS.md). No pull request or human merge is required. Each worker uses an isolated checkout, owns one roadmap item, reviews/tests its changes, and handles available CI results. Limited CI environments follow [the verification decision table](skills/verification-suite.md).
+
+Keep changes focused and update relevant documentation. Do not add telemetry, account requirements, or dependencies that conflict with the product rules. Instruction changes and historic reviews use the same claims as implementation work.

@@ -45,12 +45,12 @@ export function focusTab(path: string) {
   batch(() => updatePrimaryGroup(openDocuments.value, path));
 }
 
-export function openOrFocusTab(path: string, name: string, content: string, kind: TabKind) {
+export function openOrFocusTab(path: string, name: string, content: string, kind: TabKind, searchQuery?: string) {
   const existing = openDocuments.value.find((document) => document.path === path);
   batch(() => updatePrimaryGroup(
     existing
-      ? openDocuments.value
-      : [...openDocuments.value, { path, name, content, kind, dirty: false, saveError: null }],
+      ? openDocuments.value.map(doc => doc.path === path ? { ...doc, searchQuery } : doc)
+      : [...openDocuments.value, { path, name, content, kind, dirty: false, saveError: null, searchQuery }],
     path,
   ));
 }

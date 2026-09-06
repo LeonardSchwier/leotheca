@@ -24,6 +24,39 @@ import "../linking/linking.css";
 marked.setOptions({ gfm: true, breaks: false });
 
 /**
+ * Escapes a string for use in a regular expression.
+ */
+function escapeRegExp(string: string): string {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Wraps search matches in text content with a highlight span.
+ * This function splits the HTML on tags and only processes text content,
+ * ensuring we don't modify HTML tags or attributes.
+ */
+function highlightSearchMatches(html: string, query: string): string {
+  if (!query) return html;
+  
+  const escapedQuery = escapeRegExp(query);
+  const caseInsensitiveQuery = new RegExp(escapedQuery, 'i');
+  
+  // Split the HTML on tags, process text parts, leave tags untouched
+  const parts = html.split(/(<[^>]+>)/g);
+  
+  return parts.map((part) => {
+    // If this is an HTML tag, return as-is
+    if (part.startsWith('<') && part.endsWith('>')) {
+      return part;
+    }
+    // This is text content, apply highlighting
+    return part.replace(caseInsensitiveQuery, (match) => {
+      return `<span class="search-highlight">${match}</span>`;
+    });
+  }).join('');
+}
+
+/**
  * $inline$ and $$block$$ LaTeX math, rendered with KaTeX (a pure
  * client-side renderer with its own bundled fonts, no CDN or network
  * fetch involved, required by CONSTITUTION.md's "Offline by design"
@@ -154,6 +187,8 @@ interface MarkdownPreviewProps {
    * and would otherwise let an unrelated edit silently steal breadcrumb
    * authority from whichever pane the user actually last touched. */
   onDirectInteraction?: () => void;
+  /** Search query to highlight in the preview when opened from search results */
+  searchQuery?: string;
 }
 
 // spec section 7.4: "the upper 25 percent of the viewport."
@@ -955,6 +990,7 @@ export function MarkdownPreview({
   notePath,
   onActiveHeadingChange,
   onDirectInteraction,
+  searchQuery,
 }: MarkdownPreviewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const noteDir = notePath ? dirname(notePath) : null;
@@ -974,7 +1010,7 @@ export function MarkdownPreview({
   // fragments (see markdown/blocks.ts).
   const currentBlocks = useMemo(() => scanBlockIds(source), [source]);
 
-  const { html, crossNoteEmbeds } = useMemo(() => {
+  const { html: rawHtml, crossNoteEmbeds } = useMemo(() => {
     mathRenderingActive = mathRenderingEnabled;
     // Must run first, against the pristine source: see
     // stripBlockIdMarkers's own doc comment for why offset-based rewrites
@@ -1026,6 +1062,11 @@ export function MarkdownPreview({
     currentBlocks,
     notePath,
   ]);
+
+  // Apply search highlighting to the raw HTML when a search query is provided
+  const html = useMemo(() => {
+    return searchQuery ? highlightSearchMatches(rawHtml, searchQuery) : rawHtml;
+  }, [rawHtml, searchQuery]);
 
   // marked.parse is synchronous, but resolving a placeholder src into a
   // real, loadable one (fileSrc, see workspace/tauriBridge.ts) is not. A

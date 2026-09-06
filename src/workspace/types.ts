@@ -38,6 +38,8 @@ export interface OpenDocument {
   /** Non-null when the last save attempt failed. The user can see this
    * error and retry; the tab stays dirty until a successful write. */
   saveError: string | null;
+  /** Search query to highlight when opening from search results */
+  searchQuery?: string;
 }
 
 /** Compatibility name for the current one-group tab UI. F07 Phase 1 keeps

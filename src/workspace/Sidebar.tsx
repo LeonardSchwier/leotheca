@@ -48,7 +48,7 @@ function NewFolderIcon() {
 
 interface SidebarProps {
   rootPath: string;
-  onOpenFile: (path: string, name: string) => void;
+  onOpenFile: (path: string, name: string, searchQuery?: string) => void;
   /** Flushes any pending debounced autosave for `path` before it moves, so
    * renaming a file whose open tab has unsaved keystrokes doesn't lose
    * them. See the identical need (and fuller explanation) at App.tsx's own
@@ -221,7 +221,7 @@ export function Sidebar({ rootPath, onOpenFile, flushPendingAutosave }: SidebarP
           {searchResults.value.length === 0 && <li class="empty-hint">No matches.</li>}
           {searchResults.value.map((entry) => (
             <li key={entry.path}>
-              <button class="file-tree-item" onClick={() => onOpenFile(entry.path, entry.name)}>
+              <button class="file-tree-item" onClick={() => onOpenFile(entry.path, entry.name, searchQuery.value)}>
                 {entry.name}
                 <span class="search-result-path">{entry.path.replace(rootPath, "")}</span>
               </button>

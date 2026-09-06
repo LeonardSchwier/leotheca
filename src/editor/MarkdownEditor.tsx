@@ -2,7 +2,7 @@ import { useEffect, useRef } from "preact/hooks";
 import { Compartment, EditorSelection, EditorState, Transaction } from "@codemirror/state";
 import { EditorView, keymap, lineNumbers, highlightActiveLine } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
-import { searchKeymap } from "@codemirror/search";
+import { searchKeymap, search, setSearchQuery, SearchQuery } from "@codemirror/search";
 import { markdown } from "@codemirror/lang-markdown";
 import { languages } from "@codemirror/language-data";
 import { syntaxHighlighting, defaultHighlightStyle } from "@codemirror/language";
@@ -89,6 +89,8 @@ export interface MarkdownEditorProps {
    * above; used by HeadingBreadcrumbs for Source-mode active-section
    * tracking (spec section 7.3). Not called on mere re-renders. */
   onCursorChange?: (pos: number) => void;
+  /** Search query to highlight in the editor when opened from search results */
+  searchQuery?: string;
 }
 
 /** Suggests note names (and, when the setting is on, note aliases) while
@@ -420,9 +422,11 @@ function buildExtensions(
   onCursorChangeRef: { current: ((pos: number) => void) | undefined },
   readOnlyCompartment: Compartment,
   readOnly: boolean,
+  searchCompartment: Compartment,
 ) {
   return [
     readOnlyCompartment.of([EditorState.readOnly.of(readOnly), EditorView.editable.of(!readOnly)]),
+    searchCompartment.of([search()]),
     EditorState.transactionFilter.of((transaction) => {
       if (
         transaction.docChanged &&
@@ -487,6 +491,7 @@ export function MarkdownEditor({
   blockLinkCreateRequest,
   tableCommandRequest,
   onCursorChange,
+  searchQuery,
 }: MarkdownEditorProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
@@ -502,6 +507,7 @@ export function MarkdownEditor({
   });
   attachmentSettingsRef.current = { workspaceRoot, attachmentsFolder, pasteImagesEnabled, readOnly };
   const readOnlyCompartmentRef = useRef(new Compartment());
+  const searchCompartmentRef = useRef(new Compartment());
   const snippetSettingsRef = useRef<SnippetSettings>({ enabled: snippetsEnabled, source: snippets });
   snippetSettingsRef.current = { enabled: snippetsEnabled, source: snippets };
 
@@ -523,12 +529,18 @@ export function MarkdownEditor({
         onCursorChangeRef,
         readOnlyCompartmentRef.current,
         readOnly,
+        searchCompartmentRef.current,
       ),
     });
 
     const view = new EditorView({ state, parent: hostRef.current });
     viewRef.current = view;
     onCursorChangeRef.current?.(view.state.selection.main.head);
+    
+    // Set search query if provided when opening from search results
+    if (searchQuery) {
+      view.dispatch({ effects: setSearchQuery.of(new SearchQuery({ search: searchQuery })) });
+    }
 
     return () => {
       view.destroy();
@@ -567,10 +579,16 @@ export function MarkdownEditor({
           onCursorChangeRef,
           readOnlyCompartmentRef.current,
           readOnly,
+          searchCompartmentRef.current,
         ),
       }),
     );
     onCursorChangeRef.current?.(view.state.selection.main.head);
+    
+    // Set search query if provided when switching files
+    if (searchQuery) {
+      view.dispatch({ effects: setSearchQuery.of(new SearchQuery({ search: searchQuery })) });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [path]);
 

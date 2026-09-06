@@ -69,6 +69,11 @@ function noteBasename(path: string): string {
   return path.split("/").pop()?.replace(/\.md$/i, "") ?? path;
 }
 
+function dirname(path: string): string {
+  const parts = path.split("/");
+  return parts.slice(0, -1).join("/");
+}
+
 /** A wikilink whose target resolves to `oldPath` and can be safely
  * rewritten to reference `newPath` instead. */
 export interface PlannedWikiLinkEdit {
@@ -93,11 +98,50 @@ export interface BlockedWikiLinkEdit {
   reason: string;
 }
 
+/**
+ * F03 Phase 2b-ii: A Markdown-style link or image that references the note
+ * being renamed and can be safely rewritten.
+ */
+export interface PlannedMarkdownLinkEdit {
+  /** The path of the note containing this reference (never `oldPath` itself). */
+  path: string;
+  /** The reference's exact source range in `path`'s current content. */
+  from: number;
+  to: number;
+  oldText: string;
+  newText: string;
+  /** Whether this is an image link (![alt](target)) vs regular link ([label](target)) */
+  isImage: boolean;
+}
+
+/**
+ * F03 Phase 2b-ii: A Markdown-style link whose target references the note
+ * being renamed but cannot be safely rewritten automatically.
+ */
+export interface BlockedMarkdownLinkEdit {
+  path: string;
+  from: number;
+  to: number;
+  oldText: string;
+  reason: string;
+  isImage: boolean;
+}
+
 export interface RenamePlan {
   oldPath: string;
   newPath: string;
   edits: PlannedWikiLinkEdit[];
   blocked: BlockedWikiLinkEdit[];
+  /**
+   * F03 Phase 2b-ii: Markdown-style links `[label](target)` that reference
+   * the note being renamed. Same structure as `edits` but for markdown links.
+   */
+  markdownEdits?: PlannedMarkdownLinkEdit[];
+  /**
+   * F03 Phase 2b-ii: Markdown-style links that cannot be safely rewritten.
+   * Same structure as `blocked` but for markdown links.
+   */
+  markdownBlocked?: BlockedMarkdownLinkEdit[];
 }
 
 /** True when, after the rename/move, `newPath`'s own basename would
@@ -131,13 +175,145 @@ function wouldBeAmbiguousAfterRename(oldPath: string, newBasenameKey: string, in
  * Tauri/Capacitor bridge, no signals, just paths and strings in,
  * a plan out.
  */
+
+/**
+ * F03 Phase 2b-ii: Returns true if a markdown link or image target matches
+ * the old note path (by basename comparison).
+ */
+function markdownLinkTargetsPath(target: string, oldPath: string): boolean {
+  // Normalize both paths for comparison
+  const oldBasenameKey = noteBasename(oldPath).toLocaleLowerCase();
+  const targetBasenameKey = noteBasename(target).toLocaleLowerCase();
+  return targetBasenameKey === oldBasenameKey;
+}
+
+/**
+ * F03 Phase 2b-ii: Replace the target in a markdown link or image.
+ * Preserves the label/alt text and any title attribute.
+ */
+function rewriteMarkdownLinkTarget(
+  fullMatch: string,
+  newTarget: string,
+): string {
+  // Parse: ![alt](target "title") or [label](target "title")
+  // We need to preserve the label/alt and title parts
+  const labelEnd = fullMatch.indexOf("](");
+  const targetStart = fullMatch.indexOf("(", labelEnd) + 1;
+  const targetEnd = fullMatch.indexOf(")", targetStart);
+  
+  if (labelEnd === -1 || targetStart === 0 || targetEnd === -1) {
+    return fullMatch; // Fallback: return original if parsing fails
+  }
+
+  const labelPart = fullMatch.slice(0, labelEnd + 2); // "![alt](" or "[label]("
+  const afterTarget = fullMatch.slice(targetEnd); // ""title")" or ")"
+  
+  return `${labelPart}${newTarget}${afterTarget}`;
+}
+
+/**
+ * F03 Phase 2b-ii: Scan a note's content for markdown links and images that
+ * reference the old path, and plan their rewrites.
+ */
+function planMarkdownLinks(
+  content: string,
+  path: string,
+  oldPath: string,
+  newPath: string,
+  plan: RenamePlan
+): void {
+  // Match markdown links: [label](target) and images: ![alt](target)
+  // Also handle titles: [label](target "title")
+  const markdownLinkRegex = /(!\[[^\]]*\]|\[[^\]]*\])\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
+  
+  let match;
+  while ((match = markdownLinkRegex.exec(content)) !== null) {
+    const fullMatch = match[0];
+    const linkPart = match[1];
+    const target = match[2];
+    const isImage = linkPart.startsWith("!");
+    
+    // Skip if this doesn't reference our target note
+    if (!markdownLinkTargetsPath(target, oldPath)) continue;
+    
+    // Compute the new target path
+
+    
+    // For markdown links, we need to compute the new relative path
+    // This is the same logic as `resolvePathWithinWorkspace` but relative to the note's directory
+    const relativeNewPath = computeRelativePath(path, newPath);
+    
+    if (relativeNewPath === null) {
+      // Cannot compute relative path - this shouldn't happen for valid paths
+      plan.markdownBlocked!.push({
+        path,
+        from: match.index,
+        to: match.index + fullMatch.length,
+        oldText: fullMatch,
+        reason: "Cannot compute relative path to new location",
+        isImage,
+      });
+      continue;
+    }
+    
+    const newText = rewriteMarkdownLinkTarget(fullMatch, relativeNewPath);
+    
+    plan.markdownEdits!.push({
+      path,
+      from: match.index,
+      to: match.index + fullMatch.length,
+      oldText: fullMatch,
+      newText,
+      isImage,
+    });
+  }
+}
+
+/**
+ * F03 Phase 2b-ii: Helper to compute relative path from one file to another.
+ */
+function computeRelativePath(fromPath: string, toPath: string): string | null {
+  const fromDir = dirname(fromPath);
+  const toDir = dirname(toPath);
+  const toBasename = noteBasename(toPath);
+  
+  if (fromDir === toDir) {
+    return toBasename;
+  }
+  
+  // Check if toPath is in a subdirectory of fromDir
+  if (toPath.startsWith(fromDir + "/")) {
+    return toPath.slice(fromDir.length + 1);
+  }
+  
+  // Check if fromDir is in a subdirectory of toDir  
+  if (fromDir.startsWith(toDir + "/")) {
+    const relativeFrom = fromDir.slice(toDir.length + 1);
+    return "../".repeat(relativeFrom.split("/").length) + toBasename;
+  }
+  
+  // Find common ancestor
+  const fromParts = fromDir.split("/");
+  const toParts = toDir.split("/");
+  
+  let commonLength = 0;
+  while (commonLength < fromParts.length && commonLength < toParts.length && fromParts[commonLength] === toParts[commonLength]) {
+    commonLength++;
+  }
+  
+  const upCount = fromParts.length - commonLength;
+  const downPath = toParts.slice(commonLength).join("/") + (toParts.length > commonLength ? "/" : "") + toBasename;
+  
+  return "../".repeat(upCount) + downPath;
+}
+
 export async function planNoteRename(
   oldPath: string,
   newPath: string,
   index: LinkIndex,
   readNote: (path: string) => Promise<string>,
 ): Promise<RenamePlan> {
-  const plan: RenamePlan = { oldPath, newPath, edits: [], blocked: [] };
+  const plan: RenamePlan = { oldPath, newPath, edits: [], blocked: [], markdownEdits: [], markdownBlocked: [] };
   if (oldPath === newPath) return plan;
 
   const oldBasenameKey = noteBasename(oldPath).toLocaleLowerCase();
@@ -189,6 +365,21 @@ export async function planNoteRename(
       });
       plan.edits.push({ path, from, to, oldText, newText });
     }
+  }
+
+  // F03 Phase 2b-ii: Also scan for Markdown-style links in all candidate notes
+  // We reuse the same candidate paths from the wikilink scan for efficiency
+  for (const path of candidates.keys()) {
+    if (path === oldPath) continue;
+    
+    let freshContent: string;
+    try {
+      freshContent = await readNote(path);
+    } catch {
+      continue;
+    }
+    
+    planMarkdownLinks(freshContent, path, oldPath, newPath, plan);
   }
 
   return plan;

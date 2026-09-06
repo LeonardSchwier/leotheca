@@ -63,6 +63,43 @@ export function RenamePreviewDialog({ oldPath, newPath, plan, onContinue, onCanc
             </ul>
           </div>
         )}
+        {/* F03 Phase 2b-ii: Markdown link edits */}
+        {(plan.markdownEdits?.length ?? 0) > 0 && (
+          <div class="rename-preview-section">
+            <h3>
+              {plan.markdownEdits!.length} Markdown link{plan.markdownEdits!.length === 1 ? "" : "s"} elsewhere will still need updating
+            </h3>
+            <p class="rename-preview-hint">
+              Renaming does not rewrite these yet; update them by hand after continuing.
+            </p>
+            <ul class="rename-preview-list">
+              {plan.markdownEdits!.map((edit, index) => (
+                <li key={`md-${edit.path}-${index}`}>
+                  <span class="rename-preview-path">{edit.path}</span>: <code>{edit.oldText}</code> →{" "}
+                  <code>{edit.newText}</code>
+                  {edit.isImage && <span class="rename-preview-image-badge" title="Image link">🖼️</span>}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {/* F03 Phase 2b-ii: Blocked Markdown links */}
+        {(plan.markdownBlocked?.length ?? 0) > 0 && (
+          <div class="rename-preview-section">
+            <h3>
+              {plan.markdownBlocked!.length} Markdown link{plan.markdownBlocked!.length === 1 ? "" : "s"} cannot be safely updated automatically
+            </h3>
+            <ul class="rename-preview-list">
+              {plan.markdownBlocked!.map((blocked, index) => (
+                <li key={`md-blocked-${blocked.path}-${index}`}>
+                  <span class="rename-preview-path">{blocked.path}</span>: <code>{blocked.oldText}</code>
+                  <p class="rename-preview-reason">{blocked.reason}</p>
+                  {blocked.isImage && <span class="rename-preview-image-badge" title="Image link">🖼️</span>}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         <div class="rename-preview-actions">
           <button onClick={onCancel}>Cancel</button>
           <button onClick={onContinue}>Continue</button>

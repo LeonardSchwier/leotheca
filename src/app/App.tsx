@@ -15,7 +15,7 @@ import { ImageViewer } from "../editor/ImageViewer";
 import { ImageViewerOverlay } from "../editor/ImageViewerOverlay";
 import { CaptureSheet, captureSheetOpen, openCaptureSheet } from "./CaptureSheet";
 import { classifyWorkspaceResource } from "../workspace/types";
-import { resolvePathWithinWorkspace, dirname } from "../workspace/paths";
+import { resolvePathWithinWorkspace } from "../workspace/paths";
 import { CanvasView } from "../canvas/CanvasView";
 import {
   activeTab,
@@ -472,9 +472,11 @@ export function App() {
           const inboxNote = workspaceSettings.value.captureInboxNote || "Inbox.md";
           const notePath = resolvePathWithinWorkspace(workspacePath.value, workspacePath.value, inboxNote);
           if (notePath) {
-            // TODO: Implement append functionality
-            // For now, fall back to creating a new note
-            const { path, name } = await createNoteQuick(dirname(notePath), text);
+            const { appendToInboxNote } = await import("../capture/captureCommit");
+            const { path, name } = await appendToInboxNote({ 
+              inboxNotePath: notePath, 
+              content: text 
+            });
             if (shouldOpen) {
               await handleOpenFile(path, name);
             }

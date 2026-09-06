@@ -55,6 +55,10 @@ describe("DEFAULT_WORKSPACE_SETTINGS", () => {
     expect(DEFAULT_WORKSPACE_SETTINGS.frontmatterPropertiesEnabled).toBe(true);
   });
 
+  it("defaults math rendering to on, per the opt-out policy for queued features", () => {
+    expect(DEFAULT_WORKSPACE_SETTINGS.mathRenderingEnabled).toBe(true);
+  });
+
   it("defaults the attachments folder to empty, i.e. next to the note", () => {
     expect(DEFAULT_WORKSPACE_SETTINGS.attachmentsFolder).toBe("");
   });
@@ -101,6 +105,7 @@ describe("loadWorkspaceSettings", () => {
     expect(settings.uiZoom).toBe(DEFAULT_WORKSPACE_SETTINGS.uiZoom);
     expect(settings.lastOpenPaths).toEqual([]);
     expect(settings.frontmatterAliasesEnabled).toBe(true);
+    expect(settings.mathRenderingEnabled).toBe(true);
     expect(corrupt).toBe(false);
   });
 
@@ -111,6 +116,16 @@ describe("loadWorkspaceSettings", () => {
     expect(settings).toEqual(saved);
     expect(corrupt).toBe(false);
   });
+
+  it("respects an explicitly set mathRenderingEnabled: false from the settings file", async () => {
+    readTextFile.mockResolvedValueOnce(
+      JSON.stringify({ ...DEFAULT_WORKSPACE_SETTINGS, mathRenderingEnabled: false }),
+    );
+    const { settings, corrupt } = await loadWorkspaceSettings(ROOT);
+    expect(settings.mathRenderingEnabled).toBe(false);
+    expect(corrupt).toBe(false);
+  });
+
 });
 
 describe("saveWorkspaceSettings", () => {

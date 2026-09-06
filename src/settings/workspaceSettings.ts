@@ -305,10 +305,12 @@ export function isValidEditorLayoutState(
     if (typeof path !== "string") return false;
     // Reject null bytes
     if (path.includes("\u0000")) return false;
-    // Reject path traversal, absolute paths, and backslashes
-    if (path.includes("..") || path.startsWith("/") || path.includes("\\")) return false;
+    // Reject path traversal and backslashes
+    if (path.includes("..") || path.includes("\\")) return false;
     // Reject empty paths (they should not appear in tab arrays)
     if (path === "") return false;
+    // For absolute paths, check they are within workspace; for relative paths, accept as-is
+    if (path.startsWith("/") && !isPathWithinWorkspace(_workspaceRoot, path)) return false;
     allPaths.push(path);
   }
   
@@ -327,10 +329,12 @@ export function isValidEditorLayoutState(
       if (typeof path !== "string") return false;
       // Reject null bytes
       if (path.includes("\u0000")) return false;
-      // Reject path traversal, absolute paths, and backslashes
-      if (path.includes("..") || path.startsWith("/") || path.includes("\\")) return false;
+      // Reject path traversal and backslashes
+      if (path.includes("..") || path.includes("\\")) return false;
       // Reject empty paths (they should not appear in tab arrays)
       if (path === "") return false;
+      // For absolute paths, check they are within workspace; for relative paths, accept as-is
+      if (path.startsWith("/") && !isPathWithinWorkspace(_workspaceRoot, path)) return false;
       allPaths.push(path);
     }
   }
@@ -349,7 +353,9 @@ export function isValidEditorLayoutState(
   for (const pinnedPath of primaryPinnedPaths) {
     if (typeof pinnedPath !== "string") return false;
     // Pinned paths must also be valid paths (no null bytes, traversal, etc.)
-    if (pinnedPath.includes("\u0000") || pinnedPath.includes("..") || pinnedPath.startsWith("/") || pinnedPath.includes("\\")) return false;
+    if (pinnedPath.includes("\u0000") || pinnedPath.includes("..") || pinnedPath.includes("\\")) return false;
+    // For absolute paths, check they are within workspace
+    if (pinnedPath.startsWith("/") && !isPathWithinWorkspace(_workspaceRoot, pinnedPath)) return false;
     if (!primaryTabSet.has(pinnedPath)) return false;
   }
   
@@ -362,7 +368,9 @@ export function isValidEditorLayoutState(
     for (const pinnedPath of secondaryPinnedPaths) {
       if (typeof pinnedPath !== "string") return false;
       // Pinned paths must also be valid paths (no null bytes, traversal, etc.)
-      if (pinnedPath.includes("\u0000") || pinnedPath.includes("..") || pinnedPath.startsWith("/") || pinnedPath.includes("\\")) return false;
+      if (pinnedPath.includes("\u0000") || pinnedPath.includes("..") || pinnedPath.includes("\\")) return false;
+      // For absolute paths, check they are within workspace
+      if (pinnedPath.startsWith("/") && !isPathWithinWorkspace(_workspaceRoot, pinnedPath)) return false;
       if (!secondaryTabSet.has(pinnedPath)) return false;
     }
   }
@@ -398,6 +406,51 @@ export function isValidEditorLayoutState(
   if (layout.compactVisibleGroupId === "secondary" && groups.secondary === undefined) return false;
   
   return true;
+}
+
+// F07 Phase 2b: Legacy migration for v1 workspaces.
+// Converts v1 lastOpenPaths/lastActivePath to v2 editorLayout format.
+// Spec: f07-split-panes-pinned-tabs.md section 10.2
+// This is a pure function, deterministic and idempotent.
+export function migrateLegacyToEditorLayout(
+  lastOpenPaths: string[],
+  lastActivePath: string | null,
+): EditorLayoutState {
+  // De-duplicate paths while preserving order (first occurrence wins)
+  const seen = new Set<string>();
+  const uniquePaths: string[] = [];
+  for (const path of lastOpenPaths) {
+    if (typeof path === "string" && path !== "" && !seen.has(path)) {
+      seen.add(path);
+      uniquePaths.push(path);
+    }
+  }
+  
+  // Determine active path: use lastActivePath if it's in the unique set, otherwise last path or null
+  const activePath = lastActivePath !== null && seen.has(lastActivePath)
+    ? lastActivePath
+    : (uniquePaths.length > 0 ? uniquePaths[uniquePaths.length - 1] : null);
+  
+  return {
+    activeGroupId: "primary",
+    splitEnabled: false,
+    preferredRatio: 0.5,
+    compactVisibleGroupId: "primary",
+    groups: {
+      primary: {
+        id: "primary",
+        tabPaths: uniquePaths,
+        pinnedPaths: [],
+        activePath,
+      },
+    },
+  };
+}
+
+// F07 Phase 2b: Check if this is a v1 workspace (no editorLayout field).
+export function isLegacyWorkspace(record: Record<string, unknown>): boolean {
+  return record.editorLayout === undefined && 
+         (Array.isArray(record.lastOpenPaths) || record.lastActivePath !== undefined);
 }
 
 export function decodeWorkspaceSettings(
@@ -542,11 +595,27 @@ export function decodeWorkspaceSettings(
 
 
 
-  // F07 Phase 2b: decode editorLayout if present (version 2+)
+  // F07 Phase 2b: decode editorLayout with legacy migration
+  // Priority: 1) valid v2 editorLayout, 2) migrate from v1 legacy, 3) default
   const editorLayoutRaw = record.editorLayout;
-  const editorLayout = isValidEditorLayoutState(editorLayoutRaw, workspaceRoot)
-    ? editorLayoutRaw
-    : DEFAULT_WORKSPACE_SETTINGS.editorLayout;
+  let editorLayout: EditorLayoutState | undefined;
+  
+  if (editorLayoutRaw !== undefined && isValidEditorLayoutState(editorLayoutRaw, workspaceRoot)) {
+    // Valid v2 layout
+    editorLayout = editorLayoutRaw;
+  } else if (isLegacyWorkspace(record)) {
+    // Migrate v1 legacy settings to v2 format
+    // Use the already-decoded values (which have been validated and cleaned)
+    editorLayout = migrateLegacyToEditorLayout(
+      lastOpenPaths.value,
+      lastActivePath.value,
+    );
+    // Migration is deterministic: same v1 input always produces same v2 output
+    // It's also idempotent: running migration on already-migrated data produces same result
+  } else {
+    // No valid layout and no legacy to migrate - use default
+    editorLayout = DEFAULT_WORKSPACE_SETTINGS.editorLayout;
+  }
 
 // Only versions 1 and 2 are supported. An unrecognized version is flagged as
   // corrupt (so it is never silently persisted back over) but its actual
@@ -555,9 +624,13 @@ export function decodeWorkspaceSettings(
   // round trip through an older app build instead of being downgraded.
   const versionCorrupt = record.version !== undefined && record.version !== 1 && record.version !== 2;
 
+  // F07 Phase 2b: Bump version to 2 when migrating from v1 legacy format
+  const isMigrated = editorLayoutRaw === undefined && isLegacyWorkspace(record) && editorLayout !== undefined;
+  const versionValue = isMigrated ? 2 : (record.version === undefined ? 1 : record.version);
+
   const settings = {
     ...record,
-    ...(record.version === undefined ? { version: 1 } : {}),
+    version: versionValue,
     sortOrder: sortOrder.value,
     fontSize: fontSize.value,
     defaultViewMode: defaultViewMode.value,
@@ -585,7 +658,10 @@ export function decodeWorkspaceSettings(
     noteReadOnlyLockEnabled: noteReadOnlyLockEnabled.value,
   } as unknown as WorkspaceSettings;
 
-  const editorLayoutCorrupt = editorLayoutRaw !== undefined && !isValidEditorLayoutState(editorLayoutRaw, workspaceRoot);
+  // F07 Phase 2b: Corruption only when editorLayout is invalid AND cannot be migrated from legacy
+  const editorLayoutCorrupt = editorLayoutRaw !== undefined && 
+    !isValidEditorLayoutState(editorLayoutRaw, workspaceRoot) &&
+    !isLegacyWorkspace(record);
 
   const corrupt =
     versionCorrupt ||

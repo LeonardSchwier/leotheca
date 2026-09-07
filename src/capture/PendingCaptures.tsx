@@ -118,10 +118,17 @@ export function PendingCaptures() {
   };
 
   const handleChangeDestination = (captureId: string) => {
-    // TODO: F05 - Implement change destination logic
-    // This would require a destination selection dialog
-    console.log("Changing destination for capture:", captureId);
-    alert("Change destination functionality will be implemented in a future update.");
+    // F05: Implement change destination by opening CaptureSheet with existing data
+    const capture = pendingCaptures.find(c => c.id === captureId);
+    if (capture) {
+      openCaptureSheetWithData({
+        content: capture.text,
+        title: capture.title || "",
+        sourceUrl: capture.sourceUrl,
+        mode: capture.mode as DestinationMode,
+        openAfterCapture: capture.openAfterCommit
+      });
+    }
   };
 
   const toggleExpand = (captureId: string) => {

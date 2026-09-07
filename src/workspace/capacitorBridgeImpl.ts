@@ -60,6 +60,23 @@ interface NativeAllEntry {
   mtime?: number;
 }
 
+// F05: Android share intent bridge - interface definitions needed by FolderAccessPlugin
+export interface PendingShareData {
+  text: string;
+  title: string | null;
+  hasSingleUri: boolean;
+  hasMultipleUris: boolean;
+}
+
+export interface ShareDataResult {
+  data: PendingShareData | null;
+  timestamp: number;
+}
+
+export interface HasShareDataResult {
+  hasData: boolean;
+}
+
 interface FolderAccessPlugin {
   pickFolder(): Promise<{ uri: string | null; name?: string | null }>;
   listDir(options: { uri: string }): Promise<{ entries: NativeEntry[] }>;
@@ -106,7 +123,7 @@ interface FolderAccessPlugin {
   deletePath(options: { uri: string }): Promise<void>;
   readFileAsDataUrl(options: { uri: string }): Promise<{ dataUrl: string }>;
   // F05: Android share intent bridge
-  getPendingShareData(): Promise<{ data: any; timestamp: number }>;
+  getPendingShareData(): Promise<{ data: PendingShareData | null; timestamp: number }>;
   hasPendingShareData(): Promise<{ hasData: boolean }>;
 }
 
@@ -644,23 +661,6 @@ export async function setStatusBarAppearance(isDarkBackground: boolean): Promise
   await StatusBar.setStyle({ style: isDarkBackground ? Style.Dark : Style.Light });
 }
 
-// F05: Android share intent bridge
-export interface PendingShareData {
-  text: string;
-  title: string | null;
-  hasSingleUri: boolean;
-  hasMultipleUris: boolean;
-}
-
-export interface ShareDataResult {
-  data: PendingShareData | null;
-  timestamp: number;
-}
-
-export interface HasShareDataResult {
-  hasData: boolean;
-}
-
 export async function getPendingShareData(): Promise<ShareDataResult> {
   try {
     const result = await FolderAccess.getPendingShareData();
@@ -673,7 +673,7 @@ export async function getPendingShareData(): Promise<ShareDataResult> {
       } : null,
       timestamp: result.timestamp ?? 0
     };
-  } catch (error) {
+  } catch {
     // If the method doesn't exist (desktop), return no data
     return { data: null, timestamp: 0 };
   }
@@ -683,7 +683,7 @@ export async function hasPendingShareData(): Promise<HasShareDataResult> {
   try {
     const result = await FolderAccess.hasPendingShareData();
     return { hasData: result.hasData ?? false };
-  } catch (error) {
+  } catch {
     // If the method doesn't exist (desktop), return false
     return { hasData: false };
   }

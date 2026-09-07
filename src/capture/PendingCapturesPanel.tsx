@@ -22,7 +22,7 @@ function announcePendingCapturesMessage(message: string) {
   setTimeout(() => { pendingCapturesAnnouncement.value = ""; }, 1000);
 }
 
-export function PendingCaptures() {
+export function PendingCapturesPanel() {
   const pendingCaptures = pendingCapturesStore?.value || [];
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [focusedCaptureId, setFocusedCaptureId] = useState<string | null>(null);

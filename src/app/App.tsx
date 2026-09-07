@@ -14,7 +14,7 @@ import { isNoteReadOnlyActive, setNoteReadOnly } from "../editor/noteReadOnly";
 import { ImageViewer } from "../editor/ImageViewer";
 import { ImageViewerOverlay } from "../editor/ImageViewerOverlay";
 import { CaptureSheet, captureSheetOpen, openCaptureSheet } from "./CaptureSheet";
-import { PendingCaptures, initPendingCaptures, processAndroidPendingShareData } from "../capture";
+import { PendingCapturesPanel, initPendingCaptures, processAndroidPendingShareData } from "../capture";
 import { classifyWorkspaceResource } from "../workspace/types";
 import { CanvasView } from "../canvas/CanvasView";
 import { InkView } from "../ink/InkView";
@@ -1280,7 +1280,7 @@ export function App() {
           onClose={handleCloseImageOverlay}
         />
       )}
-      <PendingCaptures />
+      <PendingCapturesPanel />
       {captureSheetOpen.value && (
         <CaptureSheet onCreated={(path, name) => void handleOpenFile(path, name)} />
       )}

@@ -1,10 +1,10 @@
 /**
- * F05-FR-27: Tests for PendingCaptures accessibility features
+ * F05-FR-27: Tests for PendingCapturesPanel accessibility features
  */
 
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 
-// PendingCaptures.tsx imports workspacePath from settings/store.ts (via
+// PendingCapturesPanel.tsx imports workspacePath from settings/store.ts (via
 // CaptureSheet.tsx), which reads window.matchMedia at module load time;
 // same jsdom + dynamic-import setup as settings/store.test.ts, see its own
 // comment.
@@ -15,12 +15,12 @@ window.matchMedia = vi.fn().mockImplementation((query: string) => ({
   removeEventListener: vi.fn(),
 })) as unknown as typeof window.matchMedia;
 
-const { PendingCaptures } = await import("./PendingCaptures");
+const { PendingCapturesPanel } = await import("./PendingCapturesPanel");
 const { pendingCapturesStore, addPendingCapture, removePendingCapture, clearPendingCaptures, MAX_PENDING_CAPTURES } = await import(
   "./pendingCaptures"
 );
 
-describe("PendingCaptures Accessibility (F05-FR-27)", () => {
+describe("PendingCapturesPanel Accessibility (F05-FR-27)", () => {
   beforeEach(() => {
     clearPendingCaptures();
   });
@@ -30,9 +30,9 @@ describe("PendingCaptures Accessibility (F05-FR-27)", () => {
     vi.clearAllMocks();
   });
 
-  it("should export PendingCaptures component", () => {
-    expect(PendingCaptures).toBeDefined();
-    expect(typeof PendingCaptures).toBe("function");
+  it("should export PendingCapturesPanel component", () => {
+    expect(PendingCapturesPanel).toBeDefined();
+    expect(typeof PendingCapturesPanel).toBe("function");
   });
 
   it("should start with empty pending captures", () => {

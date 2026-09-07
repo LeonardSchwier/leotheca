@@ -6,8 +6,8 @@ import { resolvePathWithinWorkspace } from "../workspace/paths";
 import { appendToInboxNote, createNoteWithTitle } from "../capture/captureCommit";
 import { resolveDatePattern, DestinationMode } from "../capture/captureDestinations";
 
-// F05-FR-27: Accessibility announcements signal
-const captureAnnouncement = signal("");
+// F05-FR-27: Accessibility announcement signal
+export const captureAnnouncement = signal("");
 
 /** Global state for Capture Sheet */
 export const captureSheetOpen = signal(false);

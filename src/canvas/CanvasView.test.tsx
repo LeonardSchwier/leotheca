@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render } from "@testing-library/preact";
+import { cleanup, fireEvent, render, screen } from "@testing-library/preact";
 
 vi.mock("../settings/store", async () => {
   const { signal } = await import("@preact/signals");
@@ -102,5 +102,36 @@ describe("CanvasView", () => {
     };
     expect(saved.nodes).toHaveLength(1);
     expect(saved.nodes[0].text).toBe("Untitled card");
+  });
+
+  it("renders safely without crashing when edges reference non-existent nodes", () => {
+    workspacePath.value = "/workspace";
+    // Edge references a node (unknown-future-node) that doesn't exist in nodes
+    // This simulates a future-version canvas with retained unknown nodes
+    const source = JSON.stringify({
+      nodes: [{ id: "a", text: "A", x: 1, y: 2 }],
+      edges: [
+        { from: "a", to: "b" }, // Valid edge
+        { from: "unknown-future-node", to: "a" }, // Edge with non-existent from
+        { from: "a", to: "unknown-future-node" }, // Edge with non-existent to
+        { from: "ghost", to: "phantom" }, // Edge with both non-existent
+      ],
+    });
+    const onChange = vi.fn();
+    
+    // Should not throw during render
+    expect(() => {
+      render(
+        <CanvasView path={CANVAS_PATH} source={source} onChange={onChange} onOpenFile={vi.fn()} />,
+      );
+    }).not.toThrow();
+
+    // Verify the valid edge is still preserved in saves
+    fireEvent.click(screen.getByText("Connect"));
+    expect(onChange).toHaveBeenCalledTimes(1);
+    const saved = JSON.parse(onChange.mock.calls[0][0] as string);
+    // All edges should be preserved in the document (lossless save)
+    expect(saved.edges).toHaveLength(4);
+    // But only the valid edge (a->b) should be renderable
   });
 });

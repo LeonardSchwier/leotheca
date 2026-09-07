@@ -88,19 +88,25 @@ export function CanvasView({ path, source, onChange, onOpenFile }: CanvasViewPro
         onPointerUp={() => setDrag(null)}
       >
         <svg class="canvas-edges" aria-hidden="true">
-          {document.edges.map((edge) => {
-            const from = document.nodes.find((node) => node.id === edge.from)!;
-            const to = document.nodes.find((node) => node.id === edge.to)!;
-            return (
-              <line
-                key={`${edge.from}:${edge.to}`}
-                x1={from.x + 90}
-                y1={from.y + 40}
-                x2={to.x + 90}
-                y2={to.y + 40}
-              />
-            );
-          })}
+          {document.edges
+            .filter((edge) => {
+              const fromNode = document.nodes.find((node) => node.id === edge.from);
+              const toNode = document.nodes.find((node) => node.id === edge.to);
+              return fromNode !== undefined && toNode !== undefined;
+            })
+            .map((edge) => {
+              const from = document.nodes.find((node) => node.id === edge.from)!;
+              const to = document.nodes.find((node) => node.id === edge.to)!;
+              return (
+                <line
+                  key={`${edge.from}:${edge.to}`}
+                  x1={from.x + 90}
+                  y1={from.y + 40}
+                  x2={to.x + 90}
+                  y2={to.y + 40}
+                />
+              );
+            })}
         </svg>
         {document.nodes.length === 0 ? (
           <p class="canvas-empty-hint">Create a card to begin.</p>

@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.net.Uri;
 import android.os.ParcelFileDescriptor;
 import android.util.Log;
+import android.widget.Toast;
 
 import androidx.documentfile.provider.DocumentFile;
 
@@ -80,7 +81,8 @@ public class CaptureIntentHandler {
         // Validate URI count
         if (uris.size() > MAX_ATTACHMENTS) {
             Log.w(TAG, "F05: Too many attachments (" + uris.size() + "), maximum is " + MAX_ATTACHMENTS);
-            // TODO: Show user error about limit
+            // Show user error about limit
+            Toast.makeText(context, "Too many attachments. Maximum is " + MAX_ATTACHMENTS + " files.", Toast.LENGTH_LONG).show();
             return;
         }
         

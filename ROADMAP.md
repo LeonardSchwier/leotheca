@@ -2,6 +2,11 @@
 
 ## Implemented
 
+- ✅ **Maintenance review: Mistral-Vibe F05 delivery quality and guardrails**: Review the Mistral-Vibe F05 delivery history culminating in the Android-share bridge `7e4f3728`, including its callers and follow-up CI fixes `2619097e` and `ffeedd49`. Record only reproducible defects or evidence-backed process gaps. Add concise, tool-neutral guidance to the constitution and/or an agent skill so feature completion requires scoped static checks, focused tests for every changed bridge contract, and accurate completion evidence. Acceptance: no unsubstantiated quality claims; review handoff names inspected SHAs, paths, and outcomes; any policy change is internally consistent and indexed.
+  <!-- agent-state: {"schema":1,"id":"rm-00ace761a2711872","state":"done","touch":["CONSTITUTION.md","skills/README.md","skills/change-quality-gates.md"],"resources":["delivery-quality"],"note":"Reviewed Mistral-Vibe F05 delivery; landed 91ce358; policy tests 21/21 and exact SHA Agent policy workflow 34129637839 passed; CI 34129637825 pending at completion; created Android-share bug follow-up.","completed_at":"2026-09-07T13:51:25Z","completed_by":"Codex-root-20260907T160000Z-7c1e9f4a","branch":"agent/rm-00ace761a2711872/98c8e23e4770"} -->
+  Agent: completed by Codex-root-20260907T160000Z-7c1e9f4a | item: rm-00ace761a2711872
+
+
 - ✅ **Math rendering: confirm/fix the effective default**
 
 <details>
@@ -1186,9 +1191,6 @@
 
 - ⬜ **F05 Android share bridge drops staged attachments and logs sensitive URIs**: `CaptureIntentHandler.queueCaptureWithAttachments` stages attachments but calls `storePendingShareData(..., null, null)` and has a TODO instead of serializing `StagedAttachment` metadata, while `androidShareBridge.ts` has no attachment field to enqueue. The same native handler logs raw `content://` values and paths, contradicting F05 acceptance criterion 25. Fix the typed Java/TypeScript payload and queue transfer so staged attachments reach `PendingCapture`, remove/redact sensitive logs and persisted error text, preserve intentional retry/cleanup ownership, and add bridge-level regression coverage for attachments, malformed data, failure, and no-sensitive-output sentinels.
 
-- 🚧 **Maintenance review: Mistral-Vibe F05 delivery quality and guardrails**: Review the Mistral-Vibe F05 delivery history culminating in the Android-share bridge `7e4f3728`, including its callers and follow-up CI fixes `2619097e` and `ffeedd49`. Record only reproducible defects or evidence-backed process gaps. Add concise, tool-neutral guidance to the constitution and/or an agent skill so feature completion requires scoped static checks, focused tests for every changed bridge contract, and accurate completion evidence. Acceptance: no unsubstantiated quality claims; review handoff names inspected SHAs, paths, and outcomes; any policy change is internally consistent and indexed.
-  <!-- agent-state: {"schema":1,"id":"rm-00ace761a2711872","state":"claimed","touch":["CONSTITUTION.md","skills/README.md","skills/change-quality-gates.md"],"resources":["delivery-quality"],"owner":"Codex-root-20260907T160000Z-7c1e9f4a","token":"98c8e23e47707784bde23be20c35e5aa","branch":"agent/rm-00ace761a2711872/98c8e23e4770","claimed_at":"2026-09-07T13:44:51Z","heartbeat_at":"2026-09-07T13:44:51Z","lease_until":"2026-09-07T15:14:51Z"} -->
-  Agent: Codex-root-20260907T160000Z-7c1e9f4a | item: rm-00ace761a2711872 | lease until: 2026-09-07T15:14:51Z
 
 - ⬜ **macOS Gatekeeper: Sign, notarize, and staple release DMGs**: Current macOS artifacts are deliberately unsigned and unnotarized, so Gatekeeper warns that the app cannot be verified. The maintainer must provide an Apple Developer Program membership, a Developer ID Application certificate, and an App Store Connect API key as repository secrets. Update the macOS release job to sign the universal `.app`, submit it with `notarytool`, wait for acceptance, staple the ticket to both `.app` and DMG, and fail publication if any step fails. Verify `codesign`, `spctl`, and a fresh download/open on both Apple Silicon and Intel macOS; only then remove the unsigned-install workaround from user documentation and complete the Homebrew Cask.
 

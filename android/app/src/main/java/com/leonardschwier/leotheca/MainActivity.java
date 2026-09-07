@@ -36,12 +36,17 @@ public class MainActivity extends BridgeActivity {
     private ExecutorService newNoteTrackerExecutor;
     private View newNoteProgressOverlay;
 
+    private CaptureIntentHandler captureIntentHandler;
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         // WorkspaceMutationPlugin extends FolderAccessPlugin and is registered
         // under the same bridge name, so callers get the established storage
         // methods plus F-004's no-replace mutations from one capability.
         registerPlugin(WorkspaceMutationPlugin.class);
+
+        // F05: Initialize capture intent handler
+        captureIntentHandler = new CaptureIntentHandler(this);
 
         NewNoteTarget newNoteTarget = null;
         if (
@@ -55,7 +60,7 @@ public class MainActivity extends BridgeActivity {
         // F05: Handle Android share intents
         Intent intent = getIntent();
         if (intent != null && (Intent.ACTION_SEND.equals(intent.getAction()) || Intent.ACTION_SEND_MULTIPLE.equals(intent.getAction()))) {
-            handleShareIntent(intent);
+            captureIntentHandler.processShareIntent(intent);
         }
 
         super.onCreate(savedInstanceState);
@@ -72,6 +77,13 @@ public class MainActivity extends BridgeActivity {
             newNoteTrackerExecutor.shutdownNow();
             newNoteTrackerExecutor = null;
         }
+        
+        // F05: Clean up capture intent handler
+        if (captureIntentHandler != null) {
+            captureIntentHandler.shutdown();
+            captureIntentHandler = null;
+        }
+        
         super.onDestroy();
     }
 
@@ -82,86 +94,12 @@ public class MainActivity extends BridgeActivity {
         
         // F05: Handle Android share intents when app is already running
         if (intent != null && (Intent.ACTION_SEND.equals(intent.getAction()) || Intent.ACTION_SEND_MULTIPLE.equals(intent.getAction()))) {
-            handleShareIntent(intent);
+            captureIntentHandler.processShareIntent(intent);
         }
     }
 
-    // F05: Android share target - handle incoming share intents
-    private void handleShareIntent(Intent intent) {
-        String action = intent.getAction();
-        String type = intent.getType();
-        
-        String text = null;
-        String subject = null;
-        Uri streamUri = null;
-        ArrayList<Uri> streamUris = null;
-        
-        // Extract text content
-        if (Intent.ACTION_SEND.equals(action)) {
-            text = intent.getStringExtra(Intent.EXTRA_TEXT);
-            subject = intent.getStringExtra(Intent.EXTRA_SUBJECT);
-            streamUri = intent.getParcelableExtra(Intent.EXTRA_STREAM);
-        } else if (Intent.ACTION_SEND_MULTIPLE.equals(action)) {
-            text = intent.getStringExtra(Intent.EXTRA_TEXT);
-            subject = intent.getStringExtra(Intent.EXTRA_SUBJECT);
-            ClipData clipData = intent.getClipData();
-            if (clipData != null) {
-                streamUris = new ArrayList<>();
-                for (int i = 0; i < clipData.getItemCount(); i++) {
-                    Uri uri = clipData.getItemAt(i).getUri();
-                    if (uri != null) {
-                        streamUris.add(uri);
-                    }
-                }
-            }
-        }
-        
-        // For now, log the share intent data and queue it for TypeScript processing
-        // F05 Phase 2 will implement the full staging and URI ingestion
-        Log.i("Leotheca", "F05: Received share intent - action: " + action + ", type: " + type);
-        if (text != null) {
-            Log.i("Leotheca", "F05: Share text: " + text.substring(0, Math.min(text.length(), 200)));
-        }
-        if (subject != null) {
-            Log.i("Leotheca", "F05: Share subject: " + subject);
-        }
-        if (streamUri != null) {
-            Log.i("Leotheca", "F05: Share stream URI: " + streamUri);
-        }
-        if (streamUris != null) {
-            Log.i("Leotheca", "F05: Share stream URIs count: " + streamUris.size());
-        }
-        
-        // TODO: F05 Phase 2 - Implement transient URI staging into app-private storage
-        // and pass the staged data to TypeScript layer via Capacitor bridge
-        
-        // For now, store the basic data in a temporary location that can be picked up
-        // by the TypeScript layer when it loads
-        storePendingShareData(text, subject, streamUri, streamUris);
-    }
-
-    private void storePendingShareData(String text, String title, Uri singleUri, ArrayList<Uri> multipleUris) {
-        // Store share data in app preferences so TypeScript layer can access it
-        // This is a temporary implementation until full Capacitor bridge integration
-        try {
-            String data = new JSONObject()
-                .put("text", text != null ? text : "")
-                .put("title", title != null ? title : "")
-                .put("hasSingleUri", singleUri != null)
-                .put("hasMultipleUris", multipleUris != null && !multipleUris.isEmpty())
-                .toString();
-            
-            getSharedPreferences("LeothecaShareData", Context.MODE_PRIVATE)
-                .edit()
-                .putString("pendingShare", data)
-                .putLong("shareTimestamp", System.currentTimeMillis())
-                .apply();
-                
-            Log.i("Leotheca", "F05: Stored pending share data");
-        } catch (Exception e) {
-            Log.e("Leotheca", "F05: Failed to store share data", e);
-        }
-    }
+    // F05: Android share target handling is now done by CaptureIntentHandler
+    // The old handleShareIntent and storePendingShareData methods have been replaced
 
     private NewNoteTarget resolveNewNoteTarget() {
         String workspaceToken = readWorkspaceToken();

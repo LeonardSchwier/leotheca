@@ -13,7 +13,12 @@ import {
   hasPendingCaptures,
   MAX_PENDING_CAPTURES,
   MAX_PENDING_TEXT_SIZE,
-  MAX_INDIVIDUAL_CAPTURE_SIZE
+  MAX_INDIVIDUAL_CAPTURE_SIZE,
+  MAX_ATTACHMENTS_PER_CAPTURE,
+  MAX_ATTACHMENT_SIZE,
+  MAX_CAPTURE_ATTACHMENTS_SIZE,
+  sanitizeAttachmentFilename,
+  PendingAttachment
 } from "./pendingCaptures";
 
 describe("pendingCaptures", () => {
@@ -188,5 +193,146 @@ describe("pendingCaptures", () => {
     expect(captures).toHaveLength(2);
     expect(captures.some(c => c.id === capture1.id)).toBe(true);
     expect(captures.some(c => c.id === capture2.id)).toBe(true);
+  });
+
+  // F05-FR-15: Attachment filename sanitization tests
+  describe("attachment filename sanitization", () => {
+    it("should sanitize filenames with path separators", () => {
+      expect(sanitizeAttachmentFilename("path/to/file.jpg")).toBe("path_to_file.jpg");
+    });
+
+    it("should sanitize filenames with control characters", () => {
+      expect(sanitizeAttachmentFilename("file\x00name.jpg")).toBe("filename.jpg");
+    });
+
+    it("should sanitize Windows reserved names", () => {
+      expect(sanitizeAttachmentFilename("CON")).toBe("_CON");
+      expect(sanitizeAttachmentFilename("PRN")).toBe("_PRN");
+      expect(sanitizeAttachmentFilename("COM1")).toBe("_COM1");
+    });
+
+    it("should sanitize filenames with special characters", () => {
+      expect(sanitizeAttachmentFilename("file:*?\"<>|name.jpg")).toBe("file________name.jpg");
+    });
+
+    it("should handle empty filenames", () => {
+      expect(sanitizeAttachmentFilename("")).toBe("capture");
+      expect(sanitizeAttachmentFilename("   ")).toBe("capture");
+    });
+
+    it("should truncate long filenames", () => {
+      const longName = "a".repeat(200) + ".jpg";
+      const result = sanitizeAttachmentFilename(longName);
+      expect(result.length).toBeLessThanOrEqual(128);
+      expect(result.endsWith(".jpg")).toBe(true);
+    });
+
+    it("should remove leading/trailing dots and spaces", () => {
+      expect(sanitizeAttachmentFilename("...file... ")).toBe("file");
+    });
+  });
+
+  // F05-FR-14: Attachment limits tests
+  describe("attachment limits", () => {
+    it("should accept capture with attachments within limits", () => {
+      const attachments: PendingAttachment[] = [
+        {
+          id: "att1",
+          filePath: "/staging/photo1.jpg",
+          fileName: "photo1.jpg",
+          fileSize: 1024, // 1KB
+          fingerprint: "1024-abc123",
+          mimeType: "image/jpeg"
+        }
+      ];
+      
+      const capture = addPendingCapture({
+        source: "android-share",
+        text: "Capture with attachment",
+        mode: "new",
+        attachments
+      });
+
+      expect(capture.attachments).toHaveLength(1);
+      expect(capture.attachments![0].fileName).toBe("photo1.jpg");
+    });
+
+    it("should reject capture with too many attachments", () => {
+      const tooManyAttachments: PendingAttachment[] = [];
+      for (let i = 0; i < MAX_ATTACHMENTS_PER_CAPTURE + 1; i++) {
+        tooManyAttachments.push({
+          id: `att${i}`,
+          filePath: `/staging/photo${i}.jpg`,
+          fileName: `photo${i}.jpg`,
+          fileSize: 1024,
+          fingerprint: `1024-fingerprint${i}`,
+          mimeType: "image/jpeg"
+        });
+      }
+
+      expect(() => {
+        addPendingCapture({
+          source: "android-share",
+          text: "Too many attachments",
+          mode: "new",
+          attachments: tooManyAttachments
+        });
+      }).toThrow();
+    });
+
+    it("should reject capture with oversized attachment", () => {
+      const oversizedAttachments: PendingAttachment[] = [
+        {
+          id: "att1",
+          filePath: "/staging/huge.jpg",
+          fileName: "huge.jpg",
+          fileSize: MAX_ATTACHMENT_SIZE + 1,
+          fingerprint: "huge-fingerprint",
+          mimeType: "image/jpeg"
+        }
+      ];
+
+      expect(() => {
+        addPendingCapture({
+          source: "android-share",
+          text: "Oversized attachment",
+          mode: "new",
+          attachments: oversizedAttachments
+        });
+      }).toThrow();
+    });
+
+    it("should reject capture with oversized total attachment size", () => {
+      const largeAttachments: PendingAttachment[] = [
+        {
+          id: "att1",
+          filePath: "/staging/large1.jpg",
+          fileName: "large1.jpg",
+          fileSize: MAX_CAPTURE_ATTACHMENTS_SIZE,
+          fingerprint: "large-fingerprint1",
+          mimeType: "image/jpeg"
+        }
+      ];
+
+      expect(() => {
+        addPendingCapture({
+          source: "android-share",
+          text: "Oversized total",
+          mode: "new",
+          attachments: largeAttachments
+        });
+      }).toThrow();
+    });
+
+    it("should store captures with attachments as optional", () => {
+      // Ensure existing captures without attachments still work
+      const capture = addPendingCapture({
+        source: "in-app",
+        text: "No attachments",
+        mode: "new"
+      });
+
+      expect(capture.attachments).toBeUndefined();
+    });
   });
 });

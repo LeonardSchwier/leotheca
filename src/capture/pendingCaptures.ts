@@ -5,6 +5,15 @@
 
 import { signal } from "@preact/signals";
 
+export interface PendingAttachment {
+  id: string; // Unique attachment ID within the capture
+  filePath: string; // App-private staged file path
+  fileName: string; // Original file name (sanitized)
+  fileSize: number; // Size in bytes
+  fingerprint: string; // Content fingerprint for retry matching (F05-FR-17)
+  mimeType: string; // MIME type of the attachment
+}
+
 export interface PendingCapture {
   id: string;
   receivedAt: string;
@@ -19,6 +28,7 @@ export interface PendingCapture {
   openAfterCommit?: boolean;
   status: "pending" | "retrying" | "failed";
   lastError?: string;
+  attachments?: PendingAttachment[]; // F05-FR-04/F05-FR-05: Support for staged attachments
 }
 
 // Maximum number of pending captures
@@ -29,6 +39,12 @@ export const MAX_PENDING_TEXT_SIZE = 5 * 1024 * 1024;
 
 // Maximum individual capture text size (32 KiB, matching deep link payload limit)
 export const MAX_INDIVIDUAL_CAPTURE_SIZE = 32 * 1024;
+
+// Attachment limits (F05 spec section 9.1)
+export const MAX_ATTACHMENTS_PER_CAPTURE = 10;
+export const MAX_ATTACHMENT_SIZE = 25 * 1024 * 1024; // 25 MiB per image
+export const MAX_CAPTURE_ATTACHMENTS_SIZE = 100 * 1024 * 1024; // 100 MiB per capture
+export const MAX_TOTAL_PENDING_ATTACHMENT_SIZE = 250 * 1024 * 1024; // 250 MiB total queue
 
 // Storage key for pending captures
 const PENDING_CAPTURES_STORAGE_KEY = "leotheca-pending-captures";
@@ -94,7 +110,7 @@ export function getPendingCaptures(): PendingCapture[] {
 
 /**
  * Add a new pending capture
- * Enforces maximum count and text size limits
+ * Enforces maximum count, text size, and attachment limits
  */
 export function addPendingCapture(capture: Omit<PendingCapture, "id" | "receivedAt" | "status">): PendingCapture {
   // Get current captures
@@ -115,6 +131,22 @@ export function addPendingCapture(capture: Omit<PendingCapture, "id" | "received
     throw new Error(`Capture text exceeds maximum size of ${MAX_INDIVIDUAL_CAPTURE_SIZE} bytes`);
   }
 
+  // F05-FR-14: Enforce attachment count limit per capture
+  if (capture.attachments && capture.attachments.length > MAX_ATTACHMENTS_PER_CAPTURE) {
+    console.warn(`F05: Attachment count (${capture.attachments.length}) exceeds ${MAX_ATTACHMENTS_PER_CAPTURE} limit`);
+    throw new Error(`Capture attachments exceed maximum count of ${MAX_ATTACHMENTS_PER_CAPTURE}`);
+  }
+
+  // F05-FR-14: Enforce individual attachment size limit
+  if (capture.attachments) {
+    for (const attachment of capture.attachments) {
+      if (attachment.fileSize > MAX_ATTACHMENT_SIZE) {
+        console.warn(`F05: Individual attachment size (${attachment.fileSize}) exceeds ${MAX_ATTACHMENT_SIZE} byte limit`);
+        throw new Error(`Attachment exceeds maximum size of ${MAX_ATTACHMENT_SIZE} bytes`);
+      }
+    }
+  }
+
   // Enforce text size limit - remove oldest captures until we have enough space
   let totalTextSize = captures.reduce((sum, c) => sum + c.text.length, 0);
   while (totalTextSize + capture.text.length > MAX_PENDING_TEXT_SIZE && captures.length > 0) {
@@ -125,6 +157,24 @@ export function addPendingCapture(capture: Omit<PendingCapture, "id" | "received
     totalTextSize = captures.reduce((sum, c) => sum + c.text.length, 0);
   }
   
+  // F05-FR-14: Enforce total attachment size limit across all pending captures
+  const captureAttachmentsSize = capture.attachments?.reduce((sum, a) => sum + a.fileSize, 0) || 0;
+  let totalAttachmentsSize = captures.reduce((sum, c) => sum + (c.attachments?.reduce((attSum, a) => attSum + a.fileSize, 0) || 0), 0);
+  
+  while (totalAttachmentsSize + captureAttachmentsSize > MAX_TOTAL_PENDING_ATTACHMENT_SIZE && captures.length > 0) {
+    const sorted = [...captures].sort((a, b) => new Date(a.receivedAt).getTime() - new Date(b.receivedAt).getTime());
+    const oldest = sorted[0];
+    removePendingCapture(oldest.id);
+    captures = pendingCapturesStore.value; // Update after removal
+    totalAttachmentsSize = captures.reduce((sum, c) => sum + (c.attachments?.reduce((attSum, a) => attSum + a.fileSize, 0) || 0), 0);
+  }
+  
+  // F05-FR-14: Enforce per-capture attachment size limit
+  if (captureAttachmentsSize > MAX_CAPTURE_ATTACHMENTS_SIZE) {
+    console.warn(`F05: Capture attachment size (${captureAttachmentsSize}) exceeds ${MAX_CAPTURE_ATTACHMENTS_SIZE} byte limit`);
+    throw new Error(`Capture attachments exceed maximum size of ${MAX_CAPTURE_ATTACHMENTS_SIZE} bytes`);
+  }
+
   const newCapture: PendingCapture = {
     id: generateCaptureId(),
     receivedAt: new Date().toISOString(),
@@ -137,7 +187,8 @@ export function addPendingCapture(capture: Omit<PendingCapture, "id" | "received
     targetFolder: capture.targetFolder,
     targetProfileId: capture.targetProfileId,
     openAfterCommit: capture.openAfterCommit ?? false,
-    status: "pending"
+    status: "pending",
+    attachments: capture.attachments
   };
   
   pendingCapturesStore.value = [...captures, newCapture];
@@ -195,6 +246,67 @@ export function getPendingCaptureCount(): number {
  */
 export function hasPendingCaptures(): boolean {
   return pendingCapturesStore.value.length > 0;
+}
+
+/**
+ * Sanitize filename to be safe for filesystem
+ * F05-FR-15: Attachment filenames shall be sanitized
+ */
+export function sanitizeAttachmentFilename(filename: string): string {
+  if (!filename || filename.trim() === "") {
+    return "capture";
+  }
+  
+  // Remove path separators and control characters
+  let sanitized = filename
+    .replace(/[/\\:*?"<>|]/g, "_")
+    .replace(/[\x00-\x1F\x7F]/g, ""); // Remove control characters
+  
+  // Remove bidirectional control characters
+  sanitized = sanitized.replace(/[\u202A-\u202E\u2066-\u2069]/g, "");
+  
+  // Remove reserved names on Windows
+  const reservedNames = ["CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9"];
+  for (const reserved of reservedNames) {
+    if (sanitized.toUpperCase() === reserved) {
+      sanitized = "_" + sanitized;
+    }
+  }
+  
+  // Remove leading/trailing dots and spaces
+  sanitized = sanitized.replace(/^[.\\s]+/, "").replace(/[.\\s]+$/, "");
+  
+  // If empty after sanitization, use default
+  if (!sanitized || sanitized.trim() === "") {
+    sanitized = "capture";
+  }
+  
+  // Truncate to reasonable length (max 128 chars)
+  if (sanitized.length > 128) {
+    sanitized = sanitized.substring(0, 128);
+  }
+  
+  return sanitized;
+}
+
+/**
+ * Generate a fingerprint for attachment content to support retry matching
+ * F05-FR-17: Attachment retry shall reuse an existing planned file only when its fingerprint matches
+ */
+export async function generateAttachmentFingerprint(filePath: string, bridgeReadFile: (path: string) => Promise<Uint8Array>): Promise<string> {
+  try {
+    const content = await bridgeReadFile(filePath);
+    const size = content.length;
+    
+    // Create a simple fingerprint based on size and first 16 bytes
+    const header = content.slice(0, 16);
+    const headerHex = Array.from(header).map(b => b.toString(16).padStart(2, "0")).join("");
+    
+    return `${size}-${headerHex}`;
+  } catch (error) {
+    console.warn("F05: Failed to generate attachment fingerprint", error);
+    return `unknown-${Date.now()}`;
+  }
 }
 
 /**

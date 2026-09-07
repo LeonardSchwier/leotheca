@@ -9,6 +9,8 @@ import { createNoteWithTitle, appendToInboxNote } from "./captureCommit";
 import { resolveDatePattern } from "./captureDestinations";
 import { removePendingCapture, updatePendingCaptureStatus, getPendingCaptures, addPendingCapture } from "./pendingCaptures";
 
+import { PendingAttachment } from "./pendingCaptures";
+
 export interface CaptureRequest {
   text: string;
   title?: string;
@@ -16,6 +18,7 @@ export interface CaptureRequest {
   mode: "append" | "new" | "date";
   targetProfileId?: string; // F05-FR-08: F20 profile UUID for capture destination
   openAfterCommit: boolean;
+  attachments?: PendingAttachment[]; // F05-FR-04: Support for attachments
 }
 
 /**
@@ -37,7 +40,8 @@ export async function processCaptureRequest(
           content: capture.text,
           title: capture.title,
           sourceUrl: capture.sourceUrl,
-          workspaceRoot: workspacePath
+          workspaceRoot: workspacePath,
+          attachments: capture.attachments
         });
         if (capture.openAfterCommit) {
           await handleOpenFile(notePath, inboxNote);
@@ -60,7 +64,8 @@ export async function processCaptureRequest(
         targetDir, 
         capture.text, 
         capture.title || fileName.replace(".md", ""), 
-        workspacePath
+        workspacePath,
+        capture.attachments
       );
       if (capture.openAfterCommit) {
         await handleOpenFile(path, name);
@@ -82,7 +87,8 @@ export async function processCaptureRequest(
         targetDir, 
         capture.text, 
         capture.title, 
-        workspacePath
+        workspacePath,
+        capture.attachments
       );
       if (capture.openAfterCommit) {
         await handleOpenFile(path, name);
@@ -112,7 +118,8 @@ export function queueCaptureIfNoWorkspace(
       sourceUrl: capture.sourceUrl,
       mode: capture.mode,
       targetProfileId: capture.targetProfileId,
-      openAfterCommit: capture.openAfterCommit
+      openAfterCommit: capture.openAfterCommit,
+      attachments: capture.attachments || []
     });
     return true; // Was queued
   }
@@ -142,7 +149,8 @@ export async function processPendingCaptures(
           sourceUrl: capture.sourceUrl,
           mode: capture.mode,
           targetProfileId: capture.targetProfileId,
-          openAfterCommit: capture.openAfterCommit ?? false
+          openAfterCommit: capture.openAfterCommit ?? false,
+          attachments: capture.attachments || []
         },
         workspacePath,
         handleOpenFile

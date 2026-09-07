@@ -89,8 +89,9 @@ export function CanvasView({ path, source, onChange, onOpenFile }: CanvasViewPro
       >
         <svg class="canvas-edges" aria-hidden="true">
           {document.edges.map((edge) => {
-            const from = document.nodes.find((node) => node.id === edge.from)!;
-            const to = document.nodes.find((node) => node.id === edge.to)!;
+            const from = document.nodes.find((node) => node.id === edge.from);
+            const to = document.nodes.find((node) => node.id === edge.to);
+            if (!from || !to) return null;
             return (
               <line
                 key={`${edge.from}:${edge.to}`}

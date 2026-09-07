@@ -47,6 +47,17 @@ describe("CanvasView", () => {
     const saved = JSON.parse(onChange.mock.calls[0][0] as string) as { nodes: unknown[] };
     expect(saved.nodes).toEqual([{ id: "a", text: "Renamed", x: 1, y: 2 }, malformedNode]);
   });
+  it("skips an edge whose retained future-format endpoint cannot render", () => {
+    const source = JSON.stringify({
+      nodes: [{ id: "a", text: "A", x: 1, y: 2 }, { id: "future", futureShape: true }],
+      edges: [{ from: "a", to: "future" }],
+    });
+    const { container, getByLabelText } = render(
+      <CanvasView path={CANVAS_PATH} source={source} onChange={vi.fn()} onOpenFile={vi.fn()} />,
+    );
+    expect(getByLabelText("Card text")).not.toBeNull();
+    expect(container.querySelectorAll(".canvas-edges line")).toHaveLength(0);
+  });
 
   it("enables Open for a card whose file path resolves inside the workspace", () => {
     workspacePath.value = "/workspace";

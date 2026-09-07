@@ -3,15 +3,10 @@ import { configDefaults } from "vitest/config";
 
 export default defineConfig({
   test: {
-    // Use jsdom environment for tests that need DOM APIs
-    environment: "jsdom",
-    
-    // Global test setup file - runs before all tests
-    setupFiles: ["./src/vitest.setup.ts"],
-    
-    // Global setup - runs once before the test process starts
-    // This is where we can require native modules like canvas
-    globalSetup: ["./src/vitest.globalSetup.ts"],
+    // Use happy-dom environment instead of jsdom for better canvas support
+    // happy-dom implements HTMLCanvasElement.getContext("2d") and other
+    // Canvas APIs that jsdom doesn't support
+    environment: "happy-dom",
     
     // Exclude node_modules from test coverage
     exclude: [...configDefaults.exclude, "**/node_modules/**"],
@@ -21,5 +16,15 @@ export default defineConfig({
     
     // Timeout for async tests
     testTimeout: 10000,
+    
+    // Environment-specific options for happy-dom
+    environmentOptions: {
+      happyDOM: {
+        // Enable Canvas API support
+        settings: {
+          enableCanvasAPI: true,
+        }
+      }
+    }
   },
 });

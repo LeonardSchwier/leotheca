@@ -5,11 +5,30 @@
 
 import { readTextFile, writeTextFile, listDir, createWorkspaceTextFileNew } from "../workspace/tauriBridge";
 
+// F05-FR-07: Prohibited path prefix
+const PROHIBITED_PATH_PREFIX = ".leotheca/";
+
+/**
+ * Validates that a path is not under the prohibited .leotheca/ directory
+ * F05-FR-07: Destination paths shall be contained, validated, and prohibited under `.leotheca/`
+ */
+function validatePathNotInLeotheca(path: string, workspaceRoot: string): void {
+  const relativePath = path.startsWith(workspaceRoot)
+    ? path.slice(workspaceRoot.length)
+    : path;
+  
+  if (relativePath.startsWith(PROHIBITED_PATH_PREFIX) || 
+      relativePath.includes("/" + PROHIBITED_PATH_PREFIX)) {
+    throw new Error(`Capture destination cannot be under .leotheca/ directory: ${path}`);
+  }
+}
+
 export interface CaptureAppendOptions {
   inboxNotePath: string;
   content: string;
   title?: string;
   sourceUrl?: string;
+  workspaceRoot?: string;
 }
 
 /**
@@ -18,7 +37,12 @@ export interface CaptureAppendOptions {
  * Adds proper spacing between existing content and new content.
  */
 export async function appendToInboxNote(options: CaptureAppendOptions): Promise<{ path: string; name: string }> {
-  const { inboxNotePath, content, title, sourceUrl } = options;
+  const { inboxNotePath, content, title, sourceUrl, workspaceRoot } = options;
+  
+  // F05-FR-07: Validate destination path is not under .leotheca/
+  if (workspaceRoot) {
+    validatePathNotInLeotheca(inboxNotePath, workspaceRoot);
+  }
   
   // Check if the inbox note already exists
   try {
@@ -72,6 +96,9 @@ export async function createNoteWithTitle(
   if (!root) {
     throw new Error("No workspace is open.");
   }
+  
+  // F05-FR-07: Validate destination path is not under .leotheca/
+  validatePathNotInLeotheca(dirPath, root);
   
   const existing = await listDir(dirPath);
   const existingNames = new Set(existing.map((e) => e.name));

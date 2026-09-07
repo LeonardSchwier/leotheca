@@ -35,7 +35,8 @@ export async function processCaptureRequest(
           inboxNotePath: notePath,
           content: capture.text,
           title: capture.title,
-          sourceUrl: capture.sourceUrl
+          sourceUrl: capture.sourceUrl,
+          workspaceRoot: workspacePath
         });
         if (capture.openAfterCommit) {
           await handleOpenFile(notePath, inboxNote);

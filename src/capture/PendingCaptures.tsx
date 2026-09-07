@@ -34,7 +34,8 @@ export function PendingCaptures() {
             inboxNotePath: notePath,
             content: capture.text,
             title: capture.title,
-            sourceUrl: capture.sourceUrl
+            sourceUrl: capture.sourceUrl,
+            workspaceRoot: workspacePath.value
           });
           return true;
         }

@@ -62,7 +62,8 @@ export function CaptureSheet({ onCreated }: CaptureSheetProps) {
             inboxNotePath: notePath,
             content: content,
             title: title || undefined,
-            sourceUrl: sourceUrl || undefined
+            sourceUrl: sourceUrl || undefined,
+            workspaceRoot: workspacePath.value
           });
           
           // Notify caller and open the note if requested

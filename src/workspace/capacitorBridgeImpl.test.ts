@@ -16,6 +16,9 @@ const { folderAccess } = vi.hoisted(() => ({
     renamePath: vi.fn(),
     writeBinaryFile: vi.fn(),
     writeTextFile: vi.fn(),
+    // F05: Android share intent bridge
+    getPendingShareData: vi.fn(),
+    hasPendingShareData: vi.fn(),
   },
 }));
 

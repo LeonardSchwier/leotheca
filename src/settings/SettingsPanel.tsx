@@ -202,6 +202,10 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
     "Capture inbox note",
     "Path to the inbox note for append mode, relative to the workspace root",
   );
+  const showCaptureDatePattern = matches(
+    "Capture date pattern",
+    "Date-pattern destination for new captures (e.g., \"Daily/{{date:YYYY-MM-DD}}.md\")",
+  );
   const showFrontmatterProperties = matches(
     "Frontmatter properties panel",
     "Show a note's frontmatter fields above the editor as editable rows",
@@ -248,6 +252,7 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
           showAttachmentsFolder ||
           showCaptureInboxFolder ||
           showCaptureInboxNote ||
+          showCaptureDatePattern ||
           showFrontmatterProperties || showNoteReadOnlyLock ||
           (workspaceSettings.value.themesEnabled && showAccentColor) ||
           (workspaceSettings.value.snippetsEnabled && showSnippetDefinitions) ||
@@ -649,6 +654,29 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                   onInput={(e) => {
                     void updateWorkspaceSettings({
                       captureInboxNote: (e.target as HTMLInputElement).value,
+                    });
+                  }}
+                />
+              </div>
+            </div>
+          )}
+
+          {workspacePath.value && showCaptureDatePattern && (
+            <div class="settings-row">
+              <div>
+                <div class="settings-label">Capture date pattern</div>
+                <div class="settings-hint">
+                  Date-pattern destination for new captures (e.g. Daily/YYYY-MM-DD.md)
+                </div>
+              </div>
+              <div class="settings-value">
+                <input
+                  type="text"
+                  placeholder="e.g. Daily/YYYY-MM-DD.md"
+                  value={workspaceSettings.value.captureDatePattern}
+                  onInput={(e) => {
+                    void updateWorkspaceSettings({
+                      captureDatePattern: (e.target as HTMLInputElement).value,
                     });
                   }}
                 />

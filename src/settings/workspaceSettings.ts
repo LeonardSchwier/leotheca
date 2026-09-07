@@ -182,6 +182,8 @@ export interface WorkspaceSettings {
   captureInboxFolder: string;
   /** F05: Path to the inbox note for append mode, relative to workspace root. */
   captureInboxNote: string;
+  /** F05: Date-pattern destination for new captures (e.g., "Daily/{{date:YYYY-MM-DD}}.md") */
+  captureDatePattern: string;
 }
 
 export const MIN_UI_ZOOM = 50;
@@ -222,6 +224,7 @@ export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   noteReadOnlyLockEnabled: true,
   captureInboxFolder: "",
   captureInboxNote: "Inbox.md",
+  captureDatePattern: "",
 };
 
 // Plain string join is intentional here (not a path-resolution API call):
@@ -553,6 +556,10 @@ export function decodeWorkspaceSettings(
     record.captureInboxNote,
     DEFAULT_WORKSPACE_SETTINGS.captureInboxNote,
   );
+  const captureDatePattern = decodeNullableString(
+    record.captureDatePattern,
+    DEFAULT_WORKSPACE_SETTINGS.captureDatePattern,
+  );
   const frontmatterPropertiesEnabled = decodeBoolean(
     record.frontmatterPropertiesEnabled,
     DEFAULT_WORKSPACE_SETTINGS.frontmatterPropertiesEnabled,
@@ -673,6 +680,7 @@ export function decodeWorkspaceSettings(
     noteReadOnlyLockEnabled: noteReadOnlyLockEnabled.value,
     captureInboxFolder: captureInboxFolder.value,
     captureInboxNote: captureInboxNote.value,
+    captureDatePattern: captureDatePattern.value,
   } as unknown as WorkspaceSettings;
 
   // F07 Phase 2b: Corruption only when editorLayout is invalid AND cannot be migrated from legacy
@@ -710,6 +718,7 @@ export function decodeWorkspaceSettings(
       noteReadOnlyLockEnabled,
       captureInboxFolder,
       captureInboxNote,
+      captureDatePattern,
     );
 
   return { settings, corrupt };

@@ -4,6 +4,7 @@ import { workspacePath, workspaceSettings } from "../settings/store";
 import { createNoteQuick, selectedDir } from "../workspace/fileTreeStore";
 import { resolvePathWithinWorkspace } from "../workspace/paths";
 import { appendToInboxNote, createNoteWithTitle } from "../capture/captureCommit";
+import { resolveDatePattern, hasDateTokens, DestinationMode } from "../capture/captureDestinations";
 
 /** Global state for Capture Sheet visibility */
 export const captureSheetOpen = signal(false);
@@ -27,7 +28,7 @@ export function CaptureSheet({ onCreated }: CaptureSheetProps) {
   const [content, setContent] = useState("");
   const [title, setTitle] = useState("");
   const [sourceUrl, setSourceUrl] = useState("");
-  const [destinationMode, setDestinationMode] = useState<"append" | "new">("new");
+  const [destinationMode, setDestinationMode] = useState<DestinationMode>("new");
   const [openAfterCapture, setOpenAfterCapture] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -77,6 +78,32 @@ export function CaptureSheet({ onCreated }: CaptureSheetProps) {
             const { handleOpenFile } = await import("../app/App");
             await handleOpenFile(path, name);
           }
+        }
+      } else if (destinationMode === "date") {
+        // F05: Date-pattern destination
+        const datePattern = workspaceSettings.value.captureDatePattern || "Daily/{{date:YYYY-MM-DD}}.md";
+        const resolvedPattern = resolveDatePattern(datePattern);
+        
+        // Get the directory part of the pattern
+        const lastSlashIndex = resolvedPattern.path.lastIndexOf("/");
+        const targetDir = lastSlashIndex > 0 
+          ? resolvedPattern.path.substring(0, lastSlashIndex)
+          : workspacePath.value;
+        const fileName = lastSlashIndex > 0 
+          ? resolvedPattern.path.substring(lastSlashIndex + 1)
+          : resolvedPattern.path;
+        
+        // Create the date-pattern note
+        const { path, name } = await createNoteWithTitle(targetDir, content, title || fileName.replace(".md", ""), workspacePath.value);
+        
+        // Notify caller
+        onCreated?.(path, name);
+        
+        // Open the note if requested
+        if (openAfterCapture) {
+          // Import here to avoid circular dependencies
+          const { handleOpenFile } = await import("../app/App");
+          await handleOpenFile(path, name);
         }
       } else {
         // F05: Create new note in configured folder
@@ -181,6 +208,17 @@ export function CaptureSheet({ onCreated }: CaptureSheetProps) {
                 />
                 Create new note
               </label>
+              <label class="capture-sheet-radio">
+                <input
+                  type="radio"
+                  name="destination-mode"
+                  value="date"
+                  checked={destinationMode === "date"}
+                  onChange={() => setDestinationMode("date")}
+                  disabled={isSubmitting}
+                />
+                Date pattern note
+              </label>
             </div>
           </div>
           
@@ -204,6 +242,11 @@ export function CaptureSheet({ onCreated }: CaptureSheetProps) {
           {destinationMode === "new" && (
             <div class="capture-sheet-preview">
               Destination: {workspaceSettings.value.captureInboxFolder || workspacePath.value || "Workspace root"}
+            </div>
+          )}
+          {destinationMode === "date" && (
+            <div class="capture-sheet-preview">
+              Destination: {workspaceSettings.value.captureDatePattern || "Daily/YYYY-MM-DD.md"}
             </div>
           )}
         </div>

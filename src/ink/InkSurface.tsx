@@ -102,6 +102,8 @@ export function InkSurface({
   const handlePointerDown = (event: JSX.TargetedPointerEvent<SVGSVGElement>) => {
     const pointerEvent = event as PointerEvent;
     if (!supportedPointer(pointerEvent.pointerType)) return;
+    if (pointerEvent.pointerType === "mouse" && pointerEvent.button !== 0) return;
+
     const element = event.currentTarget;
     const points = samplesFor(pointerEvent).map((sample) => samplePoint(sample, element));
     draft.current = { pointerId: pointerEvent.pointerId, points };

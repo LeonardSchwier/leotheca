@@ -83,4 +83,17 @@ describe("InkSurface", () => {
 
     expect(onCommitStroke).not.toHaveBeenCalled();
   });
+
+  it("does not treat a secondary mouse-button gesture as an ink stroke", () => {
+    const onCommitStroke = vi.fn();
+    const { getByLabelText } = render(<InkSurface strokes={[]} onCommitStroke={onCommitStroke} />);
+    const surface = getByLabelText("Ink drawing surface") as unknown as SVGSVGElement;
+    mockBounds(surface);
+
+    fireEvent.pointerDown(surface, { pointerId: 7, pointerType: "mouse", button: 2, clientX: 20, clientY: 30 });
+    fireEvent.pointerUp(surface, { pointerId: 7, pointerType: "mouse", button: 2, clientX: 30, clientY: 40 });
+
+    expect(onCommitStroke).not.toHaveBeenCalled();
+    expect(surface.setPointerCapture).not.toHaveBeenCalled();
+  });
 });

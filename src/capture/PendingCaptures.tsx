@@ -3,10 +3,13 @@
  * Shows captures that cannot be immediately committed
  */
 
-import { useState } from "preact/hooks";
-import { pendingCapturesStore, removePendingCapture } from "./pendingCaptures";
-import { openCaptureSheet } from "../app/CaptureSheet";
-import { DestinationMode } from "./captureDestinations";
+import { useState, useCallback } from "preact/hooks";
+import { pendingCapturesStore, removePendingCapture, type PendingCapture } from "./pendingCaptures";
+import { openCaptureSheetWithData } from "../app/CaptureSheet";
+import { DestinationMode, resolveDatePattern } from "./captureDestinations";
+import { appendToInboxNote, createNoteWithTitle } from "./captureCommit";
+import { workspacePath, workspaceSettings } from "../settings/store";
+import { resolvePathWithinWorkspace } from "../workspace/paths";
 
 export function PendingCaptures() {
   const pendingCaptures = pendingCapturesStore?.value || [];
@@ -16,17 +19,79 @@ export function PendingCaptures() {
     return null;
   }
 
+  const commitPendingCapture = useCallback(async (capture: PendingCapture) => {
+    if (!workspacePath.value) {
+      console.log("Cannot commit pending capture: No workspace is open");
+      return false;
+    }
+
+    try {
+      if (capture.mode === "append") {
+        const inboxNote = workspaceSettings.value.captureInboxNote || "Inbox.md";
+        const notePath = resolvePathWithinWorkspace(workspacePath.value, workspacePath.value, inboxNote);
+        if (notePath) {
+          await appendToInboxNote({
+            inboxNotePath: notePath,
+            content: capture.text,
+            title: capture.title,
+            sourceUrl: capture.sourceUrl
+          });
+          return true;
+        }
+      } else if (capture.mode === "date") {
+        const datePattern = workspaceSettings.value.captureDatePattern || "Daily/{{date:YYYY-MM-DD}}.md";
+        const resolvedPattern = resolveDatePattern(datePattern);
+        
+        const lastSlashIndex = resolvedPattern.path.lastIndexOf("/");
+        const targetDir = lastSlashIndex > 0 
+          ? resolvedPattern.path.substring(0, lastSlashIndex)
+          : workspacePath.value;
+        const fileName = lastSlashIndex > 0 
+          ? resolvedPattern.path.substring(lastSlashIndex + 1)
+          : resolvedPattern.path;
+        
+        await createNoteWithTitle(targetDir, capture.text, capture.title || fileName.replace(".md", ""), workspacePath.value);
+        return true;
+      } else {
+        // mode === "new"
+        let targetDir = workspaceSettings.value.captureInboxFolder;
+        if (!targetDir) {
+          // Fall back to workspace root if no inbox folder configured
+          targetDir = workspacePath.value;
+        } else {
+          const resolvedInbox = resolvePathWithinWorkspace(workspacePath.value, workspacePath.value, targetDir);
+          if (resolvedInbox) {
+            targetDir = resolvedInbox;
+          }
+        }
+        
+        await createNoteWithTitle(targetDir, capture.text, capture.title, workspacePath.value);
+        return true;
+      }
+    } catch (error) {
+      console.log("Failed to commit pending capture:", error);
+      return false;
+    }
+  }, []);
+
   const handleRetry = (captureId: string) => {
-    // TODO: F05 - Implement retry logic
-    // For now, just remove the capture as if retry succeeded
     const capture = pendingCaptures.find(c => c.id === captureId);
     if (capture) {
-      // Mark as retrying
-      // TODO: Implement actual retry with the capture commit logic
+      // Mark as retrying by updating status
+      // This would require modifying the store, but for now we'll just attempt to commit
       console.log("Retrying capture:", captureId);
       
-      // For now, simulate successful retry by removing the capture
-      removePendingCapture(captureId);
+      // Try to commit the capture
+      commitPendingCapture(capture).then(success => {
+        if (success) {
+          // Remove the capture if commit succeeded
+          removePendingCapture(captureId);
+          console.log("Successfully committed pending capture:", captureId);
+        } else {
+          console.log("Failed to commit pending capture:", captureId);
+          // TODO: Update status to failed
+        }
+      });
     }
   };
 
@@ -42,13 +107,11 @@ export function PendingCaptures() {
     const capture = pendingCaptures.find(c => c.id === captureId);
     if (capture) {
       // Pre-fill the capture sheet with the pending capture data
-      openCaptureSheet(capture.text);
-      // TODO: F05 - Set title, URL, mode, etc. from the pending capture
-      // This would require extending the openCaptureSheet API to accept more parameters
-      console.log("Reviewing capture with data:", {
+      openCaptureSheetWithData({
+        content: capture.text,
         title: capture.title,
-        url: capture.sourceUrl,
-        mode: capture.mode,
+        sourceUrl: capture.sourceUrl,
+        mode: capture.mode as DestinationMode,
         openAfterCapture: capture.openAfterCommit
       });
     }

@@ -6,11 +6,13 @@ import { resolvePathWithinWorkspace } from "../workspace/paths";
 import { appendToInboxNote, createNoteWithTitle } from "../capture/captureCommit";
 import { resolveDatePattern, hasDateTokens, DestinationMode } from "../capture/captureDestinations";
 
-/** Global state for Capture Sheet visibility */
+/** Global state for Capture Sheet */
 export const captureSheetOpen = signal(false);
-
-/** Global state for the capture content being edited */
 export const captureContent = signal("");
+export const captureTitle = signal("");
+export const captureSourceUrl = signal("");
+export const captureDestinationMode = signal<DestinationMode>("new");
+export const captureOpenAfterCapture = signal(true);
 
 /** Callback type for when a capture is successfully created */
 export type OnCaptureCreated = (path: string, name: string) => void;
@@ -25,32 +27,26 @@ interface CaptureSheetProps {
  * navigating away from the current workflow.
  */
 export function CaptureSheet({ onCreated }: CaptureSheetProps) {
-  const [content, setContent] = useState("");
-  const [title, setTitle] = useState("");
-  const [sourceUrl, setSourceUrl] = useState("");
-  const [destinationMode, setDestinationMode] = useState<DestinationMode>("new");
-  const [openAfterCapture, setOpenAfterCapture] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  
+  // Use global signals for state to support pre-filling from pending captures
+  const content = captureContent.value;
+  const title = captureTitle.value;
+  const sourceUrl = captureSourceUrl.value;
+  const destinationMode = captureDestinationMode.value;
+  const openAfterCapture = captureOpenAfterCapture.value;
 
-  // Sync with global state when opened
+  // Focus textarea when sheet opens
   useEffect(() => {
     if (captureSheetOpen.value && textareaRef.current) {
-      setContent(captureContent.value);
       textareaRef.current.focus();
       // Select all content if there's any pre-filled text
-      if (captureContent.value) {
+      if (content) {
         textareaRef.current.select();
       }
     }
-  }, [captureSheetOpen.value]);
-
-  // Update global content as user types
-  useEffect(() => {
-    if (captureSheetOpen.value) {
-      captureContent.value = content;
-    }
-  }, [content, captureSheetOpen.value]);
+  }, [captureSheetOpen.value, content]);
 
   const handleSubmit = useCallback(async () => {
     if (!workspacePath.value || isSubmitting) return;
@@ -164,7 +160,7 @@ export function CaptureSheet({ onCreated }: CaptureSheetProps) {
               type="text"
               class="capture-sheet-input"
               value={title}
-              onChange={(e) => setTitle(e.currentTarget.value)}
+              onChange={(e) => { captureTitle.value = e.currentTarget.value; }}
               placeholder="Note title..."
               disabled={isSubmitting}
             />
@@ -177,7 +173,7 @@ export function CaptureSheet({ onCreated }: CaptureSheetProps) {
               type="url"
               class="capture-sheet-input"
               value={sourceUrl}
-              onChange={(e) => setSourceUrl(e.currentTarget.value)}
+              onChange={(e) => { captureSourceUrl.value = e.currentTarget.value; }}
               placeholder="https://example.com"
               disabled={isSubmitting}
             />
@@ -192,7 +188,7 @@ export function CaptureSheet({ onCreated }: CaptureSheetProps) {
                   name="destination-mode"
                   value="append"
                   checked={destinationMode === "append"}
-                  onChange={() => setDestinationMode("append")}
+                  onChange={() => { captureDestinationMode.value = "append"; }}
                   disabled={isSubmitting}
                 />
                 Append to inbox
@@ -203,7 +199,7 @@ export function CaptureSheet({ onCreated }: CaptureSheetProps) {
                   name="destination-mode"
                   value="new"
                   checked={destinationMode === "new"}
-                  onChange={() => setDestinationMode("new")}
+                  onChange={() => { captureDestinationMode.value = "new"; }}
                   disabled={isSubmitting}
                 />
                 Create new note
@@ -214,7 +210,7 @@ export function CaptureSheet({ onCreated }: CaptureSheetProps) {
                   name="destination-mode"
                   value="date"
                   checked={destinationMode === "date"}
-                  onChange={() => setDestinationMode("date")}
+                  onChange={() => { captureDestinationMode.value = "date"; }}
                   disabled={isSubmitting}
                 />
                 Date pattern note
@@ -227,7 +223,7 @@ export function CaptureSheet({ onCreated }: CaptureSheetProps) {
               <input
                 type="checkbox"
                 checked={openAfterCapture}
-                onChange={(e) => setOpenAfterCapture(e.currentTarget.checked)}
+                onChange={(e) => { captureOpenAfterCapture.value = e.currentTarget.checked; }}
                 disabled={isSubmitting}
               />
               Open after capture
@@ -255,7 +251,7 @@ export function CaptureSheet({ onCreated }: CaptureSheetProps) {
           ref={textareaRef}
           class="capture-sheet-textarea"
           value={content}
-          onChange={(e) => setContent(e.currentTarget.value)}
+          onChange={(e) => { captureContent.value = e.currentTarget.value; }}
           onKeyDown={handleKeyDown}
           placeholder="Type your note here..."
           disabled={isSubmitting}
@@ -287,11 +283,32 @@ export function openCaptureSheet(content?: string) {
   captureSheetOpen.value = true;
 }
 
+/** Open the capture sheet with full capture data for editing a pending capture */
+export function openCaptureSheetWithData(data: {
+  content?: string;
+  title?: string;
+  sourceUrl?: string;
+  mode?: DestinationMode;
+  openAfterCapture?: boolean;
+}) {
+  // Set all global signals to pre-fill the capture sheet
+  captureContent.value = data.content ?? "";
+  captureTitle.value = data.title ?? "";
+  captureSourceUrl.value = data.sourceUrl ?? "";
+  captureDestinationMode.value = data.mode ?? "new";
+  captureOpenAfterCapture.value = data.openAfterCapture ?? true;
+  captureSheetOpen.value = true;
+}
+
 /** Close the capture sheet */
 export function closeCaptureSheet() {
   captureSheetOpen.value = false;
-  // Clear content when closing to start fresh next time
+  // Clear all state when closing to start fresh next time
   captureContent.value = "";
+  captureTitle.value = "";
+  captureSourceUrl.value = "";
+  captureDestinationMode.value = "new";
+  captureOpenAfterCapture.value = true;
 }
 
 /** Toggle the capture sheet */

@@ -162,13 +162,17 @@ effect(() => {
   };
 });
 
-effect(() => {
-  document.documentElement.style.setProperty("--content-font-size", `${workspaceSettings.value.fontSize}px`);
-});
+if (typeof document !== "undefined") {
+  effect(() => {
+    document.documentElement.style.setProperty("--content-font-size", `${workspaceSettings.value.fontSize}px`);
+  });
+}
 
-effect(() => {
-  document.documentElement.style.setProperty("--ui-zoom", `${workspaceSettings.value.uiZoom / 100}`);
-});
+if (typeof document !== "undefined") {
+  effect(() => {
+    document.documentElement.style.setProperty("--ui-zoom", `${workspaceSettings.value.uiZoom / 100}`);
+  });
+}
 
 let isRestoringTabs = false;
 let lastPersistedTabsKey = "";
@@ -226,25 +230,32 @@ effect(() => {
 function resolvesToDarkBackground(pref: ThemePreference): boolean {
   if (pref === "dark") return true;
   if (pref === "light") return false;
-  return window.matchMedia("(prefers-color-scheme: dark)").matches;
+  if (typeof window !== "undefined") {
+    return window.matchMedia("(prefers-color-scheme: dark)").matches;
+  }
+  return false; // Default to light if window is not available (e.g., during tests)
 }
 
-effect(() => {
-  const root = document.documentElement;
-  if (theme.value === "system") root.removeAttribute("data-theme");
-  else root.setAttribute("data-theme", theme.value);
-  void setStatusBarAppearance(resolvesToDarkBackground(theme.value));
-});
+if (typeof document !== "undefined") {
+  effect(() => {
+    const root = document.documentElement;
+    if (theme.value === "system") root.removeAttribute("data-theme");
+    else root.setAttribute("data-theme", theme.value);
+    void setStatusBarAppearance(resolvesToDarkBackground(theme.value));
+  });
+}
 
 // "system" theme also needs to react to the OS scheme changing while the
 // app is open, not just to our own theme signal changing.
-window
-  .matchMedia("(prefers-color-scheme: dark)")
-  .addEventListener("change", () => {
-    if (theme.value === "system") {
-      void setStatusBarAppearance(resolvesToDarkBackground("system"));
-    }
-  });
+if (typeof window !== "undefined") {
+  window
+    .matchMedia("(prefers-color-scheme: dark)")
+    .addEventListener("change", () => {
+      if (theme.value === "system") {
+        void setStatusBarAppearance(resolvesToDarkBackground("system"));
+      }
+    });
+}
 
 // Global-config writes can overlap workspace transitions and profile edits.
 // Each queued write reads the canonical signals only when its turn begins.

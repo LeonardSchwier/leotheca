@@ -146,8 +146,42 @@ async function copyAttachmentsToWorkspace(
       const uniqueFilename = generateAttachmentFilename(attachment.fileName);
       const destinationPath = `${attachmentFolder}/${uniqueFilename}`;
       
-      // F05-FR-16: Check for existing file with same fingerprint
+      // F05-FR-17: Check for existing file with same fingerprint before copying
+      // This allows reusing already-copied attachments on retry
       let finalPath = destinationPath;
+      
+      try {
+        const sourceFingerprint = await generateFingerprintForFile(attachment.filePath);
+        const existingFiles = await listDir(attachmentFolder);
+        
+        // Look for an existing file with the same fingerprint
+        let existingMatch: { path: string } | undefined;
+        
+        for (const f of existingFiles) {
+          // Skip the destination path itself
+          if (f.path === destinationPath) continue;
+          
+          try {
+            const existingFingerprint = await generateFingerprintForFile(f.path);
+            if (existingFingerprint === sourceFingerprint) {
+              existingMatch = f;
+              break;
+            }
+          } catch {
+            // Can't read existing file's fingerprint, skip it
+            continue;
+          }
+        }
+        
+        if (existingMatch) {
+          // Reuse the existing file instead of copying
+          finalPath = existingMatch.path;
+          console.log("F05-FR-17: Reusing existing attachment with matching fingerprint:", finalPath);
+        }
+      } catch (fingerprintError) {
+        console.warn("F05-FR-17: Could not check for existing fingerprint match:", fingerprintError);
+        // Continue with normal copy flow
+      }
       
       // Check if destination exists
       try {
@@ -155,11 +189,15 @@ async function copyAttachmentsToWorkspace(
         const destinationExists = existingFiles.some(f => f.path === destinationPath);
         
         if (destinationExists) {
-          // Generate new unique path
+          // Generate new unique path with collision suffix
           let collisionSuffix = 2;
           let newPath: string;
           do {
-            newPath = `${attachmentFolder}/${uniqueFilename.replace(attachment.fileName, '')}-${collisionSuffix}${attachment.fileName}`;
+            // Split the filename and extension, insert suffix before extension
+            const lastDot = uniqueFilename.lastIndexOf(".");
+            const base = lastDot > 0 ? uniqueFilename.substring(0, lastDot) : uniqueFilename;
+            const ext = lastDot > 0 ? uniqueFilename.substring(lastDot) : "";
+            newPath = `${attachmentFolder}/${base}-${collisionSuffix}${ext}`;
             collisionSuffix++;
           } while (existingFiles.some(f => f.path === newPath));
           finalPath = newPath;

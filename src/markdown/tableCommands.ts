@@ -21,7 +21,8 @@ function columnAt(table: MarkdownTableRecord, cursor: number): number | null {
   for (const row of rows) {
     for (let index = 0; index < row.length; index++) {
       const cell = row[index];
-      if (cursor >= (cell.sourceFrom ?? 0) && cursor <= (cell.sourceTo ?? 0)) return index;
+      // Use half-open interval [sourceFrom, sourceTo) to correctly handle UTF-16 surrogate pairs
+      if (cursor >= (cell.sourceFrom ?? 0) && cursor < (cell.sourceTo ?? 0)) return index;
     }
   }
   // Return null if cursor is not in any cell, rather than defaulting to last column
@@ -34,7 +35,8 @@ function bodyRowAt(table: MarkdownTableRecord, cursor: number): number | null {
     const row = table.rows[index];
     const first = row[0]?.sourceFrom;
     const last = row.at(-1)?.sourceTo;
-    if (first !== undefined && last !== undefined && cursor >= first && cursor <= last) return index;
+    // Use half-open interval [first, last) for consistency with cell boundaries
+    if (first !== undefined && last !== undefined && cursor >= first && cursor < last) return index;
   }
   return null;
 }

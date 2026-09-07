@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect, useCallback } from "preact/hooks";
 import { signal } from "@preact/signals";
 import { workspacePath, workspaceSettings } from "../settings/store";
-import { createNoteQuick, selectedDir } from "../workspace/fileTreeStore";
+import { selectedDir } from "../workspace/fileTreeStore";
 import { resolvePathWithinWorkspace } from "../workspace/paths";
 import { appendToInboxNote, createNoteWithTitle } from "../capture/captureCommit";
-import { resolveDatePattern, hasDateTokens, DestinationMode } from "../capture/captureDestinations";
+import { resolveDatePattern, DestinationMode } from "../capture/captureDestinations";
 
 /** Global state for Capture Sheet */
 export const captureSheetOpen = signal(false);
@@ -65,14 +65,9 @@ export function CaptureSheet({ onCreated }: CaptureSheetProps) {
             sourceUrl: sourceUrl || undefined
           });
           
-          // Notify caller
-          onCreated?.(path, name);
-          
-          // Open the note if requested
+          // Notify caller and open the note if requested
           if (openAfterCapture) {
-            // Import here to avoid circular dependencies
-            const { handleOpenFile } = await import("../app/App");
-            await handleOpenFile(path, name);
+            onCreated?.(path, name);
           }
         }
       } else if (destinationMode === "date") {
@@ -92,14 +87,9 @@ export function CaptureSheet({ onCreated }: CaptureSheetProps) {
         // Create the date-pattern note
         const { path, name } = await createNoteWithTitle(targetDir, content, title || fileName.replace(".md", ""), workspacePath.value);
         
-        // Notify caller
-        onCreated?.(path, name);
-        
-        // Open the note if requested
+        // Notify caller and open the note if requested
         if (openAfterCapture) {
-          // Import here to avoid circular dependencies
-          const { handleOpenFile } = await import("../app/App");
-          await handleOpenFile(path, name);
+          onCreated?.(path, name);
         }
       } else {
         // F05: Create new note in configured folder
@@ -115,14 +105,9 @@ export function CaptureSheet({ onCreated }: CaptureSheetProps) {
         
         const { path, name } = await createNoteWithTitle(targetDir, content, title || undefined, workspacePath.value);
         
-        // Notify caller
-        onCreated?.(path, name);
-        
-        // Open the note if requested
+        // Notify caller and open the note if requested
         if (openAfterCapture) {
-          // Import here to avoid circular dependencies
-          const { handleOpenFile } = await import("../app/App");
-          await handleOpenFile(path, name);
+          onCreated?.(path, name);
         }
       }
       

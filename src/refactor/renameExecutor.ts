@@ -172,6 +172,7 @@ function createBasicWorkspaceSettings(): WorkspaceSettings {
     noteReadOnlyLockEnabled: true,
     captureInboxFolder: "",
     captureInboxNote: "Inbox.md",
+    captureDatePattern: "",
   };
 }
 

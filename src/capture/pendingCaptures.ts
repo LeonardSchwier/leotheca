@@ -15,7 +15,7 @@ export interface PendingCapture {
   mode: "append" | "new" | "date";
   targetNote?: string;
   targetFolder?: string;
-  openAfterCommit: boolean;
+  openAfterCommit?: boolean;
   status: "pending" | "retrying" | "failed";
   lastError?: string;
 }
@@ -26,19 +26,52 @@ export const MAX_PENDING_CAPTURES = 50;
 // Maximum total text size for all pending captures (5MB)
 export const MAX_PENDING_TEXT_SIZE = 5 * 1024 * 1024;
 
+// Storage key for pending captures
+const PENDING_CAPTURES_STORAGE_KEY = "leotheca-pending-captures";
+
 // In-memory store for pending captures
-// TODO: F05 - Add platform-specific persistence (localStorage for web, Tauri store for desktop, etc.)
-const pendingCapturesStore = signal<PendingCapture[]>([]);
+export const pendingCapturesStore = signal<PendingCapture[]>([]);
+
+// Save to storage whenever the store changes
+pendingCapturesStore.subscribe(() => {
+  savePendingCapturesToStorage();
+});
 
 /**
  * Initialize pending captures store
- * For now, this just initializes an empty in-memory store.
- * TODO: F05 - Load from platform app-private storage
+ * Loads from localStorage if available
  */
 export function initPendingCaptures(): void {
-  // For now, start with empty store
-  // In the future, this should load from platform storage
+  // Try to load from localStorage
+  try {
+    if (typeof window !== "undefined" && window.localStorage) {
+      const saved = window.localStorage.getItem(PENDING_CAPTURES_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved) as PendingCapture[];
+        pendingCapturesStore.value = parsed;
+        return;
+      }
+    }
+  } catch (error) {
+    console.warn("Failed to load pending captures from storage:", error);
+  }
+  
+  // Initialize with empty store
   pendingCapturesStore.value = [];
+}
+
+/**
+ * Save pending captures to localStorage
+ */
+function savePendingCapturesToStorage(): void {
+  try {
+    if (typeof window !== "undefined" && window.localStorage) {
+      const captures = pendingCapturesStore.value;
+      window.localStorage.setItem(PENDING_CAPTURES_STORAGE_KEY, JSON.stringify(captures));
+    }
+  } catch (error) {
+    console.warn("Failed to save pending captures to storage:", error);
+  }
 }
 
 /**

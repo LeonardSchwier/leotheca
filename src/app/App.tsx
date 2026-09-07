@@ -14,7 +14,7 @@ import { isNoteReadOnlyActive, setNoteReadOnly } from "../editor/noteReadOnly";
 import { ImageViewer } from "../editor/ImageViewer";
 import { ImageViewerOverlay } from "../editor/ImageViewerOverlay";
 import { CaptureSheet, captureSheetOpen, openCaptureSheet } from "./CaptureSheet";
-import { PendingCaptures } from "../capture/PendingCaptures";
+import { PendingCaptures, initPendingCaptures } from "../capture";
 import { classifyWorkspaceResource } from "../workspace/types";
 import { resolvePathWithinWorkspace } from "../workspace/paths";
 import { CanvasView } from "../canvas/CanvasView";
@@ -317,6 +317,7 @@ export function App() {
 
   useEffect(() => {
     const p = initSettings();
+    initPendingCaptures();
     if (p) {
       p.catch(() => {
         settingsLoaded.value = true;

@@ -720,7 +720,7 @@ public class FolderAccessPlugin extends Plugin {
             }
             call.resolve(ret);
         } catch (Exception e) {
-            call.reject("Failed to retrieve pending share data: " + e.getMessage(), e);
+            call.reject("Failed to retrieve pending share data", e);
         }
     }
 

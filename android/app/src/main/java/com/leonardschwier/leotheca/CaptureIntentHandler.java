@@ -133,7 +133,7 @@ public class CaptureIntentHandler {
                 }
             }
         } catch (Exception e) {
-            Log.e(TAG, "F05: Failed to extract multiple URIs", e);
+            Log.e(TAG, "F05: Failed to extract multiple URIs");
         }
         
         return uris;
@@ -175,10 +175,10 @@ public class CaptureIntentHandler {
                             
                             stagedAttachments.add(staged);
                         } else {
-                            Log.w(TAG, "F05: Failed to stage URI: " + uri);
+                            Log.w(TAG, "F05: Failed to stage URI");
                         }
                     } catch (Exception e) {
-                        Log.e(TAG, "F05: Error staging URI: " + uri, e);
+                        Log.e(TAG, "F05: Error staging URI", e);
                     }
                 }
                 
@@ -194,7 +194,7 @@ public class CaptureIntentHandler {
                 }
                 
             } catch (Exception e) {
-                Log.e(TAG, "F05: Error during URI staging", e);
+                Log.e(TAG, "F05: Error during URI staging");
                 // Fallback to text-only capture if we have text
                 if (text != null && !text.isEmpty()) {
                     queueTextCapture(text, title);
@@ -212,21 +212,21 @@ public class CaptureIntentHandler {
             // Validate MIME type for the URI
             String mimeType = context.getContentResolver().getType(uri);
             if (mimeType == null || !mimeType.startsWith("image/")) {
-                Log.w(TAG, "F05: URI has unsupported MIME type: " + mimeType + " for " + uri);
+                Log.w(TAG, "F05: URI has unsupported MIME type: " + mimeType);
                 return null;
             }
             
             // Get content stream
             InputStream inputStream = context.getContentResolver().openInputStream(uri);
             if (inputStream == null) {
-                Log.w(TAG, "F05: Cannot open input stream for URI: " + uri);
+                Log.w(TAG, "F05: Cannot open input stream for URI");
                 return null;
             }
             
             // Check file size first if possible
             long fileSize = getUriSize(uri);
             if (fileSize > MAX_ATTACHMENT_SIZE) {
-                Log.w(TAG, "F05: URI exceeds individual attachment size limit (" + fileSize + " > " + MAX_ATTACHMENT_SIZE + ")");
+                Log.w(TAG, "F05: URI exceeds individual attachment size limit");
                 inputStream.close();
                 return null;
             }
@@ -270,7 +270,7 @@ public class CaptureIntentHandler {
             // Record basic image signature (file size and first few bytes for fingerprinting)
             String fingerprint = generateFileFingerprint(outputFile);
             
-            Log.i(TAG, "F05: Successfully staged URI: " + uri + " -> " + outputFile.getAbsolutePath() + " (" + bytesCopied + " bytes)");
+            Log.i(TAG, "F05: Successfully staged URI (" + bytesCopied + " bytes)");
             
             return new StagedAttachment(
                 outputFile.getAbsolutePath(),
@@ -281,7 +281,7 @@ public class CaptureIntentHandler {
             );
             
         } catch (Exception e) {
-            Log.e(TAG, "F05: Failed to stage URI: " + uri, e);
+            Log.e(TAG, "F05: Failed to stage URI", e);
             return null;
         }
     }
@@ -298,7 +298,7 @@ public class CaptureIntentHandler {
                 return size;
             }
         } catch (Exception e) {
-            Log.w(TAG, "F05: Cannot get size for URI: " + uri, e);
+            Log.w(TAG, "F05: Cannot get size for URI");
         }
         return 0; // Unknown size
     }
@@ -322,7 +322,7 @@ public class CaptureIntentHandler {
             
             return "unknown-file";
         } catch (Exception e) {
-            Log.w(TAG, "F05: Cannot get filename from URI: " + uri, e);
+            Log.w(TAG, "F05: Cannot get filename from URI");
             return "unknown-file";
         }
     }
@@ -443,9 +443,9 @@ public class CaptureIntentHandler {
         // TODO: Pass attachment info to TypeScript layer
         storePendingShareData(text, title, null, null);
         
-        // Log attachment info for debugging
+        // Log attachment info for debugging (filename sanitized for privacy)
         for (StagedAttachment attachment : attachments) {
-            Log.i(TAG, "F05: Staged attachment: " + attachment.fileName + " (" + attachment.fileSize + " bytes)");
+            Log.i(TAG, "F05: Staged attachment (" + attachment.fileSize + " bytes)");
         }
     }
     
@@ -471,7 +471,7 @@ public class CaptureIntentHandler {
             
             Log.i(TAG, "F05: Stored pending share data");
         } catch (Exception e) {
-            Log.e(TAG, "F05: Failed to store share data", e);
+            Log.e(TAG, "F05: Failed to store share data");
         }
     }
     

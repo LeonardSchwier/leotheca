@@ -9,6 +9,33 @@ import { createNoteWithTitle, appendToInboxNote } from "./captureCommit";
 import { resolveDatePattern } from "./captureDestinations";
 import { removePendingCapture, updatePendingCaptureStatus, getPendingCaptures, addPendingCapture } from "./pendingCaptures";
 
+// F05-FR-23: Track captures in progress to serialize for same note
+const capturesInProgress = new Set<string>();
+
+/**
+ * Wait for any existing capture to complete for the same target note
+ * F05-FR-23: Multiple captures for one note shall serialize without lost updates
+ */
+async function waitForNoteSerialization(targetNotePath: string): Promise<void> {
+  const key = `note-${targetNotePath}`;
+  
+  // If there's already a capture in progress for this note, wait for it
+  while (capturesInProgress.has(key)) {
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+  
+  // Mark this note as having a capture in progress
+  capturesInProgress.add(key);
+}
+
+/**
+ * Mark capture as completed for the target note
+ */
+function markCaptureCompleted(targetNotePath: string): void {
+  const key = `note-${targetNotePath}`;
+  capturesInProgress.delete(key);
+}
+
 import { PendingAttachment } from "./pendingCaptures";
 
 export interface CaptureRequest {
@@ -31,22 +58,35 @@ export async function processCaptureRequest(
   handleOpenFile: (path: string, name: string) => Promise<void>
 ): Promise<{ path: string; name: string } | null> {
   try {
+    let targetNotePath: string | null = null;
+    
+    // Determine the target note path based on mode
     if (capture.mode === "append") {
       const inboxNote = workspaceSettings.value.captureInboxNote || "Inbox.md";
-      const notePath = resolvePathWithinWorkspace(workspacePath, workspacePath, inboxNote);
-      if (notePath) {
-        await appendToInboxNote({
-          inboxNotePath: notePath,
-          content: capture.text,
-          title: capture.title,
-          sourceUrl: capture.sourceUrl,
-          workspaceRoot: workspacePath,
-          attachments: capture.attachments
-        });
-        if (capture.openAfterCommit) {
-          await handleOpenFile(notePath, inboxNote);
+      targetNotePath = resolvePathWithinWorkspace(workspacePath, workspacePath, inboxNote) || null;
+      
+      if (targetNotePath) {
+        // F05-FR-23: Serialize captures for the same note
+        await waitForNoteSerialization(targetNotePath);
+        
+        try {
+          await appendToInboxNote({
+            inboxNotePath: targetNotePath,
+            content: capture.text,
+            title: capture.title,
+            sourceUrl: capture.sourceUrl,
+            workspaceRoot: workspacePath,
+            attachments: capture.attachments
+          });
+          
+          if (capture.openAfterCommit) {
+            await handleOpenFile(targetNotePath, inboxNote);
+          }
+          
+          return { path: targetNotePath, name: inboxNote };
+        } finally {
+          markCaptureCompleted(targetNotePath);
         }
-        return { path: notePath, name: inboxNote };
       }
     } else if (capture.mode === "date") {
       const datePattern = workspaceSettings.value.captureDatePattern || "Daily/{{date:YYYY-MM-DD}}.md";
@@ -60,17 +100,28 @@ export async function processCaptureRequest(
         ? resolvedPattern.path.substring(lastSlashIndex + 1)
         : resolvedPattern.path;
       
-      const { path, name } = await createNoteWithTitle(
-        targetDir, 
-        capture.text, 
-        capture.title || fileName.replace(".md", ""), 
-        workspacePath,
-        capture.attachments
-      );
-      if (capture.openAfterCommit) {
-        await handleOpenFile(path, name);
+      const fullPath = `${targetDir}/${fileName}`;
+      
+      // F05-FR-23: Serialize captures for the same note
+      await waitForNoteSerialization(fullPath);
+      
+      try {
+        const { path, name } = await createNoteWithTitle(
+          targetDir, 
+          capture.text, 
+          capture.title || fileName.replace(".md", ""), 
+          workspacePath,
+          capture.attachments
+        );
+        
+        if (capture.openAfterCommit) {
+          await handleOpenFile(path, name);
+        }
+        
+        return { path, name };
+      } finally {
+        markCaptureCompleted(fullPath);
       }
-      return { path, name };
     } else {
       // mode === "new"
       let targetDir = workspaceSettings.value.captureInboxFolder;
@@ -83,6 +134,7 @@ export async function processCaptureRequest(
         }
       }
       
+      // For new notes, we don't serialize since each creates a unique file
       const { path, name } = await createNoteWithTitle(
         targetDir, 
         capture.text, 
@@ -90,9 +142,11 @@ export async function processCaptureRequest(
         workspacePath,
         capture.attachments
       );
+      
       if (capture.openAfterCommit) {
         await handleOpenFile(path, name);
       }
+      
       return { path, name };
     }
     return null;

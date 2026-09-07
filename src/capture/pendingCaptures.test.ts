@@ -238,11 +238,10 @@ describe("pendingCaptures", () => {
     });
 
     it("should remove leading/trailing dots and spaces", () => {
-      // TODO: Fix sanitization function - currently has issue with trailing dots and spaces
-      // expect(sanitizeAttachmentFilename("...file... ")).toBe("file");
-      // expect(sanitizeAttachmentFilename("file   ")).toBe("file");
-      // expect(sanitizeAttachmentFilename("   file")).toBe("file");
-      // For now, just test that it handles empty/whitespace-only filenames
+      expect(sanitizeAttachmentFilename("...file... ")).toBe("file");
+      expect(sanitizeAttachmentFilename("file   ")).toBe("file");
+      expect(sanitizeAttachmentFilename("   file")).toBe("file");
+      // Also test that it handles empty/whitespace-only filenames
       expect(sanitizeAttachmentFilename("   ")).toBe("capture");
     });
   });

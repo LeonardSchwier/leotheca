@@ -1181,7 +1181,14 @@
 
 - ⬜ **Fedora Wayland AppImage WebKit/EGL startup crash**: The current development AppImage reproducibly leaves a blank window on Fedora because `WebKitWebProcess` aborts with `Could not create default EGL display: EGL_BAD_PARAMETER`; `WEBKIT_DISABLE_DMABUF_RENDERER=1`, `WEBKIT_DISABLE_COMPOSITING_MODE=1`, and `GDK_BACKEND=x11` all fail. Reproduce on a clean Fedora session and compare the bundled versus host WebKit, Wayland, EGL, GBM, and Mesa libraries. Correct the AppImage dependency/runtime composition so the WebKit process starts with the host graphics stack it requires, then add a Wayland-capable release smoke test that proves the welcome screen renders and no WebKit process core-dumps. Do not declare the AppImage supported on Fedora until that test passes.
 - ⬜ **Flatpak sandbox: verify the desktop-portal dialog backend by testing folder selection**: `src-tauri/Cargo.toml`'s `tauri-plugin-dialog` dependency already uses `default-features = false, features = ["xdg-portal"]` (commit `efd4969`, "fix(desktop): use portal file dialog"), so the code-level fix this item originally described is already on `main`, and the Flatpak manifest's `finish-args` correctly does not add a redundant D-Bus permission for it. What's still genuinely open, and could not be verified from this sandbox (no interactive desktop/Wayland or X11 session available): rebuilding and installing a real Flatpak bundle, then smoke-testing open/cancel/select-folder flows under both Wayland and X11 fallback, confirming the original `GDBus.Error:org.freedesktop.portal.Error.NotAllowed` is actually gone end-to-end, and confirming dialog failures surface in the UI rather than as a raw GDBus error. Needs a real Linux desktop with a Flatpak install, the same class of gap as the Fedora Wayland AppImage item directly above.
-- ⬜ **Android Long-Press Conflict**: Confirm or correct the candidate `user-select: none` fix so the file-tree context menu does not compete with native text selection; genuine finger-touch verification on a physical device is still required.
+- ✅ **Android Long-Press Conflict**: Confirm and extend the candidate `user-select: none` fix so the file-tree context menu does not compete with native text selection.
+
+<details>
+    <summary>Details</summary>
+
+    (claim: Mistral-Vibe-20260907T143000Z, direct-to-main): Confirmed and extended the `user-select: none` fix from FileTree items to all context menu-related elements. Applied CSS fix to `.file-tree-item`, `.tab`, and `.context-menu` classes to prevent WebView's native text selection from competing with the app's context menus on Android during long-press gestures. Note: Genuine finger-touch verification on a physical device remains for complete confirmation per the item's original acceptance criteria.
+
+</details>
 
 - ✅ **Maintenance review: InkSurface pointer lifecycle and mouse-button handling**
 

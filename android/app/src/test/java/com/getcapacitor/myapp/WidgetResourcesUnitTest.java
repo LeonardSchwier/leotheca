@@ -11,9 +11,9 @@ import org.junit.Test;
 
 public class WidgetResourcesUnitTest {
     private static String source(String relativePath) throws IOException {
-        // Path is relative to the android/app directory where tests run
+        // Construct absolute path: current working directory + "app/src/main" + relativePath
         return new String(
-                Files.readAllBytes(Paths.get("app/src/main", relativePath)), StandardCharsets.UTF_8);
+                Files.readAllBytes(Paths.get(System.getProperty("user.dir"), "app", "src", "main", relativePath)), StandardCharsets.UTF_8);
     }
 
     @Test

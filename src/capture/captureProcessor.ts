@@ -61,6 +61,9 @@ export async function processCaptureRequest(
     let targetNotePath: string | null = null;
     
     // Determine the target note path based on mode
+    // F05: Get attachment folder from workspace settings
+    const attachmentFolder = workspaceSettings.value.attachmentsFolder;
+    
     if (capture.mode === "append") {
       const inboxNote = workspaceSettings.value.captureInboxNote || "Inbox.md";
       targetNotePath = resolvePathWithinWorkspace(workspacePath, workspacePath, inboxNote) || null;
@@ -76,7 +79,8 @@ export async function processCaptureRequest(
             title: capture.title,
             sourceUrl: capture.sourceUrl,
             workspaceRoot: workspacePath,
-            attachments: capture.attachments
+            attachments: capture.attachments,
+            attachmentsFolder: attachmentFolder
           });
           
           if (capture.openAfterCommit) {
@@ -111,7 +115,8 @@ export async function processCaptureRequest(
           capture.text, 
           capture.title || fileName.replace(".md", ""), 
           workspacePath,
-          capture.attachments
+          capture.attachments,
+          attachmentFolder
         );
         
         if (capture.openAfterCommit) {
@@ -140,7 +145,8 @@ export async function processCaptureRequest(
         capture.text, 
         capture.title, 
         workspacePath,
-        capture.attachments
+        capture.attachments,
+        attachmentFolder
       );
       
       if (capture.openAfterCommit) {

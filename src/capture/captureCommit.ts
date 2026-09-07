@@ -4,6 +4,7 @@
  */
 
 import { readTextFile, writeTextFile, listDir, createWorkspaceTextFileNew, writeBinaryFile, readTextFile as bridgeReadTextFile } from "../workspace/tauriBridge";
+import { resolvePathWithinWorkspace } from "../workspace/paths";
 import { PendingAttachment } from "./pendingCaptures";
 
 // F05-FR-07: Prohibited path prefix
@@ -31,6 +32,7 @@ export interface CaptureAppendOptions {
   sourceUrl?: string;
   workspaceRoot?: string;
   attachments?: PendingAttachment[];
+  attachmentsFolder?: string; // Use workspace's attachment folder setting
 }
 
 /**
@@ -38,8 +40,8 @@ export interface CaptureAppendOptions {
  * Preserves existing line ending conventions (LF or CRLF).
  * Adds proper spacing between existing content and new content.
  */
-export async function appendToInboxNote(options: CaptureAppendOptions & { attachments?: PendingAttachment[] }): Promise<{ path: string; name: string }> {
-  const { inboxNotePath, content, title, sourceUrl, workspaceRoot, attachments = [] } = options;
+export async function appendToInboxNote(options: CaptureAppendOptions): Promise<{ path: string; name: string }> {
+  const { inboxNotePath, content, title, sourceUrl, workspaceRoot, attachments = [], attachmentsFolder } = options;
   
   // F05-FR-07: Validate destination path is not under .leotheca/
   if (workspaceRoot) {
@@ -47,7 +49,11 @@ export async function appendToInboxNote(options: CaptureAppendOptions & { attach
   }
   
   // F05-FR-15/F05-FR-16/F05-FR-17: Handle attachments with proper paths and fingerprinting
-  const attachmentPaths = await copyAttachmentsToWorkspace(attachments, workspaceRoot || inboxNotePath.split("/").slice(0, -1).join("/"));
+  const attachmentPaths = await copyAttachmentsToWorkspace(
+    attachments, 
+    workspaceRoot || inboxNotePath.split("/").slice(0, -1).join("/"),
+    attachmentsFolder
+  );
   
   // F05-FR-19: For closed target note, re-read and conflict-check before append
   let existingContent: string;
@@ -124,12 +130,15 @@ function generateAttachmentFilename(safeName: string): string {
  */
 async function copyAttachmentsToWorkspace(
   attachments: PendingAttachment[], 
-  workspaceRoot: string
+  workspaceRoot: string,
+  attachmentsFolder?: string
 ): Promise<string[]> {
   const attachmentPaths: string[] = [];
   
-  // Default attachment folder - use workspace's attachment setting or default
-  const attachmentFolder = workspaceRoot; // TODO: Use actual workspace attachment setting
+  // F05: Use workspace's attachment folder setting if available, otherwise use workspace root
+  const attachmentFolder = attachmentsFolder 
+    ? resolvePathWithinWorkspace(workspaceRoot, workspaceRoot, attachmentsFolder) || workspaceRoot
+    : workspaceRoot;
   
   for (const attachment of attachments) {
     try {
@@ -236,7 +245,8 @@ export async function createNoteWithTitle(
   content: string,
   title?: string,
   workspaceRoot?: string,
-  attachments?: PendingAttachment[]
+  attachments?: PendingAttachment[],
+  attachmentsFolder?: string
 ): Promise<{ path: string; name: string }> {
   const root = workspaceRoot;
   if (!root) {
@@ -275,7 +285,7 @@ export async function createNoteWithTitle(
   
   // F05-FR-15/F05-FR-16/F05-FR-17: Handle attachments for new notes
   const attachmentPaths = attachments && attachments.length > 0 
-    ? await copyAttachmentsToWorkspace(attachments, root || dirPath)
+    ? await copyAttachmentsToWorkspace(attachments, root || dirPath, attachmentsFolder)
     : [];
   
   // Format content for new note (per F05 spec section 8.2)

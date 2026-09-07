@@ -27,6 +27,14 @@ describe("tableEditAtCursor", () => {
     expect(apply(source, "Ada", "add-column-right")).toContain("| Ada |  | Active |");
     expect(apply(source, "Active", "delete-column")).toContain("| Ada |");
   });
+  it("does not guess the last column for a cursor on the delimiter row", () => {
+    const table = "| A | B | C |\n| --- | --- | --- |\n| one | two | three |";
+    const delimiterCursor = table.indexOf("---");
+
+    expect(tableEditAtCursor(table, delimiterCursor, "add-column-right")).toBeNull();
+    expect(tableEditAtCursor(table, delimiterCursor, "delete-column")).toBeNull();
+  });
+
 
   it("does not delete the final remaining column or edit outside a table", () => {
     expect(apply("| A |\n| --- |\n| x |", "x", "delete-column")).toBeNull();

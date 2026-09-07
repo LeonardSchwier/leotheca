@@ -16,7 +16,7 @@ export interface MarkdownTableEdit {
   insert: string;
 }
 
-function columnAt(table: MarkdownTableRecord, cursor: number): number {
+function columnAt(table: MarkdownTableRecord, cursor: number): number | null {
   const rows = [table.header, ...table.rows];
   for (const row of rows) {
     for (let index = 0; index < row.length; index++) {
@@ -24,7 +24,7 @@ function columnAt(table: MarkdownTableRecord, cursor: number): number {
       if (cursor >= (cell.sourceFrom ?? 0) && cursor <= (cell.sourceTo ?? 0)) return index;
     }
   }
-  return Math.max(0, table.columns.length - 1);
+  return null;
 }
 
 function bodyRowAt(table: MarkdownTableRecord, cursor: number): number | null {
@@ -56,11 +56,15 @@ function edit(table: MarkdownTableRecord, command: MarkdownTableCommand, cursor:
       break;
     }
     case "add-column-right":
+      if (column === null) return null;
+
       columns.splice(column + 1, 0, { alignment: "default" });
       header.splice(column + 1, 0, "");
       for (const row of rows) row.splice(column + 1, 0, "");
       break;
     case "delete-column":
+      if (column === null) return null;
+
       if (columns.length <= 1) return null;
       columns.splice(column, 1);
       header.splice(column, 1);

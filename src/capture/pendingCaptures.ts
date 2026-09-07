@@ -126,6 +126,7 @@ export function addPendingCapture(capture: Omit<PendingCapture, "id" | "received
     mode: capture.mode,
     targetNote: capture.targetNote,
     targetFolder: capture.targetFolder,
+    targetProfileId: capture.targetProfileId,
     openAfterCommit: capture.openAfterCommit ?? false,
     status: "pending"
   };

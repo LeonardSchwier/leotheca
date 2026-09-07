@@ -18,8 +18,12 @@ interface DraftStroke {
   points: InkPoint[];
 }
 
-function supportedPointer(pointerType: string): boolean {
-  return pointerType === "pen" || pointerType === "mouse";
+function supportedPointer(event: PointerEvent): boolean {
+  // Only accept pen events or primary mouse button (left button)
+  // This prevents right-click and middle-click from accidentally starting strokes
+  if (event.pointerType === "pen") return true;
+  if (event.pointerType === "mouse" && event.button === 0) return true;
+  return false;
 }
 
 function samplesFor(event: PointerEvent): PointerEvent[] {
@@ -101,7 +105,7 @@ export function InkSurface({
 
   const handlePointerDown = (event: JSX.TargetedPointerEvent<SVGSVGElement>) => {
     const pointerEvent = event as PointerEvent;
-    if (!supportedPointer(pointerEvent.pointerType)) return;
+    if (!supportedPointer(pointerEvent)) return;
     const element = event.currentTarget;
     const points = samplesFor(pointerEvent).map((sample) => samplePoint(sample, element));
     draft.current = { pointerId: pointerEvent.pointerId, points };
@@ -112,18 +116,31 @@ export function InkSurface({
   const handlePointerMove = (event: JSX.TargetedPointerEvent<SVGSVGElement>) => {
     const pointerEvent = event as PointerEvent;
     if (!draft.current || draft.current.pointerId !== pointerEvent.pointerId) return;
-    appendSamples(pointerEvent, event.currentTarget);
+    // Check if we actually have pointer capture for this pointer
+    const element = event.currentTarget as SVGSVGElement;
+    if (element.hasPointerCapture?.(pointerEvent.pointerId) !== true) return;
+    appendSamples(pointerEvent, element);
   };
 
   const finishStroke = (event: JSX.TargetedPointerEvent<SVGSVGElement>, commit: boolean) => {
     const pointerEvent = event as PointerEvent;
-    const element = event.currentTarget;
+    const element = event.currentTarget as SVGSVGElement;
     if (!draft.current || draft.current.pointerId !== pointerEvent.pointerId) return;
+    
+    // Only process the stroke if we have pointer capture or if this is a forced end
+    const hasCapture = element.hasPointerCapture?.(pointerEvent.pointerId) === true;
+    if (!hasCapture && commit) {
+      // Pointer capture was lost, discard the stroke
+      draft.current = null;
+      setPreview(null);
+      return;
+    }
+    
     if (commit) appendSamples(pointerEvent, element);
     const completed = draft.current;
     draft.current = null;
     setPreview(null);
-    if (element.hasPointerCapture?.(pointerEvent.pointerId)) element.releasePointerCapture?.(pointerEvent.pointerId);
+    if (hasCapture) element.releasePointerCapture?.(pointerEvent.pointerId);
     if (!commit || completed.points.length === 0) return;
     onCommitStroke({
       id: crypto.randomUUID(),

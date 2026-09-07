@@ -83,4 +83,52 @@ describe("InkSurface", () => {
 
     expect(onCommitStroke).not.toHaveBeenCalled();
   });
+
+  // Maintenance review: non-primary mouse button handling (right-click, middle-click)
+  it("does not start a stroke with right mouse button", () => {
+    const onCommitStroke = vi.fn();
+    const { getByLabelText } = render(<InkSurface strokes={[]} onCommitStroke={onCommitStroke} />);
+    const surface = getByLabelText("Ink drawing surface") as unknown as SVGSVGElement;
+    mockBounds(surface);
+
+    // Right-click (button 2)
+    fireEvent.pointerDown(surface, { pointerId: 3, pointerType: "mouse", button: 2, clientX: 20, clientY: 30 });
+    fireEvent.pointerUp(surface, { pointerId: 3, pointerType: "mouse", button: 2, clientX: 25, clientY: 35 });
+
+    expect(onCommitStroke).not.toHaveBeenCalled();
+  });
+
+  it("does not start a stroke with middle mouse button", () => {
+    const onCommitStroke = vi.fn();
+    const { getByLabelText } = render(<InkSurface strokes={[]} onCommitStroke={onCommitStroke} />);
+    const surface = getByLabelText("Ink drawing surface") as unknown as SVGSVGElement;
+    mockBounds(surface);
+
+    // Middle-click (button 1)
+    fireEvent.pointerDown(surface, { pointerId: 4, pointerType: "mouse", button: 1, clientX: 20, clientY: 30 });
+    fireEvent.pointerUp(surface, { pointerId: 4, pointerType: "mouse", button: 1, clientX: 25, clientY: 35 });
+
+    expect(onCommitStroke).not.toHaveBeenCalled();
+  });
+
+  // Maintenance review: lost pointer capture handling
+  it("discards stroke when pointer capture is lost before pointer up", () => {
+    const onCommitStroke = vi.fn();
+    const { getByLabelText } = render(<InkSurface strokes={[]} onCommitStroke={onCommitStroke} />);
+    const surface = getByLabelText("Ink drawing surface") as unknown as SVGSVGElement;
+    mockBounds(surface);
+    // Mock hasPointerCapture to return false (simulating lost capture)
+    surface.hasPointerCapture = vi.fn(() => false);
+
+    // Start a stroke
+    fireEvent.pointerDown(surface, { pointerId: 5, pointerType: "mouse", button: 0, clientX: 20, clientY: 30 });
+    
+    // Try to move - should be ignored due to lost capture
+    fireEvent.pointerMove(surface, { pointerId: 5, pointerType: "mouse", button: 0, clientX: 25, clientY: 35 });
+    
+    // Try to finish - should discard since capture was lost
+    fireEvent.pointerUp(surface, { pointerId: 5, pointerType: "mouse", button: 0, clientX: 30, clientY: 40 });
+
+    expect(onCommitStroke).not.toHaveBeenCalled();
+  });
 });

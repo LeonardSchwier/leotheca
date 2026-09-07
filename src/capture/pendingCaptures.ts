@@ -27,6 +27,9 @@ export const MAX_PENDING_CAPTURES = 50;
 // Maximum total text size for all pending captures (5MB)
 export const MAX_PENDING_TEXT_SIZE = 5 * 1024 * 1024;
 
+// Maximum individual capture text size (32 KiB, matching deep link payload limit)
+export const MAX_INDIVIDUAL_CAPTURE_SIZE = 32 * 1024;
+
 // Storage key for pending captures
 const PENDING_CAPTURES_STORAGE_KEY = "leotheca-pending-captures";
 
@@ -106,6 +109,12 @@ export function addPendingCapture(capture: Omit<PendingCapture, "id" | "received
     captures = pendingCapturesStore.value; // Update after removal
   }
   
+  // F05-FR-14: Enforce individual capture size limit
+  if (capture.text.length > MAX_INDIVIDUAL_CAPTURE_SIZE) {
+    console.warn(`F05: Individual capture text size (${capture.text.length}) exceeds ${MAX_INDIVIDUAL_CAPTURE_SIZE} byte limit`);
+    throw new Error(`Capture text exceeds maximum size of ${MAX_INDIVIDUAL_CAPTURE_SIZE} bytes`);
+  }
+
   // Enforce text size limit - remove oldest captures until we have enough space
   let totalTextSize = captures.reduce((sum, c) => sum + c.text.length, 0);
   while (totalTextSize + capture.text.length > MAX_PENDING_TEXT_SIZE && captures.length > 0) {

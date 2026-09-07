@@ -6,5 +6,5 @@ export { CaptureSheet, openCaptureSheet, closeCaptureSheet, toggleCaptureSheet, 
 export { appendToInboxNote, createNoteWithTitle } from "./captureCommit";
 export { validateDatePattern, resolveDatePattern, hasDateTokens, DATE_TOKENS, type DateToken, type DestinationMode, isValidDestinationMode } from "./captureDestinations";
 export { PendingCaptures } from "./PendingCaptures";
-export { pendingCapturesStore, initPendingCaptures, clearPendingCaptures, MAX_PENDING_CAPTURES, MAX_PENDING_TEXT_SIZE, type PendingCapture } from "./pendingCaptures";
+export { pendingCapturesStore, initPendingCaptures, clearPendingCaptures, MAX_PENDING_CAPTURES, MAX_PENDING_TEXT_SIZE, MAX_INDIVIDUAL_CAPTURE_SIZE, type PendingCapture } from "./pendingCaptures";
 export { processCaptureRequest, queueCaptureIfNoWorkspace, processPendingCaptures, type CaptureRequest } from "./captureProcessor";

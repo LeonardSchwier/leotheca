@@ -12,7 +12,8 @@ import {
   getPendingCaptureCount,
   hasPendingCaptures,
   MAX_PENDING_CAPTURES,
-  MAX_PENDING_TEXT_SIZE
+  MAX_PENDING_TEXT_SIZE,
+  MAX_INDIVIDUAL_CAPTURE_SIZE
 } from "./pendingCaptures";
 
 describe("pendingCaptures", () => {
@@ -55,6 +56,27 @@ describe("pendingCaptures", () => {
     // Verify it's stored correctly in the store
     const captures = getPendingCaptures();
     expect(captures[0].targetProfileId).toBe(profileId);
+  });
+
+  it("should reject capture exceeding individual size limit", () => {
+    const largeText = "x".repeat(MAX_INDIVIDUAL_CAPTURE_SIZE + 1);
+    expect(() => {
+      addPendingCapture({
+        source: "in-app",
+        text: largeText,
+        mode: "new"
+      });
+    }).toThrow();
+  });
+
+  it("should accept capture within individual size limit", () => {
+    const text = "x".repeat(MAX_INDIVIDUAL_CAPTURE_SIZE - 1);
+    const capture = addPendingCapture({
+      source: "in-app",
+      text: text,
+      mode: "new"
+    });
+    expect(capture.text).toBe(text);
   });
 
   it("should return all captures", () => {

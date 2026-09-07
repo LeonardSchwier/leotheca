@@ -85,9 +85,9 @@ describe("tableEditAtCursor", () => {
     // Cursor at position after emoji should be outside the cell
     const afterEmoji = emojiStart + "🎉".length; // Position after the emoji
     const result2 = tableEditAtCursor(tableWithEmoji, afterEmoji, "add-column-right");
+    expect(result2).not.toBeNull(); // Should still be in the cell or handled appropriately
     // After the emoji is a space, then "Active" - cursor should be in the same cell
     // Actually, the emoji cell is "🎉 Active", so positions after emoji but before "Active" are still in the cell
-    // This test might need adjustment
   });
 
   it("handles single-code-unit final characters in cell content", () => {

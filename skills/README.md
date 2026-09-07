@@ -8,6 +8,7 @@ Read the entrypoint and current policy first. These are plain Markdown procedure
 | --- | --- |
 | Start/continue an autonomous session; blockers; shutdown | [autonomous-roadmap-delivery.md](autonomous-roadmap-delivery.md) |
 | Claim, renew, publish, finish, or recover work | [roadmap-workflow.md](roadmap-workflow.md) |
+| Before every push, no exceptions | [pre-push-verification.md](pre-push-verification.md) |
 | Decide what to test; local/hosted/deferred CI | [verification-suite.md](verification-suite.md) |
 | A real job/test/build fails | [ci-failure-triage.md](ci-failure-triage.md) |
 | Main moves or a merge conflicts | [merge-conflict-resolution.md](merge-conflict-resolution.md) |

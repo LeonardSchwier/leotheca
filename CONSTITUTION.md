@@ -60,6 +60,8 @@ The 2026-09-06 owner instruction supersedes all earlier rules requiring a human 
 
 The helper validates local ledger transitions. The runbook's fresh-base commit and normal push make those transitions exclusive on the remote. This is a cooperative protocol, not a server-side security boundary: all participating runners must follow it.
 
+Never hand-author an `agent-state` HTML comment. Only `scripts/agent_ledger.py` may write one. Every ledger command parses and validates every entry before doing anything else, so a hand-written or malformed one (a wrong `id` format, a `branch` that doesn't match the required `agent/<id>/` prefix) can break `list`/`claim`/`check`/`finish` for every agent, not just misstate one task's history. If the helper errors, treat that as a real defect to fix, never a reason to approximate its output by hand.
+
 ## Truthful task states
 
 | Roadmap state | Meaning | Next action |
@@ -85,6 +87,8 @@ For a changed native, IPC, platform, or persistence contract, test the real cont
 When a requirement prohibits logging or persistence of sensitive input, review success and failure paths for raw values, error objects, exception messages, URIs, tokens, paths, and serialized status fields. Add a focused sentinel-value regression where practical. Completion evidence must name the exact commands and observed results; phrases such as “comprehensive tests” or “CI fixed” are not evidence by themselves.
 
 Review the complete candidate as a separate activity after implementation. Trace a real success path and failure path through callers and persistence/platform boundaries. Use an independent agent review when available and useful, with a bounded response time; otherwise record the same review yourself. Fix findings before completion. No reviewer becomes a human or agent bottleneck.
+
+Read `skills/pre-push-verification.md` before every push, without exception, including a change that looks obviously correct: run the exact applicable checks in this session, on this exact tree, and read their real output before pushing. A commit message asserting that existing behavior is already correct, or that a fix works, is not evidence unless you executed that exact case in this session and observed it. Never push a second speculative fix for a CI failure without first reading the actual failing job's log and quoting the real error; two guesses without that is pattern-matching, not diagnosis.
 
 Follow `skills/verification-suite.md` for commands and the CI capability decision table. Run applicable checks locally whenever possible. Full local verification permits direct landing without waiting for duplicate branch CI. When local coverage is incomplete, use hosted branch checks when accessible. Missing CI is not a pass and is not a reason to wait forever. Only the documented limited deferred-verification path permits landing with evidence gaps; known code failures never qualify.
 

@@ -1,8 +1,10 @@
 /** @vitest-environment jsdom */
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render } from "@testing-library/preact";
+import { useState } from "preact/hooks";
 import { InkSurface } from "./InkSurface";
 import type { InkStroke } from "./inkDocument";
+import { eraseInkAtPoint } from "./inkEditing";
 
 afterEach(cleanup);
 
@@ -130,5 +132,93 @@ describe("InkSurface", () => {
     fireEvent.pointerUp(surface, { pointerId: 5, pointerType: "mouse", button: 0, clientX: 30, clientY: 40 });
 
     expect(onCommitStroke).not.toHaveBeenCalled();
+  });
+
+  // Eraser input bridge: Freehand Phase 2b-a
+  it("reports captured eraser samples without committing an ink stroke", () => {
+    const onCommitStroke = vi.fn();
+    const onEraseAt = vi.fn();
+    const { getByLabelText } = render(
+      <InkSurface strokes={[]} tool="eraser" onCommitStroke={onCommitStroke} onEraseAt={onEraseAt} />,
+    );
+    const surface = getByLabelText("Ink drawing surface") as unknown as SVGSVGElement;
+    mockBounds(surface);
+
+    fireEvent.pointerDown(surface, { pointerId: 6, pointerType: "pen", clientX: 20, clientY: 30 });
+    fireEvent.pointerMove(surface, { pointerId: 6, pointerType: "pen", clientX: 25, clientY: 35 });
+    fireEvent.pointerUp(surface, { pointerId: 6, pointerType: "pen", clientX: 30, clientY: 40 });
+
+    expect(onEraseAt).toHaveBeenCalledTimes(3);
+    expect(onEraseAt.mock.calls.map(([point]) => ({ x: point.x, y: point.y }))).toEqual([
+      { x: 10, y: 10 }, { x: 15, y: 15 }, { x: 20, y: 20 },
+    ]);
+    expect(onCommitStroke).not.toHaveBeenCalled();
+  });
+
+  it("lets the host apply eraser points to its own stroke list", () => {
+    const initialStrokes: InkStroke[] = [{
+      id: "line",
+      tool: "pen",
+      color: "#000000",
+      width: 3,
+      opacity: 1,
+      points: [0, 10, 20].map((x) => ({ x, y: 0, pressure: 0.5, tiltX: 0, tiltY: 0, time: x })),
+    }];
+    function EraserHost() {
+      const [strokes, setStrokes] = useState(initialStrokes);
+      return (
+        <>
+          <output aria-label="Remaining strokes">{strokes.map((stroke) => stroke.id).join(",")}</output>
+          <InkSurface
+            strokes={strokes}
+            tool="eraser"
+            onCommitStroke={vi.fn()}
+            onEraseAt={(point) => setStrokes((current) => eraseInkAtPoint(current, point, 1))}
+          />
+        </>
+      );
+    }
+
+    const { getByLabelText } = render(<EraserHost />);
+    const surface = getByLabelText("Ink drawing surface") as unknown as SVGSVGElement;
+    mockBounds(surface);
+
+    fireEvent.pointerDown(surface, { pointerId: 7, pointerType: "mouse", button: 0, clientX: 20, clientY: 20 });
+    fireEvent.pointerUp(surface, { pointerId: 7, pointerType: "mouse", button: 0, clientX: 20, clientY: 20 });
+
+    expect(getByLabelText("Remaining strokes").textContent).toBe("line:erase:1,line:erase:2");
+  });
+
+  // Eraser input bridge: non-primary mouse button handling
+  it("does not start a stroke with right mouse button", () => {
+    const onCommitStroke = vi.fn();
+    const onEraseAt = vi.fn();
+    const { getByLabelText } = render(
+      <InkSurface strokes={[]} tool="eraser" onCommitStroke={onCommitStroke} onEraseAt={onEraseAt} />,
+    );
+    const surface = getByLabelText("Ink drawing surface") as unknown as SVGSVGElement;
+    mockBounds(surface);
+
+    fireEvent.pointerDown(surface, { pointerId: 3, pointerType: "mouse", button: 2, clientX: 20, clientY: 30 });
+    fireEvent.pointerUp(surface, { pointerId: 3, pointerType: "mouse", button: 2, clientX: 25, clientY: 35 });
+
+    expect(onCommitStroke).not.toHaveBeenCalled();
+    expect(onEraseAt).not.toHaveBeenCalled();
+  });
+
+  it("does not start a stroke with middle mouse button", () => {
+    const onCommitStroke = vi.fn();
+    const onEraseAt = vi.fn();
+    const { getByLabelText } = render(
+      <InkSurface strokes={[]} tool="eraser" onCommitStroke={onCommitStroke} onEraseAt={onEraseAt} />,
+    );
+    const surface = getByLabelText("Ink drawing surface") as unknown as SVGSVGElement;
+    mockBounds(surface);
+
+    fireEvent.pointerDown(surface, { pointerId: 4, pointerType: "mouse", button: 1, clientX: 20, clientY: 30 });
+    fireEvent.pointerUp(surface, { pointerId: 4, pointerType: "mouse", button: 1, clientX: 25, clientY: 35 });
+
+    expect(onCommitStroke).not.toHaveBeenCalled();
+    expect(onEraseAt).not.toHaveBeenCalled();
   });
 });

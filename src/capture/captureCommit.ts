@@ -197,7 +197,7 @@ async function copyAttachmentsToWorkspace(
         if (existingMatch) {
           // Reuse the existing file instead of copying
           finalPath = existingMatch.path;
-          console.log("F05-FR-17: Reusing existing attachment with matching fingerprint:", finalPath);
+          console.log("F05-FR-17: Reusing existing attachment with matching fingerprint");
         }
       } catch (fingerprintError) {
         console.warn("F05-FR-17: Could not check for existing fingerprint match:", fingerprintError);
@@ -225,7 +225,9 @@ async function copyAttachmentsToWorkspace(
         }
       } catch (error) {
         // Directory doesn't exist or can't be read, use generated path
-        console.warn("F05: Could not check for existing attachments", error);
+        // F05-AC-25: Don't log raw errors that may contain sensitive data
+        void error;
+        console.warn("F05: Could not check for existing attachments");
       }
       
       // Copy the file from staging to workspace
@@ -242,7 +244,9 @@ async function copyAttachmentsToWorkspace(
           // In a real implementation, we'd have a way to delete the file
           // For now, just log the issue
         } catch (cleanupError) {
-          console.error("F05: Failed to cleanup mismatched attachment", cleanupError);
+          // F05-AC-25: Don't log raw errors that may contain sensitive data
+          void cleanupError;
+          console.error("F05: Failed to cleanup mismatched attachment");
         }
         continue;
       }
@@ -252,7 +256,9 @@ async function copyAttachmentsToWorkspace(
       attachmentPaths.push(relativeFromNote);
       
     } catch (error) {
-      console.error("F05: Failed to copy attachment to workspace", error);
+      // F05-AC-25: Don't log raw errors that may contain sensitive data
+      void error;
+      console.error("F05: Failed to copy attachment to workspace");
       // Continue with other attachments
     }
   }

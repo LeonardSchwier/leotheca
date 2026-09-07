@@ -304,7 +304,9 @@ export async function generateAttachmentFingerprint(filePath: string, bridgeRead
     
     return `${size}-${headerHex}`;
   } catch (error) {
-    console.warn("F05: Failed to generate attachment fingerprint", error);
+    // F05-AC-25: Don't log raw errors that may contain sensitive data
+    void error;
+    console.warn("F05: Failed to generate attachment fingerprint");
     return `unknown-${Date.now()}`;
   }
 }

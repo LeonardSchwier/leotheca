@@ -101,7 +101,7 @@ public class FolderAccessPlugin extends Plugin {
                 dir = DocumentFile.fromSingleUri(getContext(), Uri.parse(uriStr));
             }
             if (dir == null || !dir.isDirectory()) {
-                call.reject("Not a directory: " + uriStr);
+                call.reject("Not a directory");
                 return;
             }
             JSArray entries = new JSArray();
@@ -222,7 +222,7 @@ public class FolderAccessPlugin extends Plugin {
                 dir = DocumentFile.fromSingleUri(getContext(), Uri.parse(uriStr));
             }
             if (dir == null || !dir.isDirectory()) {
-                call.reject("Not a directory: " + uriStr);
+                call.reject("Not a directory");
                 return;
             }
             JSArray markdownFiles = new JSArray();
@@ -306,7 +306,7 @@ public class FolderAccessPlugin extends Plugin {
                 dir = DocumentFile.fromSingleUri(getContext(), Uri.parse(uriStr));
             }
             if (dir == null || !dir.isDirectory()) {
-                call.reject("Not a directory: " + uriStr);
+                call.reject("Not a directory");
                 return;
             }
             JSArray files = new JSArray();
@@ -380,7 +380,7 @@ public class FolderAccessPlugin extends Plugin {
                 dir = DocumentFile.fromSingleUri(getContext(), Uri.parse(uriStr));
             }
             if (dir == null || !dir.isDirectory()) {
-                call.reject("Not a directory: " + uriStr);
+                call.reject("Not a directory");
                 return;
             }
             JSArray entries = new JSArray();
@@ -403,7 +403,7 @@ public class FolderAccessPlugin extends Plugin {
         }
         try (InputStream input = getContext().getContentResolver().openInputStream(Uri.parse(uriStr))) {
             if (input == null) {
-                call.reject("Could not open " + uriStr);
+                call.reject("Could not open file");
                 return;
             }
             ByteArrayOutputStream buffer = new ByteArrayOutputStream();
@@ -676,7 +676,7 @@ public class FolderAccessPlugin extends Plugin {
             if (mime == null) mime = "application/octet-stream";
             try (InputStream input = getContext().getContentResolver().openInputStream(uri)) {
                 if (input == null) {
-                    call.reject("Could not open " + uriStr);
+                    call.reject("Could not open file");
                     return;
                 }
                 ByteArrayOutputStream buffer = new ByteArrayOutputStream();
@@ -737,7 +737,7 @@ public class FolderAccessPlugin extends Plugin {
             ret.put("hasData", pendingShare != null && !pendingShare.isEmpty());
             call.resolve(ret);
         } catch (Exception e) {
-            call.reject("Failed to check pending share data: " + e.getMessage(), e);
+            call.reject("Failed to check pending share data", e);
         }
     }
 }

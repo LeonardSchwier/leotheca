@@ -104,6 +104,12 @@ export function PendingCaptures() {
     }
   };
 
+  const handleRelink = (captureId: string) => {
+    // F05-FR-18: Placeholder for Relink action (attachment support not yet implemented)
+    console.log("Relink action for capture:", captureId);
+    // In a future implementation, this would re-link staged attachments
+  };
+
   const handleReview = (captureId: string) => {
     // Find the capture and open it in the capture sheet for editing
     const capture = pendingCaptures.find(c => c.id === captureId);
@@ -267,6 +273,12 @@ export function PendingCaptures() {
                       onClick={(e) => { e.stopPropagation(); handleChangeDestination(capture.id); }}
                     >
                       Change Destination
+                    </button>
+                    <button 
+                      class="pending-capture-action" 
+                      onClick={(e) => { e.stopPropagation(); handleRelink(capture.id); }}
+                    >
+                      Relink
                     </button>
                     <button 
                       class="pending-capture-action pending-capture-action-danger" 

@@ -198,4 +198,105 @@ describe("androidShareBridge", () => {
     expect(capture.title).toBe("No attachments");
     expect(capture.attachments).toBeUndefined();
   });
+
+  it("should handle malformed attachment data gracefully", async () => {
+    // Mock the bridge to return data with malformed attachments
+    const { getPendingShareData } = await import("../workspace/tauriBridge");
+    vi.mocked(getPendingShareData).mockResolvedValue({
+      data: {
+        text: "Shared text with malformed attachments",
+        title: "Malformed attachments",
+        hasSingleUri: false,
+        hasMultipleUris: true,
+        attachments: [
+          {
+            filePath: "valid-path.jpg",
+            fileName: "valid.jpg",
+            fileSize: 1024,
+            fingerprint: "valid-fingerprint",
+            mimeType: "image/jpeg"
+          },
+          {
+            filePath: "", // Empty filePath - should be filtered out
+            fileName: "invalid.jpg",
+            fileSize: 1024,
+            fingerprint: "invalid",
+            mimeType: "image/jpeg"
+          },
+          {
+            filePath: "another-valid.png",
+            fileName: "", // Empty fileName - should be filtered out
+            fileSize: 2048,
+            fingerprint: "valid2",
+            mimeType: "image/png"
+          },
+          {
+            filePath: "invalid-size.jpg",
+            fileName: "test.jpg",
+            fileSize: -1 as unknown as number, // Invalid fileSize - should be filtered out
+            fingerprint: "invalid",
+            mimeType: "image/jpeg"
+          }
+        ]
+      },
+      timestamp: Date.now()
+    });
+
+    // Process the pending share data
+    await processAndroidPendingShareData();
+
+    // Check that a pending capture was created with only valid attachments
+    const pendingCaptures = getPendingCaptures();
+    expect(pendingCaptures).toHaveLength(1);
+    
+    const capture = pendingCaptures[0];
+    expect(capture.text).toBe("Shared text with malformed attachments");
+    expect(capture.title).toBe("Malformed attachments");
+    expect(capture.attachments).toBeDefined();
+    expect(capture.attachments).toHaveLength(1); // Only the first one should be valid
+    
+    const validAtt = capture.attachments![0];
+    expect(validAtt.fileName).toBe("valid.jpg");
+    expect(validAtt.fileSize).toBe(1024);
+  });
+
+  it("should handle share data with optional fields missing in attachments", async () => {
+    // Mock the bridge to return data with attachments where optional fields are empty strings
+    const { getPendingShareData } = await import("../workspace/tauriBridge");
+    vi.mocked(getPendingShareData).mockResolvedValue({
+      data: {
+        text: "Shared text with minimal attachment data",
+        title: "Minimal attachment data",
+        hasSingleUri: false,
+        hasMultipleUris: true,
+        attachments: [
+          {
+            filePath: "/path/to/file.jpg",
+            fileName: "file.jpg",
+            fileSize: 1024,
+            fingerprint: "", // Empty fingerprint - will be replaced with "unknown"
+            mimeType: "" // Empty mimeType - will be replaced with default
+          }
+        ]
+      },
+      timestamp: Date.now()
+    });
+
+    // Process the pending share data
+    await processAndroidPendingShareData();
+
+    // Check that a pending capture was created with default values for optional fields
+    const pendingCaptures = getPendingCaptures();
+    expect(pendingCaptures).toHaveLength(1);
+    
+    const capture = pendingCaptures[0];
+    expect(capture.attachments).toBeDefined();
+    expect(capture.attachments).toHaveLength(1);
+    
+    const att = capture.attachments![0];
+    expect(att.fileName).toBe("file.jpg");
+    expect(att.fileSize).toBe(1024);
+    expect(att.fingerprint).toBe("unknown"); // Default for missing fingerprint
+    expect(att.mimeType).toBe("application/octet-stream"); // Default for missing mimeType
+  });
 });

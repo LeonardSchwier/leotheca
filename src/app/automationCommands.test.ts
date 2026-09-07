@@ -89,6 +89,7 @@ describe("parseAutomationUrl", () => {
     const result = parseAutomationUrl(`leotheca://capture?text=${text}`);
     expect(result).not.toBeNull();
     expect(result?.kind).toBe("capture");
-    expect(result?.text).toBe(text);
+    const captureResult = result as { kind: "capture"; text: string; title?: string; url?: string; mode?: string; profile?: string; open?: boolean };
+    expect(captureResult.text).toBe(text);
   });
 });

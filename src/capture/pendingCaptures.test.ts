@@ -40,6 +40,23 @@ describe("pendingCaptures", () => {
     expect(capture.mode).toBe("new");
   });
 
+  it("should add pending capture with target profile ID", () => {
+    const profileId = "profile-123";
+    const capture = addPendingCapture({
+      source: "deep-link",
+      text: "Test capture with profile",
+      mode: "append",
+      targetProfileId: profileId
+    });
+    
+    expect(capture.targetProfileId).toBe(profileId);
+    expect(capture.mode).toBe("append");
+    
+    // Verify it's stored correctly in the store
+    const captures = getPendingCaptures();
+    expect(captures[0].targetProfileId).toBe(profileId);
+  });
+
   it("should return all captures", () => {
     addPendingCapture({ source: "in-app", text: "Capture 1", mode: "new" });
     addPendingCapture({ source: "deep-link", text: "Capture 2", mode: "append" });

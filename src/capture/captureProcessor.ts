@@ -135,7 +135,7 @@ export async function processPendingCaptures(
         await activateWorkspaceProfile(capture.targetProfileId);
       }
       
-      await processCaptureRequest(
+      const result = await processCaptureRequest(
         {
           text: capture.text,
           title: capture.title,
@@ -147,7 +147,14 @@ export async function processPendingCaptures(
         workspacePath,
         handleOpenFile
       );
-      removePendingCapture(capture.id);
+      
+      // F05-FR-11: Only remove pending data after successful commit
+      if (result !== null) {
+        removePendingCapture(capture.id);
+      } else {
+        console.error("Failed to process pending capture (null result):", capture.id);
+        updatePendingCaptureStatus(capture.id, "failed", "Capture processing returned null");
+      }
     } catch (error) {
       console.error("Failed to process pending capture:", capture.id, error);
       updatePendingCaptureStatus(capture.id, "failed", String(error));

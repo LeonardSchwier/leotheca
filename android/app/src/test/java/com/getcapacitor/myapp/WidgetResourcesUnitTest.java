@@ -11,22 +11,26 @@ import org.junit.Test;
 
 public class WidgetResourcesUnitTest {
     private static String source(String relativePath) throws IOException {
-        // The Gradle test task may run from either android/ or repository root
-        // Try both paths: first from android/, then from repository root
+        // Get the repository root by going up from the current directory until we find .git
         String currentDir = System.getProperty("user.dir");
-        java.nio.file.Path path1 = Paths.get(currentDir, "app", "src", "main", relativePath);
-        java.nio.file.Path path2 = Paths.get(currentDir, "android", "app", "src", "main", relativePath);
+        java.nio.file.Path repoRoot = Paths.get(currentDir);
         
-        // Try path1 first (assuming working directory is android/)
-        if (Files.exists(path1)) {
-            return new String(Files.readAllBytes(path1), StandardCharsets.UTF_8);
+        // Find the repository root by looking for the android directory
+        while (!Files.exists(repoRoot.resolve("android"))) {
+            repoRoot = repoRoot.getParent();
+            if (repoRoot == null) {
+                throw new IOException("Cannot find repository root");
+            }
         }
-        // Try path2 (assuming working directory is repository root)
-        if (Files.exists(path2)) {
-            return new String(Files.readAllBytes(path2), StandardCharsets.UTF_8);
+        
+        // Now construct the path to the file
+        java.nio.file.Path filePath = repoRoot.resolve("android").resolve("app").resolve("src").resolve("main").resolve(relativePath);
+        
+        if (!Files.exists(filePath)) {
+            throw new IOException("Cannot find file at: " + filePath + " (repo root: " + repoRoot + ")");
         }
-        // Neither path exists, throw with both for debugging
-        throw new IOException("Cannot find file at: " + path1 + " or " + path2);
+        
+        return new String(Files.readAllBytes(filePath), StandardCharsets.UTF_8);
     }
 
     @Test

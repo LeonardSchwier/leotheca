@@ -10,7 +10,7 @@ export type AutomationCommand =
   | { kind: "read-current-note" }
   | { kind: "open-favorites" }
   | { kind: "new-note"; content: string }
-  | { kind: "capture"; text: string; title?: string; url?: string; mode?: "append" | "new"; profile?: string; open?: boolean };
+  | { kind: "capture"; text: string; title?: string; url?: string; mode?: "append" | "new" | "date"; profile?: string; open?: boolean };
 
 /** Parses an incoming leotheca:// URL into a typed command, or null for
  * anything not recognized (a different scheme, an unknown command, or a
@@ -37,7 +37,7 @@ export function parseAutomationUrl(url: string): AutomationCommand | null {
       const text = parsed.searchParams.get("text") ?? parsed.searchParams.get("content") ?? "";
       const title = parsed.searchParams.get("title");
       const url = parsed.searchParams.get("url");
-      const mode = parsed.searchParams.get("mode") as "append" | "new" | null;
+      const mode = parsed.searchParams.get("mode") as "append" | "new" | "date" | null;
       const profile = parsed.searchParams.get("profile");
       const open = parsed.searchParams.get("open") === "true";
       

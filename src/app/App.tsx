@@ -450,6 +450,8 @@ export function App() {
         // Default to "new" mode if not specified
         const mode = command.mode ?? "new";
         const text = command.text ?? "";
+        const title = command.title;
+        const sourceUrl = command.url;
         const shouldOpen = command.open ?? true;
         
         if (mode === "new") {
@@ -463,7 +465,8 @@ export function App() {
             }
           }
           
-          const { path, name } = await createNoteQuick(targetDir, text);
+          const { createNoteWithTitle } = await import("../capture/captureCommit");
+          const { path, name } = await createNoteWithTitle(targetDir, text, title, workspacePath.value);
           if (shouldOpen) {
             await handleOpenFile(path, name);
           }
@@ -475,11 +478,34 @@ export function App() {
             const { appendToInboxNote } = await import("../capture/captureCommit");
             const { path, name } = await appendToInboxNote({ 
               inboxNotePath: notePath, 
-              content: text 
+              content: text,
+              title: title,
+              sourceUrl: sourceUrl
             });
             if (shouldOpen) {
               await handleOpenFile(path, name);
             }
+          }
+        } else if (mode === "date") {
+          // F05: Date-pattern destination
+          const { resolveDatePattern } = await import("../capture/captureDestinations");
+          const { createNoteWithTitle } = await import("../capture/captureCommit");
+          
+          const datePattern = workspaceSettings.value.captureDatePattern || "Daily/{{date:YYYY-MM-DD}}.md";
+          const resolvedPattern = resolveDatePattern(datePattern);
+          
+          // Get the directory part of the pattern
+          const lastSlashIndex = resolvedPattern.path.lastIndexOf("/");
+          const targetDir = lastSlashIndex > 0 
+            ? resolvedPattern.path.substring(0, lastSlashIndex)
+            : workspacePath.value;
+          const fileName = lastSlashIndex > 0 
+            ? resolvedPattern.path.substring(lastSlashIndex + 1)
+            : resolvedPattern.path;
+          
+          const { path, name } = await createNoteWithTitle(targetDir, text, title || fileName.replace(".md", ""), workspacePath.value);
+          if (shouldOpen) {
+            await handleOpenFile(path, name);
           }
         }
         

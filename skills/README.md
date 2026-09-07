@@ -13,6 +13,7 @@ Read the entrypoint and current policy first. These are plain Markdown procedure
 | Main moves or a merge conflicts | [merge-conflict-resolution.md](merge-conflict-resolution.md) |
 | No feature work is currently runnable | [maintenance-review.md](maintenance-review.md) |
 | One specification is too large for a session | [phase-splitting-large-specs.md](phase-splitting-large-specs.md) |
+| Change a native/IPC/persistence bridge or sensitive-data path | [change-quality-gates.md](change-quality-gates.md) |
 | Persisted settings/data or migrations change | [persistence-implementation.md](persistence-implementation.md) |
 | Add/change a Markdown structure scanner | [writing-scanner-modules.md](writing-scanner-modules.md) |
 | Work on source-built package submissions | [packaging-submission-pipelines.md](packaging-submission-pipelines.md) |

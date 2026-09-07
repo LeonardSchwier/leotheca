@@ -80,6 +80,10 @@ Before coding, write concrete acceptance criteria and identify the caller, data 
 
 Test meaningful outcomes at the boundary where behavior occurs. For bug fixes, demonstrate that the regression test fails without the fix and passes with it. Cover relevant invalid, empty, boundary, asynchronous, lifecycle, and cross-platform cases. Test count alone proves nothing. Never weaken a test, security boundary, or CI workflow to conceal a defect.
 
+For a changed native, IPC, platform, or persistence contract, test the real contract shape at both sides or a faithful typed fake at the boundary. Update every affected bridge mock in the same change, and run the project static/type gate before publishing. A bridge feature is incomplete when tests exercise only a wrapper while the provider contract, payload fields, failure behavior, or platform no-op path remains untested.
+
+When a requirement prohibits logging or persistence of sensitive input, review success and failure paths for raw values, error objects, exception messages, URIs, tokens, paths, and serialized status fields. Add a focused sentinel-value regression where practical. Completion evidence must name the exact commands and observed results; phrases such as “comprehensive tests” or “CI fixed” are not evidence by themselves.
+
 Review the complete candidate as a separate activity after implementation. Trace a real success path and failure path through callers and persistence/platform boundaries. Use an independent agent review when available and useful, with a bounded response time; otherwise record the same review yourself. Fix findings before completion. No reviewer becomes a human or agent bottleneck.
 
 Follow `skills/verification-suite.md` for commands and the CI capability decision table. Run applicable checks locally whenever possible. Full local verification permits direct landing without waiting for duplicate branch CI. When local coverage is incomplete, use hosted branch checks when accessible. Missing CI is not a pass and is not a reason to wait forever. Only the documented limited deferred-verification path permits landing with evidence gaps; known code failures never qualify.

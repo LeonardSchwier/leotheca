@@ -213,3 +213,8 @@ export const fileSrc: typeof impl.fileSrc = (path: string) =>
 export const getWorkspaceStats: typeof impl.getWorkspaceStats = (path: string) =>
   trackWorkspaceOperation(impl.getWorkspaceStats(path));
 export const setStatusBarAppearance = impl.setStatusBarAppearance;
+
+// F05: Android share intent bridge
+export type { PendingShareData, ShareDataResult, HasShareDataResult } from "./tauriBridgeImpl";
+export const getPendingShareData = impl.getPendingShareData;
+export const hasPendingShareData = impl.hasPendingShareData;

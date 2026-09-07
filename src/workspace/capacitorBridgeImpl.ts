@@ -105,6 +105,9 @@ interface FolderAccessPlugin {
   }): Promise<{ uri: string }>;
   deletePath(options: { uri: string }): Promise<void>;
   readFileAsDataUrl(options: { uri: string }): Promise<{ dataUrl: string }>;
+  // F05: Android share intent bridge
+  getPendingShareData(): Promise<{ data: any; timestamp: number }>;
+  hasPendingShareData(): Promise<{ hasData: boolean }>;
 }
 
 const FolderAccess = registerPlugin<FolderAccessPlugin>("FolderAccess");
@@ -639,4 +642,49 @@ export async function getWorkspaceStats(
 
 export async function setStatusBarAppearance(isDarkBackground: boolean): Promise<void> {
   await StatusBar.setStyle({ style: isDarkBackground ? Style.Dark : Style.Light });
+}
+
+// F05: Android share intent bridge
+export interface PendingShareData {
+  text: string;
+  title: string | null;
+  hasSingleUri: boolean;
+  hasMultipleUris: boolean;
+}
+
+export interface ShareDataResult {
+  data: PendingShareData | null;
+  timestamp: number;
+}
+
+export interface HasShareDataResult {
+  hasData: boolean;
+}
+
+export async function getPendingShareData(): Promise<ShareDataResult> {
+  try {
+    const result = await FolderAccess.getPendingShareData();
+    return {
+      data: result.data ? {
+        text: result.data.text ?? "",
+        title: result.data.title ?? "",
+        hasSingleUri: result.data.hasSingleUri ?? false,
+        hasMultipleUris: result.data.hasMultipleUris ?? false
+      } : null,
+      timestamp: result.timestamp ?? 0
+    };
+  } catch (error) {
+    // If the method doesn't exist (desktop), return no data
+    return { data: null, timestamp: 0 };
+  }
+}
+
+export async function hasPendingShareData(): Promise<HasShareDataResult> {
+  try {
+    const result = await FolderAccess.hasPendingShareData();
+    return { hasData: result.hasData ?? false };
+  } catch (error) {
+    // If the method doesn't exist (desktop), return false
+    return { hasData: false };
+  }
 }

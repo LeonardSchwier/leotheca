@@ -694,4 +694,50 @@ public class FolderAccessPlugin extends Plugin {
             call.reject(e.getMessage(), e);
         }
     }
+
+    /**
+     * F05: Retrieve pending share data from Android shared preferences.
+     * Called by TypeScript during app initialization to transfer Android
+     * share intent data to the pending captures queue.
+     */
+    @PluginMethod
+    public void getPendingShareData(PluginCall call) {
+        try {
+            android.content.SharedPreferences prefs = getContext().getSharedPreferences("LeothecaShareData", android.content.Context.MODE_PRIVATE);
+            String pendingShare = prefs.getString("pendingShare", null);
+            long shareTimestamp = prefs.getLong("shareTimestamp", 0);
+            
+            JSObject ret = new JSObject();
+            if (pendingShare != null && !pendingShare.isEmpty()) {
+                ret.put("data", new JSONObject(pendingShare));
+                ret.put("timestamp", shareTimestamp);
+                
+                // Clear the data after retrieving it (one-time read)
+                prefs.edit().remove("pendingShare").remove("shareTimestamp").apply();
+            } else {
+                ret.put("data", JSONObject.NULL);
+                ret.put("timestamp", 0);
+            }
+            call.resolve(ret);
+        } catch (Exception e) {
+            call.reject("Failed to retrieve pending share data: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * F05: Check if there is pending share data available.
+     */
+    @PluginMethod
+    public void hasPendingShareData(PluginCall call) {
+        try {
+            android.content.SharedPreferences prefs = getContext().getSharedPreferences("LeothecaShareData", android.content.Context.MODE_PRIVATE);
+            String pendingShare = prefs.getString("pendingShare", null);
+            
+            JSObject ret = new JSObject();
+            ret.put("hasData", pendingShare != null && !pendingShare.isEmpty());
+            call.resolve(ret);
+        } catch (Exception e) {
+            call.reject("Failed to check pending share data: " + e.getMessage(), e);
+        }
+    }
 }

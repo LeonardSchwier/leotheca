@@ -8,3 +8,4 @@ export { validateDatePattern, resolveDatePattern, hasDateTokens, DATE_TOKENS, ty
 export { PendingCaptures } from "./PendingCaptures";
 export { pendingCapturesStore, initPendingCaptures, clearPendingCaptures, MAX_PENDING_CAPTURES, MAX_PENDING_TEXT_SIZE, MAX_INDIVIDUAL_CAPTURE_SIZE, type PendingCapture } from "./pendingCaptures";
 export { processCaptureRequest, queueCaptureIfNoWorkspace, processPendingCaptures, type CaptureRequest } from "./captureProcessor";
+export { processAndroidPendingShareData } from "./androidShareBridge";

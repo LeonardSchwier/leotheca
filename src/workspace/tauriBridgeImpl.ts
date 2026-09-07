@@ -238,3 +238,30 @@ export async function setStatusBarAppearance(
 ): Promise<void> {
   void isDarkBackground;
 }
+
+// F05: Android share intent bridge - desktop no-ops
+export interface PendingShareData {
+  text: string;
+  title: string | null;
+  hasSingleUri: boolean;
+  hasMultipleUris: boolean;
+}
+
+export interface ShareDataResult {
+  data: PendingShareData | null;
+  timestamp: number;
+}
+
+export interface HasShareDataResult {
+  hasData: boolean;
+}
+
+/** No-op on desktop: Android share intents don't apply to desktop. */
+export async function getPendingShareData(): Promise<ShareDataResult> {
+  return { data: null, timestamp: 0 };
+}
+
+/** No-op on desktop: Android share intents don't apply to desktop. */
+export async function hasPendingShareData(): Promise<HasShareDataResult> {
+  return { hasData: false };
+}

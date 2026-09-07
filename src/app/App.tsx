@@ -14,7 +14,7 @@ import { isNoteReadOnlyActive, setNoteReadOnly } from "../editor/noteReadOnly";
 import { ImageViewer } from "../editor/ImageViewer";
 import { ImageViewerOverlay } from "../editor/ImageViewerOverlay";
 import { CaptureSheet, captureSheetOpen, openCaptureSheet } from "./CaptureSheet";
-import { PendingCaptures, initPendingCaptures } from "../capture";
+import { PendingCaptures, initPendingCaptures, processAndroidPendingShareData } from "../capture";
 import { classifyWorkspaceResource } from "../workspace/types";
 import { CanvasView } from "../canvas/CanvasView";
 import {
@@ -318,6 +318,8 @@ export function App() {
   useEffect(() => {
     const p = initSettings();
     initPendingCaptures();
+    // F05: Process any pending Android share intent data
+    void processAndroidPendingShareData();
     if (p) {
       p.catch(() => {
         settingsLoaded.value = true;

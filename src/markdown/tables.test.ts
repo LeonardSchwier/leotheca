@@ -67,6 +67,24 @@ describe("scanMarkdownTables", () => {
     expect(source.slice(dog.sourceFrom, dog.sourceTo)).toBe("🐕");
   });
 
+  it("preserves complete UTF-16 ranges for single-code-unit final characters", () => {
+    // Test with single ASCII character at end of cell (single code unit)
+    const source = "| A | B |\n| --- | --- |\n| x | y |";
+    const table = onlyTable(source);
+    const cellX = table.rows[0][0];
+    const cellY = table.rows[0][1];
+    
+    // Single code unit characters should have source ranges that include the full character
+    expect(source.slice(cellX.sourceFrom, cellX.sourceTo)).toBe("x");
+    expect(source.slice(cellY.sourceFrom, cellY.sourceTo)).toBe("y");
+    
+    // Test with emoji at end of cell (surrogate pair)
+    const emojiSource = "| A | B |\n| --- | --- |\n| hello | 🎉 |";
+    const emojiTable = onlyTable(emojiSource);
+    const emojiCell = emojiTable.rows[0][1];
+    expect(emojiSource.slice(emojiCell.sourceFrom, emojiCell.sourceTo)).toBe("🎉");
+  });
+
   it("preserves CRLF as the table line-ending convention", () => {
     const table = onlyTable("| A | B |\r\n| --- | --- |\r\n| one | two |");
     expect(table.lineEnding).toBe("\r\n");

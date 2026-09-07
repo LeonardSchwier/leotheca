@@ -680,6 +680,14 @@ button.icon-button.active {
   color: var(--text-secondary);
   cursor: pointer;
   white-space: nowrap;
+  /* On Android, a long-press on this tab can trigger the WebView's
+     native text-selection mode at the same time as our own long-press
+     context menu, so a follow-up tap meant for the menu sometimes
+     lands on selection handles instead. This tab is never meant to
+     be text-selected. */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .tab-active {

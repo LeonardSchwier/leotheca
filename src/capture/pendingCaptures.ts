@@ -274,7 +274,7 @@ export function sanitizeAttachmentFilename(filename: string): string {
   }
   
   // Remove leading/trailing dots and spaces
-  sanitized = sanitized.replace(/^[.\\s]+/, "").replace(/[.\\s]+$/, "");
+  sanitized = sanitized.replace(/^[.\s]+/, "").replace(/[.\s]+$/, "");
   
   // If empty after sanitization, use default
   if (!sanitized || sanitized.trim() === "") {

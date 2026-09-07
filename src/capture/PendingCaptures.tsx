@@ -4,7 +4,7 @@
  */
 
 import { useState, useCallback } from "preact/hooks";
-import { pendingCapturesStore, removePendingCapture, type PendingCapture } from "./pendingCaptures";
+import { pendingCapturesStore, removePendingCapture, updatePendingCaptureStatus, type PendingCapture } from "./pendingCaptures";
 import { openCaptureSheetWithData } from "../app/CaptureSheet";
 import { DestinationMode, resolveDatePattern } from "./captureDestinations";
 import { appendToInboxNote, createNoteWithTitle } from "./captureCommit";
@@ -89,7 +89,8 @@ export function PendingCaptures() {
           console.log("Successfully committed pending capture:", captureId);
         } else {
           console.log("Failed to commit pending capture:", captureId);
-          // TODO: Update status to failed
+          // Update status to failed so user can see the failure and retry
+          updatePendingCaptureStatus(captureId, "failed", "Commit failed - check console for details");
         }
       });
     }

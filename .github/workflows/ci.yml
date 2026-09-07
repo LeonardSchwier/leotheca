@@ -19,9 +19,8 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      # canvas package requires Python, build tools, and system libraries for native compilation
-      - name: Install Python, build tools, and canvas dependencies
-        run: sudo apt-get update && sudo apt-get install -y python3 python3-pip build-essential libcairo2-dev libpango1.0-dev libjpeg-dev libgif-dev librsvg2-dev && sudo update-alternatives --install /usr/bin/python python /usr/bin/python3 1
+      - name: Install build essentials
+        run: sudo apt-get update && sudo apt-get install -y build-essential
       - run: npm ci
       - name: Type check
         run: npx tsc -p tsconfig.json --noEmit

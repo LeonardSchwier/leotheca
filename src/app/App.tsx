@@ -332,6 +332,17 @@ export function App() {
   }, [bookmarksOpen.value, workspacePath.value]);
 
   useEffect(() => {
+    // F05: Process pending captures when workspace becomes available
+    if (workspacePath.value) {
+      const process = async () => {
+        const { processPendingCaptures } = await import("../capture/captureProcessor");
+        await processPendingCaptures(workspacePath.value as string, handleOpenFile);
+      };
+      void process();
+    }
+  }, [workspacePath.value]);
+
+  useEffect(() => {
     if (collectionsOpen.value && workspaceSettings.value.collectionsEnabled && workspacePath.value)
       void loadCollections(workspacePath.value);
   }, [collectionsOpen.value, workspaceSettings.value.collectionsEnabled, workspacePath.value]);
@@ -447,14 +458,22 @@ export function App() {
       }
       if (command.kind === "capture") {
         // F05: Universal quick capture - handle different modes and parameters
-        if (!workspacePath.value) return;
-        
-        // Default to "new" mode if not specified
         const mode = command.mode ?? "new";
         const text = command.text ?? "";
         const title = command.title;
         const sourceUrl = command.url;
         const shouldOpen = command.open ?? true;
+        
+        // Queue capture if no workspace is available
+        if (!workspacePath.value) {
+          const { queueCaptureIfNoWorkspace } = await import("../capture/captureProcessor");
+          queueCaptureIfNoWorkspace(
+            { text, title, sourceUrl, mode, openAfterCommit: shouldOpen },
+            workspacePath.value,
+            "deep-link"
+          );
+          return;
+        }
         
         if (mode === "new") {
           // Use configured capture folder or fall back to selected dir / workspace root

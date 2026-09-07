@@ -75,4 +75,20 @@ describe("parseAutomationUrl", () => {
   it("returns null for an empty string", () => {
     expect(parseAutomationUrl("")).toBeNull();
   });
+
+  it("rejects capture payload exceeding 32 KiB limit", () => {
+    // Create a payload that exceeds 32 KiB
+    const largeText = "x".repeat(32 * 1024 + 1); // 32 KiB + 1 byte
+    const result = parseAutomationUrl(`leotheca://capture?text=${largeText}`);
+    expect(result).toBeNull();
+  });
+
+  it("accepts capture payload within 32 KiB limit", () => {
+    // Create a payload that is within 32 KiB
+    const text = "x".repeat(32 * 1024 - 100); // Just under 32 KiB
+    const result = parseAutomationUrl(`leotheca://capture?text=${text}`);
+    expect(result).not.toBeNull();
+    expect(result?.kind).toBe("capture");
+    expect(result?.text).toBe(text);
+  });
 });

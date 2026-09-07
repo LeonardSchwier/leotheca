@@ -41,6 +41,14 @@ export function parseAutomationUrl(url: string): AutomationCommand | null {
       const profile = parsed.searchParams.get("profile");
       const open = parsed.searchParams.get("open") === "true";
       
+      // F05-FR-02/F05-FR-06: Validate payload size (32 KiB limit for text+title+url)
+      const payloadSize = (text.length + (title?.length ?? 0) + (url?.length ?? 0));
+      const MAX_CAPTURE_PAYLOAD_SIZE = 32 * 1024; // 32 KiB
+      if (payloadSize > MAX_CAPTURE_PAYLOAD_SIZE) {
+        console.warn(`F05: Capture payload size (${payloadSize}) exceeds 32 KiB limit`);
+        return null; // Reject oversized payload
+      }
+      
       return {
         kind: "capture",
         text,

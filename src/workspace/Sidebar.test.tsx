@@ -1,4 +1,4 @@
-/** @vitest-environment happy-dom */
+/** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { signal } from "@preact/signals";
 import { cleanup, fireEvent, render } from "@testing-library/preact";

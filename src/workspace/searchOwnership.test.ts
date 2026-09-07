@@ -1,4 +1,4 @@
-/** @vitest-environment happy-dom */
+/** @vitest-environment jsdom */
 import { signal } from "@preact/signals";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { FsEntry } from "./types";

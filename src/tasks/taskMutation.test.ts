@@ -1,4 +1,4 @@
-/** @vitest-environment happy-dom */
+/** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { readTextFile, writeTextFile } = vi.hoisted(() => ({

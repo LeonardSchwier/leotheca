@@ -3,8 +3,22 @@
  */
 
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { PendingCaptures } from "./PendingCaptures";
-import { pendingCapturesStore, addPendingCapture, removePendingCapture, clearPendingCaptures, MAX_PENDING_CAPTURES } from "./pendingCaptures";
+
+// PendingCaptures.tsx imports workspacePath from settings/store.ts (via
+// CaptureSheet.tsx), which reads window.matchMedia at module load time;
+// same jsdom + dynamic-import setup as settings/store.test.ts, see its own
+// comment.
+window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+  matches: false,
+  media: query,
+  addEventListener: vi.fn(),
+  removeEventListener: vi.fn(),
+})) as unknown as typeof window.matchMedia;
+
+const { PendingCaptures } = await import("./PendingCaptures");
+const { pendingCapturesStore, addPendingCapture, removePendingCapture, clearPendingCaptures, MAX_PENDING_CAPTURES } = await import(
+  "./pendingCaptures"
+);
 
 describe("PendingCaptures Accessibility (F05-FR-27)", () => {
   beforeEach(() => {

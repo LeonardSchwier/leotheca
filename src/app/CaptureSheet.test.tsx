@@ -3,7 +3,29 @@
  */
 
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { CaptureSheet, captureSheetOpen, captureContent, captureTitle, captureSourceUrl, captureDestinationMode, captureOpenAfterCapture, closeCaptureSheet, announceCaptureMessage, captureAnnouncement } from "./CaptureSheet";
+
+// CaptureSheet.tsx imports workspacePath from settings/store.ts, which reads
+// window.matchMedia at module load time; same jsdom + dynamic-import setup
+// as settings/store.test.ts, see its own comment.
+window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+  matches: false,
+  media: query,
+  addEventListener: vi.fn(),
+  removeEventListener: vi.fn(),
+})) as unknown as typeof window.matchMedia;
+
+const {
+  CaptureSheet,
+  captureSheetOpen,
+  captureContent,
+  captureTitle,
+  captureSourceUrl,
+  captureDestinationMode,
+  captureOpenAfterCapture,
+  closeCaptureSheet,
+  announceCaptureMessage,
+  captureAnnouncement,
+} = await import("./CaptureSheet");
 
 describe("CaptureSheet Accessibility (F05-FR-27)", () => {
   beforeEach(() => {

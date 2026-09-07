@@ -1,4 +1,4 @@
-/** @vitest-environment happy-dom */
+/** @vitest-environment jsdom */
 import { afterEach, describe, expect, it } from "vitest";
 import { act, cleanup, render } from "@testing-library/preact";
 import { OutlineLiveRegion } from "./OutlineLiveRegion";

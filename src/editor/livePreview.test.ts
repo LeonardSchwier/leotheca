@@ -1,4 +1,4 @@
-/** @vitest-environment happy-dom */
+/** @vitest-environment jsdom */
 import { beforeEach, describe, expect, it } from "vitest";
 import { EditorSelection, EditorState } from "@codemirror/state";
 import { linkIndex } from "../linking/store";

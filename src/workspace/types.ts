@@ -23,7 +23,7 @@ export interface FsEntry {
 
 export type EditorMode = "live" | "source" | "reading";
 
-export type TabKind = "text" | "image" | "canvas";
+export type TabKind = "text" | "image" | "canvas" | "ink";
 
 /** The one in-memory document record for an open workspace resource. Its
  * content and save state are never copied into an editor group, so future
@@ -131,9 +131,14 @@ export function isCanvasPath(path: string): boolean {
   return path.toLowerCase().endsWith(".canvas");
 }
 
+export function isInkPath(path: string): boolean {
+  return path.toLowerCase().endsWith(".ink");
+}
+
 /** Classifies resources consistently for interactive opening and session restore. */
 export function classifyWorkspaceResource(path: string): TabKind {
   if (isImagePath(path)) return "image";
   if (isCanvasPath(path)) return "canvas";
+  if (isInkPath(path)) return "ink";
   return "text";
 }

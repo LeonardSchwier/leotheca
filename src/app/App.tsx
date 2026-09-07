@@ -17,6 +17,7 @@ import { CaptureSheet, captureSheetOpen, openCaptureSheet } from "./CaptureSheet
 import { PendingCaptures, initPendingCaptures, processAndroidPendingShareData } from "../capture";
 import { classifyWorkspaceResource } from "../workspace/types";
 import { CanvasView } from "../canvas/CanvasView";
+import { InkView } from "../ink/InkView";
 import {
   activeTab,
   activeTabPath,
@@ -87,6 +88,7 @@ import { loadCollections } from "../collections/collectionStore";
 import {
   createNoteFromTemplate,
   createCanvasQuick,
+  createInkQuick,
   createNoteQuick,
   listTemplates,
   renameEntry,
@@ -732,6 +734,11 @@ export function App() {
           run: () => void createCanvasQuick(selectedDir.value ?? rootPath).then(({ path, name }) => handleOpenFile(path, name)),
         });
       }
+      list.unshift({
+        id: "new-drawing",
+        label: "New drawing",
+        run: () => void createInkQuick(selectedDir.value ?? rootPath).then(({ path, name }) => handleOpenFile(path, name)),
+      });
       list.push({
         id: "graph-view",
         label: "Open graph view",
@@ -1128,6 +1135,8 @@ export function App() {
               <ImageViewer path={current.path} />
             ) : current.kind === "canvas" ? (
               <CanvasView path={current.path} source={current.content} onChange={(value) => handleChange(current.path, value)} onOpenFile={(path) => void handleOpenFile(path, path.split("/").pop() ?? path)} />
+            ) : current.kind === "ink" ? (
+              <InkView path={current.path} source={current.content} onChange={(value) => handleChange(current.path, value)} />
             ) : (
               <>
                 <HeadingBreadcrumbs

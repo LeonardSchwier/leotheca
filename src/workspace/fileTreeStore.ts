@@ -309,6 +309,13 @@ function uniqueCanvasName(existingNames: Set<string>): string {
   return name;
 }
 
+function uniqueInkName(existingNames: Set<string>): string {
+  let name = "Untitled drawing.ink";
+  let n = 2;
+  while (existingNames.has(name)) name = `Untitled drawing ${n++}.ink`;
+  return name;
+}
+
 /** Creates an auto-named text file through the native no-replace boundary.
  * `listDir` supplies the first likely-free candidate for a fast common path,
  * but it is only a hint: another process can create that name before our
@@ -348,6 +355,28 @@ export async function createCanvasQuick(
     existingNames,
     uniqueCanvasName,
     JSON.stringify({ nodes: [], edges: [] }, null, 2),
+  );
+  await loadChildren(dirPath);
+  return created;
+}
+
+/** Creates a new, open-format ink file without requiring a naming dialog. */
+export async function createInkQuick(
+  dirPath: string,
+): Promise<{ path: string; name: string }> {
+  const existing = await listDir(dirPath);
+  const existingNames = new Set(existing.map((e) => e.name));
+  const root = requireWorkspacePath();
+  const created = await createAutoNamedTextFile(
+    root,
+    dirPath,
+    existingNames,
+    uniqueInkName,
+    JSON.stringify({
+      version: 1,
+      strokes: [],
+      viewport: { x: 0, y: 0, zoom: 1 }
+    }, null, 2),
   );
   await loadChildren(dirPath);
   return created;

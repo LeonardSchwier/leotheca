@@ -15,6 +15,7 @@ export interface PendingCapture {
   mode: "append" | "new" | "date";
   targetNote?: string;
   targetFolder?: string;
+  targetProfileId?: string; // F05-FR-08: F20 profile UUID for capture destination
   openAfterCommit?: boolean;
   status: "pending" | "retrying" | "failed";
   lastError?: string;

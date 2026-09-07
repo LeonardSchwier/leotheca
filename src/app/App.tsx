@@ -46,6 +46,7 @@ import {
   workspacePath,
   workspaceSession,
   workspaceSettings,
+  activateWorkspaceProfile,
 } from "../settings/store";
 import type { ViewMode } from "../settings/workspaceSettings";
 import { SettingsPanel } from "../settings/SettingsPanel";
@@ -335,11 +336,11 @@ export function App() {
     if (workspacePath.value) {
       const process = async () => {
         const { processPendingCaptures } = await import("../capture/captureProcessor");
-        await processPendingCaptures(workspacePath.value as string, handleOpenFile);
+        await processPendingCaptures(workspacePath.value as string, handleOpenFile, activateWorkspaceProfile);
       };
       void process();
     }
-  }, [workspacePath.value]);
+  }, [workspacePath.value, activateWorkspaceProfile]);
 
   useEffect(() => {
     if (collectionsOpen.value && workspaceSettings.value.collectionsEnabled && workspacePath.value)
@@ -461,6 +462,7 @@ export function App() {
         const text = command.text ?? "";
         const title = command.title;
         const sourceUrl = command.url;
+        const profile = command.profile; // F05-FR-08: Target profile UUID
         const shouldOpen = command.open ?? true;
         
         // F05-FR-03: External deep-link captures shall require user review before writing
@@ -468,7 +470,7 @@ export function App() {
           // Queue capture if no workspace is available
           const { queueCaptureIfNoWorkspace } = await import("../capture/captureProcessor");
           queueCaptureIfNoWorkspace(
-            { text, title, sourceUrl, mode, openAfterCommit: shouldOpen },
+            { text, title, sourceUrl, mode, targetProfileId: profile, openAfterCommit: shouldOpen },
             workspacePath.value,
             "deep-link"
           );
@@ -482,6 +484,7 @@ export function App() {
           title,
           sourceUrl,
           mode: mode as "append" | "new" | "date",
+          targetProfileId: profile,
           openAfterCapture: shouldOpen
         });
         return;

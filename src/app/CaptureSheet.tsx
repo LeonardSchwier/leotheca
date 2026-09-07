@@ -13,6 +13,7 @@ export const captureTitle = signal("");
 export const captureSourceUrl = signal("");
 export const captureDestinationMode = signal<DestinationMode>("new");
 export const captureOpenAfterCapture = signal(true);
+export const captureTargetProfileId = signal<string | undefined>(undefined); // F05-FR-08
 
 /** Callback type for when a capture is successfully created */
 export type OnCaptureCreated = (path: string, name: string) => void;
@@ -275,6 +276,7 @@ export function openCaptureSheetWithData(data: {
   title?: string;
   sourceUrl?: string;
   mode?: DestinationMode;
+  targetProfileId?: string; // F05-FR-08: Target profile UUID
   openAfterCapture?: boolean;
 }) {
   // Set all global signals to pre-fill the capture sheet
@@ -282,6 +284,7 @@ export function openCaptureSheetWithData(data: {
   captureTitle.value = data.title ?? "";
   captureSourceUrl.value = data.sourceUrl ?? "";
   captureDestinationMode.value = data.mode ?? "new";
+  captureTargetProfileId.value = data.targetProfileId;
   captureOpenAfterCapture.value = data.openAfterCapture ?? true;
   captureSheetOpen.value = true;
 }

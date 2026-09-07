@@ -14,6 +14,7 @@ export interface CaptureRequest {
   title?: string;
   sourceUrl?: string;
   mode: "append" | "new" | "date";
+  targetProfileId?: string; // F05-FR-08: F20 profile UUID for capture destination
   openAfterCommit: boolean;
 }
 
@@ -110,6 +111,7 @@ export function queueCaptureIfNoWorkspace(
       title: capture.title,
       sourceUrl: capture.sourceUrl,
       mode: capture.mode,
+      targetProfileId: capture.targetProfileId,
       openAfterCommit: capture.openAfterCommit
     });
     return true; // Was queued
@@ -122,17 +124,24 @@ export function queueCaptureIfNoWorkspace(
  */
 export async function processPendingCaptures(
   workspacePath: string,
-  handleOpenFile: (path: string, name: string) => Promise<void>
+  handleOpenFile: (path: string, name: string) => Promise<void>,
+  activateWorkspaceProfile?: (profileId: string) => Promise<void> // F05-FR-09: for activating target profiles
 ): Promise<void> {
   const captures = getPendingCaptures();
   for (const capture of captures) {
     try {
+      // F05-FR-09: If capture targets a specific profile, activate it first
+      if (capture.targetProfileId && activateWorkspaceProfile) {
+        await activateWorkspaceProfile(capture.targetProfileId);
+      }
+      
       await processCaptureRequest(
         {
           text: capture.text,
           title: capture.title,
           sourceUrl: capture.sourceUrl,
           mode: capture.mode,
+          targetProfileId: capture.targetProfileId,
           openAfterCommit: capture.openAfterCommit ?? false
         },
         workspacePath,

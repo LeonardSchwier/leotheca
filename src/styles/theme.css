@@ -127,6 +127,16 @@
   border: 0;
 }
 
+/* F05-FR-27: Capture Sheet accessibility styles */
+.capture-sheet-error {
+  color: var(--error-color, #d32f2f);
+  background-color: var(--error-bg, rgba(211, 47, 47, 0.1));
+  padding: 8px 12px;
+  border-radius: 4px;
+  margin-bottom: 12px;
+  font-size: 14px;
+}
+
 html,
 body,
 #app {

@@ -3,7 +3,8 @@
  * Shows captures that cannot be immediately committed
  */
 
-import { useState, useCallback } from "preact/hooks";
+import { useState, useCallback, useEffect } from "preact/hooks";
+import { signal } from "@preact/signals";
 import { pendingCapturesStore, removePendingCapture, updatePendingCaptureStatus, type PendingCapture } from "./pendingCaptures";
 import { openCaptureSheetWithData } from "../app/CaptureSheet";
 import { DestinationMode, resolveDatePattern } from "./captureDestinations";
@@ -11,9 +12,27 @@ import { appendToInboxNote, createNoteWithTitle } from "./captureCommit";
 import { workspacePath, workspaceSettings } from "../settings/store";
 import { resolvePathWithinWorkspace } from "../workspace/paths";
 
+// F05-FR-27: Accessibility announcement signal for Pending Captures
+const pendingCapturesAnnouncement = signal("");
+
+// F05-FR-27: Helper function to announce messages to screen readers
+function announcePendingCapturesMessage(message: string) {
+  pendingCapturesAnnouncement.value = message;
+  // Clear after announcement to allow repeat announcements
+  setTimeout(() => { pendingCapturesAnnouncement.value = ""; }, 1000);
+}
+
 export function PendingCaptures() {
   const pendingCaptures = pendingCapturesStore?.value || [];
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [focusedCaptureId, setFocusedCaptureId] = useState<string | null>(null);
+
+  // F05-FR-27: Announce count changes
+  useEffect(() => {
+    if (pendingCaptures.length > 0) {
+      announcePendingCapturesMessage(`${pendingCaptures.length} pending capture${pendingCaptures.length === 1 ? '' : 's'} ready for review`);
+    }
+  }, [pendingCaptures.length]);
 
   if (pendingCaptures.length === 0) {
     return null;
@@ -98,9 +117,15 @@ export function PendingCaptures() {
   };
 
   const handleDiscard = (captureId: string) => {
-    // Implement discard with confirmation
-    if (confirm("Are you sure you want to discard this pending capture? This cannot be undone.")) {
+    // F05-FR-27: More descriptive confirmation for accessibility
+    const capture = pendingCaptures.find(c => c.id === captureId);
+    const captureDescription = capture ? 
+      `from ${getSourceText(capture.source)} on ${new Date(capture.receivedAt).toLocaleDateString()}` :
+      "";
+    
+    if (confirm(`Are you sure you want to discard this pending capture ${captureDescription}? All associated staged data will be permanently deleted.`)) {
       removePendingCapture(captureId);
+      announcePendingCapturesMessage(`Pending capture discarded`);
     }
   };
 
@@ -195,94 +220,128 @@ export function PendingCaptures() {
 
   return (
     <div class="pending-captures-overlay" onClick={(e) => e.stopPropagation()}>
-      <div class="pending-captures">
-        <h2>Pending Captures</h2>
+      <div class="pending-captures" role="region" aria-labelledby="pending-captures-title">
+        {/* F05-FR-27: Accessibility live region for announcements */}
+        {pendingCapturesAnnouncement.value && (
+          <div role="status" aria-live="polite" aria-atomic="true" class="sr-only">
+            {pendingCapturesAnnouncement.value}
+          </div>
+        )}
         
-        <div class="pending-captures-list">
+        <h2 id="pending-captures-title">Pending Captures</h2>
+        <p class="sr-only">The following captures are waiting to be committed. Use the available actions to review, retry, change destination, or discard each capture.</p>
+        
+        <div class="pending-captures-list" role="list">
           {pendingCaptures.map((capture) => (
             <div 
               key={capture.id} 
-              class={`pending-capture ${expandedId === capture.id ? "expanded" : ""}`}
+              class={`pending-capture ${expandedId === capture.id ? "expanded" : ""} ${focusedCaptureId === capture.id ? "focused" : ""}`}
+              role="listitem"
+              aria-label={`Pending capture from ${getSourceText(capture.source)} on ${new Date(capture.receivedAt).toLocaleDateString()}, status: ${getStatusText(capture)}`}
+              tabIndex={0}
+              onFocus={() => setFocusedCaptureId(capture.id)}
+              onBlur={() => setFocusedCaptureId(null)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  toggleExpand(capture.id);
+                  e.preventDefault();
+                }
+              }}
             >
               <div class="pending-capture-header" onClick={() => toggleExpand(capture.id)}>
-                <div class="pending-capture-source">
+                <div class="pending-capture-source" aria-label={`Source: ${getSourceText(capture.source)}`}>
                   {getSourceText(capture.source)}
                 </div>
-                <div class="pending-capture-date">
+                <div class="pending-capture-date" aria-label={`Received: ${new Date(capture.receivedAt).toLocaleString()}`}>
                   {new Date(capture.receivedAt).toLocaleString()}
                 </div>
-                <div class="pending-capture-status">
+                <div class="pending-capture-status" aria-label={`Status: ${getStatusText(capture)}`}>
                   {getStatusText(capture)}
                 </div>
-                <button class="pending-capture-expand">
+                <button 
+                  class="pending-capture-expand"
+                  onClick={(e) => { e.stopPropagation(); toggleExpand(capture.id); }}
+                  aria-label={expandedId === capture.id ? "Collapse capture details" : "Expand capture details"}
+                  aria-expanded={expandedId === capture.id}
+                >
                   {expandedId === capture.id ? "▲" : "▼"}
                 </button>
               </div>
               
               {expandedId === capture.id && (
-                <div class="pending-capture-details">
+                <div class="pending-capture-details" role="region" aria-label="Capture details">
                   <div class="pending-capture-text">
-                    <div class="pending-capture-text-preview">
+                    <label class="pending-capture-text-label">Content preview:</label>
+                    <div 
+                      class="pending-capture-text-preview"
+                      aria-label="Capture text content"
+                    >
                       {capture.text.length > 200 ? 
                         `${capture.text.substring(0, 200)}...` : 
                         capture.text || "(No text)"}
                     </div>
                   </div>
                   
-                  <div class="pending-capture-meta">
+                  <fieldset class="pending-capture-meta" disabled={false}>
+                    <legend class="sr-only">Capture metadata</legend>
                     {capture.title && (
                       <div class="pending-capture-meta-item">
-                        <span class="pending-capture-meta-label">Title:</span>
-                        <span class="pending-capture-meta-value">{capture.title}</span>
+                        <span class="pending-capture-meta-label" id={`title-label-${capture.id}`}>Title:</span>
+                        <span class="pending-capture-meta-value" aria-labelledby={`title-label-${capture.id}`}>{capture.title}</span>
                       </div>
                     )}
                     
                     {capture.sourceUrl && (
                       <div class="pending-capture-meta-item">
-                        <span class="pending-capture-meta-label">URL:</span>
-                        <span class="pending-capture-meta-value">{capture.sourceUrl}</span>
+                        <span class="pending-capture-meta-label" id={`url-label-${capture.id}`}>URL:</span>
+                        <span class="pending-capture-meta-value" aria-labelledby={`url-label-${capture.id}`}>{capture.sourceUrl}</span>
                       </div>
                     )}
                     
                     <div class="pending-capture-meta-item">
-                      <span class="pending-capture-meta-label">Mode:</span>
-                      <span class="pending-capture-meta-value">{getModeText(capture.mode)}</span>
+                      <span class="pending-capture-meta-label" id={`mode-label-${capture.id}`}>Mode:</span>
+                      <span class="pending-capture-meta-value" aria-labelledby={`mode-label-${capture.id}`}>{getModeText(capture.mode)}</span>
                     </div>
                     
                     <div class="pending-capture-meta-item">
-                      <span class="pending-capture-meta-label">Destination:</span>
-                      <span class="pending-capture-meta-value">{getDestinationText(capture)}</span>
+                      <span class="pending-capture-meta-label" id={`dest-label-${capture.id}`}>Destination:</span>
+                      <span class="pending-capture-meta-value" aria-labelledby={`dest-label-${capture.id}`}>{getDestinationText(capture)}</span>
                     </div>
-                  </div>
+                  </fieldset>
                   
-                  <div class="pending-capture-actions">
+                  <div class="pending-capture-actions" role="toolbar" aria-label="Capture actions">
                     <button 
                       class="pending-capture-action" 
                       onClick={(e) => { e.stopPropagation(); handleReview(capture.id); }}
+                      aria-label={`Review capture from ${getSourceText(capture.source)}`}
                     >
                       Review
                     </button>
                     <button 
                       class="pending-capture-action" 
                       onClick={(e) => { e.stopPropagation(); handleRetry(capture.id); }}
+                      aria-label={`Retry capture from ${getSourceText(capture.source)}`}
                     >
                       Retry
                     </button>
                     <button 
                       class="pending-capture-action" 
                       onClick={(e) => { e.stopPropagation(); handleChangeDestination(capture.id); }}
+                      aria-label={`Change destination for capture from ${getSourceText(capture.source)}`}
                     >
                       Change Destination
                     </button>
                     <button 
                       class="pending-capture-action" 
                       onClick={(e) => { e.stopPropagation(); handleRelink(capture.id); }}
+                      aria-label={`Relink capture from ${getSourceText(capture.source)}`}
                     >
                       Relink
                     </button>
                     <button 
                       class="pending-capture-action pending-capture-action-danger" 
                       onClick={(e) => { e.stopPropagation(); handleDiscard(capture.id); }}
+                      aria-label={`Discard capture from ${getSourceText(capture.source)}. All associated staged data will be permanently deleted.`}
                     >
                       Discard
                     </button>
@@ -294,7 +353,7 @@ export function PendingCaptures() {
         </div>
         
         <div class="pending-captures-actions">
-          <button onClick={() => setExpandedId(null)}>
+          <button onClick={() => setExpandedId(null)} aria-label="Collapse all pending captures">
             Collapse All
           </button>
         </div>

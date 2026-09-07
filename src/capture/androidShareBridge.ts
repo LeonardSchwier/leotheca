@@ -50,7 +50,7 @@ export async function processAndroidPendingShareData(): Promise<void> {
     if (result.data && result.timestamp > 0) {
       // Map Android staged attachments to pending capture attachments
       // Filter out any malformed attachments (null from mapAndroidAttachment)
-      const attachments = result.data.attachments
+      const attachments = result.data.attachments && result.data.attachments.length > 0
         ? result.data.attachments.map(mapAndroidAttachment).filter((a): a is PendingAttachment => a !== null)
         : undefined;
       

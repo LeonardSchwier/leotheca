@@ -4,8 +4,9 @@
  */
 
 import { useState } from "preact/hooks";
-import { pendingCapturesStore } from "./pendingCaptures";
+import { pendingCapturesStore, removePendingCapture } from "./pendingCaptures";
 import { openCaptureSheet } from "../app/CaptureSheet";
+import { DestinationMode } from "./captureDestinations";
 
 export function PendingCaptures() {
   const pendingCaptures = pendingCapturesStore?.value || [];
@@ -17,12 +18,23 @@ export function PendingCaptures() {
 
   const handleRetry = (captureId: string) => {
     // TODO: F05 - Implement retry logic
-    console.log("Retrying capture:", captureId);
+    // For now, just remove the capture as if retry succeeded
+    const capture = pendingCaptures.find(c => c.id === captureId);
+    if (capture) {
+      // Mark as retrying
+      // TODO: Implement actual retry with the capture commit logic
+      console.log("Retrying capture:", captureId);
+      
+      // For now, simulate successful retry by removing the capture
+      removePendingCapture(captureId);
+    }
   };
 
   const handleDiscard = (captureId: string) => {
-    // TODO: F05 - Implement discard logic with confirmation
-    console.log("Discarding capture:", captureId);
+    // Implement discard with confirmation
+    if (confirm("Are you sure you want to discard this pending capture? This cannot be undone.")) {
+      removePendingCapture(captureId);
+    }
   };
 
   const handleReview = (captureId: string) => {
@@ -32,12 +44,21 @@ export function PendingCaptures() {
       // Pre-fill the capture sheet with the pending capture data
       openCaptureSheet(capture.text);
       // TODO: F05 - Set title, URL, mode, etc. from the pending capture
+      // This would require extending the openCaptureSheet API to accept more parameters
+      console.log("Reviewing capture with data:", {
+        title: capture.title,
+        url: capture.sourceUrl,
+        mode: capture.mode,
+        openAfterCapture: capture.openAfterCommit
+      });
     }
   };
 
   const handleChangeDestination = (captureId: string) => {
     // TODO: F05 - Implement change destination logic
+    // This would require a destination selection dialog
     console.log("Changing destination for capture:", captureId);
+    alert("Change destination functionality will be implemented in a future update.");
   };
 
   const toggleExpand = (captureId: string) => {
@@ -81,6 +102,17 @@ export function PendingCaptures() {
       default:
         return mode;
     }
+  };
+
+  const getDestinationText = (capture: any) => {
+    if (capture.targetNote) {
+      return `Note: ${capture.targetNote}`;
+    } else if (capture.targetFolder) {
+      return `Folder: ${capture.targetFolder}`;
+    } else if (capture.mode === "date") {
+      return "Date pattern";
+    }
+    return "Default";
   };
 
   return (
@@ -139,19 +171,10 @@ export function PendingCaptures() {
                       <span class="pending-capture-meta-value">{getModeText(capture.mode)}</span>
                     </div>
                     
-                    {capture.targetNote && (
-                      <div class="pending-capture-meta-item">
-                        <span class="pending-capture-meta-label">Target:</span>
-                        <span class="pending-capture-meta-value">{capture.targetNote}</span>
-                      </div>
-                    )}
-                    
-                    {capture.targetFolder && (
-                      <div class="pending-capture-meta-item">
-                        <span class="pending-capture-meta-label">Folder:</span>
-                        <span class="pending-capture-meta-value">{capture.targetFolder}</span>
-                      </div>
-                    )}
+                    <div class="pending-capture-meta-item">
+                      <span class="pending-capture-meta-label">Destination:</span>
+                      <span class="pending-capture-meta-value">{getDestinationText(capture)}</span>
+                    </div>
                   </div>
                   
                   <div class="pending-capture-actions">

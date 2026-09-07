@@ -23,7 +23,7 @@ import {
 import type { EditorLayoutState } from "../workspace/types";
 import type { WorkspaceSettings } from "../settings/workspaceSettings";
 import { DEFAULT_WORKSPACE_SETTINGS } from "../settings/workspaceSettings";
-import type { RenamePlan } from "./renamePlan";
+import type { RenamePlan, PlannedWikiLinkEdit, BlockedWikiLinkEdit } from "./renamePlan";
 
 // Helper to create a basic editor layout state
 function createEditorLayout(tabPaths: string[] = [], activePath: string | null = null): EditorLayoutState {
@@ -53,7 +53,7 @@ function createWorkspaceSettings(lastOpenPaths: string[] = [], lastActivePath: s
 }
 
 // Helper to create a mock RenamePlan
-function createMockRenamePlan(oldPath: string, newPath: string, edits: any[] = [], blocked: any[] = []): RenamePlan {
+function createMockRenamePlan(oldPath: string, newPath: string, edits: PlannedWikiLinkEdit[] = [], blocked: BlockedWikiLinkEdit[] = []): RenamePlan {
   return {
     oldPath,
     newPath,

@@ -260,7 +260,7 @@ export function sanitizeAttachmentFilename(filename: string): string {
   // Remove path separators and control characters
   let sanitized = filename
     .replace(/[/\\:*?"<>|]/g, "_")
-    .replace(/[\x00-\x1F\x7F]/g, ""); // Remove control characters
+    .split("").filter(c => c.charCodeAt(0) >= 32 || c.charCodeAt(0) === 9).join(""); // Keep printable + tab
   
   // Remove bidirectional control characters
   sanitized = sanitized.replace(/[\u202A-\u202E\u2066-\u2069]/g, "");

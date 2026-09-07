@@ -34,10 +34,7 @@ export function PendingCaptures() {
     }
   }, [pendingCaptures.length]);
 
-  if (pendingCaptures.length === 0) {
-    return null;
-  }
-
+  // All hooks must be called unconditionally to fix hook order
   const commitPendingCapture = useCallback(async (capture: PendingCapture) => {
     if (!workspacePath.value) {
       console.log("Cannot commit pending capture: No workspace is open");
@@ -88,11 +85,15 @@ export function PendingCaptures() {
         await createNoteWithTitle(targetDir, capture.text, capture.title, workspacePath.value);
         return true;
       }
-    } catch (error) {
-      console.log("Failed to commit pending capture:", error);
+    } catch (err) {
+      console.log("Failed to commit pending capture:", err);
       return false;
     }
   }, []);
+
+  if (pendingCaptures.length === 0) {
+    return null;
+  }
 
   const handleRetry = (captureId: string) => {
     const capture = pendingCaptures.find(c => c.id === captureId);
@@ -168,7 +169,7 @@ export function PendingCaptures() {
     setExpandedId(expandedId === captureId ? null : captureId);
   };
 
-  const getStatusText = (capture: any) => {
+  const getStatusText = (capture: PendingCapture) => {
     switch (capture.status) {
       case "pending":
         return "Ready";
@@ -207,7 +208,7 @@ export function PendingCaptures() {
     }
   };
 
-  const getDestinationText = (capture: any) => {
+  const getDestinationText = (capture: PendingCapture) => {
     if (capture.targetNote) {
       return `Note: ${capture.targetNote}`;
     } else if (capture.targetFolder) {

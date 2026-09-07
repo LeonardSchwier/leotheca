@@ -83,7 +83,7 @@ export function CaptureSheet({ onCreated }: CaptureSheetProps) {
       // F05-FR-27: Announce that capture sheet is open
       announceCaptureMessage("Quick Capture sheet opened");
     }
-  }, [captureSheetOpen.value, content]);
+  }, [content]);
 
   const handleSubmit = useCallback(async () => {
     if (!workspacePath.value || isSubmitting) return;

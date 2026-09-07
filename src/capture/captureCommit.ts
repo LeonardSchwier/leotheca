@@ -85,7 +85,7 @@ export async function appendToInboxNote(options: CaptureAppendOptions): Promise<
     // For now, the file is written and can be detected by the file watcher
     
     return { path: inboxNotePath, name: inboxNotePath.split("/").pop() || "" };
-  } catch (error) {
+  } catch {
     // File doesn't exist, create it with the capture content
     const formattedContent = formatCaptureContent(content, title, sourceUrl, attachmentPaths);
     await writeTextFile(inboxNotePath, formattedContent);

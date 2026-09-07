@@ -11,9 +11,22 @@ import org.junit.Test;
 
 public class WidgetResourcesUnitTest {
     private static String source(String relativePath) throws IOException {
-        // Construct absolute path: current working directory + "app/src/main" + relativePath
-        return new String(
-                Files.readAllBytes(Paths.get(System.getProperty("user.dir"), "app", "src", "main", relativePath)), StandardCharsets.UTF_8);
+        // The Gradle test task may run from either android/ or repository root
+        // Try both paths: first from android/, then from repository root
+        String currentDir = System.getProperty("user.dir");
+        String path1 = Paths.get(currentDir, "app", "src", "main", relativePath).toString();
+        String path2 = Paths.get(currentDir, "android", "app", "src", "main", relativePath).toString();
+        
+        // Try path1 first (assuming working directory is android/)
+        if (java.nio.file.Files.exists(Paths.get(path1))) {
+            return new String(Files.readAllBytes(Paths.get(path1)), StandardCharsets.UTF_8);
+        }
+        // Try path2 (assuming working directory is repository root)
+        if (java.nio.file.Files.exists(Paths.get(path2))) {
+            return new String(Files.readAllBytes(Paths.get(path2)), StandardCharsets.UTF_8);
+        }
+        // Neither path exists, throw with both for debugging
+        throw new IOException("Cannot find file at: " + path1 + " or " + path2);
     }
 
     @Test

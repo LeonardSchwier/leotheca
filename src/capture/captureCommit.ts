@@ -200,7 +200,9 @@ async function copyAttachmentsToWorkspace(
           console.log("F05-FR-17: Reusing existing attachment with matching fingerprint");
         }
       } catch (fingerprintError) {
-        console.warn("F05-FR-17: Could not check for existing fingerprint match:", fingerprintError);
+        // F05-AC-25: Don't log raw errors that may contain sensitive data
+        void fingerprintError;
+        console.warn("F05-FR-17: Could not check for existing fingerprint match");
         // Continue with normal copy flow
       }
       
@@ -277,7 +279,8 @@ async function copyFile(sourcePath: string, destPath: string): Promise<void> {
     // This will work for small files but for images we'd need proper binary handling
     await writeBinaryFile(destPath, new TextEncoder().encode(content));
   } catch (error) {
-    console.error("F05: Failed to copy file", error);
+    // F05-AC-25: Don't log raw errors that may contain sensitive data
+    console.error("F05: Failed to copy file");
     throw error;
   }
 }
@@ -296,7 +299,9 @@ async function generateFingerprintForFile(filePath: string): Promise<string> {
     ).join("");
     return `${size}-${headerHex}`;
   } catch (error) {
-    console.warn("F05: Failed to generate fingerprint", error);
+    // F05-AC-25: Don't log raw errors that may contain sensitive data
+    void error;
+    console.warn("F05: Failed to generate fingerprint");
     return `unknown-${Date.now()}`;
   }
 }

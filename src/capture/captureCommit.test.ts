@@ -147,4 +147,65 @@ describe("appendToInboxNote", () => {
       expect.stringContaining("First real capture")
     );
   });
+
+  it("F05-AC-25: never logs a raw error when copying an attachment fails", async () => {
+    // A provider exception surfacing a real content:// URI/path is exactly the
+    // caller-controlled data F05 acceptance criterion 25 forbids in logs.
+    // Placed last in this file: it needs a wider mock export shape than the
+    // "../workspace/tauriBridge" mocks above, and vi.resetModules() (needed to
+    // pick that shape up cleanly) would otherwise leave later tests bound to
+    // this test's own mock functions instead of their own.
+    const sensitiveMessage = "content://com.other.app/document/999: permission denied for /private/vault/path";
+    const mockListDir = vi.fn().mockResolvedValue([]);
+    const mockCreateWorkspaceTextFileNew = vi.fn().mockResolvedValue(undefined);
+    const mockWriteBinaryFile = vi.fn().mockResolvedValue(undefined);
+    const mockBridgeReadTextFile = vi.fn().mockRejectedValue(new Error(sensitiveMessage));
+
+    vi.resetModules();
+    vi.doMock("../workspace/tauriBridge", () => ({
+      readTextFile: mockBridgeReadTextFile,
+      writeTextFile: vi.fn(),
+      listDir: mockListDir,
+      createWorkspaceTextFileNew: mockCreateWorkspaceTextFileNew,
+      writeBinaryFile: mockWriteBinaryFile,
+    }));
+
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const { createNoteWithTitle } = await import("./captureCommit");
+
+    const result = await createNoteWithTitle(
+      "/workspace",
+      "Captured text",
+      "Note title",
+      "/workspace",
+      [
+        {
+          id: "att-1",
+          filePath: "/app-private/staging/att-1.jpg",
+          fileName: "photo.jpg",
+          fileSize: 1024,
+          fingerprint: "irrelevant",
+          mimeType: "image/jpeg",
+        },
+      ]
+    );
+
+    // The note is still created; the failing attachment is skipped, not fatal.
+    expect(result.name).toBe("Note title.md");
+    expect(mockCreateWorkspaceTextFileNew).toHaveBeenCalled();
+
+    const allLoggedArgs = [...errorSpy.mock.calls, ...warnSpy.mock.calls].flat();
+    for (const arg of allLoggedArgs) {
+      expect(arg).not.toBeInstanceOf(Error);
+      if (typeof arg === "string") {
+        expect(arg).not.toContain(sensitiveMessage);
+        expect(arg).not.toContain("content://");
+      }
+    }
+
+    errorSpy.mockRestore();
+    warnSpy.mockRestore();
+  });
 });

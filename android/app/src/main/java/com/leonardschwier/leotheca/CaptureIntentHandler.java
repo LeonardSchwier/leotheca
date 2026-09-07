@@ -178,7 +178,10 @@ public class CaptureIntentHandler {
                             Log.w(TAG, "F05: Failed to stage URI");
                         }
                     } catch (Exception e) {
-                        Log.e(TAG, "F05: Error staging URI", e);
+                        // F05-FR-25/AC-25: never log the exception itself. A ContentResolver
+                        // exception for a content:// URI can embed the URI or other
+                        // caller-controlled data in its message.
+                        Log.e(TAG, "F05: Error staging URI (" + e.getClass().getSimpleName() + ")");
                     }
                 }
                 
@@ -281,7 +284,9 @@ public class CaptureIntentHandler {
             );
             
         } catch (Exception e) {
-            Log.e(TAG, "F05: Failed to stage URI", e);
+            // F05-FR-25/AC-25: never log the exception itself, only its type. Provider
+            // exceptions for a content:// URI can embed the URI in their message.
+            Log.e(TAG, "F05: Failed to stage URI (" + e.getClass().getSimpleName() + ")");
             return null;
         }
     }
@@ -410,7 +415,8 @@ public class CaptureIntentHandler {
             return fingerprint.toString();
             
         } catch (Exception e) {
-            Log.w(TAG, "F05: Failed to generate fingerprint", e);
+            // F05-FR-25/AC-25: log only the exception type, never the exception itself.
+            Log.w(TAG, "F05: Failed to generate fingerprint (" + e.getClass().getSimpleName() + ")");
             return "unknown-" + System.currentTimeMillis();
         }
     }

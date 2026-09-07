@@ -16,7 +16,6 @@ import { ImageViewerOverlay } from "../editor/ImageViewerOverlay";
 import { CaptureSheet, captureSheetOpen, openCaptureSheet } from "./CaptureSheet";
 import { PendingCaptures, initPendingCaptures } from "../capture";
 import { classifyWorkspaceResource } from "../workspace/types";
-import { resolvePathWithinWorkspace } from "../workspace/paths";
 import { CanvasView } from "../canvas/CanvasView";
 import {
   activeTab,
@@ -464,8 +463,9 @@ export function App() {
         const sourceUrl = command.url;
         const shouldOpen = command.open ?? true;
         
-        // Queue capture if no workspace is available
+        // F05-FR-03: External deep-link captures shall require user review before writing
         if (!workspacePath.value) {
+          // Queue capture if no workspace is available
           const { queueCaptureIfNoWorkspace } = await import("../capture/captureProcessor");
           queueCaptureIfNoWorkspace(
             { text, title, sourceUrl, mode, openAfterCommit: shouldOpen },
@@ -475,61 +475,15 @@ export function App() {
           return;
         }
         
-        if (mode === "new") {
-          // Use configured capture folder or fall back to selected dir / workspace root
-          let targetDir = selectedDir.value ?? workspacePath.value;
-          const inboxFolder = workspaceSettings.value.captureInboxFolder;
-          if (inboxFolder) {
-            const resolvedInbox = resolvePathWithinWorkspace(workspacePath.value, workspacePath.value, inboxFolder);
-            if (resolvedInbox) {
-              targetDir = resolvedInbox;
-            }
-          }
-          
-          const { createNoteWithTitle } = await import("../capture/captureCommit");
-          const { path, name } = await createNoteWithTitle(targetDir, text, title, workspacePath.value);
-          if (shouldOpen) {
-            await handleOpenFile(path, name);
-          }
-        } else if (mode === "append") {
-          // F05: Append to configured inbox note
-          const inboxNote = workspaceSettings.value.captureInboxNote || "Inbox.md";
-          const notePath = resolvePathWithinWorkspace(workspacePath.value, workspacePath.value, inboxNote);
-          if (notePath) {
-            const { appendToInboxNote } = await import("../capture/captureCommit");
-            const { path, name } = await appendToInboxNote({ 
-              inboxNotePath: notePath, 
-              content: text,
-              title: title,
-              sourceUrl: sourceUrl
-            });
-            if (shouldOpen) {
-              await handleOpenFile(path, name);
-            }
-          }
-        } else if (mode === "date") {
-          // F05: Date-pattern destination
-          const { resolveDatePattern } = await import("../capture/captureDestinations");
-          const { createNoteWithTitle } = await import("../capture/captureCommit");
-          
-          const datePattern = workspaceSettings.value.captureDatePattern || "Daily/{{date:YYYY-MM-DD}}.md";
-          const resolvedPattern = resolveDatePattern(datePattern);
-          
-          // Get the directory part of the pattern
-          const lastSlashIndex = resolvedPattern.path.lastIndexOf("/");
-          const targetDir = lastSlashIndex > 0 
-            ? resolvedPattern.path.substring(0, lastSlashIndex)
-            : workspacePath.value;
-          const fileName = lastSlashIndex > 0 
-            ? resolvedPattern.path.substring(lastSlashIndex + 1)
-            : resolvedPattern.path;
-          
-          const { path, name } = await createNoteWithTitle(targetDir, text, title || fileName.replace(".md", ""), workspacePath.value);
-          if (shouldOpen) {
-            await handleOpenFile(path, name);
-          }
-        }
-        
+        // When workspace is available, open CaptureSheet for user review
+        const { openCaptureSheetWithData } = await import("./CaptureSheet");
+        openCaptureSheetWithData({
+          content: text,
+          title,
+          sourceUrl,
+          mode: mode as "append" | "new" | "date",
+          openAfterCapture: shouldOpen
+        });
         return;
       }
       if (command.kind === "new-note") {

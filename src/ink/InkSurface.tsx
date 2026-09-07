@@ -4,13 +4,17 @@ import type { InkPoint, InkStroke, InkTool } from "./inkDocument";
 import { inkWidthAtPoint, normalizeInkSample, smoothInkPoints } from "./strokeProcessing";
 import "./inkSurface.css";
 
+export type InkSurfaceTool = InkTool | "eraser";
+
 export interface InkSurfaceProps {
   strokes: readonly InkStroke[];
-  tool?: InkTool;
+  tool?: InkSurfaceTool;
   color?: string;
   width?: number;
   opacity?: number;
   onCommitStroke: (stroke: InkStroke) => void;
+  /** The host owns document edits; it can apply each point with eraseInkAtPoint. */
+  onEraseAt?: (point: InkPoint) => void;
 }
 
 interface DraftStroke {
@@ -88,11 +92,13 @@ export function InkSurface({
   width = 3,
   opacity = 1,
   onCommitStroke,
+  onEraseAt,
 }: InkSurfaceProps) {
   const draft = useRef<DraftStroke | null>(null);
   const [preview, setPreview] = useState<InkStroke | null>(null);
 
   const updatePreview = (points: InkPoint[]) => {
+    if (tool === "eraser") return;
     setPreview({ id: "in-progress", tool, color, width, opacity, points });
   };
 
@@ -103,6 +109,10 @@ export function InkSurface({
     updatePreview(nextPoints);
   };
 
+  const eraseSamples = (event: PointerEvent, element: SVGSVGElement) => {
+    for (const sample of samplesFor(event)) onEraseAt?.(samplePoint(sample, element));
+  };
+
   const handlePointerDown = (event: JSX.TargetedPointerEvent<SVGSVGElement>) => {
     const pointerEvent = event as PointerEvent;
     if (!supportedPointer(pointerEvent)) return;
@@ -110,7 +120,8 @@ export function InkSurface({
     const points = samplesFor(pointerEvent).map((sample) => samplePoint(sample, element));
     draft.current = { pointerId: pointerEvent.pointerId, points };
     element.setPointerCapture?.(pointerEvent.pointerId);
-    updatePreview(points);
+    if (tool === "eraser") eraseSamples(pointerEvent, element);
+    else updatePreview(points);
   };
 
   const handlePointerMove = (event: JSX.TargetedPointerEvent<SVGSVGElement>) => {
@@ -119,7 +130,8 @@ export function InkSurface({
     // Check if we actually have pointer capture for this pointer
     const element = event.currentTarget as SVGSVGElement;
     if (element.hasPointerCapture?.(pointerEvent.pointerId) !== true) return;
-    appendSamples(pointerEvent, element);
+    if (tool === "eraser") eraseSamples(pointerEvent, element);
+    else appendSamples(pointerEvent, element);
   };
 
   const finishStroke = (event: JSX.TargetedPointerEvent<SVGSVGElement>, commit: boolean) => {
@@ -136,12 +148,14 @@ export function InkSurface({
       return;
     }
     
-    if (commit) appendSamples(pointerEvent, element);
+    if (commit && tool === "eraser") eraseSamples(pointerEvent, element);
+    else if (commit) appendSamples(pointerEvent, element);
     const completed = draft.current;
     draft.current = null;
     setPreview(null);
     if (hasCapture) element.releasePointerCapture?.(pointerEvent.pointerId);
     if (!commit || completed.points.length === 0) return;
+    if (tool === "eraser") return;
     onCommitStroke({
       id: crypto.randomUUID(),
       tool,

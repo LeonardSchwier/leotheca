@@ -51,6 +51,9 @@ export interface CaptureRequest {
 /**
  * Process a single capture request
  * Returns the path and name of the created/updated note if successful
+ * 
+ * F05 acceptance criterion 25: No Android content URI, profile grant token, captured text, or source URL appears in logs.
+ * This function ensures sensitive data is not logged by avoiding direct logging of capture content.
  */
 export async function processCaptureRequest(
   capture: CaptureRequest,

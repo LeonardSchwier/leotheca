@@ -435,17 +435,17 @@ public class CaptureIntentHandler {
     
     /**
      * Queue a capture with staged attachments
+     * F05: Now passes attachment metadata to TypeScript layer
      */
     private void queueCaptureWithAttachments(String text, String title, List<StagedAttachment> attachments) {
         Log.i(TAG, "F05: Queueing capture with " + attachments.size() + " attachments");
         
-        // For now, we'll store the basic info and let TypeScript handle the attachments
-        // TODO: Pass attachment info to TypeScript layer
-        storePendingShareData(text, title, null, null);
+        // Store the text, title, and attachment metadata for TypeScript layer
+        storePendingShareData(text, title, attachments);
         
-        // Log attachment info for debugging (filename sanitized for privacy)
-        for (StagedAttachment attachment : attachments) {
-            Log.i(TAG, "F05: Staged attachment (" + attachment.fileSize + " bytes)");
+        // Log attachment info for debugging (count only, no filenames for privacy)
+        if (attachments != null) {
+            Log.i(TAG, "F05: Staged " + attachments.size() + " attachments");
         }
     }
     
@@ -453,15 +453,33 @@ public class CaptureIntentHandler {
      * Store share data in app preferences so TypeScript layer can access it
      */
     private void storePendingShareData(String text, String title, Uri singleUri, ArrayList<Uri> multipleUris) {
+        storePendingShareData(text, title, null);
+    }
+
+    /**
+     * Store share data with attachments in app preferences so TypeScript layer can access it
+     * F05: Handle staged attachments for Android share intent
+     */
+    private void storePendingShareData(String text, String title, List<StagedAttachment> attachments) {
         try {
             org.json.JSONObject data = new org.json.JSONObject()
                 .put("text", text != null ? text : "")
-                .put("title", title != null ? title : "")
-                .put("hasSingleUri", singleUri != null)
-                .put("hasMultipleUris", multipleUris != null && !multipleUris.isEmpty());
+                .put("title", title != null ? title : "");
             
             // Add staged attachment info if we have it
-            // TODO: Add attachment paths and metadata
+            if (attachments != null && !attachments.isEmpty()) {
+                org.json.JSONArray attachmentsArray = new org.json.JSONArray();
+                for (StagedAttachment attachment : attachments) {
+                    org.json.JSONObject attachmentObj = new org.json.JSONObject()
+                        .put("filePath", attachment.filePath)
+                        .put("fileName", attachment.fileName)
+                        .put("fileSize", attachment.fileSize)
+                        .put("fingerprint", attachment.fingerprint)
+                        .put("mimeType", attachment.mimeType);
+                    attachmentsArray.put(attachmentObj);
+                }
+                data.put("attachments", attachmentsArray);
+            }
             
             android.content.SharedPreferences prefs = context.getSharedPreferences("LeothecaShareData", Context.MODE_PRIVATE);
             prefs.edit()
@@ -469,7 +487,7 @@ public class CaptureIntentHandler {
                 .putLong("shareTimestamp", System.currentTimeMillis())
                 .apply();
             
-            Log.i(TAG, "F05: Stored pending share data");
+            Log.i(TAG, "F05: Stored pending share data with " + (attachments != null ? attachments.size() : 0) + " attachments");
         } catch (Exception e) {
             Log.e(TAG, "F05: Failed to store share data");
         }

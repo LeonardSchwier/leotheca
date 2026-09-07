@@ -240,11 +240,20 @@ export async function setStatusBarAppearance(
 }
 
 // F05: Android share intent bridge - desktop no-ops
+export interface AndroidStagedAttachment {
+  filePath: string;
+  fileName: string;
+  fileSize: number;
+  fingerprint: string;
+  mimeType: string;
+}
+
 export interface PendingShareData {
   text: string;
   title: string | null;
   hasSingleUri: boolean;
   hasMultipleUris: boolean;
+  attachments?: AndroidStagedAttachment[];
 }
 
 export interface ShareDataResult {

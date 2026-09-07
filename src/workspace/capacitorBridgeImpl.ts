@@ -61,11 +61,20 @@ interface NativeAllEntry {
 }
 
 // F05: Android share intent bridge - interface definitions needed by FolderAccessPlugin
+export interface AndroidStagedAttachment {
+  filePath: string;
+  fileName: string;
+  fileSize: number;
+  fingerprint: string;
+  mimeType: string;
+}
+
 export interface PendingShareData {
   text: string;
   title: string | null;
   hasSingleUri: boolean;
   hasMultipleUris: boolean;
+  attachments?: AndroidStagedAttachment[];
 }
 
 export interface ShareDataResult {
@@ -667,9 +676,10 @@ export async function getPendingShareData(): Promise<ShareDataResult> {
     return {
       data: result.data ? {
         text: result.data.text ?? "",
-        title: result.data.title ?? "",
+        title: result.data.title ?? null,
         hasSingleUri: result.data.hasSingleUri ?? false,
-        hasMultipleUris: result.data.hasMultipleUris ?? false
+        hasMultipleUris: result.data.hasMultipleUris ?? false,
+        attachments: result.data.attachments ?? undefined
       } : null,
       timestamp: result.timestamp ?? 0
     };

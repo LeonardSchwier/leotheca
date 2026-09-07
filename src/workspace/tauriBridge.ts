@@ -215,6 +215,6 @@ export const getWorkspaceStats: typeof impl.getWorkspaceStats = (path: string) =
 export const setStatusBarAppearance = impl.setStatusBarAppearance;
 
 // F05: Android share intent bridge
-export type { PendingShareData, ShareDataResult, HasShareDataResult } from "./tauriBridgeImpl";
+export type { AndroidStagedAttachment, PendingShareData, ShareDataResult, HasShareDataResult } from "./tauriBridgeImpl";
 export const getPendingShareData = impl.getPendingShareData;
 export const hasPendingShareData = impl.hasPendingShareData;

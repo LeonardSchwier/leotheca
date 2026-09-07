@@ -4,7 +4,22 @@
  */
 
 import { getPendingShareData } from "../workspace/tauriBridge";
-import { addPendingCapture } from "./pendingCaptures";
+import { addPendingCapture, type PendingAttachment } from "./pendingCaptures";
+import type { AndroidStagedAttachment } from "../workspace/capacitorBridgeImpl";
+
+/**
+ * Map Android staged attachment to pending capture attachment format
+ */
+function mapAndroidAttachment(androidAtt: AndroidStagedAttachment): PendingAttachment {
+  return {
+    id: `android-att-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    filePath: androidAtt.filePath,
+    fileName: androidAtt.fileName,
+    fileSize: androidAtt.fileSize,
+    fingerprint: androidAtt.fingerprint,
+    mimeType: androidAtt.mimeType
+  };
+}
 
 /**
  * Check for and process any pending Android share intent data.
@@ -16,6 +31,11 @@ export async function processAndroidPendingShareData(): Promise<void> {
     const result = await getPendingShareData();
     
     if (result.data && result.timestamp > 0) {
+      // Map Android staged attachments to pending capture attachments
+      const attachments = result.data.attachments
+        ? result.data.attachments.map(mapAndroidAttachment)
+        : undefined;
+      
       // Transfer the Android share data to pending captures
       addPendingCapture({
         source: "android-share",
@@ -24,6 +44,7 @@ export async function processAndroidPendingShareData(): Promise<void> {
         sourceUrl: undefined, // Android share doesn't currently include URL
         mode: "new", // Default mode for Android shares
         openAfterCommit: true,
+        attachments,
         // Note: id, receivedAt, and status are added automatically by addPendingCapture
       });
       

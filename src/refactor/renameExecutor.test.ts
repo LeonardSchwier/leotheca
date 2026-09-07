@@ -189,7 +189,7 @@ describe("renameExecutor - Preflight Validation", () => {
   });
 
   it("should fail preflight when there are blocked references", async () => {
-    const blockedEdit = { path: "some.md", reason: "ambiguous" };
+    const blockedEdit = { path: "some.md", from: 0, to: 5, oldText: "[[old]]", reason: "ambiguous" };
     const result = await preflightRename(
       "old.md", "new.md", 
       createMockRenamePlan("old.md", "new.md", [], [blockedEdit]),

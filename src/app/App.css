@@ -721,6 +721,8 @@ button.icon-button.active {
   border-radius: var(--radius-md);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
   padding: var(--space-1);
+  /* Prevent text selection within context menus to avoid conflict with touch/long-press */
+  user-select: none;
 }
 
 .context-menu button {

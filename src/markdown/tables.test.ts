@@ -67,6 +67,14 @@ describe("scanMarkdownTables", () => {
     expect(source.slice(dog.sourceFrom, dog.sourceTo)).toBe("🐕");
   });
 
+
+  it("keeps an exclusive source end for a final single-code-unit cell character", () => {
+    const source = "| A | B |\n| --- | --- |\n| left | z |";
+    const table = onlyTable(source);
+    const cell = table.rows[0][1];
+    expect(source.slice(cell.sourceFrom!, cell.sourceTo!)).toBe("z");
+    expect(source.slice(cell.sourceTo!, cell.sourceTo! + 1)).toBe(" ");
+  });
   it("preserves CRLF as the table line-ending convention", () => {
     const table = onlyTable("| A | B |\r\n| --- | --- |\r\n| one | two |");
     expect(table.lineEnding).toBe("\r\n");

@@ -138,13 +138,10 @@ function trimCell(text: string, absoluteStart: number): TableCell {
   while (from < to && (text[from] === " " || text[from] === "\t")) from += 1;
   while (to > from && (text[to - 1] === " " || text[to - 1] === "\t")) to -= 1;
   const rawMarkdown = text.slice(from, to);
-  // For non-empty cells, exclude trailing whitespace by making sourceTo exclusive-like.
-  // For empty cells, keep the original behavior to avoid invalid ranges.
-  const finalTo = rawMarkdown.length > 0 ? to - 1 : to;
   return {
     rawMarkdown,
     sourceFrom: absoluteStart + from,
-    sourceTo: absoluteStart + finalTo,
+    sourceTo: absoluteStart + to,
   };
 }
 

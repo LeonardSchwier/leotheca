@@ -1,4 +1,4 @@
-/** @vitest-environment jsdom */
+/** @vitest-environment happy-dom */
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderHook } from "@testing-library/preact";
 import { sidebarWidth, useResizableSidebar } from "./useResizableSidebar";

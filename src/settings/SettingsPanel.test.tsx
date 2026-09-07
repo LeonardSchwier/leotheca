@@ -1,4 +1,4 @@
-/** @vitest-environment jsdom */
+/** @vitest-environment happy-dom */
 import { vi } from "vitest";
 
 vi.mock("./WorkspaceProfilesSettings", () => ({

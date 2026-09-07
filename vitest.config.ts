@@ -6,8 +6,12 @@ export default defineConfig({
     // Use jsdom environment for tests that need DOM APIs
     environment: "jsdom",
     
-    // Global test setup file
+    // Global test setup file - runs before all tests
     setupFiles: ["./src/vitest.setup.ts"],
+    
+    // Global setup - runs once before the test process starts
+    // This is where we can require native modules like canvas
+    globalSetup: ["./src/vitest.globalSetup.ts"],
     
     // Exclude node_modules from test coverage
     exclude: [...configDefaults.exclude, "**/node_modules/**"],

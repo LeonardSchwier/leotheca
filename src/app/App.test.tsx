@@ -62,6 +62,7 @@ vi.mock("../workspace/tauriBridge", () => ({
   fileSrc: vi.fn(),
   getWorkspaceStats: vi.fn(),
   setStatusBarAppearance: vi.fn(),
+  updateFavoritesWidget: vi.fn(async () => {}),
 }));
 
 const { renameEntry } = vi.hoisted(() => ({
@@ -78,9 +79,16 @@ vi.mock("../workspace/fileTreeStore", () => ({
   selectedDir: signal<string | null>(null),
 }));
 
+const { openUrlListeners } = vi.hoisted(() => ({
+  openUrlListeners: [] as ((urls: string[]) => void)[],
+}));
+
 vi.mock("@tauri-apps/plugin-deep-link", () => ({
   getCurrent: vi.fn(async () => null),
-  onOpenUrl: vi.fn(async () => () => {}),
+  onOpenUrl: vi.fn((listener: (urls: string[]) => void) => {
+    openUrlListeners.push(listener);
+    return Promise.resolve(() => {});
+  }),
 }));
 
 vi.mock("@tauri-apps/plugin-clipboard-manager", () => ({
@@ -183,6 +191,7 @@ afterEach(() => {
   writeTextFile.mockClear();
   readTextFile.mockClear();
   renameEntry.mockReset();
+  openUrlListeners.length = 0;
 });
 
 describe("App: keyboard shortcuts", () => {
@@ -795,5 +804,60 @@ describe("App: Task Hub index stays fresh after an ordinary editor save (2026-09
     expect(writeTextFile).toHaveBeenCalledTimes(1);
     const tasks = linkIndex.value.tasksByPath.get("/vault/note.md");
     expect(tasks?.[0].checked).toBe(false);
+  });
+});
+
+describe("App: open-note automation command (Android favorites-list widget)", () => {
+  it("opens the note at the given path when it is inside the workspace", async () => {
+    workspacePath.value = "/vault";
+    readTextFile.mockResolvedValueOnce("note content");
+    render(<App />);
+
+    await act(async () => {
+      openUrlListeners.at(-1)?.(["leotheca://open-note?path=%2Fvault%2Fnote.md"]);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(activeTabPath.value).toBe("/vault/note.md");
+    expect(readTextFile).toHaveBeenCalledWith("/vault/note.md");
+  });
+
+  it("ignores a path outside the current workspace", async () => {
+    workspacePath.value = "/vault";
+    render(<App />);
+
+    await act(async () => {
+      openUrlListeners.at(-1)?.(["leotheca://open-note?path=%2Fother-vault%2Fnote.md"]);
+      await Promise.resolve();
+    });
+
+    expect(activeTabPath.value).toBeNull();
+    expect(readTextFile).not.toHaveBeenCalled();
+  });
+
+  it("ignores an open-note command with no path param", async () => {
+    workspacePath.value = "/vault";
+    render(<App />);
+
+    await act(async () => {
+      openUrlListeners.at(-1)?.(["leotheca://open-note"]);
+      await Promise.resolve();
+    });
+
+    expect(activeTabPath.value).toBeNull();
+    expect(readTextFile).not.toHaveBeenCalled();
+  });
+
+  it("is a silent no-op when no workspace is open", async () => {
+    workspacePath.value = null;
+    render(<App />);
+
+    await act(async () => {
+      openUrlListeners.at(-1)?.(["leotheca://open-note?path=%2Fvault%2Fnote.md"]);
+      await Promise.resolve();
+    });
+
+    expect(readTextFile).not.toHaveBeenCalled();
   });
 });

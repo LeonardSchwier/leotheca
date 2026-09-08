@@ -3,9 +3,9 @@
  * sidebar behind a toggle next to the existing Settings control. Call
  * `loadBookmarks(workspacePath)` whenever the active workspace changes.
  */
-import { signal } from "@preact/signals";
+import { effect, signal } from "@preact/signals";
 import { workspacePath } from "../settings/store";
-import { readTextFile, writeWorkspaceTextFile } from "../workspace/tauriBridge";
+import { readTextFile, updateFavoritesWidget, writeWorkspaceTextFile } from "../workspace/tauriBridge";
 import { workspaceTransitions } from "../workspace/workspaceTransition";
 import type { Bookmark } from "./types";
 
@@ -49,6 +49,26 @@ export function decodeBookmarks(raw: string): {
 }
 
 export const bookmarks = signal<Bookmark[]>(EMPTY_BOOKMARKS);
+
+// A home-screen widget's practical list length: enough to be useful,
+// bounded so a very large bookmark list doesn't bloat the native
+// SharedPreferences blob or the on-screen widget itself.
+const MAX_WIDGET_FAVORITES = 25;
+
+// Mirrors "file" bookmarks (favorites) to the Android home-screen widget
+// (LeothecaFavoritesListWidgetProvider) on every change: initial load,
+// add, remove, and workspace switch/removal (resetBookmarks below clears
+// the signal, which this reacts to the same as any other change). Search
+// bookmarks have no note to open and are excluded. Runs unconditionally;
+// updateFavoritesWidget is a no-op on desktop (tauriBridgeImpl's stub),
+// so this never needs its own platform check.
+effect(() => {
+  const entries = bookmarks.value
+    .filter((bookmark): bookmark is Extract<Bookmark, { kind: "file" }> => bookmark.kind === "file")
+    .slice(0, MAX_WIDGET_FAVORITES)
+    .map((bookmark) => ({ label: bookmark.label, path: bookmark.path }));
+  void updateFavoritesWidget(entries);
+});
 
 // Plain string join, not a path-resolution API call: every workspace path
 // this app hands back to the frontend, on every platform including

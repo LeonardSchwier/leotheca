@@ -5,4 +5,5 @@
     <string name="package_name">com.leonardschwier.leotheca</string>
     <string name="custom_url_scheme">com.leonardschwier.leotheca</string>
     <string name="creating_note">Creating note</string>
+    <string name="widget_favorites_list_empty">No favorites yet. Bookmark a note to see it here.</string>
 </resources>

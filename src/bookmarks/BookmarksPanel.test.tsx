@@ -17,6 +17,7 @@ vi.mock("../workspace/tauriBridge", () => ({
   restoreWorkspaceAccess: vi.fn(async () => {}),
   setStatusBarAppearance: vi.fn(async () => {}),
   getAppConfigFilePath: vi.fn(async (name: string) => `/config/${name}`),
+  updateFavoritesWidget: vi.fn(async () => {}),
 }));
 
 // bookmarks/store.ts imports workspacePath from settings/store.ts, which

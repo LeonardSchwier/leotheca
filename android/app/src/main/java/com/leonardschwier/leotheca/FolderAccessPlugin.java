@@ -17,6 +17,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 /**
@@ -732,12 +733,72 @@ public class FolderAccessPlugin extends Plugin {
         try {
             android.content.SharedPreferences prefs = getContext().getSharedPreferences("LeothecaShareData", android.content.Context.MODE_PRIVATE);
             String pendingShare = prefs.getString("pendingShare", null);
-            
+
             JSObject ret = new JSObject();
             ret.put("hasData", pendingShare != null && !pendingShare.isEmpty());
             call.resolve(ret);
         } catch (Exception e) {
             call.reject("Failed to check pending share data", e);
+        }
+    }
+
+    /**
+     * Android home-screen favorites-list widget: stores the already-resolved
+     * list of favorited notes (label + workspace-absolute path, computed on
+     * the TypeScript side by bookmarks/store.ts) for
+     * LeothecaFavoritesListWidgetFactory's RemoteViewsService to render,
+     * then nudges every placed instance of that widget to re-read it. This
+     * plugin never itself walks bookmarks.json or resolves a SAF path: the
+     * caller already did that, the same "TypeScript side maps onto plain
+     * values, this file is a thin native boundary" division this class's
+     * own top-of-file doc comment describes for every other method here.
+     */
+    @PluginMethod
+    public void updateFavoritesWidget(PluginCall call) {
+        JSArray entries = call.getArray("entries");
+        if (entries == null) {
+            call.reject("entries is required");
+            return;
+        }
+        try {
+            JSONArray stored = new JSONArray();
+            // Same practical cap as bookmarks/store.ts's own
+            // MAX_WIDGET_FAVORITES; enforced again here so a future caller
+            // of this native method can't bypass it.
+            int max = Math.min(entries.length(), 25);
+            for (int i = 0; i < max; i++) {
+                JSONObject entry = entries.getJSONObject(i);
+                String path = entry.optString("path", "");
+                if (path.isEmpty()) continue;
+                String label = entry.optString("label", "");
+                JSONObject storedEntry = new JSONObject();
+                storedEntry.put("label", label.isEmpty() ? path : label);
+                storedEntry.put("path", path);
+                stored.put(storedEntry);
+            }
+            getContext()
+                .getSharedPreferences(
+                    LeothecaFavoritesListWidgetFactory.PREFS_NAME,
+                    android.content.Context.MODE_PRIVATE
+                )
+                .edit()
+                .putString(LeothecaFavoritesListWidgetFactory.FAVORITES_KEY, stored.toString())
+                .apply();
+            refreshFavoritesListWidgets();
+            call.resolve();
+        } catch (Exception e) {
+            call.reject(e.getMessage(), e);
+        }
+    }
+
+    private void refreshFavoritesListWidgets() {
+        android.content.Context context = getContext();
+        android.appwidget.AppWidgetManager manager = android.appwidget.AppWidgetManager.getInstance(context);
+        int[] ids = manager.getAppWidgetIds(
+            new android.content.ComponentName(context, LeothecaFavoritesListWidgetProvider.class)
+        );
+        if (ids.length > 0) {
+            manager.notifyAppWidgetViewDataChanged(ids, R.id.widget_favorites_list);
         }
     }
 }

@@ -86,6 +86,11 @@ export interface HasShareDataResult {
   hasData: boolean;
 }
 
+export interface FavoritesWidgetEntry {
+  label: string;
+  path: string;
+}
+
 interface FolderAccessPlugin {
   pickFolder(): Promise<{ uri: string | null; name?: string | null }>;
   listDir(options: { uri: string }): Promise<{ entries: NativeEntry[] }>;
@@ -134,6 +139,10 @@ interface FolderAccessPlugin {
   // F05: Android share intent bridge
   getPendingShareData(): Promise<{ data: PendingShareData | null; timestamp: number }>;
   hasPendingShareData(): Promise<{ hasData: boolean }>;
+  // Android home-screen favorites-list widget: pushes the resolved list of
+  // favorited notes for the RemoteViewsService to render, so the native
+  // widget never needs to parse bookmarks.json or resolve SAF paths itself.
+  updateFavoritesWidget(options: { entries: FavoritesWidgetEntry[] }): Promise<void>;
 }
 
 const FolderAccess = registerPlugin<FolderAccessPlugin>("FolderAccess");
@@ -696,5 +705,22 @@ export async function hasPendingShareData(): Promise<HasShareDataResult> {
   } catch {
     // If the method doesn't exist (desktop), return false
     return { hasData: false };
+  }
+}
+
+/**
+ * Mirrors the current favorited notes to the native side so the
+ * favorites-list home-screen widget (LeothecaFavoritesListWidgetProvider)
+ * can render real note names without ever needing this process's WebView
+ * to be running: the widget's RemoteViewsService reads the same JSON blob
+ * this call stores natively, independent of app lifecycle. Best-effort:
+ * called from a reactive signal effect (bookmarks/store.ts), so a failure
+ * here must never surface to a bookmark add/remove/load caller.
+ */
+export async function updateFavoritesWidget(entries: FavoritesWidgetEntry[]): Promise<void> {
+  try {
+    await FolderAccess.updateFavoritesWidget({ entries });
+  } catch {
+    // Best-effort widget sync; the in-app bookmark list is unaffected.
   }
 }

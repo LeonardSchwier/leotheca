@@ -1,18 +1,22 @@
 /** @vitest-environment jsdom */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { readTextFile, writeWorkspaceTextFile } = vi.hoisted(() => ({
+const { readTextFile, writeWorkspaceTextFile, updateFavoritesWidget } = vi.hoisted(() => ({
   readTextFile: vi.fn<(path: string) => Promise<string>>(async () => {
     throw new Error("not found");
   }),
   writeWorkspaceTextFile: vi.fn<
     (root: string, relativePath: string, contents: string) => Promise<void>
   >(async () => {}),
+  updateFavoritesWidget: vi.fn<
+    (entries: { label: string; path: string }[]) => Promise<void>
+  >(async () => {}),
 }));
 
 vi.mock("../workspace/tauriBridge", () => ({
   readTextFile,
   writeWorkspaceTextFile,
+  updateFavoritesWidget,
   getAppVersion: vi.fn(async () => "1.0"),
   listDir: vi.fn(async () => []),
   restoreWorkspaceAccess: vi.fn(async () => {}),
@@ -173,6 +177,74 @@ describe("bookmarks store", () => {
     // existing behavior: only the persistence step is guarded), but
     // nothing should be written with no workspace to write it into.
     expect(writeWorkspaceTextFile).not.toHaveBeenCalled();
+  });
+});
+
+describe("bookmarks store: Android favorites-list widget sync", () => {
+  function lastWidgetSync(): { label: string; path: string }[] | undefined {
+    return updateFavoritesWidget.mock.calls.at(-1)?.[0];
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    workspacePath.value = "/workspace";
+    bookmarks.value = [];
+  });
+
+  it("syncs a loaded file bookmark to the widget, excluding search bookmarks", async () => {
+    const saved = [
+      { id: "1", kind: "file" as const, label: "Note", path: "/workspace/note.md" },
+      { id: "2", kind: "search" as const, label: "My search", query: "todo" },
+    ];
+    readTextFile.mockResolvedValueOnce(JSON.stringify(saved));
+    await loadBookmarks("/workspace");
+
+    expect(lastWidgetSync()).toEqual([{ label: "Note", path: "/workspace/note.md" }]);
+  });
+
+  it("syncs an added favorite to the widget immediately", async () => {
+    await addFileBookmark("/workspace/note.md", "Note");
+    expect(lastWidgetSync()).toEqual([{ label: "Note", path: "/workspace/note.md" }]);
+  });
+
+  it("does not sync a search bookmark to the widget", async () => {
+    await addSearchBookmark("todo", "My search");
+    expect(lastWidgetSync()).toEqual([]);
+  });
+
+  it("clears the widget once the last favorite is removed", async () => {
+    await addFileBookmark("/workspace/note.md", "Note");
+    expect(lastWidgetSync()).toHaveLength(1);
+
+    await removeBookmark(bookmarks.value[0].id);
+    expect(lastWidgetSync()).toEqual([]);
+  });
+
+  it("clears the widget when the workspace is switched away (resetBookmarks)", async () => {
+    await addFileBookmark("/workspace/note.md", "Note");
+    expect(lastWidgetSync()).toHaveLength(1);
+
+    // loadBookmarks synchronously clears the signal before its read
+    // resolves; a real workspace switch behaves the same way (see the
+    // "clears bookmarks synchronously" test above).
+    readTextFile.mockReturnValueOnce(new Promise(() => {}));
+    void loadBookmarks("/other-workspace");
+    expect(lastWidgetSync()).toEqual([]);
+  });
+
+  it("caps the synced widget list at 25 favorites", async () => {
+    const saved = Array.from({ length: 30 }, (_, i) => ({
+      id: String(i),
+      kind: "file" as const,
+      label: `Note ${i}`,
+      path: `/workspace/note-${i}.md`,
+    }));
+    readTextFile.mockResolvedValueOnce(JSON.stringify(saved));
+    await loadBookmarks("/workspace");
+
+    const synced = lastWidgetSync();
+    expect(synced).toHaveLength(25);
+    expect(synced).toEqual(saved.slice(0, 25).map((b) => ({ label: b.label, path: b.path })));
   });
 });
 

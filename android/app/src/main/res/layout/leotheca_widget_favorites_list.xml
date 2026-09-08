@@ -1,0 +1,29 @@
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <ListView
+        android:id="@+id/widget_favorites_list"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:divider="@null"
+        android:dividerHeight="0dp" />
+
+    <!-- Wired to the ListView above via RemoteViews.setEmptyView in
+         LeothecaFavoritesListWidgetProvider (the documented way to give an
+         AppWidget collection view an empty state; a plain XML
+         android:emptyView attribute is not reliably honored once a layout
+         is re-inflated through RemoteViews in the widget host process),
+         shown whenever the adapter's getCount() is 0: no favorites yet, or
+         no workspace active. Starts "gone" so an initial render with real
+         data never flashes this text first. -->
+    <TextView
+        android:id="@+id/widget_favorites_list_empty"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:gravity="center"
+        android:padding="16dp"
+        android:text="@string/widget_favorites_list_empty"
+        android:visibility="gone" />
+</FrameLayout>

@@ -218,3 +218,7 @@ export const setStatusBarAppearance = impl.setStatusBarAppearance;
 export type { AndroidStagedAttachment, PendingShareData, ShareDataResult, HasShareDataResult } from "./tauriBridgeImpl";
 export const getPendingShareData = impl.getPendingShareData;
 export const hasPendingShareData = impl.hasPendingShareData;
+
+// Android favorites-list home-screen widget; a no-op on desktop.
+export type { FavoritesWidgetEntry } from "./tauriBridgeImpl";
+export const updateFavoritesWidget = impl.updateFavoritesWidget;

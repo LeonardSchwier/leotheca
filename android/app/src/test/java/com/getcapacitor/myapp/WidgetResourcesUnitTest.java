@@ -69,4 +69,60 @@ public class WidgetResourcesUnitTest {
         assertTrue(favoritesProvider.contains("leotheca://open-favorites"));
         assertFalse(favoritesProvider.contains("leotheca://new-note"));
     }
+
+    // Android home-screen widget listing individual notes by name: a third,
+    // separate widget from the two single-button ones above (see
+    // ROADMAP.md's entry of the same name and documentation/ARCHITECTURE.md).
+    @Test
+    public void manifestRegistersTheFavoritesListWidgetProviderAndService() throws IOException {
+        String manifest = source("AndroidManifest.xml");
+
+        assertTrue(manifest.contains(".LeothecaFavoritesListWidgetProvider"));
+        assertTrue(manifest.contains("@xml/leotheca_widget_favorites_list_info"));
+        assertTrue(manifest.contains(".LeothecaFavoritesListWidgetService"));
+        assertTrue(manifest.contains("android.permission.BIND_REMOTEVIEWS"));
+    }
+
+    @Test
+    public void favoritesListWidgetMetadataPointsAtItsOwnLayout() throws IOException {
+        String info = source("res/xml/leotheca_widget_favorites_list_info.xml");
+
+        assertTrue(info.contains("@layout/leotheca_widget_favorites_list"));
+        assertFalse(info.contains("@layout/leotheca_widget_favorites\""));
+    }
+
+    @Test
+    public void favoritesListLayoutsDeclareTheIdsTheJavaCodeReferences() throws IOException {
+        String container = source("res/layout/leotheca_widget_favorites_list.xml");
+        String item = source("res/layout/leotheca_widget_favorites_list_item.xml");
+
+        assertTrue(container.contains("@+id/widget_favorites_list"));
+        assertTrue(container.contains("@+id/widget_favorites_list_empty"));
+        assertTrue(item.contains("@+id/widget_favorites_list_item_label"));
+    }
+
+    @Test
+    public void favoritesListProviderWiresTheRemoteAdapterEmptyViewAndClickTemplate() throws IOException {
+        String provider = source("java/com/leonardschwier/leotheca/LeothecaFavoritesListWidgetProvider.java");
+
+        assertTrue(provider.contains("setRemoteAdapter"));
+        assertTrue(provider.contains("R.id.widget_favorites_list"));
+        assertTrue(provider.contains("setEmptyView"));
+        assertTrue(provider.contains("R.id.widget_favorites_list_empty"));
+        assertTrue(provider.contains("setPendingIntentTemplate"));
+        assertTrue(provider.contains("PendingIntent.FLAG_MUTABLE"));
+    }
+
+    @Test
+    public void favoritesListFactoryReadsTheSameSharedPreferencesKeysThePluginWrites() throws IOException {
+        String plugin = source("java/com/leonardschwier/leotheca/FolderAccessPlugin.java");
+        String factory = source("java/com/leonardschwier/leotheca/LeothecaFavoritesListWidgetFactory.java");
+
+        assertTrue(plugin.contains("updateFavoritesWidget"));
+        assertTrue(plugin.contains("LeothecaFavoritesListWidgetFactory.PREFS_NAME"));
+        assertTrue(plugin.contains("LeothecaFavoritesListWidgetFactory.FAVORITES_KEY"));
+        assertTrue(factory.contains("PREFS_NAME = \"LeothecaWidgetData\""));
+        assertTrue(factory.contains("FAVORITES_KEY = \"favoritesJson\""));
+        assertTrue(factory.contains("leotheca://open-note?path="));
+    }
 }

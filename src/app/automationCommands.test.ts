@@ -23,6 +23,21 @@ describe("parseAutomationUrl", () => {
     expect(parseAutomationUrl("leotheca://open-favorites")).toEqual({ kind: "open-favorites" });
   });
 
+  it("recognizes open-note with a URL-decoded path param", () => {
+    expect(parseAutomationUrl("leotheca://open-note?path=%2Fworkspace%2Fnotes%2FTodo.md")).toEqual({
+      kind: "open-note",
+      path: "/workspace/notes/Todo.md",
+    });
+  });
+
+  it("returns null for open-note with no path param", () => {
+    expect(parseAutomationUrl("leotheca://open-note")).toBeNull();
+  });
+
+  it("returns null for open-note with an empty path param", () => {
+    expect(parseAutomationUrl("leotheca://open-note?path=")).toBeNull();
+  });
+
   it("recognizes capture with text", () => {
     expect(parseAutomationUrl("leotheca://capture?text=Quick%20note")).toEqual({
       kind: "capture",

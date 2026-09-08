@@ -37,6 +37,7 @@ import {
   updateTabContent,
 } from "../workspace/store";
 import { readTextFile } from "../workspace/tauriBridge";
+import { isPathWithinWorkspace } from "../workspace/paths";
 import { beginFileOpenAuthority, isCurrentFileOpen } from "../workspace/fileOpenAuthority";
 import {
   initSettings,
@@ -458,6 +459,27 @@ export function App() {
         bookmarksOpen.value = true;
         tagsOpen.value = false;
         sidebarOpen.value = true;
+        return;
+      }
+      if (command.kind === "open-note") {
+        // Backs the Android favorites-list home-screen widget: each row's
+        // tap deep-links here with the note's own workspace-absolute path
+        // (bookmarks/store.ts's own path shape). No workspace loaded, or a
+        // path from a stale widget snapshot that no longer resolves inside
+        // the current workspace (a different workspace is now active, or
+        // the note was moved/deleted since the widget last synced), is a
+        // silent no-op, matching handleOpenFile's own "target that turns
+        // out missing is a silent no-op" convention documented above.
+        if (!workspacePath.value || !isPathWithinWorkspace(workspacePath.value, command.path)) {
+          return;
+        }
+        const name = command.path.slice(command.path.lastIndexOf("/") + 1);
+        try {
+          await handleOpenFile(command.path, name);
+        } catch {
+          // Real read failure (e.g. the note was deleted): same silent
+          // no-op as a resolved-but-missing link target above.
+        }
         return;
       }
       if (command.kind === "capture") {

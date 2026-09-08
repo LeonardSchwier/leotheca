@@ -9,6 +9,7 @@ const SCHEME = "leotheca:";
 export type AutomationCommand =
   | { kind: "read-current-note" }
   | { kind: "open-favorites" }
+  | { kind: "open-note"; path: string }
   | { kind: "new-note"; content: string }
   | { kind: "capture"; text: string; title?: string; url?: string; mode?: "append" | "new" | "date"; profile?: string; open?: boolean };
 
@@ -32,6 +33,18 @@ export function parseAutomationUrl(url: string): AutomationCommand | null {
       return { kind: "new-note", content: parsed.searchParams.get("content") ?? "" };
     case "open-favorites":
       return { kind: "open-favorites" };
+    case "open-note": {
+      // Backs the Android favorites-list home-screen widget (each row is a
+      // deep link built from the note's own workspace-absolute path, the
+      // same path shape bookmarks/store.ts already persists), plus any
+      // other local automation that wants to open one specific note by
+      // path. A missing path is a malformed command, not "open nothing in
+      // particular", so it is rejected like any other unrecognized command
+      // rather than resolved to some default note.
+      const path = parsed.searchParams.get("path");
+      if (!path) return null;
+      return { kind: "open-note", path };
+    }
     case "capture": {
       // F05: Support text, title, url, mode, profile, open parameters
       const text = parsed.searchParams.get("text") ?? parsed.searchParams.get("content") ?? "";

@@ -274,3 +274,14 @@ export async function getPendingShareData(): Promise<ShareDataResult> {
 export async function hasPendingShareData(): Promise<HasShareDataResult> {
   return { hasData: false };
 }
+
+export interface FavoritesWidgetEntry {
+  label: string;
+  path: string;
+}
+
+/** No-op on desktop: Android home-screen widgets don't apply to desktop.
+ * Declares no parameter (still callable with one; see FavoritesWidgetEntry
+ * in the real Android implementation) since this file's lint config has no
+ * unused-parameter exemption. */
+export async function updateFavoritesWidget(): Promise<void> {}

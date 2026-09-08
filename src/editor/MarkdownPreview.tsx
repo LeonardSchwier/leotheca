@@ -19,6 +19,7 @@ import { requestOutlineReveal } from "../outline/outlineNavigation";
 import { workspacePath } from "../settings/store";
 import { dirname, resolvePathWithinWorkspace } from "../workspace/paths";
 import { fileSrc, readTextFile } from "../workspace/tauriBridge";
+import { applyBlockDirectionAttributes } from "./textDirection";
 import "../linking/linking.css";
 
 marked.setOptions({ gfm: true, breaks: false });
@@ -1310,6 +1311,19 @@ export function MarkdownPreview({
       cancelled = true;
     };
   }, [html, crossNoteEmbeds, workspaceRoot]);
+
+  // RTL support (right-to-left language and UI support, phase 1): give
+  // each rendered block element its own automatically detected reading
+  // direction, independently of its neighbors, so e.g. an Arabic
+  // paragraph inside an otherwise English note renders and aligns
+  // right-to-left while the rest of the note stays left-to-right. Runs
+  // after every re-render of `html` into the DOM, the same [html]-keyed
+  // pattern the other post-render effects below already use.
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    applyBlockDirectionAttributes(container);
+  }, [html]);
 
   // Section 7.4's active-section tracking. Recomputed on every scroll of
   // the preview's own scroll container (see .markdown-preview's

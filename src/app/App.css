@@ -439,8 +439,12 @@ button.icon-button.active {
 
 .markdown-preview blockquote {
   margin: 0;
-  padding-left: var(--space-3);
-  border-left: 3px solid var(--border);
+  /* Logical properties, not padding-left/border-left: a right-to-left
+   * blockquote (see textDirection.ts's applyBlockDirectionAttributes)
+   * needs its indent rule on the side its own text starts from, which is
+   * the right for RTL content, not always the physical left. */
+  padding-inline-start: var(--space-3);
+  border-inline-start: 3px solid var(--border);
   color: var(--text-secondary);
 }
 
@@ -455,7 +459,10 @@ button.icon-button.active {
 .block-link-copy {
   position: absolute;
   top: 0;
-  right: 0;
+  /* inset-inline-end, not right: this affordance sits over a block whose
+   * own direction (see textDirection.ts) may be right-to-left, where its
+   * natural corner is the left. */
+  inset-inline-end: 0;
   opacity: 0;
   padding: 2px var(--space-2);
   border: 1px solid var(--border);

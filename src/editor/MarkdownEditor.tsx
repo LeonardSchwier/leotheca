@@ -18,6 +18,7 @@ import { scanHeadings, type HeadingRecord } from "../markdown/headings";
 import { scanBlockIds, type BlockRecord } from "../markdown/blocks";
 import { readTextFile } from "../workspace/tauriBridge";
 import { livePreviewExtension } from "./livePreview";
+import { lineDirectionExtension } from "./textDirection";
 import { attachmentsInsertText, type PastedOrDroppedFile } from "./attachments";
 import { minimalChange } from "./textDiff";
 import { parseSnippets, snippetExpansion } from "./snippets";
@@ -448,6 +449,13 @@ function buildExtensions(
     imageAttachmentExtension(path, attachmentSettingsRef),
     snippetKeymap(snippetSettingsRef),
     EditorView.lineWrapping,
+    // RTL support (right-to-left language and UI support, phase 1): each
+    // line's own reading direction is detected from its own content, not
+    // assumed for the whole document. See textDirection.ts's own doc
+    // comments for why perLineTextDirection and lineDirectionExtension
+    // are a pair, not redundant.
+    EditorView.perLineTextDirection.of(true),
+    lineDirectionExtension,
     EditorView.updateListener.of((update) => {
       if (update.docChanged) {
         onChangeRef.current(update.state.doc.toString());

@@ -250,6 +250,9 @@ function toggleSidebarPanel(panel: typeof bookmarksOpen): void {
 
 export function App() {
   const tick = useSignal(0);
+  const refresh = useCallback(() => {
+    tick.value++;
+  }, [tick]);
   const rootPath = workspacePath.value;
   const session = workspaceSession.value;
   const save = useMemo(() => createSaveCoordinator({
@@ -270,7 +273,7 @@ export function App() {
       refresh();
     },
     onError: (path: string, error: string) => markTabSaveError(path, error),
-  }), []);
+  }), [refresh]);
   const [tabRename, setTabRename] = useState<{ path: string; name: string } | null>(null);
   const [tabRenameError, setTabRenameError] = useState<string | null>(null);
   const renamePreview = useRenamePreview();
@@ -332,11 +335,11 @@ export function App() {
     }
   }, []);
 
-  useEffect(() => {
+  effect(() => {
     if (bookmarksOpen.value && workspacePath.value) void loadBookmarks(workspacePath.value);
-  }, [bookmarksOpen.value, workspacePath.value]);
+  });
 
-  useEffect(() => {
+  effect(() => {
     // F05: Process pending captures when workspace becomes available
     if (workspacePath.value) {
       const process = async () => {
@@ -345,12 +348,12 @@ export function App() {
       };
       void process();
     }
-  }, [workspacePath.value, activateWorkspaceProfile]);
+  });
 
-  useEffect(() => {
+  effect(() => {
     if (collectionsOpen.value && workspaceSettings.value.collectionsEnabled && workspacePath.value)
       void loadCollections(workspacePath.value);
-  }, [collectionsOpen.value, workspaceSettings.value.collectionsEnabled, workspacePath.value]);
+  });
 
   effect(() => {
     const root = document.documentElement;
@@ -362,10 +365,6 @@ export function App() {
   });
 
   const { width: sidebarWidth, onDragStart } = useResizableSidebar();
-
-  const refresh = useCallback(() => {
-    tick.value++;
-  }, [tick]);
 
   const handleOpenFile = useCallback(
     /**
@@ -872,12 +871,12 @@ export function App() {
       });
     }
     return list;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     rootPath,
     current,
     currentBookmark,
     currentIsPinned,
-    editorLayout.value,
     sidebarOpen.value,
     bookmarksOpen.value,
     tagsOpen.value,
@@ -891,6 +890,12 @@ export function App() {
     currentNoteReadOnly,
     toggleCurrentNoteReadOnly,
     openTabs.value,
+    handleOpenFile,
+    openCollectionsPanel,
+    openTagsPanel,
+    openTaskHubPanel,
+    refresh,
+    toggleCurrentNoteBookmark,
   ]);
 
   const handleTabRenameSubmit = useCallback(async (newName: string) => {
@@ -905,7 +910,7 @@ export function App() {
     } catch (e) {
       setTabRenameError(e instanceof Error ? e.message : String(e));
     }
-  }, [tabRename, flushPendingAutosave, renameEntry, renameOpenTab, renamePreview, setTabRename, setTabRenameError]);
+  }, [tabRename, flushPendingAutosave, renamePreview, setTabRename, setTabRenameError]);
 
   return (
     <div class="app-shell">

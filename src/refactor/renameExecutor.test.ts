@@ -38,6 +38,7 @@ function createEditorLayout(tabPaths: string[] = [], activePath: string | null =
         tabPaths,
         pinnedPaths: [],
         activePath,
+        viewMode: "source",
       },
     },
   };

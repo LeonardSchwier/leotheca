@@ -12,11 +12,11 @@ import {
 import { isPathWithinWorkspace } from "../workspace/paths";
 import { readTextFile, writeWorkspaceTextFile } from "../workspace/tauriBridge";
 import { createPrimaryEditorLayout } from "../workspace/documentGroups";
-import type { EditorLayoutState } from "../workspace/types";
+import type { EditorLayoutState, ViewMode } from "../workspace/types";
 
+export type { ViewMode };
 export type SortOrder = "name-asc" | "name-desc";
 const SORT_ORDERS: readonly SortOrder[] = ["name-asc", "name-desc"];
-export type ViewMode = "source" | "split" | "preview";
 const VIEW_MODES: readonly ViewMode[] = ["source", "split", "preview"];
 /** "project-trash" moves a deleted entry into `<workspace>/.trash` (the
  * only behavior before this setting existed); "permanent" deletes it
@@ -305,6 +305,8 @@ export function isValidEditorLayoutState(
   if (!Array.isArray(primary.tabPaths)) return false;
   if (!Array.isArray(primary.pinnedPaths)) return false;
   if (primary.activePath !== undefined && primary.activePath !== null && typeof primary.activePath !== "string") return false;
+  // Spec 5.4: viewMode is required and must be one of the valid values
+  if (primary.viewMode !== "source" && primary.viewMode !== "split" && primary.viewMode !== "preview") return false;
   
   // Invariant: all paths are normalized contained workspace-relative strings
   const allPaths: string[] = [];
@@ -332,6 +334,8 @@ export function isValidEditorLayoutState(
     if (!Array.isArray(secondary.tabPaths)) return false;
     if (!Array.isArray(secondary.pinnedPaths)) return false;
     if (secondary.activePath !== undefined && secondary.activePath !== null && typeof secondary.activePath !== "string") return false;
+    // Spec 5.4: viewMode is required and must be one of the valid values
+    if (secondary.viewMode !== "source" && secondary.viewMode !== "split" && secondary.viewMode !== "preview") return false;
     
     const secondaryTabPaths = secondary.tabPaths as string[];
     // Validate all paths in secondary
@@ -452,6 +456,7 @@ export function migrateLegacyToEditorLayout(
         tabPaths: uniquePaths,
         pinnedPaths: [],
         activePath,
+        viewMode: "source",
       },
     },
   };

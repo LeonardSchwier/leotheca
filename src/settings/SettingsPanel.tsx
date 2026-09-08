@@ -1,4 +1,5 @@
-import { useEffect, useState } from "preact/hooks";
+import { effect } from "@preact/signals";
+import { useState } from "preact/hooks";
 import licenseText from "../../LICENSE?raw";
 import {
   addWorkspaceFromPicker,
@@ -133,7 +134,7 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
   // it isn't showing a stale scan from before the panel opened, mirroring
   // the same on-open rebuildLinkIndex call every other sidebar panel already
   // does in App.tsx.
-  useEffect(() => {
+  effect(() => {
     if (settingsPanelOpen.value && workspacePath.value) {
       void rebuildLinkIndex(
         workspacePath.value,
@@ -141,7 +142,7 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
         workspaceSettings.value.tagsEnabled,
       );
     }
-  }, [settingsPanelOpen.value, workspacePath.value]);
+  });
 
   if (!settingsPanelOpen.value) return null;
 

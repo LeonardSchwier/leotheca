@@ -49,11 +49,14 @@ export type OpenTab = OpenDocument;
 
 export type EditorGroupId = "primary" | "secondary";
 
+export type ViewMode = "source" | "split" | "preview";
+
 export interface EditorGroupState {
   id: EditorGroupId;
   tabPaths: string[];
   pinnedPaths: string[];
   activePath: string | null;
+  viewMode: ViewMode;
 }
 
 /** Logical editor placement, deliberately separate from OpenDocument

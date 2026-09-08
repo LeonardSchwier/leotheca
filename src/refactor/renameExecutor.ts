@@ -137,6 +137,7 @@ function createBasicEditorLayout(tabPaths: string[] = [], activePath: string | n
         tabPaths,
         pinnedPaths: [],
         activePath,
+        viewMode: "source",
       },
     },
   };

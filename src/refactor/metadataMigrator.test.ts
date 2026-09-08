@@ -29,6 +29,7 @@ function createEditorLayout(tabPaths: string[], activePath: string | null): Edit
         tabPaths,
         pinnedPaths: [],
         activePath,
+        viewMode: "source",
       },
     },
   };

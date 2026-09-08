@@ -31,22 +31,35 @@ function escapeRegExp(string: string): string {
 }
 
 /**
- * Wraps search matches in text content with a highlight span.
- * This function splits the HTML on tags and only processes text content,
- * ensuring we don't modify HTML tags or attributes.
+ * Wraps every search match in text content with a highlight span. Splits
+ * the already-sanitized HTML on tags *and* on character-reference tokens
+ * (`&amp;`, `&#39;`, `&#x27;`, ...), leaving both untouched: this runs
+ * after `DOMPurify.sanitize` with its output going straight into
+ * `dangerouslySetInnerHTML` below, with no further sanitization pass, so
+ * the only markup this ever introduces is the static, attribute-free
+ * `<span class="search-highlight">` wrapper around plain matched text,
+ * never anything derived from HTML structure. Splitting out entity
+ * tokens isn't just tidiness: a query matching inside one (e.g. "amp"
+ * inside "&amp;", or "&" itself) would otherwise sever the reference
+ * mid-token — "AT&amp;T" becoming "AT&<span ...>amp</span>;T" - which the
+ * browser then reparses as a literal "&" followed by visible "amp" text,
+ * corrupting the rendered character. A global-flag match, not the first
+ * occurrence only, since a term can legitimately appear more than once in
+ * one text node.
  */
 function highlightSearchMatches(html: string, query: string): string {
   if (!query) return html;
-  
+
   const escapedQuery = escapeRegExp(query);
-  const caseInsensitiveQuery = new RegExp(escapedQuery, 'i');
-  
-  // Split the HTML on tags, process text parts, leave tags untouched
-  const parts = html.split(/(<[^>]+>)/g);
-  
+  const caseInsensitiveQuery = new RegExp(escapedQuery, 'gi');
+
+  // Split the HTML on tags and entity references; text parts are
+  // everything else.
+  const parts = html.split(/(<[^>]+>|&(?:[a-zA-Z][a-zA-Z0-9]*|#\d+|#x[0-9a-fA-F]+);)/g);
+
   return parts.map((part) => {
-    // If this is an HTML tag, return as-is
-    if (part.startsWith('<') && part.endsWith('>')) {
+    // A captured tag or entity token: return as-is, never a highlight target.
+    if (part.startsWith('<') || part.startsWith('&')) {
       return part;
     }
     // This is text content, apply highlighting

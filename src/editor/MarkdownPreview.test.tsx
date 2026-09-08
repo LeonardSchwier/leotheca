@@ -127,6 +127,55 @@ describe("MarkdownPreview", () => {
   });
 });
 
+describe("MarkdownPreview: search-query highlighting", () => {
+  it("highlights every occurrence of the search term in one text node, not just the first", () => {
+    const { container } = render(<MarkdownPreview source="test test test" searchQuery="test" />);
+    const highlights = container.querySelectorAll(".search-highlight");
+    expect(highlights.length).toBe(3);
+    highlights.forEach((el) => expect(el.textContent).toBe("test"));
+  });
+
+  it("highlights matches across separate text nodes produced by different paragraphs", () => {
+    const { container } = render(<MarkdownPreview source={"one test\n\nanother test"} searchQuery="test" />);
+    expect(container.querySelectorAll(".search-highlight").length).toBe(2);
+  });
+
+  it("matches case-insensitively", () => {
+    const { container } = render(<MarkdownPreview source="Test TEST test" searchQuery="test" />);
+    expect(container.querySelectorAll(".search-highlight").length).toBe(3);
+  });
+
+  it("does not split an HTML character reference like &amp; when the query matches inside it", () => {
+    // marked/DOMPurify render a literal "&" in the source as the entity
+    // "&amp;" in the sanitized HTML; searching for a substring of that
+    // entity ("amp") must never wrap part of it in a <span>, since the
+    // browser would then reparse the severed "&" as a literal character
+    // instead of resolving the entity, corrupting the rendered text.
+    const { container } = render(<MarkdownPreview source="AT&T reported" searchQuery="amp" />);
+    expect(container.querySelector(".search-highlight")).toBeNull();
+    expect(container.textContent?.trim()).toBe("AT&T reported");
+  });
+
+  it("does not highlight a lone ampersand that is really an entity's leading character", () => {
+    const { container } = render(<MarkdownPreview source="Bed & Breakfast" searchQuery="&" />);
+    expect(container.querySelector(".search-highlight")).toBeNull();
+    expect(container.textContent?.trim()).toBe("Bed & Breakfast");
+  });
+
+  it("still highlights an ordinary term that sits right next to an entity", () => {
+    const { container } = render(<MarkdownPreview source="AT&T reported record profit" searchQuery="report" />);
+    const highlights = container.querySelectorAll(".search-highlight");
+    expect(highlights.length).toBe(1);
+    expect(highlights[0].textContent).toBe("report");
+    expect(container.textContent?.trim()).toBe("AT&T reported record profit");
+  });
+
+  it("renders no highlight at all when no searchQuery is given", () => {
+    const { container } = render(<MarkdownPreview source="test test test" />);
+    expect(container.querySelector(".search-highlight")).toBeNull();
+  });
+});
+
 describe("MarkdownPreview: local image attachments", () => {
   beforeEach(() => {
     workspacePath.value = "/vault";

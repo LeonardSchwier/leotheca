@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added a new Android home-screen widget that lists your favorited notes by name, so you can open one directly from the home screen without opening the app first.
+
 - Turning off per-note read-only locking in workspace Settings now fully disables lock enforcement, including editor read-only state and Task Hub checkbox mutations, while keeping the portable frontmatter marker intact for when the feature is enabled again.
 
 - You can now pin an open note to keep it at the front of the tab bar. Pinned notes stay open when you close other tabs or close all unpinned tabs, and can be removed only through the explicit Unpin and close action.

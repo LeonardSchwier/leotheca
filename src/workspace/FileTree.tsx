@@ -1,4 +1,4 @@
-import { effect } from "@preact/signals";
+import { useEffect } from "preact/hooks";
 import {
   dirChildren,
   dirname,
@@ -11,7 +11,7 @@ import {
   sortEntries,
   toggleExpanded,
 } from "./fileTreeStore";
-
+import { workspaceSession } from "../settings/store";
 import type { FsEntry } from "./types";
 
 interface FileTreeProps {
@@ -26,9 +26,9 @@ export function FileTree({ rootPath, onOpenFile }: FileTreeProps) {
   // actually cleared) but still bumps the session after a mid-transition
   // reset already emptied dirChildren, so rootPath alone would never
   // re-trigger this effect and the tree would stay stuck empty.
-  effect(() => {
+  useEffect(() => {
     void expandFirstLevel(rootPath);
-  });
+  }, [rootPath, workspaceSession.value]);
 
   const entries = dirChildren.value.get(rootPath);
   if (!entries) return null;

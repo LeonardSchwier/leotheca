@@ -155,7 +155,22 @@ export const textDirectionExtension = [
 // `data-dir="x"`), since a hyphen-to-letter transition is itself a word
 // boundary, incorrectly treating that tag as already having its own
 // `dir` attribute.
-const BLOCK_TAG_PATTERN = /<(p|li|h[1-6]|blockquote|td|th|dt|dd)\b(?![^>]*\sdir=)([^>]*)>/gi;
+//
+// ATTRS matches the tag's attribute region as a sequence of quoted
+// strings or single non-'>' characters, rather than a plain `[^>]*`:
+// a quoted attribute value is valid HTML even when it contains a
+// literal `>` (e.g. `title="x>y"`), and a plain `[^>]*` stops at that
+// embedded `>`, mistaking it for the tag's own close. That truncation
+// can hide a real `dir=` attribute that appears later in the same tag,
+// causing this function to inject a second, earlier `dir="auto"` that
+// DOMPurify (and browsers) then prefer over the author's real explicit
+// `dir`, the exact "silently overrides an author's explicit choice"
+// this function means not to do.
+const ATTRS = `(?:"[^"]*"|'[^']*'|[^>"'])*`;
+const BLOCK_TAG_PATTERN = new RegExp(
+  `<(p|li|h[1-6]|blockquote|td|th|dt|dd)\\b(?!${ATTRS}\\sdir=)(${ATTRS})>`,
+  "gi",
+);
 
 /**
  * Adds a native `dir="auto"` attribute to every block-level tag marked.js

@@ -140,6 +140,26 @@ describe("addAutoTextDirection", () => {
     expect(addAutoTextDirection('<p dir="rtl" class="x">y</p>')).toBe('<p dir="rtl" class="x">y</p>');
   });
 
+  it("still recognizes an existing dir attribute after a quoted value containing a literal >", () => {
+    // A quoted attribute value is valid HTML even when it contains a
+    // literal ">" (e.g. title="x>y"); a naive [^>]* scan would mistake
+    // that embedded ">" for the tag's own close, hiding a real dir=
+    // attribute that appears later in the same tag and injecting a
+    // second, earlier dir="auto" that wins over the author's explicit
+    // choice once a real parser (a browser, or DOMPurify) only keeps the
+    // first of two same-named attributes.
+    expect(addAutoTextDirection('<p title="x>y" dir="ltr">z</p>')).toBe('<p title="x>y" dir="ltr">z</p>');
+    expect(addAutoTextDirection("<td title='x>y' dir=\"rtl\">z</td>")).toBe(
+      "<td title='x>y' dir=\"rtl\">z</td>",
+    );
+  });
+
+  it("still adds dir=\"auto\" when a quoted attribute value contains a literal >", () => {
+    expect(addAutoTextDirection('<blockquote cite="a > b">x</blockquote>')).toBe(
+      '<blockquote dir="auto" cite="a > b">x</blockquote>',
+    );
+  });
+
   it("still adds dir=\"auto\" when an unrelated attribute merely ends in \"-dir\"", () => {
     // A plain word-boundary check on "dir=" would also match inside
     // "data-dir=" (the hyphen-to-letter transition is itself a word

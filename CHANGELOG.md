@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added a fourth Android home-screen widget that opens straight into Quick Capture's review flow, instead of only being able to create a blank note or jump to Favorites from the home screen.
+
 - Pinned tabs now survive restarting the app: reopening a workspace reopens your pinned notes alongside the last active one, instead of forgetting which tabs were pinned.
 
 - Added a new Android home-screen widget that lists your favorited notes by name, so you can open one directly from the home screen without opening the app first.

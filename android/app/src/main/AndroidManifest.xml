@@ -69,6 +69,11 @@
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/leotheca_widget_favorites_list_info" />
         </receiver>
 
+        <receiver android:name=".LeothecaQuickCaptureWidgetProvider" android:exported="false">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/leotheca_widget_quick_capture_info" />
+        </receiver>
+
         <service
             android:name=".LeothecaFavoritesListWidgetService"
             android:exported="false"

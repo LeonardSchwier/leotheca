@@ -125,4 +125,44 @@ public class WidgetResourcesUnitTest {
         assertTrue(factory.contains("FAVORITES_KEY = \"favoritesJson\""));
         assertTrue(factory.contains("leotheca://open-note?path="));
     }
+
+    // Android home-screen widget that opens directly into Quick Capture: a fourth,
+    // separate single-button widget alongside New note/Favorites/Favorites list,
+    // deep-linking to the existing F05 leotheca://capture review flow instead of
+    // creating a blank note. See ROADMAP.md's entry of the same name.
+    @Test
+    public void manifestRegistersTheQuickCaptureWidgetProvider() throws IOException {
+        String manifest = source("AndroidManifest.xml");
+
+        assertTrue(manifest.contains(".LeothecaQuickCaptureWidgetProvider"));
+        assertTrue(manifest.contains("@xml/leotheca_widget_quick_capture_info"));
+    }
+
+    @Test
+    public void quickCaptureWidgetMetadataPointsAtItsOwnLayout() throws IOException {
+        String info = source("res/xml/leotheca_widget_quick_capture_info.xml");
+
+        assertTrue(info.contains("android:minWidth=\"110dp\""));
+        assertTrue(info.contains("android:minHeight=\"48dp\""));
+        assertTrue(info.contains("@layout/leotheca_widget_quick_capture"));
+        assertFalse(info.contains("@layout/leotheca_widget_new_note"));
+    }
+
+    @Test
+    public void quickCaptureLayoutDeclaresTheIdTheJavaCodeReferences() throws IOException {
+        String layout = source("res/layout/leotheca_widget_quick_capture.xml");
+
+        assertTrue(layout.contains("@+id/widget_quick_capture"));
+    }
+
+    @Test
+    public void quickCaptureProviderExposesOnlyTheCaptureAction() throws IOException {
+        String provider = source("java/com/leonardschwier/leotheca/LeothecaQuickCaptureWidgetProvider.java");
+
+        assertTrue(provider.contains("R.layout.leotheca_widget_quick_capture"));
+        assertTrue(provider.contains("R.id.widget_quick_capture"));
+        assertTrue(provider.contains("leotheca://capture"));
+        assertFalse(provider.contains("leotheca://new-note"));
+        assertFalse(provider.contains("open-favorites"));
+    }
 }

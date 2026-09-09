@@ -106,8 +106,9 @@ function updateGroup(
 ): EditorLayoutState {
   const group = getGroup(layout, groupId);
   if (!group) return layout;
-  
+
   const updatedGroup = updateFn(group);
+  if (updatedGroup === group) return layout;
   return {
     ...layout,
     groups: {

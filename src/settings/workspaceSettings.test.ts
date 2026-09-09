@@ -1207,6 +1207,7 @@ describe("migrateLegacyToEditorLayout", () => {
             tabPaths: [],
             pinnedPaths: [],
             activePath: null,
+            viewMode: "source",
           },
         },
       });

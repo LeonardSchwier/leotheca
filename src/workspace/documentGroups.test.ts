@@ -28,6 +28,7 @@ describe("createPrimaryEditorLayout", () => {
           tabPaths: ["/a.md", "/b.md"],
           pinnedPaths: [],
           activePath: "/b.md",
+          viewMode: "source",
         },
       },
     });
@@ -148,7 +149,7 @@ describe("mergeSecondaryIntoPrimary", () => {
   it("preserves pinned tabs from both groups", () => {
     const initial = createPrimaryEditorLayout(["/a.md", "/b.md"], "/a.md");
     let layout = pinPrimaryEditorLayout(initial, "/a.md");
-    layout = createSplitLayout(layout);
+    layout = createSplitLayout(layout, "/b.md");
     layout = pinGroupTab(layout, "secondary", "/b.md");
     layout = mergeSecondaryIntoPrimary(layout);
 

@@ -18,6 +18,7 @@ import { scanHeadings, type HeadingRecord } from "../markdown/headings";
 import { scanBlockIds, type BlockRecord } from "../markdown/blocks";
 import { readTextFile } from "../workspace/tauriBridge";
 import { livePreviewExtension } from "./livePreview";
+import { textDirectionExtension } from "./textDirection";
 import { attachmentsInsertText, type PastedOrDroppedFile } from "./attachments";
 import { minimalChange } from "./textDiff";
 import { parseSnippets, snippetExpansion } from "./snippets";
@@ -445,6 +446,7 @@ function buildExtensions(
     markdown({ codeLanguages: languages }),
     syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
     livePreviewExtension,
+    textDirectionExtension,
     imageAttachmentExtension(path, attachmentSettingsRef),
     snippetKeymap(snippetSettingsRef),
     EditorView.lineWrapping,

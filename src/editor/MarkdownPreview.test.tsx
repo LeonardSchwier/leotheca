@@ -1636,3 +1636,31 @@ describe("MarkdownPreview: F04 Phase 4a embeds", () => {
     expect(container.querySelector(".embed-frame-body")?.textContent).toContain("Ship v1.");
   });
 });
+
+describe("MarkdownPreview RTL text direction", () => {
+  it("sets dir=\"auto\" on the preview container itself", () => {
+    const { container } = render(<MarkdownPreview source="Hello" />);
+    expect(container.querySelector(".markdown-preview")?.getAttribute("dir")).toBe("auto");
+  });
+
+  it("sets dir=\"auto\" on a Hebrew paragraph and an English paragraph alike", () => {
+    const { container } = render(<MarkdownPreview source={"שלום עולם\n\nHello world"} />);
+    const paragraphs = container.querySelectorAll("p");
+    expect(paragraphs).toHaveLength(2);
+    expect(paragraphs[0].getAttribute("dir")).toBe("auto");
+    expect(paragraphs[1].getAttribute("dir")).toBe("auto");
+  });
+
+  it("sets dir=\"auto\" on a right-to-left heading and list item", () => {
+    const { container } = render(<MarkdownPreview source={"# כותרת\n\n- פריט ראשון"} />);
+    expect(container.querySelector("h1")?.getAttribute("dir")).toBe("auto");
+    expect(container.querySelector("li")?.getAttribute("dir")).toBe("auto");
+  });
+
+  it("survives DOMPurify sanitization: dir=\"auto\" is still present after render, not stripped", () => {
+    const { container } = render(<MarkdownPreview source="**bold** שלום" />);
+    const paragraph = container.querySelector("p");
+    expect(paragraph?.getAttribute("dir")).toBe("auto");
+    expect(paragraph?.querySelector("strong")).not.toBeNull();
+  });
+});

@@ -991,3 +991,45 @@ describe("MarkdownEditor: onCursorChange", () => {
     expect(onChange).not.toHaveBeenCalled();
   });
 });
+
+describe("MarkdownEditor: RTL text direction", () => {
+  function cmLines(container: Element): HTMLElement[] {
+    return Array.from(editorView(container).dom.querySelectorAll(".cm-line"));
+  }
+
+  it("applies direction: rtl to a Hebrew line and leaves an English line unstyled", () => {
+    const { container } = render(
+      <MarkdownEditor path="/vault/a.md" value={"Hello world\nשלום עולם"} {...baseEditorProps()} />,
+    );
+    const [line1, line2] = cmLines(container);
+    expect(line1.style.direction).toBe("");
+    expect(line2.style.direction).toBe("rtl");
+    expect(line2.style.textAlign).toBe("right");
+  });
+
+  it("applies direction: rtl to an Arabic Markdown heading line", () => {
+    const { container } = render(
+      <MarkdownEditor path="/vault/a.md" value="# مرحبا بالعالم" {...baseEditorProps()} />,
+    );
+    const [line1] = cmLines(container);
+    expect(line1.style.direction).toBe("rtl");
+  });
+
+  it("re-evaluates direction per line independently in a mixed-direction note", () => {
+    const { container } = render(
+      <MarkdownEditor path="/vault/a.md" value={"שלום\nHello\nעולם"} {...baseEditorProps()} />,
+    );
+    const [line1, line2, line3] = cmLines(container);
+    expect(line1.style.direction).toBe("rtl");
+    expect(line2.style.direction).toBe("");
+    expect(line3.style.direction).toBe("rtl");
+  });
+
+  it("keeps the editor perLineTextDirection facet enabled", () => {
+    const { container } = render(
+      <MarkdownEditor path="/vault/a.md" value="Hello" {...baseEditorProps()} />,
+    );
+    const view = editorView(container);
+    expect(view.state.facet(EditorView.perLineTextDirection)).toBe(true);
+  });
+});

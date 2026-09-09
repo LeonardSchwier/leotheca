@@ -19,6 +19,7 @@ import { requestOutlineReveal } from "../outline/outlineNavigation";
 import { workspacePath } from "../settings/store";
 import { dirname, resolvePathWithinWorkspace } from "../workspace/paths";
 import { fileSrc, readTextFile } from "../workspace/tauriBridge";
+import { addAutoTextDirection } from "./textDirection";
 import "../linking/linking.css";
 
 marked.setOptions({ gfm: true, breaks: false });
@@ -1067,7 +1068,7 @@ export function MarkdownPreview({
     const rendered = marked.parse(withWikilinks, {
       async: false,
     }) as string;
-    return { html: DOMPurify.sanitize(rendered), crossNoteEmbeds: crossNoteEmbedsOut };
+    return { html: DOMPurify.sanitize(addAutoTextDirection(rendered)), crossNoteEmbeds: crossNoteEmbedsOut };
   }, [
     source,
     mathRenderingEnabled,
@@ -1299,7 +1300,7 @@ export function MarkdownPreview({
       // synchronous render pass DOMPurify.sanitize(rendered) above already
       // covers: this is a second, genuinely necessary sanitize call, not
       // a redundant one.
-      body.innerHTML = DOMPurify.sanitize(bodyHtml);
+      body.innerHTML = DOMPurify.sanitize(addAutoTextDirection(bodyHtml));
 
       const newImages = Array.from(
         body.querySelectorAll<HTMLImageElement>(`img[src^="${ATTACHMENT_SRC_PREFIX}"]`),
@@ -1370,6 +1371,7 @@ export function MarkdownPreview({
   return (
     <div
       class="markdown-preview"
+      dir="auto"
       ref={containerRef}
       dangerouslySetInnerHTML={{ __html: html }}
       onClick={(event) => {

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Notes written in a right-to-left script (Hebrew, Arabic, and others) now display and edit with correct text direction, detected automatically per line/paragraph in both the editor and preview. Mirroring the surrounding app UI (sidebar position, tab order) for RTL is not part of this change.
+
 - Added a fourth Android home-screen widget that opens straight into Quick Capture's review flow, instead of only being able to create a blank note or jump to Favorites from the home screen.
 
 - Pinned tabs now survive restarting the app: reopening a workspace reopens your pinned notes alongside the last active one, instead of forgetting which tabs were pinned.

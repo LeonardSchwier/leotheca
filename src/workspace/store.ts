@@ -2,10 +2,11 @@ import { batch, computed, signal } from "@preact/signals";
 import {
   createPrimaryEditorLayout,
   pinPrimaryEditorLayout,
+  restorePrimaryEditorLayout,
   synchronizePrimaryEditorLayout,
   unpinPrimaryEditorLayout,
 } from "./documentGroups";
-import type { EditorLayoutState, OpenDocument, OpenTab, TabKind } from "./types";
+import type { EditorLayoutState, OpenDocument, OpenTab, TabKind, ViewMode } from "./types";
 
 /** Canonical open-document store. Editor groups hold only references to
  * these records, ensuring one content and save authority per path. */
@@ -126,6 +127,14 @@ export function closeAllUnpinnedTabs() {
       : documents.at(-1)?.path ?? null;
     updatePrimaryGroup(documents, nextActivePath);
   });
+}
+
+/** Restores a persisted primary-group pin state and view mode onto the
+ * current layout, keeping only pins for paths that are actually open (see
+ * documentGroups.ts's restorePrimaryEditorLayout). Callers restore tabs
+ * first, then call this once tabPaths reflects what actually reopened. */
+export function restoreEditorLayout(persisted: { pinnedPaths: readonly string[]; viewMode: ViewMode }) {
+  editorLayout.value = restorePrimaryEditorLayout(editorLayout.value, persisted);
 }
 
 export function pinTab(path: string) {

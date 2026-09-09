@@ -27,9 +27,11 @@ import {
 import {
   activeTabPath,
   closeAllTabs,
+  editorLayout,
   focusTab,
   openOrFocusTab,
   openTabs,
+  restoreEditorLayout,
 } from "../workspace/store";
 import { classifyWorkspaceResource } from "../workspace/types";
 import { workspaceSaves } from "../workspace/workspaceSaves";
@@ -181,7 +183,7 @@ let lastPersistedTabsKey = "";
  * transition. Reads may finish after another folder has been selected, so the
  * authority check is repeated after every await and before every mutation. */
 export async function restoreLastOpenTabs(isCurrent: () => boolean = () => true): Promise<void> {
-  const { lastOpenPaths, lastActivePath } = workspaceSettings.value;
+  const { lastOpenPaths, lastActivePath, editorLayout: persistedLayout } = workspaceSettings.value;
   isRestoringTabs = true;
   try {
     for (const path of lastOpenPaths) {
@@ -202,9 +204,17 @@ export async function restoreLastOpenTabs(isCurrent: () => boolean = () => true)
       ? lastActivePath
       : (openTabs.value.at(-1)?.path ?? null);
     if (restoredActivePath) focusTab(restoredActivePath);
+    if (persistedLayout) {
+      restoreEditorLayout({
+        pinnedPaths: persistedLayout.groups.primary.pinnedPaths,
+        viewMode: persistedLayout.groups.primary.viewMode,
+      });
+    }
     lastPersistedTabsKey = JSON.stringify([
       openTabs.value.map((tab) => tab.path),
       activeTabPath.value,
+      editorLayout.value.groups.primary.pinnedPaths,
+      editorLayout.value.groups.primary.viewMode,
     ]);
   } finally {
     isRestoringTabs = false;
@@ -214,18 +224,17 @@ export async function restoreLastOpenTabs(isCurrent: () => boolean = () => true)
 effect(() => {
   if (!workspacePath.value || !settingsLoaded.value) return;
   const paths = openTabs.value.map((t) => t.path);
-  const key = JSON.stringify([paths, activeTabPath.value]);
+  const pinnedPaths = editorLayout.value.groups.primary.pinnedPaths;
+  const groupViewMode = editorLayout.value.groups.primary.viewMode;
+  const key = JSON.stringify([paths, activeTabPath.value, pinnedPaths, groupViewMode]);
   if (isRestoringTabs || key === lastPersistedTabsKey) return;
   lastPersistedTabsKey = key;
   void updateWorkspaceSettings({
     lastOpenPaths: paths,
     lastActivePath: activeTabPath.value,
+    editorLayout: editorLayout.value,
   });
 });
-
-// F07 Phase 2b: persist editor layout state (commented out temporarily
-// to avoid coordination issues with existing tab persistence - will be
-// implemented with proper workspace transition handling in a follow-up)
 
 function resolvesToDarkBackground(pref: ThemePreference): boolean {
   if (pref === "dark") return true;
@@ -352,7 +361,7 @@ export async function initSettings(): Promise<void> {
       // on startup by avoiding one unnecessary SAF round trip.
       const { settings: loadedWorkspaceSettings, corrupt } =
         await loadWorkspaceSettings(activeProfile.path);
-      const { lastOpenPaths, lastActivePath } = loadedWorkspaceSettings;
+      const { lastOpenPaths, lastActivePath, editorLayout: persistedLayout } = loadedWorkspaceSettings;
       lastPersistedTabsKey = JSON.stringify([lastOpenPaths, lastActivePath]);
       isRestoringTabs = true;
       try {
@@ -371,19 +380,46 @@ export async function initSettings(): Promise<void> {
           const name = active.split("/").pop() ?? active;
           const kind = classifyWorkspaceResource(active);
           openOrFocusTab(active, name, content, kind);
-          // Update lastPersistedTabsKey after opening the tab so the effect
-          // does not see a diff and trigger a write.
-          lastPersistedTabsKey = JSON.stringify([
-            openTabs.value.map((t) => t.path),
-            activeTabPath.value,
-          ]);
         }
+        // Pinned tabs are meant to stay available across a restart even
+        // though this cold-start path otherwise only eagerly loads the
+        // active tab (see this function's own comment below); eagerly open
+        // any pinned path not already open, skipping one that no longer
+        // reads, then restore focus to the original active tab.
+        const pinnedPaths = persistedLayout?.groups.primary.pinnedPaths ?? [];
+        for (const path of pinnedPaths) {
+          if (openTabs.value.some((tab) => tab.path === path)) continue;
+          const name = path.split("/").pop() ?? path;
+          const kind = classifyWorkspaceResource(path);
+          try {
+            const content = kind === "image" ? "" : await readTextFile(path);
+            openOrFocusTab(path, name, content, kind);
+          } catch {
+            // Missing/unreadable pinned file: skip it, matching
+            // restoreLastOpenTabs's tolerant handling of a missing path.
+          }
+        }
+        if (active && openTabs.value.some((tab) => tab.path === active)) focusTab(active);
+        if (persistedLayout) {
+          restoreEditorLayout({
+            pinnedPaths,
+            viewMode: persistedLayout.groups.primary.viewMode,
+          });
+        }
+        // Update lastPersistedTabsKey after restoring so the effect does
+        // not see a diff and trigger a redundant write.
+        lastPersistedTabsKey = JSON.stringify([
+          openTabs.value.map((t) => t.path),
+          activeTabPath.value,
+          editorLayout.value.groups.primary.pinnedPaths,
+          editorLayout.value.groups.primary.viewMode,
+        ]);
       } finally {
         isRestoringTabs = false;
       }
-      // Do NOT restoreLastOpenTabs() here. Only the active tab loads.
-      // Other tabs load lazily when the user switches to them via
-      // the tab bar's open handler.
+      // Do NOT restoreLastOpenTabs() here. Only the active tab (plus any
+      // pinned tabs, see above) loads. Other tabs load lazily when the
+      // user switches to them via the tab bar's open handler.
       await persistGlobalConfig();
     } catch {
       // Section 17.2: retain the profile and its locator in the catalog;
@@ -500,8 +536,12 @@ export async function setWorkspacePath(
 
         // Clear tabs before the new grant is active. Preseed the persistence
         // key so this internal clear cannot overwrite the outgoing workspace's
-        // remembered tabs while the transition is in progress.
-        lastPersistedTabsKey = JSON.stringify([[], null]);
+        // remembered tabs while the transition is in progress. View mode
+        // itself is unaffected by closing tabs (synchronizePrimaryEditorLayout
+        // preserves it), so the preseeded key must reflect its current value,
+        // not a hardcoded default, or this internal clear would look like a
+        // real change.
+        lastPersistedTabsKey = JSON.stringify([[], null, [], editorLayout.value.groups.primary.viewMode]);
         closeAllTabs();
       },
       connectIncoming: async () => {
@@ -539,7 +579,8 @@ export async function setWorkspacePath(
           })();
           return;
         }
-        lastPersistedTabsKey = JSON.stringify([[], null]);
+        // Preseed for the same reason as prepareOutgoing above.
+        lastPersistedTabsKey = JSON.stringify([[], null, [], editorLayout.value.groups.primary.viewMode]);
         closeAllTabs();
         batch(() => {
           workspaceSettings.value = DEFAULT_WORKSPACE_SETTINGS;
@@ -735,7 +776,10 @@ export async function forgetWorkspaceProfile(
         drainWorkspaceSettingsWrites(),
       ]);
       await drainWorkspaceOperations();
-      lastPersistedTabsKey = JSON.stringify([[], null]);
+      // View mode itself is unaffected by closing tabs (synchronizePrimaryEditorLayout
+      // preserves it), so the preseeded key must reflect its current value, not a
+      // hardcoded default, or this internal clear would look like a real change.
+      lastPersistedTabsKey = JSON.stringify([[], null, [], editorLayout.value.groups.primary.viewMode]);
       closeAllTabs();
     },
     connectIncoming: async () => {},

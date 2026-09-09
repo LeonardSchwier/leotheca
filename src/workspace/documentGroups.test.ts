@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   createPrimaryEditorLayout,
   pinPrimaryEditorLayout,
+  restorePrimaryEditorLayout,
   synchronizePrimaryEditorLayout,
   unpinPrimaryEditorLayout,
   createSplitLayout,
@@ -12,6 +13,7 @@ import {
   pinGroupTab,
   unpinGroupTab,
 } from "./documentGroups";
+import type { EditorLayoutState } from "./types";
 
 describe("createPrimaryEditorLayout", () => {
   it("keeps each path in the primary group at most once and repairs a stale active path", () => {
@@ -61,6 +63,44 @@ describe("synchronizePrimaryEditorLayout", () => {
 
     expect(layout.groups.primary.pinnedPaths).toEqual([]);
     expect(layout.groups.primary.tabPaths).toEqual(["/a.md", "/b.md"]);
+  });
+
+  it("preserves the primary group's view mode across an ordinary tab-open/close synchronization", () => {
+    const initial: EditorLayoutState = {
+      ...createPrimaryEditorLayout(["/a.md"], "/a.md"),
+      groups: {
+        primary: { ...createPrimaryEditorLayout(["/a.md"], "/a.md").groups.primary, viewMode: "preview" },
+      },
+    };
+
+    const layout = synchronizePrimaryEditorLayout(initial, ["/a.md", "/b.md"], "/b.md");
+
+    expect(layout.groups.primary.viewMode).toBe("preview");
+  });
+});
+
+describe("restorePrimaryEditorLayout", () => {
+  it("restores only the pins whose paths actually reopened, and the persisted view mode", () => {
+    const layout = createPrimaryEditorLayout(["/a.md", "/b.md"], "/a.md");
+
+    const restored = restorePrimaryEditorLayout(layout, {
+      pinnedPaths: ["/b.md", "/missing.md"],
+      viewMode: "split",
+    });
+
+    expect(restored.groups.primary.pinnedPaths).toEqual(["/b.md"]);
+    expect(restored.groups.primary.tabPaths).toEqual(["/b.md", "/a.md"]);
+    expect(restored.groups.primary.viewMode).toBe("split");
+  });
+
+  it("is a no-op on tabPaths and activePath when nothing is pinned", () => {
+    const layout = createPrimaryEditorLayout(["/a.md", "/b.md"], "/b.md");
+
+    const restored = restorePrimaryEditorLayout(layout, { pinnedPaths: [], viewMode: "source" });
+
+    expect(restored.groups.primary.tabPaths).toEqual(["/a.md", "/b.md"]);
+    expect(restored.groups.primary.activePath).toBe("/b.md");
+    expect(restored.groups.primary.pinnedPaths).toEqual([]);
   });
 });
 

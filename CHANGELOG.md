@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Pinned tabs now survive restarting the app: reopening a workspace reopens your pinned notes alongside the last active one, instead of forgetting which tabs were pinned.
+
 - Added a new Android home-screen widget that lists your favorited notes by name, so you can open one directly from the home screen without opening the app first.
 
 - Turning off per-note read-only locking in workspace Settings now fully disables lock enforcement, including editor read-only state and Task Hub checkbox mutations, while keeping the portable frontmatter marker intact for when the feature is enabled again.

@@ -1,4 +1,4 @@
-import type { EditorGroupId, EditorGroupState, EditorLayoutState } from "./types";
+import type { EditorGroupId, EditorGroupState, EditorLayoutState, ViewMode } from "./types";
 
 /** Creates the one-group layout used while the legacy tab bar remains the
  * visible UI. Paths are de-duplicated here so a future second group starts
@@ -28,8 +28,8 @@ export function createPrimaryEditorLayout(
 }
 
 /** Repairs the primary layout from canonical documents after a tab operation,
- * preserving its valid pin region and split fields while later phases still
- * defer secondary groups and persisted layout. */
+ * preserving its valid pin region, view mode, and split fields while later
+ * phases still defer secondary groups and persisted layout. */
 export function synchronizePrimaryEditorLayout(
   layout: EditorLayoutState,
   tabPaths: readonly string[],
@@ -48,8 +48,39 @@ export function synchronizePrimaryEditorLayout(
     compactVisibleGroupId: layout.compactVisibleGroupId,
     activeGroupId: "primary",
     groups: {
-      primary: { ...repaired.groups.primary, tabPaths: [...pinnedPaths, ...unpinnedPaths], pinnedPaths },
+      primary: {
+        ...repaired.groups.primary,
+        tabPaths: [...pinnedPaths, ...unpinnedPaths],
+        pinnedPaths,
+        viewMode: layout.groups.primary.viewMode,
+      },
       secondary: layout.groups.secondary,
+    },
+  };
+}
+
+/** Applies a persisted primary-group pin/view-mode restore onto a layout
+ * whose `tabPaths` already reflects which remembered paths actually reopened
+ * (a pinned path that failed to reopen -- deleted, unreadable -- is simply
+ * not restored as pinned, the same tolerant handling an ordinary missing tab
+ * already gets). Spec `f07-split-panes-pinned-tabs.md` section 10.3. */
+export function restorePrimaryEditorLayout(
+  layout: EditorLayoutState,
+  persisted: { pinnedPaths: readonly string[]; viewMode: ViewMode },
+): EditorLayoutState {
+  const primary = layout.groups.primary;
+  const pinnedPaths = persisted.pinnedPaths.filter((path) => primary.tabPaths.includes(path));
+  const unpinnedPaths = primary.tabPaths.filter((path) => !pinnedPaths.includes(path));
+  return {
+    ...layout,
+    groups: {
+      ...layout.groups,
+      primary: {
+        ...primary,
+        pinnedPaths,
+        tabPaths: [...pinnedPaths, ...unpinnedPaths],
+        viewMode: persisted.viewMode,
+      },
     },
   };
 }

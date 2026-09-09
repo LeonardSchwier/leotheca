@@ -91,7 +91,7 @@ const {
   WorkspaceForgetUnsavedWorkError,
   WorkspaceRelinkConflictError,
 } = await import("./store");
-const { activeTabPath, closeAllTabs, openOrFocusTab, openTabs } =
+const { activeTabPath, closeAllTabs, editorLayout, openOrFocusTab, openTabs, pinTab } =
   await import("../workspace/store");
 const { DEFAULT_WORKSPACE_SETTINGS } = await import("./workspaceSettings");
 
@@ -171,12 +171,186 @@ describe("setWorkspacePath", () => {
   });
 });
 
+describe("editor-layout persistence", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("persists a pinned tab's pinnedPaths to workspace settings, not just the in-memory signal", async () => {
+    workspacePath.value = null;
+    settingsLoaded.value = false;
+    closeAllTabs();
+    vi.clearAllMocks();
+    await setWorkspacePath("/workspaceA");
+    await flushSettingsWrites();
+    openOrFocusTab("/workspaceA/note1.md", "note1.md", "content", "text");
+    await flushSettingsWrites();
+    vi.clearAllMocks();
+
+    pinTab("/workspaceA/note1.md");
+    await flushSettingsWrites();
+
+    const writes = writesTo("/workspaceA/.leotheca/settings.json");
+    expect(writes.length).toBeGreaterThan(0);
+    const written = writes.at(-1) as { editorLayout: { groups: { primary: { pinnedPaths: string[] } } } };
+    expect(written.editorLayout.groups.primary.pinnedPaths).toEqual([
+      "/workspaceA/note1.md",
+    ]);
+  });
+
+  it("restoreLastOpenTabs restores a persisted pin once its tab reopens, dropping a pin whose file no longer reads", async () => {
+    // Null the workspace path before clearing tabs: see the matching
+    // comment in "settings hydration" below for why this order matters.
+    workspacePath.value = null;
+    settingsLoaded.value = false;
+    closeAllTabs();
+    vi.clearAllMocks();
+    workspacePath.value = "/workspaceA";
+    readTextFile.mockImplementation(async (path) => {
+      if (path === "/workspaceA/missing.md") throw new Error("not found");
+      return "note";
+    });
+    workspaceSettings.value = {
+      ...DEFAULT_WORKSPACE_SETTINGS,
+      lastOpenPaths: ["/workspaceA/note.md", "/workspaceA/missing.md"],
+      lastActivePath: "/workspaceA/note.md",
+      editorLayout: {
+        activeGroupId: "primary",
+        splitEnabled: false,
+        preferredRatio: 0.5,
+        compactVisibleGroupId: "primary",
+        groups: {
+          primary: {
+            id: "primary",
+            tabPaths: ["/workspaceA/note.md", "/workspaceA/missing.md"],
+            pinnedPaths: ["/workspaceA/note.md", "/workspaceA/missing.md"],
+            activePath: "/workspaceA/note.md",
+            viewMode: "preview",
+          },
+        },
+      },
+    };
+
+    await restoreLastOpenTabs();
+
+    expect(editorLayout.value.groups.primary.pinnedPaths).toEqual([
+      "/workspaceA/note.md",
+    ]);
+    expect(editorLayout.value.groups.primary.viewMode).toBe("preview");
+  });
+
+  it("initSettings eagerly opens a pinned tab that isn't the active tab, then restores focus to the active tab", async () => {
+    workspacePath.value = null;
+    settingsLoaded.value = false;
+    closeAllTabs();
+    vi.clearAllMocks();
+    readTextFile.mockImplementation(async (path) => {
+      if (path === "/config/config.json") {
+        return JSON.stringify({
+          lastWorkspacePath: "/workspaceA",
+          theme: "system",
+        });
+      }
+      if (path === "/workspaceA/.leotheca/settings.json") {
+        return JSON.stringify({
+          ...DEFAULT_WORKSPACE_SETTINGS,
+          lastOpenPaths: ["/workspaceA/active.md"],
+          lastActivePath: "/workspaceA/active.md",
+          editorLayout: {
+            activeGroupId: "primary",
+            splitEnabled: false,
+            preferredRatio: 0.5,
+            compactVisibleGroupId: "primary",
+            groups: {
+              primary: {
+                id: "primary",
+                tabPaths: ["/workspaceA/active.md", "/workspaceA/pinned.md"],
+                pinnedPaths: ["/workspaceA/pinned.md"],
+                activePath: "/workspaceA/active.md",
+                viewMode: "source",
+              },
+            },
+          },
+        });
+      }
+      if (path === "/workspaceA/active.md") return "active note";
+      if (path === "/workspaceA/pinned.md") return "pinned note";
+      throw new Error("not found");
+    });
+
+    await initSettings();
+
+    expect(openTabs.value.map((tab) => tab.path)).toEqual([
+      "/workspaceA/pinned.md",
+      "/workspaceA/active.md",
+    ]);
+    expect(activeTabPath.value).toBe("/workspaceA/active.md");
+    expect(editorLayout.value.groups.primary.pinnedPaths).toEqual([
+      "/workspaceA/pinned.md",
+    ]);
+    // Restoring settled state must not itself trigger a redundant write.
+    expect(writesTo("/workspaceA/.leotheca/settings.json")).toEqual([]);
+  });
+
+  it("initSettings skips a pinned tab whose file no longer reads, without blocking startup", async () => {
+    workspacePath.value = null;
+    settingsLoaded.value = false;
+    closeAllTabs();
+    vi.clearAllMocks();
+    readTextFile.mockImplementation(async (path) => {
+      if (path === "/config/config.json") {
+        return JSON.stringify({
+          lastWorkspacePath: "/workspaceA",
+          theme: "system",
+        });
+      }
+      if (path === "/workspaceA/.leotheca/settings.json") {
+        return JSON.stringify({
+          ...DEFAULT_WORKSPACE_SETTINGS,
+          lastOpenPaths: ["/workspaceA/active.md"],
+          lastActivePath: "/workspaceA/active.md",
+          editorLayout: {
+            activeGroupId: "primary",
+            splitEnabled: false,
+            preferredRatio: 0.5,
+            compactVisibleGroupId: "primary",
+            groups: {
+              primary: {
+                id: "primary",
+                tabPaths: ["/workspaceA/active.md", "/workspaceA/deleted.md"],
+                pinnedPaths: ["/workspaceA/deleted.md"],
+                activePath: "/workspaceA/active.md",
+                viewMode: "source",
+              },
+            },
+          },
+        });
+      }
+      if (path === "/workspaceA/active.md") return "active note";
+      if (path === "/workspaceA/deleted.md") throw new Error("not found");
+      throw new Error("not found");
+    });
+
+    await initSettings();
+
+    expect(openTabs.value.map((tab) => tab.path)).toEqual([
+      "/workspaceA/active.md",
+    ]);
+    expect(editorLayout.value.groups.primary.pinnedPaths).toEqual([]);
+  });
+});
+
 describe("settings hydration", () => {
   it("does not persist default tabs before restored workspace settings are loaded", async () => {
     vi.clearAllMocks();
-    closeAllTabs();
+    // Null the workspace path/settingsLoaded before clearing tabs: the
+    // persistence effect only ever writes while both are set, so this order
+    // guarantees a leftover live effect from an earlier test cannot react to
+    // closeAllTabs() and clobber workspaceSettings before this test's own
+    // scenario is set up.
     workspacePath.value = null;
     settingsLoaded.value = false;
+    closeAllTabs();
     readTextFile.mockImplementation(async (path) => {
       if (path === "/config/config.json") {
         return JSON.stringify({

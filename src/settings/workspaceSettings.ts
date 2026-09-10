@@ -471,8 +471,39 @@ export function migrateLegacyToEditorLayout(
 
 // F07 Phase 2b: Check if this is a v1 workspace (no editorLayout field).
 export function isLegacyWorkspace(record: Record<string, unknown>): boolean {
-  return record.editorLayout === undefined && 
+  return record.editorLayout === undefined &&
          (Array.isArray(record.lastOpenPaths) || record.lastActivePath !== undefined);
+}
+
+/** `isValidEditorLayoutState` deliberately accepts a primary/secondary group
+ * with no `viewMode` at all: a real v2 file written before that field
+ * existed (see that function's own comment for why rejecting it would be
+ * worse than accepting it). But `EditorLayoutState`'s type declares
+ * `viewMode` as a required `ViewMode`, not optional, so passing such a
+ * layout through unchanged gives every later consumer
+ * (`restorePrimaryEditorLayout` included) a group whose `viewMode` is
+ * `undefined` at runtime despite its type -- an invariant break of exactly
+ * the kind this project's own history has already shipped once (the F07
+ * Phase 2b-6 `viewMode`-required regression). Filling in the same default
+ * `createPrimaryEditorLayout`/`createSplitLayout` already use for a freshly
+ * created group closes that gap once here, so every other call site can
+ * keep trusting the type. */
+function withDefaultedViewModes(layout: EditorLayoutState): EditorLayoutState {
+  const primaryNeedsDefault = layout.groups.primary.viewMode === undefined;
+  const secondaryNeedsDefault =
+    layout.groups.secondary !== undefined && layout.groups.secondary.viewMode === undefined;
+  if (!primaryNeedsDefault && !secondaryNeedsDefault) return layout;
+  return {
+    ...layout,
+    groups: {
+      primary: primaryNeedsDefault
+        ? { ...layout.groups.primary, viewMode: "source" }
+        : layout.groups.primary,
+      secondary: secondaryNeedsDefault
+        ? { ...layout.groups.secondary!, viewMode: "preview" }
+        : layout.groups.secondary,
+    },
+  };
 }
 
 export function decodeWorkspaceSettings(
@@ -635,8 +666,11 @@ export function decodeWorkspaceSettings(
   let editorLayout: EditorLayoutState | undefined;
   
   if (editorLayoutRaw !== undefined && isValidEditorLayoutState(editorLayoutRaw, workspaceRoot)) {
-    // Valid v2 layout
-    editorLayout = editorLayoutRaw;
+    // Valid v2 layout. See withDefaultedViewModes's own comment: a real v2
+    // file written before `viewMode` existed validates here with that field
+    // missing, so it must be defaulted before this value is trusted as a
+    // complete EditorLayoutState.
+    editorLayout = withDefaultedViewModes(editorLayoutRaw);
   } else if (isLegacyWorkspace(record)) {
     // Migrate v1 legacy settings to v2 format
     // Use the already-decoded values (which have been validated and cleaned)

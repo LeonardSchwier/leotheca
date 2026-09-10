@@ -1696,7 +1696,17 @@ describe("round-trip encode/decode", () => {
       
       expect(corrupt).toBe(false);
       expect(settings.version).toBe(2);
-      expect(settings.editorLayout).toEqual(originalLayout.editorLayout);
+      // A missing viewMode on either group is filled in with the same
+      // default a freshly created group gets (see withDefaultedViewModes),
+      // rather than round-tripping as undefined and violating
+      // EditorLayoutState's non-optional viewMode field.
+      expect(settings.editorLayout).toEqual({
+        ...originalLayout.editorLayout,
+        groups: {
+          primary: { ...originalLayout.editorLayout.groups.primary, viewMode: "source" },
+          secondary: { ...originalLayout.editorLayout.groups.secondary, viewMode: "preview" },
+        },
+      });
     });
 
     it("preserves all workspace settings through round-trip", () => {
@@ -1729,7 +1739,14 @@ describe("round-trip encode/decode", () => {
       expect(settings.fontSize).toBe(18);
       expect(settings.sortOrder).toBe("name-desc");
       expect(settings.uiZoom).toBe(125);
-      expect(settings.editorLayout).toEqual(originalSettings.editorLayout);
+      // See withDefaultedViewModes: a missing primary viewMode is filled in
+      // with its usual default rather than round-tripping as undefined.
+      expect(settings.editorLayout).toEqual({
+        ...originalSettings.editorLayout,
+        groups: {
+          primary: { ...originalSettings.editorLayout.groups.primary, viewMode: "source" },
+        },
+      });
     });
 
     it("preserves unknown future fields through round-trip", () => {
@@ -1881,7 +1898,14 @@ describe("full lifecycle: write -> read -> use -> save -> reload", () => {
       expect(finalCorrupt).toBe(false);
       expect(reloadedSettings.version).toBe(2);
       expect(reloadedSettings.fontSize).toBe(20);
-      expect(reloadedSettings.editorLayout).toEqual(v2Settings.editorLayout);
+      // See withDefaultedViewModes: a missing primary viewMode is filled in
+      // with its usual default rather than round-tripping as undefined.
+      expect(reloadedSettings.editorLayout).toEqual({
+        ...v2Settings.editorLayout,
+        groups: {
+          primary: { ...v2Settings.editorLayout.groups.primary, viewMode: "source" },
+        },
+      });
     });
 
     it("handles full workflow for v1 workspace with migration", async () => {
@@ -2118,9 +2142,93 @@ describe("decodeWorkspaceSettings legacy integration", () => {
       JSON.stringify(v2Settings),
       ROOT,
     );
-    
+
     expect(corrupt).toBe(false);
-    expect(settings).toEqual(v2Settings);
+    // See withDefaultedViewModes: a missing primary viewMode is filled in
+    // with its usual default rather than round-tripping as undefined.
+    expect(settings).toEqual({
+      ...v2Settings,
+      editorLayout: {
+        ...v2Settings.editorLayout,
+        groups: {
+          primary: { ...v2Settings.editorLayout.groups.primary, viewMode: "source" },
+        },
+      },
+    });
+  });
+
+  it("defaults a legacy v2 layout's missing viewMode instead of leaving it undefined", () => {
+    // A real file written by a build that predates the viewMode field:
+    // isValidEditorLayoutState's own comment documents that this must
+    // still validate (not be flagged corrupt), but EditorLayoutState's
+    // type declares viewMode as a required ViewMode, not optional, so the
+    // decoded value must not actually be undefined at runtime.
+    const preViewModeSettings = {
+      ...DEFAULT_WORKSPACE_SETTINGS,
+      version: 2,
+      editorLayout: {
+        activeGroupId: "primary",
+        splitEnabled: true,
+        preferredRatio: 0.5,
+        compactVisibleGroupId: "secondary",
+        groups: {
+          primary: {
+            id: "primary",
+            tabPaths: ["/workspace/note.md"],
+            pinnedPaths: [],
+            activePath: "/workspace/note.md",
+          },
+          secondary: {
+            id: "secondary",
+            tabPaths: ["/workspace/other.md"],
+            pinnedPaths: [],
+            activePath: "/workspace/other.md",
+          },
+        },
+      },
+    };
+
+    const { settings, corrupt } = decodeWorkspaceSettings(
+      JSON.stringify(preViewModeSettings),
+      ROOT,
+    );
+
+    expect(corrupt).toBe(false);
+    expect(settings.editorLayout?.groups.primary.viewMode).toBe("source");
+    expect(settings.editorLayout?.groups.secondary?.viewMode).toBe("preview");
+    // Every other field survives untouched.
+    expect(settings.editorLayout?.groups.primary.tabPaths).toEqual(["/workspace/note.md"]);
+    expect(settings.editorLayout?.groups.secondary?.tabPaths).toEqual(["/workspace/other.md"]);
+  });
+
+  it("leaves an already-present viewMode untouched", () => {
+    const settingsWithViewMode = {
+      ...DEFAULT_WORKSPACE_SETTINGS,
+      version: 2,
+      editorLayout: {
+        activeGroupId: "primary",
+        splitEnabled: false,
+        preferredRatio: 0.5,
+        compactVisibleGroupId: "primary",
+        groups: {
+          primary: {
+            id: "primary",
+            tabPaths: ["/workspace/note.md"],
+            pinnedPaths: [],
+            activePath: "/workspace/note.md",
+            viewMode: "preview",
+          },
+        },
+      },
+    };
+
+    const { settings, corrupt } = decodeWorkspaceSettings(
+      JSON.stringify(settingsWithViewMode),
+      ROOT,
+    );
+
+    expect(corrupt).toBe(false);
+    expect(settings.editorLayout?.groups.primary.viewMode).toBe("preview");
   });
 
   it("handles mixed legacy and v2 fields by prioritizing v2 editorLayout", () => {

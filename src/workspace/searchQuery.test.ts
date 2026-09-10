@@ -87,6 +87,17 @@ describe("parseSearchQuery", () => {
   it("tolerates an unterminated quote by taking the rest of the token", () => {
     expect(parseSearchQuery('"unterminated')).toEqual([[{ kind: "text", value: "unterminated", negate: false }]]);
   });
+
+  it("keeps a quoted phrase containing a literal ' OR ' as one clause, not an OR split", () => {
+    expect(parseSearchQuery('"foo OR bar"')).toEqual([[{ kind: "text", value: "foo or bar", negate: false }]]);
+  });
+
+  it("still splits on a real OR when one side is a quoted phrase containing a literal ' OR '", () => {
+    expect(parseSearchQuery('"foo OR bar" OR baz')).toEqual([
+      [{ kind: "text", value: "foo or bar", negate: false }],
+      [{ kind: "text", value: "baz", negate: false }],
+    ]);
+  });
 });
 
 function contextFor(overrides: Partial<SearchContext> & { content?: string | null } = {}): SearchContext {

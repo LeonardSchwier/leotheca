@@ -101,18 +101,31 @@ function parseToken(token: string): SearchClause | null {
 /** Splits on a literal, whitespace-delimited `OR` (case-sensitive, the
  * same convention the wider note-taking ecosystem's own search syntax
  * uses) so an `OR` inside a quoted phrase isn't mistaken for the
- * operator. */
+ * operator. Tokenizes the whole raw query first (the same quote-aware
+ * `tokenize` used within a group), then splits *that* token list on an
+ * exact `"OR"` token, rather than regex-splitting the raw string before
+ * tokenizing: a raw-string split has no notion of quoting at all, so it
+ * would tear a quoted phrase like `"foo OR bar"` apart at the " OR "
+ * inside it. */
 export function parseSearchQuery(raw: string): SearchQuery {
   const trimmed = raw.trim();
   if (!trimmed) return [];
 
   const query: SearchQuery = [];
-  for (const group of trimmed.split(/\s+OR\s+/)) {
-    const clauses = tokenize(group)
-      .map(parseToken)
-      .filter((clause): clause is SearchClause => clause !== null);
+  let groupTokens: string[] = [];
+  const flush = () => {
+    const clauses = groupTokens.map(parseToken).filter((clause): clause is SearchClause => clause !== null);
     if (clauses.length > 0) query.push(clauses);
+    groupTokens = [];
+  };
+  for (const token of tokenize(trimmed)) {
+    if (token === "OR") {
+      flush();
+    } else {
+      groupTokens.push(token);
+    }
   }
+  flush();
   return query;
 }
 

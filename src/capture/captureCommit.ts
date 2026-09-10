@@ -173,7 +173,7 @@ async function copyAttachmentsToWorkspace(
       
       try {
         const sourceFingerprint = await generateFingerprintForFile(attachment.filePath);
-        const existingFiles = await listDir(attachmentFolder);
+        const existingFiles = await listDir(workspaceRoot, attachmentFolder);
         
         // Look for an existing file with the same fingerprint
         let existingMatch: { path: string } | undefined;
@@ -208,7 +208,7 @@ async function copyAttachmentsToWorkspace(
       
       // Check if destination exists
       try {
-        const existingFiles = await listDir(attachmentFolder);
+        const existingFiles = await listDir(workspaceRoot, attachmentFolder);
         const destinationExists = existingFiles.some(f => f.path === destinationPath);
         
         if (destinationExists) {
@@ -328,7 +328,7 @@ export async function createNoteWithTitle(
   
   // F05-FR-19: For closed target note, re-read and conflict-check before append
   // Since this is a new note, we only need to check for filename conflicts
-  const existing = await listDir(dirPath);
+  const existing = await listDir(root, dirPath);
   const existingNames = new Set(existing.map((e) => e.name));
   
   // Generate filename from title or use timestamp

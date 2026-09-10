@@ -10,6 +10,7 @@ import { cleanup, fireEvent, render, waitFor } from "@testing-library/preact";
 vi.mock("../settings/store", () => ({
   workspaceSettings: { value: { sortOrder: "name-asc" } },
   workspaceSession: { value: 0 },
+  workspacePath: { value: "/vault" },
   updateWorkspaceSettings: vi.fn(),
 }));
 vi.mock("./tauriBridge", () => ({
@@ -71,7 +72,7 @@ describe("FileTree", () => {
   });
 
   it("renders the loaded, sorted entries once the root listing resolves", async () => {
-    vi.mocked(listDir).mockImplementation(async (path: string) =>
+    vi.mocked(listDir).mockImplementation(async (_workspaceRoot: string, path: string) =>
       path === "/vault" ? [note, folder] : [],
     );
     const { getByText } = render(
@@ -97,7 +98,7 @@ describe("FileTree", () => {
   });
 
   it("auto-expands the root's immediate subdirectories once it loads, without a click", async () => {
-    vi.mocked(listDir).mockImplementation(async (path: string) =>
+    vi.mocked(listDir).mockImplementation(async (_workspaceRoot: string, path: string) =>
       path === "/vault" ? [folder] : path === "/vault/folder" ? [nested] : [],
     );
     const { getByText } = render(
@@ -108,7 +109,7 @@ describe("FileTree", () => {
   });
 
   it("does not auto-expand a second level: clicking a nested folder loads its children and expands it", async () => {
-    vi.mocked(listDir).mockImplementation(async (path: string) => {
+    vi.mocked(listDir).mockImplementation(async (_workspaceRoot: string, path: string) => {
       if (path === "/vault") return [folder];
       if (path === "/vault/folder") return [subfolder];
       if (path === "/vault/folder/subfolder") return [deep];
@@ -129,7 +130,7 @@ describe("FileTree", () => {
   });
 
   it("clicking an already-expanded folder collapses it again", async () => {
-    vi.mocked(listDir).mockImplementation(async (path: string) =>
+    vi.mocked(listDir).mockImplementation(async (_workspaceRoot: string, path: string) =>
       path === "/vault" ? [folder] : path === "/vault/folder" ? [nested] : [],
     );
     const { getByText, queryByText } = render(
@@ -143,7 +144,7 @@ describe("FileTree", () => {
   });
 
   it("does not re-fetch a folder's children on re-expand once they're cached", async () => {
-    vi.mocked(listDir).mockImplementation(async (path: string) =>
+    vi.mocked(listDir).mockImplementation(async (_workspaceRoot: string, path: string) =>
       path === "/vault" ? [folder] : path === "/vault/folder" ? [nested] : [],
     );
     const { getByText } = render(
@@ -158,7 +159,7 @@ describe("FileTree", () => {
   });
 
   it("marks the selected entry, and only that one, as selected", async () => {
-    vi.mocked(listDir).mockImplementation(async (path: string) =>
+    vi.mocked(listDir).mockImplementation(async (_workspaceRoot: string, path: string) =>
       path === "/vault" ? [note, folder] : [],
     );
     const { getByText } = render(
@@ -177,7 +178,7 @@ describe("FileTree", () => {
     // tree's own visual highlight (selectedPath). If FileTree's "selected"
     // class were ever driven by selectedDir again, clicking a file would
     // wrongly highlight its parent folder's row instead of the file itself.
-    vi.mocked(listDir).mockImplementation(async (path: string) =>
+    vi.mocked(listDir).mockImplementation(async (_workspaceRoot: string, path: string) =>
       path === "/vault" ? [folder] : path === "/vault/folder" ? [nested] : [],
     );
     const { getByText } = render(

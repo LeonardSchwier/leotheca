@@ -549,7 +549,7 @@ export async function setWorkspacePath(
         // A successful restore alone is not proof the root remains readable,
         // especially for an expired Android persistable grant. Validate the
         // root before publishing the incoming session.
-        await listDir(path);
+        await listDir(path, path);
       },
       loadIncoming: () => loadWorkspaceSettings(path),
       publishIncoming: ({ settings: loadedWorkspaceSettings, corrupt }) => {
@@ -880,7 +880,7 @@ export async function relinkWorkspaceProfile(id: string): Promise<boolean> {
     // loadWorkspaceSettings never throws for a missing settings.json (an
     // empty, never-before-opened folder is still a valid workspace), so it
     // alone would not prove the folder is actually reachable.
-    await listDir(folder.path);
+    await listDir(folder.path, folder.path);
     await loadWorkspaceSettings(folder.path);
   }
 

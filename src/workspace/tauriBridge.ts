@@ -112,8 +112,8 @@ export async function restoreWorkspaceAccess(path: string, token?: string): Prom
   activeWorkspaceRoot = path;
 }
 
-export const listDir: typeof impl.listDir = (path: string) =>
-  trackWorkspaceOperation(impl.listDir(path));
+export const listDir: typeof impl.listDir = (workspaceRoot: string, path: string) =>
+  trackWorkspaceOperation(impl.listDir(workspaceRoot, path));
 export const findMarkdownFiles: typeof impl.findMarkdownFiles = (path: string) =>
   trackWorkspaceOperation(impl.findMarkdownFiles(path));
 export const findAllFiles: typeof impl.findAllFiles = (path: string) =>

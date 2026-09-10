@@ -280,7 +280,19 @@ export async function restoreWorkspaceAccess(path: string, token: string | undef
   }
 }
 
-export async function listDir(path: string): Promise<FsEntry[]> {
+/** `workspaceRoot` exists only to keep this function's signature matching
+ * `tauriBridge.ts`'s single shared `typeof impl.listDir` type across both
+ * platforms; it is unused here. Unlike a POSIX symlink, a SAF `content://`
+ * URI cannot be redirected to alias a location outside the tree the user
+ * actually granted, and `isWorkspacePath` below already refuses any path
+ * this module did not itself derive from that grant, so Android has no
+ * equivalent of the Desktop symlink-escape this parameter guards against
+ * there (see `tauriBridgeImpl.ts`'s own `listDir` doc comment). */
+export async function listDir(
+  workspaceRoot: string,
+  path: string,
+): Promise<FsEntry[]> {
+  void workspaceRoot;
   if (!isWorkspacePath(path)) {
     throw new Error(`listDir is only supported for workspace paths, got "${path}".`);
   }

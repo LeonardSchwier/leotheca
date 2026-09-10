@@ -134,7 +134,7 @@ export function sortEntries(entries: FsEntry[]): FsEntry[] {
 }
 
 export async function loadChildren(path: string): Promise<FsEntry[]> {
-  const entries = await listDir(path);
+  const entries = await listDir(requireWorkspacePath(), path);
   dirChildren.value = new Map(dirChildren.value).set(path, entries);
   return entries;
 }
@@ -267,12 +267,12 @@ export async function createNote(
   fileName: string,
 ): Promise<string> {
   const name = fileName.endsWith(".md") ? fileName : `${fileName}.md`;
-  const existing = await listDir(dirPath);
+  const root = requireWorkspacePath();
+  const existing = await listDir(root, dirPath);
   if (existing.some((e) => e.name === name)) {
     throw alreadyExistsMessage(name);
   }
   const path = `${dirPath}/${name}`;
-  const root = requireWorkspacePath();
   try {
     await createWorkspaceTextFileNew(
       root,
@@ -346,9 +346,9 @@ async function createAutoNamedTextFile(
 export async function createCanvasQuick(
   dirPath: string,
 ): Promise<{ path: string; name: string }> {
-  const existing = await listDir(dirPath);
-  const existingNames = new Set(existing.map((e) => e.name));
   const root = requireWorkspacePath();
+  const existing = await listDir(root, dirPath);
+  const existingNames = new Set(existing.map((e) => e.name));
   const created = await createAutoNamedTextFile(
     root,
     dirPath,
@@ -364,9 +364,9 @@ export async function createCanvasQuick(
 export async function createInkQuick(
   dirPath: string,
 ): Promise<{ path: string; name: string }> {
-  const existing = await listDir(dirPath);
-  const existingNames = new Set(existing.map((e) => e.name));
   const root = requireWorkspacePath();
+  const existing = await listDir(root, dirPath);
+  const existingNames = new Set(existing.map((e) => e.name));
   const created = await createAutoNamedTextFile(
     root,
     dirPath,
@@ -395,9 +395,9 @@ export async function createNoteQuick(
   dirPath: string,
   content: string = initialNoteContent(),
 ): Promise<{ path: string; name: string }> {
-  const existing = await listDir(dirPath);
-  const existingNames = new Set(existing.map((e) => e.name));
   const root = requireWorkspacePath();
+  const existing = await listDir(root, dirPath);
+  const existingNames = new Set(existing.map((e) => e.name));
   const created = await createAutoNamedTextFile(
     root,
     dirPath,
@@ -432,7 +432,7 @@ export async function listTemplates(
 ): Promise<NoteTemplate[]> {
   const dir = `${workspacePath}/${workspaceSettings.value.templatesFolder}`;
   try {
-    const entries = await listDir(dir);
+    const entries = await listDir(workspacePath, dir);
     return entries
       .filter((e) => !e.isDir && e.name.toLowerCase().endsWith(".md"))
       .map((e) => ({ name: e.name, path: e.path }))
@@ -454,10 +454,10 @@ export async function createNoteFromTemplate(
   dirPath: string,
   template: NoteTemplate,
 ): Promise<{ path: string; name: string }> {
-  const existing = await listDir(dirPath);
+  const root = requireWorkspacePath();
+  const existing = await listDir(root, dirPath);
   const existingNames = new Set(existing.map((e) => e.name));
   const content = await readTextFile(template.path);
-  const root = requireWorkspacePath();
   const created = await createAutoNamedTextFile(
     root,
     dirPath,
@@ -473,12 +473,12 @@ export async function createFolder(
   dirPath: string,
   folderName: string,
 ): Promise<string> {
-  const existing = await listDir(dirPath);
+  const root = requireWorkspacePath();
+  const existing = await listDir(root, dirPath);
   if (existing.some((e) => e.name === folderName)) {
     throw alreadyExistsMessage(folderName);
   }
   const path = `${dirPath}/${folderName}`;
-  const root = requireWorkspacePath();
   try {
     await createWorkspaceDirNew(root, relativePath(root, path));
   } catch (error) {
@@ -721,12 +721,12 @@ export async function renameEntry(
   newName: string,
 ): Promise<string> {
   const parent = dirname(oldPath);
-  const siblings = await listDir(parent);
+  const root = requireWorkspacePath();
+  const siblings = await listDir(root, parent);
   if (siblings.some((e) => e.name === newName)) {
     throw alreadyExistsMessage(newName);
   }
   const newPath = `${parent}/${newName}`;
-  const root = requireWorkspacePath();
   try {
     await renameWorkspacePathNoReplace(
       root,

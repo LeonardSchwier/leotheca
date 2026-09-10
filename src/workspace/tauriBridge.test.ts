@@ -75,7 +75,7 @@ describe("workspace bridge operation drain", () => {
     listDirImpl.mockReturnValueOnce(read.promise);
     writeTextFileImpl.mockReturnValueOnce(write.promise);
 
-    const readPromise = listDir("/workspace");
+    const readPromise = listDir("/workspace", "/workspace");
     const writePromise = writeTextFile("/workspace/note.md", "content");
     let drained = false;
     const drainPromise = drainWorkspaceOperations().then(() => { drained = true; });

@@ -83,7 +83,8 @@ fn normalize_separators_for_platform(path: String, is_windows: bool) -> String {
 /// write target, rather than silently treated as "nothing here".
 ///
 /// Guards every whole-workspace read traversal (`workspace_stats`,
-/// `find_markdown_files`, `find_all_files`, `find_all_entries`) against a
+/// `find_markdown_files`, `find_all_files`, `find_all_entries`) and the
+/// file-tree sidebar's own per-directory listing (`list_dir`) against a
 /// symlink placed inside the workspace that points outside it. Without
 /// this, `Path::is_dir` (which follows symlinks) would walk straight into
 /// it and expose arbitrary filesystem structure -- and, once a returned
@@ -453,9 +454,31 @@ pub fn find_all_entries(path: String) -> Result<Vec<FsEntry>, String> {
 
 /// Lists the immediate children of `path`, directories first, both sorted
 /// alphabetically. Hidden entries (dotfiles) are skipped.
+///
+/// Maintenance follow-up to the whole-workspace read-traversal symlink fix
+/// above (`is_symlink_escaping_workspace`'s own doc comment): this is the
+/// command that actually drives the always-visible file-tree sidebar, not
+/// just search/diagnostics/stats, so it needs the same containment policy.
+/// `workspace_root` establishes the trust boundary independently of `path`
+/// (an arbitrary subfolder, not always the workspace root the way the four
+/// whole-workspace walks' own `path` argument always is), matching every
+/// workspace-scoped mutation's already-established `(workspace_root, ...)`
+/// convention. `path` itself is rejected outright if it resolves (after
+/// following any symlink) outside the canonicalized root -- reachable only
+/// if an earlier listing already surfaced an escaping symlinked directory
+/// as an entry and the caller then expanded it -- and a child entry that is
+/// itself an escaping symlink is skipped rather than erroring the whole
+/// listing, mirroring `is_symlink_escaping_workspace`'s existing skip
+/// policy in the four walks above.
 #[tauri::command]
-pub fn list_dir(path: String) -> Result<Vec<FsEntry>, String> {
+pub fn list_dir(path: String, workspace_root: String) -> Result<Vec<FsEntry>, String> {
+    let canonical_root = fs::canonicalize(&workspace_root)
+        .map_err(|e| format!("workspace root \"{workspace_root}\" is not accessible: {e}"))?;
     let dir = Path::new(&path);
+    let canonical_dir = fs::canonicalize(dir).map_err(|e| e.to_string())?;
+    if !canonical_dir.starts_with(&canonical_root) {
+        return Err(format!("\"{path}\" resolves outside the workspace root"));
+    }
     let read_dir = fs::read_dir(dir).map_err(|e| e.to_string())?;
 
     let mut dirs = Vec::new();
@@ -469,6 +492,9 @@ pub fn list_dir(path: String) -> Result<Vec<FsEntry>, String> {
             continue;
         }
         let entry_path = entry.path();
+        if is_symlink_escaping_workspace(&entry_path, &canonical_root) {
+            continue;
+        }
         let is_dir = entry_path.is_dir();
         let mtime = if is_dir {
             None
@@ -905,7 +931,11 @@ mod tests {
         File::create(tmp.join("aaa-file.md")).unwrap();
         File::create(tmp.join(".hidden")).unwrap();
 
-        let entries = list_dir(tmp.to_string_lossy().to_string()).unwrap();
+        let entries = list_dir(
+            tmp.to_string_lossy().to_string(),
+            tmp.to_string_lossy().to_string(),
+        )
+        .unwrap();
 
         assert_eq!(entries.len(), 2);
         assert!(entries[0].is_dir);
@@ -924,7 +954,11 @@ mod tests {
         create_dir(tmp.join("a-folder").to_string_lossy().to_string()).unwrap();
         File::create(tmp.join("a-file.md")).unwrap();
 
-        let entries = list_dir(tmp.to_string_lossy().to_string()).unwrap();
+        let entries = list_dir(
+            tmp.to_string_lossy().to_string(),
+            tmp.to_string_lossy().to_string(),
+        )
+        .unwrap();
 
         let folder = entries.iter().find(|e| e.name == "a-folder").unwrap();
         let file = entries.iter().find(|e| e.name == "a-file.md").unwrap();
@@ -1676,6 +1710,93 @@ mod tests {
         );
 
         fs::remove_file(root.join("escape")).unwrap();
+        fs::remove_dir_all(&root).unwrap();
+        fs::remove_dir_all(&outside).unwrap();
+    }
+
+    /// `list_dir` is the command behind the always-visible file-tree
+    /// sidebar, not one of the whole-workspace walks above, so it needs its
+    /// own proof: a directory symlink escaping the workspace must not be
+    /// listed as a browsable child (the counterpart of `find_all_entries`
+    /// never surfacing the escaping symlink itself, asserted above), and a
+    /// file symlink escaping the workspace must not be listed either --
+    /// otherwise a click in the sidebar would route straight to
+    /// `read_text_file` on the symlink's own path and disclose the
+    /// external file's real content.
+    #[test]
+    #[cfg(unix)]
+    fn list_dir_does_not_surface_a_symlink_escaping_the_workspace() {
+        let root = std::env::temp_dir().join(format!(
+            "leotheca-test-listdir-escape-{}",
+            std::process::id()
+        ));
+        let outside = std::env::temp_dir().join(format!(
+            "leotheca-test-listdir-escape-outside-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        let _ = fs::remove_dir_all(&outside);
+        create_dir(root.to_string_lossy().to_string()).unwrap();
+        create_dir(outside.to_string_lossy().to_string()).unwrap();
+        fs::write(root.join("a.md"), "a").unwrap();
+        fs::write(outside.join("secret.md"), "TOP SECRET").unwrap();
+        std::os::unix::fs::symlink(&outside, root.join("escape-dir")).unwrap();
+        std::os::unix::fs::symlink(outside.join("secret.md"), root.join("escape-file.md")).unwrap();
+
+        let entries = list_dir(
+            root.to_string_lossy().to_string(),
+            root.to_string_lossy().to_string(),
+        )
+        .unwrap();
+
+        assert_eq!(
+            entries.iter().map(|e| e.name.as_str()).collect::<Vec<_>>(),
+            vec!["a.md"],
+            "an escaping directory symlink and an escaping file symlink must both be skipped, \
+             leaving only the real, contained file"
+        );
+
+        fs::remove_file(root.join("escape-dir")).unwrap();
+        fs::remove_file(root.join("escape-file.md")).unwrap();
+        fs::remove_dir_all(&root).unwrap();
+        fs::remove_dir_all(&outside).unwrap();
+    }
+
+    /// The other half of the same gap: even if a caller already holds the
+    /// escaping symlink's own path (e.g. from expanding it before this fix
+    /// landed, or a future regression re-exposing it), `list_dir` must
+    /// refuse to read through it directly rather than only hiding it from
+    /// its parent's own listing.
+    #[test]
+    #[cfg(unix)]
+    fn list_dir_rejects_a_target_that_is_itself_a_symlink_escaping_the_workspace() {
+        let root = std::env::temp_dir().join(format!(
+            "leotheca-test-listdir-escape-target-{}",
+            std::process::id()
+        ));
+        let outside = std::env::temp_dir().join(format!(
+            "leotheca-test-listdir-escape-target-outside-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        let _ = fs::remove_dir_all(&outside);
+        create_dir(root.to_string_lossy().to_string()).unwrap();
+        create_dir(outside.to_string_lossy().to_string()).unwrap();
+        fs::write(outside.join("secret.md"), "TOP SECRET").unwrap();
+        std::os::unix::fs::symlink(&outside, root.join("escape-dir")).unwrap();
+
+        let result = list_dir(
+            root.join("escape-dir").to_string_lossy().to_string(),
+            root.to_string_lossy().to_string(),
+        );
+
+        assert!(
+            result.is_err(),
+            "list_dir must refuse to read a target resolving outside the workspace root, \
+             not just omit it from its parent's listing"
+        );
+
+        fs::remove_file(root.join("escape-dir")).unwrap();
         fs::remove_dir_all(&root).unwrap();
         fs::remove_dir_all(&outside).unwrap();
     }

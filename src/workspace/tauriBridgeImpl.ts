@@ -30,8 +30,21 @@ export async function restoreWorkspaceAccess(
   void token;
 }
 
-export async function listDir(path: string): Promise<FsEntry[]> {
-  return invoke<FsEntry[]>("list_dir", { path });
+/** Lists `path`'s immediate children. `workspaceRoot` establishes the
+ * containment boundary the same way every workspace-scoped mutation's
+ * `workspaceRoot` already does: `commands.rs`'s `list_dir` rejects `path`
+ * outright if it resolves outside `workspaceRoot` (following a symlink),
+ * and skips (rather than erroring the whole listing for) any child entry
+ * that is itself a symlink escaping the workspace. Maintenance follow-up
+ * to the whole-workspace read-traversal symlink fix: this is the command
+ * that drives the always-visible file-tree sidebar, not just one of the
+ * whole-workspace walks above, which is why it needs the boundary
+ * threaded in explicitly instead of deriving it from `path` itself. */
+export async function listDir(
+  workspaceRoot: string,
+  path: string,
+): Promise<FsEntry[]> {
+  return invoke<FsEntry[]>("list_dir", { path, workspaceRoot });
 }
 
 /** Recursively finds every markdown file under `path` in a single native

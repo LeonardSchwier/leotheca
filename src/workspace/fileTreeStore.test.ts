@@ -14,7 +14,9 @@ const {
   trashPath,
   deleteWorkspacePathPermanent,
 } = vi.hoisted(() => ({
-  listDir: vi.fn<(path: string) => Promise<FsEntry[]>>(async () => []),
+  listDir: vi.fn<(workspaceRoot: string, path: string) => Promise<FsEntry[]>>(
+    async () => [],
+  ),
   findAllFiles: vi.fn<(path: string) => Promise<FsEntry[]>>(async () => []),
   findAllEntries: vi.fn<(path: string) => Promise<FsEntry[]>>(async () => []),
   readTextFile: vi.fn<(path: string) => Promise<string>>(async () => ""),
@@ -340,7 +342,7 @@ describe("listTemplates", () => {
       entry("Nested", true),
     ]);
     const templates = await listTemplates("/workspace");
-    expect(listDir).toHaveBeenCalledWith("/workspace/Templates");
+    expect(listDir).toHaveBeenCalledWith("/workspace", "/workspace/Templates");
     expect(templates).toEqual([
       { name: "Meeting Notes.md", path: "/workspace/Meeting Notes.md" },
       { name: "Weekly Review.MD", path: "/workspace/Weekly Review.MD" },
@@ -354,7 +356,7 @@ describe("listTemplates", () => {
     };
     listDir.mockResolvedValue([]);
     await listTemplates("/workspace");
-    expect(listDir).toHaveBeenCalledWith("/workspace/Notes/Snippets");
+    expect(listDir).toHaveBeenCalledWith("/workspace", "/workspace/Notes/Snippets");
   });
 
   it("returns an empty list rather than throwing when the templates folder doesn't exist", async () => {
@@ -1219,7 +1221,7 @@ describe("expandFirstLevel", () => {
       path: "/workspace/notes/nested",
       isDir: true,
     };
-    listDir.mockImplementation(async (path: string) => {
+    listDir.mockImplementation(async (_workspaceRoot: string, path: string) => {
       if (path === "/workspace") return [entry("notes", true), entry("a.md")];
       if (path === "/workspace/notes") return [nested];
       return [];
@@ -1242,7 +1244,7 @@ describe("expandFirstLevel", () => {
   });
 
   it("does nothing beyond loading the root when it has no subdirectories", async () => {
-    listDir.mockImplementation(async (path: string) =>
+    listDir.mockImplementation(async (_workspaceRoot: string, path: string) =>
       path === "/workspace" ? [entry("a.md"), entry("b.md")] : [],
     );
 
@@ -1253,7 +1255,7 @@ describe("expandFirstLevel", () => {
   });
 
   it("still expands the subdirectories whose listing succeeds when another one's listing rejects", async () => {
-    listDir.mockImplementation(async (path: string) => {
+    listDir.mockImplementation(async (_workspaceRoot: string, path: string) => {
       if (path === "/workspace")
         return [entry("good", true), entry("bad", true)];
       if (path === "/workspace/bad") throw new Error("permission denied");

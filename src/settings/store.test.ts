@@ -801,7 +801,7 @@ describe("F20 Phase 2b-i: relinkWorkspaceProfile", () => {
       const result = await relinkWorkspaceProfile("p2");
 
       expect(result).toBe(true);
-      expect(listDir).toHaveBeenCalledWith("/newPath");
+      expect(listDir).toHaveBeenCalledWith("/newPath", "/newPath");
       const relinked = workspaceProfiles.value.find((p) => p.id === "p2");
       expect(relinked).toMatchObject({
         id: "p2",

@@ -76,6 +76,34 @@ fn normalize_separators_for_platform(path: String, is_windows: bool) -> String {
     }
 }
 
+/// True when `entry_path` is a symlink whose real, canonicalized target does
+/// not resolve inside `canonical_root` -- including a dangling symlink,
+/// which has no canonical form to check and is excluded the same way
+/// `resolve_within_workspace` (below) excludes one sitting exactly at a
+/// write target, rather than silently treated as "nothing here".
+///
+/// Guards every whole-workspace read traversal (`workspace_stats`,
+/// `find_markdown_files`, `find_all_files`, `find_all_entries`) against a
+/// symlink placed inside the workspace that points outside it. Without
+/// this, `Path::is_dir` (which follows symlinks) would walk straight into
+/// it and expose arbitrary filesystem structure -- and, once a returned
+/// `FsEntry.path` is passed to `read_text_file`, arbitrary file content --
+/// through search results, the link index, "Expand All", and workspace
+/// stats, even though `resolve_within_workspace` already refuses exactly
+/// this same escape for writes. A symlink that stays inside the workspace
+/// (`starts_with` includes the equal-path case, so a cycle back to the
+/// workspace root itself is not flagged) is unaffected: `MAX_WALK_DEPTH`
+/// alone still bounds that case, unchanged.
+fn is_symlink_escaping_workspace(entry_path: &Path, canonical_root: &Path) -> bool {
+    match fs::symlink_metadata(entry_path) {
+        Ok(metadata) if metadata.file_type().is_symlink() => match fs::canonicalize(entry_path) {
+            Ok(target) => !target.starts_with(canonical_root),
+            Err(_) => true,
+        },
+        _ => false,
+    }
+}
+
 fn is_image_path(path: &Path) -> bool {
     matches!(
         path.extension()
@@ -161,7 +189,12 @@ pub fn workspace_stats(path: String) -> Result<WorkspaceStats, String> {
         newest_note_date: Option<u64>,
     }
 
-    fn walk(path: &Path, depth: usize, stats: &mut Accumulator) -> Result<(), String> {
+    fn walk(
+        path: &Path,
+        depth: usize,
+        canonical_root: &Path,
+        stats: &mut Accumulator,
+    ) -> Result<(), String> {
         for entry in fs::read_dir(path).map_err(|error| error.to_string())? {
             let entry = entry.map_err(|error| error.to_string())?;
             let entry_path = entry.path();
@@ -169,11 +202,14 @@ pub fn workspace_stats(path: String) -> Result<WorkspaceStats, String> {
             if name.to_string_lossy().starts_with('.') {
                 continue;
             }
+            if is_symlink_escaping_workspace(&entry_path, canonical_root) {
+                continue;
+            }
 
             if entry_path.is_dir() {
                 stats.folder_count += 1;
                 if depth < MAX_WALK_DEPTH {
-                    walk(&entry_path, depth + 1, stats)?;
+                    walk(&entry_path, depth + 1, canonical_root, stats)?;
                 }
             } else if entry_path
                 .extension()
@@ -209,7 +245,8 @@ pub fn workspace_stats(path: String) -> Result<WorkspaceStats, String> {
     }
 
     let mut stats = Accumulator::default();
-    walk(Path::new(&path), 0, &mut stats)?;
+    let canonical_root = fs::canonicalize(&path).map_err(|e| e.to_string())?;
+    walk(&canonical_root, 0, &canonical_root, &mut stats)?;
 
     Ok(WorkspaceStats {
         folder_count: stats.folder_count,
@@ -240,7 +277,12 @@ pub fn workspace_stats(path: String) -> Result<WorkspaceStats, String> {
 /// not sorted; the caller (`rebuildLinkIndex`) already sorts by path itself.
 #[tauri::command]
 pub fn find_markdown_files(path: String) -> Result<Vec<FsEntry>, String> {
-    fn walk(path: &Path, depth: usize, files: &mut Vec<FsEntry>) -> Result<(), String> {
+    fn walk(
+        path: &Path,
+        depth: usize,
+        canonical_root: &Path,
+        files: &mut Vec<FsEntry>,
+    ) -> Result<(), String> {
         for entry in fs::read_dir(path).map_err(|error| error.to_string())? {
             let entry = entry.map_err(|error| error.to_string())?;
             let entry_path = entry.path();
@@ -249,10 +291,13 @@ pub fn find_markdown_files(path: String) -> Result<Vec<FsEntry>, String> {
             if name_str.starts_with('.') {
                 continue;
             }
+            if is_symlink_escaping_workspace(&entry_path, canonical_root) {
+                continue;
+            }
 
             if entry_path.is_dir() {
                 if depth < MAX_WALK_DEPTH {
-                    walk(&entry_path, depth + 1, files)?;
+                    walk(&entry_path, depth + 1, canonical_root, files)?;
                 }
             } else if entry_path
                 .extension()
@@ -281,7 +326,8 @@ pub fn find_markdown_files(path: String) -> Result<Vec<FsEntry>, String> {
     }
 
     let mut files = Vec::new();
-    walk(Path::new(&path), 0, &mut files)?;
+    let canonical_root = fs::canonicalize(&path).map_err(|e| e.to_string())?;
+    walk(&canonical_root, 0, &canonical_root, &mut files)?;
     Ok(files)
 }
 
@@ -300,7 +346,12 @@ pub fn find_markdown_files(path: String) -> Result<Vec<FsEntry>, String> {
 /// name promises intact for its other callers (`rebuildLinkIndex`).
 #[tauri::command]
 pub fn find_all_files(path: String) -> Result<Vec<FsEntry>, String> {
-    fn walk(path: &Path, depth: usize, files: &mut Vec<FsEntry>) -> Result<(), String> {
+    fn walk(
+        path: &Path,
+        depth: usize,
+        canonical_root: &Path,
+        files: &mut Vec<FsEntry>,
+    ) -> Result<(), String> {
         for entry in fs::read_dir(path).map_err(|error| error.to_string())? {
             let entry = entry.map_err(|error| error.to_string())?;
             let entry_path = entry.path();
@@ -309,10 +360,13 @@ pub fn find_all_files(path: String) -> Result<Vec<FsEntry>, String> {
             if name_str.starts_with('.') {
                 continue;
             }
+            if is_symlink_escaping_workspace(&entry_path, canonical_root) {
+                continue;
+            }
 
             if entry_path.is_dir() {
                 if depth < MAX_WALK_DEPTH {
-                    walk(&entry_path, depth + 1, files)?;
+                    walk(&entry_path, depth + 1, canonical_root, files)?;
                 }
             } else {
                 let (mtime, size) = entry_mtime_ms_and_size(&entry_path);
@@ -329,7 +383,8 @@ pub fn find_all_files(path: String) -> Result<Vec<FsEntry>, String> {
     }
 
     let mut files = Vec::new();
-    walk(Path::new(&path), 0, &mut files)?;
+    let canonical_root = fs::canonicalize(&path).map_err(|e| e.to_string())?;
+    walk(&canonical_root, 0, &canonical_root, &mut files)?;
     Ok(files)
 }
 
@@ -351,13 +406,21 @@ pub fn find_all_files(path: String) -> Result<Vec<FsEntry>, String> {
 /// stays exactly what `runSearch` already relies on.
 #[tauri::command]
 pub fn find_all_entries(path: String) -> Result<Vec<FsEntry>, String> {
-    fn walk(path: &Path, depth: usize, entries: &mut Vec<FsEntry>) -> Result<(), String> {
+    fn walk(
+        path: &Path,
+        depth: usize,
+        canonical_root: &Path,
+        entries: &mut Vec<FsEntry>,
+    ) -> Result<(), String> {
         for entry in fs::read_dir(path).map_err(|error| error.to_string())? {
             let entry = entry.map_err(|error| error.to_string())?;
             let entry_path = entry.path();
             let name = entry.file_name();
             let name_str = name.to_string_lossy().to_string();
             if name_str.starts_with('.') {
+                continue;
+            }
+            if is_symlink_escaping_workspace(&entry_path, canonical_root) {
                 continue;
             }
 
@@ -376,14 +439,15 @@ pub fn find_all_entries(path: String) -> Result<Vec<FsEntry>, String> {
             });
 
             if is_dir && depth < MAX_WALK_DEPTH {
-                walk(&entry_path, depth + 1, entries)?;
+                walk(&entry_path, depth + 1, canonical_root, entries)?;
             }
         }
         Ok(())
     }
 
     let mut entries = Vec::new();
-    walk(Path::new(&path), 0, &mut entries)?;
+    let canonical_root = fs::canonicalize(&path).map_err(|e| e.to_string())?;
+    walk(&canonical_root, 0, &canonical_root, &mut entries)?;
     Ok(entries)
 }
 
@@ -1546,6 +1610,74 @@ mod tests {
 
         fs::remove_file(root.join("loop")).unwrap();
         fs::remove_dir_all(&root).unwrap();
+    }
+
+    /// A directory symlink cycle (tested just above, for every walker) loops
+    /// back *inside* the workspace and is only a depth-bound concern. A
+    /// symlink pointing *outside* the workspace is a different, more severe
+    /// problem: `Path::is_dir` follows it exactly the same way, so every
+    /// whole-workspace read traversal would otherwise walk straight into
+    /// unrelated filesystem locations and surface their structure (and, via
+    /// `read_text_file` on a returned path, content) through search
+    /// results, the link index, "Expand All", and workspace stats --
+    /// despite `resolve_within_workspace`'s own doc comment describing
+    /// exactly this escape as rejected policy for writes. This is the read
+    /// side's counterpart proof: none of the four whole-workspace walkers
+    /// may follow such a symlink.
+    #[test]
+    #[cfg(unix)]
+    fn read_traversals_do_not_follow_a_directory_symlink_escaping_the_workspace() {
+        let root = std::env::temp_dir().join(format!(
+            "leotheca-test-readside-escape-{}",
+            std::process::id()
+        ));
+        let outside = std::env::temp_dir().join(format!(
+            "leotheca-test-readside-escape-outside-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        let _ = fs::remove_dir_all(&outside);
+        create_dir(root.to_string_lossy().to_string()).unwrap();
+        create_dir(outside.to_string_lossy().to_string()).unwrap();
+        fs::write(root.join("a.md"), "a").unwrap();
+        fs::write(outside.join("secret.md"), "TOP SECRET").unwrap();
+        std::os::unix::fs::symlink(&outside, root.join("escape")).unwrap();
+
+        let markdown_files = find_markdown_files(root.to_string_lossy().to_string()).unwrap();
+        assert!(
+            markdown_files.iter().all(|f| f.name != "secret.md"),
+            "find_markdown_files must not walk through a symlink escaping the workspace"
+        );
+
+        let all_files = find_all_files(root.to_string_lossy().to_string()).unwrap();
+        assert!(
+            all_files.iter().all(|f| f.name != "secret.md"),
+            "find_all_files must not walk through a symlink escaping the workspace"
+        );
+
+        let all_entries = find_all_entries(root.to_string_lossy().to_string()).unwrap();
+        assert!(
+            all_entries.iter().all(|e| e.name != "secret.md"),
+            "find_all_entries must not walk through a symlink escaping the workspace"
+        );
+        assert!(
+            all_entries.iter().all(|e| e.name != "escape"),
+            "the escaping symlink itself must not be surfaced as a browsable entry"
+        );
+
+        let stats = workspace_stats(root.to_string_lossy().to_string()).unwrap();
+        assert_eq!(
+            stats.note_count, 1,
+            "workspace_stats must not count the note reachable only through the escaping symlink"
+        );
+        assert_eq!(
+            stats.folder_count, 0,
+            "workspace_stats must not count the escaping symlink itself as a folder"
+        );
+
+        fs::remove_file(root.join("escape")).unwrap();
+        fs::remove_dir_all(&root).unwrap();
+        fs::remove_dir_all(&outside).unwrap();
     }
 
     fn make_workspace(name: &str) -> PathBuf {

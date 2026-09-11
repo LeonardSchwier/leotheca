@@ -122,6 +122,8 @@ export const findAllEntries: typeof impl.findAllEntries = (path: string) =>
   trackWorkspaceOperation(impl.findAllEntries(path));
 export const readTextFile: typeof impl.readTextFile = (path: string) =>
   trackWorkspaceOperation(impl.readTextFile(path));
+export const readBinaryFile: typeof impl.readBinaryFile = (path: string) =>
+  trackWorkspaceOperation(impl.readBinaryFile(path));
 export const readTextFilesBatch: typeof impl.readTextFilesBatch = (paths: string[]) =>
   trackWorkspaceOperation(impl.readTextFilesBatch(paths));
 export const writeTextFile: typeof impl.writeTextFile = (path: string, contents: string) =>

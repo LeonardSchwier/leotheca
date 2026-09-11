@@ -34,6 +34,7 @@ pub fn run() {
             commands::find_all_files,
             commands::find_all_entries,
             commands::read_text_file,
+            commands::read_binary_file,
             commands::read_text_files_batch,
             commands::write_text_file,
             commands::write_binary_file,

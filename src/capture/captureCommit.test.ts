@@ -159,15 +159,16 @@ describe("appendToInboxNote", () => {
     const mockListDir = vi.fn().mockResolvedValue([]);
     const mockCreateWorkspaceTextFileNew = vi.fn().mockResolvedValue(undefined);
     const mockWriteBinaryFile = vi.fn().mockResolvedValue(undefined);
-    const mockBridgeReadTextFile = vi.fn().mockRejectedValue(new Error(sensitiveMessage));
+    const mockReadBinaryFile = vi.fn().mockRejectedValue(new Error(sensitiveMessage));
 
     vi.resetModules();
     vi.doMock("../workspace/tauriBridge", () => ({
-      readTextFile: mockBridgeReadTextFile,
+      readTextFile: vi.fn(),
       writeTextFile: vi.fn(),
       listDir: mockListDir,
       createWorkspaceTextFileNew: mockCreateWorkspaceTextFileNew,
       writeBinaryFile: mockWriteBinaryFile,
+      readBinaryFile: mockReadBinaryFile,
     }));
 
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -207,5 +208,110 @@ describe("appendToInboxNote", () => {
 
     errorSpy.mockRestore();
     warnSpy.mockRestore();
+  });
+
+  it("copies attachment bytes byte-for-byte instead of corrupting them through a text-decode round trip", async () => {
+    const sourcePath = "/app-private/staging/att-1.png";
+    // 0x89 and 0xff/0xfe are not valid UTF-8 on their own: a decode-then-
+    // TextEncoder-reencode round trip (the pre-fix behavior) would not
+    // reproduce these exact bytes.
+    const sourceBytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0xff, 0xfe]);
+    const written = new Map<string, Uint8Array>();
+
+    const mockReadBinaryFile = vi.fn(async (path: string) =>
+      path === sourcePath ? sourceBytes : (written.get(path) ?? new Uint8Array())
+    );
+    const mockWriteBinaryFile = vi.fn(async (path: string, data: Uint8Array) => {
+      written.set(path, data);
+    });
+    const mockListDir = vi.fn().mockResolvedValue([]);
+    const mockCreateWorkspaceTextFileNew = vi.fn().mockResolvedValue(undefined);
+
+    vi.resetModules();
+    vi.doMock("../workspace/tauriBridge", () => ({
+      readTextFile: vi.fn(),
+      writeTextFile: vi.fn(),
+      listDir: mockListDir,
+      createWorkspaceTextFileNew: mockCreateWorkspaceTextFileNew,
+      writeBinaryFile: mockWriteBinaryFile,
+      readBinaryFile: mockReadBinaryFile,
+    }));
+
+    const { createNoteWithTitle } = await import("./captureCommit");
+
+    const result = await createNoteWithTitle(
+      "/workspace",
+      "Captured text",
+      "Note title",
+      "/workspace",
+      [
+        {
+          id: "att-1",
+          filePath: sourcePath,
+          fileName: "photo.png",
+          fileSize: sourceBytes.length,
+          fingerprint: "irrelevant",
+          mimeType: "image/png",
+        },
+      ]
+    );
+
+    expect(result.name).toBe("Note title.md");
+    expect(mockWriteBinaryFile).toHaveBeenCalledTimes(1);
+    const [destPath, writtenBytes] = mockWriteBinaryFile.mock.calls[0] as [string, Uint8Array];
+    expect(writtenBytes).toEqual(sourceBytes);
+    expect(written.get(destPath)).toEqual(sourceBytes);
+
+    // The verified copy is referenced from the note; a real mismatch would
+    // have silently dropped it instead (see the test right below).
+    const noteContent = mockCreateWorkspaceTextFileNew.mock.calls[0][2] as string;
+    expect(noteContent).toContain("photo");
+  });
+
+  it("still detects a real fingerprint mismatch and omits the corrupted attachment from the note", async () => {
+    const sourcePath = "/app-private/staging/att-2.png";
+    const sourceBytes = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]);
+
+    // The "destination" never actually holds what was copied (simulating a
+    // corrupting write), regardless of what copyFile passed to it.
+    const mockReadBinaryFile = vi.fn(async (path: string) =>
+      path === sourcePath ? sourceBytes : new Uint8Array([9, 9, 9])
+    );
+    const mockWriteBinaryFile = vi.fn().mockResolvedValue(undefined);
+    const mockListDir = vi.fn().mockResolvedValue([]);
+    const mockCreateWorkspaceTextFileNew = vi.fn().mockResolvedValue(undefined);
+
+    vi.resetModules();
+    vi.doMock("../workspace/tauriBridge", () => ({
+      readTextFile: vi.fn(),
+      writeTextFile: vi.fn(),
+      listDir: mockListDir,
+      createWorkspaceTextFileNew: mockCreateWorkspaceTextFileNew,
+      writeBinaryFile: mockWriteBinaryFile,
+      readBinaryFile: mockReadBinaryFile,
+    }));
+
+    const { createNoteWithTitle } = await import("./captureCommit");
+
+    const result = await createNoteWithTitle(
+      "/workspace",
+      "Captured text",
+      "Note title",
+      "/workspace",
+      [
+        {
+          id: "att-2",
+          filePath: sourcePath,
+          fileName: "photo2.png",
+          fileSize: sourceBytes.length,
+          fingerprint: "irrelevant",
+          mimeType: "image/png",
+        },
+      ]
+    );
+
+    expect(result.name).toBe("Note title.md");
+    const noteContent = mockCreateWorkspaceTextFileNew.mock.calls[0][2] as string;
+    expect(noteContent).not.toContain("photo2");
   });
 });

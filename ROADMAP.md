@@ -1329,7 +1329,9 @@
 
 ### Bugs
 
-- ⬜ **Maintenance review: capture module after recent path-traversal and binary-corruption fixes** (spec: `skills/maintenance-review.md`): Recent commits (rm-1a30c6e253a30050, rm-97d3ff4902d0ca30) fixed capture attachment path-traversal and binary-copy corruption. Verify no additional defects exist in the capture flow, including: attachment metadata handling, filename edge cases, concurrent capture operations, error handling in binary read/write, and Android share-intent edge cases. Read src/capture/*.ts, src/workspace/capacitorBridgeImpl.ts, and src-tauri/src/commands.rs for capture-related functions.
+- 🚧 **Maintenance review: capture module after recent path-traversal and binary-corruption fixes** (spec: `skills/maintenance-review.md`): Recent commits (rm-1a30c6e253a30050, rm-97d3ff4902d0ca30) fixed capture attachment path-traversal and binary-copy corruption. Verify no additional defects exist in the capture flow, including: attachment metadata handling, filename edge cases, concurrent capture operations, error handling in binary read/write, and Android share-intent edge cases. Read src/capture/*.ts, src/workspace/capacitorBridgeImpl.ts, and src-tauri/src/commands.rs for capture-related functions.
+  <!-- agent-state: {"schema":1,"id":"rm-35bea8c81e8a62a4","state":"claimed","touch":["src/capture/androidShareBridge.test.ts","src/capture/androidShareBridge.ts","src/capture/captureCommit.test.ts","src/capture/captureCommit.ts","src/capture/pendingCaptures.test.ts","src/capture/pendingCaptures.ts"],"resources":["capture-attachment-copy","workspace-containment"],"owner":"Mistral-Vibe-20260911T072113Z-db2c08df","token":"23436dab25a6657c8c6a5068521c787e","branch":"agent/rm-35bea8c81e8a62a4/23436dab25a6","claimed_at":"2026-09-11T07:30:10Z","heartbeat_at":"2026-09-11T07:30:10Z","lease_until":"2026-09-11T09:00:10Z"} -->
+  Agent: Mistral-Vibe-20260911T072113Z-db2c08df | item: rm-35bea8c81e8a62a4 | lease until: 2026-09-11T09:00:10Z
 
 
 

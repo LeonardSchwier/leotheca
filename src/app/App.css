@@ -187,6 +187,25 @@ button.icon-button.active {
   color: var(--text-primary);
 }
 
+/* RTL Phase 2: Workspace-level right-to-left layout */
+.rtl .app-body {
+  flex-direction: row-reverse;
+}
+
+.rtl .sidebar {
+  border-right: none;
+  border-left: 1px solid var(--border);
+}
+
+.rtl .sidebar-resize-handle {
+  left: auto;
+  right: 0;
+}
+
+.rtl .toolbar {
+  flex-direction: row-reverse;
+}
+
 .view-mode-switch {
   display: flex;
   border: 1px solid var(--border);

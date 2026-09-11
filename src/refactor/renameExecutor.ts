@@ -171,6 +171,7 @@ function createBasicWorkspaceSettings(): WorkspaceSettings {
     headingLinksEnabled: true,
     collectionsEnabled: false,
     noteReadOnlyLockEnabled: true,
+    rtlWorkspaceEnabled: false,
     captureInboxFolder: "",
     captureInboxNote: "Inbox.md",
     captureDatePattern: "",

@@ -177,6 +177,8 @@ export interface WorkspaceSettings {
   collectionsEnabled: boolean;
   /** Whether the per-note frontmatter lock UI and its edit guards are active. */
   noteReadOnlyLockEnabled: boolean;
+  /** RTL Phase 2: Whether the workspace chrome (sidebar, toolbar) is mirrored for RTL languages. */
+  rtlWorkspaceEnabled: boolean;
   /** F05: Default folder path for quick captures, relative to workspace root.
    * Empty means captures go to the currently selected directory. */
   captureInboxFolder: string;
@@ -222,6 +224,7 @@ export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   headingLinksEnabled: true,
   collectionsEnabled: false,
   noteReadOnlyLockEnabled: true,
+  rtlWorkspaceEnabled: false,
   captureInboxFolder: "",
   captureInboxNote: "Inbox.md",
   captureDatePattern: "",
@@ -657,7 +660,10 @@ export function decodeWorkspaceSettings(
     record.noteReadOnlyLockEnabled,
     DEFAULT_WORKSPACE_SETTINGS.noteReadOnlyLockEnabled,
   );
-
+  const rtlWorkspaceEnabled = decodeBoolean(
+    record.rtlWorkspaceEnabled,
+    DEFAULT_WORKSPACE_SETTINGS.rtlWorkspaceEnabled,
+  );
 
 
   // F07 Phase 2b: decode editorLayout with legacy migration
@@ -724,6 +730,7 @@ export function decodeWorkspaceSettings(
     headingLinksEnabled: headingLinksEnabled.value,
     collectionsEnabled: collectionsEnabled.value,
     noteReadOnlyLockEnabled: noteReadOnlyLockEnabled.value,
+    rtlWorkspaceEnabled: rtlWorkspaceEnabled.value,
     captureInboxFolder: captureInboxFolder.value,
     captureInboxNote: captureInboxNote.value,
     captureDatePattern: captureDatePattern.value,

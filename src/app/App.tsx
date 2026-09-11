@@ -1,4 +1,4 @@
-import { batch, effect, signal, useSignal } from "@preact/signals";
+import { batch, computed, effect, signal, useSignal } from "@preact/signals";
 import { useCallback, useEffect, useMemo, useState } from "preact/hooks";
 import type { ComponentType } from "preact";
 import { Capacitor } from "@capacitor/core";
@@ -237,6 +237,9 @@ const outlineOpen = signal(false);
 const markdownHelpOpen = signal(false);
 const commandPaletteOpen = signal(false);
 const sidebarOpen = signal(!Capacitor.isNativePlatform());
+
+// RTL Phase 2: Derived signal for workspace-level RTL mode
+const rtlWorkspaceEnabled = computed(() => workspaceSettings.value.rtlWorkspaceEnabled);
 
 function toggleSidebarPanel(panel: typeof bookmarksOpen): void {
   const next = !panel.value;
@@ -913,7 +916,7 @@ export function App() {
   }, [tabRename, flushPendingAutosave, renamePreview, setTabRename, setTabRenameError]);
 
   return (
-    <div class="app-shell">
+    <div class={`app-shell ${rtlWorkspaceEnabled.value ? "rtl" : ""}`}>
       <OutlineLiveRegion />
       <header class="toolbar">
         <button

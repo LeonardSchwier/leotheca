@@ -41,6 +41,7 @@ describe("DEFAULT_WORKSPACE_SETTINGS", () => {
     expect(DEFAULT_WORKSPACE_SETTINGS.uiZoom).toBe(100);
     expect(DEFAULT_WORKSPACE_SETTINGS.deleteBehavior).toBe("project-trash");
     expect(DEFAULT_WORKSPACE_SETTINGS.lastOpenPaths).toEqual([]);
+    expect(DEFAULT_WORKSPACE_SETTINGS.rtlWorkspaceEnabled).toBe(false);
   });
 
   it("defaults frontmatter aliases to on, per the opt-out policy for queued features", () => {

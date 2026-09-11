@@ -233,6 +233,7 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
   const showFontSize = matches("Font size");
   const showZoom = matches("Zoom", "Scales the whole app; use Ctrl+Plus, Ctrl+Minus, or Ctrl+0");
   const showDefaultViewMode = matches("Default view mode", "Applied when this workspace is opened");
+  const showRtlWorkspace = matches("RTL workspace layout", "Mirror sidebar position, toolbar and tab order");
   const showVersion = matches("Version");
   const showLicenseRow = matches("License");
   const showHealth = matches("Health", "Link Diagnostics", "broken or ambiguous links");
@@ -264,7 +265,7 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
       (showAccentThemes || showEditorSnippets || showCanvas || showTags || showTemplates || showCollections),
   );
   const profilesVisible = showWorkspaceProfiles;
-  const appearanceVisible = showTheme || Boolean(workspacePath.value && (showFontSize || showZoom || showDefaultViewMode));
+  const appearanceVisible = showTheme || Boolean(workspacePath.value && (showFontSize || showZoom || showDefaultViewMode || showRtlWorkspace));
   const shortcutsVisible = filteredShortcuts.length > 0;
   const aboutVisible = showVersion || showLicenseRow;
   const healthVisible = Boolean(workspacePath.value && showHealth);
@@ -992,6 +993,27 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                   ))}
                 </div>
               </div>
+              )}
+              {showRtlWorkspace && (
+                <div class="settings-row">
+                  <div>
+                    <div class="settings-label">RTL workspace layout</div>
+                    <div class="settings-hint settings-hint-italic">
+                      Mirror sidebar position, toolbar and tab order for right-to-left workflows
+                    </div>
+                  </div>
+                  <div class="settings-switch">
+                    {OPTIONAL_FEATURE_OPTIONS.map((option) => (
+                      <button
+                        key={String(option.value)}
+                        class={workspaceSettings.value.rtlWorkspaceEnabled === option.value ? "active" : ""}
+                        onClick={() => void updateWorkspaceSettings({ rtlWorkspaceEnabled: option.value })}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               )}
             </>
           )}

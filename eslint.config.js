@@ -15,6 +15,8 @@ export default tseslint.config(
       "android/app/src/main/assets/public/",
       "android/app/build/",
       "android/.gradle/",
+      // Web worker files have their own global environment
+      "public/markdownWorker.js",
     ],
   },
   js.configs.recommended,

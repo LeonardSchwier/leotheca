@@ -51,7 +51,7 @@ class MarkdownWorkerInstance {
   private lastUsed = Date.now();
   private pending: Array<{ 
     message: WorkerMessage<string>; 
-    resolve: (value: any) => void; 
+    resolve: (value: unknown) => void; 
     reject: (error: Error) => void 
   }> = [];
   private messageIdCounter = 0;
@@ -167,7 +167,7 @@ class MarkdownWorkerInstance {
     const message: WorkerMessage<string, T> = { type, data, messageId };
     
     return new Promise<R>((resolve, reject) => {
-      this.pending.push({ message, resolve, reject });
+      this.pending.push({ message, resolve: resolve as (value: unknown) => void, reject });
       this.lastUsed = Date.now();
       this.processQueue();
     });

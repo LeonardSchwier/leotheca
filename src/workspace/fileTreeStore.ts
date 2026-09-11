@@ -20,6 +20,7 @@ import {
   workspaceSession,
   workspaceSettings,
 } from "../settings/store";
+import type { SortOrder } from "../settings/workspaceSettings";
 import { linkIndex } from "../linking/store";
 import { matchesSearchQuery, parseSearchQuery } from "./searchQuery";
 import { mapWithConcurrency } from "./concurrency";
@@ -133,32 +134,29 @@ export function sortEntries(entries: FsEntry[]): FsEntry[] {
   return [...dirs.sort(cmp), ...files.sort(cmp)];
 }
 
-// Memoized version of sortEntries to cache results based on entries and sort order
-// This prevents unnecessary re-sorting when the same entries are passed with the same order
-const sortEntriesCache = new Map<string, FsEntry[]>();
+// Memoized version of sortEntries to avoid unnecessary re-sorting when the
+// same entries array is passed again with the same sort order. Keyed by the
+// entries array's own object identity via WeakMap: once dirChildren.value
+// drops a directory's array (a reload, rename, or workspace switch always
+// replaces it with a new array rather than mutating in place), the cache
+// entry becomes unreachable and is garbage-collected automatically. A
+// previous string-keyed Map here serialized every entry's path+isDir into a
+// cache key and never evicted anything, growing without bound for the
+// app's entire lifetime.
+const sortEntriesCache = new WeakMap<FsEntry[], { order: SortOrder; result: FsEntry[] }>();
 
 export function memoizedSortEntries(entries: FsEntry[]): FsEntry[] {
   const order = workspaceSettings.value.sortOrder;
-  
-  // Create a cache key based on the entries and sort order
-  const cacheKey = `${order}:${entries.map(e => `${e.path}:${e.isDir}`).join(',')}`;
-  
-  // Check if we have a cached result for this input
-  const cached = sortEntriesCache.get(cacheKey);
-  if (cached) {
-    return cached;
-  }
-  
-  // Compute the result and cache it
-  const result = sortEntries(entries);
-  sortEntriesCache.set(cacheKey, result);
-  
-  return result;
-}
 
-// Clear the sort entries cache (useful when settings change)
-export function clearSortEntriesCache(): void {
-  sortEntriesCache.clear();
+  const cached = sortEntriesCache.get(entries);
+  if (cached && cached.order === order) {
+    return cached.result;
+  }
+
+  const result = sortEntries(entries);
+  sortEntriesCache.set(entries, { order, result });
+
+  return result;
 }
 
 export async function loadChildren(path: string): Promise<FsEntry[]> {

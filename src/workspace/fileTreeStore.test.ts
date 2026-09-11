@@ -85,6 +85,7 @@ const {
   dirname,
   relativePath,
   sortEntries,
+  memoizedSortEntries,
   createNote,
   createNoteQuick,
   createCanvasQuick,
@@ -166,6 +167,63 @@ describe("sortEntries", () => {
     };
     const entries = [entry("a.md"), entry("b.md")];
     expect(sortEntries(entries).map((e) => e.name)).toEqual(["b.md", "a.md"]);
+  });
+});
+
+describe("memoizedSortEntries", () => {
+  beforeEach(() => {
+    workspaceSettings.value = DEFAULT_WORKSPACE_SETTINGS;
+  });
+
+  it("sorts the same way as the unmemoized sortEntries", () => {
+    const entries = [entry("zebra.md"), entry("Apples", true)];
+    expect(memoizedSortEntries(entries).map((e) => e.name)).toEqual(
+      sortEntries(entries).map((e) => e.name),
+    );
+  });
+
+  it("returns the same array reference for a repeat call with the same entries array and order", () => {
+    const entries = [entry("zebra.md"), entry("Apples", true)];
+    const first = memoizedSortEntries(entries);
+    const second = memoizedSortEntries(entries);
+    expect(second).toBe(first);
+  });
+
+  it("recomputes (does not return a stale order) when sortOrder changes for the same entries array reference", () => {
+    const entries = [entry("a.md"), entry("b.md")];
+    const ascending = memoizedSortEntries(entries).map((e) => e.name);
+    workspaceSettings.value = {
+      ...DEFAULT_WORKSPACE_SETTINGS,
+      sortOrder: "name-desc",
+    };
+    const descending = memoizedSortEntries(entries).map((e) => e.name);
+    expect(ascending).toEqual(["a.md", "b.md"]);
+    expect(descending).toEqual(["b.md", "a.md"]);
+  });
+
+  /** The original implementation cached results in a plain
+   * `Map<string, FsEntry[]>` keyed by a string serializing every entry's
+   * path+isDir, with no eviction anywhere in the codebase (confirmed by
+   * grep: its own `clearSortEntriesCache` export had zero callers) — every
+   * distinct directory listing ever sorted stayed cached for the app's
+   * entire lifetime. The WeakMap-keyed replacement only keeps a cache entry
+   * reachable for as long as something else still references that exact
+   * entries array, so it no longer needs that unbounded strong-referenced
+   * Map at all. This is not a regression test in the usual sense: the leak
+   * itself is a memory-growth property no synchronous unit test can observe
+   * (both the old and new implementation return identical values for every
+   * call above), so this only guards the behavior actually worth asserting:
+   * that dropping every reference to earlier arrays doesn't put the cache
+   * into a bad state, and a *kept* array still hits the fast path.
+   */
+  it("still works correctly after many other arrays have gone out of scope", () => {
+    for (let i = 0; i < 500; i++) {
+      memoizedSortEntries([entry(`throwaway-${i}.md`)]);
+    }
+    const kept = [entry("kept-a.md"), entry("kept-b", true)];
+    const first = memoizedSortEntries(kept);
+    const second = memoizedSortEntries(kept);
+    expect(second).toBe(first);
   });
 });
 

@@ -77,6 +77,14 @@ export async function readTextFile(path: string): Promise<string> {
   return invoke<string>("read_text_file", { path });
 }
 
+/** Reads `path`'s raw bytes, for content that must round-trip byte-for-byte
+ * (e.g. copying an image attachment in `capture/captureCommit.ts`), unlike
+ * `readTextFile` above, which requires valid UTF-8. */
+export async function readBinaryFile(path: string): Promise<Uint8Array> {
+  const data = await invoke<number[]>("read_binary_file", { path });
+  return new Uint8Array(data);
+}
+
 /** Reads multiple files' contents in one native call, for full-text
  * search's content-fallback (fileTreeStore.ts's runSearch): one native
  * call per file whose name doesn't match the query exhausted the Android

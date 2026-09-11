@@ -27,6 +27,7 @@ vi.mock("@capacitor/core", () => ({ registerPlugin: () => folderAccess }));
 import {
   WORKSPACE_ROOT,
   bytesToBase64,
+  base64ToBytes as realBase64ToBytes,
   createWorkspaceDir,
   deletePathPermanent,
   deleteWorkspacePathPermanent,
@@ -35,6 +36,7 @@ import {
   findMarkdownFiles,
   getWorkspaceStats,
   pickWorkspaceFolder,
+  readBinaryFile,
   readTextFile,
   renamePath,
   renameWorkspacePath,
@@ -318,6 +320,52 @@ describe("bytesToBase64", () => {
     const bytes = new Uint8Array(0x8000 * 2 + 137);
     for (let i = 0; i < bytes.length; i++) bytes[i] = i % 256;
     expect(base64ToBytes(bytesToBase64(bytes))).toEqual(bytes);
+  });
+});
+
+describe("base64ToBytes (the real export, decoding side of readBinaryFile)", () => {
+  it("decodes a known base64 string back to its exact bytes", () => {
+    // Compared as plain arrays, not typed-array-to-typed-array: jsdom's
+    // TextEncoder returns a Uint8Array from a different realm than this
+    // file's own `new Uint8Array(...)`, which toEqual treats as unequal
+    // despite identical contents (confirmed directly against this exact
+    // environment) -- not a real difference in the bytes.
+    const expected = Array.from(
+      new TextEncoder().encode("Hello, world! This is a paste-image test."),
+    );
+    expect(
+      Array.from(
+        realBase64ToBytes(
+          "SGVsbG8sIHdvcmxkISBUaGlzIGlzIGEgcGFzdGUtaW1hZ2UgdGVzdC4=",
+        ),
+      ),
+    ).toEqual(expected);
+  });
+
+  it("round-trips arbitrary non-UTF-8 bytes through the real bytesToBase64", () => {
+    // Includes byte values (0x80-0xff) that are not valid standalone UTF-8,
+    // the exact class of content a text-decode round trip would corrupt.
+    const bytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0xff, 0xfe, 0x00, 0x7f, 0x80]);
+    expect(realBase64ToBytes(bytesToBase64(bytes))).toEqual(bytes);
+  });
+});
+
+describe("readBinaryFile (Android)", () => {
+  it("reads a workspace file's raw bytes via readFileAsDataUrl, not a lossy text decode", async () => {
+    folderAccess.listDir.mockResolvedValue({
+      entries: [{ name: "photo.png", uri: "content://photo", isDir: false }],
+    });
+    const bytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0xff, 0xfe]);
+    folderAccess.readFileAsDataUrl.mockResolvedValue({
+      dataUrl: `data:image/png;base64,${bytesToBase64(bytes)}`,
+    });
+
+    await expect(readBinaryFile("/workspace/photo.png")).resolves.toEqual(
+      bytes,
+    );
+    expect(folderAccess.readFileAsDataUrl).toHaveBeenCalledWith({
+      uri: "content://photo",
+    });
   });
 });
 

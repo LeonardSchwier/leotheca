@@ -322,6 +322,29 @@ export async function readTextFile(path: string): Promise<string> {
   return typeof result.data === "string" ? result.data : await result.data.text();
 }
 
+/** Reads `path`'s raw bytes, for content that must round-trip byte-for-byte
+ * (e.g. copying an image attachment in `capture/captureCommit.ts`), unlike
+ * `readTextFile` above, which decodes as UTF-8 and lossily replaces any
+ * invalid byte sequence with U+FFFD. Reuses `readFileAsDataUrl` (already
+ * used by `fileSrc` below) for a workspace path rather than adding a new
+ * native plugin method, and `Filesystem.readFile`'s own base64 default
+ * encoding (omitting `encoding` gets base64, not text) for a staged
+ * attachment path outside the workspace. */
+export async function readBinaryFile(path: string): Promise<Uint8Array> {
+  if (isWorkspacePath(path)) {
+    const uri = await resolveUri(path);
+    const { dataUrl } = await FolderAccess.readFileAsDataUrl({ uri });
+    return base64ToBytes(dataUrl.slice(dataUrl.indexOf(",") + 1));
+  }
+  const result = await Filesystem.readFile({
+    path: toAppDataRelative(path),
+    directory: Directory.Data,
+  });
+  return typeof result.data === "string"
+    ? base64ToBytes(result.data)
+    : new Uint8Array(await result.data.arrayBuffer());
+}
+
 export async function readTextFilesBatch(paths: string[]): Promise<(string | null)[]> {
   const uris = await Promise.all(paths.map((path) => resolveUri(path)));
   const { contents } = await FolderAccess.readTextFilesBatch({ uris });
@@ -358,6 +381,16 @@ export function bytesToBase64(bytes: Uint8Array): string {
     binary += String.fromCharCode(...bytes.subarray(i, i + BASE64_CHUNK_SIZE));
   }
   return btoa(binary);
+}
+
+/** Inverse of `bytesToBase64` above, used by `readBinaryFile` below. */
+export function base64ToBytes(base64: string): Uint8Array {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
 }
 
 export async function writeBinaryFile(path: string, data: Uint8Array): Promise<void> {

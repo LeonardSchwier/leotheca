@@ -3,7 +3,7 @@
  * Handles appending to inbox note and creating new notes with proper formatting
  */
 
-import { readTextFile, writeTextFile, listDir, createWorkspaceTextFileNew, writeBinaryFile, readTextFile as bridgeReadTextFile } from "../workspace/tauriBridge";
+import { readTextFile, writeTextFile, listDir, createWorkspaceTextFileNew, writeBinaryFile, readBinaryFile } from "../workspace/tauriBridge";
 import { resolvePathWithinWorkspace } from "../workspace/paths";
 import { PendingAttachment } from "./pendingCaptures";
 import { rebuildLinkIndex } from "../linking/store";
@@ -269,15 +269,13 @@ async function copyAttachmentsToWorkspace(
 }
 
 /**
- * Simple copy file implementation for attachments
+ * Copy an attachment from app-private staging to the workspace, byte-for-byte.
  * F05-FR-15/F05-FR-16: Copy attachments to workspace
  */
 async function copyFile(sourcePath: string, destPath: string): Promise<void> {
   try {
-    const content = await bridgeReadTextFile(sourcePath);
-    // For now, we treat attachments as text files, but in reality they're binary
-    // This will work for small files but for images we'd need proper binary handling
-    await writeBinaryFile(destPath, new TextEncoder().encode(content));
+    const bytes = await readBinaryFile(sourcePath);
+    await writeBinaryFile(destPath, bytes);
   } catch (error) {
     // F05-AC-25: Don't log raw errors that may contain sensitive data
     console.error("F05: Failed to copy file");
@@ -286,16 +284,17 @@ async function copyFile(sourcePath: string, destPath: string): Promise<void> {
 }
 
 /**
- * Generate fingerprint for a file using text content (simplified)
+ * Generate a fingerprint for a file from its raw bytes, so it identifies the
+ * same content regardless of whether it happens to be valid UTF-8.
  * F05-FR-17: Fingerprint for retry matching
  */
 async function generateFingerprintForFile(filePath: string): Promise<string> {
   try {
-    const content = await bridgeReadTextFile(filePath);
-    const size = content.length;
-    const header = content.slice(0, 16);
-    const headerHex = Array.from(header).map((char: string) => 
-      char.charCodeAt(0).toString(16).padStart(2, "0")
+    const bytes = await readBinaryFile(filePath);
+    const size = bytes.length;
+    const header = bytes.subarray(0, 16);
+    const headerHex = Array.from(header).map((byte) =>
+      byte.toString(16).padStart(2, "0")
     ).join("");
     return `${size}-${headerHex}`;
   } catch (error) {

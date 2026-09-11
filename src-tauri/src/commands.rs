@@ -526,6 +526,18 @@ pub fn read_text_file(path: String) -> Result<String, String> {
     fs::read_to_string(&path).map_err(|e| e.to_string())
 }
 
+/// Reads `path`'s raw bytes, the read-side counterpart of `write_binary_file`
+/// below. Needed because `read_text_file` above requires valid UTF-8 and
+/// either errors (this crate) or lossily replaces invalid sequences with
+/// U+FFFD (the Android bridge's own text read) on binary content such as an
+/// image attachment -- `capture/captureCommit.ts`'s attachment copy used to
+/// go through the text path and silently corrupt or drop non-text
+/// attachments as a result.
+#[tauri::command]
+pub fn read_binary_file(path: String) -> Result<Vec<u8>, String> {
+    fs::read(&path).map_err(|e| e.to_string())
+}
+
 /// Reads multiple files' contents in one native call, for full-text
 /// search's content-fallback (`workspace/fileTreeStore.ts`'s `runSearch`),
 /// which otherwise needs one native call per file whose name doesn't
@@ -988,6 +1000,34 @@ mod tests {
 
         assert_eq!(contents, "# Hello\n\nBody text.");
         fs::remove_file(&tmp).unwrap();
+    }
+
+    #[test]
+    fn read_binary_file_round_trips_bytes_write_binary_file_wrote() {
+        let tmp =
+            std::env::temp_dir().join(format!("leotheca-test-readbinfile-{}", std::process::id()));
+        let path = tmp.to_string_lossy().to_string();
+        // Includes an invalid-UTF-8 byte sequence (a lone 0xFF continuation
+        // byte) to prove this reads raw bytes rather than the lossy/erroring
+        // UTF-8 decode read_text_file would apply to the same bytes.
+        let bytes: Vec<u8> = vec![0, 1, 2, 0xff, 0xfe, 0xfd, 137, 80, 78, 71];
+
+        write_binary_file(path.clone(), bytes.clone()).unwrap();
+        let read_back = read_binary_file(path.clone()).unwrap();
+
+        assert_eq!(read_back, bytes);
+        fs::remove_file(&tmp).unwrap();
+    }
+
+    #[test]
+    fn read_binary_file_errors_on_a_missing_file() {
+        let tmp = std::env::temp_dir().join(format!(
+            "leotheca-test-readbinfile-missing-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_file(&tmp);
+
+        assert!(read_binary_file(tmp.to_string_lossy().to_string()).is_err());
     }
 
     #[test]

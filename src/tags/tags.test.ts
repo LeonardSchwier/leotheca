@@ -58,6 +58,18 @@ describe("extractInlineTags", () => {
   it("matches a tag at the very start of a line with no preceding character", () => {
     expect(extractInlineTags("#start-of-line")).toEqual(["start-of-line"]);
   });
+
+  it("extracts a tag containing an accented Latin letter without truncating it", () => {
+    expect(extractInlineTags("Meeting notes #café today.")).toEqual(["café"]);
+  });
+
+  it("extracts a tag made entirely of CJK characters", () => {
+    expect(extractInlineTags("見て #日本語 タグ")).toEqual(["日本語"]);
+  });
+
+  it("extracts a nested tag with a non-ASCII segment", () => {
+    expect(extractInlineTags("#projet/résumé filed.")).toEqual(["projet/résumé"]);
+  });
 });
 
 describe("extractTags", () => {
@@ -82,6 +94,11 @@ describe("extractTags", () => {
   it("does not mistake a stray '#' inside the frontmatter block for an inline tag", () => {
     const source = '---\ntitle: "Issue #42"\n---\n\nNo inline tags here.';
     expect(extractTags(source)).toEqual([]);
+  });
+
+  it("de-duplicates a non-ASCII tag spelled the same in frontmatter and inline text", () => {
+    const source = "---\ntags: [café]\n---\n\nAlso #café here.";
+    expect(extractTags(source)).toEqual(["café"]);
   });
 });
 

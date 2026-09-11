@@ -8,15 +8,23 @@ const INLINE_CODE_SPAN = /`[^`\n]*`/g;
 // `#` immediately followed (no whitespace) by a word character, then any
 // run of word characters, hyphens, or `/`-separated segments for nesting
 // (`#work/project`). `#` followed by whitespace is a heading marker, not a
-// tag, and this pattern simply never matches it (the space isn't a `\w`).
-const INLINE_TAG_PATTERN = /#(\w[\w-]*(?:\/\w[\w-]*)*)/g;
+// tag, and this pattern simply never matches it (the space isn't a word
+// character). Unicode-aware (`\p{L}`/`\p{N}` under the `u` flag, matching
+// the existing precedent in editor/textDirection.ts's STRONG_LTR_CHAR)
+// rather than plain `\w`, which is ASCII-only in JavaScript and would
+// otherwise truncate or drop tags containing accented Latin, CJK, or any
+// other non-ASCII letters.
+const INLINE_TAG_PATTERN =
+  /#([\p{L}\p{N}_][\p{L}\p{N}_-]*(?:\/[\p{L}\p{N}_][\p{L}\p{N}_-]*)*)/gu;
 
 function isTagBoundary(char: string | undefined): boolean {
   // Not preceded by a word character (mid-word, "foo#bar"), another `#`
   // (a heading's "##", or a doubled "##tag"), or `/` (a URL fragment like
   // "page/#section"). Anything else, including undefined (start of line),
-  // is a valid boundary.
-  return char === undefined || !/[\w#/]/.test(char);
+  // is a valid boundary. Kept Unicode-aware in step with
+  // INLINE_TAG_PATTERN above so boundary detection and tag-body matching
+  // agree on what counts as a "word" character.
+  return char === undefined || !/[\p{L}\p{N}_#/]/u.test(char);
 }
 
 /**

@@ -1339,6 +1339,8 @@
 
 ### Bugs
 
+- ⬜ **A Desktop workspace folder literally named "workspace" is misnamed "Workspace" instead of using its real name**: `settings/workspaceProfiles.ts`'s `defaultProfileName` and `settings/globalConfig.ts`'s legacy-migration naming both special-case the Android synthetic root by checking whether the path's *basename* equals the literal `"workspace"`, not whether the *whole path* is the Android synthetic root (`"/workspace"`, `WORKSPACE_ROOT` in `workspace/capacitorBridgeImpl.ts`). Any real Desktop folder whose last path segment happens to be `workspace` — a common dev-folder name, e.g. `~/workspace` or `/home/alice/projects/workspace` — trips the same check and silently falls through to the generic `"Workspace"` fallback instead of using the folder's actual name, unlike every other folder name (a folder named `notes` correctly becomes `"notes"`). Fix: compare the *whole* path against the known Android synthetic root literal instead of just the basename, in both functions, with a regression test in each covering a Desktop path whose basename is coincidentally `workspace`.
+
 
 
 

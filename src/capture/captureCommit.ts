@@ -3,7 +3,7 @@
  * Handles appending to inbox note and creating new notes with proper formatting
  */
 
-import { readTextFile, writeTextFile, listDir, createWorkspaceTextFileNew, writeBinaryFile, readBinaryFile } from "../workspace/tauriBridge";
+import { readTextFile, writeTextFile, listDir, createWorkspaceTextFileNew, writeWorkspaceBinaryFile, readBinaryFile } from "../workspace/tauriBridge";
 import { resolvePathWithinWorkspace } from "../workspace/paths";
 import { PendingAttachment } from "./pendingCaptures";
 import { rebuildLinkIndex } from "../linking/store";
@@ -233,7 +233,7 @@ async function copyAttachmentsToWorkspace(
       }
       
       // Copy the file from staging to workspace
-      await copyFile(attachment.filePath, finalPath);
+      await copyFile(attachment.filePath, workspaceRoot, relativePath(workspaceRoot, finalPath));
       
       // Verify the copy was successful by checking fingerprint
       const sourceFingerprint = await generateFingerprintForFile(attachment.filePath);
@@ -270,12 +270,18 @@ async function copyAttachmentsToWorkspace(
 
 /**
  * Copy an attachment from app-private staging to the workspace, byte-for-byte.
+ * Writes through the workspace-contained bridge function (audit follow-up
+ * F-004's convention for every mutation inside an open workspace), not the
+ * plain uncontained one: `relativeDestPath` is derived from a generated
+ * filename that only ever gets as safe as its caller's own sanitization, so
+ * this is the actual boundary that must reject an escape, not merely rely
+ * on one.
  * F05-FR-15/F05-FR-16: Copy attachments to workspace
  */
-async function copyFile(sourcePath: string, destPath: string): Promise<void> {
+async function copyFile(sourcePath: string, workspaceRoot: string, relativeDestPath: string): Promise<void> {
   try {
     const bytes = await readBinaryFile(sourcePath);
-    await writeBinaryFile(destPath, bytes);
+    await writeWorkspaceBinaryFile(workspaceRoot, relativeDestPath, bytes);
   } catch (error) {
     // F05-AC-25: Don't log raw errors that may contain sensitive data
     console.error("F05: Failed to copy file");

@@ -188,7 +188,17 @@ export function addPendingCapture(capture: Omit<PendingCapture, "id" | "received
     targetProfileId: capture.targetProfileId,
     openAfterCommit: capture.openAfterCommit ?? false,
     status: "pending",
-    attachments: capture.attachments
+    // F05-FR-15: sanitize here, the one place every attachment (Android
+    // share intent, deep link, in-app capture) enters the queue, so
+    // PendingAttachment.fileName's own "(sanitized)" contract actually
+    // holds by the time captureCommit.ts builds a filesystem path from it.
+    // The Android share intent's fileName in particular comes from
+    // another app's content-provider display name, an untrusted string
+    // that could otherwise carry "/" or ".." path segments.
+    attachments: capture.attachments?.map((attachment) => ({
+      ...attachment,
+      fileName: sanitizeAttachmentFilename(attachment.fileName),
+    })),
   };
   
   pendingCapturesStore.value = [...captures, newCapture];

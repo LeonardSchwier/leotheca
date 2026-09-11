@@ -158,7 +158,7 @@ describe("appendToInboxNote", () => {
     const sensitiveMessage = "content://com.other.app/document/999: permission denied for /private/vault/path";
     const mockListDir = vi.fn().mockResolvedValue([]);
     const mockCreateWorkspaceTextFileNew = vi.fn().mockResolvedValue(undefined);
-    const mockWriteBinaryFile = vi.fn().mockResolvedValue(undefined);
+    const mockWriteWorkspaceBinaryFile = vi.fn().mockResolvedValue(undefined);
     const mockReadBinaryFile = vi.fn().mockRejectedValue(new Error(sensitiveMessage));
 
     vi.resetModules();
@@ -167,7 +167,7 @@ describe("appendToInboxNote", () => {
       writeTextFile: vi.fn(),
       listDir: mockListDir,
       createWorkspaceTextFileNew: mockCreateWorkspaceTextFileNew,
-      writeBinaryFile: mockWriteBinaryFile,
+      writeWorkspaceBinaryFile: mockWriteWorkspaceBinaryFile,
       readBinaryFile: mockReadBinaryFile,
     }));
 
@@ -221,9 +221,11 @@ describe("appendToInboxNote", () => {
     const mockReadBinaryFile = vi.fn(async (path: string) =>
       path === sourcePath ? sourceBytes : (written.get(path) ?? new Uint8Array())
     );
-    const mockWriteBinaryFile = vi.fn(async (path: string, data: Uint8Array) => {
-      written.set(path, data);
-    });
+    const mockWriteWorkspaceBinaryFile = vi.fn(
+      async (workspaceRoot: string, relativePath: string, data: Uint8Array) => {
+        written.set(`${workspaceRoot}/${relativePath}`, data);
+      }
+    );
     const mockListDir = vi.fn().mockResolvedValue([]);
     const mockCreateWorkspaceTextFileNew = vi.fn().mockResolvedValue(undefined);
 
@@ -233,7 +235,7 @@ describe("appendToInboxNote", () => {
       writeTextFile: vi.fn(),
       listDir: mockListDir,
       createWorkspaceTextFileNew: mockCreateWorkspaceTextFileNew,
-      writeBinaryFile: mockWriteBinaryFile,
+      writeWorkspaceBinaryFile: mockWriteWorkspaceBinaryFile,
       readBinaryFile: mockReadBinaryFile,
     }));
 
@@ -257,10 +259,17 @@ describe("appendToInboxNote", () => {
     );
 
     expect(result.name).toBe("Note title.md");
-    expect(mockWriteBinaryFile).toHaveBeenCalledTimes(1);
-    const [destPath, writtenBytes] = mockWriteBinaryFile.mock.calls[0] as [string, Uint8Array];
+    expect(mockWriteWorkspaceBinaryFile).toHaveBeenCalledTimes(1);
+    const [workspaceRootArg, relativePathArg, writtenBytes] = mockWriteWorkspaceBinaryFile.mock
+      .calls[0] as [string, string, Uint8Array];
+    // The write goes through the workspace-contained bridge function, not a
+    // caller-assembled absolute path: proves the containment boundary is
+    // the real one in effect, not merely trusted to have been applied
+    // upstream.
+    expect(workspaceRootArg).toBe("/workspace");
+    expect(relativePathArg).not.toMatch(/^\//);
     expect(writtenBytes).toEqual(sourceBytes);
-    expect(written.get(destPath)).toEqual(sourceBytes);
+    expect(written.get(`${workspaceRootArg}/${relativePathArg}`)).toEqual(sourceBytes);
 
     // The verified copy is referenced from the note; a real mismatch would
     // have silently dropped it instead (see the test right below).
@@ -277,7 +286,7 @@ describe("appendToInboxNote", () => {
     const mockReadBinaryFile = vi.fn(async (path: string) =>
       path === sourcePath ? sourceBytes : new Uint8Array([9, 9, 9])
     );
-    const mockWriteBinaryFile = vi.fn().mockResolvedValue(undefined);
+    const mockWriteWorkspaceBinaryFile = vi.fn().mockResolvedValue(undefined);
     const mockListDir = vi.fn().mockResolvedValue([]);
     const mockCreateWorkspaceTextFileNew = vi.fn().mockResolvedValue(undefined);
 
@@ -287,7 +296,7 @@ describe("appendToInboxNote", () => {
       writeTextFile: vi.fn(),
       listDir: mockListDir,
       createWorkspaceTextFileNew: mockCreateWorkspaceTextFileNew,
-      writeBinaryFile: mockWriteBinaryFile,
+      writeWorkspaceBinaryFile: mockWriteWorkspaceBinaryFile,
       readBinaryFile: mockReadBinaryFile,
     }));
 
@@ -313,5 +322,78 @@ describe("appendToInboxNote", () => {
     expect(result.name).toBe("Note title.md");
     const noteContent = mockCreateWorkspaceTextFileNew.mock.calls[0][2] as string;
     expect(noteContent).not.toContain("photo2");
+  });
+
+  it("F05-FR-15: writes an attachment through the workspace-contained bridge function, never an absolute caller-assembled path", async () => {
+    // Defense in depth: even if a malicious fileName (e.g. from a
+    // share-intent's untrusted content-provider display name) somehow
+    // reached this function without having been sanitized upstream by
+    // pendingCaptures.ts's addPendingCapture, the actual write must still
+    // go through writeWorkspaceBinaryFile's real containment check
+    // (resolve_within_workspace on the Rust side, which rejects any ".."
+    // path segment), not the plain, uncontained writeBinaryFile that used
+    // to receive a bare caller-assembled absolute path.
+    const sourcePath = "/app-private/staging/att-traversal";
+    const sourceBytes = new Uint8Array([1, 2, 3]);
+    const written = new Map<string, Uint8Array>();
+
+    const mockReadBinaryFile = vi.fn(async (path: string) =>
+      path === sourcePath ? sourceBytes : (written.get(path) ?? new Uint8Array())
+    );
+    const mockWriteWorkspaceBinaryFile = vi.fn(
+      async (workspaceRoot: string, relativePath: string, data: Uint8Array) => {
+        written.set(`${workspaceRoot}/${relativePath}`, data);
+      }
+    );
+    const mockListDir = vi.fn().mockResolvedValue([]);
+    const mockCreateWorkspaceTextFileNew = vi.fn().mockResolvedValue(undefined);
+
+    vi.resetModules();
+    vi.doMock("../workspace/tauriBridge", () => ({
+      readTextFile: vi.fn(),
+      writeTextFile: vi.fn(),
+      listDir: mockListDir,
+      createWorkspaceTextFileNew: mockCreateWorkspaceTextFileNew,
+      writeWorkspaceBinaryFile: mockWriteWorkspaceBinaryFile,
+      readBinaryFile: mockReadBinaryFile,
+    }));
+
+    const { createNoteWithTitle } = await import("./captureCommit");
+
+    await createNoteWithTitle(
+      "/workspace",
+      "Captured text",
+      "Note title",
+      "/workspace",
+      [
+        {
+          id: "att-traversal",
+          filePath: sourcePath,
+          // Deliberately unsanitized here to exercise this function's own
+          // boundary in isolation from pendingCaptures.ts's sanitization.
+          fileName: "../../../../shared_prefs/evil.xml",
+          fileSize: sourceBytes.length,
+          fingerprint: "irrelevant",
+          mimeType: "application/xml",
+        },
+      ]
+    );
+
+    expect(mockWriteWorkspaceBinaryFile).toHaveBeenCalledTimes(1);
+    const [workspaceRootArg, relativePathArg] = mockWriteWorkspaceBinaryFile.mock.calls[0] as [
+      string,
+      string,
+      Uint8Array,
+    ];
+    expect(workspaceRootArg).toBe("/workspace");
+    // Not asserting relativePathArg is free of ".." here -- that would only
+    // restate this function's own unsanitized input. The actual guarantee
+    // is structural: this is the one and only write call, it is a real
+    // relative path string (not undefined/empty), and it goes through the
+    // contained bridge function (workspaceRoot + a relative path Rust's own
+    // resolve_within_workspace validates), never the uncontained one taking
+    // a single caller-trusted absolute path.
+    expect(typeof relativePathArg).toBe("string");
+    expect(relativePathArg.length).toBeGreaterThan(0);
   });
 });

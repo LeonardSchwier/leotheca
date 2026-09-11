@@ -271,6 +271,36 @@ describe("pendingCaptures", () => {
       expect(capture.attachments![0].fileName).toBe("photo1.jpg");
     });
 
+    it("F05-FR-15: sanitizes an attachment's fileName so a share-intent-supplied path traversal never reaches a filesystem write", () => {
+      // fileName comes from another app's content-provider display name on
+      // an Android share intent (androidShareBridge.ts's mapAndroidAttachment)
+      // -- an untrusted string this queue's own PendingAttachment.fileName
+      // doc comment already claims is "(sanitized)". Before this fix it
+      // wasn't: captureCommit.ts's generateAttachmentFilename would have
+      // built a destination path containing these literal ".." segments.
+      const attachments: PendingAttachment[] = [
+        {
+          id: "att-traversal",
+          filePath: "/staging/att-traversal",
+          fileName: "../../../../shared_prefs/evil.xml",
+          fileSize: 1024,
+          fingerprint: "1024-abc123",
+          mimeType: "application/xml",
+        },
+      ];
+
+      const capture = addPendingCapture({
+        source: "android-share",
+        text: "Capture with a malicious attachment name",
+        mode: "new",
+        attachments,
+      });
+
+      const sanitizedName = capture.attachments![0].fileName;
+      expect(sanitizedName).not.toContain("/");
+      expect(sanitizedName).not.toContain("\\");
+    });
+
     it("should reject capture with too many attachments", () => {
       const tooManyAttachments: PendingAttachment[] = [];
       for (let i = 0; i < MAX_ATTACHMENTS_PER_CAPTURE + 1; i++) {

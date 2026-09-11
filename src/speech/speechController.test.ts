@@ -10,6 +10,13 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { SpeechController } from './speechController';
 import type { SpeechRecognitionState, SpeechRecognitionResult, SpeechRecognitionError } from './types';
 
+vi.mock('../workspace/speechBridgeImpl', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../workspace/speechBridgeImpl')>();
+  return { ...actual, transcribeAudio: vi.fn(actual.transcribeAudio) };
+});
+
+import { transcribeAudio } from '../workspace/speechBridgeImpl';
+
 // Mock global objects for testing
 const mockAudioContext = vi.fn(() => ({
   close: vi.fn().mockResolvedValue(undefined),
@@ -188,6 +195,47 @@ describe('SpeechController', () => {
       
       expect(samples).toBeInstanceOf(Float32Array);
       expect(samples.length).toBe(sampleCount);
+    });
+  });
+
+  describe('Transcription failure handling', () => {
+    it('surfaces a real error instead of accepting a fabricated transcription when transcribeAudio fails', async () => {
+      const controller = new SpeechController();
+      const errorCallback = vi.fn();
+      const resultCallback = vi.fn();
+      controller.onError(errorCallback);
+      controller.onResult(resultCallback);
+
+      vi.mocked(transcribeAudio).mockRejectedValueOnce(
+        new Error(
+          'Desktop speech recognition is not implemented in this build: no whisper.cpp backend is compiled in.'
+        )
+      );
+
+      (controller as any).audioChunks = [new Blob([new Uint8Array([1, 2, 3, 4])])];
+      await (controller as any).processAudio();
+
+      expect(resultCallback).not.toHaveBeenCalled();
+      expect(errorCallback).toHaveBeenCalledTimes(1);
+      expect(controller.getState()).toBe('error');
+    });
+
+    it('reports the real transcription as a result when transcribeAudio succeeds', async () => {
+      const controller = new SpeechController();
+      const errorCallback = vi.fn();
+      const resultCallback = vi.fn();
+      controller.onError(errorCallback);
+      controller.onResult(resultCallback);
+
+      vi.mocked(transcribeAudio).mockResolvedValueOnce('hello world');
+
+      (controller as any).audioChunks = [new Blob([new Uint8Array([1, 2, 3, 4])])];
+      await (controller as any).processAudio();
+
+      expect(errorCallback).not.toHaveBeenCalled();
+      expect(resultCallback).toHaveBeenCalledWith(
+        expect.objectContaining({ text: 'hello world', isFinal: true })
+      );
     });
   });
 

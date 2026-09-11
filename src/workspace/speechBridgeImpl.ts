@@ -89,7 +89,12 @@ export async function getSpeechStatus() {
     const status = await tauriBridge.getSpeechStatus();
     return {
       ...status,
-      offlineSupported: true, // Desktop with whisper.cpp is always offline
+      // No real whisper.cpp backend is compiled into this build (see
+      // ROADMAP.md's "Desktop speech-to-text fabricates transcription..."
+      // entry), so `initSpeechRecognition` always fails and `modelLoaded`
+      // never becomes true; reflect that honestly instead of claiming
+      // offline support unconditionally.
+      offlineSupported: status.modelLoaded,
       platform: 'desktop' as const,
     };
   }
@@ -128,9 +133,12 @@ export async function isSpeechRecognitionAvailable(): Promise<boolean> {
     if (Capacitor.isNativePlatform()) {
       return capacitorBridge.isAndroidOfflineSupported();
     } else {
-      // On desktop, check if whisper models are available
+      // On desktop, only report available once a real model is actually
+      // loaded. No real whisper.cpp backend is compiled into this build
+      // today, so this always resolves to false; see ROADMAP.md's
+      // "Desktop speech-to-text fabricates transcription..." entry.
       const status = await tauriBridge.getSpeechStatus();
-      return status.modelLoaded || true; // Always available, just might need model download
+      return status.modelLoaded;
     }
   } catch {
     return false;

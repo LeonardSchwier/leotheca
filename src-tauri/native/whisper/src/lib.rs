@@ -13,7 +13,7 @@
 //! If whisper.cpp source is not present, stub implementations will be used
 //! that simulate the API but don't perform actual speech recognition.
 
-use libc::{c_char, c_int, c_void};
+use libc::c_int;
 use std::ffi::{CStr, CString};
 use std::ptr;
 
@@ -28,9 +28,6 @@ mod bindings {
 }
 
 use bindings::*;
-
-/// Maximum length for transcribed text chunks
-const MAX_TEXT_LENGTH: usize = 4096;
 
 /// Constants for whisper sampling strategies
 /// These are defined here for compatibility with both stub and real bindings
@@ -243,18 +240,9 @@ pub fn is_whisper_available() -> bool {
 
 /// Get whisper.cpp version information
 pub fn get_whisper_version() -> String {
-    // Try to get version from whisper.cpp
-    // In stub mode, this returns the stub version
-    #[cfg(feature = "stub")]
-    {
-        "stub (no whisper.cpp source)".to_string()
-    }
-
-    #[cfg(not(feature = "stub"))]
-    {
-        // In real mode, we would call whisper_print_system_info or similar
-        "whisper.cpp (FFI)".to_string()
-    }
+    // In stub mode (when whisper.cpp source is not present), this returns the stub version
+    // In real mode (when whisper.cpp source is present), this would call whisper_print_system_info
+    "whisper.cpp (FFI) - stub implementations active".to_string()
 }
 
 /// Get list of supported languages by whisper

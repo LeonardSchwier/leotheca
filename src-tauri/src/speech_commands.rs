@@ -11,21 +11,11 @@ use whisper_ffi::WhisperModel;
 /// Shared whisper model state.
 ///
 /// Tracks the loaded whisper model and its state.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct WhisperState {
     pub model_loaded: bool,
     pub current_model: Option<String>,
     pub whisper_model: Option<WhisperModel>,
-}
-
-impl Default for WhisperState {
-    fn default() -> Self {
-        Self {
-            model_loaded: false,
-            current_model: None,
-            whisper_model: None,
-        }
-    }
 }
 
 

@@ -90,29 +90,31 @@ fn main() {
 // To enable real whisper.cpp integration, place whisper.cpp and whisper.h
 // in src-tauri/native/whisper/ and rebuild
 
-use libc::{c_char, c_int, c_void};
+use libc::c_int;
 
 pub const WHISPER_SAMPLE_RATE: i32 = 16000;
 
+// Opaque type for whisper context
 #[repr(C)]
 pub struct whisper_context {
-    _private: [u8; 0],
+    _opaque: [u8; 0],
 }
 
+// Opaque type for whisper state
 #[repr(C)]
 pub struct whisper_state {
-    _private: [u8; 0],
+    _opaque: [u8; 0],
 }
 
 // External C function declarations - these would be provided by whisper.cpp
 // In stub mode, these point to our stub implementations below
 extern "C" {
-    pub fn whisper_init(path: *const c_char) -> *mut whisper_context;
+    pub fn whisper_init(path: *const std::os::raw::c_char) -> *mut whisper_context;
     pub fn whisper_free(ctx: *mut whisper_context);
-    pub fn whisper_full(ctx: *mut whisper_context, params: *mut c_void, n_samples: c_int) -> c_int;
+    pub fn whisper_full(ctx: *mut whisper_context, params: *mut std::os::raw::c_void, n_samples: c_int) -> c_int;
     pub fn whisper_full_with_state(ctx: *mut whisper_context, params: *mut whisper_state) -> c_int;
     pub fn whisper_full_n_segments(ctx: *mut whisper_context) -> c_int;
-    pub fn whisper_full_get_segment_text(ctx: *mut whisper_context, i_segment: c_int) -> *const c_char;
+    pub fn whisper_full_get_segment_text(ctx: *mut whisper_context, i_segment: c_int) -> *const std::os::raw::c_char;
     pub fn whisper_full_get_segment_t0(ctx: *mut whisper_context, i_segment: c_int) -> i64;
     pub fn whisper_full_get_segment_t1(ctx: *mut whisper_context, i_segment: c_int) -> i64;
     pub fn whisper_print_timings(ctx: *mut whisper_context);
@@ -124,7 +126,7 @@ mod stub_impl {
     use super::*;
     
     #[no_mangle]
-    pub extern "C" fn whisper_init(_path: *const c_char) -> *mut whisper_context {
+    pub extern "C" fn whisper_init(_path: *const std::os::raw::c_char) -> *mut whisper_context {
         std::ptr::null_mut()
     }
 
@@ -132,7 +134,7 @@ mod stub_impl {
     pub extern "C" fn whisper_free(_ctx: *mut whisper_context) {}
 
     #[no_mangle]
-    pub extern "C" fn whisper_full(_ctx: *mut whisper_context, _params: *mut c_void, _n_samples: c_int) -> c_int {
+    pub extern "C" fn whisper_full(_ctx: *mut whisper_context, _params: *mut std::os::raw::c_void, _n_samples: c_int) -> c_int {
         0
     }
 
@@ -147,7 +149,7 @@ mod stub_impl {
     }
 
     #[no_mangle]
-    pub extern "C" fn whisper_full_get_segment_text(_ctx: *mut whisper_context, _i_segment: c_int) -> *const c_char {
+    pub extern "C" fn whisper_full_get_segment_text(_ctx: *mut whisper_context, _i_segment: c_int) -> *const std::os::raw::c_char {
         std::ptr::null()
     }
 
@@ -167,6 +169,7 @@ mod stub_impl {
     #[no_mangle]
     pub extern "C" fn whisper_reset_timings(_ctx: *mut whisper_context) {}
 }
+
 "#;
 
         let out_path = Path::new(&out_dir).join("bindings.rs");

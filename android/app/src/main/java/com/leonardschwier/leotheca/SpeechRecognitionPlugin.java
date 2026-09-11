@@ -48,15 +48,6 @@ public class SpeechRecognitionPlugin extends Plugin {
         }
     }
 
-    @Override
-    public void onDestroy() {
-        if (speechRecognizer != null) {
-            speechRecognizer.destroy();
-            speechRecognizer = null;
-        }
-        super.onDestroy();
-    }
-
     /**
      * Start speech recognition with offline preference
      * 

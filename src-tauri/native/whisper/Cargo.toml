@@ -5,7 +5,7 @@ edition = "2021"
 
 [lib]
 name = "whisper_ffi"
-crate-type = ["staticlib"]
+crate-type = ["staticlib", "rlib"]
 
 [dependencies]
 # For FFI and C interop

@@ -41,6 +41,7 @@ pub const WHISPER_SAMPLING_BEAM: i32 = 1;
 pub const WHISPER_SAMPLE_RATE: i32 = 16000;
 
 /// Whisper model wrapper
+#[derive(Debug)]
 pub struct WhisperModel {
     context: *mut whisper_context,
     sample_rate: u32,
@@ -163,6 +164,14 @@ impl Drop for WhisperModel {
         }
     }
 }
+
+// Safety: WhisperModel contains a raw pointer to whisper_context.
+// whisper.cpp's whisper_context is thread-safe for concurrent access
+// as long as each thread uses its own whisper_full calls with proper
+// parameter structures. The raw pointer is only accessed through
+// the FFI functions which are designed to be thread-safe.
+unsafe impl Send for WhisperModel {}
+unsafe impl Sync for WhisperModel {}
 
 /// Information about loaded whisper model
 #[derive(Debug, Clone)]

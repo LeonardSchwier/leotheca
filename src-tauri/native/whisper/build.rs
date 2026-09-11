@@ -13,27 +13,45 @@ use std::path::Path;
 
 fn main() {
     // Check if whisper.cpp source files exist
-    let whisper_cpp = Path::new("src-tauri/native/whisper/whisper.cpp");
-    let whisper_h = Path::new("src-tauri/native/whisper/whisper.h");
+    // Note: whisper.cpp has moved from ggerganov/whisper.cpp to ggml-org/whisper.cpp
+    // and the file structure has changed. Place whisper.cpp and whisper.h in this directory.
+    let whisper_cpp = Path::new("whisper.cpp");
+    let whisper_h = Path::new("whisper.h");
 
     let out_dir = env::var("OUT_DIR").unwrap();
 
     if whisper_cpp.exists() && whisper_h.exists() {
         // whisper.cpp source is available - compile it
-        println!("cargo:rerun-if-changed=src-tauri/native/whisper/whisper.cpp");
-        println!("cargo:rerun-if-changed=src-tauri/native/whisper/whisper.h");
+        println!("cargo:rerun-if-changed=whisper.cpp");
+        println!("cargo:rerun-if-changed=whisper.h");
 
         // Compile whisper.cpp with CC
         // whisper.cpp requires C++17
-        cc::Build::new()
-            .cpp(true)
-            .cpp_set_stdlib("c++17")
-            .flag("-O3")
-            .flag("-ffast-math")
-            .flag("-pthread")
-            .include("src-tauri/native/whisper/")
-            .file("src-tauri/native/whisper/whisper.cpp")
-            .compile("whisper");
+        if cfg!(target_os = "macos") {
+            cc::Build::new()
+                .cpp(true)
+                .cpp_set_stdlib("c++17")
+                .flag("-O3")
+                .flag("-ffast-math")
+                .flag("-pthread")
+                .include(".")
+                .file("whisper.cpp")
+                .compile("whisper");
+            
+            // For macOS, we need to link against Accelerate framework
+            println!("cargo:rustc-link-arg=-framework");
+            println!("cargo:rustc-link-arg=Accelerate");
+        } else {
+            cc::Build::new()
+                .cpp(true)
+                .flag("-std=c++17")
+                .flag("-O3")
+                .flag("-ffast-math")
+                .flag("-pthread")
+                .include(".")
+                .file("whisper.cpp")
+                .compile("whisper");
+        }
 
         // Tell Cargo to look for the static library
         println!("cargo:rustc-link-lib=static=whisper");
@@ -47,8 +65,8 @@ fn main() {
 
         // Generate bindings with bindgen
         let bindings = bindgen::Builder::default()
-            .header("src-tauri/native/whisper/whisper.h")
-            .parse_callbacks(Box::new(bindgen::CargoCallbacks))
+            .header("whisper.h")
+            .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
             .generate()
             .expect("Unable to generate bindings");
 

@@ -6,9 +6,7 @@
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
-extern crate whisper_ffi;
-
-use whisper_ffi::{WhisperModel, WHISPER_SAMPLE_RATE};
+use whisper_ffi::WhisperModel;
 
 /// Shared whisper model state.
 ///
@@ -30,14 +28,7 @@ impl Default for WhisperState {
     }
 }
 
-/// Error returned when whisper.cpp backend is not available or not compiled.
-///
-/// When the whisper feature is enabled and whisper.cpp source is present,
-/// real speech recognition will be used. Otherwise, this error is returned
-/// to let the existing `SpeechRecognitionButton.tsx` error-state UI take over
-/// rather than silently inserting fabricated text into a note.
-const SPEECH_NOT_IMPLEMENTED: &str =
-    "Desktop speech recognition is not implemented in this build: no whisper.cpp backend is compiled in.";
+
 
 /// Initialize whisper model.
 ///
@@ -254,21 +245,13 @@ mod tests {
     /// Maintenance-review regression: `transcribe_audio` used to fabricate
     /// text like "[Transcribed text from 3200ms of audio]" instead of
     /// returning a real error, so a desktop user got fake dictated text
-    /// silently inserted into their note. Both commands now always return
-    /// this one honest error; assert it never resembles that fabricated
-    /// output.
-    #[test]
-    fn speech_not_implemented_error_never_resembles_a_fabricated_transcription() {
-        let lower = SPEECH_NOT_IMPLEMENTED.to_lowercase();
-        assert!(!lower.contains("transcribed"));
-        assert!(!lower.contains("0.95"));
-        assert!(lower.contains("not implemented"));
-    }
-
+    /// silently inserted into their note. Now it returns an honest error
+    /// about the model not being loaded or whisper.cpp source not being available.
     #[test]
     fn whisper_state_defaults_to_honestly_not_loaded() {
         let state = WhisperState::default();
         assert!(!state.model_loaded);
         assert!(state.current_model.is_none());
+        assert!(state.whisper_model.is_none());
     }
 }

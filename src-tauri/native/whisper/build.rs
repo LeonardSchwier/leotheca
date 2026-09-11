@@ -37,7 +37,7 @@ fn main() {
                 .include(".")
                 .file("whisper.cpp")
                 .compile("whisper");
-            
+
             // For macOS, we need to link against Accelerate framework
             println!("cargo:rustc-link-arg=-framework");
             println!("cargo:rustc-link-arg=Accelerate");

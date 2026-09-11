@@ -18,8 +18,6 @@ pub struct WhisperState {
     pub whisper_model: Option<WhisperModel>,
 }
 
-
-
 /// Initialize whisper model.
 ///
 /// Loads the whisper model from the specified path.
@@ -32,7 +30,7 @@ pub async fn init_speech_recognition(
     let mut state_guard = state
         .lock()
         .map_err(|_| "Failed to lock whisper state".to_string())?;
-    
+
     match WhisperModel::load(&model_path) {
         Ok(model) => {
             state_guard.whisper_model = Some(model);
@@ -60,7 +58,7 @@ pub async fn transcribe_audio(
     let state_guard = state
         .lock()
         .map_err(|_| "Failed to lock whisper state".to_string())?;
-    
+
     match &state_guard.whisper_model {
         Some(model) => {
             if audio_data.is_empty() {

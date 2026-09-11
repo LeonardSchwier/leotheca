@@ -5,6 +5,7 @@
  * state management, initialization, audio processing, and error handling.
  */
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { SpeechController } from './speechController';
 import type { SpeechRecognitionState, SpeechRecognitionResult, SpeechRecognitionError } from './types';

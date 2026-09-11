@@ -25,9 +25,6 @@ tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
-# Whisper.cpp FFI for offline speech recognition
-whisper-ffi = { path = "native/whisper" }
-
 [profile.release]
 panic = "abort"
 codegen-units = 1

@@ -92,6 +92,26 @@ export async function getWhisperModels(): Promise<WhisperModelInfo[]> {
 }
 
 /**
+ * Whisper model file information
+ */
+export interface WhisperModelFile {
+  path: string;
+  name: string;
+  sizeMb: number;
+  exists: boolean;
+}
+
+/**
+ * Check for available whisper model files in the application directory
+ * 
+ * @param appDir - Application directory to check for model files
+ * @returns Promise that resolves with array of model file info
+ */
+export async function checkWhisperModels(appDir: string): Promise<WhisperModelFile[]> {
+  return invoke('check_whisper_models', { appDir });
+}
+
+/**
  * Get default audio capture configuration
  * 
  * @returns Default audio configuration for speech recognition

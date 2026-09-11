@@ -214,6 +214,17 @@ describe("decodeGlobalConfig", () => {
       expect(config.workspaceProfiles[0].name).toBe("Workspace");
     });
 
+    it("uses the real basename for a Desktop folder that merely happens to be named 'workspace'", () => {
+      // Only the exact Android synthetic root path is special-cased; a
+      // real Desktop folder whose basename is coincidentally "workspace"
+      // (e.g. a common dev-folder name like ~/workspace) must keep its
+      // own name rather than being swallowed by that check.
+      const { config } = decodeGlobalConfig(
+        JSON.stringify({ lastWorkspacePath: "/Users/me/workspace" }),
+      );
+      expect(config.workspaceProfiles[0].name).toBe("workspace");
+    });
+
     it("does not migrate when there is no lastWorkspacePath", () => {
       const { config } = decodeGlobalConfig(JSON.stringify({ theme: "dark" }));
       expect(config.workspaceProfiles).toEqual([]);

@@ -23,18 +23,30 @@ export function normalizeProfileName(raw: string): string | null {
   return trimmed;
 }
 
+/** The Android bridge's own synthetic workspace root (`WORKSPACE_ROOT` in
+ * `workspace/capacitorBridgeImpl.ts`), duplicated as a literal rather than
+ * imported: that module registers a native Capacitor plugin at import
+ * time, which this file's own doc comment deliberately stays free of
+ * ("No signal reads, no platform calls"). Android always picks exactly
+ * this path, never a path *ending* in "workspace" some other way, so
+ * comparing the *whole* path against it (not just its basename) is both
+ * sufficient and exact -- unlike a bare basename check, it does not also
+ * misfire on a real Desktop folder that merely happens to be named
+ * "workspace" (e.g. `~/workspace`, a common dev-folder name). */
+const ANDROID_SYNTHETIC_WORKSPACE_ROOT = "/workspace";
+
 /** Section 11 step 6's default-name fallback chain for a brand-new
  * profile: an explicit suggested name, else the Desktop folder's own
- * basename (when it isn't the Android synthetic root), else a plain
- * "Workspace". Mirrors `globalConfig.ts`'s own legacy-migration naming
- * exactly, so a freshly added profile and a migrated one pick a default
- * name the same way. */
+ * basename (when the path isn't the Android synthetic root), else a
+ * plain "Workspace". Mirrors `globalConfig.ts`'s own legacy-migration
+ * naming exactly, so a freshly added profile and a migrated one pick a
+ * default name the same way. */
 export function defaultProfileName(path: string, suggestedName?: string): string {
   const suggested = suggestedName ? normalizeProfileName(suggestedName) : null;
   if (suggested) return suggested;
-  const basename = path.split("/").filter(Boolean).pop();
-  if (basename && basename !== "workspace") {
-    const normalized = normalizeProfileName(basename);
+  if (path !== ANDROID_SYNTHETIC_WORKSPACE_ROOT) {
+    const basename = path.split("/").filter(Boolean).pop();
+    const normalized = basename ? normalizeProfileName(basename) : null;
     if (normalized) return normalized;
   }
   return "Workspace";

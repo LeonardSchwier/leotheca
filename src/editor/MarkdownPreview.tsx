@@ -143,7 +143,7 @@ marked.use({
   ],
 });
 
-interface MarkdownPreviewProps {
+export interface MarkdownPreviewProps {
   source: string;
   /** `options.headingKey`/`options.blockId` are set only when the click
    * that opened this file came from a resolved `[[Note#Heading]]` or

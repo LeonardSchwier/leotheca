@@ -36,7 +36,6 @@ public class SpeechRecognitionPlugin extends Plugin {
     private String currentLanguage = "en";
     private boolean preferOffline = true;
 
-    @Override
     public void load() {
         super.load();
         // Initialize speech recognizer
@@ -48,7 +47,6 @@ public class SpeechRecognitionPlugin extends Plugin {
         }
     }
 
-    @Override
     public void onDestroy() {
         if (speechRecognizer != null) {
             speechRecognizer.destroy();
@@ -143,12 +141,13 @@ public class SpeechRecognitionPlugin extends Plugin {
         // would be needed for offline transcription on Android
         // This method allows TypeScript-captured audio to be processed
         try {
-            float[] audioData = call.getArray("audioData", float.class);
+            JSArray audioDataArray = call.getArray("audioData");
             String language = call.getString("language", "en");
             
-            if (audioData != null && audioData.length > 0) {
-                // Simulate transcription based on audio length
-                int durationMs = (int) ((audioData.length / 16000.0) * 1000);
+            if (audioDataArray != null && audioDataArray.length() > 0) {
+                // Simulate transcription based on array length
+                // In a real implementation, we would extract the float values
+                int durationMs = (int) ((audioDataArray.length() / 16000.0) * 1000);
                 String simulatedText = "[Transcribed from Android: " + durationMs + "ms of audio]";
                 call.resolve(new JSObject()
                     .put("text", simulatedText)

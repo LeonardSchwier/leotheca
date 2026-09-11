@@ -197,23 +197,23 @@ export class SpeechController implements SpeechRecognitionController {
    * Initialize audio context and request microphone permission
    */
   private async initializeAudio(): Promise<void> {
-    try {
-      this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-      
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        audio: true,
-        video: false 
-      });
-      
-      this.mediaRecorder = new MediaRecorder(stream);
-      this.mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          this.audioChunks.push(event.data);
-        }
-      };
-    } catch (error) {
-      throw error;
+    const AudioContextClass = window.AudioContext || (window as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioContextClass) {
+      throw new Error('AudioContext not available');
     }
+    this.audioContext = new AudioContextClass();
+    
+    const stream = await navigator.mediaDevices.getUserMedia({ 
+      audio: true,
+      video: false 
+    });
+    
+    this.mediaRecorder = new MediaRecorder(stream);
+    this.mediaRecorder.ondataavailable = (event) => {
+      if (event.data.size > 0) {
+        this.audioChunks.push(event.data);
+      }
+    };
   }
 
   /**

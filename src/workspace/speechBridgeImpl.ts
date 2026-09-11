@@ -157,7 +157,7 @@ export interface SpeechStatus {
  * Speech options including models and languages
  */
 export interface SpeechOptions {
-  models: any[]; // WhisperModelInfo[] | []
+  models: import('./speechBridge').WhisperModelInfo[];
   languages: string[];
   platform: PlatformType;
   offlineCapable: boolean;

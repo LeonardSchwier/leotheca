@@ -34,6 +34,13 @@ export type SpeechRecognitionState =
   | 'transcribing'
   | 'error';
 
+export interface SpeechOptions {
+  models: unknown[];
+  languages: string[];
+  platform: string;
+  offlineCapable: boolean;
+}
+
 export interface SpeechRecognitionController {
   /** Start speech recognition */
   start(options?: SpeechRecognitionOptions): Promise<void>;
@@ -48,7 +55,7 @@ export interface SpeechRecognitionController {
   /** Subscribe to state changes */
   onStateChange(callback: (state: SpeechRecognitionState) => void): () => void;
   /** Get available options (models, languages) */
-  getOptions(): Promise<any>;
+  getOptions(): Promise<SpeechOptions>;
   /** Check if speech recognition is available */
   isSpeechRecognitionAvailable(): Promise<boolean>;
   /** Initialize the controller */

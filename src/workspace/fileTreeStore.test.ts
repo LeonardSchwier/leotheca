@@ -209,6 +209,18 @@ describe("createNote", () => {
     );
     expect(writeWorkspaceTextFile).toHaveBeenCalledTimes(1);
   });
+
+  it("rejects a name containing a path separator instead of silently creating a subfolder", async () => {
+    // Desktop's containment layer would otherwise create "sub" and move
+    // the note into it; Android's SAF rename would instead silently
+    // discard "sub/" and create the note in dirPath unchanged -- rejecting
+    // it here keeps this a single-directory operation on both platforms.
+    await expect(createNote("/workspace", "sub/note")).rejects.toThrow(
+      '"sub/note" may not contain "/" or "\\".',
+    );
+    expect(writeWorkspaceTextFile).not.toHaveBeenCalled();
+    expect(listDir).not.toHaveBeenCalled();
+  });
 });
 
 describe("createNoteQuick", () => {
@@ -325,6 +337,14 @@ describe("createFolder", () => {
     await expect(createFolder("/workspace", "New Folder")).rejects.toThrow(
       '"New Folder" already exists in this folder.',
     );
+  });
+
+  it("rejects a folder name containing a path separator", async () => {
+    await expect(createFolder("/workspace", "sub/New Folder")).rejects.toThrow(
+      '"sub/New Folder" may not contain "/" or "\\".',
+    );
+    expect(createWorkspaceDir).not.toHaveBeenCalled();
+    expect(listDir).not.toHaveBeenCalled();
   });
 });
 
@@ -454,6 +474,22 @@ describe("renameEntry", () => {
     await expect(renameEntry("/workspace/old.md", "taken.md")).rejects.toThrow(
       '"taken.md" already exists in this folder.',
     );
+  });
+
+  it("rejects a new name containing a path separator instead of silently diverging by platform", async () => {
+    // Desktop's containment layer treats "sub/renamed.md" as a real
+    // cross-directory move (creating "sub" if needed); Android's SAF
+    // rename resolves the destination parent from the *source's* own
+    // directory and only ever passes the final path segment on as the
+    // new display name, so "sub/" is silently discarded there instead --
+    // the same input, two different outcomes, neither surfacing an
+    // error. Rejecting it here keeps rename a single-directory operation
+    // identically on both platforms.
+    listDir.mockResolvedValue([entry("old.md")]);
+    await expect(
+      renameEntry("/workspace/old.md", "sub/renamed.md"),
+    ).rejects.toThrow('"sub/renamed.md" may not contain "/" or "\\".');
+    expect(renameWorkspacePath).not.toHaveBeenCalled();
   });
 });
 

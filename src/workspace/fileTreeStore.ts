@@ -262,10 +262,28 @@ function rethrowCreateCollision(error: unknown, name: string): never {
   throw error;
 }
 
+/** Rejects a user-typed entry name containing a path separator before it
+ * ever reaches a path-building call below. Without this, a name like
+ * "sub/renamed.md" silently diverges by platform: desktop's
+ * resolve_within_workspace + fs::create_dir_all treats it as a real
+ * cross-directory move (creating "sub" if needed), while Android's SAF
+ * rename resolves the destination parent from the *source's* own
+ * directory and only ever passes the final path segment as the new
+ * display name, so "sub/" is silently discarded and the entry is renamed
+ * in place instead -- the same platform, no error either side, two
+ * different outcomes. Rejecting it here keeps create/rename a single-
+ * directory operation identically on both platforms. */
+function assertValidEntryName(name: string): void {
+  if (name.includes("/") || name.includes("\\")) {
+    throw new Error(`"${name}" may not contain "/" or "\\".`);
+  }
+}
+
 export async function createNote(
   dirPath: string,
   fileName: string,
 ): Promise<string> {
+  assertValidEntryName(fileName);
   const name = fileName.endsWith(".md") ? fileName : `${fileName}.md`;
   const root = requireWorkspacePath();
   const existing = await listDir(root, dirPath);
@@ -473,6 +491,7 @@ export async function createFolder(
   dirPath: string,
   folderName: string,
 ): Promise<string> {
+  assertValidEntryName(folderName);
   const root = requireWorkspacePath();
   const existing = await listDir(root, dirPath);
   if (existing.some((e) => e.name === folderName)) {
@@ -720,6 +739,7 @@ export async function renameEntry(
   oldPath: string,
   newName: string,
 ): Promise<string> {
+  assertValidEntryName(newName);
   const parent = dirname(oldPath);
   const root = requireWorkspacePath();
   const siblings = await listDir(root, parent);

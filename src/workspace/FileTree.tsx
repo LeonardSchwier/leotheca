@@ -43,7 +43,7 @@ export function FileTree({ rootPath, onOpenFile }: FileTreeProps) {
   );
 }
 
-function FileTreeNode({
+export function FileTreeNode({
   entry,
   onOpenFile,
 }: {

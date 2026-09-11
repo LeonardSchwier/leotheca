@@ -43,12 +43,15 @@ export function DebouncedMarkdownPreview({
   debounceDelay = 300,
   ...props
 }: DebouncedMarkdownPreviewProps) {
-  // Use debounced source when debouncing is enabled
+  // Always call useDebounce (hooks must be called unconditionally)
+  // but only use the result when debouncing is enabled
+  const debouncedSource = useDebounce(source, debounceDelay);
   const displaySource = debounce && debounceDelay > 0
-    ? useDebounce(source, debounceDelay)
+    ? debouncedSource
     : source;
 
-  // Pass the debounced source to the regular MarkdownPreview
+  // Pass the display source to the regular MarkdownPreview
+  // Use memo to prevent unnecessary re-renders
   return useMemo(() => (
     <MarkdownPreview
       {...props}

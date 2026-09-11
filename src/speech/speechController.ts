@@ -9,11 +9,14 @@
 import {
   getSpeechStatus,
   getSpeechOptions,
+  initSpeechRecognition,
   transcribeAudio,
+  stopSpeechRecognition,
   isSpeechRecognitionAvailable,
   type PlatformType,
   type SpeechOptions,
 } from '../workspace/speechBridgeImpl';
+import { Capacitor } from '@capacitor/core';
 
 import type {
   SpeechRecognitionOptions,
@@ -91,10 +94,20 @@ export class SpeechController implements SpeechRecognitionController {
         throw new Error('Speech recognition not available on this platform');
       }
       
-      // Initialize audio context and request microphone access
-      await this.initializeAudio();
-      this.setState('recording');
-      this.startRecording();
+      // Initialize the bridge with platform-specific setup
+      await initSpeechRecognition(this.options.modelSize);
+      
+      // On Android, the native SpeechRecognizer handles audio capture
+      // On desktop, we use TypeScript MediaRecorder
+      const isAndroid = Capacitor.isNativePlatform();
+      if (!isAndroid) {
+        await this.initializeAudio();
+        this.setState('recording');
+        this.startRecording();
+      } else {
+        // On Android, recognition is already started via the bridge
+        this.setState('recording');
+      }
     } catch (error) {
       const speechError = this.mapError(error);
       this.setState('error');
@@ -108,9 +121,23 @@ export class SpeechController implements SpeechRecognitionController {
    */
   async stop(): Promise<void> {
     if (this.state === 'recording' || this.state === 'transcribing') {
-      this.setState('transcribing');
-      await this.stopRecording();
-      await this.processAudio();
+      const isAndroid = Capacitor.isNativePlatform();
+      
+      if (!isAndroid) {
+        // On desktop, stop recording and process audio
+        this.setState('transcribing');
+        await this.stopRecording();
+        await this.processAudio();
+      } else {
+        // On Android, stop the native recognition
+        // The results will come back through the bridge
+        this.setState('transcribing');
+        try {
+          await stopSpeechRecognition();
+        } catch (error) {
+          console.error('Failed to stop Android speech recognition:', error);
+        }
+      }
     }
     
     this.cleanup();
@@ -203,12 +230,31 @@ export class SpeechController implements SpeechRecognitionController {
     }
     this.audioContext = new AudioContextClass();
     
+    // Request audio with specific constraints for speech recognition
     const stream = await navigator.mediaDevices.getUserMedia({ 
-      audio: true,
+      audio: {
+        // Request 16kHz sample rate if possible (whisper.cpp standard)
+        sampleRate: 16000,
+        sampleSize: 16,
+        channelCount: 1,
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+      },
       video: false 
     });
     
-    this.mediaRecorder = new MediaRecorder(stream);
+    // Configure MediaRecorder with appropriate mime type
+    const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') 
+      ? 'audio/webm;codecs=opus'
+      : MediaRecorder.isTypeSupported('audio/wav')
+        ? 'audio/wav'
+        : undefined;
+    
+    this.mediaRecorder = mimeType 
+      ? new MediaRecorder(stream, { mimeType, audioBitsPerSecond: 16000 })
+      : new MediaRecorder(stream);
+    
     this.mediaRecorder.ondataavailable = (event) => {
       if (event.data.size > 0) {
         this.audioChunks.push(event.data);
@@ -278,27 +324,107 @@ export class SpeechController implements SpeechRecognitionController {
   }
 
   /**
-   * Decode audio buffer to PCM samples
-   * 
-   * This is a simplified version. In production, you'd use a proper
-   * audio decoding library to handle various formats.
+   * Simple WAV header parser for extracting PCM data
+   * Supports basic 16-bit mono WAV files
    */
-  private async decodeAudio(audioBuffer: ArrayBuffer): Promise<Float32Array> {
-    // For now, we'll create a simple PCM representation
-    // In a real implementation, this would properly decode the audio format
-    
+  private parseWavData(audioBuffer: ArrayBuffer): Float32Array | null {
     const byteArray = new Uint8Array(audioBuffer);
     
-    // Convert to Float32 samples
-    // This is a placeholder - real decoding would be more complex
+    // WAV header is at least 44 bytes
+    if (byteArray.length < 44) {
+      return null;
+    }
+    
+    // Check RIFF header
+    const riffHeader = String.fromCharCode(
+      byteArray[0], byteArray[1], byteArray[2], byteArray[3]
+    );
+    if (riffHeader !== 'RIFF') {
+      return null; // Not a WAV file
+    }
+    
+    // Check WAVE format
+    const waveFormat = String.fromCharCode(
+      byteArray[8], byteArray[9], byteArray[10], byteArray[11]
+    );
+    if (waveFormat !== 'WAVE') {
+      return null;
+    }
+    
+    // Check format (PCM = 1)
+    const format = byteArray[20] | (byteArray[21] << 8);
+    if (format !== 1) {
+      return null; // Not PCM
+    }
+    
+    // Check channels (mono = 1)
+    const channels = byteArray[22] | (byteArray[23] << 8);
+    if (channels !== 1) {
+      return null; // Not mono
+    }
+    
+    // Check bits per sample (16-bit = 16)
+    const bitsPerSample = byteArray[34] | (byteArray[35] << 8);
+    if (bitsPerSample !== 16) {
+      return null; // Not 16-bit
+    }
+    
+    // Get data chunk offset and size
+    let dataOffset = 0;
+    let dataSize = 0;
+    
+    for (let i = 12; i < byteArray.length - 8; i += 8) {
+      const chunkId = String.fromCharCode(
+        byteArray[i], byteArray[i + 1], byteArray[i + 2], byteArray[i + 3]
+      );
+      if (chunkId === 'data') {
+        dataOffset = i + 8;
+        dataSize = byteArray[i + 4] | (byteArray[i + 5] << 8) |
+                  (byteArray[i + 6] << 16) | (byteArray[i + 7] << 24);
+        break;
+      }
+    }
+    
+    if (dataOffset === 0 || dataSize === 0) {
+      return null; // No data chunk found
+    }
+    
+    // Extract PCM data (16-bit little-endian)
+    const sampleCount = dataSize / 2;
+    const samples = new Float32Array(sampleCount);
+    
+    for (let i = 0; i < sampleCount; i++) {
+      const byteIndex = dataOffset + (i * 2);
+      if (byteIndex + 1 < byteArray.length) {
+        const intValue = (byteArray[byteIndex + 1] << 8) | byteArray[byteIndex];
+        samples[i] = intValue / 32768.0; // Convert to -1.0 to 1.0 range
+      }
+    }
+    
+    return samples;
+  }
+
+  /**
+   * Decode audio buffer to PCM samples
+   * 
+   * Attempts to handle WAV format first, then falls back to raw PCM
+   */
+  private async decodeAudio(audioBuffer: ArrayBuffer): Promise<Float32Array> {
+    // Try WAV format first
+    const wavSamples = this.parseWavData(audioBuffer);
+    if (wavSamples) {
+      return wavSamples;
+    }
+    
+    // Fallback to raw PCM (for testing/demo purposes)
+    const byteArray = new Uint8Array(audioBuffer);
     const samples = new Float32Array(byteArray.length / 2);
     
     for (let i = 0; i < samples.length; i++) {
-      // Simple conversion from 16-bit PCM to float
       const byteIndex = i * 2;
       if (byteIndex + 1 < byteArray.length) {
         const intValue = (byteArray[byteIndex + 1] << 8) | byteArray[byteIndex];
-        samples[i] = Math.max(-1.0, Math.min(1.0, intValue / 32768.0));
+        samples[i] = intValue / 32768.0; // Convert to -1.0 to 1.0 range
       }
     }
     
@@ -350,8 +476,9 @@ export class SpeechController implements SpeechRecognitionController {
    */
   private mapError(error: unknown): SpeechRecognitionError {
     const errorMessage = error instanceof Error ? error.message : String(error);
+    const lowerErrorMessage = errorMessage.toLowerCase();
     
-    if (errorMessage.includes('permission') || errorMessage.includes('denied')) {
+    if (lowerErrorMessage.includes('permission') || lowerErrorMessage.includes('denied')) {
       return {
         code: 'permission_denied',
         message: 'Microphone permission was denied. Please enable microphone access in your browser/device settings.',
@@ -359,7 +486,7 @@ export class SpeechController implements SpeechRecognitionController {
       };
     }
     
-    if (errorMessage.includes('no device') || errorMessage.includes('not found')) {
+    if (lowerErrorMessage.includes('no device') || lowerErrorMessage.includes('device not found') || lowerErrorMessage.includes('not found')) {
       return {
         code: 'no_microphone',
         message: 'No microphone was found. Please connect a microphone and try again.',
@@ -367,7 +494,7 @@ export class SpeechController implements SpeechRecognitionController {
       };
     }
     
-    if (errorMessage.includes('not supported') || errorMessage.includes('API not available')) {
+    if (lowerErrorMessage.includes('not supported') || lowerErrorMessage.includes('api not available')) {
       return {
         code: 'not_supported',
         message: 'Speech recognition is not supported in this environment.',

@@ -16,6 +16,26 @@ pub struct WhisperState {
     pub sample_rate: u32,
 }
 
+/// Default whisper model filenames to try
+const DEFAULT_MODEL_FILES: &[&str] = &["ggml-tiny.bin", "ggml-base.bin", "ggml-small.bin", "ggml-medium.bin"];
+
+/// Find a whisper model in the given directory
+fn find_model_in_dir<P: AsRef<Path>>(dir: P) -> Option<String> {
+    let path = dir.as_ref();
+    if !path.exists() || !path.is_dir() {
+        return None;
+    }
+    
+    for &filename in DEFAULT_MODEL_FILES {
+        let model_path = path.join(filename);
+        if model_path.exists() {
+            return Some(model_path.to_string_lossy().into_owned());
+        }
+    }
+    
+    None
+}
+
 /// Initialize whisper model
 #[tauri::command]
 pub async fn init_speech_recognition(
@@ -24,17 +44,29 @@ pub async fn init_speech_recognition(
 ) -> Result<(), String> {
     let mut whisper_state = state.lock().map_err(|_| "Failed to lock whisper state".to_string())?;
     
+    let resolved_path = if model_path.is_empty() {
+        // Try to find a model in the current directory or app data directory
+        // In production, models would be bundled with the app
+        if let Some(found) = find_model_in_dir(".") {
+            found
+        } else {
+            return Err("No whisper model found. Please place a model file (ggml-tiny.bin, ggml-base.bin, etc.) in the app directory.".to_string());
+        }
+    } else {
+        model_path
+    };
+    
     // Check if model file exists
-    let path = Path::new(&model_path);
+    let path = Path::new(&resolved_path);
     if !path.exists() {
-        return Err(format!("Model file not found: {}", model_path));
+        return Err(format!("Model file not found: {}", resolved_path));
     }
     
     // In a real implementation, this would load the whisper model using FFI
     // For now, we simulate successful loading for models that exist
     // This allows the TypeScript/UI layer to work correctly
     whisper_state.model_loaded = true;
-    whisper_state.current_model = Some(model_path);
+    whisper_state.current_model = Some(resolved_path);
     whisper_state.sample_rate = 16000; // Standard sample rate for whisper
     
     Ok(())

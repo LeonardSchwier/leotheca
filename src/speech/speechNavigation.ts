@@ -148,6 +148,7 @@ export function resetSpeechNavigation(): void {
   speechRecognitionError.value = null;
   speechStartRequest.value = null;
   speechStopRequest.value = null;
+  speechRecognitionAvailable.value = false;
 }
 
 /**

@@ -22,15 +22,16 @@ export * from './capacitorSpeechBridge';
 /**
  * Initialize speech recognition
  * - Desktop: Loads whisper.cpp model
- * - Android: Uses built-in SpeechRecognizer with offline mode
+ * - Android: Checks if offline recognition is available
+ * Note: This does NOT start recognition, just prepares the system
  */
 export async function initSpeechRecognition(modelOrLanguage?: string): Promise<void> {
   if (Capacitor.isNativePlatform()) {
-    // On Android, modelOrLanguage is treated as a language hint
-    // Offline mode is always preferred
-    const result = await capacitorBridge.startAndroidSpeechRecognition(modelOrLanguage);
-    if (!result.success) {
-      throw new Error(result.error || 'Failed to start Android speech recognition');
+    // On Android, check if offline recognition is available
+    // Actual recognition is started separately
+    const supported = await capacitorBridge.isAndroidOfflineSupported();
+    if (!supported) {
+      throw new Error('Offline speech recognition not available on this Android device');
     }
   } else {
     // On desktop, modelOrLanguage is treated as a model path
@@ -41,17 +42,16 @@ export async function initSpeechRecognition(modelOrLanguage?: string): Promise<v
 /**
  * Transcribe audio data
  * - Desktop: Uses whisper.cpp to transcribe locally
- * - Android: Uses built-in SpeechRecognizer
+ * - Android: Uses built-in SpeechRecognizer or audio data transcription
  */
 export async function transcribeAudio(
   audioData: Float32Array | number[],
   language?: string
 ): Promise<string> {
   if (Capacitor.isNativePlatform()) {
-    // On Android, audio data is typically captured directly by the native API
-    // This function might not be used, or might need special handling
-    // For now, we'll return a placeholder
-    return '[Android speech recognition in progress]';
+    // On Android, transcribe using the audio data sent from TypeScript
+    const result = await capacitorBridge.transcribeAndroidAudio(audioData, language);
+    return result.text;
   } else {
     return tauriBridge.transcribeAudio(audioData, language);
   }
@@ -180,3 +180,8 @@ export {
   DEFAULT_AUDIO_BUFFER_MS,
   samplesForDuration,
 } from './speechBridge';
+
+// Re-export Android-specific functions
+export {
+  transcribeAndroidAudio,
+} from './capacitorSpeechBridge';

@@ -37,7 +37,6 @@ export function PendingCapturesPanel() {
   // All hooks must be called unconditionally to fix hook order
   const commitPendingCapture = useCallback(async (capture: PendingCapture) => {
     if (!workspacePath.value) {
-      console.log("Cannot commit pending capture: No workspace is open");
       return false;
     }
 
@@ -86,7 +85,7 @@ export function PendingCapturesPanel() {
         return true;
       }
     } catch (err) {
-      console.log("Failed to commit pending capture:", err);
+      console.error("Failed to commit pending capture:", err);
       return false;
     }
   }, []);
@@ -100,16 +99,12 @@ export function PendingCapturesPanel() {
     if (capture) {
       // Mark as retrying by updating status
       // This would require modifying the store, but for now we'll just attempt to commit
-      console.log("Retrying capture:", captureId);
-      
       // Try to commit the capture
       commitPendingCapture(capture).then(success => {
         if (success) {
           // Remove the capture if commit succeeded
           removePendingCapture(captureId);
-          console.log("Successfully committed pending capture:", captureId);
         } else {
-          console.log("Failed to commit pending capture:", captureId);
           // Update status to failed so user can see the failure and retry
           updatePendingCaptureStatus(captureId, "failed", "Commit failed - check console for details");
         }
@@ -130,9 +125,8 @@ export function PendingCapturesPanel() {
     }
   };
 
-  const handleRelink = (captureId: string) => {
+  const handleRelink = (/* eslint-disable-line @typescript-eslint/no-unused-vars */ _captureId: string) => {
     // F05-FR-18: Placeholder for Relink action (attachment support not yet implemented)
-    console.log("Relink action for capture:", captureId);
     // In a future implementation, this would re-link staged attachments
   };
 

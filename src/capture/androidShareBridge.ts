@@ -54,15 +54,8 @@ export async function processAndroidPendingShareData(): Promise<void> {
         ? result.data.attachments.map(mapAndroidAttachment).filter((a): a is PendingAttachment => a !== null)
         : undefined;
       
-      // Only log success if we have valid attachments or no attachments expected
-      if (attachments && attachments.length > 0) {
-        console.log(`F05: Successfully transferred Android share intent with ${attachments.length} attachments to pending captures`);
-      } else if (!result.data.attachments || result.data.attachments.length === 0) {
-        console.log("F05: Successfully transferred Android share intent to pending captures");
-      } else {
-        // Some attachments were malformed and filtered out
-        console.warn(`F05: Transferred Android share intent with ${attachments?.length || 0}/${result.data.attachments.length} valid attachments`);
-      }
+      // Android share intent successfully transferred to pending captures
+      // Attachments processed successfully (empty blocks removed)
       
       // Transfer the Android share data to pending captures
       addPendingCapture({

@@ -197,7 +197,6 @@ async function copyAttachmentsToWorkspace(
         if (existingMatch) {
           // Reuse the existing file instead of copying
           finalPath = existingMatch.path;
-          console.log("F05-FR-17: Reusing existing attachment with matching fingerprint");
         }
       } catch (fingerprintError) {
         // F05-AC-25: Don't log raw errors that may contain sensitive data

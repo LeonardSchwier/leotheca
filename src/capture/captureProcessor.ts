@@ -241,7 +241,6 @@ export async function processPendingCaptures(
       // F05-FR-11: Only remove pending data after successful commit
       if (result !== null) {
         removePendingCapture(currentCapture.id);
-        console.log("F05: Successfully processed pending capture:", currentCapture.id);
       } else {
         console.error("Failed to process pending capture (null result):", currentCapture.id);
         updatePendingCaptureStatus(currentCapture.id, "failed", "Capture processing returned null");

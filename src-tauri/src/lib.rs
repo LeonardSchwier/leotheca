@@ -1,5 +1,6 @@
 mod commands;
 mod workspace_mutations;
+mod speech_commands;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -23,6 +24,9 @@ pub fn run() {
     {
         builder = builder.plugin(tauri_plugin_single_instance::init(|_app, _argv, _cwd| {}));
     }
+    
+    // Initialize whisper model state for speech recognition
+    builder = builder.manage(speech_commands::WhisperState::default());
     builder
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
@@ -52,6 +56,12 @@ pub fn run() {
             workspace_mutations::create_workspace_dir_new,
             workspace_mutations::rename_workspace_path_no_replace,
             commands::workspace_stats,
+            // Speech recognition commands
+            speech_commands::init_speech_recognition,
+            speech_commands::transcribe_audio,
+            speech_commands::get_speech_status,
+            speech_commands::get_whisper_models,
+            speech_commands::check_whisper_models,
         ])
         .run(tauri::generate_context!())
         .expect("error while running the Leotheca application");

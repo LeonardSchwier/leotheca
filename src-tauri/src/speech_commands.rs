@@ -80,7 +80,12 @@ pub async fn get_speech_status(
         .lock()
         .map_err(|_| "Failed to lock whisper state".to_string())?;
 
-    let model_available = true;
+    // Whether a real whisper.cpp backend is compiled in, independent of
+    // whether a specific model is currently loaded (`model_loaded` above).
+    // A maintenance review found this hardcoded to `true` unconditionally,
+    // the same dishonesty class already fixed once for `offlineSupported`/
+    // `modelLoaded` in speechBridgeImpl.ts.
+    let model_available = whisper_ffi::is_whisper_available();
 
     Ok(SpeechRecognitionStatus {
         model_loaded: whisper_state.model_loaded,
@@ -241,5 +246,19 @@ mod tests {
         assert!(!state.model_loaded);
         assert!(state.current_model.is_none());
         assert!(state.whisper_model.is_none());
+    }
+
+    /// Maintenance-review regression: `get_speech_status`'s `model_available`
+    /// field used to be `let model_available = true;` hardcoded unconditionally,
+    /// regardless of whether a real whisper.cpp backend was actually compiled
+    /// in. It must now mirror `whisper_ffi::is_whisper_available()`, which this
+    /// sandbox's stub build (no vendored whisper.cpp/whisper.h source) reports
+    /// honestly as `false`.
+    #[test]
+    fn model_available_mirrors_is_whisper_available_honestly() {
+        assert!(
+            !whisper_ffi::is_whisper_available(),
+            "this sandbox's stub build must report no real whisper.cpp backend available"
+        );
     }
 }

@@ -22,8 +22,8 @@ use std::ptr;
 #[allow(non_snake_case)]
 #[allow(non_camel_case_types)]
 #[allow(non_upper_case_globals)]
+#[allow(unused_imports)]
 mod bindings {
-    #![allow(unused_imports)]
     include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 }
 
@@ -36,6 +36,18 @@ pub const WHISPER_SAMPLING_BEAM: i32 = 1;
 
 /// Default sample rate for whisper models
 pub const WHISPER_SAMPLE_RATE: i32 = 16000;
+
+/// Interpret a raw `whisper_full` return code.
+///
+/// Pulled out of `WhisperModel::transcribe` so the failure/success decision is
+/// independently testable without a real whisper.cpp context: whisper.cpp's
+/// own convention (and the stub's) is `0` for success, nonzero for failure.
+fn classify_whisper_full_result(result: c_int) -> Result<(), String> {
+    if result != 0 {
+        return Err(format!("whisper_full failed with status code {}", result));
+    }
+    Ok(())
+}
 
 /// Whisper model wrapper
 #[derive(Debug)]
@@ -85,8 +97,6 @@ impl WhisperModel {
             return Ok(String::new());
         }
 
-        // Note: In the stub implementation, whisper_full will return -1
-        // In the real implementation, it will perform actual transcription
         let result = unsafe {
             whisper_full(
                 self.context,
@@ -95,13 +105,13 @@ impl WhisperModel {
             )
         };
 
-        if result != 0 {
-            // In stub mode, this will always fail
-            // Return a placeholder text indicating whisper.cpp is needed
-            return Ok(
-                "[Speech recognition placeholder - whisper.cpp integration ready]".to_string(),
-            );
-        }
+        // A nonzero result is a real transcription failure. Report it honestly
+        // as an error instead of returning fabricated placeholder text: a
+        // maintenance review found this exact fallback silently inserting
+        // "[Speech recognition placeholder - whisper.cpp integration ready]"
+        // into a user's note in place of a real (or honestly-failed) transcript,
+        // the same dishonesty class already fixed once in speech_commands.rs.
+        classify_whisper_full_result(result)?;
 
         // Collect segments
         let n_segments = unsafe { whisper_full_n_segments(self.context) };
@@ -121,23 +131,6 @@ impl WhisperModel {
         }
 
         Ok(transcript)
-    }
-
-    /// Transcribe audio with streaming (for real-time speech recognition)
-    ///
-    /// This method is designed for real-time transcription where audio
-    /// is processed in chunks as it's being recorded.
-    ///
-    /// Note: This is a placeholder that returns a simulated result.
-    /// With real whisper.cpp, this would perform actual streaming transcription.
-    pub fn transcribe_streaming(&self, audio_samples: &[f32]) -> Result<String, String> {
-        if audio_samples.is_empty() {
-            return Ok(String::new());
-        }
-
-        // In stub mode, just return a placeholder
-        // In real mode, this would use whisper_full_with_state
-        Ok("[Streaming transcription placeholder]".to_string())
     }
 
     /// Get model information
@@ -229,19 +222,34 @@ impl Default for AudioSampleFormat {
     }
 }
 
-/// Check if whisper.cpp is available (real implementation vs stub)
+/// Check if a real whisper.cpp backend is compiled in, as opposed to the
+/// stub bindings `build.rs` generates when no `whisper.cpp`/`whisper.h`
+/// source is vendored. Backed by a build-script-emitted cfg rather than a
+/// hardcoded literal, so it cannot silently drift out of sync with which
+/// bindings actually got linked.
+#[cfg(whisper_real)]
 pub fn is_whisper_available() -> bool {
-    // Check if the stub bindings are being used
-    // In the stub, WHISPER_SAMPLE_RATE is defined as a constant
-    // In the real implementation, it comes from whisper.h
-    // For now, we always return true since the stub is functional
     true
 }
 
+/// See the `cfg(whisper_real)` variant above.
+#[cfg(not(whisper_real))]
+pub fn is_whisper_available() -> bool {
+    false
+}
+
 /// Get whisper.cpp version information
+#[cfg(whisper_real)]
 pub fn get_whisper_version() -> String {
-    // In stub mode (when whisper.cpp source is not present), this returns the stub version
-    // In real mode (when whisper.cpp source is present), this would call whisper_print_system_info
+    // Real whisper.cpp system info is not wired up yet (would call
+    // whisper_print_system_info); this is honest about being unimplemented
+    // rather than claiming a version, matching is_whisper_available()'s cfg split.
+    "whisper.cpp (FFI) - real backend compiled in, version info not yet wired up".to_string()
+}
+
+/// See the `cfg(whisper_real)` variant above.
+#[cfg(not(whisper_real))]
+pub fn get_whisper_version() -> String {
     "whisper.cpp (FFI) - stub implementations active".to_string()
 }
 
@@ -286,5 +294,38 @@ mod tests {
         let languages = get_supported_languages();
         assert!(languages.contains(&"en".to_string()));
         assert!(languages.contains(&"fr".to_string()));
+    }
+
+    /// Maintenance-review regression: `WhisperModel::transcribe` used to
+    /// return `Ok("[Speech recognition placeholder - whisper.cpp integration
+    /// ready]")` whenever the underlying `whisper_full` call failed, silently
+    /// fabricating success text instead of surfacing a real error. Verify the
+    /// decision logic directly: any nonzero code is a failure, never success.
+    #[test]
+    fn classify_whisper_full_result_rejects_any_nonzero_code() {
+        assert!(classify_whisper_full_result(0).is_ok());
+
+        for failing_code in [-1, 1, 42, i32::MIN, i32::MAX] {
+            let err = classify_whisper_full_result(failing_code)
+                .expect_err("nonzero whisper_full result must be an error, not fabricated Ok");
+            assert!(
+                !err.to_lowercase().contains("placeholder"),
+                "error message must never resemble fabricated placeholder text: {err}"
+            );
+        }
+    }
+
+    /// This sandbox never vendors real `whisper.cpp`/`whisper.h` source
+    /// (confirmed absent in `src-tauri/native/whisper/`), so `build.rs`
+    /// always emits the stub bindings and `whisper_real` is never set here.
+    /// `is_whisper_available()` must honestly reflect that instead of the
+    /// old hardcoded `true`.
+    #[test]
+    fn is_whisper_available_is_honest_about_the_stub_build() {
+        assert!(
+            !is_whisper_available(),
+            "this sandbox's build has no vendored whisper.cpp source, so the stub bindings are \
+             active and is_whisper_available() must report false, not a hardcoded true"
+        );
     }
 }

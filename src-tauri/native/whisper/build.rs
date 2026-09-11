@@ -12,6 +12,10 @@ use std::env;
 use std::path::Path;
 
 fn main() {
+    // Declare the custom cfg so `cargo clippy --all-targets -- -D warnings`
+    // does not reject it as an unexpected/unknown cfg (stable since Cargo 1.80).
+    println!("cargo::rustc-check-cfg=cfg(whisper_real)");
+
     // Check if whisper.cpp source files exist
     // Note: whisper.cpp has moved from ggerganov/whisper.cpp to ggml-org/whisper.cpp
     // and the file structure has changed. Place whisper.cpp and whisper.h in this directory.
@@ -24,6 +28,10 @@ fn main() {
         // whisper.cpp source is available - compile it
         println!("cargo:rerun-if-changed=whisper.cpp");
         println!("cargo:rerun-if-changed=whisper.h");
+        // Let the crate know at compile time that it is linked against the
+        // real whisper.cpp, not the stub bindings below, so is_whisper_available()
+        // can report this honestly instead of hardcoding `true`.
+        println!("cargo:rustc-cfg=whisper_real");
 
         // Compile whisper.cpp with CC
         // whisper.cpp requires C++17

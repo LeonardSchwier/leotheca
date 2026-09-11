@@ -6,118 +6,55 @@
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
-/// Shared whisper model state
+/// Shared whisper model state.
+///
+/// Always reports "not loaded": no real whisper.cpp backend is compiled
+/// into this build (see `SPEECH_NOT_IMPLEMENTED`), so there is nothing to
+/// track here yet beyond the honest default.
 #[derive(Debug, Default)]
 pub struct WhisperState {
-    // In a real implementation, this would hold the loaded whisper model from FFI
-    // For now, we use a placeholder to demonstrate the architecture
     pub model_loaded: bool,
     pub current_model: Option<String>,
-    pub sample_rate: u32,
 }
 
-/// Default whisper model filenames to try
-const DEFAULT_MODEL_FILES: &[&str] = &[
-    "ggml-tiny.bin",
-    "ggml-base.bin",
-    "ggml-small.bin",
-    "ggml-medium.bin",
-];
+/// Error returned by every speech command below: this build has no real
+/// speech-recognition backend at all, not merely an unloaded model.
+///
+/// The `whisper-ffi` crate (`src-tauri/native/whisper/`) that would wrap a
+/// real whisper.cpp is an `optional = true` dependency behind the `whisper`
+/// Cargo feature, which is absent from `[features] default` and never
+/// passed by any CI/release job; no `whisper.cpp`/`whisper.h` source is
+/// vendored either, so enabling that feature today would still only
+/// produce the crate's own stub bindings. Returning a real error here
+/// (instead of fabricating transcribed text) lets the existing
+/// `SpeechRecognitionButton.tsx` error-state UI take over rather than
+/// silently inserting fabricated text into a note. See ROADMAP.md's
+/// "Desktop speech-to-text fabricates transcription..." entry.
+const SPEECH_NOT_IMPLEMENTED: &str =
+    "Desktop speech recognition is not implemented in this build: no whisper.cpp backend is compiled in.";
 
-/// Find a whisper model in the given directory
-fn find_model_in_dir<P: AsRef<Path>>(dir: P) -> Option<String> {
-    let path = dir.as_ref();
-    if !path.exists() || !path.is_dir() {
-        return None;
-    }
-
-    for &filename in DEFAULT_MODEL_FILES {
-        let model_path = path.join(filename);
-        if model_path.exists() {
-            return Some(model_path.to_string_lossy().into_owned());
-        }
-    }
-
-    None
-}
-
-/// Initialize whisper model
+/// Initialize whisper model.
+///
+/// Always fails: see `SPEECH_NOT_IMPLEMENTED`.
 #[tauri::command]
 pub async fn init_speech_recognition(
-    model_path: String,
-    state: tauri::State<'_, Arc<Mutex<WhisperState>>>,
+    _model_path: String,
+    _state: tauri::State<'_, Arc<Mutex<WhisperState>>>,
 ) -> Result<(), String> {
-    let mut whisper_state = state
-        .lock()
-        .map_err(|_| "Failed to lock whisper state".to_string())?;
-
-    let resolved_path = if model_path.is_empty() {
-        // Try to find a model in the current directory or app data directory
-        // In production, models would be bundled with the app
-        if let Some(found) = find_model_in_dir(".") {
-            found
-        } else {
-            return Err("No whisper model found. Please place a model file (ggml-tiny.bin, ggml-base.bin, etc.) in the app directory.".to_string());
-        }
-    } else {
-        model_path
-    };
-
-    // Check if model file exists
-    let path = Path::new(&resolved_path);
-    if !path.exists() {
-        return Err(format!("Model file not found: {}", resolved_path));
-    }
-
-    // In a real implementation, this would load the whisper model using FFI
-    // For now, we simulate successful loading for models that exist
-    // This allows the TypeScript/UI layer to work correctly
-    whisper_state.model_loaded = true;
-    whisper_state.current_model = Some(resolved_path);
-    whisper_state.sample_rate = 16000; // Standard sample rate for whisper
-
-    Ok(())
+    Err(SPEECH_NOT_IMPLEMENTED.to_string())
 }
 
-/// Transcribe audio from PCM samples
+/// Transcribe audio from PCM samples.
+///
+/// Always fails: see `SPEECH_NOT_IMPLEMENTED`. Never fabricates transcribed
+/// text, regardless of the audio's length or content.
 #[tauri::command]
 pub async fn transcribe_audio(
-    audio_data: Vec<f32>,
+    _audio_data: Vec<f32>,
     _language: Option<String>,
-    state: tauri::State<'_, Arc<Mutex<WhisperState>>>,
+    _state: tauri::State<'_, Arc<Mutex<WhisperState>>>,
 ) -> Result<String, String> {
-    let whisper_state = state
-        .lock()
-        .map_err(|_| "Failed to lock whisper state".to_string())?;
-
-    if !whisper_state.model_loaded {
-        return Err(
-            "Speech recognition model not loaded. Please initialize a model first.".to_string(),
-        );
-    }
-
-    // In a real implementation, this would:
-    // 1. Convert the audio data to the format whisper expects
-    // 2. Run the whisper model on the audio using FFI
-    // 3. Return the transcribed text
-
-    if audio_data.is_empty() {
-        return Ok(String::new());
-    }
-
-    // Placeholder: This would be replaced with actual whisper.cpp transcription via FFI
-    // For now, simulate transcription based on audio length (for demo purposes)
-    let sample_duration_ms = (audio_data.len() as f64 / 16000.0) * 1000.0;
-
-    if sample_duration_ms > 500.0 {
-        // If we have enough audio samples, return a simulated transcription
-        Ok(format!(
-            "[Transcribed text from {}ms of audio]",
-            sample_duration_ms as i32
-        ))
-    } else {
-        Ok("[Speech recognition placeholder - whisper.cpp integration ready]".to_string())
-    }
+    Err(SPEECH_NOT_IMPLEMENTED.to_string())
 }
 
 /// Get speech recognition status
@@ -268,5 +205,31 @@ impl Default for AudioCaptureConfig {
             channels: Some(1),
             bits_per_sample: Some(16),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Maintenance-review regression: `transcribe_audio` used to fabricate
+    /// text like "[Transcribed text from 3200ms of audio]" instead of
+    /// returning a real error, so a desktop user got fake dictated text
+    /// silently inserted into their note. Both commands now always return
+    /// this one honest error; assert it never resembles that fabricated
+    /// output.
+    #[test]
+    fn speech_not_implemented_error_never_resembles_a_fabricated_transcription() {
+        let lower = SPEECH_NOT_IMPLEMENTED.to_lowercase();
+        assert!(!lower.contains("transcribed"));
+        assert!(!lower.contains("0.95"));
+        assert!(lower.contains("not implemented"));
+    }
+
+    #[test]
+    fn whisper_state_defaults_to_honestly_not_loaded() {
+        let state = WhisperState::default();
+        assert!(!state.model_loaded);
+        assert!(state.current_model.is_none());
     }
 }

@@ -1467,3 +1467,60 @@ button.icon-button.active {
     cursor: not-allowed;
   }
 }
+
+/* Speech recognition button styles */
+.speech-recognition-wrapper {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.speech-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.speech-button recording {
+  color: #f44336;
+  animation: pulse 1s infinite;
+}
+
+.speech-button transcribing {
+  color: #4285f4;
+  animation: spin 1s linear infinite;
+}
+
+.speech-button starting {
+  color: #4285f4;
+  opacity: 0.7;
+}
+
+.speech-button error {
+  color: #f44336;
+}
+
+.speech-button disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.speech-error-message {
+  font-size: 12px;
+  color: #f44336;
+  white-space: nowrap;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

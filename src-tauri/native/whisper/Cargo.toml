@@ -1,0 +1,21 @@
+[package]
+name = "whisper-ffi"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "whisper_ffi"
+crate-type = ["staticlib"]
+
+[dependencies]
+# For FFI and C interop
+libc = "0.2"
+
+[build-dependencies]
+# For building whisper.cpp
+cc = { version = "1.0", features = ["parallel"] }
+bindgen = "0.69"
+
+[features]
+default = []
+static = []

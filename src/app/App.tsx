@@ -11,6 +11,7 @@ import { MarkdownEditor } from "../editor/MarkdownEditor";
 import { MarkdownPreview } from "../editor/MarkdownPreview";
 import { FrontmatterPropertiesPanel } from "../editor/FrontmatterPropertiesPanel";
 import { isNoteReadOnlyActive, setNoteReadOnly } from "../editor/noteReadOnly";
+import { SpeechRecognitionButton } from "../editor/SpeechRecognitionButton";
 import { ImageViewer } from "../editor/ImageViewer";
 import { ImageViewerOverlay } from "../editor/ImageViewerOverlay";
 import { CaptureSheet, captureSheetOpen, openCaptureSheet } from "./CaptureSheet";
@@ -66,6 +67,7 @@ import {
   requestCopyBlockLinkAtCursor,
   requestCreateBlockLinkAtCursor,
 } from "../editor/blockLinkRequest";
+
 import { requestTableCommand, tableCommandRequest } from "../editor/tableCommandRequest";
 import { HeadingBreadcrumbs } from "../outline/HeadingBreadcrumbs";
 import { nextSplitAuthority, type SplitAuthority } from "../outline/splitAuthority";
@@ -962,6 +964,23 @@ export function App() {
               );
             })}
           </div>
+        )}
+        {current?.kind === "text" && (
+          <SpeechRecognitionButton
+            readOnly={isNoteReadOnlyActive(current.path, workspaceSettings.value.noteReadOnlyLockEnabled)}
+            onResult={(text) => {
+              if (text && current) {
+                // Use the existing outline insert mechanism to insert speech text
+                outlineInsertRequest.value = { 
+                  text, 
+                  requestId: Date.now() // Use timestamp as unique requestId
+                };
+              }
+            }}
+            onError={(error) => {
+              console.error('Speech recognition error:', error);
+            }}
+          />
         )}
         <div class="toolbar-spacer" />
         {current?.kind === "text" && (

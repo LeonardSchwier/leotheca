@@ -1,14 +1,15 @@
-import { useEffect } from "preact/hooks";
+import { useEffect, useMemo } from "preact/hooks";
+import { memo } from "preact/compat";
 import {
   dirChildren,
   dirname,
   expandedDirs,
   expandFirstLevel,
   loadChildren,
+  memoizedSortEntries,
   openContextMenu,
   selectedDir,
   selectedPath,
-  sortEntries,
   toggleExpanded,
 } from "./fileTreeStore";
 import { workspaceSession } from "../settings/store";
@@ -32,18 +33,26 @@ export function FileTree({ rootPath, onOpenFile }: FileTreeProps) {
   }, [rootPath]);
 
   const entries = dirChildren.value.get(rootPath);
+  
+  // Use memoized sortEntries to prevent unnecessary re-sorting
+  const sortedEntries = useMemo(() => {
+    const entries = dirChildren.value.get(rootPath);
+    return entries ? memoizedSortEntries(entries) : [];
+  }, [rootPath]);
+
   if (!entries) return null;
 
   return (
     <ul class="file-tree">
-      {sortEntries(entries).map((entry) => (
+      {sortedEntries.map((entry) => (
         <FileTreeNode key={entry.path} entry={entry} onOpenFile={onOpenFile} />
       ))}
     </ul>
   );
 }
 
-export function FileTreeNode({
+// Memoized version of FileTreeNode to prevent unnecessary re-renders
+const FileTreeNodeComponent = function FileTreeNode({
   entry,
   onOpenFile,
 }: {
@@ -52,6 +61,7 @@ export function FileTreeNode({
 }) {
   const expanded = expandedDirs.value.has(entry.path);
   const children = dirChildren.value.get(entry.path);
+  const selected = selectedPath.value === entry.path;
 
   const handleClick = async () => {
     selectedPath.value = entry.path;
@@ -67,10 +77,23 @@ export function FileTreeNode({
     toggleExpanded(entry.path);
   };
 
+  // Memoize children rendering
+  const renderedChildren = useMemo(() => {
+    if (!entry.isDir || !expanded || !children) return null;
+    const sortedChildren = memoizedSortEntries(children);
+    return (
+      <ul class="file-tree">
+        {sortedChildren.map((child) => (
+          <FileTreeNode key={child.path} entry={child} onOpenFile={onOpenFile} />
+        ))}
+      </ul>
+    );
+  }, [entry.isDir, expanded, children, onOpenFile]);
+
   return (
     <li>
       <button
-        class={`file-tree-item ${selectedPath.value === entry.path ? "selected" : ""}`}
+        class={`file-tree-item ${selected ? "selected" : ""}`}
         onClick={handleClick}
         onContextMenu={(e) => {
           e.preventDefault();
@@ -80,13 +103,18 @@ export function FileTreeNode({
         <span class="file-tree-marker">{entry.isDir ? (expanded ? "▾" : "▸") : ""}</span>
         {entry.name}
       </button>
-      {entry.isDir && expanded && children && (
-        <ul class="file-tree">
-          {sortEntries(children).map((child) => (
-            <FileTreeNode key={child.path} entry={child} onOpenFile={onOpenFile} />
-          ))}
-        </ul>
-      )}
+      {renderedChildren}
     </li>
   );
-}
+};
+
+// Memoize the FileTreeNode component to prevent re-renders when props haven't changed
+export const FileTreeNode = memo(FileTreeNodeComponent, (prevProps, nextProps) => {
+  // Only re-render if entry or onOpenFile changes
+  return (
+    prevProps.entry.path === nextProps.entry.path &&
+    prevProps.entry.name === nextProps.entry.name &&
+    prevProps.entry.isDir === nextProps.entry.isDir &&
+    prevProps.onOpenFile === nextProps.onOpenFile
+  );
+});

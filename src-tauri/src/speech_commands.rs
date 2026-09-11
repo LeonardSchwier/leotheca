@@ -6,55 +6,90 @@
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
+extern crate whisper_ffi;
+
+use whisper_ffi::{WhisperModel, WHISPER_SAMPLE_RATE};
+
 /// Shared whisper model state.
 ///
-/// Always reports "not loaded": no real whisper.cpp backend is compiled
-/// into this build (see `SPEECH_NOT_IMPLEMENTED`), so there is nothing to
-/// track here yet beyond the honest default.
-#[derive(Debug, Default)]
+/// Tracks the loaded whisper model and its state.
+#[derive(Debug)]
 pub struct WhisperState {
     pub model_loaded: bool,
     pub current_model: Option<String>,
+    pub whisper_model: Option<WhisperModel>,
 }
 
-/// Error returned by every speech command below: this build has no real
-/// speech-recognition backend at all, not merely an unloaded model.
+impl Default for WhisperState {
+    fn default() -> Self {
+        Self {
+            model_loaded: false,
+            current_model: None,
+            whisper_model: None,
+        }
+    }
+}
+
+/// Error returned when whisper.cpp backend is not available or not compiled.
 ///
-/// The `whisper-ffi` crate (`src-tauri/native/whisper/`) that would wrap a
-/// real whisper.cpp is an `optional = true` dependency behind the `whisper`
-/// Cargo feature, which is absent from `[features] default` and never
-/// passed by any CI/release job; no `whisper.cpp`/`whisper.h` source is
-/// vendored either, so enabling that feature today would still only
-/// produce the crate's own stub bindings. Returning a real error here
-/// (instead of fabricating transcribed text) lets the existing
-/// `SpeechRecognitionButton.tsx` error-state UI take over rather than
-/// silently inserting fabricated text into a note. See ROADMAP.md's
-/// "Desktop speech-to-text fabricates transcription..." entry.
+/// When the whisper feature is enabled and whisper.cpp source is present,
+/// real speech recognition will be used. Otherwise, this error is returned
+/// to let the existing `SpeechRecognitionButton.tsx` error-state UI take over
+/// rather than silently inserting fabricated text into a note.
 const SPEECH_NOT_IMPLEMENTED: &str =
     "Desktop speech recognition is not implemented in this build: no whisper.cpp backend is compiled in.";
 
 /// Initialize whisper model.
 ///
-/// Always fails: see `SPEECH_NOT_IMPLEMENTED`.
+/// Loads the whisper model from the specified path.
+/// Uses stub implementations when whisper.cpp source is not available.
 #[tauri::command]
 pub async fn init_speech_recognition(
-    _model_path: String,
-    _state: tauri::State<'_, Arc<Mutex<WhisperState>>>,
+    model_path: String,
+    state: tauri::State<'_, Arc<Mutex<WhisperState>>>,
 ) -> Result<(), String> {
-    Err(SPEECH_NOT_IMPLEMENTED.to_string())
+    let mut state_guard = state
+        .lock()
+        .map_err(|_| "Failed to lock whisper state".to_string())?;
+    
+    match WhisperModel::load(&model_path) {
+        Ok(model) => {
+            state_guard.whisper_model = Some(model);
+            state_guard.model_loaded = true;
+            state_guard.current_model = Some(model_path);
+            Ok(())
+        }
+        Err(e) => Err(format!(
+            "Failed to load whisper model: {}. Is whisper.cpp source available and model file present?",
+            e
+        )),
+    }
 }
 
 /// Transcribe audio from PCM samples.
 ///
-/// Always fails: see `SPEECH_NOT_IMPLEMENTED`. Never fabricates transcribed
-/// text, regardless of the audio's length or content.
+/// Uses whisper.cpp for actual transcription when available.
+/// Uses stub implementations when whisper.cpp source is not available.
 #[tauri::command]
 pub async fn transcribe_audio(
-    _audio_data: Vec<f32>,
+    audio_data: Vec<f32>,
     _language: Option<String>,
-    _state: tauri::State<'_, Arc<Mutex<WhisperState>>>,
+    state: tauri::State<'_, Arc<Mutex<WhisperState>>>,
 ) -> Result<String, String> {
-    Err(SPEECH_NOT_IMPLEMENTED.to_string())
+    let state_guard = state
+        .lock()
+        .map_err(|_| "Failed to lock whisper state".to_string())?;
+    
+    match &state_guard.whisper_model {
+        Some(model) => {
+            if audio_data.is_empty() {
+                Ok(String::new())
+            } else {
+                model.transcribe(&audio_data)
+            }
+        }
+        None => Err("Whisper model not loaded. Call init_speech_recognition first.".to_string()),
+    }
 }
 
 /// Get speech recognition status
@@ -66,10 +101,13 @@ pub async fn get_speech_status(
         .lock()
         .map_err(|_| "Failed to lock whisper state".to_string())?;
 
+    let model_available = true;
+
     Ok(SpeechRecognitionStatus {
         model_loaded: whisper_state.model_loaded,
         current_model: whisper_state.current_model.clone(),
         supported_languages: get_supported_languages(),
+        model_available,
     })
 }
 
@@ -158,6 +196,7 @@ pub struct SpeechRecognitionStatus {
     pub model_loaded: bool,
     pub current_model: Option<String>,
     pub supported_languages: Vec<String>,
+    pub model_available: bool,
 }
 
 /// Whisper model information

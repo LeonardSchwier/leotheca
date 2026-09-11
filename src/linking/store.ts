@@ -537,6 +537,14 @@ const loadedCacheRoots = new Set<string>();
 // A workspace can change while a recursive walk is still in flight. Keep
 // only the newest request authoritative so an older workspace can neither
 // start unnecessary note reads nor replace the visible index when it ends.
+// Deliberately never reset back to 0 (resetLinkIndexCache below leaves it
+// alone): resetting it would let a stale in-flight request from the
+// *previous* workspace, whose captured `request` number happened to equal
+// the first number issued after the reset, pass isCurrentRequest() as if
+// it were the newest request again -- a real, deterministic cross-
+// workspace data leak on Android, where every workspace shares the same
+// synthetic "/workspace" path (fileOpenAuthority.ts's fileOpenGeneration
+// avoids this same class of bug the identical way, by never resetting).
 let latestIndexRequest = 0;
 
 function cacheFilePath(rootPath: string): string {
@@ -594,11 +602,11 @@ async function savePersistedCache(
  * workspace's cached identities into another's; also used directly by
  * tests to isolate themselves from each other's cache state, since the
  * cache is deliberately module-level (persists across calls) in
- * production. */
+ * production. Deliberately does NOT reset `latestIndexRequest`: see its
+ * own comment above for why. */
 export function resetLinkIndexCache(): void {
   wikilinkCache = new Map();
   loadedCacheRoots.clear();
-  latestIndexRequest = 0;
   linkIndexUnreadablePaths.value = [];
 }
 

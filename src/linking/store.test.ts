@@ -757,6 +757,64 @@ describe("rebuildLinkIndex: mtime-based caching", () => {
     expect(readTextFile).toHaveBeenCalledWith("/workspace/a.md");
     expect(linkIndexUnreadablePaths.value).toEqual([]);
   });
+
+  it("does not let a stale rebuild from before a workspace-switch reset overwrite a newer workspace's index (Android's shared synthetic /workspace path)", async () => {
+    rejectCacheLoad();
+    readTextFile.mockImplementation(async (path: string) => {
+      if (path === CACHE_PATH) throw new Error("no cache file yet");
+      return "";
+    });
+
+    // Workspace A's rebuild starts and stalls partway through its
+    // recursive walk.
+    let resolveStaleWalk!: (entries: { name: string; path: string; isDir: boolean }[]) => void;
+    const staleWalk = new Promise<{ name: string; path: string; isDir: boolean }[]>(
+      (resolve) => {
+        resolveStaleWalk = resolve;
+      },
+    );
+    findMarkdownFiles.mockImplementationOnce(() => staleWalk);
+    const stalePromise = rebuildLinkIndex("/workspace");
+
+    // Let A's rebuild genuinely reach its (stalled) recursive walk before
+    // continuing -- mirrors "the walk is actually in flight" rather than
+    // merely started, and keeps this call the one that consumes the
+    // implementation queued above (the fix makes A bail out at its very
+    // next isCurrentRequest() check once B's request is current, so
+    // without this wait A might never reach findMarkdownFiles at all and
+    // B would wrongly consume A's stalled promise instead of its own).
+    await vi.waitFor(() => expect(findMarkdownFiles).toHaveBeenCalledTimes(1));
+
+    // The user switches workspaces before A's rebuild finishes. On
+    // Android, every workspace grant shares this exact synthetic path, so
+    // this is the realistic case, not a contrived one.
+    resetLinkIndexCache();
+
+    // Workspace B's rebuild starts and completes in full before A's
+    // stalled walk ever resolves.
+    findMarkdownFiles.mockResolvedValueOnce([
+      { name: "b-note.md", path: "/workspace/b-note.md", isDir: false },
+    ]);
+    await rebuildLinkIndex("/workspace");
+    expect(linkIndex.value.pathsByNoteName.get("b-note")).toEqual([
+      "/workspace/b-note.md",
+    ]);
+
+    // A's stale rebuild finally resolves with A's own, different files.
+    // Before the fix, resetLinkIndexCache put the request counter back to
+    // the exact number A's own in-flight call had already captured, so
+    // isCurrentRequest() wrongly read true here and A's results replaced
+    // B's.
+    resolveStaleWalk([
+      { name: "a-note.md", path: "/workspace/a-note.md", isDir: false },
+    ]);
+    await stalePromise;
+
+    expect(linkIndex.value.pathsByNoteName.get("b-note")).toEqual([
+      "/workspace/b-note.md",
+    ]);
+    expect(linkIndex.value.pathsByNoteName.has("a-note")).toBe(false);
+  });
 });
 
 describe("rebuildLinkIndex: aliases", () => {

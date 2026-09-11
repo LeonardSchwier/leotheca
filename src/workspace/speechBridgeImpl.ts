@@ -162,3 +162,23 @@ export interface SpeechOptions {
   platform: PlatformType;
   offlineCapable: boolean;
 }
+
+// Speech recognition bridge functions for desktop
+// These are re-exported from the speech bridge to provide a unified import point
+export {
+  initSpeechRecognition,
+  transcribeAudio,
+  getSpeechStatus,
+  getWhisperModels,
+  checkWhisperModels,
+  getDefaultAudioConfig,
+  SPEECH_SAMPLE_RATE,
+  SPEECH_CHANNELS,
+  DEFAULT_AUDIO_BUFFER_MS,
+  samplesForDuration,
+  type WhisperModelSize,
+  type WhisperModelInfo,
+  type WhisperModelFile,
+  type SpeechRecognitionStatus,
+  type AudioCaptureConfig,
+} from './speechBridge';

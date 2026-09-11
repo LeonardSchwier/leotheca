@@ -33,12 +33,18 @@ export function FileTree({ rootPath, onOpenFile }: FileTreeProps) {
   }, [rootPath]);
 
   const entries = dirChildren.value.get(rootPath);
-  
-  // Use memoized sortEntries to prevent unnecessary re-sorting
+
+  // Use memoized sortEntries to prevent unnecessary re-sorting. Depending on
+  // `entries` itself (not just `rootPath`) matters: `dirChildren` is
+  // populated asynchronously by expandFirstLevel()/loadChildren() after
+  // this component's first render, which does not change `rootPath`, so a
+  // `[rootPath]`-only dependency array left `sortedEntries` frozen at its
+  // first-render value ([], since `entries` was still undefined then) even
+  // after the real listing arrived -- the sidebar file tree rendered
+  // permanently empty.
   const sortedEntries = useMemo(() => {
-    const entries = dirChildren.value.get(rootPath);
     return entries ? memoizedSortEntries(entries) : [];
-  }, [rootPath]);
+  }, [entries]);
 
   if (!entries) return null;
 

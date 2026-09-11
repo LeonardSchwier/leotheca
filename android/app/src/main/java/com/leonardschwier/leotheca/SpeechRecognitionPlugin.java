@@ -36,6 +36,7 @@ public class SpeechRecognitionPlugin extends Plugin {
     private String currentLanguage = "en";
     private boolean preferOffline = true;
 
+    @Override
     public void load() {
         super.load();
         // Initialize speech recognizer
@@ -47,7 +48,8 @@ public class SpeechRecognitionPlugin extends Plugin {
         }
     }
 
-    public void onDestroy() {
+    @Override
+    protected void handleOnDestroy() {
         if (speechRecognizer != null) {
             speechRecognizer.destroy();
             speechRecognizer = null;
@@ -57,7 +59,6 @@ public class SpeechRecognitionPlugin extends Plugin {
             activeCall.reject("Plugin destroyed");
             activeCall = null;
         }
-        super.onDestroy();
     }
 
     /**

@@ -175,6 +175,29 @@ describe("scanBlockIds", () => {
     expect(source.slice(block.contentFrom, block.contentTo)).toBe("Real paragraph content.");
   });
 
+  it("does not absorb a bare setext-underline-shaped line into the next paragraph when nothing precedes it", () => {
+    const source = "---\nSome text. ^some-id";
+    const [block] = scanBlockIds(source);
+    expect(block.id).toBe("some-id");
+    expect(source.slice(block.contentFrom, block.contentTo)).toBe("Some text.");
+    expect(source.slice(block.sourceFrom, block.sourceTo)).not.toContain("---");
+  });
+
+  it("does not absorb a bare '=' setext-underline-shaped line into the next paragraph at document start", () => {
+    const source = "===\nSome text. ^some-id";
+    const [block] = scanBlockIds(source);
+    expect(block.id).toBe("some-id");
+    expect(source.slice(block.contentFrom, block.contentTo)).toBe("Some text.");
+  });
+
+  it("does not absorb a bare setext-underline-shaped line right after a blank line", () => {
+    const source = "First. ^first-id\n\n---\nSecond. ^second-id";
+    const [first, second] = scanBlockIds(source);
+    expect(first.id).toBe("first-id");
+    expect(second.id).toBe("second-id");
+    expect(source.slice(second.contentFrom, second.contentTo)).toBe("Second.");
+  });
+
   it("separates two paragraphs by a blank line, each with its own marker", () => {
     const source = "First paragraph. ^first-id\n\nSecond paragraph. ^second-id";
     const [first, second] = scanBlockIds(source);

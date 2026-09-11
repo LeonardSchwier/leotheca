@@ -439,13 +439,22 @@ export function scanBlocks(content: string): ScannedBlock[] {
       continue;
     }
 
-    if (SETEXT_RE.test(line.text) && paragraphLines.length > 0) {
+    if (SETEXT_RE.test(line.text)) {
       // Mirrors headings.ts's own setext detection: only the single line
       // directly above the underline becomes the heading's text, not the
       // whole accumulated run before it. Drop just that line, then flush
-      // whatever (if anything) remains as an ordinary paragraph.
-      paragraphLines.pop();
-      flushParagraph();
+      // whatever (if anything) remains as an ordinary paragraph. When no
+      // paragraph text precedes the underline at all (right after a blank
+      // line, an ATX heading, a fence close, or at document start), there
+      // is nothing to pop/flush, but the underline line itself must still
+      // be skipped here rather than falling through to the paragraph
+      // accumulator below: headings.ts silently ignores that same
+      // unusable-underline case (its textIsUsable check), and this line is
+      // never real paragraph content either way.
+      if (paragraphLines.length > 0) {
+        paragraphLines.pop();
+        flushParagraph();
+      }
       continue;
     }
 

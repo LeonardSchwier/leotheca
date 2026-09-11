@@ -1329,6 +1329,8 @@
 
 ### Bugs
 
+- ⬜ **Maintenance review: capture module after recent path-traversal and binary-corruption fixes** (spec: `skills/maintenance-review.md`): Recent commits (rm-1a30c6e253a30050, rm-97d3ff4902d0ca30) fixed capture attachment path-traversal and binary-copy corruption. Verify no additional defects exist in the capture flow, including: attachment metadata handling, filename edge cases, concurrent capture operations, error handling in binary read/write, and Android share-intent edge cases. Read src/capture/*.ts, src/workspace/capacitorBridgeImpl.ts, and src-tauri/src/commands.rs for capture-related functions.
+
 
 
 - ⬜ **Fedora Wayland AppImage WebKit/EGL startup crash**: The current development AppImage reproducibly leaves a blank window on Fedora because `WebKitWebProcess` aborts with `Could not create default EGL display: EGL_BAD_PARAMETER`; `WEBKIT_DISABLE_DMABUF_RENDERER=1`, `WEBKIT_DISABLE_COMPOSITING_MODE=1`, and `GDK_BACKEND=x11` all fail. Reproduce on a clean Fedora session and compare the bundled versus host WebKit, Wayland, EGL, GBM, and Mesa libraries. Correct the AppImage dependency/runtime composition so the WebKit process starts with the host graphics stack it requires, then add a Wayland-capable release smoke test that proves the welcome screen renders and no WebKit process core-dumps. Do not declare the AppImage supported on Fedora until that test passes.

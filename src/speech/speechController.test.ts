@@ -31,7 +31,7 @@ beforeEach(() => {
   vi.resetAllMocks();
   
   // Mock window.AudioContext
-  global.window = {
+  vi.stubGlobal('window', {
     AudioContext: mockAudioContext,
     webkitAudioContext: mockAudioContext,
     navigator: {
@@ -44,11 +44,11 @@ beforeEach(() => {
     Uint8Array: Uint8Array,
     Blob: Blob,
     ArrayBuffer: ArrayBuffer,
-  } as any;
+  } as any);
 });
 
 afterEach(() => {
-  delete (global as any).window;
+  vi.unstubAllGlobals();
 });
 
 describe('SpeechController', () => {
@@ -65,6 +65,7 @@ describe('SpeechController', () => {
       });
       // The options should be merged with defaults
       // We can't directly access private options, but we can test behavior
+      expect(controller).toBeDefined();
     });
 
     it('should throw error when speech recognition is not available', async () => {
@@ -226,7 +227,7 @@ describe('SpeechController', () => {
       const callback2 = vi.fn();
       
       const unsubscribe1 = controller.onStateChange(callback1);
-      const unsubscribe2 = controller.onStateChange(callback2);
+      controller.onStateChange(callback2);
       
       // Trigger state changes through internal method
       (controller as any).setState('starting');

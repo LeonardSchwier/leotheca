@@ -20,15 +20,16 @@ interface FileTreeProps {
 }
 
 export function FileTree({ rootPath, onOpenFile }: FileTreeProps) {
-  // Also re-expands when only workspaceSession changes and rootPath stays
-  // the same string: F20 Phase 2b-iii-b's in-session transition-failure
-  // recovery restores the outgoing workspace's own path value (never
-  // actually cleared) but still bumps the session after a mid-transition
-  // reset already emptied dirChildren, so rootPath alone would never
-  // re-trigger this effect and the tree would stay stuck empty.
+  // Re-expand first level when rootPath changes. We read workspaceSession.value
+  // inside the effect to ensure the effect runs when the session changes (F20
+  // Phase 2b-iii-b in-session transition-failure recovery), but we don't include
+  // it in the dependency array because signals trigger their own reactivity.
   useEffect(() => {
+    // Reading workspaceSession.value here ensures we get the current session
+    // even when rootPath hasn't changed but the session has.
+    void (workspaceSession.value);
     void expandFirstLevel(rootPath);
-  }, [rootPath, workspaceSession.value]);
+  }, [rootPath]);
 
   const entries = dirChildren.value.get(rootPath);
   if (!entries) return null;

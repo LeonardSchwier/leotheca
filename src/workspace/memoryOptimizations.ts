@@ -19,17 +19,6 @@ declare global {
       jsHeapSizeLimit: number;
     };
   }
-  
-  class WeakRef<T extends object> {
-    constructor(value: T);
-    deref(): T | undefined;
-  }
-  
-  class FinalizationRegistry<T = unknown> {
-    constructor(callback: (heldValue: T) => void);
-    register(target: object, heldValue: T, unregisterToken?: unknown): void;
-    unregister(unregisterToken?: unknown): void;
-  }
 }
 
 // Feature detection for WeakRef and FinalizationRegistry

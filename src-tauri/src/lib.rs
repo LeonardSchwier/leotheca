@@ -1,6 +1,6 @@
 mod commands;
-mod workspace_mutations;
 mod speech_commands;
+mod workspace_mutations;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -24,7 +24,7 @@ pub fn run() {
     {
         builder = builder.plugin(tauri_plugin_single_instance::init(|_app, _argv, _cwd| {}));
     }
-    
+
     // Initialize whisper model state for speech recognition
     builder = builder.manage(speech_commands::WhisperState::default());
     builder

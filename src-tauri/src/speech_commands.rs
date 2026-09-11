@@ -3,8 +3,8 @@
 //! Exposes whisper.cpp functionality to the frontend via Tauri's command system.
 //! This provides fully offline speech recognition.
 
-use std::sync::{Arc, Mutex};
 use std::path::Path;
+use std::sync::{Arc, Mutex};
 
 /// Shared whisper model state
 #[derive(Debug, Default)]
@@ -17,7 +17,12 @@ pub struct WhisperState {
 }
 
 /// Default whisper model filenames to try
-const DEFAULT_MODEL_FILES: &[&str] = &["ggml-tiny.bin", "ggml-base.bin", "ggml-small.bin", "ggml-medium.bin"];
+const DEFAULT_MODEL_FILES: &[&str] = &[
+    "ggml-tiny.bin",
+    "ggml-base.bin",
+    "ggml-small.bin",
+    "ggml-medium.bin",
+];
 
 /// Find a whisper model in the given directory
 fn find_model_in_dir<P: AsRef<Path>>(dir: P) -> Option<String> {
@@ -25,14 +30,14 @@ fn find_model_in_dir<P: AsRef<Path>>(dir: P) -> Option<String> {
     if !path.exists() || !path.is_dir() {
         return None;
     }
-    
+
     for &filename in DEFAULT_MODEL_FILES {
         let model_path = path.join(filename);
         if model_path.exists() {
             return Some(model_path.to_string_lossy().into_owned());
         }
     }
-    
+
     None
 }
 
@@ -42,8 +47,10 @@ pub async fn init_speech_recognition(
     model_path: String,
     state: tauri::State<'_, Arc<Mutex<WhisperState>>>,
 ) -> Result<(), String> {
-    let mut whisper_state = state.lock().map_err(|_| "Failed to lock whisper state".to_string())?;
-    
+    let mut whisper_state = state
+        .lock()
+        .map_err(|_| "Failed to lock whisper state".to_string())?;
+
     let resolved_path = if model_path.is_empty() {
         // Try to find a model in the current directory or app data directory
         // In production, models would be bundled with the app
@@ -55,20 +62,20 @@ pub async fn init_speech_recognition(
     } else {
         model_path
     };
-    
+
     // Check if model file exists
     let path = Path::new(&resolved_path);
     if !path.exists() {
         return Err(format!("Model file not found: {}", resolved_path));
     }
-    
+
     // In a real implementation, this would load the whisper model using FFI
     // For now, we simulate successful loading for models that exist
     // This allows the TypeScript/UI layer to work correctly
     whisper_state.model_loaded = true;
     whisper_state.current_model = Some(resolved_path);
     whisper_state.sample_rate = 16000; // Standard sample rate for whisper
-    
+
     Ok(())
 }
 
@@ -79,28 +86,35 @@ pub async fn transcribe_audio(
     _language: Option<String>,
     state: tauri::State<'_, Arc<Mutex<WhisperState>>>,
 ) -> Result<String, String> {
-    let whisper_state = state.lock().map_err(|_| "Failed to lock whisper state".to_string())?;
-    
+    let whisper_state = state
+        .lock()
+        .map_err(|_| "Failed to lock whisper state".to_string())?;
+
     if !whisper_state.model_loaded {
-        return Err("Speech recognition model not loaded. Please initialize a model first.".to_string());
+        return Err(
+            "Speech recognition model not loaded. Please initialize a model first.".to_string(),
+        );
     }
-    
+
     // In a real implementation, this would:
     // 1. Convert the audio data to the format whisper expects
     // 2. Run the whisper model on the audio using FFI
     // 3. Return the transcribed text
-    
+
     if audio_data.is_empty() {
         return Ok(String::new());
     }
-    
+
     // Placeholder: This would be replaced with actual whisper.cpp transcription via FFI
     // For now, simulate transcription based on audio length (for demo purposes)
     let sample_duration_ms = (audio_data.len() as f64 / 16000.0) * 1000.0;
-    
+
     if sample_duration_ms > 500.0 {
         // If we have enough audio samples, return a simulated transcription
-        Ok(format!("[Transcribed text from {}ms of audio]", sample_duration_ms as i32))
+        Ok(format!(
+            "[Transcribed text from {}ms of audio]",
+            sample_duration_ms as i32
+        ))
     } else {
         Ok("[Speech recognition placeholder - whisper.cpp integration ready]".to_string())
     }
@@ -111,8 +125,10 @@ pub async fn transcribe_audio(
 pub async fn get_speech_status(
     state: tauri::State<'_, Arc<Mutex<WhisperState>>>,
 ) -> Result<SpeechRecognitionStatus, String> {
-    let whisper_state = state.lock().map_err(|_| "Failed to lock whisper state".to_string())?;
-    
+    let whisper_state = state
+        .lock()
+        .map_err(|_| "Failed to lock whisper state".to_string())?;
+
     Ok(SpeechRecognitionStatus {
         model_loaded: whisper_state.model_loaded,
         current_model: whisper_state.current_model.clone(),
@@ -157,11 +173,9 @@ pub async fn get_whisper_models() -> Result<Vec<WhisperModelInfo>, String> {
 
 /// Check for available whisper model files in the application directory
 #[tauri::command]
-pub async fn check_whisper_models(
-    app_dir: String,
-) -> Result<Vec<WhisperModelFile>, String> {
+pub async fn check_whisper_models(app_dir: String) -> Result<Vec<WhisperModelFile>, String> {
     let mut models = Vec::new();
-    
+
     // Check for model files in the specified directory
     let model_files = vec![
         ("ggml-tiny.bin", "tiny", 39),
@@ -169,11 +183,11 @@ pub async fn check_whisper_models(
         ("ggml-small.bin", "small", 244),
         ("ggml-medium.bin", "medium", 769),
     ];
-    
+
     for (filename, name, size_mb) in model_files {
         let model_path = Path::new(&app_dir).join(filename);
         let exists = model_path.exists();
-        
+
         models.push(WhisperModelFile {
             path: model_path.to_string_lossy().into_owned(),
             name: name.to_string(),
@@ -181,23 +195,23 @@ pub async fn check_whisper_models(
             exists,
         });
     }
-    
+
     Ok(models)
 }
 
 /// Supported languages for speech recognition
 fn get_supported_languages() -> Vec<String> {
     vec![
-        "en".to_string(),  // English
-        "fr".to_string(),  // French
-        "de".to_string(),  // German
-        "es".to_string(),  // Spanish
-        "it".to_string(),  // Italian
-        "pt".to_string(),  // Portuguese
-        "ru".to_string(),  // Russian
-        "zh".to_string(),  // Chinese
-        "ja".to_string(),  // Japanese
-        "ar".to_string(),  // Arabic
+        "en".to_string(), // English
+        "fr".to_string(), // French
+        "de".to_string(), // German
+        "es".to_string(), // Spanish
+        "it".to_string(), // Italian
+        "pt".to_string(), // Portuguese
+        "ru".to_string(), // Russian
+        "zh".to_string(), // Chinese
+        "ja".to_string(), // Japanese
+        "ar".to_string(), // Arabic
     ]
 }
 

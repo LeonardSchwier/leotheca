@@ -15,14 +15,14 @@ fn main() {
     // Check if whisper.cpp source files exist
     let whisper_cpp = Path::new("src-tauri/native/whisper/whisper.cpp");
     let whisper_h = Path::new("src-tauri/native/whisper/whisper.h");
-    
+
     let out_dir = env::var("OUT_DIR").unwrap();
-    
+
     if whisper_cpp.exists() && whisper_h.exists() {
         // whisper.cpp source is available - compile it
         println!("cargo:rerun-if-changed=src-tauri/native/whisper/whisper.cpp");
         println!("cargo:rerun-if-changed=src-tauri/native/whisper/whisper.h");
-        
+
         // Compile whisper.cpp with CC
         // whisper.cpp requires C++17
         cc::Build::new()
@@ -34,24 +34,24 @@ fn main() {
             .include("src-tauri/native/whisper/")
             .file("src-tauri/native/whisper/whisper.cpp")
             .compile("whisper");
-        
+
         // Tell Cargo to look for the static library
         println!("cargo:rustc-link-lib=static=whisper");
         println!("cargo:rustc-link-search={}", out_dir);
-        
+
         // For macOS, we need to link against Accelerate framework
         if cfg!(target_os = "macos") {
             println!("cargo:rustc-link-arg=-framework");
             println!("cargo:rustc-link-arg=Accelerate");
         }
-        
+
         // Generate bindings with bindgen
         let bindings = bindgen::Builder::default()
             .header("src-tauri/native/whisper/whisper.h")
             .parse_callbacks(Box::new(bindgen::CargoCallbacks))
             .generate()
             .expect("Unable to generate bindings");
-        
+
         // Write the bindings to the $OUT_DIR/bindings.rs file.
         let out_path = Path::new(&out_dir).join("bindings.rs");
         bindings
@@ -62,8 +62,10 @@ fn main() {
         println!("cargo:warning=whisper.cpp source files not found in src-tauri/native/whisper/");
         println!("cargo:warning=To enable whisper.cpp integration, please place whisper.cpp and whisper.h in that directory");
         println!("cargo:warning=You can obtain whisper.cpp from: https://github.com/ggerganov/whisper.cpp");
-        println!("cargo:warning=Note: whisper.cpp requires GGML model files to be present at runtime");
-        
+        println!(
+            "cargo:warning=Note: whisper.cpp requires GGML model files to be present at runtime"
+        );
+
         // Create a stub bindings file
         let stub_bindings = r#"
 // Stub bindings for whisper.cpp - source files not available
@@ -148,7 +150,7 @@ mod stub_impl {
     pub extern "C" fn whisper_reset_timings(_ctx: *mut whisper_context) {}
 }
 "#;
-        
+
         let out_path = Path::new(&out_dir).join("bindings.rs");
         std::fs::write(out_path, stub_bindings).expect("Couldn't write stub bindings!");
     }

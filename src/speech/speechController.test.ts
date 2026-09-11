@@ -44,7 +44,7 @@ beforeEach(() => {
     Uint8Array: Uint8Array,
     Blob: Blob,
     ArrayBuffer: ArrayBuffer,
-  } as any);
+  } as unknown as Window);
 });
 
 afterEach(() => {

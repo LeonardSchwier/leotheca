@@ -58,6 +58,15 @@ describe("defaultProfileName", () => {
     expect(defaultProfileName("/workspace")).toBe("Workspace");
   });
 
+  it("uses the real basename for a Desktop folder that merely happens to be named 'workspace'", () => {
+    // Only the exact Android synthetic root path ("/workspace" itself) is
+    // special-cased; a real Desktop folder whose basename is coincidentally
+    // "workspace" (e.g. a common dev-folder name like ~/workspace) must
+    // keep its own name rather than being swallowed by that check.
+    expect(defaultProfileName("/Users/me/workspace")).toBe("workspace");
+    expect(defaultProfileName("/workspace/nested")).toBe("nested");
+  });
+
   it("falls back to the path basename when a suggested name is invalid", () => {
     expect(defaultProfileName("/Users/me/vault", "   ")).toBe("vault");
     expect(defaultProfileName("/Users/me/vault", "bad\nname")).toBe("vault");

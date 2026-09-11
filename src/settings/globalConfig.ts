@@ -186,11 +186,19 @@ export function decodeGlobalConfig(raw: string): {
   if (!hasV2Catalog && lastWorkspacePath.value) {
     // Section 19.2: migrate. The final path component is used as the
     // default name when it looks like a real (non-synthetic) Desktop
-    // path; the Android synthetic "/workspace" path, or any path with no
-    // usable basename, falls back to "Workspace" (section 22.2's own
-    // fuller Android display-name polish is deferred, see ROADMAP.md).
-    const basename = lastWorkspacePath.value.split("/").filter(Boolean).pop();
-    const name = basename && basename !== "workspace" ? basename : "Workspace";
+    // path; the Android synthetic "/workspace" path (compared as the
+    // *whole* path, not just its basename, so a real Desktop folder that
+    // merely happens to be named "workspace" -- e.g. `~/workspace`, a
+    // common dev-folder name -- isn't mistaken for it, mirroring
+    // workspaceProfiles.ts's defaultProfileName fix for the identical
+    // bug), or any path with no usable basename, falls back to
+    // "Workspace" (section 22.2's own fuller Android display-name polish
+    // is deferred, see ROADMAP.md).
+    const isAndroidSyntheticRoot = lastWorkspacePath.value === "/workspace";
+    const basename = isAndroidSyntheticRoot
+      ? undefined
+      : lastWorkspacePath.value.split("/").filter(Boolean).pop();
+    const name = basename ?? "Workspace";
     const migratedId = crypto.randomUUID();
     workspaceProfiles = [
       {

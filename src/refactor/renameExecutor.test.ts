@@ -297,6 +297,45 @@ describe("renameExecutor - Complete Execution Flow", () => {
     expect(mockOptions.writeNote).toHaveBeenCalled();
   });
 
+  it("applies two wikilink edits in the same note without corrupting the second edit's position", async () => {
+    // A single note can link to the renamed note more than once; both
+    // edits' offsets are computed against this original content.
+    const originalContent = "[[old]] and again [[old]] end";
+    const firstFrom = originalContent.indexOf("[[old]]");
+    const firstTo = firstFrom + "[[old]]".length;
+    const secondFrom = originalContent.indexOf("[[old]]", firstTo);
+    const secondTo = secondFrom + "[[old]]".length;
+    // Deliberately a different length than "[[old]]" so a stale offset
+    // (computed before the previous edit shifted the text) would corrupt
+    // the file instead of accidentally landing in the right place.
+    const newText = "[[much-longer-new-name]]";
+    const edits: PlannedWikiLinkEdit[] = [
+      { path: "note.md", from: firstFrom, to: firstTo, oldText: "[[old]]", newText },
+      { path: "note.md", from: secondFrom, to: secondTo, oldText: "[[old]]", newText },
+    ];
+
+    let stored = originalContent;
+    const mockOptions = createMockOptions({
+      readNote: vi.fn(async () => stored),
+      writeNote: vi.fn(async (_path: string, content: string) => {
+        stored = content;
+      }),
+    });
+
+    const result = await executeRenameOperation(
+      "old.md",
+      "new.md",
+      createMockRenamePlan("old.md", "new.md", edits, []),
+      createEditorLayout(),
+      [],
+      createWorkspaceSettings(),
+      mockOptions
+    );
+
+    expect(result.success).toBe(true);
+    expect(stored).toBe("[[much-longer-new-name]] and again [[much-longer-new-name]] end");
+  });
+
   it("should fail when mutation lock cannot be acquired", async () => {
     // First, acquire the lock
     acquireMutationLock();
@@ -371,6 +410,7 @@ describe("renameExecutor - Rollback Capability", () => {
       from: 0,
       to: 6,
       oldText: "[[old]]",
+      newText: "[[new]]",
     }];
     entry.originalMetadata = {
       editorLayout: createEditorLayout(["old.md"], "old.md"),
@@ -450,6 +490,100 @@ describe("renameExecutor - Error Handling", () => {
     expect(result.success).toBe(false);
     expect(result.error).toContain("File rename failed");
     expect(result.journalEntry?.step).toBe("failed");
+  });
+
+  it("rolls back a length-changing wikilink edit to the exact original content when a later step fails", async () => {
+    // The rewritten text ("[[much-longer-new-name]]") is deliberately a
+    // different length than the original ("[[old]]"): rollback must locate
+    // what to restore by the *written* text's actual length, not the
+    // pre-edit end offset, or it splices at the wrong position.
+    const originalContent = "before [[old]] after";
+    const from = originalContent.indexOf("[[old]]");
+    const to = from + "[[old]]".length;
+    const edit: PlannedWikiLinkEdit = {
+      path: "note.md",
+      from,
+      to,
+      oldText: "[[old]]",
+      newText: "[[much-longer-new-name]]",
+    };
+
+    let stored = originalContent;
+    const mockOptions = createMockOptions({
+      readNote: vi.fn(async () => stored),
+      writeNote: vi.fn(async (_path: string, content: string) => {
+        stored = content;
+      }),
+      renameFile: vi.fn().mockRejectedValue(new Error("disk full")),
+    });
+
+    const result = await executeRenameOperation(
+      "old.md",
+      "new.md",
+      createMockRenamePlan("old.md", "new.md", [edit], []),
+      createEditorLayout(),
+      [],
+      createWorkspaceSettings(),
+      mockOptions
+    );
+
+    expect(result.success).toBe(false);
+    expect(stored).toBe(originalContent);
+  });
+
+  it("rollback does not corrupt a note whose own wikilink edit never actually landed", async () => {
+    // Two different notes each need one edit. The first note's write
+    // succeeds; the second note's *first* write attempt (the forward
+    // apply) fails, so the forward-apply loop never actually rewrites it.
+    // A later write attempt (rollback's) is allowed to succeed, so if
+    // rollback wrongly assumed the edit had landed and tried to "restore"
+    // it anyway, that corruption would actually be persisted and this test
+    // would catch it — a mock that always rejects for b.md would instead
+    // hide the bug by discarding rollback's (corrupted) write too.
+    const contentA = "before [[old]] after";
+    const contentB = "before [[old]] after";
+    const fromA = contentA.indexOf("[[old]]");
+    const toA = fromA + "[[old]]".length;
+    const fromB = contentB.indexOf("[[old]]");
+    const toB = fromB + "[[old]]".length;
+    const newText = "[[much-longer-new-name]]";
+
+    const edits: PlannedWikiLinkEdit[] = [
+      { path: "a.md", from: fromA, to: toA, oldText: "[[old]]", newText },
+      { path: "b.md", from: fromB, to: toB, oldText: "[[old]]", newText },
+    ];
+
+    const store: Record<string, string> = { "a.md": contentA, "b.md": contentB };
+    let bWriteAttempts = 0;
+    const mockOptions = createMockOptions({
+      readNote: vi.fn(async (path: string) => store[path]),
+      writeNote: vi.fn(async (path: string, content: string) => {
+        if (path === "b.md") {
+          bWriteAttempts++;
+          if (bWriteAttempts === 1) throw new Error("disk full");
+        }
+        store[path] = content;
+      }),
+    });
+
+    const result = await executeRenameOperation(
+      "old.md",
+      "new.md",
+      createMockRenamePlan("old.md", "new.md", edits, []),
+      createEditorLayout(),
+      [],
+      createWorkspaceSettings(),
+      mockOptions
+    );
+
+    expect(result.success).toBe(false);
+    // a.md's edit landed, then got rolled back to its exact original text.
+    expect(store["a.md"]).toBe(contentA);
+    // b.md's edit never landed; rollback must recognize that (rather than
+    // assume the never-written newText is sitting there) and leave it
+    // untouched, never attempting a second, corrupting write.
+    expect(store["b.md"]).toBe(contentB);
+    expect(bWriteAttempts).toBe(1);
   });
 
   it("should handle metadata migration failure with rollback", async () => {

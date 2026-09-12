@@ -31,8 +31,14 @@ export interface RenameJournalEntry {
   oldPath: string;
   /** New path after rename */
   newPath: string;
-  /** Original wikilink content and locations (for rollback) */
-  originalWikilinks: { path: string; from: number; to: number; oldText: string }[];
+  /** Original wikilink content and locations (for rollback). `newText` is
+   * recorded too (not just `oldText`/`from`/`to`) because rollback must
+   * locate the text to restore by its *actual* current length in the
+   * already-edited file, not by the pre-edit `to` offset: once a rename
+   * changes the wikilink text's length (the common case), `to` no longer
+   * marks the end of what's actually sitting at `from`. See
+   * `applyRangeReplacementsGroupedByPath` below. */
+  originalWikilinks: { path: string; from: number; to: number; oldText: string; newText: string }[];
   /** Original metadata state (for rollback) */
   originalMetadata: {
     editorLayout: EditorLayoutState;
@@ -264,6 +270,85 @@ export function resetRenameExecutor(): void {
   releaseMutationLock();
 }
 
+/** A single text replacement to apply within one note: replace the
+ * `length`-character span starting at `from` with `text`. */
+interface RangeReplacement {
+  path: string;
+  from: number;
+  length: number;
+  text: string;
+  /** When set, the replacement is applied only if the content currently at
+   * `[from, from + length)` equals `verify` exactly; otherwise it's skipped
+   * as a no-op rather than corrupting text that was never actually there.
+   * Rollback needs this: `executeRenameOperation`'s forward-apply loop can
+   * fail partway through a multi-file batch (one file's write rejected,
+   * later files never even reached), and `entry.originalWikilinks` records
+   * every planned edit regardless of whether it actually landed. Without
+   * this check, "restoring" a file whose edit never landed would still
+   * assume the *edited* text's length is sitting at `from` and cut out the
+   * wrong span from content that is, in fact, still fully original. */
+  verify?: string;
+}
+
+interface NoteReadWrite {
+  readNote: (path: string) => Promise<string>;
+  writeNote: (path: string, content: string) => Promise<void>;
+}
+
+/**
+ * Applies a batch of `RangeReplacement`s, reading and writing each distinct
+ * `path` exactly once. This matters for two reasons a naive "read/splice/
+ * write per replacement" loop gets wrong:
+ *
+ * 1. `renamePlan.edits` can legitimately contain more than one edit for the
+ *    same note (it links to the renamed note more than once). Each edit's
+ *    `from`/`length` is an offset into that note's *original* content.
+ *    Reading and writing once per edit means every edit after the first
+ *    re-reads content the previous edit already rewrote, while still using
+ *    offsets computed against the pre-edit text — corrupting the file the
+ *    moment any edit changes the text's length.
+ * 2. Applying multiple replacements to one in-memory string is only safe
+ *    right-to-left (highest `from` first): replacing a span doesn't shift
+ *    the start position of any replacement still to come, since those all
+ *    start earlier in the string.
+ *
+ * A caller wanting "keep going and log" behavior for a best-effort rollback
+ * passes `continueOnError`; the default is to let a failure propagate so a
+ * forward-apply failure still triggers the caller's own rollback.
+ */
+async function applyRangeReplacementsGroupedByPath(
+  replacements: RangeReplacement[],
+  io: NoteReadWrite,
+  onError?: { continueOnError: true; log: (path: string, error: unknown) => void },
+): Promise<void> {
+  const byPath = new Map<string, RangeReplacement[]>();
+  for (const replacement of replacements) {
+    const existing = byPath.get(replacement.path);
+    if (existing) existing.push(replacement);
+    else byPath.set(replacement.path, [replacement]);
+  }
+
+  for (const [path, pathReplacements] of byPath) {
+    try {
+      let content = await io.readNote(path);
+      const orderedRightToLeft = [...pathReplacements].sort((a, b) => b.from - a.from);
+      let changed = false;
+      for (const replacement of orderedRightToLeft) {
+        const spanEnd = replacement.from + replacement.length;
+        if (replacement.verify !== undefined && content.slice(replacement.from, spanEnd) !== replacement.verify) {
+          continue;
+        }
+        content = content.slice(0, replacement.from) + replacement.text + content.slice(spanEnd);
+        changed = true;
+      }
+      if (changed) await io.writeNote(path, content);
+    } catch (error) {
+      if (!onError) throw error;
+      onError.log(path, error);
+    }
+  }
+}
+
 /**
  * Preflight validation before executing a rename
  * @returns {Promise<boolean>} true if preflight passes, false otherwise
@@ -362,6 +447,7 @@ export async function executeRenameOperation(
         from: edit.from,
         to: edit.to,
         oldText: edit.oldText,
+        newText: edit.newText,
       });
     }
     
@@ -393,11 +479,15 @@ export async function executeRenameOperation(
     
     // Step 6: Apply wikilink updates
     try {
-      for (const edit of renamePlan.edits) {
-        const noteContent = await options.readNote(edit.path);
-        const newContent = noteContent.slice(0, edit.from) + edit.newText + noteContent.slice(edit.to);
-        await options.writeNote(edit.path, newContent);
-      }
+      await applyRangeReplacementsGroupedByPath(
+        renamePlan.edits.map((edit) => ({
+          path: edit.path,
+          from: edit.from,
+          length: edit.to - edit.from,
+          text: edit.newText,
+        })),
+        options,
+      );
       updateOperationStep("wikilink_updates_completed");
     } catch (error) {
       // If wikilink updates fail, we need to rollback both wikilinks and metadata
@@ -459,16 +549,29 @@ async function rollbackOperation(entry: RenameJournalEntry, options: {
       console.error("Failed to rollback file rename:", renameError);
     }
     
-    // 2. Rollback wikilink updates
-    for (const wikilink of entry.originalWikilinks) {
-      try {
-        const noteContent = await options.readNote(wikilink.path);
-        const rolledBackContent = noteContent.slice(0, wikilink.from) + wikilink.oldText + noteContent.slice(wikilink.to);
-        await options.writeNote(wikilink.path, rolledBackContent);
-      } catch (wikilinkError) {
-        console.error(`Failed to rollback wikilink in ${wikilink.path}:`, wikilinkError);
-      }
-    }
+    // 2. Rollback wikilink updates. Restore each replacement by the
+    // *actual* length of the `newText` it wrote (`wikilink.newText.length`),
+    // not the pre-edit `wikilink.to`: once the forward edit changed the
+    // text's length (the common case for a real rename), `to` no longer
+    // marks where the written text actually ends in this already-edited
+    // file, and using it would splice at the wrong end-point. `verify`
+    // guards a file whose edit never actually landed (the forward loop can
+    // fail partway through a multi-file batch): only overwrite the span if
+    // `newText` is genuinely sitting there, never assume it is.
+    await applyRangeReplacementsGroupedByPath(
+      entry.originalWikilinks.map((wikilink) => ({
+        path: wikilink.path,
+        from: wikilink.from,
+        length: wikilink.newText.length,
+        text: wikilink.oldText,
+        verify: wikilink.newText,
+      })),
+      options,
+      {
+        continueOnError: true,
+        log: (path, error) => console.error(`Failed to rollback wikilink(s) in ${path}:`, error),
+      },
+    );
     
     // 3. Rollback metadata migration
     try {

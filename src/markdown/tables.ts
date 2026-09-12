@@ -61,6 +61,12 @@ interface ScanState {
 }
 
 const FENCE_RE = /^ {0,3}(`{3,}|~{3,})/;
+// A block-level HTML comment must *begin* the line (after up to 3 spaces
+// of indentation, the same allowance FENCE_RE above uses); CommonMark's
+// end condition for this HTML block type is "the line contains `-->`",
+// asymmetric with its own start condition, so only the start check below
+// needs the anchored form.
+const COMMENT_START_RE = /^ {0,3}<!--/;
 const UNSUPPORTED_CONTAINER_RE = /^ {0,3}(?:>|(?:[-+*]|\d+[.)])(?:[ \t]+|$))/;
 const INDENTED_CODE_RE = /^(?: {4}|\t)/;
 const RAW_HTML_TAG_RE = /^ {0,3}<([A-Za-z][A-Za-z0-9-]*)(?:[\s/>]|$)/;
@@ -248,9 +254,9 @@ function lineIsExcluded(line: LineInfo, state: ScanState): boolean {
     if (line.text.includes("-->")) state.inComment = false;
     return true;
   }
-  const commentStart = line.text.indexOf("<!--");
-  if (commentStart !== -1) {
-    if (line.text.indexOf("-->", commentStart + 4) === -1) state.inComment = true;
+  const commentStartMatch = COMMENT_START_RE.exec(line.text);
+  if (commentStartMatch) {
+    if (line.text.indexOf("-->", commentStartMatch[0].length) === -1) state.inComment = true;
     return true;
   }
 

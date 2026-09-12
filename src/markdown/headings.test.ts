@@ -166,6 +166,12 @@ describe("scanHeadings", () => {
     expect(scanHeadings(source).map((h) => h.displayText)).toEqual(["Real", "Still real"]);
   });
 
+  it("still recognizes a heading with a trailing inline HTML comment", () => {
+    const source = "# Title <!-- note -->\n\nBody\n";
+    const headings = scanHeadings(source);
+    expect(headings.map((h) => h.displayText)).toEqual(["Title <!-- note -->"]);
+  });
+
   it("produces the same headings for LF and CRLF variants of the same document", () => {
     const lf = "# One\nBody one\n## Two\nBody two\n";
     const crlf = lf.replace(/\n/g, "\r\n");

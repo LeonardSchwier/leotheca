@@ -181,6 +181,12 @@ function splitLines(content: string): LineInfo[] {
 }
 
 const FENCE_RE = /^ {0,3}(`{3,}|~{3,})/;
+// A block-level HTML comment must *begin* the line (after up to 3 spaces
+// of indentation, the same allowance FENCE_RE above uses); CommonMark's
+// end condition for this HTML block type is "the line contains `-->`",
+// asymmetric with its own start condition, so only the start check below
+// needs the anchored form.
+const COMMENT_START_RE = /^ {0,3}<!--/;
 const ATX_RE = /^ {0,3}#{1,6}(?:[ \t]|$)/;
 const SETEXT_RE = /^ {0,3}(=+|-+)[ \t]*$/;
 const BLOCKQUOTE_RE = /^ {0,3}>/;
@@ -316,7 +322,7 @@ export function scanBlocks(content: string): ScannedBlock[] {
   function isContinuationLine(line: LineInfo, block: OpenBlock): boolean {
     if (line.text.trim() === "") return false;
     if (FENCE_RE.test(line.text)) return false;
-    if (line.text.indexOf("<!--") !== -1) return false;
+    if (COMMENT_START_RE.test(line.text)) return false;
     if (ATX_RE.test(line.text)) return false;
     if (LIST_ITEM_RE.test(line.text)) return false;
     if (block.kind === "blockquote") {
@@ -421,10 +427,10 @@ export function scanBlocks(content: string): ScannedBlock[] {
       if (line.text.includes("-->")) inComment = false;
       continue;
     }
-    const commentStart = line.text.indexOf("<!--");
-    if (commentStart !== -1) {
+    const commentStartMatch = COMMENT_START_RE.exec(line.text);
+    if (commentStartMatch) {
       flushParagraph();
-      const closeOnSameLine = line.text.indexOf("-->", commentStart + 4);
+      const closeOnSameLine = line.text.indexOf("-->", commentStartMatch[0].length);
       if (closeOnSameLine === -1) inComment = true;
       continue;
     }

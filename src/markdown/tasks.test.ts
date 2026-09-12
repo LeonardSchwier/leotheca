@@ -102,6 +102,12 @@ describe("scanTasks", () => {
     expect(tasks[0].text).toBe("Real task");
   });
 
+  it("still recognizes a task with a trailing inline HTML comment", () => {
+    const tasks = scanTasks("- [ ] Buy milk <!-- reminder -->\n");
+    expect(tasks).toHaveLength(1);
+    expect(tasks[0].text).toBe("Buy milk <!-- reminder -->");
+  });
+
   it("ignores a task-like line that reads as a top-level indented code block", () => {
     // Four leading spaces with no shallower open task above it: no list
     // context to nest under, so this reads as an indented code block per

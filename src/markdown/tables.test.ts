@@ -133,6 +133,12 @@ describe("scanMarkdownTables", () => {
     expect(scanMarkdownTables(source)).toEqual([]);
   });
 
+  it("still scans a table whose last row has a trailing inline HTML comment", () => {
+    const source = "| A | B |\n| --- | --- |\n| one | two | <!-- note -->";
+    const table = onlyTable(source);
+    expect(table.rows).toHaveLength(1);
+  });
+
   it("ignores conservative raw-HTML blocks", () => {
     const source = "<div>\n| A | B |\n| --- | --- |\n| one | two |\n\n| C | D |\n| --- | --- |";
     const tables = scanMarkdownTables(source);

@@ -161,6 +161,23 @@ describe("scanBlockIds", () => {
     expect(block.id).toBe("visible-id");
   });
 
+  it("still scans a paragraph with a trailing inline HTML comment", () => {
+    const source = "Some paragraph text <!-- note -->";
+    const [block] = scanBlocks(source);
+    expect(block).toMatchObject({ kind: "paragraph", sourceFrom: 0, sourceTo: source.length });
+    expect(findBlockAtOffset(source, 0)).toEqual(block);
+  });
+
+  it("still continues a list item across a continuation line with a trailing inline HTML comment", () => {
+    const source = "- First line\n  second line <!-- note --> with the id. ^with-comment";
+    const [block] = scanBlockIds(source);
+    expect(block.kind).toBe("list-item");
+    expect(block.id).toBe("with-comment");
+    expect(source.slice(block.contentFrom, block.contentTo)).toBe(
+      "First line\n  second line <!-- note --> with the id.",
+    );
+  });
+
   it("treats a setext heading marker as a heading block, not a paragraph", () => {
     const source = "A Setext Heading ^setext-id\n===";
     const [block] = scanBlockIds(source);

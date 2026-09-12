@@ -18,7 +18,6 @@ export default tseslint.config(
       // Web worker files have their own global environment
       "public/markdownWorker.js",
       "src/workspace/markdownWorker.ts",
-      "src/workspace/memoryOptimizations.ts",
     ],
   },
   js.configs.recommended,

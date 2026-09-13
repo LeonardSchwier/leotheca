@@ -24,7 +24,7 @@ interface CanvasViewProps {
 
 /** File-backed spatial cards, links, and local file references. */
 export function CanvasView({ path, source, onChange, onOpenFile }: CanvasViewProps) {
-  const [drag, setDrag] = useState<{ id: string; offsetX: number; offsetY: number } | null>(null);
+  const [drag, setDrag] = useState<{ id: string; pointerId: number; offsetX: number; offsetY: number } | null>(null);
   const [connectionStart, setConnectionStart] = useState<string | null>(null);
   const decoded = decodeCanvas(source);
   if (!decoded) {
@@ -75,7 +75,7 @@ export function CanvasView({ path, source, onChange, onOpenFile }: CanvasViewPro
       <div
         class="canvas-viewport"
         onPointerMove={(event) => {
-          if (!drag) return;
+          if (!drag || event.pointerId !== drag.pointerId) return;
           const rect = event.currentTarget.getBoundingClientRect();
           updateNodes(
             document.nodes.map((node) =>
@@ -85,7 +85,18 @@ export function CanvasView({ path, source, onChange, onOpenFile }: CanvasViewPro
             ),
           );
         }}
-        onPointerUp={() => setDrag(null)}
+        onPointerUp={(event) => {
+          if (drag && event.pointerId === drag.pointerId) setDrag(null);
+        }}
+        onPointerCancel={(event) => {
+          // A drag gesture can be interrupted without ever delivering a
+          // pointerup (an OS/browser context switch, a multi-touch
+          // conflict, the tab losing focus mid-drag): discard the drag
+          // instead of leaving it stuck, or the next unrelated pointer
+          // move over the canvas would keep silently repositioning (and
+          // persisting) this card.
+          if (drag && event.pointerId === drag.pointerId) setDrag(null);
+        }}
       >
         <svg class="canvas-edges" aria-hidden="true">
           {document.edges
@@ -120,7 +131,12 @@ export function CanvasView({ path, source, onChange, onOpenFile }: CanvasViewPro
                   onPointerDown={(event) => {
                     const rect = event.currentTarget.parentElement!.getBoundingClientRect();
                     event.currentTarget.setPointerCapture(event.pointerId);
-                    setDrag({ id: node.id, offsetX: event.clientX - rect.left, offsetY: event.clientY - rect.top });
+                    setDrag({
+                      id: node.id,
+                      pointerId: event.pointerId,
+                      offsetX: event.clientX - rect.left,
+                      offsetY: event.clientY - rect.top,
+                    });
                   }}
                 >
                   <button

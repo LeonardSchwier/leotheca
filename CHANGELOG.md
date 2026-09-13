@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fixed an issue where dragging a card on a Canvas board could get "stuck" if the drag was interrupted (for example, by switching apps or windows mid-drag): the card could then jump to an unrelated position the next time you moved your mouse over the board, and that unwanted move was saved. Dragging is now always cleanly cancelled when interrupted.
+
 - Fixed Undo and Redo in the drawing (ink) note editor: undoing or redoing a stroke now actually saves that change, instead of only updating what you see on screen. Previously an "undone" stroke could silently reappear the next time the file was reopened, and a redo was never actually saved either.
 
 - Notes written in a right-to-left script (Hebrew, Arabic, and others) now display and edit with correct text direction, detected automatically per line/paragraph in both the editor and preview. Mirroring the surrounding app UI (sidebar position, tab order) for RTL is not part of this change.

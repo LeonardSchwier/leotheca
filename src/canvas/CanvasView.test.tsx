@@ -131,4 +131,75 @@ describe("CanvasView", () => {
     // Test that we can successfully render the canvas and that the original edges are preserved in the source
     expect(onChange).not.toHaveBeenCalled(); // No changes when just rendering
   });
+
+  describe("card dragging", () => {
+    function renderOneCard(onChange: (source: string) => void) {
+      workspacePath.value = "/workspace";
+      const source = JSON.stringify({ nodes: [{ id: "a", text: "A", x: 100, y: 100 }], edges: [] });
+      const { container } = render(
+        <CanvasView path={CANVAS_PATH} source={source} onChange={onChange} onOpenFile={vi.fn()} />,
+      );
+      const actions = container.querySelector(".canvas-card-actions") as HTMLElement;
+      const viewport = container.querySelector(".canvas-viewport") as HTMLElement;
+      viewport.getBoundingClientRect = () => new DOMRect(0, 0, 800, 600);
+      actions.parentElement!.getBoundingClientRect = () => new DOMRect(100, 100, 200, 80);
+      actions.setPointerCapture = vi.fn();
+      return { actions, viewport };
+    }
+
+    it("moves a card by dragging its handle", () => {
+      const onChange = vi.fn();
+      const { actions, viewport } = renderOneCard(onChange);
+
+      fireEvent.pointerDown(actions, { pointerId: 1, clientX: 110, clientY: 110 });
+      fireEvent.pointerMove(viewport, { pointerId: 1, clientX: 210, clientY: 260 });
+      fireEvent.pointerUp(viewport, { pointerId: 1 });
+
+      expect(onChange).toHaveBeenCalledTimes(1);
+      const saved = JSON.parse(onChange.mock.calls[0][0] as string) as { nodes: Array<{ x: number; y: number }> };
+      // offsetX/Y = (110,110) - cardRect(100,100) = (10,10); new pos = (210,260) - viewportRect(0,0) - (10,10).
+      expect(saved.nodes[0]).toMatchObject({ x: 200, y: 250 });
+    });
+
+    it("stops moving the card after pointerup, ignoring a later unrelated pointermove", () => {
+      const onChange = vi.fn();
+      const { actions, viewport } = renderOneCard(onChange);
+
+      fireEvent.pointerDown(actions, { pointerId: 1, clientX: 110, clientY: 110 });
+      fireEvent.pointerUp(viewport, { pointerId: 1 });
+      onChange.mockClear();
+
+      fireEvent.pointerMove(viewport, { pointerId: 1, clientX: 400, clientY: 400 });
+
+      expect(onChange).not.toHaveBeenCalled();
+    });
+
+    it("stops moving the card after a pointercancel, ignoring a later unrelated pointermove", () => {
+      // Maintenance review: rm-ce61dd6d4e3ccd61. A drag interrupted by a
+      // pointercancel (a lost pointer capture: an OS/browser context
+      // switch, a multi-touch conflict, the tab losing focus mid-drag)
+      // must not leave drag state stuck, or the very next unrelated mouse
+      // movement over the canvas would silently relocate and persist this
+      // card's position.
+      const onChange = vi.fn();
+      const { actions, viewport } = renderOneCard(onChange);
+
+      fireEvent.pointerDown(actions, { pointerId: 1, clientX: 110, clientY: 110 });
+      fireEvent.pointerCancel(actions, { pointerId: 1 });
+
+      fireEvent.pointerMove(viewport, { pointerId: 1, clientX: 400, clientY: 400 });
+
+      expect(onChange).not.toHaveBeenCalled();
+    });
+
+    it("ignores a pointermove from a different pointer than the one dragging", () => {
+      const onChange = vi.fn();
+      const { actions, viewport } = renderOneCard(onChange);
+
+      fireEvent.pointerDown(actions, { pointerId: 1, clientX: 110, clientY: 110 });
+      fireEvent.pointerMove(viewport, { pointerId: 2, clientX: 400, clientY: 400 });
+
+      expect(onChange).not.toHaveBeenCalled();
+    });
+  });
 });

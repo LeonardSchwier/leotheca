@@ -88,15 +88,23 @@ export function InkView({ path, source, onChange }: InkViewProps) {
 
   // Handle undo
   const handleUndo = useCallback(() => {
-    setHistory(undoInkEdit(history));
-    setDocument({ ...document, strokes: history.past[history.past.length - 1] ?? document.strokes });
-  }, [history, document]);
+    const newHistory = undoInkEdit(history);
+    if (newHistory === history) return;
+    const newDocument = { ...document, strokes: newHistory.present };
+    setHistory(newHistory);
+    setDocument(newDocument);
+    onChange(encodeInkDocument(newDocument));
+  }, [history, document, onChange]);
 
   // Handle redo
   const handleRedo = useCallback(() => {
-    setHistory(redoInkEdit(history));
-    setDocument({ ...document, strokes: history.future[0] ?? document.strokes });
-  }, [history, document]);
+    const newHistory = redoInkEdit(history);
+    if (newHistory === history) return;
+    const newDocument = { ...document, strokes: newHistory.present };
+    setHistory(newHistory);
+    setDocument(newDocument);
+    onChange(encodeInkDocument(newDocument));
+  }, [history, document, onChange]);
 
   // Tool selection handlers
   const handleToolChange = useCallback((newTool: InkSurfaceTool) => {

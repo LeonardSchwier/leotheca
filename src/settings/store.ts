@@ -69,6 +69,28 @@ export const workspaceSettings = signal<WorkspaceSettings>(
   DEFAULT_WORKSPACE_SETTINGS,
 );
 export const settingsLoaded = signal(false);
+
+/**
+ * Resolves once initSettings has finished its first load (success or
+ * failure both set settingsLoaded, see initSettings below); resolves
+ * immediately if that has already happened. For a caller that can run
+ * concurrently with app startup and needs workspacePath to be meaningful
+ * rather than merely "not loaded yet" -- e.g. an automation/deep-link
+ * command dispatched from its own startup effect, which can and does race
+ * ahead of initSettings's own async chain (see App.tsx's runAutomationUrl
+ * "new-note" handling, the concrete case this was added for).
+ */
+export function waitForSettingsLoaded(): Promise<void> {
+  if (settingsLoaded.value) return Promise.resolve();
+  return new Promise((resolve) => {
+    const dispose = effect(() => {
+      if (settingsLoaded.value) {
+        dispose();
+        resolve();
+      }
+    });
+  });
+}
 export const workspaceSettingsSaveError = signal<string | null>(null);
 /** True while at least one workspace-settings write is queued or in flight
  * (see queueWorkspaceSettingsWrite/resolveWorkspaceSettingsDrainWaiters

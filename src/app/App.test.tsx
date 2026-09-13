@@ -1,25 +1,38 @@
 /** @vitest-environment jsdom */
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render } from "@testing-library/preact";
-import { signal } from "@preact/signals";
+import { effect, signal } from "@preact/signals";
 import { DEFAULT_WORKSPACE_SETTINGS } from "../settings/workspaceSettings";
 import { scanTasks, type TaskRecord } from "../markdown/tasks";
 
-const { updateWorkspaceSettingsSpy } = vi.hoisted(() => ({
+const { updateWorkspaceSettingsSpy, initSettings } = vi.hoisted(() => ({
   updateWorkspaceSettingsSpy: vi.fn(),
+  initSettings: vi.fn(),
 }));
 
 vi.mock("../settings/store", () => {
   const workspacePath = signal<string | null>(null);
   const workspaceSettings = signal(DEFAULT_WORKSPACE_SETTINGS);
+  const settingsLoaded = signal(false);
   return {
     workspacePath,
     workspaceSession: signal(0),
-    settingsLoaded: signal(false),
+    settingsLoaded,
+    waitForSettingsLoaded: (): Promise<void> => {
+      if (settingsLoaded.value) return Promise.resolve();
+      return new Promise((resolve) => {
+        const dispose = effect(() => {
+          if (settingsLoaded.value) {
+            dispose();
+            resolve();
+          }
+        });
+      });
+    },
     settingsPanelOpen: signal(false),
     workspaceSelectionError: signal<string | null>(null),
     viewMode: signal("source"),
-    initSettings: vi.fn(),
+    initSettings,
     workspaceSettings,
     workspaceProfiles: signal([]),
     activeWorkspaceId: signal<string | null>(null),
@@ -65,13 +78,15 @@ vi.mock("../workspace/tauriBridge", () => ({
   updateFavoritesWidget: vi.fn(async () => {}),
 }));
 
-const { renameEntry } = vi.hoisted(() => ({
+const { renameEntry, createNoteQuick } = vi.hoisted(() => ({
   renameEntry: vi.fn<(oldPath: string, newName: string) => Promise<string>>(),
+  createNoteQuick:
+    vi.fn<(dirPath: string, content?: string) => Promise<{ path: string; name: string }>>(),
 }));
 
 vi.mock("../workspace/fileTreeStore", () => ({
   renameEntry,
-  createNoteQuick: vi.fn(),
+  createNoteQuick,
   createNoteFromTemplate: vi.fn(),
   listTemplates: vi.fn(async () => []),
   runSearch: vi.fn(),
@@ -154,7 +169,7 @@ vi.mock("../settings/SettingsPanel", () => ({
 const { App } = await import("./App");
 const { activeTabPath, closeAllTabs, editorLayout, openOrFocusTab, openTabs } =
   await import("../workspace/store");
-const { settingsPanelOpen, workspacePath, workspaceSettings, viewMode } =
+const { settingsLoaded, settingsPanelOpen, workspacePath, workspaceSettings, viewMode } =
   await import("../settings/store");
 const { linkIndex } = await import("../linking/store");
 const { outlineRevealRequest } = await import("../outline/outlineNavigation");
@@ -178,6 +193,7 @@ afterEach(() => {
   closeAllTabs();
   settingsPanelOpen.value = false;
   workspacePath.value = null;
+  settingsLoaded.value = false;
   workspaceSettings.value = DEFAULT_WORKSPACE_SETTINGS;
   viewMode.value = "source";
   linkIndex.value = emptyLinkIndex();
@@ -191,6 +207,8 @@ afterEach(() => {
   writeTextFile.mockClear();
   readTextFile.mockClear();
   renameEntry.mockReset();
+  createNoteQuick.mockReset();
+  initSettings.mockReset();
   openUrlListeners.length = 0;
 });
 
@@ -859,5 +877,62 @@ describe("App: open-note automation command (Android favorites-list widget)", ()
     });
 
     expect(readTextFile).not.toHaveBeenCalled();
+  });
+});
+
+describe("App: new-note automation command (Android home-screen widget cold start)", () => {
+  it("creates the note once settings finish loading, instead of silently dropping a command that raced ahead of them", async () => {
+    // Simulates the real cold-start race: CapacitorApp.getLaunchUrl()
+    // resolves and dispatches this command before initSettings's own
+    // async chain (file reads, SAF access) has restored workspacePath.
+    initSettings.mockReturnValueOnce(new Promise<void>(() => {}));
+    createNoteQuick.mockResolvedValueOnce({
+      path: "/vault/Untitled.md",
+      name: "Untitled.md",
+    });
+    render(<App />);
+
+    await act(async () => {
+      openUrlListeners.at(-1)?.(["leotheca://new-note"]);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    // Settings are still "loading" (initSettings's promise never
+    // resolved): the command must be held, not dropped.
+    expect(createNoteQuick).not.toHaveBeenCalled();
+
+    await act(async () => {
+      workspacePath.value = "/vault";
+      settingsLoaded.value = true;
+      for (let i = 0; i < 6; i++) await Promise.resolve();
+    });
+
+    expect(createNoteQuick).toHaveBeenCalledWith("/vault", "");
+    // handleOpenFile's own read confirms the created note was actually
+    // opened, not just created (activeTabPath itself isn't asserted here:
+    // it depends on fileOpenAuthority.ts's module-level generation counter,
+    // which is shared and unreset across this whole test file, so it isn't
+    // a reliable per-test signal; "open-note"'s own tests above already
+    // cover that focus behavior in isolation).
+    expect(readTextFile).toHaveBeenCalledWith("/vault/Untitled.md");
+  });
+
+  it("is a silent no-op once settings finish loading with no workspace ever opened", async () => {
+    initSettings.mockReturnValueOnce(new Promise<void>(() => {}));
+    render(<App />);
+
+    await act(async () => {
+      openUrlListeners.at(-1)?.(["leotheca://new-note"]);
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      settingsLoaded.value = true;
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(createNoteQuick).not.toHaveBeenCalled();
   });
 });

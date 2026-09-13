@@ -50,6 +50,7 @@ import {
   workspaceSession,
   workspaceSettings,
   activateWorkspaceProfile,
+  waitForSettingsLoaded,
 } from "../settings/store";
 import type { ViewMode } from "../settings/workspaceSettings";
 import { SettingsPanel } from "../settings/SettingsPanel";
@@ -520,6 +521,17 @@ export function App() {
         return;
       }
       if (command.kind === "new-note") {
+        // Dispatched from the same mount effect as initSettings (see the
+        // useEffect below), so this can race ahead of it: a cold start from
+        // the Android "new note" home-screen widget fires this command
+        // through CapacitorApp.getLaunchUrl() before the async initSettings
+        // chain has finished restoring workspacePath, which would otherwise
+        // make this an unconditional, silent no-op even though a workspace
+        // is about to become available a moment later. Wait for the same
+        // first-load signal initSettings itself sets once it's done, so
+        // "no workspace configured at all" (workspacePath still null after
+        // that) is the only case that still silently no-ops below.
+        await waitForSettingsLoaded();
         if (!workspacePath.value) return;
         const targetDir = selectedDir.value ?? workspacePath.value;
         const { path, name } = await createNoteQuick(targetDir, command.content);

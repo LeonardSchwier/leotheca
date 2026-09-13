@@ -77,18 +77,36 @@ export async function loadCollections(rootPath: string): Promise<void> {
   collectionsFileCorrupt.value = corrupt;
 }
 
-async function saveCollections(): Promise<void> {
-  if (!workspacePath.value) return;
-  await writeWorkspaceTextFile(
-    workspacePath.value,
-    COLLECTIONS_RELATIVE_PATH,
-    JSON.stringify(collectionsFile.value, null, 2),
+// Serializes writes so two overlapping mutations (e.g. a quick edit
+// followed by a delete, before the first write lands) can never have their
+// native writeWorkspaceTextFile calls resolve out of order and let the
+// earlier call's now-stale snapshot of collectionsFile.value overwrite the
+// later one's on disk, silently reverting the newer change. Mirrors
+// bookmarks/store.ts's own fix for the identical defect (this file's shape
+// was modeled on bookmarks/store.ts to begin with) and
+// settings/store.ts's saveGlobalConfigOrdered: each queued write reads
+// collectionsFile.value only once its own turn begins, so the last write
+// to actually run always persists whatever is genuinely current.
+let collectionsWriteTail: Promise<void> = Promise.resolve();
+
+function saveCollections(): Promise<void> {
+  const root = workspacePath.value;
+  if (!root) return Promise.resolve();
+  const write = collectionsWriteTail.then(async () => {
+    await writeWorkspaceTextFile(root, COLLECTIONS_RELATIVE_PATH, JSON.stringify(collectionsFile.value, null, 2));
+    // A save always writes exactly what decodeCollectionsFile would decode
+    // back losslessly (it's this module's own in-memory state, already
+    // valid), so any earlier corruption warning no longer describes what's
+    // on disk.
+    collectionsFileCorrupt.value = false;
+  });
+  // Keep the tail settled even on failure, so one rejected write doesn't
+  // permanently wedge every later one behind it.
+  collectionsWriteTail = write.then(
+    () => undefined,
+    () => undefined,
   );
-  // A save always writes exactly what decodeCollectionsFile would decode
-  // back losslessly (it's this module's own in-memory state, already
-  // valid), so any earlier corruption warning no longer describes what's
-  // on disk.
-  collectionsFileCorrupt.value = false;
+  return write;
 }
 
 function newId(): string {

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fixed a rare data-loss bug where creating, editing, or deleting two Smart Collections in quick succession could silently drop one of those changes from what's actually saved to disk, even though it still appeared correctly until the app was restarted. Collection saves are now always written one at a time, in order.
+
 - Fixed a rare data-loss bug where adding or removing two bookmarks/favorites in quick succession could silently drop one of them from what's actually saved to disk, even though it still appeared in the list until the app was restarted. Bookmark saves are now always written one at a time, in order.
 
 - Fixed a Quick Capture data-loss bug: if appending a capture to your inbox note failed to save (for example, a transient disk or filesystem error) right after a later retry succeeded, the inbox note could end up containing only the new captured text, with your existing note content silently gone. A failed save now surfaces as an error instead of being mistaken for "the note doesn't exist yet" and overwriting it.

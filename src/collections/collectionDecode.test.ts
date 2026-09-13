@@ -143,6 +143,45 @@ describe("decodeCollectionsFile: malformed input", () => {
     expect(file.collections[0].name).toBe("First");
   });
 
+  it("drops a negation clause missing the comparison value it needs, instead of decoding it as a match-everything filter", () => {
+    // Maintenance review: before the fix, this decoded successfully (no
+    // `value` required) and evaluateQueryNode's own is-not/does-not-contain
+    // handling then matched every note, the opposite of a narrowing filter.
+    const raw = validCollection({
+      query: {
+        type: "group",
+        operator: "and",
+        children: [
+          { type: "clause", field: { kind: "system", field: "name" }, operator: "is-not" },
+          {
+            type: "clause",
+            field: { kind: "system", field: "hasFrontmatter" },
+            operator: "is-true",
+          },
+        ],
+      } as unknown as QueryGroupV1,
+    });
+    const { file, corrupt } = decodeCollectionsFile(fileWith([raw]));
+    expect(corrupt).toBe(true);
+    const query = file.collections[0].query as QueryGroupV1;
+    expect(query.children).toHaveLength(1);
+    expect((query.children[0] as { operator: string }).operator).toBe("is-true");
+  });
+
+  it("still decodes a value-less clause for an operator that genuinely takes no value", () => {
+    const raw = validCollection({
+      query: {
+        type: "group",
+        operator: "and",
+        children: [{ type: "clause", field: { kind: "system", field: "tag" }, operator: "is-empty" }],
+      },
+    });
+    const { file, corrupt } = decodeCollectionsFile(fileWith([raw]));
+    expect(corrupt).toBe(false);
+    const query = file.collections[0].query as QueryGroupV1;
+    expect(query.children).toHaveLength(1);
+  });
+
   it("drops an individual invalid clause but keeps the rest of the query", () => {
     const raw = validCollection({
       query: {

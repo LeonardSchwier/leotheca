@@ -2,6 +2,7 @@ import { useState } from "preact/hooks";
 import {
   MAX_QUERY_CLAUSES,
   MAX_QUERY_DEPTH,
+  NO_VALUE_QUERY_OPERATORS,
   OPERATOR_GROUPS,
   SYSTEM_FIELD_OPERATOR_FAMILIES,
   type QueryClauseV1,
@@ -81,14 +82,11 @@ const OPERATOR_LABELS: Record<QueryOperatorV1, string> = {
   "contains-segment": "contains segment",
 };
 
-const NO_VALUE_OPERATORS = new Set<QueryOperatorV1>([
-  "exists",
-  "does-not-exist",
-  "is-true",
-  "is-false",
-  "is-empty",
-  "is-not-empty",
-]);
+// NO_VALUE_QUERY_OPERATORS (collectionTypes.ts) is the shared source of
+// truth for this split with collectionDecode.ts's decodeQueryClause; see
+// that constant's own doc comment for why keeping two independent lists
+// here was itself the bug this file's own maintenance-review entry fixed.
+const NO_VALUE_OPERATORS = NO_VALUE_QUERY_OPERATORS;
 
 function inferClauseFamily(clause: QueryClauseV1): FamilyKey {
   if (clause.field.kind === "system") return SYSTEM_FIELD_OPERATOR_FAMILIES[clause.field.field];

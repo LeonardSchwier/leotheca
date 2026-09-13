@@ -2,6 +2,7 @@ import { anyCorrupt, decodeArrayDroppingInvalidEntries, decodeString, decodeStri
 import {
   MAX_QUERY_CLAUSES,
   MAX_QUERY_DEPTH,
+  NO_VALUE_QUERY_OPERATORS,
   QUERY_OPERATORS,
   SYSTEM_FIELD_NAMES,
   emptyCollectionsFile,
@@ -87,7 +88,16 @@ function decodeQueryClause(raw: Record<string, unknown>): QueryClauseV1 | null {
   const field = decodeQueryField(raw.field);
   const operator = decodeQueryOperator(raw.operator);
   if (!field || !operator) return null;
-  if (raw.value !== undefined && !isValidQueryValue(raw.value)) return null;
+  // An operator outside the no-value set (e.g. "is-not", "does-not-contain")
+  // is meaningless without a value to compare against, and the evaluator
+  // cannot tell "no value" apart from "narrows to nothing" on its own: drop
+  // the clause here rather than let a value-less negation silently decode
+  // into a filter that matches everything (see this operator's own
+  // evaluateStringLike/evaluatePathLike handling in collectionQuery.ts). A
+  // no-value operator still rejects a *present but malformed* value.
+  const requiresValue = !NO_VALUE_QUERY_OPERATORS.has(operator);
+  if (requiresValue && !isValidQueryValue(raw.value)) return null;
+  if (!requiresValue && raw.value !== undefined && !isValidQueryValue(raw.value)) return null;
   return {
     type: "clause",
     field,

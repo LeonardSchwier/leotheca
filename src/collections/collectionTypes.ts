@@ -82,6 +82,26 @@ export const QUERY_OPERATORS = [
 
 export type QueryOperatorV1 = (typeof QUERY_OPERATORS)[number];
 
+/** Operators a clause can express with no comparison value at all (spec
+ * section 6.3): every other operator in QUERY_OPERATORS needs one to be
+ * meaningful. The single source of truth for that split, shared by
+ * CollectionBuilder.tsx's own `isClauseValid` (which UI-validates a clause
+ * before it can be saved) and collectionDecode.ts's `decodeQueryClause`
+ * (which must reject a persisted clause missing a value it needs the same
+ * way): keeping the two independently maintained lets them drift apart,
+ * which is exactly how a value-less `is-not`/`does-not-contain`/
+ * `is-not-under-folder` clause could pass the builder's own guard yet
+ * still decode successfully from a hand-edited or partially-migrated
+ * `collections.json`. */
+export const NO_VALUE_QUERY_OPERATORS: ReadonlySet<QueryOperatorV1> = new Set([
+  "exists",
+  "does-not-exist",
+  "is-true",
+  "is-false",
+  "is-empty",
+  "is-not-empty",
+]);
+
 export type QueryValueV1 =
   | { type: "string"; value: string }
   | { type: "number"; value: number }

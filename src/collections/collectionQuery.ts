@@ -93,11 +93,11 @@ function evaluateStringLike(
     case "is":
       return target !== undefined && folded === fold(target);
     case "is-not":
-      return target === undefined || folded !== fold(target);
+      return target !== undefined && folded !== fold(target);
     case "contains":
       return target !== undefined && folded.includes(fold(target));
     case "does-not-contain":
-      return target === undefined || !folded.includes(fold(target));
+      return target !== undefined && !folded.includes(fold(target));
     case "starts-with":
       return target !== undefined && folded.startsWith(fold(target));
     case "ends-with":
@@ -128,7 +128,7 @@ function evaluatePathLike(
     case "is-under-folder":
       return target !== undefined && folded.startsWith(`${fold(trimSlashes(target))}/`);
     case "is-not-under-folder":
-      return target === undefined || !folded.startsWith(`${fold(trimSlashes(target))}/`);
+      return target !== undefined && !folded.startsWith(`${fold(trimSlashes(target))}/`);
     case "contains-segment":
       return target !== undefined && folded.split("/").some((segment) => segment === fold(target));
     default:

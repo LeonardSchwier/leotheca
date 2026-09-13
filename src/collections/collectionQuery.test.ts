@@ -362,3 +362,43 @@ describe("evaluateCollection", () => {
     expect(results.map((r) => r.path)).toEqual(["Alpha.md", "Zeta.md"]);
   });
 });
+
+// Maintenance review: a value-less negation used to fail open (match
+// everything) instead of fail closed, unlike every sibling operator
+// (including this same suite's list-negation "contains-no-item" below,
+// which already fails closed and is included for direct contrast).
+describe("evaluateQueryNode: negation operators with no comparison value fail closed", () => {
+  it("'is-not' with no value never matches, unlike a real mismatch", () => {
+    const n = note({ noteName: "Weekly Review" });
+    expect(
+      evaluateQueryNode(clause({ kind: "system", field: "name" }, "is-not"), n),
+    ).toBe(false);
+    expect(
+      evaluateQueryNode(
+        clause({ kind: "system", field: "name" }, "is-not", { type: "string", value: "something else" }),
+        n,
+      ),
+    ).toBe(true);
+  });
+
+  it("'does-not-contain' with no value never matches", () => {
+    const n = note({ noteName: "Weekly Review" });
+    expect(
+      evaluateQueryNode(clause({ kind: "system", field: "name" }, "does-not-contain"), n),
+    ).toBe(false);
+  });
+
+  it("'is-not-under-folder' with no value never matches", () => {
+    const n = note({ path: "Projects/Alpha/Note.md", folder: "Projects/Alpha" });
+    expect(
+      evaluateQueryNode(clause({ kind: "system", field: "path" }, "is-not-under-folder"), n),
+    ).toBe(false);
+  });
+
+  it("the list-negation 'contains-no-item' already fails closed with no value (unchanged reference behavior)", () => {
+    const n = note({ tags: ["work"] });
+    expect(
+      evaluateQueryNode(clause({ kind: "system", field: "tag" }, "contains-no-item"), n),
+    ).toBe(false);
+  });
+});

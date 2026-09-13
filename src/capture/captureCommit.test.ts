@@ -148,6 +148,41 @@ describe("appendToInboxNote", () => {
     );
   });
 
+  it("propagates a failed append write instead of overwriting the note with only the new content", async () => {
+    // Regression for: a failed append write was indistinguishable from "file
+    // doesn't exist", so the catch-all fallback re-wrote the note with only
+    // the new capture text, silently discarding existingContent.
+    const existingContent = "# Inbox\n\nImportant existing note the user already wrote";
+    mockReadTextFile.mockResolvedValue(existingContent);
+    // The real append write fails transiently (e.g. a lock/contention hiccup);
+    // a later write attempt would succeed if one were made.
+    mockWriteTextFile
+      .mockRejectedValueOnce(new Error("EBUSY: resource busy or locked"))
+      .mockResolvedValueOnce(undefined);
+
+    vi.doMock("../workspace/tauriBridge", () => ({
+      readTextFile: mockReadTextFile,
+      writeTextFile: mockWriteTextFile,
+    }));
+
+    const { appendToInboxNote } = await import("./captureCommit");
+
+    await expect(
+      appendToInboxNote({
+        inboxNotePath: "/workspace/Inbox.md",
+        content: "New capture content",
+      })
+    ).rejects.toThrow("EBUSY");
+
+    // Only the one real append attempt should have been made; no fallback
+    // write that would have dropped existingContent.
+    expect(mockWriteTextFile).toHaveBeenCalledTimes(1);
+    expect(mockWriteTextFile).toHaveBeenCalledWith(
+      "/workspace/Inbox.md",
+      expect.stringContaining(existingContent)
+    );
+  });
+
   it("F05-AC-25: never logs a raw error when copying an attachment fails", async () => {
     // A provider exception surfacing a real content:// URI/path is exactly the
     // caller-controlled data F05 acceptance criterion 25 forbids in logs.

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fixed a Quick Capture data-loss bug: if appending a capture to your inbox note failed to save (for example, a transient disk or filesystem error) right after a later retry succeeded, the inbox note could end up containing only the new captured text, with your existing note content silently gone. A failed save now surfaces as an error instead of being mistaken for "the note doesn't exist yet" and overwriting it.
+
 - Fixed the Android "New note" home-screen widget occasionally doing nothing right after a cold app start: if the note-creation request arrived while the app was still finishing loading your workspace, it was silently dropped instead of creating (and opening) the note once loading finished.
 
 - Fixed an issue where dragging a card on a Canvas board could get "stuck" if the drag was interrupted (for example, by switching apps or windows mid-drag): the card could then jump to an unrelated position the next time you moved your mouse over the board, and that unwanted move was saved. Dragging is now always cleanly cancelled when interrupted.

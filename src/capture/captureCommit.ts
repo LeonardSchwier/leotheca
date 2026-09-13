@@ -56,65 +56,52 @@ export async function appendToInboxNote(options: CaptureAppendOptions): Promise<
     attachmentsFolder
   );
   
-  // F05-FR-19: For closed target note, re-read and conflict-check before append
-  let existingContent: string;
-  
+  // F05-FR-19: For closed target note, re-read and conflict-check before append.
+  // Only a failed *read* means the file genuinely doesn't exist yet and should
+  // fall back to create-fresh-file. Detection is kept strictly separate from
+  // the append write below: a write failure must propagate as a rejection,
+  // never be mistaken for "file doesn't exist" and answered with a second
+  // write that contains only the new capture text, discarding existingContent.
+  let existingContent: string | null;
   try {
-    // Read existing content (re-read for closed notes to detect external changes)
     existingContent = await readTextFile(inboxNotePath);
-    
+  } catch {
+    existingContent = null;
+  }
+
+  const formattedContent = formatCaptureContent(content, title, sourceUrl, attachmentPaths);
+  let newContent: string;
+  if (existingContent !== null) {
     // Determine line ending convention from existing content
     const hasCRLF = existingContent.includes("\r\n");
     const hasLF = existingContent.includes("\n") && !hasCRLF;
     const lineEnding = hasCRLF ? "\r\n" : hasLF ? "\n" : "\n";
-    
-    // Format the capture content according to F05 spec
-    const formattedContent = formatCaptureContent(content, title, sourceUrl, attachmentPaths);
-    
+
     // Append with proper spacing
     const separator = existingContent.trim() === "" ? "" : lineEnding + lineEnding;
-    const newContent = existingContent + separator + formattedContent;
-    
-    // Write back to the file
-    await writeTextFile(inboxNotePath, newContent);
-    
-    // F05-FR-22: Refresh workspace metadata after successful commit
-    // Trigger a link index rebuild for the workspace to pick up the new content
-    const workspaceRoot = options.workspaceRoot;
-    if (workspaceRoot) {
-      try {
-        // Use a small delay to ensure the file write is visible to the filesystem
-        setTimeout(() => {
-          rebuildLinkIndex(workspaceRoot).catch(console.warn);
-        }, 50);
-      } catch (refreshError) {
-        console.warn("F05-FR-22: Failed to refresh workspace metadata:", refreshError);
-        // Non-fatal: the file watcher will eventually pick up the change
-      }
-    }
-    
-    return { path: inboxNotePath, name: inboxNotePath.split("/").pop() || "" };
-  } catch {
-    // File doesn't exist, create it with the capture content
-    const formattedContent = formatCaptureContent(content, title, sourceUrl, attachmentPaths);
-    await writeTextFile(inboxNotePath, formattedContent);
-    
-    // F05-FR-22: Refresh workspace metadata after successful commit for newly created files too
-    const workspaceRoot = options.workspaceRoot;
-    if (workspaceRoot) {
-      try {
-        // Use a small delay to ensure the file write is visible to the filesystem
-        setTimeout(() => {
-          rebuildLinkIndex(workspaceRoot).catch(console.warn);
-        }, 50);
-      } catch (refreshError) {
-        console.warn("F05-FR-22: Failed to refresh workspace metadata for new file:", refreshError);
-        // Non-fatal: the file watcher will eventually pick up the change
-      }
-    }
-    
-    return { path: inboxNotePath, name: inboxNotePath.split("/").pop() || "" };
+    newContent = existingContent + separator + formattedContent;
+  } else {
+    newContent = formattedContent;
   }
+
+  // Write back to the file. A failure here propagates to the caller as-is.
+  await writeTextFile(inboxNotePath, newContent);
+
+  // F05-FR-22: Refresh workspace metadata after successful commit
+  // Trigger a link index rebuild for the workspace to pick up the new content
+  if (workspaceRoot) {
+    try {
+      // Use a small delay to ensure the file write is visible to the filesystem
+      setTimeout(() => {
+        rebuildLinkIndex(workspaceRoot).catch(console.warn);
+      }, 50);
+    } catch (refreshError) {
+      console.warn("F05-FR-22: Failed to refresh workspace metadata:", refreshError);
+      // Non-fatal: the file watcher will eventually pick up the change
+    }
+  }
+
+  return { path: inboxNotePath, name: inboxNotePath.split("/").pop() || "" };
 }
 
 /**

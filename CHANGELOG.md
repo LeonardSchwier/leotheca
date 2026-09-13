@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fixed a rare data-loss bug where adding or removing two bookmarks/favorites in quick succession could silently drop one of them from what's actually saved to disk, even though it still appeared in the list until the app was restarted. Bookmark saves are now always written one at a time, in order.
+
 - Fixed a Quick Capture data-loss bug: if appending a capture to your inbox note failed to save (for example, a transient disk or filesystem error) right after a later retry succeeded, the inbox note could end up containing only the new captured text, with your existing note content silently gone. A failed save now surfaces as an error instead of being mistaken for "the note doesn't exist yet" and overwriting it.
 
 - Fixed the Android "New note" home-screen widget occasionally doing nothing right after a cold app start: if the note-creation request arrived while the app was still finishing loading your workspace, it was silently dropped instead of creating (and opening) the note once loading finished.

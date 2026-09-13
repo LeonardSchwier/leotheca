@@ -80,13 +80,29 @@ function bookmarksPath(rootPath: string): string {
   return `${rootPath}/.leotheca/bookmarks.json`;
 }
 
-async function saveBookmarks(): Promise<void> {
-  if (!workspacePath.value) return;
-  await writeWorkspaceTextFile(
-    workspacePath.value,
-    ".leotheca/bookmarks.json",
-    JSON.stringify(bookmarks.value, null, 2),
+// Serializes writes so two overlapping mutations (e.g. a quick add followed
+// by a remove, before the first write lands) can never have their native
+// writeWorkspaceTextFile calls resolve out of order and let the earlier
+// call's now-stale snapshot of `bookmarks.value` overwrite the later one's
+// on disk, silently reverting the newer change. Each queued write reads
+// `bookmarks.value` only once its own turn begins, mirroring
+// settings/store.ts's saveGlobalConfigOrdered, so the last write to
+// actually run always persists whatever is genuinely current at that time.
+let bookmarksWriteTail: Promise<void> = Promise.resolve();
+
+function saveBookmarks(): Promise<void> {
+  const root = workspacePath.value;
+  if (!root) return Promise.resolve();
+  const write = bookmarksWriteTail.then(() =>
+    writeWorkspaceTextFile(root, ".leotheca/bookmarks.json", JSON.stringify(bookmarks.value, null, 2)),
   );
+  // Keep the tail settled even on failure, so one rejected write doesn't
+  // permanently wedge every later one behind it.
+  bookmarksWriteTail = write.then(
+    () => undefined,
+    () => undefined,
+  );
+  return write;
 }
 
 // Bumped on every loadBookmarks call so a call superseded by a newer one

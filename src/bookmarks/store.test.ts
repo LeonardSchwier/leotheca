@@ -170,6 +170,56 @@ describe("bookmarks store", () => {
     expect(lastWrite()?.content).toEqual(bookmarks.value);
   });
 
+  it("serializes overlapping saves so a later mutation's write never starts until the earlier one finishes", async () => {
+    // Regression for: each save independently kicked off its native write
+    // immediately, with no serialization at all. Two overlapping mutations
+    // (e.g. a quick add right after another) could have their native calls
+    // run concurrently and resolve in either order; if the earlier call's
+    // now-stale snapshot of bookmarks.value happened to land on disk after
+    // the later one's, the later bookmark silently vanished from what was
+    // actually persisted, even though the in-memory list still showed it.
+    let resolveFirstWrite!: () => void;
+    let firstWriteStarted = false;
+    let secondWriteStarted = false;
+
+    writeWorkspaceTextFile.mockImplementationOnce(() => {
+      firstWriteStarted = true;
+      return new Promise<void>((resolve) => {
+        resolveFirstWrite = resolve;
+      });
+    });
+    writeWorkspaceTextFile.mockImplementationOnce((_root, _path, content: string) => {
+      secondWriteStarted = true;
+      // By the time the second (queued) write actually runs, it must
+      // reflect the fully up-to-date state (both bookmarks), not a stale
+      // snapshot captured back when it was originally queued.
+      expect(JSON.parse(content)).toHaveLength(2);
+      return Promise.resolve();
+    });
+
+    const p1 = addFileBookmark("a.md", "A");
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(firstWriteStarted).toBe(true);
+
+    const p2 = addFileBookmark("b.md", "B");
+    await Promise.resolve();
+    await Promise.resolve();
+
+    // The second mutation's write must not start while the first is still
+    // in flight -- otherwise their native calls are two independent,
+    // unserialized writes whose actual on-disk completion order is not
+    // guaranteed to match invocation order.
+    expect(secondWriteStarted).toBe(false);
+
+    resolveFirstWrite();
+    await p1;
+    await p2;
+
+    expect(secondWriteStarted).toBe(true);
+    expect(bookmarks.value).toHaveLength(2);
+  });
+
   it("does not write to disk when no workspace is open", async () => {
     workspacePath.value = null;
     await addFileBookmark("/workspace/note.md", "Note");

@@ -4,6 +4,7 @@ import { act, cleanup, fireEvent, render } from "@testing-library/preact";
 import { effect, signal } from "@preact/signals";
 import { DEFAULT_WORKSPACE_SETTINGS } from "../settings/workspaceSettings";
 import { scanTasks, type TaskRecord } from "../markdown/tasks";
+import { pendingCapturesStore, addPendingCapture } from "../capture/pendingCaptures";
 
 const { updateWorkspaceSettingsSpy, initSettings } = vi.hoisted(() => ({
   updateWorkspaceSettingsSpy: vi.fn(),
@@ -210,6 +211,7 @@ afterEach(() => {
   createNoteQuick.mockReset();
   initSettings.mockReset();
   openUrlListeners.length = 0;
+  pendingCapturesStore.value = [];
 });
 
 describe("App: keyboard shortcuts", () => {
@@ -934,5 +936,66 @@ describe("App: new-note automation command (Android home-screen widget cold star
     });
 
     expect(createNoteQuick).not.toHaveBeenCalled();
+  });
+});
+
+describe("App: pending captures require explicit review before writing (spec F05-FR-03)", () => {
+  it("does not auto-commit a queued deep-link capture just because a workspace becomes available", async () => {
+    // Simulates an external deep link received while no workspace was open:
+    // queueCaptureIfNoWorkspace stages it in pendingCapturesStore with
+    // status "pending", awaiting explicit review/commit through
+    // PendingCapturesPanel or the Capture Sheet. Merely opening a
+    // workspace afterwards must never silently write it to disk.
+    addPendingCapture({
+      source: "deep-link",
+      text: "Secret draft captured before any workspace was open",
+      mode: "append",
+      openAfterCommit: false,
+    });
+
+    render(<App />);
+
+    await act(async () => {
+      workspacePath.value = "/vault";
+      settingsLoaded.value = true;
+      for (let i = 0; i < 6; i++) await Promise.resolve();
+      await new Promise((r) => setTimeout(r, 50));
+    });
+
+    // Asserted by content rather than call count: this suite's shared
+    // writeTextFile spy can also observe unrelated delayed writes from
+    // other tests' autosave timers landing in this window, which is not
+    // what this regression is about.
+    expect(writeTextFile).not.toHaveBeenCalledWith(
+      expect.anything(),
+      expect.stringContaining("Secret draft captured before any workspace was open")
+    );
+    expect(pendingCapturesStore.value).toHaveLength(1);
+    expect(pendingCapturesStore.value[0].status).toBe("pending");
+  });
+
+  it("does not auto-commit a queued Android share capture just because a workspace becomes available", async () => {
+    addPendingCapture({
+      source: "android-share",
+      text: "Shared text staged before the app finished starting",
+      mode: "append",
+      openAfterCommit: true,
+    });
+
+    render(<App />);
+
+    await act(async () => {
+      workspacePath.value = "/vault";
+      settingsLoaded.value = true;
+      for (let i = 0; i < 6; i++) await Promise.resolve();
+      await new Promise((r) => setTimeout(r, 50));
+    });
+
+    expect(writeTextFile).not.toHaveBeenCalledWith(
+      expect.anything(),
+      expect.stringContaining("Shared text staged before the app finished starting")
+    );
+    expect(pendingCapturesStore.value).toHaveLength(1);
+    expect(pendingCapturesStore.value[0].status).toBe("pending");
   });
 });

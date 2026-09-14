@@ -49,7 +49,6 @@ import {
   workspacePath,
   workspaceSession,
   workspaceSettings,
-  activateWorkspaceProfile,
   waitForSettingsLoaded,
 } from "../settings/store";
 import type { ViewMode } from "../settings/workspaceSettings";
@@ -343,17 +342,6 @@ export function App() {
 
   effect(() => {
     if (bookmarksOpen.value && workspacePath.value) void loadBookmarks(workspacePath.value);
-  });
-
-  effect(() => {
-    // F05: Process pending captures when workspace becomes available
-    if (workspacePath.value) {
-      const process = async () => {
-        const { processPendingCaptures } = await import("../capture/captureProcessor");
-        await processPendingCaptures(workspacePath.value as string, handleOpenFile, activateWorkspaceProfile);
-      };
-      void process();
-    }
   });
 
   effect(() => {

@@ -15,12 +15,16 @@ import { registerPlugin } from '@capacitor/core';
  */
 export interface CapacitorSpeechPlugin {
   /**
-   * Start speech recognition with offline preference
+   * Start speech recognition with offline preference.
+   * Resolves only once the native recognizer delivers a final result or
+   * error (see `SpeechRecognitionPlugin.java`'s `onResults`/`onError`,
+   * the only places that resolve/reject the underlying plugin call), so
+   * this promise is long-lived for the duration of one recognition turn.
    */
   startRecognition(options: {
     language?: string;
     preferOffline?: boolean;
-  }): Promise<{ success: boolean; error?: string }>;
+  }): Promise<{ success: boolean; error?: string; text?: string; language?: string }>;
   
   /**
    * Stop speech recognition
@@ -54,14 +58,20 @@ const SpeechRecognitionPlugin = registerPlugin<CapacitorSpeechPlugin>(
 );
 
 /**
- * Start speech recognition on Android
- * 
+ * Start speech recognition on Android.
+ *
+ * The returned promise does not resolve when listening merely begins; it
+ * resolves once the native `SpeechRecognizer` delivers a final transcript
+ * (or an error/no-match), which may be after the caller later requests a
+ * stop via `stopAndroidSpeechRecognition`. Never rejects: native failures
+ * are reported as a resolved `{ success: false, error }`.
+ *
  * @param language - Optional language code (e.g., 'en', 'es', 'fr')
- * @returns Promise with result
+ * @returns Promise with the final recognition result
  */
 export async function startAndroidSpeechRecognition(
   language?: string
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string; text?: string; language?: string }> {
   try {
     const result = await SpeechRecognitionPlugin.startRecognition({
       language: language,

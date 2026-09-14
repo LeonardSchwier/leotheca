@@ -10,12 +10,31 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { SpeechController } from './speechController';
 import type { SpeechRecognitionState, SpeechRecognitionResult, SpeechRecognitionError } from './types';
 
-vi.mock('../workspace/speechBridgeImpl', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../workspace/speechBridgeImpl')>();
-  return { ...actual, transcribeAudio: vi.fn(actual.transcribeAudio) };
+vi.mock('@capacitor/core', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@capacitor/core')>();
+  return { ...actual, Capacitor: { ...actual.Capacitor, isNativePlatform: vi.fn(() => false) } };
 });
 
-import { transcribeAudio } from '../workspace/speechBridgeImpl';
+vi.mock('../workspace/speechBridgeImpl', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../workspace/speechBridgeImpl')>();
+  return {
+    ...actual,
+    transcribeAudio: vi.fn(actual.transcribeAudio),
+    isSpeechRecognitionAvailable: vi.fn(actual.isSpeechRecognitionAvailable),
+    initSpeechRecognition: vi.fn(actual.initSpeechRecognition),
+    startAndroidSpeechRecognition: vi.fn(actual.startAndroidSpeechRecognition),
+    stopSpeechRecognition: vi.fn(actual.stopSpeechRecognition),
+  };
+});
+
+import { Capacitor } from '@capacitor/core';
+import {
+  transcribeAudio,
+  isSpeechRecognitionAvailable,
+  initSpeechRecognition,
+  startAndroidSpeechRecognition,
+  stopSpeechRecognition,
+} from '../workspace/speechBridgeImpl';
 
 // Mock global objects for testing
 const mockAudioContext = vi.fn(() => ({
@@ -236,6 +255,78 @@ describe('SpeechController', () => {
       expect(resultCallback).toHaveBeenCalledWith(
         expect.objectContaining({ text: 'hello world', isFinal: true })
       );
+    });
+  });
+
+  describe('Android speech recognition', () => {
+    beforeEach(() => {
+      vi.mocked(Capacitor.isNativePlatform).mockReturnValue(true);
+      vi.mocked(isSpeechRecognitionAvailable).mockResolvedValue(true);
+      vi.mocked(initSpeechRecognition).mockResolvedValue(undefined);
+    });
+
+    it('actually starts the native recognizer instead of only flipping UI state', async () => {
+      const controller = new SpeechController();
+      let resolveRecognition: (value: { success: boolean; text?: string }) => void = () => {};
+      vi.mocked(startAndroidSpeechRecognition).mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveRecognition = resolve;
+        })
+      );
+
+      await controller.start();
+
+      // The regression: start() used to only call setState('recording')
+      // without ever invoking the native bridge, so the SpeechRecognizer
+      // was never told to listen.
+      expect(startAndroidSpeechRecognition).toHaveBeenCalledTimes(1);
+      expect(controller.getState()).toBe('recording');
+
+      resolveRecognition({ success: true, text: 'unused in this test' });
+    });
+
+    it('delivers the recognizer\'s real final transcript through onResult when stop() is called', async () => {
+      const controller = new SpeechController();
+      const resultCallback = vi.fn();
+      const errorCallback = vi.fn();
+      controller.onResult(resultCallback);
+      controller.onError(errorCallback);
+
+      vi.mocked(startAndroidSpeechRecognition).mockResolvedValueOnce({
+        success: true,
+        text: 'hello from the device microphone',
+        language: 'en',
+      });
+      vi.mocked(stopSpeechRecognition).mockResolvedValueOnce(undefined);
+
+      await controller.start();
+      await controller.stop();
+
+      expect(stopSpeechRecognition).toHaveBeenCalledTimes(1);
+      expect(errorCallback).not.toHaveBeenCalled();
+      expect(resultCallback).toHaveBeenCalledWith(
+        expect.objectContaining({ text: 'hello from the device microphone', isFinal: true })
+      );
+    });
+
+    it('surfaces a real error instead of silently doing nothing when the recognizer finds no match', async () => {
+      const controller = new SpeechController();
+      const resultCallback = vi.fn();
+      const errorCallback = vi.fn();
+      controller.onResult(resultCallback);
+      controller.onError(errorCallback);
+
+      vi.mocked(startAndroidSpeechRecognition).mockResolvedValueOnce({
+        success: false,
+        error: 'No speech input - timed out',
+      });
+      vi.mocked(stopSpeechRecognition).mockResolvedValueOnce(undefined);
+
+      await controller.start();
+      await controller.stop();
+
+      expect(resultCallback).not.toHaveBeenCalled();
+      expect(errorCallback).toHaveBeenCalledTimes(1);
     });
   });
 

@@ -13,6 +13,7 @@ import {
   transcribeAudio,
   stopSpeechRecognition,
   isSpeechRecognitionAvailable,
+  startAndroidSpeechRecognition,
   type PlatformType,
   type SpeechOptions,
 } from '../workspace/speechBridgeImpl';
@@ -48,6 +49,7 @@ export class SpeechController implements SpeechRecognitionController {
   private audioChunks: Blob[] = [];
   private options: Required<SpeechRecognitionOptions>;
   private platform: PlatformType | null = null;
+  private androidRecognitionPromise: ReturnType<typeof startAndroidSpeechRecognition> | null = null;
   
   constructor(options: SpeechRecognitionOptions = {}) {
     this.options = { ...DEFAULT_OPTIONS, ...options };
@@ -105,7 +107,11 @@ export class SpeechController implements SpeechRecognitionController {
         this.setState('recording');
         this.startRecording();
       } else {
-        // On Android, recognition is already started via the bridge
+        // Actually start the native recognizer. Its promise stays pending
+        // until a final result/error comes back (see
+        // SpeechRecognitionPlugin.java's onResults/onError), so it is not
+        // awaited here; stop() awaits it once the user ends the turn.
+        this.androidRecognitionPromise = startAndroidSpeechRecognition(this.options.language);
         this.setState('recording');
       }
     } catch (error) {
@@ -129,13 +135,29 @@ export class SpeechController implements SpeechRecognitionController {
         await this.stopRecording();
         await this.processAudio();
       } else {
-        // On Android, stop the native recognition
-        // The results will come back through the bridge
+        // On Android, ask the native recognizer to finalize, then await
+        // the same promise start() kicked off: it resolves with the
+        // recognizer's actual final result once onResults/onError fires.
         this.setState('transcribing');
+        const pendingRecognition = this.androidRecognitionPromise;
+        this.androidRecognitionPromise = null;
         try {
           await stopSpeechRecognition();
         } catch (error) {
           console.error('Failed to stop Android speech recognition:', error);
+        }
+
+        try {
+          const result = pendingRecognition ? await pendingRecognition : { success: false as const };
+          if (result.success) {
+            this.notifyResult({ text: result.text ?? '', isFinal: true });
+          } else {
+            throw new Error(result.error || 'No speech recognized');
+          }
+        } catch (error) {
+          const speechError = this.mapError(error);
+          this.notifyError(speechError);
+          this.setState('error');
         }
       }
     }

@@ -81,6 +81,39 @@ describe("BookmarksPanel", () => {
     expect(onOpenFile).not.toHaveBeenCalled();
   });
 
+  it("shows an inline error instead of failing silently when a bookmark's target can't be opened", async () => {
+    bookmarks.value = [
+      { id: "1", kind: "file", label: "Deleted Note", path: "/vault/deleted-note.md" },
+    ];
+    const onOpenFile = vi.fn(async () => {
+      throw new Error("not found");
+    });
+    const { getByText, findByRole } = render(
+      <BookmarksPanel onOpenFile={onOpenFile} onRunSearch={vi.fn()} />,
+    );
+    fireEvent.click(getByText("Deleted Note"));
+    const alert = await findByRole("alert");
+    expect(alert.textContent).toContain("Deleted Note");
+  });
+
+  it("clears a bookmark's error once it opens successfully", async () => {
+    bookmarks.value = [
+      { id: "1", kind: "file", label: "My Note", path: "/vault/my-note.md" },
+    ];
+    let shouldFail = true;
+    const onOpenFile = vi.fn(async () => {
+      if (shouldFail) throw new Error("not found");
+    });
+    const { getByText, findByRole, queryByRole } = render(
+      <BookmarksPanel onOpenFile={onOpenFile} onRunSearch={vi.fn()} />,
+    );
+    fireEvent.click(getByText("My Note"));
+    await findByRole("alert");
+    shouldFail = false;
+    fireEvent.click(getByText("My Note"));
+    await vi.waitFor(() => expect(queryByRole("alert")).toBeNull());
+  });
+
   it("removing a bookmark drops it from the list", async () => {
     bookmarks.value = [
       { id: "1", kind: "file", label: "My Note", path: "/vault/my-note.md" },

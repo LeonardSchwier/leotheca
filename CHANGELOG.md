@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fixed voice dictation on Android doing nothing when you tapped the microphone button: the on-device speech recognizer was never actually told to start listening, so no text was ever inserted and no error was shown. Dictation now starts the recognizer for real and reports its actual transcript or a real error.
+
 - Fixed clicking a graph node, or opening a Canvas card's linked file, whose target note had been renamed, deleted, or moved outside the app: both now show an inline error explaining the file may have been moved, renamed, or deleted, instead of silently doing nothing.
 
 - Fixed clicking a backlink whose source note had been renamed, deleted, or moved outside the app: it now shows an inline error explaining the file may have been moved, renamed, or deleted, instead of silently doing nothing.

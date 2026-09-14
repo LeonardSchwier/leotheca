@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fixed clicking a graph node, or opening a Canvas card's linked file, whose target note had been renamed, deleted, or moved outside the app: both now show an inline error explaining the file may have been moved, renamed, or deleted, instead of silently doing nothing.
+
 - Fixed clicking a backlink whose source note had been renamed, deleted, or moved outside the app: it now shows an inline error explaining the file may have been moved, renamed, or deleted, instead of silently doing nothing.
 
 - Fixed clicking a Link Diagnostics finding (Settings → Health) whose source note had been renamed, deleted, or moved outside the app while Settings was still open: it now shows an inline error instead of silently doing nothing and leaving the Settings window stuck open.

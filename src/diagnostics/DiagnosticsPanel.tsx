@@ -1,3 +1,4 @@
+import { useState } from "preact/hooks";
 import { linkIndex, fileNameFromPath } from "../linking/store";
 import { requestOutlineReveal } from "../outline/outlineNavigation";
 import { computeWorkspaceLinkDiagnostics, type WorkspaceLinkDiagnostic } from "./diagnostics";
@@ -48,10 +49,26 @@ const STATUS_LABEL: Record<WorkspaceLinkDiagnostic["status"], string> = {
  */
 export function DiagnosticsPanel({ onOpenFile, onNavigated }: DiagnosticsPanelProps) {
   const diagnostics = computeWorkspaceLinkDiagnostics(linkIndex.value);
+  // This panel is a point-in-time snapshot of `linkIndex.value`, refreshed
+  // only when Settings' Health section opens (or on a save/workspace-load
+  // elsewhere), not on every external filesystem change; a finding's own
+  // source note can be deleted, renamed, or moved outside the app while
+  // this panel is still showing it. Tracks which single finding's open
+  // attempt most recently failed, so its own row can show an inline error
+  // instead of leaving a rejected onOpenFile unhandled and the click
+  // silently doing nothing (matching bookmarks/BookmarksPanel.tsx's own
+  // fix for the identical unawaited-onOpenFile shape).
+  const [openErrorId, setOpenErrorId] = useState<string | null>(null);
 
   async function handleSelect(diagnostic: WorkspaceLinkDiagnostic) {
+    setOpenErrorId(null);
     const title = noteTitleFromPath(diagnostic.sourcePath);
-    await onOpenFile(diagnostic.sourcePath, title);
+    try {
+      await onOpenFile(diagnostic.sourcePath, title);
+    } catch {
+      setOpenErrorId(diagnostic.id);
+      return;
+    }
     requestOutlineReveal(diagnostic.sourceFrom, diagnostic.sourceTo);
     onNavigated?.();
   }
@@ -87,6 +104,11 @@ export function DiagnosticsPanel({ onOpenFile, onNavigated }: DiagnosticsPanelPr
                   <span class="diagnostics-link-text">{diagnostic.linkText}</span>
                   <span class="diagnostics-note">{sourceTitle}</span>
                 </button>
+                {openErrorId === diagnostic.id && (
+                  <p class="diagnostics-error-message" role="alert">
+                    Couldn't open "{sourceTitle}" — it may have been moved, renamed, or deleted.
+                  </p>
+                )}
               </li>
             );
           })}

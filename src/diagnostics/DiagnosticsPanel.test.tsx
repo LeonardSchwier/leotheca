@@ -132,6 +132,37 @@ describe("DiagnosticsPanel", () => {
     expect(outlineRevealRequest.value).not.toBeNull();
   });
 
+  it("shows an inline error instead of failing silently when a finding's source note can't be opened", async () => {
+    setWorkspace({ "/vault/A.md": "[[Missing]]" });
+    const onOpenFile = vi.fn(async () => {
+      throw new Error("not found");
+    });
+    const { getByText, findByRole } = render(
+      <DiagnosticsPanel onOpenFile={onOpenFile} />,
+    );
+    fireEvent.click(getByText("[[Missing]]"));
+    const alert = await findByRole("alert");
+    expect(alert.textContent).toContain("A");
+    expect(outlineRevealRequest.value).toBeNull();
+  });
+
+  it("clears a finding's error once it opens successfully", async () => {
+    setWorkspace({ "/vault/A.md": "[[Missing]]" });
+    let shouldFail = true;
+    const onOpenFile = vi.fn(async () => {
+      if (shouldFail) throw new Error("not found");
+    });
+    const { getByText, findByRole, queryByRole } = render(
+      <DiagnosticsPanel onOpenFile={onOpenFile} />,
+    );
+    fireEvent.click(getByText("[[Missing]]"));
+    await findByRole("alert");
+    shouldFail = false;
+    fireEvent.click(getByText("[[Missing]]"));
+    await vi.waitFor(() => expect(queryByRole("alert")).toBeNull());
+    expect(outlineRevealRequest.value).not.toBeNull();
+  });
+
   it("lists findings from multiple notes in stable, source-path-sorted order", () => {
     setWorkspace({
       "/vault/Zeta.md": "[[Nope1]]",

@@ -19,7 +19,7 @@ const COLOR_GROUP_PALETTE = ["#b3541e", "#3f6b4f", "#3f5a8a", "#8a6f1e", "#7a3f6
 const FILTER_DEBOUNCE_MS = 200;
 
 interface GraphViewProps {
-  onOpenFile: (path: string, name: string) => void;
+  onOpenFile: (path: string, name: string) => void | Promise<void>;
   onClose: () => void;
   /** The currently open note, if any. Enables the "This note" mode switch
    * below the header, showing just this note and its direct neighbors
@@ -177,8 +177,26 @@ export function GraphView({ onOpenFile, onClose, focusPath }: GraphViewProps) {
   const [filterQuery, setFilterQuery] = useState("");
   const filterTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const [colorGroupsOpen, setColorGroupsOpen] = useState(false);
+  // The graph is a point-in-time snapshot of linkIndex.value, not rebuilt
+  // on every external filesystem change, so a node's backing note can be
+  // deleted, renamed, or moved outside the app while the graph is still
+  // showing it. Nodes are drawn on an imperative <canvas>, not individual
+  // DOM elements, so there is no single row to attach a per-node error to
+  // the way BacklinksPanel/DiagnosticsPanel/BookmarksPanel do; a banner
+  // under the header serves the same purpose instead of leaving a
+  // rejected onOpenFile unhandled and the click silently doing nothing.
+  const [openError, setOpenError] = useState<string | null>(null);
   const isLocal = mode === "local" && !!focusPath;
   const colorGroups = workspaceSettings.value.graphColorGroups;
+
+  async function handleOpenNode(nodePath: string) {
+    setOpenError(null);
+    try {
+      await onOpenFile(nodePath, noteName(nodePath) + ".md");
+    } catch {
+      setOpenError(noteName(nodePath));
+    }
+  }
 
   useEffect(() => {
     return () => {
@@ -372,7 +390,7 @@ export function GraphView({ onOpenFile, onClose, focusPath }: GraphViewProps) {
 
     const node = findNodeAt(e.clientX, e.clientY);
     if (node) {
-      onOpenFile(node, noteName(node) + ".md");
+      void handleOpenNode(node);
       return;
     }
     draggingRef.current = { x: e.clientX, y: e.clientY };
@@ -487,6 +505,11 @@ export function GraphView({ onOpenFile, onClose, focusPath }: GraphViewProps) {
           </button>
         </div>
       </div>
+      {openError && (
+        <p class="graph-view-error-message" role="alert">
+          Couldn't open "{openError}" — it may have been moved, renamed, or deleted.
+        </p>
+      )}
       {colorGroupsOpen && (
         <div class="graph-color-groups-panel">
           {colorGroups.map((group) => (

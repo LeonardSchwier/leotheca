@@ -19,13 +19,22 @@ interface CanvasViewProps {
   path: string;
   source: string;
   onChange: (source: string) => void;
-  onOpenFile: (path: string) => void;
+  onOpenFile: (path: string) => void | Promise<void>;
 }
 
 /** File-backed spatial cards, links, and local file references. */
 export function CanvasView({ path, source, onChange, onOpenFile }: CanvasViewProps) {
   const [drag, setDrag] = useState<{ id: string; pointerId: number; offsetX: number; offsetY: number } | null>(null);
   const [connectionStart, setConnectionStart] = useState<string | null>(null);
+  // A card's filePath can point at a note that was deleted, renamed, or
+  // moved outside the app since the canvas was last saved; `resolved`
+  // above only checks that the stored path's *shape* resolves inside the
+  // workspace, not that the file still exists. Tracks which single
+  // card's open attempt most recently failed, so its own card can show an
+  // inline error instead of leaving a rejected onOpenFile unhandled and
+  // the click silently doing nothing (matching bookmarks/BookmarksPanel.tsx's
+  // own fix for the identical unawaited-onOpenFile shape).
+  const [openErrorId, setOpenErrorId] = useState<string | null>(null);
   const decoded = decodeCanvas(source);
   if (!decoded) {
     return (
@@ -64,6 +73,14 @@ export function CanvasView({ path, source, onChange, onOpenFile }: CanvasViewPro
   };
   const resolvedFilePath = (filePath: string) =>
     workspacePath.value ? resolveCanvasFileReference(workspacePath.value, path, filePath) : null;
+  async function handleOpen(nodeId: string, resolvedPath: string) {
+    setOpenErrorId(null);
+    try {
+      await onOpenFile(resolvedPath);
+    } catch {
+      setOpenErrorId(nodeId);
+    }
+  }
 
   return (
     <div class="canvas-view">
@@ -151,12 +168,17 @@ export function CanvasView({ path, source, onChange, onOpenFile }: CanvasViewPro
                     <button
                       disabled={!resolved}
                       title={resolved ? undefined : "This path doesn't resolve to a file inside the workspace"}
-                      onClick={() => resolved && onOpenFile(resolved)}
+                      onClick={() => resolved && void handleOpen(node.id, resolved)}
                     >
                       Open
                     </button>
                   )}
                 </div>
+                {openErrorId === node.id && (
+                  <p class="canvas-open-error" role="alert">
+                    Couldn't open this file — it may have been moved, renamed, or deleted.
+                  </p>
+                )}
                 {node.filePath !== undefined && (
                   <input
                     aria-label="Linked file path"

@@ -65,6 +65,46 @@ describe("CanvasView", () => {
     expect(onOpenFile).toHaveBeenCalledWith("/workspace/boards/note.md");
   });
 
+  it("shows an inline error instead of failing silently when a card's linked file can't be opened", async () => {
+    workspacePath.value = "/workspace";
+    const source = JSON.stringify({
+      nodes: [{ id: "a", text: "A", x: 1, y: 2, filePath: "deleted-note.md" }],
+      edges: [],
+    });
+    const onOpenFile = vi.fn(async () => {
+      throw new Error("not found");
+    });
+    const { getByText, findByRole } = render(
+      <CanvasView path={CANVAS_PATH} source={source} onChange={vi.fn()} onOpenFile={onOpenFile} />,
+    );
+
+    fireEvent.click(getByText("Open"));
+
+    const alert = await findByRole("alert");
+    expect(alert.textContent).toContain("moved, renamed, or deleted");
+  });
+
+  it("clears a card's open error once it opens successfully", async () => {
+    workspacePath.value = "/workspace";
+    const source = JSON.stringify({
+      nodes: [{ id: "a", text: "A", x: 1, y: 2, filePath: "note.md" }],
+      edges: [],
+    });
+    let shouldFail = true;
+    const onOpenFile = vi.fn(async () => {
+      if (shouldFail) throw new Error("not found");
+    });
+    const { getByText, findByRole, queryByRole } = render(
+      <CanvasView path={CANVAS_PATH} source={source} onChange={vi.fn()} onOpenFile={onOpenFile} />,
+    );
+
+    fireEvent.click(getByText("Open"));
+    await findByRole("alert");
+    shouldFail = false;
+    fireEvent.click(getByText("Open"));
+    await vi.waitFor(() => expect(queryByRole("alert")).toBeNull());
+  });
+
   it("disables Open for a card whose file path escapes the workspace", () => {
     workspacePath.value = "/workspace";
     const source = JSON.stringify({

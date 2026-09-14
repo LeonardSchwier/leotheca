@@ -146,6 +146,38 @@ describe("GraphView", () => {
     expect(onOpenFile).not.toHaveBeenCalled();
   });
 
+  it("shows an inline error instead of failing silently when a node's file can't be opened", async () => {
+    withOneNode();
+    const onOpenFile = vi.fn(async () => {
+      throw new Error("not found");
+    });
+    const { container, findByRole } = render(<GraphView onOpenFile={onOpenFile} onClose={vi.fn()} />);
+    const canvas = container.querySelector("canvas")!;
+
+    fireEvent.pointerDown(canvas, { pointerId: 1, clientX: 100, clientY: 100 });
+
+    const alert = await findByRole("alert");
+    expect(alert.textContent).toContain("moved, renamed, or deleted");
+  });
+
+  it("clears a node's open error once it opens successfully", async () => {
+    withOneNode();
+    let shouldFail = true;
+    const onOpenFile = vi.fn(async () => {
+      if (shouldFail) throw new Error("not found");
+    });
+    const { container, findByRole, queryByRole } = render(
+      <GraphView onOpenFile={onOpenFile} onClose={vi.fn()} />,
+    );
+    const canvas = container.querySelector("canvas")!;
+
+    fireEvent.pointerDown(canvas, { pointerId: 1, clientX: 100, clientY: 100 });
+    await findByRole("alert");
+    shouldFail = false;
+    fireEvent.pointerDown(canvas, { pointerId: 1, clientX: 100, clientY: 100 });
+    await vi.waitFor(() => expect(queryByRole("alert")).toBeNull());
+  });
+
 });
 
 describe("computeConnectedPaths", () => {

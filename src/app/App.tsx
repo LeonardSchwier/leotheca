@@ -1195,7 +1195,7 @@ export function App() {
             current.kind === "image" ? (
               <ImageViewer path={current.path} />
             ) : current.kind === "canvas" ? (
-              <CanvasView path={current.path} source={current.content} onChange={(value) => handleChange(current.path, value)} onOpenFile={(path) => void handleOpenFile(path, path.split("/").pop() ?? path)} />
+              <CanvasView path={current.path} source={current.content} onChange={(value) => handleChange(current.path, value)} onOpenFile={(path) => handleOpenFile(path, path.split("/").pop() ?? path)} />
             ) : current.kind === "ink" ? (
               <InkView path={current.path} source={current.content} onChange={(value) => handleChange(current.path, value)} />
             ) : (
@@ -1312,9 +1312,9 @@ export function App() {
       )}
       {graphOpen.value && (
         <GraphView
-          onOpenFile={(path, name) => {
+          onOpenFile={async (path, name) => {
+            await handleOpenFile(path, name);
             graphOpen.value = false;
-            void handleOpenFile(path, name);
           }}
           onClose={() => (graphOpen.value = false)}
           focusPath={current?.kind === "text" ? current.path : undefined}

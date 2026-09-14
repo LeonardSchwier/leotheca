@@ -75,4 +75,49 @@ describe("BacklinksPanel", () => {
     fireEvent.click(getByText("a.md"));
     expect(onOpenFile).toHaveBeenCalledWith("/vault/sub/a.md", "a.md");
   });
+
+  it("shows an inline error instead of failing silently when a backlink's source can't be opened", async () => {
+    linkIndex.value = {
+      backlinksByPath: new Map([["/vault/note.md", ["/vault/deleted-note.md"]]]),
+      pathsByNoteName: new Map(),
+      pathsByAlias: new Map(),
+      aliasesByPath: new Map(),
+      pathsByTag: new Map(),
+      tagsByPath: new Map(),
+      tasksByPath: new Map(),
+    };
+    const onOpenFile = vi.fn(async () => {
+      throw new Error("not found");
+    });
+    const { getByText, findByRole } = render(
+      <BacklinksPanel path="/vault/note.md" onOpenFile={onOpenFile} />,
+    );
+    fireEvent.click(getByText("deleted-note.md"));
+    const alert = await findByRole("alert");
+    expect(alert.textContent).toContain("deleted-note.md");
+  });
+
+  it("clears a backlink's error once it opens successfully", async () => {
+    linkIndex.value = {
+      backlinksByPath: new Map([["/vault/note.md", ["/vault/a.md"]]]),
+      pathsByNoteName: new Map(),
+      pathsByAlias: new Map(),
+      aliasesByPath: new Map(),
+      pathsByTag: new Map(),
+      tagsByPath: new Map(),
+      tasksByPath: new Map(),
+    };
+    let shouldFail = true;
+    const onOpenFile = vi.fn(async () => {
+      if (shouldFail) throw new Error("not found");
+    });
+    const { getByText, findByRole, queryByRole } = render(
+      <BacklinksPanel path="/vault/note.md" onOpenFile={onOpenFile} />,
+    );
+    fireEvent.click(getByText("a.md"));
+    await findByRole("alert");
+    shouldFail = false;
+    fireEvent.click(getByText("a.md"));
+    await vi.waitFor(() => expect(queryByRole("alert")).toBeNull());
+  });
 });

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fixed clicking a Link Diagnostics finding (Settings → Health) whose source note had been renamed, deleted, or moved outside the app while Settings was still open: it now shows an inline error instead of silently doing nothing and leaving the Settings window stuck open.
+
 - Fixed clicking a bookmark whose note had been renamed, deleted, or moved outside the app: it now shows an inline error explaining the file may have been moved, renamed, or deleted, instead of silently doing nothing.
 
 - Fixed a rare data-loss bug where creating, editing, or deleting two Smart Collections in quick succession could silently drop one of those changes from what's actually saved to disk, even though it still appeared correctly until the app was restarted. Collection saves are now always written one at a time, in order.

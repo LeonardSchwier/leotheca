@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fixed a privacy/data-safety bug in Quick Capture: text or images captured externally (an automation deep link received while no workspace was open, or shared to Leotheca from another Android app) could be written straight into your inbox note the moment you next opened a workspace, without ever showing you the capture for review or letting you edit or discard it first. Opening a workspace no longer auto-commits anything; a pending capture now always waits in the Pending Captures list for your explicit Review, Retry, or Discard.
+
 - Fixed voice dictation on Android doing nothing when you tapped the microphone button: the on-device speech recognizer was never actually told to start listening, so no text was ever inserted and no error was shown. Dictation now starts the recognizer for real and reports its actual transcript or a real error.
 
 - Fixed clicking a graph node, or opening a Canvas card's linked file, whose target note had been renamed, deleted, or moved outside the app: both now show an inline error explaining the file may have been moved, renamed, or deleted, instead of silently doing nothing.

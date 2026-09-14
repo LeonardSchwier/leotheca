@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fixed clicking a bookmark whose note had been renamed, deleted, or moved outside the app: it now shows an inline error explaining the file may have been moved, renamed, or deleted, instead of silently doing nothing.
+
 - Fixed a rare data-loss bug where creating, editing, or deleting two Smart Collections in quick succession could silently drop one of those changes from what's actually saved to disk, even though it still appeared correctly until the app was restarted. Collection saves are now always written one at a time, in order.
 
 - Fixed a rare data-loss bug where adding or removing two bookmarks/favorites in quick succession could silently drop one of them from what's actually saved to disk, even though it still appeared in the list until the app was restarted. Bookmark saves are now always written one at a time, in order.

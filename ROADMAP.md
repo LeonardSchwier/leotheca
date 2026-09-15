@@ -67,8 +67,8 @@
   Agent: completed by Mistral-Vibe-20260911T11:00:00Z-5d1756e44d8147879a928e5df24b3e38 | item: rm-c97aa273b63fa72b
 
 - 🚧 **PDF Phase 2: Freehand ink, sticky notes, and shapes for scanned PDFs** (depends on PDF Phase 1 landing first -- needs its pdf.js viewing/annotation-writing foundation): Add freehand ink annotation for scanned or image-only PDFs with no text layer, plus sticky notes and simple shapes, written back into the PDF using the same standard annotation format as Phase 1.
-  <!-- agent-state: {"schema":1,"id":"rm-548a80747b920ad6","state":"claimed","touch":["documentation/ARCHITECTURE.md","src/app/App.css","src/pdf"],"resources":["pdf-viewer"],"owner":"Claude-Code-web-20260915T142356Z-1e130fdc","token":"671db09839963d81ee54beaff1ed6e95","branch":"agent/rm-548a80747b920ad6/671db0983996","claimed_at":"2026-09-15T14:24:01Z","heartbeat_at":"2026-09-15T14:24:01Z","lease_until":"2026-09-15T15:54:01Z"} -->
-  Agent: Claude-Code-web-20260915T142356Z-1e130fdc | item: rm-548a80747b920ad6 | lease until: 2026-09-15T15:54:01Z
+  <!-- agent-state: {"schema":1,"id":"rm-548a80747b920ad6","state":"claimed","touch":["documentation/ARCHITECTURE.md","src/app/App.css","src/pdf"],"resources":["pdf-viewer"],"owner":"Claude-Code-web-20260915T142356Z-1e130fdc","token":"671db09839963d81ee54beaff1ed6e95","branch":"agent/rm-548a80747b920ad6/671db0983996","claimed_at":"2026-09-15T14:24:01Z","heartbeat_at":"2026-09-15T14:41:33Z","lease_until":"2026-09-15T16:11:33Z"} -->
+  Agent: Claude-Code-web-20260915T142356Z-1e130fdc | item: rm-548a80747b920ad6 | lease until: 2026-09-15T16:11:33Z
 
   <details>
   <summary>Scope and acceptance</summary>

@@ -65,12 +65,45 @@ describe("tableEditAtCursor", () => {
     const result = tableEditAtCursor(source, cursorInName, "add-column-right");
     // Should work since cursor is in cell content
     expect(result).not.toBeNull();
-    
-    // Cursor in pipe character (between cells) - not in any cell content
-    const cursorInPipe = source.indexOf(" | ", source.indexOf("Name"));
+
+    // Cursor on the literal pipe character between cells - not in any cell
+    // content. `source.indexOf(" | ", ...)` points at the leading space of
+    // that match, i.e. the position right after "Name"'s trimmed content,
+    // not the pipe itself one position later; `+ 1` lands on the actual `|`.
+    const cursorInPipe = source.indexOf(" | ", source.indexOf("Name")) + 1;
+    expect(source[cursorInPipe]).toBe("|");
     const result2 = tableEditAtCursor(source, cursorInPipe, "add-column-right");
     // Should return null since cursor is in pipe, not in cell content
     expect(result2).toBeNull();
+  });
+
+  // Maintenance review: a cursor resting immediately after a cell's trimmed
+  // text (before its trailing padding space and the delimiter pipe) is the
+  // ordinary position left behind by typing or clicking at the end of a
+  // word, and must resolve to that cell/row -- not fall through the gap
+  // between cells like the literal pipe position above does.
+  it("resolves the column when the cursor sits right after the cell's text, before its trailing padding", () => {
+    const cursorAfterAda = source.indexOf("Ada") + "Ada".length;
+    expect(source[cursorAfterAda]).toBe(" ");
+    const added = tableEditAtCursor(source, cursorAfterAda, "add-column-right");
+    expect(added).not.toBeNull();
+    const result = source.slice(0, added!.from) + added!.insert + source.slice(added!.to);
+    expect(result).toContain("| Ada |  | Active |");
+
+    const deleted = tableEditAtCursor(source, cursorAfterAda, "delete-column");
+    expect(deleted).not.toBeNull();
+    const deletedResult = source.slice(0, deleted!.from) + deleted!.insert + source.slice(deleted!.to);
+    expect(deletedResult).not.toContain("Ada");
+  });
+
+  it("inserts the new row below the current row, not at the table's top, when the cursor sits right after the last cell's text", () => {
+    const cursorAfterActive = source.indexOf("Active") + "Active".length;
+    expect(source[cursorAfterActive]).toBe(" ");
+    const added = tableEditAtCursor(source, cursorAfterActive, "add-row-below");
+    expect(added).not.toBeNull();
+    const result = source.slice(0, added!.from) + added!.insert + source.slice(added!.to);
+    // The blank row must land directly below "Ada | Active", not before it.
+    expect(result).toContain("| Ada | Active |\n|  |  |\n| Bea | Away |");
   });
 
   // CI regression: UTF-16 surrogate pair handling

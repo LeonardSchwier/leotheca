@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fixed the Markdown table toolbar's "Add column right", "Delete column", and "Add row below" commands doing nothing, or inserting a new row in the wrong place, whenever the cursor sat immediately after a cell's text (the ordinary position right after typing or clicking a word) rather than inside its trailing padding. In particular, "Add row below" could silently insert the new blank row at the very top of the table instead of below the row you were actually in.
+
 - Fixed a silent autosave failure: if saving a note's changes to disk failed (for example a full disk, a revoked folder permission, or an external drive going offline), the editor gave no indication anything was wrong at all — the note just quietly stopped saving, with the failed edit only ever kept in memory. A visible error now appears with the failure reason and a Retry button, and it clears automatically once a save succeeds again.
 
 - Fixed Quick Capture's 32 KiB payload size limit being measured in JavaScript string length instead of real UTF-8 bytes, letting a capture containing CJK characters, emoji, accented Latin, Cyrillic, or other multi-byte text through at up to 2-3x the documented limit. The limit is now measured in actual UTF-8 bytes, matching the spec.

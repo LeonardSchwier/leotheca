@@ -36,6 +36,7 @@ import {
   moveActiveTabToOtherGroup,
   moveTabWithinGroup,
   openDocuments,
+  openInOtherGroup as openPathInOtherGroup,
   openOrFocusTab,
   openTabs,
   pinTab,
@@ -407,12 +408,23 @@ export function App() {
      * when it failed; a stale request's own read failure is not this
      * call's problem to report, since a newer request already
      * superseded it.
+     *
+     * `options.otherGroup` (F07 Phase 5, spec section 6.3's "Open link in
+     * other group" entry point) routes the open through the store's
+     * `openInOtherGroup` instead of the ordinary active-group routing --
+     * see MarkdownPreview.tsx's Ctrl/Cmd+click handling, its first real
+     * caller. Heading/block reveal still only targets the primary group's
+     * OutlinePanel/HeadingBreadcrumbs wiring (F07 Phase 3's own disclosed
+     * scope), so a reveal request alongside `otherGroup` still runs (the
+     * note opens correctly in the other group either way) but will only
+     * visibly scroll to the target when that group happens to be primary.
      */
-    async (path: string, name: string, options?: { headingKey?: string; blockId?: string; searchQuery?: string }) => {
+    async (path: string, name: string, options?: { headingKey?: string; blockId?: string; searchQuery?: string; otherGroup?: boolean }) => {
       const authority = beginFileOpenAuthority();
       const kind = classifyWorkspaceResource(path);
       if (kind === "image") {
-        openOrFocusTab(path, name, "", "image", options?.searchQuery);
+        if (options?.otherGroup) openPathInOtherGroup(path, name, "", "image");
+        else openOrFocusTab(path, name, "", "image", options?.searchQuery);
       } else {
         let content: string;
         try {
@@ -422,14 +434,18 @@ export function App() {
           throw error;
         }
         if (!isCurrentFileOpen(authority)) return;
-        // An already-open tab keeps its own (possibly unsaved, dirty)
-        // content; openOrFocusTab only focuses it rather than
-        // overwriting it with what's on disk. Reveal against whichever
-        // content is actually about to be displayed, not the disk read.
-        const existingTab = openTabs.value.find((tab) => tab.path === path);
-        const effectiveContent = existingTab?.content ?? content;
+        // An already-open tab (in either group) keeps its own (possibly
+        // unsaved, dirty) content; the open call below only focuses/moves
+        // it rather than overwriting it with what's on disk. Reveal
+        // against whichever content is actually about to be displayed,
+        // not the disk read. openDocuments, not openTabs: the canonical
+        // document list is group-agnostic, so this also finds a tab open
+        // only in the secondary group.
+        const existingDocument = openDocuments.value.find((document) => document.path === path);
+        const effectiveContent = existingDocument?.content ?? content;
         batch(() => {
-          openOrFocusTab(path, name, content, kind, options?.searchQuery);
+          if (options?.otherGroup) openPathInOtherGroup(path, name, content, kind);
+          else openOrFocusTab(path, name, content, kind, options?.searchQuery);
           if (options?.headingKey) {
             const match = resolveHeadingFragment(scanHeadings(effectiveContent), options.headingKey);
             if (match.status === "resolved") {

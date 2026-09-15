@@ -1171,3 +1171,30 @@ describe("App: F07 Phase 3 follow-up -- tab reordering", () => {
   });
 
 });
+
+describe("App: F07 Phase 5 -- Ctrl/Cmd-click opens a wikilink in the other group", () => {
+  it("creates a split and opens the target there, leaving the current note in primary", async () => {
+    linkIndex.value = {
+      ...emptyLinkIndex(),
+      pathsByNoteName: new Map([["second", ["/vault/second.md"]]]),
+    };
+    viewMode.value = "split";
+    workspacePath.value = "/vault";
+    readTextFile.mockResolvedValue("second file content");
+    openOrFocusTab("/vault/first.md", "first.md", "See [[Second]] over there.", "text");
+    const { container } = render(<App />);
+
+    const anchor = container.querySelector('a[href^="#leotheca-wikilink="]') as HTMLAnchorElement;
+    expect(anchor).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.click(anchor, { ctrlKey: true });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(editorLayout.value.splitEnabled).toBe(true);
+    expect(secondaryOpenTabs.value.map((t) => t.path)).toEqual(["/vault/second.md"]);
+    expect(openTabs.value.map((t) => t.path)).toEqual(["/vault/first.md"]);
+  });
+});

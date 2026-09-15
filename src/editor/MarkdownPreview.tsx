@@ -156,8 +156,12 @@ export interface MarkdownPreviewProps {
    * reveal via the existing outline `reveal` mechanism. A target that
    * turns out missing or ambiguous in the freshly-read note is a
    * silent no-op reveal, not an error: the note still opens (spec
-   * section 10.4's "open the note if its path still resolves"). */
-  onOpenFile?: (path: string, name: string, options?: { headingKey?: string; blockId?: string }) => void;
+   * section 10.4's "open the note if its path still resolves").
+   * `options.otherGroup` is set when the link was Ctrl/Cmd-clicked (F07
+   * Phase 5, spec section 6.3's "Open link in other group"), the standard
+   * modifier convention this app's own note-tree/search results don't yet
+   * offer an equivalent for. */
+  onOpenFile?: (path: string, name: string, options?: { headingKey?: string; blockId?: string; otherGroup?: boolean }) => void;
   /** Whether $inline$ / $$block$$ math renders via KaTeX at all; when
    * false, that syntax is left as ordinary text, same as before this
    * feature existed. Defaults to on, see
@@ -1415,10 +1419,16 @@ export function MarkdownPreview({
         const path = resolveWikilink(parsed.target);
         if (!path) return;
 
+        // Sparse on purpose: an ordinary click passes exactly the options
+        // shape callers/tests already expect, `otherGroup` appearing only
+        // for the Ctrl/Cmd-click case rather than always as `false`.
+        const otherGroup = event.ctrlKey || event.metaKey ? { otherGroup: true as const } : undefined;
         if (parsed.fragmentKind === "heading" && parsed.fragment) {
-          onOpenFile?.(path, fileNameFromPath(path), { headingKey: parsed.fragment });
+          onOpenFile?.(path, fileNameFromPath(path), { headingKey: parsed.fragment, ...otherGroup });
         } else if (parsed.fragmentKind === "block" && parsed.fragment) {
-          onOpenFile?.(path, fileNameFromPath(path), { blockId: parsed.fragment });
+          onOpenFile?.(path, fileNameFromPath(path), { blockId: parsed.fragment, ...otherGroup });
+        } else if (otherGroup) {
+          onOpenFile?.(path, fileNameFromPath(path), otherGroup);
         } else {
           onOpenFile?.(path, fileNameFromPath(path));
         }

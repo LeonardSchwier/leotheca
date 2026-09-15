@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added Ctrl/Cmd-click on a note link in the preview to open it in the other editor group (creating a split if there isn't one yet) instead of the current one.
+
 - Added tab reordering (drag to reorder, or right-click a tab for Move left/Move right) within either editor group, and restored cursor/scroll position when switching back to a note you'd already had open (previously every tab switch reset the cursor to the start of the note).
 
 - Added split panes on desktop: a "Split right" toolbar button opens a second editor group beside the first, each with its own tabs and its own Source/Split/Preview mode, resizable by a draggable (and keyboard-operable) divider. Move the active tab to the other group, or close the second group to merge its tabs back. Canvas and ink notes aren't supported in the second group yet (they still open normally in the first); compact/Android layouts, and routing every note-opening feature (backlinks, search, tasks, etc.) into a specific group, are still to come.

@@ -1664,3 +1664,49 @@ describe("MarkdownPreview RTL text direction", () => {
     expect(paragraph?.querySelector("strong")).not.toBeNull();
   });
 });
+
+describe("MarkdownPreview: F07 Phase 5 -- Ctrl/Cmd-click opens a link in the other editor group", () => {
+  function withResolvableLink(source: string, onOpenFile: (...args: unknown[]) => void) {
+    linkIndex.value = {
+      backlinksByPath: new Map(),
+      pathsByNoteName: new Map([["project plan", ["/vault/project-plan.md"]]]),
+      pathsByAlias: new Map(),
+      aliasesByPath: new Map(),
+      pathsByTag: new Map(),
+      tagsByPath: new Map(),
+      tasksByPath: new Map(),
+    };
+    return render(<MarkdownPreview source={source} onOpenFile={onOpenFile} />);
+  }
+
+  it("an ordinary click passes no otherGroup flag at all", () => {
+    const onOpenFile = vi.fn();
+    const { container } = withResolvableLink("[[Project Plan]]", onOpenFile);
+    fireEvent.click(container.querySelector('a[href^="#leotheca-wikilink="]')!);
+    expect(onOpenFile).toHaveBeenCalledWith("/vault/project-plan.md", "project-plan.md");
+  });
+
+  it("Ctrl-click sets otherGroup: true", () => {
+    const onOpenFile = vi.fn();
+    const { container } = withResolvableLink("[[Project Plan]]", onOpenFile);
+    fireEvent.click(container.querySelector('a[href^="#leotheca-wikilink="]')!, { ctrlKey: true });
+    expect(onOpenFile).toHaveBeenCalledWith("/vault/project-plan.md", "project-plan.md", { otherGroup: true });
+  });
+
+  it("Cmd (metaKey)-click also sets otherGroup: true", () => {
+    const onOpenFile = vi.fn();
+    const { container } = withResolvableLink("[[Project Plan]]", onOpenFile);
+    fireEvent.click(container.querySelector('a[href^="#leotheca-wikilink="]')!, { metaKey: true });
+    expect(onOpenFile).toHaveBeenCalledWith("/vault/project-plan.md", "project-plan.md", { otherGroup: true });
+  });
+
+  it("carries otherGroup alongside a heading-fragment link too", () => {
+    const onOpenFile = vi.fn();
+    const { container } = withResolvableLink("[[Project Plan#Milestones]]", onOpenFile);
+    fireEvent.click(container.querySelector('a[href^="#leotheca-wikilink="]')!, { ctrlKey: true });
+    expect(onOpenFile).toHaveBeenCalledWith("/vault/project-plan.md", "project-plan.md", {
+      headingKey: "Milestones",
+      otherGroup: true,
+    });
+  });
+});

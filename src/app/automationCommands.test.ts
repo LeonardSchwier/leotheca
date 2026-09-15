@@ -107,4 +107,24 @@ describe("parseAutomationUrl", () => {
     const captureResult = result as { kind: "capture"; text: string; title?: string; url?: string; mode?: string; profile?: string; open?: boolean };
     expect(captureResult.text).toBe(text);
   });
+
+  // Spec section 5.2 documents `text` as a UTF-8 body and the 32 KiB limit
+  // in bytes. U+4E2D ("中") is one UTF-16 code unit (JS string .length
+  // counts 1) but encodes to 3 bytes in UTF-8, so a naive `.length`-based
+  // check badly under-counts real-world multi-byte captures (CJK, emoji,
+  // accented Latin, Cyrillic, ...), letting genuinely oversized payloads
+  // through.
+  it("rejects a capture payload whose real UTF-8 byte size exceeds 32 KiB even though its UTF-16 length does not", () => {
+    const text = "中".repeat(11000); // .length === 11000, UTF-8 byte size === 33000
+    expect(text.length).toBeLessThan(32 * 1024);
+    const result = parseAutomationUrl(`leotheca://capture?text=${encodeURIComponent(text)}`);
+    expect(result).toBeNull();
+  });
+
+  it("accepts a capture payload whose real UTF-8 byte size is within 32 KiB even with multi-byte text", () => {
+    const text = "中".repeat(10000); // .length === 10000, UTF-8 byte size === 30000
+    const result = parseAutomationUrl(`leotheca://capture?text=${encodeURIComponent(text)}`);
+    expect(result).not.toBeNull();
+    expect(result?.kind).toBe("capture");
+  });
 });

@@ -54,8 +54,15 @@ export function parseAutomationUrl(url: string): AutomationCommand | null {
       const profile = parsed.searchParams.get("profile");
       const open = parsed.searchParams.get("open") === "true";
       
-      // F05-FR-02/F05-FR-06: Validate payload size (32 KiB limit for text+title+url)
-      const payloadSize = (text.length + (title?.length ?? 0) + (url?.length ?? 0));
+      // F05-FR-02/F05-FR-06: Validate payload size (32 KiB limit for text+title+url).
+      // Spec section 5.2 documents `text` as a UTF-8 body and the 32 KiB
+      // limit in bytes; JS string .length counts UTF-16 code units, which
+      // under-counts any multi-byte character (CJK, emoji, accented Latin,
+      // Cyrillic, ...) and would let a genuinely oversized payload through.
+      // TextEncoder().encode(...).length gives the real UTF-8 byte size,
+      // matching the pattern already used for the same reason in
+      // MarkdownPreview.tsx's embed byte budget.
+      const payloadSize = new TextEncoder().encode(text + (title ?? "") + (url ?? "")).length;
       const MAX_CAPTURE_PAYLOAD_SIZE = 32 * 1024; // 32 KiB
       if (payloadSize > MAX_CAPTURE_PAYLOAD_SIZE) {
         console.warn(`F05: Capture payload size (${payloadSize}) exceeds 32 KiB limit`);

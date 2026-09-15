@@ -8,7 +8,9 @@
 
 ### Bugs
 
-- ⬜ **Maintenance review: opening or moving a note into the secondary editor group leaves the compact/narrow-viewport switcher pointed at primary, hiding the note just opened**: `createSplitLayout`, `moveTabToGroup`, and `openInOtherGroup`'s new-tab branch set `activeGroupId` to the group a note was just deliberately opened/moved into, but never update `compactVisibleGroupId` to match, so on a narrow window or Android (viewport <= 720px) the visible pane silently stays primary.
+- 🚧 **Maintenance review: opening or moving a note into the secondary editor group leaves the compact/narrow-viewport switcher pointed at primary, hiding the note just opened**: `createSplitLayout`, `moveTabToGroup`, and `openInOtherGroup`'s new-tab branch set `activeGroupId` to the group a note was just deliberately opened/moved into, but never update `compactVisibleGroupId` to match, so on a narrow window or Android (viewport <= 720px) the visible pane silently stays primary.
+  <!-- agent-state: {"schema":1,"id":"rm-0e72e142b8ab2a33","state":"claimed","touch":["src/app/App.test.tsx","src/workspace/documentGroups.test.ts","src/workspace/documentGroups.ts","src/workspace/store.test.ts","src/workspace/store.ts"],"resources":["f07-editor-groups"],"owner":"Claude-Code-web-20260915T145420Z-4d7ca1a2","token":"5357d0d8897e15f60d532d02b0298d79","branch":"agent/rm-0e72e142b8ab2a33/5357d0d8897e","claimed_at":"2026-09-15T18:53:51Z","heartbeat_at":"2026-09-15T18:53:51Z","lease_until":"2026-09-15T20:23:51Z"} -->
+  Agent: Claude-Code-web-20260915T145420Z-4d7ca1a2 | item: rm-0e72e142b8ab2a33 | lease until: 2026-09-15T20:23:51Z
 
   <details>
   <summary>Review scope and acceptance</summary>

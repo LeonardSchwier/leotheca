@@ -8,7 +8,9 @@
 
 ### Bugs
 
-- ⬜ **Maintenance review: `SplitSeparator`'s drag never recovers from a lost pointer (no `pointercancel` handling)**: only `pointerup` clears its dragging flag, so a drag interrupted by an OS/browser context switch, multi-touch conflict, or the tab losing focus leaves it stuck; the next unrelated pointer move anywhere on the page keeps silently resizing the split ratio. Same defect class already fixed in `CanvasView.tsx`'s card dragging, not applied here.
+- 🚧 **Maintenance review: `SplitSeparator`'s drag never recovers from a lost pointer (no `pointercancel` handling)**: only `pointerup` clears its dragging flag, so a drag interrupted by an OS/browser context switch, multi-touch conflict, or the tab losing focus leaves it stuck; the next unrelated pointer move anywhere on the page keeps silently resizing the split ratio. Same defect class already fixed in `CanvasView.tsx`'s card dragging, not applied here.
+  <!-- agent-state: {"schema":1,"id":"rm-c8d5e3ce52e232d7","state":"claimed","touch":["src/editorGroups/SplitSeparator.test.tsx","src/editorGroups/SplitSeparator.tsx"],"resources":["f07-editor-groups"],"owner":"Claude-Code-web-20260915T145420Z-4d7ca1a2","token":"71eeff60874a963f7f5a6c0f812c8b55","branch":"agent/rm-c8d5e3ce52e232d7/71eeff60874a","claimed_at":"2026-09-15T19:54:12Z","heartbeat_at":"2026-09-15T19:54:12Z","lease_until":"2026-09-15T21:24:12Z"} -->
+  Agent: Claude-Code-web-20260915T145420Z-4d7ca1a2 | item: rm-c8d5e3ce52e232d7 | lease until: 2026-09-15T21:24:12Z
 
   <details>
   <summary>Review scope and acceptance</summary>

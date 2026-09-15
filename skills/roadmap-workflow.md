@@ -41,6 +41,8 @@ python3 "$REPO_ROOT/scripts/agent_ledger.py" --root "$CONTROL_DIR" list
 
 Use existing resource names for existing contracts. For example, two claims changing the editor's selected note must both claim `editor-state`, even if one edits a hook and the other a component. Never invent a synonym to evade a live claim. If the helper reports an overlapping path/resource, choose another item.
 
+Authoring or extending an item's own prose (a coordination-only seed of a new item, or the description you finish with) follows `skills/roadmap-entry-format.md`: a short always-visible summary, with root cause, repro, alternatives, and verification narrative behind a `<details>` toggle once the summary budget runs out. `scripts/check_roadmap_format.py` enforces it in CI for entries new since the branch's merge-base.
+
 ## 3. Make a claim transaction
 
 Start **every** claim/renew/release/block/finish transaction from a clean control tree and fresh main:

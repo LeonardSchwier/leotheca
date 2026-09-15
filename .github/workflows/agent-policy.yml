@@ -11,6 +11,8 @@ on:
       - "skills/**"
       - "scripts/agent_ledger.py"
       - "scripts/test_agent_ledger.py"
+      - "scripts/check_roadmap_format.py"
+      - "scripts/test_check_roadmap_format.py"
       - ".github/workflows/agent-policy.yml"
   pull_request:
     paths:
@@ -22,6 +24,8 @@ on:
       - "skills/**"
       - "scripts/agent_ledger.py"
       - "scripts/test_agent_ledger.py"
+      - "scripts/check_roadmap_format.py"
+      - "scripts/test_check_roadmap_format.py"
       - ".github/workflows/agent-policy.yml"
 
 permissions:
@@ -32,10 +36,37 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # check_roadmap_format.py diffs ROADMAP.md against a base commit
+          # (git show <base>:ROADMAP.md); a shallow clone would not contain
+          # that commit's object.
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - name: Test ownership, expiry, and competing pushes
-        run: python3 -m unittest discover -s scripts -p 'test_agent_ledger.py' -v
+        run: python3 -m unittest discover -s scripts -p 'test_*.py' -v
       - name: Validate the repository ledger
         run: python3 scripts/agent_ledger.py --root . list > /dev/null
+      - name: Determine base ref for the roadmap format check
+        id: base
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            ref="${{ github.event.pull_request.base.sha }}"
+          elif [ "${{ github.event_name }}" = "push" ] \
+               && [ -n "${{ github.event.before }}" ] \
+               && [ "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ] \
+               && git cat-file -e "${{ github.event.before }}^{commit}" 2>/dev/null; then
+            ref="${{ github.event.before }}"
+          else
+            ref=""
+          fi
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+      - name: Check new roadmap entries follow the format guide
+        run: |
+          if [ -n "${{ steps.base.outputs.ref }}" ]; then
+            python3 scripts/check_roadmap_format.py --root . --base "${{ steps.base.outputs.ref }}"
+          else
+            echo "No usable base commit for this event (new branch or history rewrite); running the structural check only."
+            python3 scripts/check_roadmap_format.py --root .
+          fi

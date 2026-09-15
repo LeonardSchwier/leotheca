@@ -140,6 +140,40 @@ def validate_state(state, icon):
         require(isinstance(state["branch"], str) and state["branch"].startswith(f"agent/{state['id']}/"), "Invalid completed branch")
 
 
+def scan_items(lines):
+    """Parse ROADMAP bullet items and their adjacent agent-state metadata out of `lines`.
+
+    Pure and config-free (no CONSTITUTION.md, no filesystem) so callers other than
+    `Ledger` -- e.g. a formatting linter comparing two revisions of the file -- can
+    reuse the exact same parsing/validation `Ledger` relies on.
+    """
+    items = []
+    recognized_metadata = set()
+    for index, line in enumerate(lines):
+        match = ITEM.match(line)
+        if not match:
+            continue
+        end_index = index + 1
+        while end_index < len(lines) and not BOUNDARY.match(lines[end_index]):
+            end_index += 1
+        while end_index > index + 1 and not lines[end_index - 1].strip():
+            end_index -= 1
+        state = None
+        if index + 1 < end_index and "<!-- agent-state:" in lines[index + 1]:
+            metadata = META.fullmatch(lines[index + 1])
+            require(metadata is not None, f"Malformed metadata after title: {match[2]}")
+            state = read_json(metadata[1])
+            validate_state(state, match[1])
+            recognized_metadata.add(index + 1)
+        items.append({"start": index, "end": end_index, "icon": match[1], "title": match[2], "metadata": state})
+    for index, line in enumerate(lines):
+        require("<!-- agent-state" not in line or index in recognized_metadata,
+                f"Unrecognized or nonadjacent agent-state metadata at line {index + 1}")
+    ids = [item["metadata"]["id"] for item in items if item["metadata"]]
+    require(len(ids) == len(set(ids)), "Duplicate item IDs in ROADMAP")
+    return items
+
+
 class Ledger:
     def __init__(self, root, now=None):
         self.root = Path(root).resolve()
@@ -171,30 +205,7 @@ class Ledger:
         self.lines = self.original.decode("utf-8").splitlines(keepends=True)
         self.eol = "\r\n" if b"\r\n" in self.original else "\n"
         self.skew = timedelta(minutes=self.config["clock_skew_minutes"])
-        self.items = []
-        recognized_metadata = set()
-        for index, line in enumerate(self.lines):
-            match = ITEM.match(line)
-            if not match:
-                continue
-            end_index = index + 1
-            while end_index < len(self.lines) and not BOUNDARY.match(self.lines[end_index]):
-                end_index += 1
-            while end_index > index + 1 and not self.lines[end_index - 1].strip():
-                end_index -= 1
-            state = None
-            if index + 1 < end_index and "<!-- agent-state:" in self.lines[index + 1]:
-                metadata = META.fullmatch(self.lines[index + 1])
-                require(metadata is not None, f"Malformed metadata after title: {match[2]}")
-                state = read_json(metadata[1])
-                validate_state(state, match[1])
-                recognized_metadata.add(index + 1)
-            self.items.append({"start": index, "end": end_index, "icon": match[1], "title": match[2], "metadata": state})
-        for index, line in enumerate(self.lines):
-            require("<!-- agent-state" not in line or index in recognized_metadata,
-                    f"Unrecognized or nonadjacent agent-state metadata at line {index + 1}")
-        ids = [item["metadata"]["id"] for item in self.items if item["metadata"]]
-        require(len(ids) == len(set(ids)), "Duplicate item IDs in ROADMAP")
+        self.items = scan_items(self.lines)
 
     def clean(self):
         try:

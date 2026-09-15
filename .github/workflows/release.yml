@@ -213,6 +213,14 @@ jobs:
           distribution: temurin
           java-version: "21"
       - uses: android-actions/setup-android@v3
+        with:
+          # Google removed the legacy "tools" package from the SDK repository
+          # (2026-09-15); the action's own default ("tools platform-tools")
+          # now fails sdkmanager outright. platform-tools is all this job
+          # needs itself -- the Android Gradle Plugin fetches whichever
+          # platform/build-tools versions the project requires during the
+          # Gradle build steps below.
+          packages: platform-tools
       - run: npm ci
       - run: npx vite build
       - run: npx cap sync android

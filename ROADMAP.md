@@ -8,7 +8,9 @@
 
 ### Bugs
 
-- ⬜ **Maintenance review: `PdfViewer.tsx`'s Save annotations silently discards any annotation drawn while a previous save is still in flight**: `handleSave`'s success path unconditionally resets every pending-annotation array to empty instead of removing only what that save wrote; nothing disables drawing while `saving` is true, so a new highlight/stroke/note/shape added during an in-flight save is silently lost the instant it completes.
+- 🚧 **Maintenance review: `PdfViewer.tsx`'s Save annotations silently discards any annotation drawn while a previous save is still in flight**: `handleSave`'s success path unconditionally resets every pending-annotation array to empty instead of removing only what that save wrote; nothing disables drawing while `saving` is true, so a new highlight/stroke/note/shape added during an in-flight save is silently lost the instant it completes.
+  <!-- agent-state: {"schema":1,"id":"rm-65365860316d074d","state":"claimed","touch":["src/pdf/PdfViewer.test.tsx","src/pdf/PdfViewer.tsx"],"resources":["pdf-viewer"],"owner":"Claude-Code-web-20260915T145420Z-4d7ca1a2","token":"c82c623340c051782e3b1d2217c10e0c","branch":"agent/rm-65365860316d074d/c82c623340c0","claimed_at":"2026-09-15T18:24:29Z","heartbeat_at":"2026-09-15T18:24:29Z","lease_until":"2026-09-15T19:54:29Z"} -->
+  Agent: Claude-Code-web-20260915T145420Z-4d7ca1a2 | item: rm-65365860316d074d | lease until: 2026-09-15T19:54:29Z
 
   <details>
   <summary>Review scope and acceptance</summary>

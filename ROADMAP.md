@@ -9,9 +9,9 @@
 ### Bugs
 
 
-- 🚧 **Speech-to-text dictation should be opt-in, off by default, and never touch the microphone/speech APIs until enabled**: `SpeechRecognitionButton` renders unconditionally in the toolbar for every open text note, with no workspace setting gating it at all; its mount effect immediately calls the platform speech-availability check, which on Android reaches the native plugin regardless of whether the user has ever expressed interest in dictation.
-  <!-- agent-state: {"schema":1,"id":"rm-f6f7026e0e96b45c","state":"claimed","touch":["android/app/src/main/java/com/leonardschwier/leotheca/SpeechRecognitionPlugin.java","src/app/App.tsx","src/settings/SettingsPanel.tsx","src/settings/workspaceSettings.ts"],"resources":["speech-to-text"],"owner":"Claude-Code-web-20260915T145420Z-4d7ca1a2","token":"5f502c9cefc9c4bccb3314d2b55d2f18","branch":"agent/rm-f6f7026e0e96b45c/5f502c9cefc9","claimed_at":"2026-09-15T14:55:24Z","heartbeat_at":"2026-09-15T14:55:24Z","lease_until":"2026-09-15T16:25:24Z"} -->
-  Agent: Claude-Code-web-20260915T145420Z-4d7ca1a2 | item: rm-f6f7026e0e96b45c | lease until: 2026-09-15T16:25:24Z
+- ⬜ **Speech-to-text dictation should be opt-in, off by default, and never touch the microphone/speech APIs until enabled**: `SpeechRecognitionButton` renders unconditionally in the toolbar for every open text note, with no workspace setting gating it at all; its mount effect immediately calls the platform speech-availability check, which on Android reaches the native plugin regardless of whether the user has ever expressed interest in dictation.
+  <!-- agent-state: {"schema":1,"id":"rm-f6f7026e0e96b45c","state":"open","touch":["android/app/src/main/java/com/leonardschwier/leotheca/SpeechRecognitionPlugin.java","src/app/App.tsx","src/settings/SettingsPanel.tsx","src/settings/workspaceSettings.ts"],"resources":["speech-to-text"],"note":"Releasing to reclaim with src/refactor/renameExecutor.ts added: adding WorkspaceSettings.speechToTextEnabled makes tsc find one other hand-constructed full WorkspaceSettings literal there missing the new required field, needing the same one-line addition SettingsPanel.tsx (already claimed) also needed. No implementation code written elsewhere yet in this claim.","released_at":"2026-09-15T14:57:15Z"} -->
+  Agent: unclaimed | item: rm-f6f7026e0e96b45c
 
   <details>
   <summary>Root cause and fix scope</summary>

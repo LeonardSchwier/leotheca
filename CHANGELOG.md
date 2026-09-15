@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fixed opening a note from a Smart Collection (List, Table, Card, or Board view) whose file could no longer be read: it now shows an inline error explaining the note may have been moved, renamed, or deleted, instead of silently doing nothing. Clicking the note again retries.
+
 - Fixed clicking a task in the Task Hub whose source note could no longer be read: it now shows an inline error explaining the note may have been moved, renamed, or deleted, instead of silently doing nothing. Clicking the task again retries.
 
 - Fixed the Rename Preview dialog's suggested Markdown link updates: the suggested new path for a `[text](path)` or `![alt](path)` link almost always dropped the `.md` file extension (for example suggesting `notes` instead of `notes.md`), which would have produced a broken link if you copied it in by hand, and could additionally add a wrong extra `../` when the linking note sat above the renamed note's new folder. These suggestions are informational only (Leotheca does not rewrite Markdown-style links automatically yet), but they are now correct.

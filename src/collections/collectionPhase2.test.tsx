@@ -211,3 +211,100 @@ describe("F09 Phase 2 result views", () => {
     expect(columns[2].notes.map((entry) => entry.path)).toEqual(["b/Tags.md", "c/Missing.md"]);
   });
 });
+
+describe("F09 Phase 2 result views: stale note handling (maintenance review)", () => {
+  // A collection's results are a projection of the cached link/metadata
+  // index, not a live filesystem listing, so a listed note can be deleted,
+  // renamed outside the app, or moved by an external tool/sync client by
+  // the time its row is actually clicked. Every view mode wired a bare,
+  // un-awaited onOpenFile call, so a rejection became an unhandled promise
+  // rejection with zero user feedback instead of a visible error.
+
+  it("List view shows an inline error instead of silently doing nothing when onOpenFile rejects", async () => {
+    const onOpenFile = vi.fn().mockRejectedValue(new Error("stale file handle"));
+    const { getByRole, findByRole } = render(
+      <CollectionResults
+        collection={collection({ mode: "list" })}
+        results={[note("Alpha.md")]}
+        onOpenFile={onOpenFile}
+        onViewChange={vi.fn()}
+        onEditProperty={successfulEdit()}
+      />,
+    );
+
+    fireEvent.click(getByRole("button", { name: /Alpha/ }));
+    const error = await findByRole("alert");
+    expect(error.textContent).toMatch(/couldn't open/i);
+  });
+
+  it("Table view shows an inline error instead of silently doing nothing when onOpenFile rejects", async () => {
+    const onOpenFile = vi.fn().mockRejectedValue(new Error("stale file handle"));
+    const { getByRole, findByRole } = render(
+      <CollectionResults
+        collection={collection({ mode: "table" })}
+        results={[note("Projects/Alpha.md")]}
+        onOpenFile={onOpenFile}
+        onViewChange={vi.fn()}
+        onEditProperty={successfulEdit()}
+      />,
+    );
+
+    fireEvent.click(getByRole("button", { name: "Alpha" }));
+    const error = await findByRole("alert");
+    expect(error.textContent).toMatch(/couldn't open/i);
+  });
+
+  it("Card view shows an inline error instead of silently doing nothing when onOpenFile rejects", async () => {
+    const onOpenFile = vi.fn().mockRejectedValue(new Error("stale file handle"));
+    const { getByRole, findByRole } = render(
+      <CollectionResults
+        collection={collection({ mode: "card" })}
+        results={[note("Projects/Alpha.md")]}
+        onOpenFile={onOpenFile}
+        onViewChange={vi.fn()}
+        onEditProperty={successfulEdit()}
+      />,
+    );
+
+    fireEvent.click(getByRole("button", { name: /Alpha/ }));
+    const error = await findByRole("alert");
+    expect(error.textContent).toMatch(/couldn't open/i);
+  });
+
+  it("Board (kanban) view shows an inline error instead of silently doing nothing when onOpenFile rejects", async () => {
+    const onOpenFile = vi.fn().mockRejectedValue(new Error("stale file handle"));
+    const { getByRole, findByRole } = render(
+      <CollectionResults
+        collection={collection({ mode: "kanban", groupBy: "status" })}
+        results={[note("Projects/Alpha.md", "---\nstatus: active\n---\n")]}
+        onOpenFile={onOpenFile}
+        onViewChange={vi.fn()}
+        onEditProperty={successfulEdit()}
+      />,
+    );
+
+    fireEvent.click(getByRole("button", { name: "Alpha" }));
+    const error = await findByRole("alert");
+    expect(error.textContent).toMatch(/couldn't open/i);
+  });
+
+  it("clears a prior open error and re-attempts when the note is clicked again", async () => {
+    const onOpenFile = vi.fn().mockRejectedValueOnce(new Error("stale file handle")).mockResolvedValueOnce(undefined);
+    const { getByRole, findByRole, queryByRole } = render(
+      <CollectionResults
+        collection={collection({ mode: "list" })}
+        results={[note("Alpha.md")]}
+        onOpenFile={onOpenFile}
+        onViewChange={vi.fn()}
+        onEditProperty={successfulEdit()}
+      />,
+    );
+
+    fireEvent.click(getByRole("button", { name: /Alpha/ }));
+    await findByRole("alert");
+
+    fireEvent.click(getByRole("button", { name: /Alpha/ }));
+    await waitFor(() => expect(onOpenFile).toHaveBeenCalledTimes(2));
+    expect(queryByRole("alert")).toBeNull();
+  });
+});

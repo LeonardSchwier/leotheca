@@ -8,7 +8,7 @@ import "./collections.css";
 export interface CollectionResultsProps {
   collection: SmartCollectionV1;
   results: NoteRecord[];
-  onOpenFile: (path: string, name: string) => void;
+  onOpenFile: (path: string, name: string) => void | Promise<void>;
   onViewChange: (view: CollectionViewV1) => void | Promise<void>;
   onEditProperty: (
     note: NoteRecord,
@@ -157,14 +157,32 @@ function PropertyCell({ note, property, onEditProperty }: PropertyCellProps) {
   );
 }
 
-function ListView({ results, onOpenFile }: Pick<CollectionResultsProps, "results" | "onOpenFile">) {
+interface OpenHandlerProps {
+  onOpenNote: (note: NoteRecord) => void;
+  openErrorPath: string | null;
+}
+
+function OpenErrorMessage({ note, openErrorPath }: { note: NoteRecord; openErrorPath: string | null }) {
+  if (openErrorPath !== note.path) return null;
+  return (
+    <p class="collections-result-error" role="alert">
+      Couldn't open "{note.noteName}" — it may have been moved, renamed, or deleted.
+    </p>
+  );
+}
+
+function ListView({
+  results,
+  onOpenNote,
+  openErrorPath,
+}: Pick<CollectionResultsProps, "results"> & OpenHandlerProps) {
   return (
     <ul class="collections-results-list" aria-label="Collection results">
       {results.map((note) => (
         <li key={note.path} class="collections-result-item">
           <button
             class="file-tree-item collections-result-open"
-            onClick={() => onOpenFile(note.path, fileNameFromPath(note.path))}
+            onClick={() => onOpenNote(note)}
           >
             <span class="collections-result-name">{note.noteName}</span>
             {note.folder && <span class="collections-result-folder">{note.folder}</span>}
@@ -177,6 +195,7 @@ function ListView({ results, onOpenFile }: Pick<CollectionResultsProps, "results
               )}
             </span>
           </button>
+          <OpenErrorMessage note={note} openErrorPath={openErrorPath} />
         </li>
       ))}
     </ul>
@@ -186,9 +205,10 @@ function ListView({ results, onOpenFile }: Pick<CollectionResultsProps, "results
 function TableView({
   collection,
   results,
-  onOpenFile,
+  onOpenNote,
+  openErrorPath,
   onEditProperty,
-}: Pick<CollectionResultsProps, "collection" | "results" | "onOpenFile" | "onEditProperty">) {
+}: Pick<CollectionResultsProps, "collection" | "results" | "onEditProperty"> & OpenHandlerProps) {
   const configured = collection.view.mode === "table" ? collection.view.columns : undefined;
   const propertyKeys = visiblePropertyKeys(results, configured);
   return (
@@ -207,9 +227,10 @@ function TableView({
           {results.map((note) => (
             <tr key={note.path}>
               <td>
-                <button type="button" class="collections-note-link" onClick={() => onOpenFile(note.path, fileNameFromPath(note.path))}>
+                <button type="button" class="collections-note-link" onClick={() => onOpenNote(note)}>
                   {note.noteName}
                 </button>
+                <OpenErrorMessage note={note} openErrorPath={openErrorPath} />
               </td>
               <td>{note.path}</td>
               <td>{note.tags.map((tag) => `#${tag}`).join(" ")}</td>
@@ -231,17 +252,23 @@ function TableView({
   );
 }
 
-function CardView({ collection, results, onOpenFile }: Pick<CollectionResultsProps, "collection" | "results" | "onOpenFile">) {
+function CardView({
+  collection,
+  results,
+  onOpenNote,
+  openErrorPath,
+}: Pick<CollectionResultsProps, "collection" | "results"> & OpenHandlerProps) {
   const configured = collection.view.mode === "card" ? collection.view.fields : undefined;
   const propertyKeys = visiblePropertyKeys(results, configured);
   return (
     <div class="collections-card-grid" role="region" aria-label="Collection cards">
       {results.map((note) => (
         <article key={note.path} class="collections-card">
-          <button type="button" class="collections-card-open" onClick={() => onOpenFile(note.path, fileNameFromPath(note.path))}>
+          <button type="button" class="collections-card-open" onClick={() => onOpenNote(note)}>
             <strong>{note.noteName}</strong>
             {note.folder && <span>{note.folder}</span>}
           </button>
+          <OpenErrorMessage note={note} openErrorPath={openErrorPath} />
           <dl class="collections-card-fields">
             {propertyKeys.map((key) => {
               const property = note.properties.get(key.toLocaleLowerCase());
@@ -264,7 +291,12 @@ function CardView({ collection, results, onOpenFile }: Pick<CollectionResultsPro
   );
 }
 
-function KanbanView({ collection, results, onOpenFile }: Pick<CollectionResultsProps, "collection" | "results" | "onOpenFile">) {
+function KanbanView({
+  collection,
+  results,
+  onOpenNote,
+  openErrorPath,
+}: Pick<CollectionResultsProps, "collection" | "results"> & OpenHandlerProps) {
   if (collection.view.mode !== "kanban") return null;
   const columns = groupKanbanColumns(results, collection.view.groupBy);
   return (
@@ -277,16 +309,18 @@ function KanbanView({ collection, results, onOpenFile }: Pick<CollectionResultsP
           </h3>
           <div class="collections-kanban-cards">
             {column.notes.map((note) => (
-              <button
-                key={note.path}
-                type="button"
-                class="collections-kanban-card"
-                aria-label={note.noteName}
-                onClick={() => onOpenFile(note.path, fileNameFromPath(note.path))}
-              >
-                <strong>{note.noteName}</strong>
-                {note.folder && <span>{note.folder}</span>}
-              </button>
+              <div key={note.path}>
+                <button
+                  type="button"
+                  class="collections-kanban-card"
+                  aria-label={note.noteName}
+                  onClick={() => onOpenNote(note)}
+                >
+                  <strong>{note.noteName}</strong>
+                  {note.folder && <span>{note.folder}</span>}
+                </button>
+                <OpenErrorMessage note={note} openErrorPath={openErrorPath} />
+              </div>
             ))}
           </div>
         </section>
@@ -307,6 +341,16 @@ export function CollectionResults({
 }: CollectionResultsProps) {
   const availableKanbanKeys = visiblePropertyKeys(results, undefined);
   const selectedKanbanKey = collection.view.mode === "kanban" ? collection.view.groupBy : "";
+  const [openErrorPath, setOpenErrorPath] = useState<string | null>(null);
+
+  async function handleOpenNote(note: NoteRecord) {
+    setOpenErrorPath(null);
+    try {
+      await onOpenFile(note.path, fileNameFromPath(note.path));
+    } catch {
+      setOpenErrorPath(note.path);
+    }
+  }
 
   return (
     <div class="collections-results">
@@ -361,13 +405,33 @@ export function CollectionResults({
       {results.length === 0 ? (
         <p class="empty-hint">No notes match this collection.</p>
       ) : collection.view.mode === "table" ? (
-        <TableView collection={collection} results={results} onOpenFile={onOpenFile} onEditProperty={onEditProperty} />
+        <TableView
+          collection={collection}
+          results={results}
+          onOpenNote={(note) => void handleOpenNote(note)}
+          openErrorPath={openErrorPath}
+          onEditProperty={onEditProperty}
+        />
       ) : collection.view.mode === "card" ? (
-        <CardView collection={collection} results={results} onOpenFile={onOpenFile} />
+        <CardView
+          collection={collection}
+          results={results}
+          onOpenNote={(note) => void handleOpenNote(note)}
+          openErrorPath={openErrorPath}
+        />
       ) : collection.view.mode === "kanban" ? (
-        <KanbanView collection={collection} results={results} onOpenFile={onOpenFile} />
+        <KanbanView
+          collection={collection}
+          results={results}
+          onOpenNote={(note) => void handleOpenNote(note)}
+          openErrorPath={openErrorPath}
+        />
       ) : (
-        <ListView results={results} onOpenFile={onOpenFile} />
+        <ListView
+          results={results}
+          onOpenNote={(note) => void handleOpenNote(note)}
+          openErrorPath={openErrorPath}
+        />
       )}
     </div>
   );

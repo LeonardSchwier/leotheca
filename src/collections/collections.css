@@ -238,6 +238,13 @@
   color: var(--text-faint);
 }
 
+.collections-result-error {
+  margin: 0;
+  padding: 2px 0 0;
+  font-size: 12px;
+  color: var(--error-color, #d32f2f);
+}
+
 .collections-property-editor {
   display: flex;
   flex-wrap: wrap;

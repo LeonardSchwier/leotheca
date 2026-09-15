@@ -24,7 +24,7 @@ import { CollectionResults } from "./CollectionResults";
 import "./collections.css";
 
 export interface CollectionsPanelProps {
-  onOpenFile: (path: string, name: string) => void;
+  onOpenFile: (path: string, name: string) => void | Promise<void>;
 }
 
 type BuilderState = { mode: "create" } | { mode: "edit"; collection: SmartCollectionV1 } | null;

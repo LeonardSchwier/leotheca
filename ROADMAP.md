@@ -8,7 +8,9 @@
 
 ### Bugs
 
-- ⬜ **Maintenance review: Ctrl/Cmd-click "open in other group" targets the wrong group when clicked in the pane that isn't active**: `MarkdownPreview`'s wikilink handler resolves "other group" from the global `activeGroupId`, but a click's own focus-group side effect (App.tsx's wrapping `onClick`) only runs after this handler already dispatched the open, so clicking a link in the pane that isn't yet active opens it into that same pane instead of beside it.
+- 🚧 **Maintenance review: Ctrl/Cmd-click "open in other group" targets the wrong group when clicked in the pane that isn't active**: `MarkdownPreview`'s wikilink handler resolves "other group" from the global `activeGroupId`, but a click's own focus-group side effect (App.tsx's wrapping `onClick`) only runs after this handler already dispatched the open, so clicking a link in the pane that isn't yet active opens it into that same pane instead of beside it.
+  <!-- agent-state: {"schema":1,"id":"rm-0dc9bf08d7db8db0","state":"claimed","touch":["src/app/App.test.tsx","src/app/App.tsx","src/editor/MarkdownPreview.test.tsx","src/editor/MarkdownPreview.tsx","src/workspace/store.test.ts","src/workspace/store.ts"],"resources":["f07-editor-groups"],"owner":"Claude-Code-web-20260915T145420Z-4d7ca1a2","token":"327d554259be936452717826fa6c45f6","branch":"agent/rm-0dc9bf08d7db8db0/327d554259be","claimed_at":"2026-09-15T19:12:48Z","heartbeat_at":"2026-09-15T19:12:48Z","lease_until":"2026-09-15T20:42:48Z"} -->
+  Agent: Claude-Code-web-20260915T145420Z-4d7ca1a2 | item: rm-0dc9bf08d7db8db0 | lease until: 2026-09-15T20:42:48Z
 
   <details>
   <summary>Review scope, reproduction, and acceptance</summary>

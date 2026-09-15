@@ -1092,7 +1092,7 @@ export function App() {
             })}
           </div>
         )}
-        {current?.kind === "text" && (
+        {current?.kind === "text" && workspaceSettings.value.speechToTextEnabled && (
           <SpeechRecognitionButton
             readOnly={isNoteReadOnlyActive(current.path, workspaceSettings.value.noteReadOnlyLockEnabled)}
             onResult={(text) => {

@@ -225,6 +225,10 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
     "Note read-only lock",
     "Allow individual notes to be locked against accidental edits",
   );
+  const showSpeechToText = matches(
+    "Speech-to-text dictation",
+    "Dictate note text by voice; off by default, only requests microphone access once enabled",
+  );
   const showWorkspaceProfiles = matches(
     "Workspace profiles",
     "Rename, identify, add, and forget known workspaces without deleting their files",
@@ -255,7 +259,7 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
           showCaptureInboxFolder ||
           showCaptureInboxNote ||
           showCaptureDatePattern ||
-          showFrontmatterProperties || showNoteReadOnlyLock ||
+          showFrontmatterProperties || showNoteReadOnlyLock || showSpeechToText ||
           (workspaceSettings.value.themesEnabled && showAccentColor) ||
           (workspaceSettings.value.snippetsEnabled && showSnippetDefinitions) ||
           (workspaceSettings.value.templatesEnabled && showTemplatesFolder)),
@@ -729,6 +733,27 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                     key={String(option.value)}
                     class={workspaceSettings.value.noteReadOnlyLockEnabled === option.value ? "active" : ""}
                     onClick={() => void updateWorkspaceSettings({ noteReadOnlyLockEnabled: option.value })}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {workspacePath.value && showSpeechToText && (
+            <div class="settings-row">
+              <div>
+                <div class="settings-label">Speech-to-text dictation</div>
+                <div class="settings-hint">
+                  Dictate note text by voice; off by default, only requests microphone access once enabled
+                </div>
+              </div>
+              <div class="settings-switch">
+                {OPTIONAL_FEATURE_OPTIONS.map((option) => (
+                  <button
+                    key={String(option.value)}
+                    class={workspaceSettings.value.speechToTextEnabled === option.value ? "active" : ""}
+                    onClick={() => void updateWorkspaceSettings({ speechToTextEnabled: option.value })}
                   >
                     {option.label}
                   </button>

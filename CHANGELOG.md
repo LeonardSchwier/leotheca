@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fixed the Rename Preview dialog never appearing for a rename whose only pending references elsewhere were Markdown-style links (`[label](target)`/`![alt](target)`), rather than wikilinks: the dialog's "anything to review?" check only looked at wikilink edits, so a real, correctly-computed Markdown-link edit never triggered the Review step at all, and the user got no warning that a Markdown link would break.
+
 - Fixed a PDF shape tool (Square/Circle/Line) leaving its in-progress draft rectangle/line stuck on screen if the drag gesture was interrupted (an OS/browser context switch, a multi-touch conflict, the tab losing focus mid-drag) instead of ending normally.
 
 - Fixed the split-pane divider getting stuck in a drag if the gesture was interrupted (an OS/browser context switch, a multi-touch conflict, the tab losing focus mid-drag) without ever delivering a pointer-up: any later, unrelated pointer movement anywhere on the page would keep silently resizing the split.

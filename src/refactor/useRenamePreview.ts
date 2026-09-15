@@ -54,7 +54,19 @@ export function useRenamePreview(): RenamePreviewController {
 
     const newPath = `${dirname(oldPath)}/${newName}`;
     const plan = await planNoteRename(oldPath, newPath, linkIndex.value, readFreshestNote);
-    if (plan.edits.length === 0 && plan.blocked.length === 0) return true;
+    // Must also check the Markdown-link fields (spec 6.2/F03 Phase 2b-ii), not
+    // just the wikilink ones: a plan can have zero wikilink edits/blocked and
+    // still carry real markdownEdits/markdownBlocked entries (the common case
+    // whenever the referrer has no unrelated wikilink of its own), and
+    // RenamePreviewDialog.tsx already has a dedicated rendering section for
+    // exactly that data. Skipping the dialog here made that whole section
+    // unreachable in the running app regardless of what the plan contained.
+    const hasNothingToReview =
+      plan.edits.length === 0 &&
+      plan.blocked.length === 0 &&
+      (plan.markdownEdits?.length ?? 0) === 0 &&
+      (plan.markdownBlocked?.length ?? 0) === 0;
+    if (hasNothingToReview) return true;
 
     return new Promise<boolean>((resolve) => {
       resolverRef.current = resolve;

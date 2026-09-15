@@ -112,6 +112,41 @@ describe("useRenamePreview", () => {
     expect(result.current.preview).toBeNull();
   });
 
+  it("shows a preview when the plan has only Markdown-link edits, with zero wikilink edits/blocked", async () => {
+    // The referrer's own wikilink is to an unrelated note ([[Unrelated]]),
+    // purely so the referrer becomes a wikilink-scan candidate (see
+    // renamePlan.ts's own doc comment); the actual reference to the note
+    // being renamed is the Markdown-style link, and only that one.
+    const referrerPath = "/vault/referrer.md";
+    const referrerContent = "See [[Unrelated]] and [a link](target.md).";
+    linkIndex.value = {
+      ...emptyIndex(),
+      wikiLinksByPath: new Map([[referrerPath, parseWikiLinks(referrerContent)]]),
+      pathsByNoteName: new Map([
+        ["target", ["/vault/target.md"]],
+        ["referrer", [referrerPath]],
+      ]),
+    };
+    readTextFile.mockResolvedValue(referrerContent);
+    const { result } = renderHook(() => useRenamePreview());
+
+    let proceed: boolean | undefined;
+    act(() => {
+      void result.current
+        .confirmRenameWithPreview("/vault/target.md", "renamed.md")
+        .then((value) => (proceed = value));
+    });
+
+    await waitFor(() => expect(result.current.preview).not.toBeNull());
+    expect(result.current.preview?.plan.edits).toHaveLength(0);
+    expect(result.current.preview?.plan.blocked).toHaveLength(0);
+    expect(result.current.preview?.plan.markdownEdits).toHaveLength(1);
+    expect(proceed).toBeUndefined();
+
+    act(() => result.current.continueRename());
+    await waitFor(() => expect(proceed).toBe(true));
+  });
+
   it("reads an open tab's live content instead of disk for a candidate note", async () => {
     // The index's own candidate-filter snapshot must still show the
     // reference (planNoteRename's freshness guarantee never trusts this

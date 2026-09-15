@@ -179,6 +179,17 @@ export interface WorkspaceSettings {
   noteReadOnlyLockEnabled: boolean;
   /** RTL Phase 2: Whether the workspace chrome (sidebar, toolbar) is mirrored for RTL languages. */
   rtlWorkspaceEnabled: boolean;
+  /** Whether the toolbar's speech-to-text dictation button (see
+   * editor/SpeechRecognitionButton.tsx) is shown at all. Defaults to
+   * **off**, the same deliberate opt-out-of-the-default-on-convention
+   * deviation `collectionsEnabled` documents above: the button's own
+   * mount effect immediately probes platform speech availability, which
+   * on Android reaches the native SpeechRecognizer plugin, so leaving
+   * this on by default would engage microphone-adjacent native code
+   * before the user has ever expressed interest in dictation. Off, the
+   * button doesn't render at all, the same as before this feature
+   * existed. */
+  speechToTextEnabled: boolean;
   /** F05: Default folder path for quick captures, relative to workspace root.
    * Empty means captures go to the currently selected directory. */
   captureInboxFolder: string;
@@ -225,6 +236,7 @@ export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   collectionsEnabled: false,
   noteReadOnlyLockEnabled: true,
   rtlWorkspaceEnabled: false,
+  speechToTextEnabled: false,
   captureInboxFolder: "",
   captureInboxNote: "Inbox.md",
   captureDatePattern: "",
@@ -664,6 +676,10 @@ export function decodeWorkspaceSettings(
     record.rtlWorkspaceEnabled,
     DEFAULT_WORKSPACE_SETTINGS.rtlWorkspaceEnabled,
   );
+  const speechToTextEnabled = decodeBoolean(
+    record.speechToTextEnabled,
+    DEFAULT_WORKSPACE_SETTINGS.speechToTextEnabled,
+  );
 
 
   // F07 Phase 2b: decode editorLayout with legacy migration
@@ -731,6 +747,7 @@ export function decodeWorkspaceSettings(
     collectionsEnabled: collectionsEnabled.value,
     noteReadOnlyLockEnabled: noteReadOnlyLockEnabled.value,
     rtlWorkspaceEnabled: rtlWorkspaceEnabled.value,
+    speechToTextEnabled: speechToTextEnabled.value,
     captureInboxFolder: captureInboxFolder.value,
     captureInboxNote: captureInboxNote.value,
     captureDatePattern: captureDatePattern.value,
@@ -769,6 +786,8 @@ export function decodeWorkspaceSettings(
       headingLinksEnabled,
       collectionsEnabled,
       noteReadOnlyLockEnabled,
+      rtlWorkspaceEnabled,
+      speechToTextEnabled,
       captureInboxFolder,
       captureInboxNote,
       captureDatePattern,

@@ -178,6 +178,7 @@ function createBasicWorkspaceSettings(): WorkspaceSettings {
     collectionsEnabled: false,
     noteReadOnlyLockEnabled: true,
     rtlWorkspaceEnabled: false,
+    speechToTextEnabled: false,
     captureInboxFolder: "",
     captureInboxNote: "Inbox.md",
     captureDatePattern: "",

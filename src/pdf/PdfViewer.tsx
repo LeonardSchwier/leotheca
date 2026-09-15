@@ -107,8 +107,14 @@ export function PdfViewer({ path }: PdfViewerProps) {
     (async () => {
       const bytes = await readBinaryFile(path);
       if (cancelled) return;
+      // pdf.js's `getDocument({ data })` transfers the given Uint8Array's
+      // underlying ArrayBuffer to its worker (confirmed against the real,
+      // installed pdfjs-dist build in a real browser, not assumed):
+      // `bytes` itself would read back zero-length immediately afterward.
+      // `bytesRef`/`readMarkupAnnotations` below need the real, untouched
+      // bytes for annotation saving, so pdf.js gets its own copy.
       const doc = await pdfjsLib.getDocument({
-        data: bytes,
+        data: bytes.slice(),
         cMapUrl: PDFJS_CMAP_URL,
         cMapPacked: true,
         standardFontDataUrl: PDFJS_STANDARD_FONT_DATA_URL,
@@ -137,7 +143,6 @@ export function PdfViewer({ path }: PdfViewerProps) {
       void docRef.current?.loadingTask.destroy();
       docRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [path]);
 
   // Render the current page: canvas + a real selectable text layer, then
@@ -240,7 +245,6 @@ export function PdfViewer({ path }: PdfViewerProps) {
     return () => {
       renderTask?.cancel();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, pageNum, scale, savedAnnotations, pendingAnnotations, searchQuery]);
 
   const goToPage = useCallback(

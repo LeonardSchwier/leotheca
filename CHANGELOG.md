@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added PDF viewing and text annotation: open a `.pdf` file to see it rendered page by page with zoom, page navigation, and full-document text search. Select text and click Highlight, Underline, or Strikethrough to mark it up; annotations are written back into the PDF itself as standard, reader-compatible objects (not a separate sidecar file — verified to round-trip through another PDF library independent of the one this app uses to render), via an explicit "Save annotations" action rather than the usual autosave. Freehand ink, sticky notes, and shapes for scanned/image-only PDFs are a separate follow-up; thumbnails and Android accessibility verification are not included in this first pass.
+
 - Added a compact-layout group switcher for split panes on narrow windows and Android: instead of squeezing both editor groups side by side, only one group's pane is shown at a time, with a "Working: <note> / Reference: <note>" switcher above it to swap which one is visible. Switching never closes, merges, or reorders anything — it only changes which pane is currently mounted. Rotating back to a wide window restores the normal side-by-side split automatically. Android's hardware Back button is not yet wired to this switcher, and the narrow/wide threshold is based on the whole window's width rather than the editor area's own width net of the sidebar and Inspector.
 
 - Added Ctrl/Cmd-click on a note link in the preview to open it in the other editor group (creating a split if there isn't one yet) instead of the current one.

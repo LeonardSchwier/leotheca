@@ -1,11 +1,22 @@
-import * as pdfjsLib from "pdfjs-dist";
+// The `legacy/build/` entry point, not pdfjs-dist's default `build/`
+// one: real-browser verification (Playwright, Chromium 141, see the
+// commit this file's own history cites) found the default build calls
+// `Map.prototype.getOrInsertComputed` unconditionally on the ordinary
+// render path -- a very new (2025) JS engine method that isn't Baseline
+// yet and isn't implemented even by that current a Chromium, let alone
+// Tauri's WebKitGTK on an arbitrary Linux distro or an older Android
+// System WebView. `legacy/build/` includes pdfjs-dist's own polyfill for
+// it (and other forward-looking engine features); switching to it turned
+// a hard render failure into working rendering in the same real-browser
+// check, with no other behavior difference for this app's usage.
+import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
 // `?url` makes Vite emit the worker as its own bundled, hashed asset and
 // hand back its final URL as a plain string, instead of inlining pdf.js's
 // worker source into the main bundle -- the documented Vite integration
 // pattern for pdfjs-dist. No CDN, no network fetch: the worker script
 // ships inside this app's own build output on both Tauri and Capacitor,
 // per CONSTITUTION.md's "Offline by design".
-import workerSrc from "pdfjs-dist/build/pdf.worker.mjs?url";
+import workerSrc from "pdfjs-dist/legacy/build/pdf.worker.mjs?url";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = workerSrc;
 

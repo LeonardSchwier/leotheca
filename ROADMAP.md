@@ -8,7 +8,9 @@
 
 ### Bugs
 
-- ⬜ **Maintenance review: Ctrl/Cmd-click "open in other group" on an image link opens it into the pane it was clicked in, when that pane isn't yet active**: `openInOtherGroup` resolves "other" from the global `activeGroupId`, read synchronously for an image target; a click's own focus-group side effect only runs later in the same bubble phase, so the image opens into the very pane it was clicked in instead of the other one.
+- 🚧 **Maintenance review: Ctrl/Cmd-click "open in other group" on an image link opens it into the pane it was clicked in, when that pane isn't yet active**: `openInOtherGroup` resolves "other" from the global `activeGroupId`, read synchronously for an image target; a click's own focus-group side effect only runs later in the same bubble phase, so the image opens into the very pane it was clicked in instead of the other one.
+  <!-- agent-state: {"schema":1,"id":"rm-19f24fcf0bc1e476","state":"claimed","touch":["src/app/App.test.tsx","src/app/App.tsx","src/editor/MarkdownPreview.tsx","src/workspace/store.test.ts","src/workspace/store.ts"],"resources":["f07-editor-groups"],"owner":"Claude-Code-web-20260915T145420Z-4d7ca1a2","token":"72a3287ef5e882370cc0be81983831d6","branch":"agent/rm-19f24fcf0bc1e476/72a3287ef5e8","claimed_at":"2026-09-15T19:33:04Z","heartbeat_at":"2026-09-15T19:33:04Z","lease_until":"2026-09-15T21:03:04Z"} -->
+  Agent: Claude-Code-web-20260915T145420Z-4d7ca1a2 | item: rm-19f24fcf0bc1e476 | lease until: 2026-09-15T21:03:04Z
 
   <details>
   <summary>Review scope, reproduction, and acceptance</summary>

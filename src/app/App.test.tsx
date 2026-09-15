@@ -168,7 +168,7 @@ vi.mock("../settings/SettingsPanel", () => ({
 }));
 
 const { App } = await import("./App");
-const { activeTabPath, closeAllTabs, editorLayout, openOrFocusTab, openTabs } =
+const { activeTabPath, closeAllTabs, editorLayout, openDocuments, openOrFocusTab, openTabs, secondaryOpenTabs } =
   await import("../workspace/store");
 const { settingsLoaded, settingsPanelOpen, workspacePath, workspaceSettings, viewMode } =
   await import("../settings/store");
@@ -1049,5 +1049,108 @@ describe("App: pending captures require explicit review before writing (spec F05
     );
     expect(pendingCapturesStore.value).toHaveLength(1);
     expect(pendingCapturesStore.value[0].status).toBe("pending");
+  });
+});
+
+describe("App: F07 Phase 3 split pane", () => {
+  it("'Split right' creates an empty secondary pane; 'Close reference group' removes it", () => {
+    workspacePath.value = "/vault";
+    openOrFocusTab("/vault/a.md", "a.md", "hello", "text");
+    const { container, getByRole } = render(<App />);
+
+    expect(container.querySelector(".secondary-group")).toBeNull();
+
+    fireEvent.click(getByRole("button", { name: "Split right" }));
+
+    expect(editorLayout.value.splitEnabled).toBe(true);
+    const secondary = container.querySelector(".secondary-group");
+    expect(secondary).toBeTruthy();
+    expect(secondary?.textContent).toContain("No note open in this group.");
+
+    fireEvent.click(getByRole("button", { name: "Close reference group" }));
+
+    expect(editorLayout.value.splitEnabled).toBe(false);
+    expect(container.querySelector(".secondary-group")).toBeNull();
+  });
+
+  it("'Move active tab to the other group' moves primary's active tab into a freshly split secondary pane", () => {
+    workspacePath.value = "/vault";
+    openOrFocusTab("/vault/a.md", "a.md", "hello", "text");
+    const { container, getByRole } = render(<App />);
+
+    fireEvent.click(getByRole("button", { name: "Split right" }));
+    fireEvent.click(getByRole("button", { name: "Move active tab to the other group" }));
+
+    expect(openTabs.value).toEqual([]);
+    expect(secondaryOpenTabs.value.map((t) => t.path)).toEqual(["/vault/a.md"]);
+    const secondary = container.querySelector(".secondary-group");
+    expect(secondary?.querySelector(".tab-bar")?.textContent).toContain("a.md");
+  });
+
+  it("the secondary pane's own view-mode toggle is independent of primary's", () => {
+    workspacePath.value = "/vault";
+    openOrFocusTab("/vault/a.md", "a.md", "primary note", "text");
+    openOrFocusTab("/vault/b.md", "b.md", "secondary note", "text");
+    const { container, getByRole } = render(<App />);
+
+    fireEvent.click(getByRole("button", { name: "Split right" }));
+    fireEvent.click(getByRole("button", { name: "Move active tab to the other group" }));
+    // "/vault/b.md" (the active tab at split time) is now secondary's only tab.
+
+    const secondary = container.querySelector(".secondary-group") as HTMLElement;
+    const previewButton = secondary.querySelector('button[title="Preview"]') as HTMLButtonElement;
+    fireEvent.click(previewButton);
+
+    expect(editorLayout.value.groups.secondary?.viewMode).toBe("preview");
+    expect(editorLayout.value.groups.primary.viewMode).toBe("source"); // untouched
+  });
+
+  it("'Move current tab here' in the secondary empty state moves primary's active tab there", () => {
+    workspacePath.value = "/vault";
+    openOrFocusTab("/vault/a.md", "a.md", "hello", "text");
+    const { container, getByRole, getByText } = render(<App />);
+
+    fireEvent.click(getByRole("button", { name: "Split right" }));
+    // Split right with no target leaves an empty secondary and primary active;
+    // its own empty-state button exercises the same move, from inside the pane.
+    fireEvent.click(getByText("Move current tab here"));
+
+    expect(openTabs.value).toEqual([]);
+    expect(secondaryOpenTabs.value.map((t) => t.path)).toEqual(["/vault/a.md"]);
+    expect(container.querySelector(".secondary-group")?.textContent).not.toContain(
+      "No note open in this group.",
+    );
+  });
+});
+
+describe("App: F07 Phase 3 close blocks on an unresolved save error", () => {
+  it("blocks 'Close reference group' when a secondary tab has a save error, and lets it through once resolved", () => {
+    workspacePath.value = "/vault";
+    openOrFocusTab("/vault/a.md", "a.md", "hello", "text");
+    const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => {});
+    const { getByRole } = render(<App />);
+
+    fireEvent.click(getByRole("button", { name: "Split right" }));
+    fireEvent.click(getByRole("button", { name: "Move active tab to the other group" }));
+    expect(secondaryOpenTabs.value.map((t) => t.path)).toEqual(["/vault/a.md"]);
+
+    // Simulate a failed save on the note now sitting in the secondary
+    // group: openDocuments is the canonical, group-agnostic source of
+    // truth secondaryOpenTabs derives from.
+    openDocuments.value = openDocuments.value.map((d) =>
+      d.path === "/vault/a.md" ? { ...d, saveError: "disk full" } : d,
+    );
+
+    fireEvent.click(getByRole("button", { name: "Close reference group" }));
+
+    expect(alertSpy).toHaveBeenCalledWith(expect.stringContaining("a.md"));
+    expect(editorLayout.value.splitEnabled).toBe(true); // still open, not closed
+    expect(secondaryOpenTabs.value.map((t) => t.path)).toEqual(["/vault/a.md"]);
+
+    openDocuments.value = openDocuments.value.map((d) => (d.path === "/vault/a.md" ? { ...d, saveError: null } : d));
+    fireEvent.click(getByRole("button", { name: "Close reference group" }));
+
+    expect(editorLayout.value.splitEnabled).toBe(false);
+    alertSpy.mockRestore();
   });
 });

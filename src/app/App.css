@@ -343,6 +343,59 @@ button.icon-button.active {
   border-right: 1px solid var(--border);
 }
 
+/* F07 Phase 3: split-pane shell. `.editor-area` (primary) keeps its
+   existing flex:1 rule for the unsplit case; when split, App.tsx sets its
+   inline flex-basis from the persisted ratio and `.secondary-group` (also
+   `.editor-area`) fills the remainder via that same flex:1. */
+.editor-groups-shell {
+  flex: 1;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+}
+
+.editor-groups-shell .editor-area {
+  min-width: 0;
+}
+
+.split-separator {
+  flex: none;
+  width: 6px;
+  cursor: col-resize;
+  background: var(--border);
+  touch-action: none;
+}
+
+.split-separator:hover,
+.split-separator:focus-visible {
+  background: var(--accent, var(--border));
+  outline: none;
+}
+
+.secondary-group {
+  border-left: 1px solid var(--border);
+}
+
+.secondary-view-mode-switch {
+  display: flex;
+  gap: var(--space-1, 4px);
+  padding: var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--border);
+}
+
+.secondary-pane-empty,
+.secondary-pane-unsupported {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  color: var(--text-secondary);
+  text-align: center;
+}
+
 .markdown-editor {
   flex: 1;
   min-height: 0;

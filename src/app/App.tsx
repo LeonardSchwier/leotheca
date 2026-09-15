@@ -1,5 +1,5 @@
 import { batch, computed, effect, signal, useSignal } from "@preact/signals";
-import { useCallback, useEffect, useMemo, useState } from "preact/hooks";
+import { useCallback, useEffect, useMemo, useRef, useState } from "preact/hooks";
 import type { ComponentType } from "preact";
 import { Capacitor } from "@capacitor/core";
 import { App as CapacitorApp } from "@capacitor/app";
@@ -20,24 +20,37 @@ import { classifyWorkspaceResource } from "../workspace/types";
 import { CanvasView } from "../canvas/CanvasView";
 import { InkView } from "../ink/InkView";
 import {
+  activeGroupTab,
   activeTab,
   activeTabPath,
   closeAllUnpinnedTabs,
   closeOtherTabs,
+  closeSecondaryGroup,
+  focusGroup,
   focusTab,
   closeTab,
   clearTabSaveError,
   editorLayout,
   markTabSaved,
   markTabSaveError,
+  moveActiveTabToOtherGroup,
+  openDocuments,
   openOrFocusTab,
   openTabs,
   pinTab,
   renameOpenTab,
+  resetSplitRatio,
+  secondaryActiveTabPath,
+  secondaryOpenTabs,
+  setGroupViewMode,
+  setSplitRatio,
+  splitRight,
   unpinAndCloseTab,
   unpinTab,
   updateTabContent,
 } from "../workspace/store";
+import { SplitSeparator } from "../editorGroups/SplitSeparator";
+import { SecondaryEditorPane } from "../editorGroups/SecondaryEditorPane";
 import { readTextFile } from "../workspace/tauriBridge";
 import { isPathWithinWorkspace } from "../workspace/paths";
 import { beginFileOpenAuthority, isCurrentFileOpen } from "../workspace/fileOpenAuthority";
@@ -552,8 +565,11 @@ export function App() {
 
   const handleChange = useCallback(
     (path: string, content: string) => {
-      const tab = openTabs.value.find((candidate) => candidate.path === path);
-      if (tab && isNoteReadOnlyActive(tab.content, workspaceSettings.value.noteReadOnlyLockEnabled)) return;
+      // openDocuments, not openTabs: the canonical document list is
+      // group-agnostic, so this also works for a path open only in the
+      // secondary group (F07 Phase 3), not just primary.
+      const document = openDocuments.value.find((candidate) => candidate.path === path);
+      if (document && isNoteReadOnlyActive(document.content, workspaceSettings.value.noteReadOnlyLockEnabled)) return;
       updateTabContent(path, content);
       save.change(session, path, content);
     },
@@ -563,6 +579,23 @@ export function App() {
   const flushPendingAutosave = useCallback(async (path: string) => {
     await save.flush(session, path);
   }, [session, save]);
+
+  /** Spec 6.4: "If any affected document has an unresolved save error,
+   * group close first presents the existing save-recovery flow." Reuses
+   * that flow rather than building a second one: focusing the failing tab
+   * brings SecondaryEditorPane's own save-error-bar (with its Retry
+   * button) into view, the same bar the primary pane already shows. */
+  const attemptCloseSecondaryGroup = useCallback(() => {
+    const blocking = secondaryOpenTabs.value.find((tab) => tab.saveError);
+    if (blocking) {
+      focusTab(blocking.path);
+      window.alert(`Couldn't close: "${blocking.name}" has an unresolved save error. Resolve or retry it first.`);
+      refresh();
+      return;
+    }
+    closeSecondaryGroup();
+    refresh();
+  }, [refresh]);
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -635,6 +668,14 @@ export function App() {
   const currentBookmark =
     current && bookmarks.value.find((b) => b.kind === "file" && b.path === current.path);
   const currentIsPinned = current && editorLayout.value.groups.primary.pinnedPaths.includes(current.path);
+
+  // F07 Phase 3: the secondary group's own active document, independent of
+  // `current` above (which stays primary-only, matching every existing
+  // caller of it -- bookmarks, pin state, breadcrumbs, the outline panel).
+  const secondaryCurrent = secondaryActiveTabPath.value
+    ? openDocuments.value.find((document) => document.path === secondaryActiveTabPath.value)
+    : undefined;
+  const editorGroupsShellRef = useRef<HTMLDivElement>(null);
 
   // Reset Split-mode breadcrumb authority (spec section 7.5) whenever the
   // active note changes: an authority carried over from a different
@@ -948,6 +989,36 @@ export function App() {
               : `${linkIndexUnreadablePaths.value.length} notes couldn't be indexed`}
           </span>
         )}
+        {rootPath && (
+          <button
+            class="icon-button"
+            aria-label={editorLayout.value.splitEnabled ? "Close reference group" : "Split right"}
+            title={editorLayout.value.splitEnabled ? "Close reference group" : "Split right"}
+            onClick={() => {
+              if (editorLayout.value.splitEnabled) attemptCloseSecondaryGroup();
+              else {
+                splitRight();
+                refresh();
+              }
+            }}
+          >
+            {editorLayout.value.splitEnabled ? "⛶" : "⧉"}
+          </button>
+        )}
+        {editorLayout.value.splitEnabled && (
+          <button
+            class="icon-button"
+            aria-label="Move active tab to the other group"
+            title="Move active tab to the other group"
+            disabled={!activeGroupTab()}
+            onClick={() => {
+              moveActiveTabToOtherGroup();
+              refresh();
+            }}
+          >
+            ⇄
+          </button>
+        )}
         {current?.kind === "text" && (
           <div class="view-mode-switch">
             {(["source", "split", "preview"] as ViewMode[]).map((mode) => {
@@ -1138,7 +1209,18 @@ export function App() {
             <div class="sidebar-resize-handle" onPointerDown={onDragStart} />
           </>
         )}
-        <main class="editor-area">
+        <div class="editor-groups-shell" ref={editorGroupsShellRef}>
+        <main class="editor-area"
+          style={editorLayout.value.splitEnabled ? { flex: `0 0 ${editorLayout.value.preferredRatio * 100}%` } : undefined}
+          onClick={() => {
+            // Spec 6.5: a group becomes active when the user focuses its
+            // editor or preview. Click-anywhere-in-the-pane is a coarser
+            // proxy for that than binding CodeMirror's own focus event, but
+            // is enough to route the next open/global command correctly
+            // without touching either editor component itself.
+            if (editorLayout.value.splitEnabled && editorLayout.value.activeGroupId !== "primary") focusGroup("primary");
+          }}
+        >
           <TabBar
             tabs={openTabs.value}
             pinnedPaths={editorLayout.value.groups.primary.pinnedPaths}
@@ -1283,6 +1365,77 @@ export function App() {
             <EmptyEditorState />
           )}
         </main>
+        {editorLayout.value.splitEnabled && (
+          <>
+            <SplitSeparator
+              ratio={editorLayout.value.preferredRatio}
+              containerRef={editorGroupsShellRef}
+              onChange={setSplitRatio}
+              onReset={resetSplitRatio}
+            />
+            <div
+              onClick={() => {
+                if (editorLayout.value.activeGroupId !== "secondary") focusGroup("secondary");
+              }}
+            >
+              <SecondaryEditorPane
+                tabs={secondaryOpenTabs.value}
+                pinnedPaths={editorLayout.value.groups.secondary?.pinnedPaths ?? []}
+                activePath={secondaryActiveTabPath.value}
+                current={secondaryCurrent}
+                viewMode={editorLayout.value.groups.secondary?.viewMode ?? "source"}
+                onViewModeChange={(mode) => setGroupViewMode("secondary", mode)}
+                session={session}
+                save={save}
+                workspaceRoot={rootPath ?? ""}
+                attachmentsFolder={workspaceSettings.value.attachmentsFolder}
+                pasteImagesEnabled={workspaceSettings.value.pasteImagesEnabled}
+                snippetsEnabled={workspaceSettings.value.snippetsEnabled}
+                snippets={workspaceSettings.value.snippets}
+                noteReadOnlyLockEnabled={workspaceSettings.value.noteReadOnlyLockEnabled}
+                onSelect={(path) => {
+                  focusTab(path);
+                  refresh();
+                }}
+                onClose={(path) => {
+                  closeTab(path);
+                  refresh();
+                }}
+                onCloseOthers={(path) => {
+                  closeOtherTabs(path);
+                  refresh();
+                }}
+                onCloseAll={() => {
+                  closeAllUnpinnedTabs("secondary");
+                  refresh();
+                }}
+                onPin={(path) => {
+                  pinTab(path);
+                  refresh();
+                }}
+                onUnpin={(path) => {
+                  unpinTab(path);
+                  refresh();
+                }}
+                onUnpinAndClose={(path) => {
+                  unpinAndCloseTab(path);
+                  refresh();
+                }}
+                onRename={(path, name) => setTabRename({ path, name })}
+                onChange={handleChange}
+                onOpenFile={handleOpenFile}
+                onMoveActiveTabHere={() => {
+                  focusGroup("primary");
+                  moveActiveTabToOtherGroup();
+                  refresh();
+                }}
+                onClosePane={attemptCloseSecondaryGroup}
+                hasPrimaryActiveTab={!!activeTabPath.value}
+              />
+            </div>
+          </>
+        )}
+        </div>
       </div>
       <SettingsPanel onOpenFile={handleOpenFile} />
       {rootPath && <WorkspaceTransitionBanner />}

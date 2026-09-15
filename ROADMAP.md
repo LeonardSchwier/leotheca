@@ -67,6 +67,18 @@
 
   </details>
 
+- ⬜ **F07 Phase 3 follow-up: cross-group tab reordering and view-state preservation** (spec: `spec/f07-split-panes-pinned-tabs.md` sections 7.2, 9.2, 11.3; split out of F07 Phase 3 when that item finished, so these two disclosed gaps stay visible rather than silently dropped): Two real Phase 3 requirements Phase 3 itself did not implement.
+
+  <details>
+  <summary>What's missing and why it was split out rather than blocking Phase 3</summary>
+
+  1. **Within-group tab reordering (section 7.2)**: drag-to-reorder and `Move tab left`/`Move tab right` don't exist for either editor group's tab bar. This was never implemented for the single primary group either, before F07 existed -- `TabBar.tsx` has select/close/pin/rename but no reorder of any kind -- so it is genuinely pre-existing scope, not something Phase 3 introduced or regressed, but it is still a real, undelivered piece of section 7.2/acceptance criterion 12 and belongs in the open ledger rather than silently assumed done.
+  2. **Per-path selection/scroll/undo state across a group move (section 9.2, acceptance criteria 4/17/20)**: `DocumentViewState` (`sourceSelection`/`sourceScrollTop`/`previewScrollTop`/`lastFocusedPane`) was never built. Moving a tab between groups today preserves its canonical content, dirty state, save authority, and pin state (all real, tested) but not cursor position or scroll offset -- the moved note reopens at its default position in the new group's editor, same as opening any note fresh. CodeMirror undo history is likewise not proven to survive a group move (spec 11.3's required guarantee, including its own fallback: "if preserving full undo history is not technically reliable... the UI must warn before the move"; neither the preservation nor the warning exists yet).
+
+  Everything else Phase 3 claimed -- exactly two groups with unique path ownership, the split shell, per-group view modes, the divider, Split right/Close/Move-to-other-group/Focus commands with a save-error guard on close, and the corresponding test coverage -- is real, implemented, and covered by `src/workspace/store.test.ts`, `src/editorGroups/*.test.tsx`, and new `src/app/App.test.tsx` cases exercising the actual rendered UI end to end. See the Phase 3 entry immediately above (now under `## Implemented`) for its own full verification record.
+
+  </details>
+
 - ⬜ **F07 Phase 4: Compact layout and Android group switching** (spec: `spec/f07-split-panes-pinned-tabs.md` section 8, 18.4; depends on F07 Phase 3 landing first -- the compact switcher operates on the same group/routing model Phase 3 introduces): Add the compact group switcher (`Working` / `Reference` labels), Android Back handling order, and rotation/resize preservation so switching between compact and wide presentation never merges, duplicates, or resets groups.
 
   <details>

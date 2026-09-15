@@ -8,7 +8,9 @@
 
 ### Bugs
 
-- ⬜ **Maintenance review: `PdfViewer.tsx`'s shape-drag draft never clears if the drag is interrupted (no `pointercancel` handling)**: only `onPointerUp` finishes a Square/Circle/Line drag, so an interrupted gesture leaves the in-progress shape preview stuck on screen. Same defect class already fixed twice elsewhere (`CanvasView.tsx`, `SplitSeparator.tsx`), not applied here.
+- 🚧 **Maintenance review: `PdfViewer.tsx`'s shape-drag draft never clears if the drag is interrupted (no `pointercancel` handling)**: only `onPointerUp` finishes a Square/Circle/Line drag, so an interrupted gesture leaves the in-progress shape preview stuck on screen. Same defect class already fixed twice elsewhere (`CanvasView.tsx`, `SplitSeparator.tsx`), not applied here.
+  <!-- agent-state: {"schema":1,"id":"rm-49fca596c6577832","state":"claimed","touch":["src/pdf/PdfViewer.test.tsx","src/pdf/PdfViewer.tsx"],"resources":["pdf-viewer"],"owner":"Claude-Code-web-20260915T145420Z-4d7ca1a2","token":"8db71ffd0e766545ec52ca7d7bba33d3","branch":"agent/rm-49fca596c6577832/8db71ffd0e76","claimed_at":"2026-09-15T20:07:41Z","heartbeat_at":"2026-09-15T20:07:41Z","lease_until":"2026-09-15T21:37:41Z"} -->
+  Agent: Claude-Code-web-20260915T145420Z-4d7ca1a2 | item: rm-49fca596c6577832 | lease until: 2026-09-15T21:37:41Z
 
   <details>
   <summary>Review scope and acceptance</summary>

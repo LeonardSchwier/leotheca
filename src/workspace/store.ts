@@ -1,59 +1,123 @@
 import { batch, computed, signal } from "@preact/signals";
 import {
+  activateGroup,
   createPrimaryEditorLayout,
-  pinPrimaryEditorLayout,
+  createSplitLayout,
+  mergeSecondaryIntoPrimary,
+  moveTabToGroup,
+  pinGroupTab,
   restorePrimaryEditorLayout,
-  synchronizePrimaryEditorLayout,
-  unpinPrimaryEditorLayout,
+  unpinGroupTab,
+  updateSplitRatio,
 } from "./documentGroups";
-import type { EditorLayoutState, OpenDocument, OpenTab, TabKind, ViewMode } from "./types";
+import type { EditorGroupId, EditorGroupState, EditorLayoutState, OpenDocument, OpenTab, TabKind, ViewMode } from "./types";
 
 /** Canonical open-document store. Editor groups hold only references to
  * these records, ensuring one content and save authority per path. */
 export const openDocuments = signal<OpenDocument[]>([]);
 /** Compatibility selector for the present flat tab UI. It follows the
  * primary group's placement references, not a second writable tab store. */
-export const openTabs = computed<OpenTab[]>(() => {
-  const documentsByPath = new Map(openDocuments.value.map((document) => [document.path, document]));
-  return editorLayout.value.groups.primary.tabPaths.flatMap((path) => {
-    const document = documentsByPath.get(path);
-    return document ? [document] : [];
-  });
-});
+export const openTabs = computed<OpenTab[]>(() => tabsForGroup("primary"));
 /** Compatibility selector for the primary group's active document. */
 export const activeTabPath = computed(() => editorLayout.value.groups.primary.activePath);
+/** The secondary group's own tab list (empty, not error, when no secondary
+ * group exists), for the split-pane UI (F07 Phase 3). */
+export const secondaryOpenTabs = computed<OpenTab[]>(() => tabsForGroup("secondary"));
+export const secondaryActiveTabPath = computed(() => editorLayout.value.groups.secondary?.activePath ?? null);
 /** F07 Phase 1's logical group state. The UI remains a single primary group
  * until later phases add pins and a secondary editor group. */
 export const editorLayout = signal<EditorLayoutState>(createPrimaryEditorLayout([], null));
 
-function updatePrimaryGroup(documents: OpenDocument[], activePath: string | null) {
-  openDocuments.value = documents;
-  editorLayout.value = synchronizePrimaryEditorLayout(
-    editorLayout.value,
-    documents.map((document) => document.path),
-    activePath,
-  );
+function tabsForGroup(groupId: EditorGroupId): OpenTab[] {
+  const group = groupState(groupId);
+  if (!group) return [];
+  const documentsByPath = new Map(openDocuments.value.map((document) => [document.path, document]));
+  return group.tabPaths.flatMap((path) => {
+    const document = documentsByPath.get(path);
+    return document ? [document] : [];
+  });
+}
+
+function groupState(groupId: EditorGroupId): EditorGroupState | undefined {
+  return groupId === "primary" ? editorLayout.value.groups.primary : editorLayout.value.groups.secondary;
+}
+
+/** Which group currently owns an open path. Every already-open path belongs
+ * to exactly one group (documentGroups.ts's unique-ownership invariant), so
+ * this is how a path-only call (close, focus, pin, rename...) finds the
+ * right group without every caller needing to know or pass one. Defaults to
+ * "primary" for a path that is not open in either group (the caller's own
+ * guard then no-ops, matching this file's existing behavior throughout). */
+function groupOwning(path: string): EditorGroupId {
+  return editorLayout.value.groups.secondary?.tabPaths.includes(path) ? "secondary" : "primary";
+}
+
+/** Replaces one group's tab placement and (when given) the full canonical
+ * document list, in one signal write. Each group's `tabPaths` is treated as
+ * authoritative membership, exactly as documentGroups.ts's own multi-group
+ * functions already treat it -- never re-derived from the full document
+ * list, which is what let a two-group layout collapse back into one before
+ * this generalization (every mutation re-assigned every open path to
+ * primary). Pinned paths are trimmed to whatever remains in `tabPaths`. */
+function setGroupTabs(groupId: EditorGroupId, tabPaths: string[], activePath: string | null, documents?: OpenDocument[]) {
+  if (documents) openDocuments.value = documents;
+  const layout = editorLayout.value;
+  const group = groupId === "primary" ? layout.groups.primary : layout.groups.secondary;
+  if (!group) return;
+  const pinnedPaths = group.pinnedPaths.filter((path) => tabPaths.includes(path));
+  const updatedGroup: EditorGroupState = { ...group, tabPaths, pinnedPaths, activePath };
+  editorLayout.value = {
+    ...layout,
+    groups: {
+      primary: groupId === "primary" ? updatedGroup : layout.groups.primary,
+      secondary: groupId === "secondary" ? updatedGroup : layout.groups.secondary,
+    },
+  };
 }
 
 export function activeTab(): OpenTab | undefined {
   return openDocuments.value.find((t) => t.path === activeTabPath.value);
 }
 
-/** Activates an already-open document through the primary group, preserving
- * the old tab-selection behavior while keeping group state authoritative. */
-export function focusTab(path: string) {
-  if (!openDocuments.value.some((document) => document.path === path)) return;
-  batch(() => updatePrimaryGroup(openDocuments.value, path));
+/** The active group's own active document -- the document a global command
+ * (Save, Close tab, Toggle view mode...) should act on per spec section 6.5,
+ * "operate on the active group unless they explicitly name another
+ * target." Equals `activeTab()` whenever primary is the active group. */
+export function activeGroupTab(): OpenTab | undefined {
+  const path = groupState(editorLayout.value.activeGroupId)?.activePath ?? null;
+  return path ? openDocuments.value.find((t) => t.path === path) : undefined;
 }
 
+/** Activates an already-open document in whichever group owns it, focusing
+ * that group too (spec 6.5: focusing a tab makes its group active). */
+export function focusTab(path: string) {
+  const groupId = groupOwning(path);
+  const group = groupState(groupId);
+  if (!group || !group.tabPaths.includes(path)) return;
+  batch(() => {
+    setGroupTabs(groupId, group.tabPaths, path);
+    editorLayout.value = { ...editorLayout.value, activeGroupId: groupId };
+  });
+}
+
+/** Opens `path` if not already open, or focuses it if it is (spec 7.1's
+ * routing policy: an already-open path always activates its owner group,
+ * regardless of which group is currently active; a genuinely new path opens
+ * into the active group, so ordinary opens keep landing in primary until a
+ * split exists and secondary becomes active). */
 export function openOrFocusTab(path: string, name: string, content: string, kind: TabKind, searchQuery?: string) {
   const existing = openDocuments.value.find((document) => document.path === path);
-  batch(() => updatePrimaryGroup(
-    existing
-      ? openDocuments.value.map(doc => doc.path === path ? { ...doc, searchQuery } : doc)
-      : [...openDocuments.value, { path, name, content, kind, dirty: false, saveError: null, searchQuery }],
-    path,
-  ));
+  const targetGroupId = existing ? groupOwning(path) : editorLayout.value.activeGroupId;
+  const group = groupState(targetGroupId);
+  if (!group) return;
+  const documents = existing
+    ? openDocuments.value.map((document) => (document.path === path ? { ...document, searchQuery } : document))
+    : [...openDocuments.value, { path, name, content, kind, dirty: false, saveError: null, searchQuery }];
+  const tabPaths = existing ? group.tabPaths : [...group.tabPaths, path];
+  batch(() => {
+    setGroupTabs(targetGroupId, tabPaths, path, documents);
+    editorLayout.value = { ...editorLayout.value, activeGroupId: targetGroupId };
+  });
 }
 
 export function updateTabContent(path: string, content: string) {
@@ -90,42 +154,58 @@ export function clearTabSaveError(path: string) {
  * settings/store.ts, should only ever see states that were real, not an
  * intermediate step of getting there. */
 export function closeTab(path: string) {
-  if (editorLayout.value.groups.primary.pinnedPaths.includes(path)) return;
+  const groupId = groupOwning(path);
+  const group = groupState(groupId);
+  if (!group || group.pinnedPaths.includes(path)) return;
   batch(() => {
     const documents = openDocuments.value.filter((document) => document.path !== path);
-    updatePrimaryGroup(documents, activeTabPath.value === path ? documents.at(-1)?.path ?? null : activeTabPath.value);
+    const tabPaths = group.tabPaths.filter((tabPath) => tabPath !== path);
+    const activePath = group.activePath === path ? (tabPaths.at(-1) ?? null) : group.activePath;
+    setGroupTabs(groupId, tabPaths, activePath, documents);
   });
 }
 
+/** Closes every unpinned tab in `path`'s own group other than `path` itself
+ * (spec 7.4 "Close other unpinned tabs in group"), leaving the other group
+ * untouched. */
 export function closeOtherTabs(path: string) {
+  const groupId = groupOwning(path);
+  const group = groupState(groupId);
+  if (!group || !group.tabPaths.includes(path)) return;
   batch(() => {
-    const pinnedPaths = new Set(editorLayout.value.groups.primary.pinnedPaths);
-    updatePrimaryGroup(
-      openDocuments.value.filter((document) => document.path === path || pinnedPaths.has(document.path)),
-      path,
-    );
+    const keep = new Set([path, ...group.pinnedPaths]);
+    const groupPaths = new Set(group.tabPaths);
+    const documents = openDocuments.value.filter((document) => !groupPaths.has(document.path) || keep.has(document.path));
+    const tabPaths = group.tabPaths.filter((tabPath) => keep.has(tabPath));
+    setGroupTabs(groupId, tabPaths, path, documents);
   });
 }
 
-/** Lifecycle cleanup, deliberately including pinned documents when a
- * workspace closes or changes. User-facing broad-close controls call the
- * unpinned variant instead. */
+/** Lifecycle cleanup, deliberately including pinned documents in both
+ * groups when a workspace closes or changes. Resets to a fresh single
+ * primary group: a closed workspace has no secondary split to restore into
+ * the next one (spec 15.3, "clear document and view states"). User-facing
+ * broad-close controls call the per-group unpinned variant instead. */
 export function closeAllTabs() {
   batch(() => {
-    updatePrimaryGroup([], null);
+    openDocuments.value = [];
+    editorLayout.value = createPrimaryEditorLayout([], null);
   });
 }
 
-/** Closes only ordinary tabs. Pinned tabs require an explicit unpin action. */
-export function closeAllUnpinnedTabs() {
+/** Closes only ordinary (unpinned) tabs in the given group (default
+ * primary, matching this function's pre-split behavior). Pinned tabs
+ * require an explicit unpin action. */
+export function closeAllUnpinnedTabs(groupId: EditorGroupId = "primary") {
+  const group = groupState(groupId);
+  if (!group) return;
   batch(() => {
-    const pinnedPaths = new Set(editorLayout.value.groups.primary.pinnedPaths);
-    const documents = openDocuments.value.filter((document) => pinnedPaths.has(document.path));
-    const activePath = activeTabPath.value;
-    const nextActivePath = activePath && documents.some((document) => document.path === activePath)
-      ? activePath
-      : documents.at(-1)?.path ?? null;
-    updatePrimaryGroup(documents, nextActivePath);
+    const pinnedPaths = new Set(group.pinnedPaths);
+    const groupPaths = new Set(group.tabPaths);
+    const documents = openDocuments.value.filter((document) => !groupPaths.has(document.path) || pinnedPaths.has(document.path));
+    const tabPaths = group.tabPaths.filter((path) => pinnedPaths.has(path));
+    const activePath = group.activePath && tabPaths.includes(group.activePath) ? group.activePath : (tabPaths.at(-1) ?? null);
+    setGroupTabs(groupId, tabPaths, activePath, documents);
   });
 }
 
@@ -137,39 +217,51 @@ export function restoreEditorLayout(persisted: { pinnedPaths: readonly string[];
   editorLayout.value = restorePrimaryEditorLayout(editorLayout.value, persisted);
 }
 
+/** Pins/unpins/closes a path in whichever group owns it -- these three
+ * commands are always reached from a specific tab (a keyboard shortcut on
+ * the active tab, or a context-menu action on a clicked tab), so the owning
+ * group is unambiguous and no group parameter is needed. */
 export function pinTab(path: string) {
-  editorLayout.value = pinPrimaryEditorLayout(editorLayout.value, path);
+  editorLayout.value = pinGroupTab(editorLayout.value, groupOwning(path), path);
 }
 
 export function unpinTab(path: string) {
-  editorLayout.value = unpinPrimaryEditorLayout(editorLayout.value, path);
+  editorLayout.value = unpinGroupTab(editorLayout.value, groupOwning(path), path);
 }
 
 /** The only user-facing removal path for a pinned tab. */
 export function unpinAndCloseTab(path: string) {
-  if (!editorLayout.value.groups.primary.pinnedPaths.includes(path)) return;
+  const groupId = groupOwning(path);
+  const group = groupState(groupId);
+  if (!group || !group.pinnedPaths.includes(path)) return;
   batch(() => {
-    editorLayout.value = unpinPrimaryEditorLayout(editorLayout.value, path);
+    editorLayout.value = unpinGroupTab(editorLayout.value, groupId, path);
     closeTab(path);
   });
 }
 
-/** Closes any open tab for `path` itself or for a file nested under it
- * (used when a folder is trashed). */
+/** Closes any open tab for `path` itself or for a file nested under it, in
+ * either group (used when a folder is trashed). */
 export function closeTabsUnder(path: string) {
   const isUnder = (tabPath: string) => tabPath === path || tabPath.startsWith(`${path}/`);
   const stillOpen = openDocuments.value.filter((t) => !isUnder(t.path));
   if (stillOpen.length === openDocuments.value.length) return;
   batch(() => {
-    updatePrimaryGroup(
-      stillOpen,
-      activeTabPath.value && isUnder(activeTabPath.value) ? stillOpen.at(-1)?.path ?? null : activeTabPath.value,
-    );
+    (["primary", "secondary"] as const).forEach((groupId) => {
+      const group = groupState(groupId);
+      if (!group) return;
+      const tabPaths = group.tabPaths.filter((tabPath) => !isUnder(tabPath));
+      if (tabPaths.length === group.tabPaths.length) return;
+      const activePath = group.activePath && isUnder(group.activePath) ? (tabPaths.at(-1) ?? null) : group.activePath;
+      setGroupTabs(groupId, tabPaths, activePath);
+    });
+    openDocuments.value = stillOpen;
   });
 }
 
-/** Updates any open tab whose path is `oldPath` or nested under it to point
- * at `newPath` instead, preserving editor state across a rename. */
+/** Updates any open tab (in either group) whose path is `oldPath` or nested
+ * under it to point at `newPath` instead, preserving editor state across a
+ * rename. */
 export function renameOpenTab(oldPath: string, newPath: string, newName: string) {
   const rewrite = (tabPath: string) =>
     tabPath === oldPath ? newPath : tabPath.startsWith(`${oldPath}/`) ? newPath + tabPath.slice(oldPath.length) : null;
@@ -182,25 +274,131 @@ export function renameOpenTab(oldPath: string, newPath: string, newName: string)
       changed = true;
       return { ...t, path: rewritten, name: rewritten === newPath ? newName : t.name };
     });
+    if (!changed) return;
 
-    let activePath = activeTabPath.value;
-    if (changed && activePath) {
-      const rewritten = rewrite(activePath);
-      if (rewritten !== null) activePath = rewritten;
-    }
-    if (changed) {
-      const primary = editorLayout.value.groups.primary;
+    openDocuments.value = documents;
+    (["primary", "secondary"] as const).forEach((groupId) => {
+      const group = groupState(groupId);
+      if (!group) return;
+      const tabPaths = group.tabPaths.map((tabPath) => rewrite(tabPath) ?? tabPath);
+      const pinnedPaths = group.pinnedPaths.map((tabPath) => rewrite(tabPath) ?? tabPath);
+      const activePath = group.activePath ? (rewrite(group.activePath) ?? group.activePath) : group.activePath;
       editorLayout.value = {
         ...editorLayout.value,
         groups: {
-          ...editorLayout.value.groups,
-          primary: {
-            ...primary,
-            pinnedPaths: primary.pinnedPaths.map((path) => rewrite(path) ?? path),
-          },
+          primary: groupId === "primary" ? { ...group, tabPaths, pinnedPaths, activePath } : editorLayout.value.groups.primary,
+          secondary: groupId === "secondary" ? { ...group, tabPaths, pinnedPaths, activePath } : editorLayout.value.groups.secondary,
         },
       };
-      updatePrimaryGroup(documents, activePath);
-    }
+    });
   });
+}
+
+// ============ F07 Phase 3: secondary group commands ============
+
+/** `Split right`: creates the secondary group. With a path, moves that tab
+ * there and activates it (spec 6.3's "Move to new group" shape); without
+ * one, creates an empty secondary group and leaves primary active (spec
+ * 6.3's "Split right without a target" shape) -- matching
+ * documentGroups.ts's own already-shipped `createSplitLayout`, whose
+ * empty-secondary case deliberately keeps `activeGroupId: "primary"`. A
+ * no-op if a split already exists. */
+export function splitRight(path: string | null = null) {
+  if (editorLayout.value.splitEnabled) return;
+  batch(() => {
+    editorLayout.value = createSplitLayout(editorLayout.value, path);
+  });
+}
+
+/** `Close secondary group` / the default `Merge into primary` action (spec
+ * 6.4): folds secondary's tabs (pinned first, then unpinned, in that order)
+ * into primary and collapses back to one group. Does not itself check for
+ * unresolved save errors -- the caller (the merge-confirmation UI) is
+ * responsible for that per spec 6.4's "present the existing save-recovery
+ * flow first" requirement. */
+export function closeSecondaryGroup() {
+  editorLayout.value = mergeSecondaryIntoPrimary(editorLayout.value);
+}
+
+/** `Move to other group` / `Move active tab to other group`: moves the
+ * active group's active tab to the other group, creating secondary first
+ * if it doesn't exist yet. A no-op with no active tab. */
+export function moveActiveTabToOtherGroup() {
+  const layout = editorLayout.value;
+  const sourceGroup = groupState(layout.activeGroupId);
+  const path = sourceGroup?.activePath;
+  if (!path) return;
+  batch(() => {
+    if (!layout.splitEnabled) {
+      editorLayout.value = createSplitLayout(layout, path);
+      return;
+    }
+    const targetGroupId: EditorGroupId = layout.activeGroupId === "primary" ? "secondary" : "primary";
+    editorLayout.value = moveTabToGroup(layout, path, targetGroupId);
+  });
+}
+
+/** Opens `path` explicitly in the other group from whichever is active
+ * (spec 6.3's `Open in other group` link-context entry point), creating
+ * secondary first if needed. Reuses `openOrFocusTab`'s already-open
+ * handling (focus its owner group) when the path is open somewhere other
+ * than the resolved target. */
+export function openInOtherGroup(path: string, name: string, content: string, kind: TabKind) {
+  const layout = editorLayout.value;
+  if (!layout.splitEnabled) {
+    editorLayout.value = createSplitLayout(layout);
+  }
+  const targetGroupId: EditorGroupId = editorLayout.value.activeGroupId === "primary" ? "secondary" : "primary";
+  const existing = openDocuments.value.find((document) => document.path === path);
+  batch(() => {
+    if (existing) {
+      if (groupOwning(path) !== targetGroupId) {
+        editorLayout.value = moveTabToGroup(editorLayout.value, path, targetGroupId);
+      } else {
+        focusTab(path);
+      }
+      return;
+    }
+    const group = groupState(targetGroupId)!;
+    setGroupTabs(targetGroupId, [...group.tabPaths, path], path, [
+      ...openDocuments.value,
+      { path, name, content, kind, dirty: false, saveError: null },
+    ]);
+    editorLayout.value = { ...editorLayout.value, activeGroupId: targetGroupId };
+  });
+}
+
+export function focusGroup(groupId: EditorGroupId) {
+  editorLayout.value = activateGroup(editorLayout.value, groupId);
+}
+
+export function focusOtherGroup() {
+  const layout = editorLayout.value;
+  const other: EditorGroupId = layout.activeGroupId === "primary" ? "secondary" : "primary";
+  if (!groupState(other)) return;
+  editorLayout.value = activateGroup(layout, other);
+}
+
+export function setSplitRatio(ratio: number) {
+  editorLayout.value = updateSplitRatio(editorLayout.value, ratio);
+}
+
+export function resetSplitRatio() {
+  editorLayout.value = updateSplitRatio(editorLayout.value, 0.5);
+}
+
+/** Sets a group's own Source/Split/Preview mode (spec 5.4: each group has
+ * an independent view mode). No-ops for a group that doesn't exist. */
+export function setGroupViewMode(groupId: EditorGroupId, mode: ViewMode) {
+  const group = groupState(groupId);
+  if (!group || group.viewMode === mode) return;
+  const layout = editorLayout.value;
+  const updatedGroup: EditorGroupState = { ...group, viewMode: mode };
+  editorLayout.value = {
+    ...layout,
+    groups: {
+      primary: groupId === "primary" ? updatedGroup : layout.groups.primary,
+      secondary: groupId === "secondary" ? updatedGroup : layout.groups.secondary,
+    },
+  };
 }

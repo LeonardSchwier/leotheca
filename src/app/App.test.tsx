@@ -174,8 +174,17 @@ vi.mock("../editor/SpeechRecognitionButton", () => ({
 }));
 
 const { App } = await import("./App");
-const { activeTabPath, closeAllTabs, editorLayout, openDocuments, openOrFocusTab, openTabs, secondaryOpenTabs } =
-  await import("../workspace/store");
+const {
+  activeTabPath,
+  closeAllTabs,
+  editorLayout,
+  focusGroup,
+  openDocuments,
+  openInOtherGroup,
+  openOrFocusTab,
+  openTabs,
+  secondaryOpenTabs,
+} = await import("../workspace/store");
 const { settingsLoaded, settingsPanelOpen, workspacePath, workspaceSettings, viewMode } =
   await import("../settings/store");
 const { linkIndex } = await import("../linking/store");
@@ -1249,6 +1258,41 @@ describe("App: F07 Phase 5 -- Ctrl/Cmd-click opens a wikilink in the other group
     expect(editorLayout.value.compactVisibleGroupId).toBe("secondary");
     expect(container.querySelector(".secondary-group")).toBeTruthy();
     expect(container.querySelector(".editor-area:not(.secondary-group)")).toBeNull();
+  });
+
+  it("targets primary for an image link Ctrl/Cmd-clicked in the secondary pane while primary is still the active group (regression)", async () => {
+    // The image branch of handleOpenFile calls openInOtherGroup with no
+    // await in between (unlike the text-note branch, which awaits
+    // readTextFile first), so it's the one that actually reproduces this
+    // bug: resolving "other" from the global activeGroupId instead of
+    // the clicked-in pane's own note.
+    linkIndex.value = {
+      ...emptyLinkIndex(),
+      pathsByNoteName: new Map([["photo", ["/vault/photo.png"]]]),
+    };
+    workspacePath.value = "/vault";
+    openOrFocusTab("/vault/first.md", "first.md", "Working note.", "text");
+    openInOtherGroup("/vault/second.md", "second.md", "See [[Photo]] over there.", "text");
+    // Realistic sequence this regression needs: the user opened a
+    // reference note into secondary, then went back to working in
+    // primary -- activeGroupId is "primary" again by the time they
+    // Ctrl/Cmd-click a link inside the secondary pane they're reading.
+    focusGroup("primary");
+    const { container } = render(<App />);
+
+    const anchor = container.querySelector(
+      '.secondary-group a[href^="#leotheca-wikilink="]',
+    ) as HTMLAnchorElement;
+    expect(anchor).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.click(anchor, { ctrlKey: true });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(openTabs.value.map((t) => t.path)).toEqual(["/vault/first.md", "/vault/photo.png"]);
+    expect(secondaryOpenTabs.value.map((t) => t.path)).toEqual(["/vault/second.md"]);
   });
 });
 

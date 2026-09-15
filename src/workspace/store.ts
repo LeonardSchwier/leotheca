@@ -338,17 +338,38 @@ export function moveActiveTabToOtherGroup() {
   });
 }
 
-/** Opens `path` explicitly in the other group from whichever is active
+/** Opens `path` explicitly in the group other than `sourceNotePath`'s own
  * (spec 6.3's `Open in other group` link-context entry point), creating
- * secondary first if needed. Reuses `openOrFocusTab`'s already-open
+ * secondary first if needed. `sourceNotePath` -- the note whose rendered
+ * preview the link was actually clicked in -- determines "other," not
+ * `activeGroupId`: a click's own focus-group side effect (see
+ * `App.tsx`'s pane-wrapper `onClick`) only runs later in the same bubble
+ * phase, so `activeGroupId` can still name whichever pane was active
+ * *before* this click. For a note target this is masked by an accidental
+ * timing correction (`App.tsx`'s `handleOpenFile` awaits `readTextFile`
+ * before calling this function, and that await yields long enough for
+ * the pane wrapper's synchronous focus side effect to run first) -- but
+ * the image-kind branch has no such await, so it reliably opens into the
+ * very pane the link was clicked in instead of the other one. Resolving
+ * from `sourceNotePath` fixes both branches the same way, without
+ * depending on that timing accident. Falls back to `activeGroupId` when
+ * no source is given (e.g. a future caller with no specific originating
+ * pane, such as the file tree). Reuses `openOrFocusTab`'s already-open
  * handling (focus its owner group) when the path is open somewhere other
  * than the resolved target. */
-export function openInOtherGroup(path: string, name: string, content: string, kind: TabKind) {
+export function openInOtherGroup(
+  path: string,
+  name: string,
+  content: string,
+  kind: TabKind,
+  sourceNotePath?: string,
+) {
   const layout = editorLayout.value;
   if (!layout.splitEnabled) {
     editorLayout.value = createSplitLayout(layout);
   }
-  const targetGroupId: EditorGroupId = editorLayout.value.activeGroupId === "primary" ? "secondary" : "primary";
+  const sourceGroupId: EditorGroupId = sourceNotePath ? groupOwning(sourceNotePath) : editorLayout.value.activeGroupId;
+  const targetGroupId: EditorGroupId = sourceGroupId === "primary" ? "secondary" : "primary";
   const existing = openDocuments.value.find((document) => document.path === path);
   batch(() => {
     if (existing) {

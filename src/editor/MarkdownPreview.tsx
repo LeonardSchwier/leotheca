@@ -160,8 +160,15 @@ export interface MarkdownPreviewProps {
    * `options.otherGroup` is set when the link was Ctrl/Cmd-clicked (F07
    * Phase 5, spec section 6.3's "Open link in other group"), the standard
    * modifier convention this app's own note-tree/search results don't yet
-   * offer an equivalent for. */
-  onOpenFile?: (path: string, name: string, options?: { headingKey?: string; blockId?: string; otherGroup?: boolean }) => void;
+   * offer an equivalent for; `options.sourceNotePath` (this component's
+   * own `notePath` prop) rides along with it so the caller can resolve
+   * "other" against the pane this preview actually lives in, not a
+   * possibly-stale globally-active group. */
+  onOpenFile?: (
+    path: string,
+    name: string,
+    options?: { headingKey?: string; blockId?: string; otherGroup?: boolean; sourceNotePath?: string },
+  ) => void;
   /** Whether $inline$ / $$block$$ math renders via KaTeX at all; when
    * false, that syntax is left as ordinary text, same as before this
    * feature existed. Defaults to on, see
@@ -1422,7 +1429,11 @@ export function MarkdownPreview({
         // Sparse on purpose: an ordinary click passes exactly the options
         // shape callers/tests already expect, `otherGroup` appearing only
         // for the Ctrl/Cmd-click case rather than always as `false`.
-        const otherGroup = event.ctrlKey || event.metaKey ? { otherGroup: true as const } : undefined;
+        // `sourceNotePath` rides along so the caller can resolve "other"
+        // against the pane this preview lives in (see onOpenFile's own
+        // doc comment above).
+        const otherGroup =
+          event.ctrlKey || event.metaKey ? { otherGroup: true as const, sourceNotePath: notePath } : undefined;
         if (parsed.fragmentKind === "heading" && parsed.fragment) {
           onOpenFile?.(path, fileNameFromPath(path), { headingKey: parsed.fragment, ...otherGroup });
         } else if (parsed.fragmentKind === "block" && parsed.fragment) {

@@ -449,17 +449,25 @@ export function App() {
      * other group" entry point) routes the open through the store's
      * `openInOtherGroup` instead of the ordinary active-group routing --
      * see MarkdownPreview.tsx's Ctrl/Cmd+click handling, its first real
-     * caller. Heading/block reveal still only targets the primary group's
+     * caller. `options.sourceNotePath` -- the note whose preview the link
+     * was clicked in -- is threaded through so `openInOtherGroup` can
+     * resolve "other" against the pane actually clicked rather than the
+     * possibly-stale global active group (see its own doc comment).
+     * Heading/block reveal still only targets the primary group's
      * OutlinePanel/HeadingBreadcrumbs wiring (F07 Phase 3's own disclosed
      * scope), so a reveal request alongside `otherGroup` still runs (the
      * note opens correctly in the other group either way) but will only
      * visibly scroll to the target when that group happens to be primary.
      */
-    async (path: string, name: string, options?: { headingKey?: string; blockId?: string; searchQuery?: string; otherGroup?: boolean }) => {
+    async (
+      path: string,
+      name: string,
+      options?: { headingKey?: string; blockId?: string; searchQuery?: string; otherGroup?: boolean; sourceNotePath?: string },
+    ) => {
       const authority = beginFileOpenAuthority();
       const kind = classifyWorkspaceResource(path);
       if (kind === "image") {
-        if (options?.otherGroup) openPathInOtherGroup(path, name, "", "image");
+        if (options?.otherGroup) openPathInOtherGroup(path, name, "", "image", options.sourceNotePath);
         else openOrFocusTab(path, name, "", "image", options?.searchQuery);
       } else {
         let content: string;
@@ -480,7 +488,7 @@ export function App() {
         const existingDocument = openDocuments.value.find((document) => document.path === path);
         const effectiveContent = existingDocument?.content ?? content;
         batch(() => {
-          if (options?.otherGroup) openPathInOtherGroup(path, name, content, kind);
+          if (options?.otherGroup) openPathInOtherGroup(path, name, content, kind, options.sourceNotePath);
           else openOrFocusTab(path, name, content, kind, options?.searchQuery);
           if (options?.headingKey) {
             const match = resolveHeadingFragment(scanHeadings(effectiveContent), options.headingKey);

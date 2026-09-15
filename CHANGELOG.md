@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fixed Ctrl/Cmd-click "open in other group" on an image link opening the image into the same pane it was clicked in, instead of the other one, when that pane wasn't already the active group (e.g. reading the reference pane after last working in the primary one, then Ctrl/Cmd-clicking an image link there). Text-note links were unaffected in practice.
+
 - Fixed the split-pane compact switcher (narrow windows and Android) not following a note into the secondary pane: "Split right" on a note, "Move active tab to other group", and Ctrl/Cmd-click "open in other group" on a link all correctly opened the note in the secondary group, but on a narrow window or phone the visible pane silently stayed on primary — the note appeared to go nowhere until you manually tapped the "Reference:" switcher. The switcher now follows the note it was just asked to open.
 
 - Fixed a PDF annotation data-loss bug: drawing a new highlight, ink stroke, sticky note, or shape while a previous "Save annotations" click was still writing to disk (a real window — nothing disables drawing while a save is in progress) silently discarded that new annotation the moment the save finished, since the save's success handler reset every pending-annotation list to empty instead of only clearing what it had actually written. An annotation added mid-save now survives and is included in the next save.

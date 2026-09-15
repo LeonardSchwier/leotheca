@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fixed the Rename Preview dialog's suggested Markdown link updates: the suggested new path for a `[text](path)` or `![alt](path)` link almost always dropped the `.md` file extension (for example suggesting `notes` instead of `notes.md`), which would have produced a broken link if you copied it in by hand, and could additionally add a wrong extra `../` when the linking note sat above the renamed note's new folder. These suggestions are informational only (Leotheca does not rewrite Markdown-style links automatically yet), but they are now correct.
+
 - Fixed a data-loss bug in the drawing (ink) note editor: opening a `.ink` file that was missing its viewport information (for example, one created by an older version, hand-edited, or written by another tool) silently discarded every existing stroke instead of showing them, and drawing anything new then overwrote the file, permanently losing the original drawing. Ink files are now decoded tolerantly, matching how Canvas files already handle unrecognized or missing data.
 
 - Fixed a privacy/data-safety bug in Quick Capture: text or images captured externally (an automation deep link received while no workspace was open, or shared to Leotheca from another Android app) could be written straight into your inbox note the moment you next opened a workspace, without ever showing you the capture for review or letting you edit or discard it first. Opening a workspace no longer auto-commits anything; a pending capture now always waits in the Pending Captures list for your explicit Review, Retry, or Discard.

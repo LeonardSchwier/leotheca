@@ -269,42 +269,34 @@ function planMarkdownLinks(
   }
 }
 
+/** Splits a directory path into segments, treating the workspace root
+ * (an empty string from `dirname`) as zero segments rather than the one
+ * empty-string segment `"".split("/")` would otherwise produce. */
+function pathSegments(dir: string): string[] {
+  return dir === "" ? [] : dir.split("/");
+}
+
 /**
  * F03 Phase 2b-ii: Helper to compute relative path from one file to another.
+ * Uses `toPath`'s real final path segment (including its file extension),
+ * not `noteBasename`'s wikilink-style extension-stripped name: a Markdown
+ * link target is a literal relative path, so a stripped ".md" would point
+ * nowhere once written back into the note.
  */
 function computeRelativePath(fromPath: string, toPath: string): string | null {
-  const fromDir = dirname(fromPath);
-  const toDir = dirname(toPath);
-  const toBasename = noteBasename(toPath);
-  
-  if (fromDir === toDir) {
-    return toBasename;
-  }
-  
-  // Check if toPath is in a subdirectory of fromDir
-  if (toPath.startsWith(fromDir + "/")) {
-    return toPath.slice(fromDir.length + 1);
-  }
-  
-  // Check if fromDir is in a subdirectory of toDir  
-  if (fromDir.startsWith(toDir + "/")) {
-    const relativeFrom = fromDir.slice(toDir.length + 1);
-    return "../".repeat(relativeFrom.split("/").length) + toBasename;
-  }
-  
-  // Find common ancestor
-  const fromParts = fromDir.split("/");
-  const toParts = toDir.split("/");
-  
+  const fromParts = pathSegments(dirname(fromPath));
+  const toParts = pathSegments(dirname(toPath));
+  const toFileName = toPath.split("/").pop() ?? toPath;
+
   let commonLength = 0;
   while (commonLength < fromParts.length && commonLength < toParts.length && fromParts[commonLength] === toParts[commonLength]) {
     commonLength++;
   }
-  
+
   const upCount = fromParts.length - commonLength;
-  const downPath = toParts.slice(commonLength).join("/") + (toParts.length > commonLength ? "/" : "") + toBasename;
-  
-  return "../".repeat(upCount) + downPath;
+  const downPath = [...toParts.slice(commonLength), toFileName].join("/");
+
+  return upCount > 0 ? "../".repeat(upCount) + downPath : downPath;
 }
 
 export async function planNoteRename(

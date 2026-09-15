@@ -225,3 +225,44 @@ describe("planNoteRename", () => {
     expect(plan.edits[0].newText).toBe("[[New Name]]");
   });
 });
+
+describe("planNoteRename Markdown-style link migration (F03 Phase 2b-ii)", () => {
+  // The Markdown-link scan only runs for notes that already appear as a
+  // wikilink-scan candidate (see renamePlan.ts's own "reuse the same
+  // candidate paths from the wikilink scan for efficiency" comment), so
+  // every referrer fixture below also carries an unrelated wikilink purely
+  // to become a scanned candidate; it plays no other role in the assertion.
+
+  it("keeps the .md extension when the rename stays in the same folder, instead of stripping it", async () => {
+    const { index, readNote } = fixture({
+      "/vault/notes.md": "content",
+      "/vault/Referrer.md": "[[Unrelated]] and [a link](notes.md).",
+    });
+    const plan = await planNoteRename("/vault/notes.md", "/vault/renamed.md", index, readNote);
+    expect(plan.markdownEdits).toHaveLength(1);
+    expect(plan.markdownEdits![0].newText).toBe("[a link](renamed.md)");
+  });
+
+  it("keeps the .md extension when the referrer sits above the target's new subfolder", async () => {
+    const { index, readNote } = fixture({
+      "/vault/sub/notes.md": "content",
+      "/vault/Referrer.md": "[[Unrelated]] and [a link](sub/notes.md).",
+    });
+    const plan = await planNoteRename("/vault/sub/notes.md", "/vault/sub/renamed.md", index, readNote);
+    expect(plan.markdownEdits).toHaveLength(1);
+    // This exercises the "target is in a subdirectory of the referrer"
+    // fast path, which already preserved the extension before the fix;
+    // kept as coverage since this whole feature had none before this claim.
+    expect(plan.markdownEdits![0].newText).toBe("[a link](sub/renamed.md)");
+  });
+
+  it("adds a correct ../ prefix (with extension) when the rename crosses into a sibling folder", async () => {
+    const { index, readNote } = fixture({
+      "/vault/A/notes.md": "content",
+      "/vault/B/Referrer.md": "[[Unrelated]] and [a link](../A/notes.md).",
+    });
+    const plan = await planNoteRename("/vault/A/notes.md", "/vault/A/renamed.md", index, readNote);
+    expect(plan.markdownEdits).toHaveLength(1);
+    expect(plan.markdownEdits![0].newText).toBe("[a link](../A/renamed.md)");
+  });
+});

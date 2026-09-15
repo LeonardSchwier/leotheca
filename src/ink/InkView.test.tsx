@@ -75,3 +75,61 @@ describe("InkView undo/redo persistence (maintenance review: rm-a28bbd97a6233ac4
     expect(onChange).not.toHaveBeenCalled();
   });
 });
+
+describe("InkView tolerant decoding (maintenance review: local decoder discarded strokes on any minor format deviation)", () => {
+  it("keeps an existing stroke when the source is missing the viewport field, instead of silently replacing it with an empty document", () => {
+    const strokeFromOlderOrExternalWriter = {
+      id: "s1",
+      tool: "pen",
+      color: "#000000",
+      width: 2,
+      opacity: 1,
+      points: [
+        { x: 0, y: 0, pressure: 0.5, tiltX: 0, tiltY: 0, time: 0 },
+        { x: 10, y: 10, pressure: 0.5, tiltX: 0, tiltY: 0, time: 10 },
+      ],
+    };
+    // No top-level "viewport" key at all: the old local decoder's
+    // `!parsed.viewport` check discarded the whole document (including
+    // this real stroke) for input shaped exactly like this.
+    const sourceMissingViewport = JSON.stringify({
+      version: 1,
+      strokes: [strokeFromOlderOrExternalWriter],
+    });
+
+    const onChange = vi.fn();
+    const { getByLabelText } = render(
+      <InkView path="note.ink" source={sourceMissingViewport} onChange={onChange} />
+    );
+
+    // The pre-existing stroke must still be rendered, not silently dropped.
+    const surface = getByLabelText("Ink drawing surface");
+    expect(surface.querySelectorAll("line, polyline").length).toBeGreaterThan(0);
+
+    // Drawing a new stroke must persist alongside the original one, not
+    // overwrite it: this is the actual on-disk data-loss scenario the
+    // silent in-memory drop leads to once autosave writes onChange's output.
+    drawOneStroke(getByLabelText);
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(strokesFromChange(onChange, 0)).toHaveLength(2);
+  });
+
+  it("round-trips an unrecognized top-level field instead of discarding it", () => {
+    const sourceWithExtraField = JSON.stringify({
+      version: 1,
+      strokes: [],
+      viewport: { x: 0, y: 0, zoom: 1 },
+      futureWriterField: "must survive a round trip through an older build",
+    });
+
+    const onChange = vi.fn();
+    const { getByLabelText } = render(
+      <InkView path="note.ink" source={sourceWithExtraField} onChange={onChange} />
+    );
+
+    drawOneStroke(getByLabelText);
+    expect(onChange).toHaveBeenCalledTimes(1);
+    const written = JSON.parse(onChange.mock.calls[0][0] as string) as Record<string, unknown>;
+    expect(written.futureWriterField).toBe("must survive a round trip through an older build");
+  });
+});

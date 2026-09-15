@@ -6,7 +6,13 @@
  */
 
 import { useState, useEffect, useCallback } from "preact/hooks";
-import type { InkStroke, InkPoint, InkDocument } from "./inkDocument";
+import type { InkStroke, InkPoint } from "./inkDocument";
+import {
+  decodeInkDocument,
+  serializeInkDocument,
+  createEmptyInkDocument,
+  type DecodedInkDocument,
+} from "./inkDocument";
 import { createInkHistory, commitInkEdit, undoInkEdit, redoInkEdit, eraseInkAtPoint } from "./inkEditing";
 import { InkSurface, type InkSurfaceTool } from "./InkSurface";
 import type { InkHistory } from "./inkEditing";
@@ -18,93 +24,70 @@ export interface InkViewProps {
 }
 
 /**
- * Default ink document for new files
+ * Decode an ink document from its JSON source, falling back to an empty one
+ * only for unparsable/structurally unusable input. decodeInkDocument itself
+ * tolerates missing/invalid version and viewport fields and preserves
+ * unrecognized top-level fields and stroke shapes, so a minor format
+ * deviation never discards strokes this build already understands.
  */
-function getDefaultInkDocument(): InkDocument {
-  return {
-    version: 1,
-    strokes: [],
-    viewport: { x: 0, y: 0, zoom: 1 },
-  };
-}
-
-/**
- * Decode an ink document from its JSON source
- */
-function decodeInkDocument(source: string): InkDocument {
-  try {
-    const parsed = JSON.parse(source) as InkDocument;
-    // Basic validation
-    if (!parsed.version || !Array.isArray(parsed.strokes) || !parsed.viewport) {
-      return getDefaultInkDocument();
-    }
-    return parsed;
-  } catch {
-    return getDefaultInkDocument();
-  }
-}
-
-/**
- * Encode an ink document to JSON source
- */
-function encodeInkDocument(document: InkDocument): string {
-  return JSON.stringify(document, null, 2);
+function decodeInkSource(source: string): DecodedInkDocument {
+  return decodeInkDocument(source) ?? createEmptyInkDocument();
 }
 
 /**
  * Freehand Phase 2b: Standalone drawing note viewer/editor
  */
 export function InkView({ path, source, onChange }: InkViewProps) {
-  const [document, setDocument] = useState<InkDocument>(() => decodeInkDocument(source));
-  const [history, setHistory] = useState<InkHistory>(() => createInkHistory(document.strokes));
+  const [decoded, setDecoded] = useState<DecodedInkDocument>(() => decodeInkSource(source));
+  const [history, setHistory] = useState<InkHistory>(() => createInkHistory(decoded.document.strokes));
   const [tool, setTool] = useState<InkSurfaceTool>("pen");
   const [color, setColor] = useState<string>("#1f2937");
   const [width, setWidth] = useState<number>(3);
 
   // Sync document from props (e.g., when switching tabs)
   useEffect(() => {
-    const decoded = decodeInkDocument(source);
-    setDocument(decoded);
-    setHistory(createInkHistory(decoded.strokes));
+    const next = decodeInkSource(source);
+    setDecoded(next);
+    setHistory(createInkHistory(next.document.strokes));
   }, [source, path]);
 
   // Handle stroke creation from InkSurface
   const handleCommitStroke = useCallback((stroke: InkStroke) => {
-    const newStrokes = [...document.strokes, stroke];
-    const newDocument = { ...document, strokes: newStrokes };
-    setDocument(newDocument);
+    const newStrokes = [...decoded.document.strokes, stroke];
+    const newDecoded: DecodedInkDocument = { ...decoded, document: { ...decoded.document, strokes: newStrokes } };
+    setDecoded(newDecoded);
     setHistory(commitInkEdit(history, newStrokes));
-    onChange(encodeInkDocument(newDocument));
-  }, [document, history, onChange]);
+    onChange(serializeInkDocument(newDecoded));
+  }, [decoded, history, onChange]);
 
   // Handle eraser input from InkSurface
   const handleEraseAt = useCallback((point: InkPoint) => {
-    const newStrokes = eraseInkAtPoint(document.strokes, point, width);
-    const newDocument = { ...document, strokes: newStrokes };
-    setDocument(newDocument);
+    const newStrokes = eraseInkAtPoint(decoded.document.strokes, point, width);
+    const newDecoded: DecodedInkDocument = { ...decoded, document: { ...decoded.document, strokes: newStrokes } };
+    setDecoded(newDecoded);
     setHistory(commitInkEdit(history, newStrokes));
-    onChange(encodeInkDocument(newDocument));
-  }, [document, history, width, onChange]);
+    onChange(serializeInkDocument(newDecoded));
+  }, [decoded, history, width, onChange]);
 
   // Handle undo
   const handleUndo = useCallback(() => {
     const newHistory = undoInkEdit(history);
     if (newHistory === history) return;
-    const newDocument = { ...document, strokes: newHistory.present };
+    const newDecoded: DecodedInkDocument = { ...decoded, document: { ...decoded.document, strokes: newHistory.present } };
     setHistory(newHistory);
-    setDocument(newDocument);
-    onChange(encodeInkDocument(newDocument));
-  }, [history, document, onChange]);
+    setDecoded(newDecoded);
+    onChange(serializeInkDocument(newDecoded));
+  }, [history, decoded, onChange]);
 
   // Handle redo
   const handleRedo = useCallback(() => {
     const newHistory = redoInkEdit(history);
     if (newHistory === history) return;
-    const newDocument = { ...document, strokes: newHistory.present };
+    const newDecoded: DecodedInkDocument = { ...decoded, document: { ...decoded.document, strokes: newHistory.present } };
     setHistory(newHistory);
-    setDocument(newDocument);
-    onChange(encodeInkDocument(newDocument));
-  }, [history, document, onChange]);
+    setDecoded(newDecoded);
+    onChange(serializeInkDocument(newDecoded));
+  }, [history, decoded, onChange]);
 
   // Tool selection handlers
   const handleToolChange = useCallback((newTool: InkSurfaceTool) => {
@@ -207,7 +190,7 @@ export function InkView({ path, source, onChange }: InkViewProps) {
       {/* Drawing surface */}
       <div class="ink-surface-container">
         <InkSurface
-          strokes={document.strokes}
+          strokes={decoded.document.strokes}
           tool={tool}
           color={color}
           width={width}

@@ -39,11 +39,22 @@ export function SplitSeparator({ ratio, containerRef, onChange, onReset }: Split
     function onPointerUp() {
       dragging.current = false;
     }
+    // A drag gesture can be interrupted without ever delivering a
+    // pointerup (an OS/browser context switch, a multi-touch conflict,
+    // the tab losing focus mid-drag): discard it here too, the same
+    // reasoning CanvasView.tsx's card dragging already applies, or the
+    // next unrelated pointer move anywhere on the page would keep
+    // silently resizing the split ratio.
+    function onPointerCancel() {
+      dragging.current = false;
+    }
     window.addEventListener("pointermove", onPointerMove);
     window.addEventListener("pointerup", onPointerUp);
+    window.addEventListener("pointercancel", onPointerCancel);
     return () => {
       window.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("pointerup", onPointerUp);
+      window.removeEventListener("pointercancel", onPointerCancel);
     };
   }, [ratioFromClientX, onChange]);
 

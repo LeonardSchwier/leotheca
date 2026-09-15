@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fixed the split-pane divider getting stuck in a drag if the gesture was interrupted (an OS/browser context switch, a multi-touch conflict, the tab losing focus mid-drag) without ever delivering a pointer-up: any later, unrelated pointer movement anywhere on the page would keep silently resizing the split.
+
 - Fixed Ctrl/Cmd-click "open in other group" on an image link opening the image into the same pane it was clicked in, instead of the other one, when that pane wasn't already the active group (e.g. reading the reference pane after last working in the primary one, then Ctrl/Cmd-clicking an image link there). Text-note links were unaffected in practice.
 
 - Fixed the split-pane compact switcher (narrow windows and Android) not following a note into the secondary pane: "Split right" on a note, "Move active tab to other group", and Ctrl/Cmd-click "open in other group" on a link all correctly opened the note in the secondary group, but on a narrow window or phone the visible pane silently stayed on primary — the note appeared to go nowhere until you manually tapped the "Reference:" switcher. The switcher now follows the note it was just asked to open.

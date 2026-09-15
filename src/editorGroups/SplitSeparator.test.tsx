@@ -80,4 +80,21 @@ describe("SplitSeparator", () => {
     fireEvent.pointerMove(window, { clientX: 500 }); // no longer dragging after pointerup
     expect(onChange).not.toHaveBeenCalled();
   });
+
+  it("stops dragging on pointercancel, not just pointerup (regression)", () => {
+    const { getByRole, onChange } = renderSeparator(0.5);
+    const separator = getByRole("separator");
+    fireEvent.pointerDown(separator);
+    fireEvent.pointerMove(window, { clientX: 800 });
+    expect(onChange).toHaveBeenLastCalledWith(0.70);
+
+    // A drag interrupted by an OS/browser context switch, a multi-touch
+    // conflict, or the tab losing focus delivers pointercancel instead
+    // of pointerup; without handling it the next unrelated pointer move
+    // anywhere on the page would keep silently resizing the split.
+    fireEvent.pointerCancel(window);
+    onChange.mockClear();
+    fireEvent.pointerMove(window, { clientX: 500 });
+    expect(onChange).not.toHaveBeenCalled();
+  });
 });

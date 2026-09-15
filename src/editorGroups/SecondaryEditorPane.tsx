@@ -130,11 +130,11 @@ export function SecondaryEditorPane({
       {current ? (
         current.kind === "image" ? (
           <ImageViewer path={current.path} />
-        ) : current.kind === "canvas" || current.kind === "ink" ? (
+        ) : current.kind === "canvas" || current.kind === "ink" || current.kind === "pdf" ? (
           <div class="secondary-pane-unsupported">
             <p>
-              {current.kind === "canvas" ? "Canvas" : "Ink"} notes aren't supported in the reference
-              group yet.
+              {current.kind === "canvas" ? "Canvas" : current.kind === "ink" ? "Ink" : "PDF"} notes
+              aren't supported in the reference group yet.
             </p>
             <button type="button" onClick={() => onMoveActiveTabHere()}>
               Move to primary group

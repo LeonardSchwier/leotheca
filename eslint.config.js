@@ -15,6 +15,11 @@ export default tseslint.config(
       "android/app/src/main/assets/public/",
       "android/app/build/",
       "android/.gradle/",
+      // Vendored pdf.js runtime data copied verbatim from pdfjs-dist
+      // (CMaps, standard fonts, ICC profiles, and Emscripten-generated
+      // wasm loader glue for its JBIG2/OpenJPEG decoders) -- third-party
+      // build output served as static assets, not this project's source.
+      "public/pdfjs/",
     ],
   },
   js.configs.recommended,

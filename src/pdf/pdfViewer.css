@@ -1,0 +1,173 @@
+/* F-PDF Phase 1. `.pdf-text-layer`'s span-positioning rules below are a
+   trimmed, flattened (no CSS nesting, for broader WebView compatibility)
+   adaptation of pdfjs-dist's own `.textLayer` rules from its
+   `web/pdf_viewer.css` (Apache-2.0) -- only the subset this component's
+   plain `pdfjsLib.TextLayer` usage actually needs (real span positioning
+   and glyph sizing so native text selection lines up with the rendered
+   canvas beneath it), not that file's full "web viewer" widget CSS, which
+   this component doesn't use and which would collide with this app's own
+   `.toolbar`/`.dialog`/etc. class names. Sizing itself is asserted
+   directly in pixels from `PdfViewer.tsx` rather than through pdf.js's
+   own CSS `round()`-based width/height formula, which depends on
+   `--total-scale-factor`/`--scale-round-*` custom properties normally
+   supplied by pdf.js's full viewer scaffold and on `round()` CSS
+   math-function support this app cannot assume across every target
+   WebView. */
+
+.pdf-viewer {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.pdf-viewer-error {
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  color: var(--text-secondary);
+}
+
+.pdf-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-raised);
+  flex-wrap: wrap;
+}
+
+.pdf-toolbar-divider {
+  width: 1px;
+  height: 20px;
+  background: var(--border);
+  margin: 0 var(--space-1);
+}
+
+.pdf-toolbar-spacer {
+  flex: 1;
+}
+
+.pdf-toolbar button.active {
+  background: var(--bg-selected);
+  color: var(--text-primary);
+}
+
+.pdf-page-input {
+  width: 3.5em;
+  text-align: center;
+}
+
+.pdf-page-count {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.pdf-search-input {
+  width: 12em;
+}
+
+.pdf-search-status {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.pdf-page-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  justify-content: center;
+  padding: var(--space-4);
+  background: var(--bg-sunken);
+}
+
+.pdf-page-container {
+  position: relative;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+  background: white;
+  height: fit-content;
+}
+
+.pdf-page-canvas {
+  display: block;
+}
+
+.pdf-text-layer {
+  position: absolute;
+  inset: 0;
+  overflow: clip;
+  line-height: 1;
+  text-align: initial;
+  opacity: 1;
+  --scale-factor: 1;
+  --total-scale-factor: var(--scale-factor);
+  --min-font-size: 1;
+  --min-font-size-inv: calc(1 / var(--min-font-size));
+  --text-scale-factor: calc(var(--total-scale-factor) * var(--min-font-size));
+}
+
+.pdf-text-layer span,
+.pdf-text-layer br {
+  color: transparent;
+  position: absolute;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0% 0%;
+}
+
+/* pdfjsLib.TextLayer sets --font-height (px, unscaled) and, when needed,
+   --rotate/--scale-x inline per span (see PdfViewer.tsx's real-source
+   derivation in the file header above); these two rules are the literal
+   formula pdf.js's own CSS applies to them. */
+.pdf-text-layer > span {
+  --font-height: 0;
+  --rotate: 0deg;
+  --scale-x: 1;
+  font-size: calc(var(--text-scale-factor) * var(--font-height));
+  transform: rotate(var(--rotate)) scaleX(var(--scale-x)) scale(var(--min-font-size-inv));
+}
+
+.pdf-text-layer.pdf-text-layer-marking span {
+  cursor: crosshair;
+}
+
+.pdf-text-layer ::selection {
+  background: rgba(0, 90, 255, 0.3);
+}
+
+.pdf-text-layer span.pdf-search-match {
+  background: rgba(255, 213, 0, 0.55);
+  border-radius: 2px;
+}
+
+.pdf-annotation-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.pdf-annotation-rect {
+  position: absolute;
+}
+
+.pdf-annotation-highlight {
+  border-radius: 2px;
+}
+
+.pdf-annotation-strikeout {
+  display: flex;
+  align-items: center;
+}
+
+.pdf-annotation-strike-line {
+  display: block;
+  width: 100%;
+  height: 2px;
+}
+
+.pdf-annotation-pending {
+  outline: 1px dashed rgba(0, 0, 0, 0.3);
+}

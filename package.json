@@ -39,6 +39,8 @@
     "dompurify": "^3.2.3",
     "katex": "^0.18.4",
     "marked": "^15.0.4",
+    "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^6.3.289",
     "preact": "^10.25.1"
   },
   "overrides": {

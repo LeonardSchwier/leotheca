@@ -14,6 +14,7 @@ import { isNoteReadOnlyActive, setNoteReadOnly } from "../editor/noteReadOnly";
 import { SpeechRecognitionButton } from "../editor/SpeechRecognitionButton";
 import { ImageViewer } from "../editor/ImageViewer";
 import { ImageViewerOverlay } from "../editor/ImageViewerOverlay";
+import { PdfViewer } from "../pdf/PdfViewer";
 import { CaptureSheet, captureSheetOpen, openCaptureSheet } from "./CaptureSheet";
 import { PendingCapturesPanel, initPendingCaptures, processAndroidPendingShareData } from "../capture";
 import { classifyWorkspaceResource } from "../workspace/types";
@@ -1353,6 +1354,8 @@ export function App() {
           {current ? (
             current.kind === "image" ? (
               <ImageViewer path={current.path} />
+            ) : current.kind === "pdf" ? (
+              <PdfViewer path={current.path} />
             ) : current.kind === "canvas" ? (
               <CanvasView path={current.path} source={current.content} onChange={(value) => handleChange(current.path, value)} onOpenFile={(path) => handleOpenFile(path, path.split("/").pop() ?? path)} />
             ) : current.kind === "ink" ? (

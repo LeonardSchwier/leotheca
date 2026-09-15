@@ -206,6 +206,31 @@ export function writeActiveWorkspaceTextFile(path: string, contents: string): Pr
   );
 }
 
+/**
+ * The binary counterpart to `writeActiveWorkspaceTextFile` above, for a
+ * file whose content isn't a string -- currently PDF annotation saves
+ * (`pdf/PdfViewer.tsx`). Same overwrite-only contract and same active-
+ * workspace containment check; there is no separate save-coordinator
+ * revision ordering for binary files the way F-003 has for note text, so
+ * callers are responsible for not racing two saves of the same path.
+ */
+export function writeActiveWorkspaceBinaryFile(path: string, data: Uint8Array): Promise<void> {
+  const workspaceRoot = activeWorkspaceRoot;
+  if (!workspaceRoot) {
+    return Promise.reject(new Error("No active workspace is available for this write."));
+  }
+  if (path === workspaceRoot || !isPathWithinWorkspace(workspaceRoot, path)) {
+    return Promise.reject(
+      new Error(`Cannot save "${path}" outside workspace root "${workspaceRoot}".`),
+    );
+  }
+  return writeWorkspaceBinaryFile(
+    workspaceRoot,
+    relativePathBetween(workspaceRoot, path),
+    data,
+  );
+}
+
 // App-private config, app metadata, and status-bar appearance are not bound to
 // a selected workspace grant and therefore do not participate in the drain.
 export const getAppConfigFilePath = impl.getAppConfigFilePath;

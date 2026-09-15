@@ -23,7 +23,7 @@ export interface FsEntry {
 
 export type EditorMode = "live" | "source" | "reading";
 
-export type TabKind = "text" | "image" | "canvas" | "ink";
+export type TabKind = "text" | "image" | "canvas" | "ink" | "pdf";
 
 /** The one in-memory document record for an open workspace resource. Its
  * content and save state are never copied into an editor group, so future
@@ -32,7 +32,9 @@ export interface OpenDocument {
   path: string;
   name: string;
   kind: TabKind;
-  /** Only meaningful for kind "text"; empty for images. */
+  /** Only meaningful for kind "text"; empty for images and PDFs, which
+   * manage their own binary bytes and save lifecycle outside this string
+   * field (see `pdf/PdfViewer.tsx`). */
   content: string;
   dirty: boolean;
   /** Non-null when the last save attempt failed. The user can see this
@@ -138,10 +140,15 @@ export function isInkPath(path: string): boolean {
   return path.toLowerCase().endsWith(".ink");
 }
 
+export function isPdfPath(path: string): boolean {
+  return path.toLowerCase().endsWith(".pdf");
+}
+
 /** Classifies resources consistently for interactive opening and session restore. */
 export function classifyWorkspaceResource(path: string): TabKind {
   if (isImagePath(path)) return "image";
   if (isCanvasPath(path)) return "canvas";
   if (isInkPath(path)) return "ink";
+  if (isPdfPath(path)) return "pdf";
   return "text";
 }

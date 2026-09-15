@@ -1198,3 +1198,71 @@ describe("App: F07 Phase 5 -- Ctrl/Cmd-click opens a wikilink in the other group
     expect(openTabs.value.map((t) => t.path)).toEqual(["/vault/first.md"]);
   });
 });
+
+describe("App: F07 Phase 4 -- compact layout and group switching", () => {
+  it("shows only the primary pane and no switcher when unsplit, even at a narrow width", () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 600 });
+    workspacePath.value = "/vault";
+    openOrFocusTab("/vault/a.md", "a.md", "hello", "text");
+    const { container } = render(<App />);
+
+    expect(container.querySelector(".compact-group-switcher")).toBeNull();
+    expect(container.querySelector(".editor-area")).toBeTruthy();
+  });
+
+  it("at a narrow width, a split shows the switcher and only the active group's pane", () => {
+    workspacePath.value = "/vault";
+    openOrFocusTab("/vault/a.md", "a.md", "hello", "text");
+    const { container, getByRole } = render(<App />);
+
+    fireEvent.click(getByRole("button", { name: "Split right" }));
+
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 600 });
+    fireEvent(window, new Event("resize"));
+
+    const switcher = container.querySelector(".compact-group-switcher");
+    expect(switcher).toBeTruthy();
+    expect(container.querySelector(".editor-area")).toBeTruthy();
+    expect(container.querySelector(".secondary-group")).toBeNull();
+    expect(container.querySelector(".split-separator")).toBeNull();
+  });
+
+  it("switching groups from the compact switcher swaps the visible pane without touching activeGroupId", () => {
+    workspacePath.value = "/vault";
+    openOrFocusTab("/vault/a.md", "a.md", "hello", "text");
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 600 });
+    const { container, getByRole } = render(<App />);
+
+    fireEvent.click(getByRole("button", { name: "Split right" }));
+    const activeGroupBefore = editorLayout.value.activeGroupId;
+    expect(editorLayout.value.compactVisibleGroupId).toBe("primary");
+
+    fireEvent.click(getByRole("tab", { name: /Reference:/ }));
+
+    expect(editorLayout.value.compactVisibleGroupId).toBe("secondary");
+    expect(editorLayout.value.activeGroupId).toBe(activeGroupBefore);
+    expect(container.querySelector(".secondary-group")).toBeTruthy();
+    expect(container.querySelector(".editor-area:not(.secondary-group)")).toBeNull();
+  });
+
+  it("rotating back to a wide viewport shows both panes again without altering editorLayout state", () => {
+    workspacePath.value = "/vault";
+    openOrFocusTab("/vault/a.md", "a.md", "hello", "text");
+    const { container, getByRole } = render(<App />);
+
+    fireEvent.click(getByRole("button", { name: "Split right" }));
+
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 600 });
+    fireEvent(window, new Event("resize"));
+    expect(container.querySelector(".secondary-group")).toBeNull();
+
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1200 });
+    fireEvent(window, new Event("resize"));
+
+    expect(container.querySelector(".compact-group-switcher")).toBeNull();
+    expect(container.querySelector(".editor-area")).toBeTruthy();
+    expect(container.querySelector(".secondary-group")).toBeTruthy();
+    expect(container.querySelector(".split-separator")).toBeTruthy();
+    expect(editorLayout.value.splitEnabled).toBe(true);
+  });
+});

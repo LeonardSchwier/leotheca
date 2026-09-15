@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added a compact-layout group switcher for split panes on narrow windows and Android: instead of squeezing both editor groups side by side, only one group's pane is shown at a time, with a "Working: <note> / Reference: <note>" switcher above it to swap which one is visible. Switching never closes, merges, or reorders anything — it only changes which pane is currently mounted. Rotating back to a wide window restores the normal side-by-side split automatically. Android's hardware Back button is not yet wired to this switcher, and the narrow/wide threshold is based on the whole window's width rather than the editor area's own width net of the sidebar and Inspector.
+
 - Added Ctrl/Cmd-click on a note link in the preview to open it in the other editor group (creating a split if there isn't one yet) instead of the current one.
 
 - Added tab reordering (drag to reorder, or right-click a tab for Move left/Move right) within either editor group, and restored cursor/scroll position when switching back to a note you'd already had open (previously every tab switch reset the cursor to the start of the note).

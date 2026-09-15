@@ -350,12 +350,44 @@ button.icon-button.active {
 .editor-groups-shell {
   flex: 1;
   display: flex;
+  flex-wrap: wrap;
   min-width: 0;
   min-height: 0;
 }
 
 .editor-groups-shell .editor-area {
   min-width: 0;
+}
+
+/* F07 Phase 4: compact-layout group switcher (spec 8.2). `flex-basis: 100%`
+   on a wrapping flex parent forces it onto its own row above whichever
+   single pane App.tsx currently mounts, without a separate wrapper element
+   around the switcher and the (mutually-exclusive) primary/secondary
+   panes. */
+.compact-group-switcher {
+  flex: 0 0 100%;
+  display: flex;
+  border-bottom: 1px solid var(--border);
+}
+
+.compact-group-switcher button {
+  flex: 1;
+  padding: var(--space-2) var(--space-3);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font: inherit;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.compact-group-switcher button.active {
+  color: var(--text);
+  border-bottom-color: var(--accent, var(--border));
 }
 
 .split-separator {

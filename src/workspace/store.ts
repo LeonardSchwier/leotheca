@@ -468,3 +468,18 @@ export function moveTabWithinGroup(path: string, beforePath: string | null) {
   const reordered = [...withoutPath.slice(0, insertAt), path, ...withoutPath.slice(insertAt)];
   applyReorderedRegion(groupId, group, pinned, reordered);
 }
+
+// ============ F07 Phase 4: compact layout ============
+
+/** Which group's editor/preview is mounted on a compact (narrow) layout,
+ * where only one of the two groups can be shown at a time (spec 8.2). A
+ * no-op for "secondary" when no secondary group exists, matching
+ * `focusGroup`'s own guard -- switching the visible pane and switching the
+ * active group are deliberately independent (spec 8.2: "does not close or
+ * merge anything"), so this never touches `activeGroupId` itself. */
+export function setCompactVisibleGroup(groupId: EditorGroupId) {
+  const layout = editorLayout.value;
+  if (!groupState(groupId)) return;
+  if (layout.compactVisibleGroupId === groupId) return;
+  editorLayout.value = { ...layout, compactVisibleGroupId: groupId };
+}

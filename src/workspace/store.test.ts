@@ -26,6 +26,7 @@ import {
   resetSplitRatio,
   secondaryActiveTabPath,
   secondaryOpenTabs,
+  setCompactVisibleGroup,
   setGroupViewMode,
   setSplitRatio,
   splitRight,
@@ -669,6 +670,38 @@ describe("moveTabWithinGroup", () => {
 
     moveTabWithinGroup("/nonexistent.md", "/a.md");
     moveTabWithinGroup("/a.md", "/also-nonexistent.md");
+
+    expect(editorLayout.value).toBe(before);
+  });
+});
+
+// ============ F07 Phase 4: compact layout ============
+
+describe("setCompactVisibleGroup", () => {
+  it("switches which group is visible on a compact layout, independent of activeGroupId", () => {
+    openOrFocusTab("/a.md", "a.md", "", "text");
+    splitRight();
+    focusGroup("primary"); // active stays primary throughout this test
+
+    setCompactVisibleGroup("secondary");
+
+    expect(editorLayout.value.compactVisibleGroupId).toBe("secondary");
+    expect(editorLayout.value.activeGroupId).toBe("primary"); // untouched
+  });
+
+  it("is a no-op for a group that doesn't exist", () => {
+    openOrFocusTab("/a.md", "a.md", "", "text"); // no split, no secondary
+
+    setCompactVisibleGroup("secondary");
+
+    expect(editorLayout.value.compactVisibleGroupId).toBe("primary");
+  });
+
+  it("is a no-op (no new signal write) when already showing the requested group", () => {
+    openOrFocusTab("/a.md", "a.md", "", "text");
+    const before = editorLayout.value;
+
+    setCompactVisibleGroup("primary");
 
     expect(editorLayout.value).toBe(before);
   });

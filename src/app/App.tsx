@@ -45,6 +45,7 @@ import {
   resetSplitRatio,
   secondaryActiveTabPath,
   secondaryOpenTabs,
+  setCompactVisibleGroup,
   setGroupViewMode,
   setSplitRatio,
   splitRight,
@@ -54,6 +55,7 @@ import {
 } from "../workspace/store";
 import { SplitSeparator } from "../editorGroups/SplitSeparator";
 import { SecondaryEditorPane } from "../editorGroups/SecondaryEditorPane";
+import { CompactGroupSwitcher } from "../editorGroups/CompactGroupSwitcher";
 import { readTextFile } from "../workspace/tauriBridge";
 import { isPathWithinWorkspace } from "../workspace/paths";
 import { beginFileOpenAuthority, isCurrentFileOpen } from "../workspace/fileOpenAuthority";
@@ -275,6 +277,39 @@ export function App() {
   const refresh = useCallback(() => {
     tick.value++;
   }, [tick]);
+  // F07 Phase 4, spec 8.1's "available-width rule": whether two groups can
+  // render side by side. Tracks window.innerWidth reactively (the existing
+  // isNarrowViewport checks elsewhere in this file read it once, at an
+  // event's own call time, which doesn't re-render on its own) via the
+  // same NARROW_VIEWPORT_MAX_WIDTH breakpoint responsiveLayout.ts already
+  // defines. A disclosed simplification of the spec's own rule: measures
+  // the whole viewport, not the document-area width after the sidebar and
+  // Inspector are subtracted, and does not factor a UX-01 layout mode or
+  // platform text-scaling threshold, neither of which exists in this
+  // codebase yet.
+  const viewportWidth = useSignal(window.innerWidth);
+  useEffect(() => {
+    function onResize() {
+      viewportWidth.value = window.innerWidth;
+    }
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [viewportWidth]);
+  const isCompactLayout = isNarrowViewport(viewportWidth.value);
+  // Spec 8.2: in compact layout, only the switcher's currently-selected
+  // group is mounted (never both at once); outside compact layout, both
+  // panes and the separator render as before, unaffected by
+  // compactVisibleGroupId. Switching groups here never touches
+  // activeGroupId, so it does not affect which group a global command or a
+  // new-note open targets.
+  const showPrimaryPane =
+    !editorLayout.value.splitEnabled ||
+    !isCompactLayout ||
+    editorLayout.value.compactVisibleGroupId === "primary";
+  const showSecondaryPane =
+    editorLayout.value.splitEnabled &&
+    (!isCompactLayout || editorLayout.value.compactVisibleGroupId === "secondary");
+  const showSeparator = editorLayout.value.splitEnabled && !isCompactLayout;
   const rootPath = workspacePath.value;
   const session = workspaceSession.value;
   const save = useMemo(() => createSaveCoordinator({
@@ -1228,8 +1263,20 @@ export function App() {
           </>
         )}
         <div class="editor-groups-shell" ref={editorGroupsShellRef}>
+        {editorLayout.value.splitEnabled && isCompactLayout && (
+          <CompactGroupSwitcher
+            visibleGroupId={editorLayout.value.compactVisibleGroupId}
+            primaryActiveName={current?.name ?? null}
+            secondaryActiveName={secondaryCurrent?.name ?? null}
+            onSelect={(groupId) => {
+              setCompactVisibleGroup(groupId);
+              refresh();
+            }}
+          />
+        )}
+        {showPrimaryPane && (
         <main class="editor-area"
-          style={editorLayout.value.splitEnabled ? { flex: `0 0 ${editorLayout.value.preferredRatio * 100}%` } : undefined}
+          style={editorLayout.value.splitEnabled && !isCompactLayout ? { flex: `0 0 ${editorLayout.value.preferredRatio * 100}%` } : undefined}
           onClick={() => {
             // Spec 6.5: a group becomes active when the user focuses its
             // editor or preview. Click-anywhere-in-the-pane is a coarser
@@ -1395,14 +1442,16 @@ export function App() {
             <EmptyEditorState />
           )}
         </main>
-        {editorLayout.value.splitEnabled && (
-          <>
-            <SplitSeparator
-              ratio={editorLayout.value.preferredRatio}
-              containerRef={editorGroupsShellRef}
-              onChange={setSplitRatio}
-              onReset={resetSplitRatio}
-            />
+        )}
+        {showSeparator && (
+          <SplitSeparator
+            ratio={editorLayout.value.preferredRatio}
+            containerRef={editorGroupsShellRef}
+            onChange={setSplitRatio}
+            onReset={resetSplitRatio}
+          />
+        )}
+        {showSecondaryPane && (
             <div
               onClick={() => {
                 if (editorLayout.value.activeGroupId !== "secondary") focusGroup("secondary");
@@ -1475,7 +1524,6 @@ export function App() {
                 }}
               />
             </div>
-          </>
         )}
         </div>
       </div>

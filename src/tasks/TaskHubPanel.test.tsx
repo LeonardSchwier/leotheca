@@ -178,6 +178,31 @@ describe("TaskHubPanel", () => {
     expect(outlineRevealRequest.value).not.toBeNull();
   });
 
+  it("shows an inline error instead of silently doing nothing when onOpenFile rejects", async () => {
+    setTasksByPath(new Map([["/vault/My Note.md", scanTasks("- [ ] Task\n")]]));
+    const onOpenFile = vi.fn().mockRejectedValue(new Error("stale file handle"));
+    const { getByText, findByRole } = renderPanel({ onOpenFile });
+
+    fireEvent.click(getByText("Task"));
+
+    const error = await findByRole("alert");
+    expect(error.textContent).toMatch(/couldn't open/i);
+    expect(outlineRevealRequest.value).toBeNull();
+  });
+
+  it("clears a prior open error and re-attempts when the row's label is clicked again", async () => {
+    setTasksByPath(new Map([["/vault/My Note.md", scanTasks("- [ ] Task\n")]]));
+    const onOpenFile = vi.fn().mockRejectedValueOnce(new Error("stale file handle")).mockResolvedValueOnce(undefined);
+    const { getByText, findByRole, queryByRole } = renderPanel({ onOpenFile });
+
+    fireEvent.click(getByText("Task"));
+    await findByRole("alert");
+
+    fireEvent.click(getByText("Task"));
+    await waitFor(() => expect(outlineRevealRequest.value).not.toBeNull());
+    expect(queryByRole("alert")).toBeNull();
+  });
+
   it("lists tasks from multiple notes in a stable, path-sorted order", () => {
     setTasksByPath(
       new Map([

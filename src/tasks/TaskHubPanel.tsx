@@ -42,7 +42,8 @@ type RowStatus =
   | { kind: "pending" }
   | { kind: "stale" }
   | { kind: "locked" }
-  | { kind: "error"; message: string };
+  | { kind: "error"; message: string }
+  | { kind: "openError" };
 
 function rowKey(entry: TaskEntry): string {
   return `${entry.path}:${entry.task.sourceFrom}:${entry.task.markerFrom}`;
@@ -103,7 +104,14 @@ export function TaskHubPanel({ onOpenFile, onNavigated, save }: TaskHubPanelProp
   }
 
   async function handleSelect(entry: TaskEntry) {
-    await onOpenFile(entry.path, entry.noteTitle);
+    const key = rowKey(entry);
+    setRowStatusFor(key, { kind: "idle" });
+    try {
+      await onOpenFile(entry.path, entry.noteTitle);
+    } catch {
+      setRowStatusFor(key, { kind: "openError" });
+      return;
+    }
     requestOutlineReveal(entry.task.textFrom, entry.task.textTo);
     onNavigated?.();
   }
@@ -342,6 +350,11 @@ export function TaskHubPanel({ onOpenFile, onNavigated, save }: TaskHubPanelProp
                           >
                             Open note
                           </button>
+                        </p>
+                      )}
+                      {status.kind === "openError" && (
+                        <p class="task-hub-row-error" role="alert">
+                          Couldn't open "{entry.noteTitle}" — it may have been moved, renamed, or deleted.
                         </p>
                       )}
                     </li>

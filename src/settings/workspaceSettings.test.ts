@@ -85,6 +85,10 @@ describe("DEFAULT_WORKSPACE_SETTINGS", () => {
   it("defaults the accidental-edit note lock to on", () => {
     expect(DEFAULT_WORKSPACE_SETTINGS.noteReadOnlyLockEnabled).toBe(true);
   });
+
+  it("defaults speech-to-text dictation to off, so no native speech API is touched until the user opts in", () => {
+    expect(DEFAULT_WORKSPACE_SETTINGS.speechToTextEnabled).toBe(false);
+  });
 });
 
 describe("loadWorkspaceSettings", () => {
@@ -125,6 +129,24 @@ describe("loadWorkspaceSettings", () => {
     const { settings, corrupt } = await loadWorkspaceSettings(ROOT);
     expect(settings.mathRenderingEnabled).toBe(false);
     expect(corrupt).toBe(false);
+  });
+
+  it("respects an explicitly set speechToTextEnabled: true from the settings file", async () => {
+    readTextFile.mockResolvedValueOnce(
+      JSON.stringify({ ...DEFAULT_WORKSPACE_SETTINGS, speechToTextEnabled: true }),
+    );
+    const { settings, corrupt } = await loadWorkspaceSettings(ROOT);
+    expect(settings.speechToTextEnabled).toBe(true);
+    expect(corrupt).toBe(false);
+  });
+
+  it("falls back speechToTextEnabled to its off default and flags corruption when the stored value isn't a boolean", async () => {
+    readTextFile.mockResolvedValueOnce(
+      JSON.stringify({ ...DEFAULT_WORKSPACE_SETTINGS, speechToTextEnabled: "yes" }),
+    );
+    const { settings, corrupt } = await loadWorkspaceSettings(ROOT);
+    expect(settings.speechToTextEnabled).toBe(false);
+    expect(corrupt).toBe(true);
   });
 
 });

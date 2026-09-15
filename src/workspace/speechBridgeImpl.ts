@@ -42,19 +42,16 @@ export async function initSpeechRecognition(modelOrLanguage?: string): Promise<v
 /**
  * Transcribe audio data
  * - Desktop: Uses whisper.cpp to transcribe locally
- * - Android: Uses built-in SpeechRecognizer or audio data transcription
+ * - Android: not supported here; Android dictation goes through
+ *   `startAndroidSpeechRecognition`'s native `SpeechRecognizer` result
+ *   instead (see `speechController.ts`'s `stop()`), which never calls
+ *   this function.
  */
 export async function transcribeAudio(
   audioData: Float32Array | number[],
   language?: string
 ): Promise<string> {
-  if (Capacitor.isNativePlatform()) {
-    // On Android, transcribe using the audio data sent from TypeScript
-    const result = await capacitorBridge.transcribeAndroidAudio(audioData, language);
-    return result.text;
-  } else {
-    return tauriBridge.transcribeAudio(audioData, language);
-  }
+  return tauriBridge.transcribeAudio(audioData, language);
 }
 
 /**
@@ -189,7 +186,3 @@ export {
   samplesForDuration,
 } from './speechBridge';
 
-// Re-export Android-specific functions
-export {
-  transcribeAndroidAudio,
-} from './capacitorSpeechBridge';

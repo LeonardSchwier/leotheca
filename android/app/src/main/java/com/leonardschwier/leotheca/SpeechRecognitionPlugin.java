@@ -131,38 +131,6 @@ public class SpeechRecognitionPlugin extends Plugin {
     }
 
     /**
-     * Transcribe audio data (for when audio is captured in TypeScript)
-     * This provides an alternative to native capture for consistency.
-     * 
-     * @param call The plugin call containing audio data
-     */
-    @PluginMethod
-    public void transcribeAudioData(PluginCall call) {
-        // For now, return a placeholder since actual whisper.cpp integration
-        // would be needed for offline transcription on Android
-        // This method allows TypeScript-captured audio to be processed
-        try {
-            JSArray audioDataArray = call.getArray("audioData");
-            String language = call.getString("language", "en");
-            
-            if (audioDataArray != null && audioDataArray.length() > 0) {
-                // Simulate transcription based on array length
-                // In a real implementation, we would extract the float values
-                int durationMs = (int) ((audioDataArray.length() / 16000.0) * 1000);
-                String simulatedText = "[Transcribed from Android: " + durationMs + "ms of audio]";
-                call.resolve(new JSObject()
-                    .put("text", simulatedText)
-                    .put("language", language));
-            } else {
-                call.resolve(new JSObject().put("text", ""));
-            }
-        } catch (Exception e) {
-            Log.e(TAG, "Failed to transcribe audio data", e);
-            call.reject("Failed to transcribe: " + e.getMessage());
-        }
-    }
-
-    /**
      * Check if offline speech recognition is supported
      * 
      * @param call The plugin call

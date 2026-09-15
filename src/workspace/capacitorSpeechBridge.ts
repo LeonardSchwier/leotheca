@@ -30,15 +30,7 @@ export interface CapacitorSpeechPlugin {
    * Stop speech recognition
    */
   stopRecognition(): Promise<{ success: boolean; error?: string }>;
-  
-  /**
-   * Transcribe audio data (for TypeScript-captured audio)
-   */
-  transcribeAudioData(options: {
-    audioData: number[];
-    language?: string;
-  }): Promise<{ text: string; language?: string }>;
-  
+
   /**
    * Check if offline speech recognition is supported
    */
@@ -99,35 +91,6 @@ export async function stopAndroidSpeechRecognition(): Promise<{ success: boolean
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
-    };
-  }
-}
-
-/**
- * Transcribe audio data on Android
- * 
- * @param audioData - Array of audio samples (f32 values)
- * @param language - Optional language code
- * @returns Promise with transcription result
- */
-export async function transcribeAndroidAudio(
-  audioData: Float32Array | number[],
-  language?: string
-): Promise<{ text: string; language?: string }> {
-  try {
-    const dataArray = audioData instanceof Float32Array 
-      ? Array.from(audioData) 
-      : audioData;
-    
-    const result = await SpeechRecognitionPlugin.transcribeAudioData({
-      audioData: dataArray,
-      language: language,
-    });
-    return result;
-  } catch (error) {
-    return {
-      text: '[Android transcription error: ' + (error instanceof Error ? error.message : 'Unknown error') + ']',
-      language: language,
     };
   }
 }

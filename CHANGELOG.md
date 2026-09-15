@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fixed a silent autosave failure: if saving a note's changes to disk failed (for example a full disk, a revoked folder permission, or an external drive going offline), the editor gave no indication anything was wrong at all — the note just quietly stopped saving, with the failed edit only ever kept in memory. A visible error now appears with the failure reason and a Retry button, and it clears automatically once a save succeeds again.
+
 - Fixed Quick Capture's 32 KiB payload size limit being measured in JavaScript string length instead of real UTF-8 bytes, letting a capture containing CJK characters, emoji, accented Latin, Cyrillic, or other multi-byte text through at up to 2-3x the documented limit. The limit is now measured in actual UTF-8 bytes, matching the spec.
 
 - Fixed clicking a file in the sidebar's file tree or search results whose file could no longer be read: it now shows an inline error explaining the file may have been moved, renamed, or deleted, instead of silently doing nothing. Clicking it again retries.

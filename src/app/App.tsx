@@ -26,6 +26,7 @@ import {
   closeOtherTabs,
   focusTab,
   closeTab,
+  clearTabSaveError,
   editorLayout,
   markTabSaved,
   markTabSaveError,
@@ -273,6 +274,7 @@ export function App() {
     // `save.change` ever writes from).
     onSaved: (path: string) => {
       markTabSaved(path);
+      clearTabSaveError(path);
       const content = openTabs.value.find((tab) => tab.path === path)?.content;
       if (content !== undefined) replaceIndexedTasks(path, content);
       refresh();
@@ -1176,6 +1178,16 @@ export function App() {
               <span>{currentNoteReadOnly ? "This note is locked." : "This note is editable."}</span>
               <button type="button" onClick={toggleCurrentNoteReadOnly}>
                 {currentNoteReadOnly ? "Unlock note" : "Lock note"}
+              </button>
+            </div>
+          )}
+          {current?.saveError && (
+            <div class="save-error-bar" role="alert">
+              <span>
+                Couldn't save "{current.name}": {current.saveError}
+              </span>
+              <button type="button" onClick={() => void save.retry(session, current.path)}>
+                Retry
               </button>
             </div>
           )}

@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { act, cleanup, fireEvent, render } from "@testing-library/preact";
+import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/preact";
 import { effect, signal } from "@preact/signals";
 import { DEFAULT_WORKSPACE_SETTINGS } from "../settings/workspaceSettings";
 import { scanTasks, type TaskRecord } from "../markdown/tasks";
@@ -824,6 +824,58 @@ describe("App: Task Hub index stays fresh after an ordinary editor save (2026-09
     expect(writeTextFile).toHaveBeenCalledTimes(1);
     const tasks = linkIndex.value.tasksByPath.get("/vault/note.md");
     expect(tasks?.[0].checked).toBe(false);
+  });
+});
+
+describe("App: a failed autosave shows a visible error and lets the user retry (maintenance review)", () => {
+  it("shows an alert with the failure reason instead of failing silently", async () => {
+    vi.useFakeTimers();
+    writeTextFile.mockRejectedValueOnce(new Error("disk full"));
+    openOrFocusTab("/vault/note.md", "note.md", "hello", "text");
+    const { container, findByRole } = render(<App />);
+
+    const editor = container.querySelector(
+      '[data-testid="mock-editor"]',
+    ) as HTMLTextAreaElement;
+    fireEvent.input(editor, { target: { value: "hello world" } });
+
+    await act(async () => {
+      fireEvent.keyDown(window, { key: "s", ctrlKey: true });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const alert = await findByRole("alert");
+    expect(alert.textContent).toMatch(/couldn't save "note\.md"/i);
+    expect(alert.textContent).toMatch(/disk full/i);
+  });
+
+  it("clicking Retry clears the error once the write succeeds", async () => {
+    vi.useFakeTimers();
+    writeTextFile.mockRejectedValueOnce(new Error("disk full"));
+    openOrFocusTab("/vault/note.md", "note.md", "hello", "text");
+    const { container, findByRole, queryByRole, getByRole } = render(<App />);
+
+    const editor = container.querySelector(
+      '[data-testid="mock-editor"]',
+    ) as HTMLTextAreaElement;
+    fireEvent.input(editor, { target: { value: "hello world" } });
+
+    await act(async () => {
+      fireEvent.keyDown(window, { key: "s", ctrlKey: true });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    await findByRole("alert");
+
+    await act(async () => {
+      fireEvent.click(getByRole("button", { name: "Retry" }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    await waitFor(() => expect(queryByRole("alert")).toBeNull());
+    expect(writeTextFile).toHaveBeenCalledTimes(2);
   });
 });
 

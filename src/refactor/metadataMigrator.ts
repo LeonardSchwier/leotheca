@@ -10,7 +10,7 @@
  * strings in arbitrary configuration.
  */
 
-import type { EditorLayoutState } from "../workspace/types";
+import type { EditorGroupState, EditorLayoutState } from "../workspace/types";
 import type { Bookmark } from "../bookmarks/types";
 import type { WorkspaceSettings } from "../settings/workspaceSettings";
 
@@ -44,28 +44,21 @@ const editorLayoutMigrator: MetadataPathMigrator<EditorLayoutState> = {
   },
   
   migrate: (layout, oldPath, newPath) => {
-    // Migrate primary group tab paths
-    const primaryGroup = layout.groups.primary;
-    
-    // Update tabPaths array
-    const updatedTabPaths = primaryGroup.tabPaths.map(path =>
-      path === oldPath ? newPath : path
-    );
-    
-    // Update activePath
-    const updatedActivePath = primaryGroup.activePath === oldPath 
-      ? newPath 
-      : primaryGroup.activePath;
-    
+    const migrateGroup = (group: EditorGroupState): EditorGroupState => ({
+      ...group,
+      tabPaths: group.tabPaths.map(path => (path === oldPath ? newPath : path)),
+      pinnedPaths: group.pinnedPaths.map(path => (path === oldPath ? newPath : path)),
+      activePath: group.activePath === oldPath ? newPath : group.activePath
+    });
+
     return {
       ...layout,
       groups: {
         ...layout.groups,
-        primary: {
-          ...primaryGroup,
-          tabPaths: updatedTabPaths,
-          activePath: updatedActivePath
-        }
+        primary: migrateGroup(layout.groups.primary),
+        ...(layout.groups.secondary
+          ? { secondary: migrateGroup(layout.groups.secondary) }
+          : {})
       }
     };
   }

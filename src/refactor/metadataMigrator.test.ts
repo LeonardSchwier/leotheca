@@ -35,6 +35,22 @@ function createEditorLayout(tabPaths: string[], activePath: string | null): Edit
   };
 }
 
+function createSplitEditorLayout(
+  primaryPinnedPaths: string[],
+  secondary: { tabPaths: string[]; pinnedPaths: string[]; activePath: string | null },
+): EditorLayoutState {
+  const layout = createEditorLayout(["note1.md"], "note1.md");
+  layout.groups.primary.pinnedPaths = primaryPinnedPaths;
+  layout.groups.secondary = {
+    id: "secondary",
+    tabPaths: secondary.tabPaths,
+    pinnedPaths: secondary.pinnedPaths,
+    activePath: secondary.activePath,
+    viewMode: "source",
+  };
+  return layout;
+}
+
 describe("editorLayoutMigrator", () => {
   it("should identify editor layout state correctly", () => {
     const layout = createEditorLayout(["note1.md"], "note1.md");
@@ -69,9 +85,45 @@ describe("editorLayoutMigrator", () => {
   it("should handle empty tabPaths", () => {
     const layout = createEditorLayout([], null);
     const migrated = editorLayoutMigrator.migrate(layout, "note1.md", "renamed.md");
-    
+
     expect(migrated.groups.primary.tabPaths).toEqual([]);
     expect(migrated.groups.primary.activePath).toBe(null);
+  });
+
+  // F03 spec section 6.4 lists "pinned tabs and editor-group placement from
+  // F07" as in-scope metadata for this migrator; pinnedPaths and the
+  // secondary split-view group were both never rewritten, leaving a stale
+  // path behind after a rename even though the primary group's own
+  // unpinned tabPaths/activePath migrated correctly.
+  it("should migrate the primary group's pinnedPaths, not just tabPaths", () => {
+    const layout = createSplitEditorLayout(["note1.md", "other.md"], {
+      tabPaths: [],
+      pinnedPaths: [],
+      activePath: null,
+    });
+    const migrated = editorLayoutMigrator.migrate(layout, "note1.md", "renamed.md");
+
+    expect(migrated.groups.primary.pinnedPaths).toEqual(["renamed.md", "other.md"]);
+  });
+
+  it("should migrate the secondary (split-view) group's tabPaths, pinnedPaths, and activePath", () => {
+    const layout = createSplitEditorLayout([], {
+      tabPaths: ["note1.md", "note2.md"],
+      pinnedPaths: ["note1.md"],
+      activePath: "note1.md",
+    });
+    const migrated = editorLayoutMigrator.migrate(layout, "note1.md", "renamed.md");
+
+    expect(migrated.groups.secondary?.tabPaths).toEqual(["renamed.md", "note2.md"]);
+    expect(migrated.groups.secondary?.pinnedPaths).toEqual(["renamed.md"]);
+    expect(migrated.groups.secondary?.activePath).toBe("renamed.md");
+  });
+
+  it("should leave a layout with no secondary group unaffected", () => {
+    const layout = createEditorLayout(["note1.md"], "note1.md");
+    const migrated = editorLayoutMigrator.migrate(layout, "note1.md", "renamed.md");
+
+    expect(migrated.groups.secondary).toBeUndefined();
   });
 });
 

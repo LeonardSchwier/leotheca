@@ -130,6 +130,7 @@ describe("createSplitLayout", () => {
 
     expect(layout.splitEnabled).toBe(true);
     expect(layout.activeGroupId).toBe("primary");
+    expect(layout.compactVisibleGroupId).toBe("primary");
     expect(layout.groups.secondary).toBeDefined();
     expect(layout.groups.secondary?.tabPaths).toEqual([]);
     expect(layout.groups.primary.tabPaths).toEqual(["/a.md", "/b.md"]);
@@ -141,6 +142,9 @@ describe("createSplitLayout", () => {
 
     expect(layout.splitEnabled).toBe(true);
     expect(layout.activeGroupId).toBe("secondary");
+    // Regression: the compact/narrow-viewport switcher must follow the
+    // note into secondary, not silently stay pointed at primary.
+    expect(layout.compactVisibleGroupId).toBe("secondary");
     expect(layout.groups.secondary?.tabPaths).toEqual(["/a.md"]);
     expect(layout.groups.secondary?.activePath).toBe("/a.md");
     expect(layout.groups.primary.tabPaths).toEqual(["/b.md"]);
@@ -154,6 +158,9 @@ describe("moveTabToGroup", () => {
     const layout = moveTabToGroup(initial, "/a.md", "secondary");
 
     expect(layout.activeGroupId).toBe("secondary");
+    // Regression: the compact/narrow-viewport switcher must follow the
+    // moved tab into secondary, not silently stay pointed at primary.
+    expect(layout.compactVisibleGroupId).toBe("secondary");
     expect(layout.groups.primary.tabPaths).toEqual(["/b.md"]);
     expect(layout.groups.secondary?.tabPaths).toEqual(["/a.md"]);
   });

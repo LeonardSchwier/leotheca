@@ -165,8 +165,13 @@ export function createSplitLayout(
   return {
     ...layout,
     splitEnabled: true,
+    // The compact/narrow-viewport switcher must follow the same group the
+    // initial tab actually landed in -- otherwise "Split right" with a
+    // target note, or any other caller that opens a note directly into
+    // secondary, leaves a narrow window/Android silently showing primary
+    // while the note the user just opened sits hidden in secondary.
     activeGroupId: initialTabPath ? "secondary" : "primary",
-    compactVisibleGroupId: "primary",
+    compactVisibleGroupId: initialTabPath ? "secondary" : "primary",
     groups: {
       primary: {
         ...primary,
@@ -215,6 +220,10 @@ export function moveTabToGroup(
   return {
     ...layout,
     activeGroupId: targetGroupId,
+    // Same reasoning as createSplitLayout above: the note just moved here
+    // deliberately, so the compact switcher must show it too, not leave a
+    // narrow window/Android still pointed at the group it moved out of.
+    compactVisibleGroupId: targetGroupId,
     groups: {
       primary: layout.activeGroupId === "primary" ? newSource : (targetGroupId === "primary" ? newTarget : layout.groups.primary),
       secondary: layout.activeGroupId === "secondary" ? newSource : (targetGroupId === "secondary" ? newTarget : layout.groups.secondary),

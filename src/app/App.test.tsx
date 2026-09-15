@@ -1220,6 +1220,36 @@ describe("App: F07 Phase 5 -- Ctrl/Cmd-click opens a wikilink in the other group
     expect(secondaryOpenTabs.value.map((t) => t.path)).toEqual(["/vault/second.md"]);
     expect(openTabs.value.map((t) => t.path)).toEqual(["/vault/first.md"]);
   });
+
+  it("at a narrow viewport, shows the secondary pane (not primary) for the note it just opened there (regression)", async () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 600 });
+    linkIndex.value = {
+      ...emptyLinkIndex(),
+      pathsByNoteName: new Map([["second", ["/vault/second.md"]]]),
+    };
+    viewMode.value = "split";
+    workspacePath.value = "/vault";
+    readTextFile.mockResolvedValue("second file content");
+    openOrFocusTab("/vault/first.md", "first.md", "See [[Second]] over there.", "text");
+    const { container } = render(<App />);
+
+    const anchor = container.querySelector('a[href^="#leotheca-wikilink="]') as HTMLAnchorElement;
+    expect(anchor).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.click(anchor, { ctrlKey: true });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    // Regression: openInOtherGroup used to leave compactVisibleGroupId
+    // pointed at primary, so the note it just opened into secondary was
+    // invisible at a narrow width until the user manually tapped the
+    // switcher.
+    expect(editorLayout.value.compactVisibleGroupId).toBe("secondary");
+    expect(container.querySelector(".secondary-group")).toBeTruthy();
+    expect(container.querySelector(".editor-area:not(.secondary-group)")).toBeNull();
+  });
 });
 
 describe("App: F07 Phase 4 -- compact layout and group switching", () => {

@@ -364,7 +364,11 @@ export function openInOtherGroup(path: string, name: string, content: string, ki
       ...openDocuments.value,
       { path, name, content, kind, dirty: false, saveError: null },
     ]);
-    editorLayout.value = { ...editorLayout.value, activeGroupId: targetGroupId };
+    // Same reasoning as createSplitLayout/moveTabToGroup: this note was
+    // just deliberately opened into targetGroupId, so the compact
+    // switcher must follow it too, not leave a narrow window/Android
+    // still pointed at whichever group was visible before.
+    editorLayout.value = { ...editorLayout.value, activeGroupId: targetGroupId, compactVisibleGroupId: targetGroupId };
   });
 }
 

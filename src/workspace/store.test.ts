@@ -394,6 +394,9 @@ describe("openInOtherGroup", () => {
     expect(openTabs.value.map((t) => t.path)).toEqual(["/a.md"]); // current tab preserved in its group
     expect(secondaryOpenTabs.value.map((t) => t.path)).toEqual(["/b.md"]);
     expect(secondaryActiveTabPath.value).toBe("/b.md");
+    // Regression: the compact/narrow-viewport switcher must follow the
+    // note into secondary, not silently stay pointed at primary.
+    expect(editorLayout.value.compactVisibleGroupId).toBe("secondary");
   });
 
   it("moves an already-open note to the other group instead of duplicating it", () => {
@@ -406,6 +409,7 @@ describe("openInOtherGroup", () => {
     expect(secondaryOpenTabs.value.map((t) => t.path)).toEqual(["/b.md"]);
     expect(openTabs.value.map((t) => t.path)).toEqual(["/a.md"]);
     expect(openDocuments.value.find((d) => d.path === "/b.md")?.content).toBe("keep me");
+    expect(editorLayout.value.compactVisibleGroupId).toBe("secondary");
   });
 });
 

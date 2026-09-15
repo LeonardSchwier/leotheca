@@ -97,6 +97,35 @@ describe("FileTree", () => {
     expect(listDir).toHaveBeenCalledTimes(1); // only the root listing, no extra loadChildren call
   });
 
+  it("shows an inline error instead of silently doing nothing when onOpenFile rejects", async () => {
+    vi.mocked(listDir).mockResolvedValue([note]);
+    const onOpenFile = vi.fn().mockRejectedValue(new Error("stale file handle"));
+    const { getByText, findByRole } = render(
+      <FileTree rootPath="/vault" onOpenFile={onOpenFile} />,
+    );
+    await waitFor(() => expect(getByText("note.md")).toBeTruthy());
+
+    fireEvent.click(getByText("note.md"));
+    const error = await findByRole("alert");
+    expect(error.textContent).toMatch(/couldn't open/i);
+  });
+
+  it("clears a prior open error and re-attempts when the entry is clicked again", async () => {
+    vi.mocked(listDir).mockResolvedValue([note]);
+    const onOpenFile = vi.fn().mockRejectedValueOnce(new Error("stale file handle")).mockResolvedValueOnce(undefined);
+    const { getByText, findByRole, queryByRole } = render(
+      <FileTree rootPath="/vault" onOpenFile={onOpenFile} />,
+    );
+    await waitFor(() => expect(getByText("note.md")).toBeTruthy());
+
+    fireEvent.click(getByText("note.md"));
+    await findByRole("alert");
+
+    fireEvent.click(getByText("note.md"));
+    await waitFor(() => expect(onOpenFile).toHaveBeenCalledTimes(2));
+    expect(queryByRole("alert")).toBeNull();
+  });
+
   it("auto-expands the root's immediate subdirectories once it loads, without a click", async () => {
     vi.mocked(listDir).mockImplementation(async (_workspaceRoot: string, path: string) =>
       path === "/vault" ? [folder] : path === "/vault/folder" ? [nested] : [],

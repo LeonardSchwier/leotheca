@@ -48,7 +48,7 @@ function NewFolderIcon() {
 
 interface SidebarProps {
   rootPath: string;
-  onOpenFile: (path: string, name: string, searchQuery?: string) => void;
+  onOpenFile: (path: string, name: string, searchQuery?: string) => void | Promise<void>;
   /** Flushes any pending debounced autosave for `path` before it moves, so
    * renaming a file whose open tab has unsaved keystrokes doesn't lose
    * them. See the identical need (and fuller explanation) at App.tsx's own
@@ -72,7 +72,17 @@ export function Sidebar({ rootPath, onOpenFile, flushPendingAutosave }: SidebarP
   const renamePreview = useRenamePreview();
   const [expandAllLoading, setExpandAllLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [searchOpenErrorPath, setSearchOpenErrorPath] = useState<string | null>(null);
   const searchTimer = useRef<ReturnType<typeof setTimeout>>();
+
+  async function handleOpenSearchResult(entry: FsEntry) {
+    setSearchOpenErrorPath(null);
+    try {
+      await onOpenFile(entry.path, entry.name, searchQuery.value);
+    } catch {
+      setSearchOpenErrorPath(entry.path);
+    }
+  }
 
   // A pending debounced search (see handleSearchInput below) captured the
   // *old* rootPath in its closure. Without this, switching workspaces
@@ -221,10 +231,15 @@ export function Sidebar({ rootPath, onOpenFile, flushPendingAutosave }: SidebarP
           {searchResults.value.length === 0 && <li class="empty-hint">No matches.</li>}
           {searchResults.value.map((entry) => (
             <li key={entry.path}>
-              <button class="file-tree-item" onClick={() => onOpenFile(entry.path, entry.name, searchQuery.value)}>
+              <button class="file-tree-item" onClick={() => void handleOpenSearchResult(entry)}>
                 {entry.name}
                 <span class="search-result-path">{entry.path.replace(rootPath, "")}</span>
               </button>
+              {searchOpenErrorPath === entry.path && (
+                <p class="file-tree-open-error" role="alert">
+                  Couldn't open "{entry.name}" — it may have been moved, renamed, or deleted.
+                </p>
+              )}
             </li>
           ))}
         </ul>

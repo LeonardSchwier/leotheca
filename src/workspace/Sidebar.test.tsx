@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { signal } from "@preact/signals";
-import { cleanup, fireEvent, render } from "@testing-library/preact";
+import { cleanup, fireEvent, render, waitFor } from "@testing-library/preact";
 import type { FsEntry } from "./types";
 
 // vi.mock factories run lazily (after this file's own top-level imports
@@ -182,5 +182,44 @@ describe("Sidebar rename/delete flush the pending autosave for the affected file
     const flushOrder = flushPendingAutosave.mock.invocationCallOrder[0];
     const deleteOrder = deleteEntry.mock.invocationCallOrder[0];
     expect(flushOrder).toBeLessThan(deleteOrder);
+  });
+});
+
+describe("Sidebar search result silently failing to open (maintenance review)", () => {
+  const flushPendingAutosave = vi.fn(async () => {});
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    searchResults.value = [note];
+  });
+
+  afterEach(() => {
+    cleanup();
+    searchResults.value = null;
+  });
+
+  it("shows an inline error instead of silently doing nothing when onOpenFile rejects", async () => {
+    const onOpenFile = vi.fn().mockRejectedValue(new Error("stale file handle"));
+    const { getByText, findByRole } = render(
+      <Sidebar rootPath="/workspace" onOpenFile={onOpenFile} flushPendingAutosave={flushPendingAutosave} />,
+    );
+
+    fireEvent.click(getByText("note.md"));
+    const error = await findByRole("alert");
+    expect(error.textContent).toMatch(/couldn't open/i);
+  });
+
+  it("clears a prior open error and re-attempts when the result is clicked again", async () => {
+    const onOpenFile = vi.fn().mockRejectedValueOnce(new Error("stale file handle")).mockResolvedValueOnce(undefined);
+    const { getByText, findByRole, queryByRole } = render(
+      <Sidebar rootPath="/workspace" onOpenFile={onOpenFile} flushPendingAutosave={flushPendingAutosave} />,
+    );
+
+    fireEvent.click(getByText("note.md"));
+    await findByRole("alert");
+
+    fireEvent.click(getByText("note.md"));
+    await waitFor(() => expect(onOpenFile).toHaveBeenCalledTimes(2));
+    expect(queryByRole("alert")).toBeNull();
   });
 });

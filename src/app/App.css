@@ -587,6 +587,13 @@ button.icon-button.active {
   color: var(--text-primary);
 }
 
+.file-tree-open-error {
+  margin: 0;
+  padding: 2px var(--space-1) var(--space-1) calc(0.75em + var(--space-1));
+  font-size: 12px;
+  color: var(--error-color, #d32f2f);
+}
+
 .sidebar-inner {
   display: flex;
   flex-direction: column;

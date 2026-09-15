@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "preact/hooks";
+import { useEffect, useMemo, useState } from "preact/hooks";
 import { memo } from "preact/compat";
 import {
   dirChildren,
@@ -17,7 +17,7 @@ import type { FsEntry } from "./types";
 
 interface FileTreeProps {
   rootPath: string;
-  onOpenFile: (path: string, name: string) => void;
+  onOpenFile: (path: string, name: string) => void | Promise<void>;
 }
 
 export function FileTree({ rootPath, onOpenFile }: FileTreeProps) {
@@ -63,17 +63,23 @@ const FileTreeNodeComponent = function FileTreeNode({
   onOpenFile,
 }: {
   entry: FsEntry;
-  onOpenFile: (path: string, name: string) => void;
+  onOpenFile: (path: string, name: string) => void | Promise<void>;
 }) {
   const expanded = expandedDirs.value.has(entry.path);
   const children = dirChildren.value.get(entry.path);
   const selected = selectedPath.value === entry.path;
+  const [openError, setOpenError] = useState(false);
 
   const handleClick = async () => {
     selectedPath.value = entry.path;
     if (!entry.isDir) {
       selectedDir.value = dirname(entry.path);
-      onOpenFile(entry.path, entry.name);
+      setOpenError(false);
+      try {
+        await onOpenFile(entry.path, entry.name);
+      } catch {
+        setOpenError(true);
+      }
       return;
     }
     selectedDir.value = entry.path;
@@ -109,6 +115,11 @@ const FileTreeNodeComponent = function FileTreeNode({
         <span class="file-tree-marker">{entry.isDir ? (expanded ? "▾" : "▸") : ""}</span>
         {entry.name}
       </button>
+      {openError && (
+        <p class="file-tree-open-error" role="alert">
+          Couldn't open "{entry.name}" — it may have been moved, renamed, or deleted.
+        </p>
+      )}
       {renderedChildren}
     </li>
   );

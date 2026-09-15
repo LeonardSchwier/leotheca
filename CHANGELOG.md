@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fixed clicking a file in the sidebar's file tree or search results whose file could no longer be read: it now shows an inline error explaining the file may have been moved, renamed, or deleted, instead of silently doing nothing. Clicking it again retries.
+
 - Fixed opening a note from a Smart Collection (List, Table, Card, or Board view) whose file could no longer be read: it now shows an inline error explaining the note may have been moved, renamed, or deleted, instead of silently doing nothing. Clicking the note again retries.
 
 - Fixed clicking a task in the Task Hub whose source note could no longer be read: it now shows an inline error explaining the note may have been moved, renamed, or deleted, instead of silently doing nothing. Clicking the task again retries.

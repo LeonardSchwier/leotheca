@@ -171,3 +171,64 @@
 .pdf-annotation-pending {
   outline: 1px dashed rgba(0, 0, 0, 0.3);
 }
+
+/* PDF Phase 2: freehand ink, sticky notes, and simple shapes. */
+
+.pdf-drawing-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.pdf-shape-draft {
+  opacity: 0.7;
+  stroke-dasharray: 4 3;
+}
+
+/* InkSurface (`ink/InkSurface.tsx`, reused unmodified) normally fills its
+   own container opaquely as a standalone drawing surface; nested here it
+   instead needs to sit as a transparent, precisely page-sized overlay on
+   top of the rendered PDF page, only while the Ink tool is active. */
+.pdf-page-container .ink-surface {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  background: transparent;
+}
+
+.pdf-sticky-note-icon {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  line-height: 1;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  pointer-events: auto;
+  cursor: default;
+}
+
+.pdf-sticky-note-draft {
+  position: absolute;
+  z-index: 5;
+}
+
+.pdf-sticky-note-draft textarea {
+  width: 180px;
+  height: 80px;
+  font: inherit;
+  font-size: 0.8125rem;
+  padding: var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  resize: both;
+}

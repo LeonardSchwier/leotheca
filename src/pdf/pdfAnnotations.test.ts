@@ -2,10 +2,16 @@ import { describe, expect, it } from "vitest";
 import { PDFDict, PDFDocument, PDFName, PDFNumber } from "pdf-lib";
 import {
   applyAnnotationsToPdf,
+  applyInkAnnotationsToPdf,
+  applyShapeAnnotationsToPdf,
+  applyStickyNotesToPdf,
   countMarkupAnnotations,
   DEFAULT_MARKUP_COLOR,
   quadPointsToViewportRects,
+  readInkAnnotations,
   readMarkupAnnotations,
+  readShapeAnnotations,
+  readStickyNotes,
   rectToQuadPoints,
 } from "./pdfAnnotations";
 import type { PdfPointConverter } from "./pdfAnnotations";
@@ -202,5 +208,154 @@ describe("readMarkupAnnotations", () => {
     const bytes = await doc.save();
 
     expect(await readMarkupAnnotations(bytes)).toEqual([]);
+  });
+});
+
+describe("applyInkAnnotationsToPdf / readInkAnnotations (PDF Phase 2)", () => {
+  it("round-trips a single-stroke ink annotation's points, default color, and default width", async () => {
+    const bytes = await makeBlankPdf(1);
+    const annotated = await applyInkAnnotationsToPdf(bytes, [
+      { pageIndex: 0, inkList: [[10, 10, 20, 20, 30, 10]] },
+    ]);
+
+    const [saved] = await readInkAnnotations(annotated);
+
+    expect(saved.pageIndex).toBe(0);
+    expect(saved.inkList).toEqual([[10, 10, 20, 20, 30, 10]]);
+    expect(saved.width).toBeGreaterThan(0);
+  });
+
+  it("round-trips a multi-stroke annotation and an explicit color/width override", async () => {
+    const bytes = await makeBlankPdf(1);
+    const inkList = [
+      [0, 0, 5, 5],
+      [10, 10, 15, 5, 20, 10],
+    ];
+    const annotated = await applyInkAnnotationsToPdf(bytes, [
+      { pageIndex: 0, inkList, color: { r: 0, g: 1, b: 0 }, width: 5 },
+    ]);
+
+    const [saved] = await readInkAnnotations(annotated);
+
+    expect(saved.inkList).toEqual(inkList);
+    expect(saved.color).toEqual({ r: 0, g: 1, b: 0 });
+    expect(saved.width).toBeCloseTo(5);
+  });
+
+  it("rejects a pageIndex beyond the document's real page count", async () => {
+    const bytes = await makeBlankPdf(1);
+    await expect(
+      applyInkAnnotationsToPdf(bytes, [{ pageIndex: 3, inkList: [[0, 0, 1, 1]] }]),
+    ).rejects.toThrow(/only has 1 page/);
+  });
+
+  it("ignores a non-Ink annotation", async () => {
+    const bytes = await makeBlankPdf(1);
+    const annotated = await applyAnnotationsToPdf(bytes, [
+      { pageIndex: 0, subtype: "Highlight", quadPoints: [0, 0, 10, 0, 0, 5, 10, 5] },
+    ]);
+    expect(await readInkAnnotations(annotated)).toEqual([]);
+  });
+});
+
+describe("applyStickyNotesToPdf / readStickyNotes (PDF Phase 2)", () => {
+  it("round-trips a sticky note's anchor point, contents, and default color", async () => {
+    const bytes = await makeBlankPdf(1);
+    const annotated = await applyStickyNotesToPdf(bytes, [
+      { pageIndex: 0, x: 100, y: 700, contents: "remember this" },
+    ]);
+
+    const [saved] = await readStickyNotes(annotated);
+
+    expect(saved.pageIndex).toBe(0);
+    expect(saved.x).toBeCloseTo(100);
+    expect(saved.y).toBeCloseTo(700);
+    expect(saved.contents).toBe("remember this");
+  });
+
+  it("round-trips an explicit color override and an empty contents string", async () => {
+    const bytes = await makeBlankPdf(1);
+    const annotated = await applyStickyNotesToPdf(bytes, [
+      { pageIndex: 0, x: 50, y: 50, contents: "", color: { r: 0, g: 0, b: 1 } },
+    ]);
+
+    const [saved] = await readStickyNotes(annotated);
+
+    expect(saved.contents).toBe("");
+    expect(saved.color).toEqual({ r: 0, g: 0, b: 1 });
+  });
+
+  it("supports more than one sticky note on the same page", async () => {
+    const bytes = await makeBlankPdf(1);
+    const annotated = await applyStickyNotesToPdf(bytes, [
+      { pageIndex: 0, x: 10, y: 10, contents: "first" },
+      { pageIndex: 0, x: 200, y: 300, contents: "second" },
+    ]);
+
+    const saved = await readStickyNotes(annotated);
+    expect(saved.map((n) => n.contents).sort()).toEqual(["first", "second"]);
+  });
+});
+
+describe("applyShapeAnnotationsToPdf / readShapeAnnotations (PDF Phase 2)", () => {
+  it("round-trips a Square/Circle annotation's Rect-derived corner points", async () => {
+    const bytes = await makeBlankPdf(1);
+    const annotated = await applyShapeAnnotationsToPdf(bytes, [
+      { pageIndex: 0, subtype: "Square", points: [10, 10, 100, 80] },
+    ]);
+
+    const [saved] = await readShapeAnnotations(annotated);
+
+    expect(saved.subtype).toBe("Square");
+    expect(saved.points).toEqual([10, 10, 100, 80]);
+  });
+
+  it("round-trips a Line annotation's real /L endpoints, distinct from /Rect", async () => {
+    const bytes = await makeBlankPdf(1);
+    const annotated = await applyShapeAnnotationsToPdf(bytes, [
+      { pageIndex: 0, subtype: "Line", points: [20, 30, 120, 130] },
+    ]);
+
+    const [saved] = await readShapeAnnotations(annotated);
+
+    expect(saved.subtype).toBe("Line");
+    expect(saved.points).toEqual([20, 30, 120, 130]);
+  });
+
+  it("round-trips a Polygon annotation's real /Vertices, three or more points", async () => {
+    const bytes = await makeBlankPdf(1);
+    const vertices = [0, 0, 50, 0, 25, 50];
+    const annotated = await applyShapeAnnotationsToPdf(bytes, [
+      { pageIndex: 0, subtype: "Polygon", points: vertices },
+    ]);
+
+    const [saved] = await readShapeAnnotations(annotated);
+
+    expect(saved.subtype).toBe("Polygon");
+    expect(saved.points).toEqual(vertices);
+  });
+
+  it("round-trips an explicit color/width override for a shape", async () => {
+    const bytes = await makeBlankPdf(1);
+    const annotated = await applyShapeAnnotationsToPdf(bytes, [
+      { pageIndex: 0, subtype: "Circle", points: [0, 0, 40, 40], color: { r: 1, g: 0, b: 1 }, width: 6 },
+    ]);
+
+    const [saved] = await readShapeAnnotations(annotated);
+
+    expect(saved.color).toEqual({ r: 1, g: 0, b: 1 });
+    expect(saved.width).toBeCloseTo(6);
+  });
+
+  it("supports multiple shape subtypes together on one page", async () => {
+    const bytes = await makeBlankPdf(1);
+    const annotated = await applyShapeAnnotationsToPdf(bytes, [
+      { pageIndex: 0, subtype: "Square", points: [0, 0, 10, 10] },
+      { pageIndex: 0, subtype: "Line", points: [0, 20, 10, 30] },
+      { pageIndex: 0, subtype: "Polygon", points: [0, 40, 10, 50, 5, 60] },
+    ]);
+
+    const saved = await readShapeAnnotations(annotated);
+    expect(saved.map((s) => s.subtype).sort()).toEqual(["Line", "Polygon", "Square"]);
   });
 });

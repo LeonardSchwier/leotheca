@@ -17,22 +17,21 @@ vi.mock("../workspace/tauriBridge", () => ({
 }));
 
 /**
- * A minimal fake standing in for the real pdf.js module: real rendering
- * (canvas 2D context, the text-layer DOM) isn't exercisable in jsdom
- * (`HTMLCanvasElement.getContext("2d")` returns null there, the same
- * constraint `GraphView.test.tsx` already documents and works around by
- * relying on its own component's null-context bail rather than a canvas
- * mocking library) -- `PdfViewer.tsx`'s render effect bails the same way
- * right after that null check, before ever touching `TextLayer` or
- * `page.render`. These tests cover everything reachable without a real
- * canvas: load/error states, page navigation, zoom, and full-document
- * search (which calls `getTextContent` directly, independent of
- * rendering). Real page rendering, the text layer, coordinate conversion
- * against a genuine `PageViewport`, and the full select-text -> compute
- * QuadPoints -> write/read back a real annotation pipeline were instead
- * verified against the actual installed pdfjs-dist/pdf-lib in a real
- * headless Chromium browser (see this feature's own commit message for
- * that verification's details) -- not just asserted here.
+ * A minimal fake standing in for the real pdf.js module. This jsdom
+ * environment's `HTMLCanvasElement.getContext("2d")` does return a (very
+ * minimal, largely no-op) stub context rather than null, so
+ * `PdfViewer.tsx`'s render effect runs past its null-context guard here
+ * -- but `page.render`/`TextLayer` themselves are still this file's own
+ * mocks below, not real pdf.js, so no real glyph is ever actually drawn
+ * or laid out; only this component's own state/DOM wiring (overlay
+ * elements, pointer/click handlers, PDF-space coordinate conversion
+ * calls) is under test. Real page rendering, the real text layer,
+ * coordinate conversion against a genuine `PageViewport`, and the full
+ * select-text -> compute QuadPoints -> write/read back a real annotation
+ * pipeline were instead verified against the actual installed
+ * pdfjs-dist/pdf-lib in a real headless Chromium browser (see this
+ * feature's own commit messages for that verification's details), not
+ * just asserted here.
  */
 function makeFakePage(text: string) {
   return {
@@ -83,6 +82,9 @@ vi.mock("./pdfAnnotations", async () => {
   return {
     ...actual,
     readMarkupAnnotations: vi.fn(async () => []),
+    readInkAnnotations: vi.fn(async () => []),
+    readStickyNotes: vi.fn(async () => []),
+    readShapeAnnotations: vi.fn(async () => []),
   };
 });
 
@@ -261,6 +263,188 @@ describe("PdfViewer", () => {
     const { getByText, findByText } = render(<PdfViewer path="/vault/doc.pdf" />);
     await findByText("/ 1");
 
+    const saveButton = getByText("Save annotations") as HTMLButtonElement;
+    expect(saveButton.disabled).toBe(true);
+  });
+});
+
+describe("PdfViewer -- PDF Phase 2 (ink, sticky notes, shapes)", () => {
+  it("the Draw tool mounts a real InkSurface overlay, and committing a stroke adds one pending annotation", async () => {
+    mockDoc(["a"]);
+    const { getByRole, getByText, findByText, container } = render(<PdfViewer path="/vault/doc.pdf" />);
+    await findByText("/ 1");
+
+    await act(async () => {
+      fireEvent.click(getByRole("button", { name: "Draw" }));
+    });
+
+    const surface = container.querySelector(".ink-surface") as unknown as (SVGSVGElement & {
+      setPointerCapture: (id: number) => void;
+      hasPointerCapture: (id: number) => boolean;
+    });
+    expect(surface).toBeTruthy();
+    // jsdom doesn't implement pointer capture; InkSurface itself guards
+    // every pointermove/up on it, so tests must stub it, the same
+    // pattern InkSurface.test.tsx already establishes.
+    surface.setPointerCapture = vi.fn();
+    surface.hasPointerCapture = vi.fn(() => true);
+
+    await act(async () => {
+      fireEvent.pointerDown(surface, { pointerId: 1, pointerType: "mouse", button: 0, clientX: 10, clientY: 10 });
+      fireEvent.pointerMove(surface, { pointerId: 1, pointerType: "mouse", button: 0, clientX: 20, clientY: 20 });
+      fireEvent.pointerUp(surface, { pointerId: 1, pointerType: "mouse", button: 0, clientX: 30, clientY: 10 });
+    });
+
+    const saveButton = getByText(/Save annotations/) as HTMLButtonElement;
+    expect(saveButton.disabled).toBe(false);
+    expect(saveButton.textContent).toContain("(1)");
+    await waitFor(() => expect(container.querySelector(".pdf-drawing-overlay polyline")).toBeTruthy());
+  });
+
+  it("the Note tool places a sticky-note draft on click, and Enter commits it as one pending annotation", async () => {
+    mockDoc(["a"]);
+    const { getByRole, getByText, findByText, container } = render(<PdfViewer path="/vault/doc.pdf" />);
+    await findByText("/ 1");
+
+    await act(async () => {
+      fireEvent.click(getByRole("button", { name: "Note" }));
+    });
+    const pageContainer = container.querySelector(".pdf-page-container") as HTMLDivElement;
+    await act(async () => {
+      fireEvent.click(pageContainer, { clientX: 50, clientY: 60 });
+    });
+
+    const textarea = container.querySelector(".pdf-sticky-note-draft textarea") as HTMLTextAreaElement;
+    expect(textarea).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.input(textarea, { target: { value: "remember this" } });
+    });
+    await act(async () => {
+      fireEvent.keyDown(textarea, { key: "Enter" });
+    });
+
+    expect(container.querySelector(".pdf-sticky-note-draft")).toBeNull();
+    const saveButton = getByText(/Save annotations/) as HTMLButtonElement;
+    expect(saveButton.textContent).toContain("(1)");
+    await waitFor(() => expect(container.querySelector(".pdf-sticky-note-icon")).toBeTruthy());
+  });
+
+  it("Escape cancels a sticky-note draft without adding a pending annotation", async () => {
+    mockDoc(["a"]);
+    const { getByRole, getByText, findByText, container } = render(<PdfViewer path="/vault/doc.pdf" />);
+    await findByText("/ 1");
+
+    await act(async () => {
+      fireEvent.click(getByRole("button", { name: "Note" }));
+    });
+    const pageContainer = container.querySelector(".pdf-page-container") as HTMLDivElement;
+    await act(async () => {
+      fireEvent.click(pageContainer, { clientX: 50, clientY: 60 });
+    });
+    const textarea = container.querySelector(".pdf-sticky-note-draft textarea") as HTMLTextAreaElement;
+    await act(async () => {
+      fireEvent.input(textarea, { target: { value: "discard me" } });
+      fireEvent.keyDown(textarea, { key: "Escape" });
+    });
+
+    expect(container.querySelector(".pdf-sticky-note-draft")).toBeNull();
+    const saveButton = getByText("Save annotations") as HTMLButtonElement;
+    expect(saveButton.disabled).toBe(true);
+  });
+
+  it("dragging with the Square tool commits one pending shape annotation", async () => {
+    mockDoc(["a"]);
+    const { getByRole, getByText, findByText, container } = render(<PdfViewer path="/vault/doc.pdf" />);
+    await findByText("/ 1");
+
+    await act(async () => {
+      fireEvent.click(getByRole("button", { name: "Square" }));
+    });
+    const pageContainer = container.querySelector(".pdf-page-container") as HTMLDivElement;
+
+    await act(async () => {
+      fireEvent.pointerDown(pageContainer, { pointerId: 1, clientX: 10, clientY: 10 });
+      fireEvent.pointerMove(pageContainer, { pointerId: 1, clientX: 60, clientY: 60 });
+      fireEvent.pointerUp(pageContainer, { pointerId: 1, clientX: 60, clientY: 60 });
+    });
+
+    const saveButton = getByText(/Save annotations/) as HTMLButtonElement;
+    expect(saveButton.textContent).toContain("(1)");
+    await waitFor(() => expect(container.querySelector(".pdf-drawing-overlay rect")).toBeTruthy());
+  });
+
+  it("a drag shorter than the click-vs-drag threshold does not commit a degenerate shape", async () => {
+    mockDoc(["a"]);
+    const { getByRole, getByText, findByText, container } = render(<PdfViewer path="/vault/doc.pdf" />);
+    await findByText("/ 1");
+
+    await act(async () => {
+      fireEvent.click(getByRole("button", { name: "Line" }));
+    });
+    const pageContainer = container.querySelector(".pdf-page-container") as HTMLDivElement;
+    await act(async () => {
+      fireEvent.pointerDown(pageContainer, { pointerId: 1, clientX: 10, clientY: 10 });
+      fireEvent.pointerUp(pageContainer, { pointerId: 1, clientX: 11, clientY: 10 });
+    });
+
+    const saveButton = getByText("Save annotations") as HTMLButtonElement;
+    expect(saveButton.disabled).toBe(true);
+  });
+
+  it("clicking with the Polygon tool adds vertices, and Finish shape commits one pending shape annotation", async () => {
+    mockDoc(["a"]);
+    const { getByRole, getByText, queryByText, findByText, container } = render(<PdfViewer path="/vault/doc.pdf" />);
+    await findByText("/ 1");
+
+    await act(async () => {
+      fireEvent.click(getByRole("button", { name: "Polygon" }));
+    });
+    const pageContainer = container.querySelector(".pdf-page-container") as HTMLDivElement;
+
+    await act(async () => {
+      fireEvent.click(pageContainer, { clientX: 10, clientY: 10 });
+    });
+    await act(async () => {
+      fireEvent.click(pageContainer, { clientX: 50, clientY: 10 });
+    });
+    await act(async () => {
+      fireEvent.click(pageContainer, { clientX: 30, clientY: 50 });
+    });
+
+    const finishButton = getByText(/Finish shape/) as HTMLButtonElement;
+    expect(finishButton.disabled).toBe(false);
+    await act(async () => {
+      fireEvent.click(finishButton);
+    });
+
+    expect(queryByText(/Finish shape/)).toBeNull();
+    const saveButton = getByText(/Save annotations/) as HTMLButtonElement;
+    expect(saveButton.textContent).toContain("(1)");
+    await waitFor(() => expect(container.querySelector(".pdf-drawing-overlay polygon")).toBeTruthy());
+  });
+
+  it("switching tools clears an in-progress (uncommitted) polygon draft", async () => {
+    mockDoc(["a"]);
+    const { getByRole, getByText, findByText, container } = render(<PdfViewer path="/vault/doc.pdf" />);
+    await findByText("/ 1");
+
+    await act(async () => {
+      fireEvent.click(getByRole("button", { name: "Polygon" }));
+    });
+    const pageContainer = container.querySelector(".pdf-page-container") as HTMLDivElement;
+    await act(async () => {
+      fireEvent.click(pageContainer, { clientX: 10, clientY: 10 });
+      fireEvent.click(pageContainer, { clientX: 20, clientY: 10 });
+      fireEvent.click(pageContainer, { clientX: 15, clientY: 20 });
+    });
+    expect(getByText(/Finish shape/)).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.click(getByRole("button", { name: "Square" }));
+    });
+
+    expect(container.querySelector(".pdf-shape-draft")).toBeNull();
     const saveButton = getByText("Save annotations") as HTMLButtonElement;
     expect(saveButton.disabled).toBe(true);
   });

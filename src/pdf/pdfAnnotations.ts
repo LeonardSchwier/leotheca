@@ -1,4 +1,4 @@
-import { PDFArray, PDFDict, PDFDocument, PDFName, PDFNumber, PDFString } from "pdf-lib";
+import { PDFArray, PDFDict, PDFDocument, PDFHexString, PDFName, PDFNumber, PDFString } from "pdf-lib";
 
 /**
  * Standard PDF text-markup annotation subtypes (ISO 32000-1 section
@@ -209,6 +209,31 @@ function subtypeOf(dict: PDFDict): MarkupSubtype | null {
   }
 }
 
+function shapeSubtypeOf(dict: PDFDict): ShapeSubtype | null {
+  switch (dict.lookupMaybe(PDFName.of("Subtype"), PDFName)?.asString()) {
+    case "/Square":
+      return "Square";
+    case "/Circle":
+      return "Circle";
+    case "/Line":
+      return "Line";
+    case "/Polygon":
+      return "Polygon";
+    default:
+      return null;
+  }
+}
+
+/** A dictionary's string-valued field can round-trip through pdf-lib's
+ * own save as either literal `(...)` or hex `<...>` syntax; readers must
+ * accept either. */
+function stringOf(dict: PDFDict, key: string): string | undefined {
+  return (
+    dict.lookupMaybe(PDFName.of(key), PDFString)?.decodeText() ??
+    dict.lookupMaybe(PDFName.of(key), PDFHexString)?.decodeText()
+  );
+}
+
 function numbersOf(dict: PDFDict, key: string): number[] {
   const array = dict.lookupMaybe(PDFName.of(key), PDFArray);
   if (!array) return [];
@@ -261,4 +286,288 @@ export async function readMarkupAnnotations(bytes: Uint8Array): Promise<SavedAnn
  * by round-trip tests. */
 export async function countMarkupAnnotations(bytes: Uint8Array): Promise<number> {
   return (await readMarkupAnnotations(bytes)).length;
+}
+
+// ---------------------------------------------------------------------
+// PDF Phase 2: freehand ink, sticky notes, and simple shapes for scanned/
+// image-only PDFs (ROADMAP.md's "PDF Phase 2" entry). Unlike the markup
+// annotations above, these attach to a page position rather than a text
+// span -- a scanned PDF has no text layer to anchor QuadPoints to -- so
+// each has its own geometry (ISO 32000-1 section 12.5.6.13 "Ink
+// Annotations", 12.5.6.4 "Text Annotations", 12.5.6.9 "Line, Square,
+// Circle, Polygon, and PolyLine Annotations"), still built by hand via
+// the same low-level pdf-lib primitives for the same reason: pdf-lib has
+// no first-class helper for any of these subtypes either.
+// ---------------------------------------------------------------------
+
+export const DEFAULT_INK_COLOR: RgbColor = { r: 0.1, g: 0.1, b: 0.6 };
+export const DEFAULT_INK_WIDTH = 2;
+export const DEFAULT_SHAPE_COLOR: RgbColor = { r: 0.85, g: 0.15, b: 0.15 };
+export const DEFAULT_SHAPE_WIDTH = 2;
+export const DEFAULT_STICKY_NOTE_COLOR: RgbColor = { r: 1, g: 0.86, b: 0.4 };
+/** PDF points (1/72 inch); most readers draw a sticky-note icon around
+ * this size regardless of the page's own scale. */
+const STICKY_NOTE_ICON_SIZE = 18;
+
+/** One freehand ink annotation. `inkList` is one sub-array per stroke
+ * (a page can carry more than one stroke as a single annotation, same as
+ * a real PDF reader's own "Ink" tool groups a single pen-down-to-pen-up
+ * gesture as one stroke, but this app writes one annotation per
+ * `InkSurface` `onCommitStroke` call, so in practice each has exactly
+ * one), each a flat `[x1, y1, x2, y2, ...]` list in PDF user-space. */
+export interface PendingInkAnnotation {
+  pageIndex: number;
+  inkList: number[][];
+  color?: RgbColor;
+  width?: number;
+}
+
+export interface SavedInkAnnotation {
+  pageIndex: number;
+  inkList: number[][];
+  color: RgbColor;
+  width: number;
+}
+
+/** One sticky note, anchored at a single PDF user-space point (its
+ * icon's top-left corner; PDF Y grows upward, so the icon occupies
+ * `[x, y - size, x + size, y]`). */
+export interface PendingStickyNote {
+  pageIndex: number;
+  x: number;
+  y: number;
+  contents: string;
+  color?: RgbColor;
+}
+
+export interface SavedStickyNote {
+  pageIndex: number;
+  x: number;
+  y: number;
+  contents: string;
+  color: RgbColor;
+}
+
+export type ShapeSubtype = "Square" | "Circle" | "Line" | "Polygon";
+
+/** One simple shape. `points` is a flat `[x, y, ...]` list in PDF
+ * user-space: exactly two points (the rectangle's opposite corners) for
+ * Square/Circle -- both are drawn inscribed in `/Rect` per the spec, no
+ * separate geometry field -- exactly two points (the endpoints) for
+ * Line, and three or more vertices for Polygon. */
+export interface PendingShapeAnnotation {
+  pageIndex: number;
+  subtype: ShapeSubtype;
+  points: number[];
+  color?: RgbColor;
+  width?: number;
+}
+
+export interface SavedShapeAnnotation {
+  pageIndex: number;
+  subtype: ShapeSubtype;
+  points: number[];
+  color: RgbColor;
+  width: number;
+}
+
+function annotBase(subtype: string, rect: number[], color: RgbColor, now: Date) {
+  return {
+    Type: "Annot",
+    Subtype: subtype,
+    Rect: rect,
+    C: [color.r, color.g, color.b],
+    T: PDFString.of("Leotheca"),
+    M: PDFString.of(toPdfDate(now)),
+    F: 4,
+  };
+}
+
+/** Adds each pending ink stroke as a real `/Subtype /Ink` annotation. */
+export async function applyInkAnnotationsToPdf(
+  bytes: Uint8Array,
+  annotations: PendingInkAnnotation[],
+): Promise<Uint8Array> {
+  const pdfDoc = await PDFDocument.load(bytes);
+  const pages = pdfDoc.getPages();
+  const now = new Date();
+
+  for (const annotation of annotations) {
+    const page = pages[annotation.pageIndex];
+    if (!page) {
+      throw new Error(`Cannot annotate page ${annotation.pageIndex}: the PDF only has ${pages.length} page(s).`);
+    }
+    const color = annotation.color ?? DEFAULT_INK_COLOR;
+    const width = annotation.width ?? DEFAULT_INK_WIDTH;
+    const dict = pdfDoc.context.obj({
+      ...annotBase("Ink", boundingRect(annotation.inkList.flat()), color, now),
+      InkList: annotation.inkList,
+      BS: { W: width },
+    });
+    page.node.addAnnot(pdfDoc.context.register(dict));
+  }
+
+  return pdfDoc.save();
+}
+
+/** Adds each pending sticky note as a real `/Subtype /Text` annotation. */
+export async function applyStickyNotesToPdf(
+  bytes: Uint8Array,
+  notes: PendingStickyNote[],
+): Promise<Uint8Array> {
+  const pdfDoc = await PDFDocument.load(bytes);
+  const pages = pdfDoc.getPages();
+  const now = new Date();
+
+  for (const note of notes) {
+    const page = pages[note.pageIndex];
+    if (!page) {
+      throw new Error(`Cannot annotate page ${note.pageIndex}: the PDF only has ${pages.length} page(s).`);
+    }
+    const color = note.color ?? DEFAULT_STICKY_NOTE_COLOR;
+    const rect = [note.x, note.y - STICKY_NOTE_ICON_SIZE, note.x + STICKY_NOTE_ICON_SIZE, note.y];
+    const dict = pdfDoc.context.obj({
+      ...annotBase("Text", rect, color, now),
+      Contents: PDFString.of(note.contents),
+      Name: "Comment",
+      Open: false,
+    });
+    page.node.addAnnot(pdfDoc.context.register(dict));
+  }
+
+  return pdfDoc.save();
+}
+
+/** Adds each pending shape as a real `/Subtype /Square|/Circle|/Line|
+ * /Polygon` annotation. */
+export async function applyShapeAnnotationsToPdf(
+  bytes: Uint8Array,
+  shapes: PendingShapeAnnotation[],
+): Promise<Uint8Array> {
+  const pdfDoc = await PDFDocument.load(bytes);
+  const pages = pdfDoc.getPages();
+  const now = new Date();
+
+  for (const shape of shapes) {
+    const page = pages[shape.pageIndex];
+    if (!page) {
+      throw new Error(`Cannot annotate page ${shape.pageIndex}: the PDF only has ${pages.length} page(s).`);
+    }
+    const color = shape.color ?? DEFAULT_SHAPE_COLOR;
+    const width = shape.width ?? DEFAULT_SHAPE_WIDTH;
+    const dict = pdfDoc.context.obj({
+      ...annotBase(shape.subtype, boundingRect(shape.points), color, now),
+      BS: { W: width },
+      ...(shape.subtype === "Line" ? { L: shape.points } : {}),
+      ...(shape.subtype === "Polygon" ? { Vertices: shape.points } : {}),
+    });
+    page.node.addAnnot(pdfDoc.context.register(dict));
+  }
+
+  return pdfDoc.save();
+}
+
+/** Reads every `/Subtype /Ink` annotation back, inverse of
+ * `applyInkAnnotationsToPdf`. */
+export async function readInkAnnotations(bytes: Uint8Array): Promise<SavedInkAnnotation[]> {
+  const pdfDoc = await PDFDocument.load(bytes);
+  const results: SavedInkAnnotation[] = [];
+  const pages = pdfDoc.getPages();
+  for (let pageIndex = 0; pageIndex < pages.length; pageIndex++) {
+    const annots = pages[pageIndex].node.Annots();
+    if (!annots) continue;
+    for (let i = 0; i < annots.size(); i++) {
+      let dict: PDFDict;
+      try {
+        dict = annots.lookup(i, PDFDict);
+      } catch {
+        continue;
+      }
+      if (dict.lookupMaybe(PDFName.of("Subtype"), PDFName)?.asString() !== "/Ink") continue;
+      const inkListArray = dict.lookupMaybe(PDFName.of("InkList"), PDFArray);
+      if (!inkListArray) continue;
+      const inkList: number[][] = [];
+      for (let s = 0; s < inkListArray.size(); s++) {
+        const stroke = inkListArray.lookupMaybe(s, PDFArray);
+        if (!stroke) continue;
+        const points: number[] = [];
+        for (let p = 0; p < stroke.size(); p++) {
+          const n = stroke.lookupMaybe(p, PDFNumber);
+          if (n) points.push(n.asNumber());
+        }
+        if (points.length >= 2) inkList.push(points);
+      }
+      if (inkList.length === 0) continue;
+      const c = numbersOf(dict, "C");
+      const color: RgbColor = c.length === 3 ? { r: c[0], g: c[1], b: c[2] } : DEFAULT_INK_COLOR;
+      const bs = dict.lookupMaybe(PDFName.of("BS"), PDFDict);
+      const width = bs?.lookupMaybe(PDFName.of("W"), PDFNumber)?.asNumber() ?? DEFAULT_INK_WIDTH;
+      results.push({ pageIndex, inkList, color, width });
+    }
+  }
+  return results;
+}
+
+/** Reads every `/Subtype /Text` sticky-note annotation back, inverse of
+ * `applyStickyNotesToPdf`. */
+export async function readStickyNotes(bytes: Uint8Array): Promise<SavedStickyNote[]> {
+  const pdfDoc = await PDFDocument.load(bytes);
+  const results: SavedStickyNote[] = [];
+  const pages = pdfDoc.getPages();
+  for (let pageIndex = 0; pageIndex < pages.length; pageIndex++) {
+    const annots = pages[pageIndex].node.Annots();
+    if (!annots) continue;
+    for (let i = 0; i < annots.size(); i++) {
+      let dict: PDFDict;
+      try {
+        dict = annots.lookup(i, PDFDict);
+      } catch {
+        continue;
+      }
+      if (dict.lookupMaybe(PDFName.of("Subtype"), PDFName)?.asString() !== "/Text") continue;
+      const rect = numbersOf(dict, "Rect");
+      if (rect.length !== 4) continue;
+      const contents = stringOf(dict, "Contents") ?? "";
+      const c = numbersOf(dict, "C");
+      const color: RgbColor = c.length === 3 ? { r: c[0], g: c[1], b: c[2] } : DEFAULT_STICKY_NOTE_COLOR;
+      // Inverse of applyStickyNotesToPdf's Rect construction: [x, y-size, x+size, y].
+      results.push({ pageIndex, x: rect[0], y: rect[3], contents, color });
+    }
+  }
+  return results;
+}
+
+/** Reads every Square/Circle/Line/Polygon shape annotation back, inverse
+ * of `applyShapeAnnotationsToPdf`. */
+export async function readShapeAnnotations(bytes: Uint8Array): Promise<SavedShapeAnnotation[]> {
+  const pdfDoc = await PDFDocument.load(bytes);
+  const results: SavedShapeAnnotation[] = [];
+  const pages = pdfDoc.getPages();
+  for (let pageIndex = 0; pageIndex < pages.length; pageIndex++) {
+    const annots = pages[pageIndex].node.Annots();
+    if (!annots) continue;
+    for (let i = 0; i < annots.size(); i++) {
+      let dict: PDFDict;
+      try {
+        dict = annots.lookup(i, PDFDict);
+      } catch {
+        continue;
+      }
+      const subtype = shapeSubtypeOf(dict);
+      if (!subtype) continue;
+      const points =
+        subtype === "Line"
+          ? numbersOf(dict, "L")
+          : subtype === "Polygon"
+            ? numbersOf(dict, "Vertices")
+            : numbersOf(dict, "Rect");
+      if (points.length < 4) continue;
+      const c = numbersOf(dict, "C");
+      const color: RgbColor = c.length === 3 ? { r: c[0], g: c[1], b: c[2] } : DEFAULT_SHAPE_COLOR;
+      const bs = dict.lookupMaybe(PDFName.of("BS"), PDFDict);
+      const width = bs?.lookupMaybe(PDFName.of("W"), PDFNumber)?.asNumber() ?? DEFAULT_SHAPE_WIDTH;
+      results.push({ pageIndex, subtype, points, color, width });
+    }
+  }
+  return results;
 }

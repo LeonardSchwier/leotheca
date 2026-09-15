@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fixed a PDF shape tool (Square/Circle/Line) leaving its in-progress draft rectangle/line stuck on screen if the drag gesture was interrupted (an OS/browser context switch, a multi-touch conflict, the tab losing focus mid-drag) instead of ending normally.
+
 - Fixed the split-pane divider getting stuck in a drag if the gesture was interrupted (an OS/browser context switch, a multi-touch conflict, the tab losing focus mid-drag) without ever delivering a pointer-up: any later, unrelated pointer movement anywhere on the page would keep silently resizing the split.
 
 - Fixed Ctrl/Cmd-click "open in other group" on an image link opening the image into the same pane it was clicked in, instead of the other one, when that pane wasn't already the active group (e.g. reading the reference pane after last working in the primary one, then Ctrl/Cmd-clicking an image link there). Text-note links were unaffected in practice.

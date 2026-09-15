@@ -432,6 +432,35 @@ describe("PdfViewer -- PDF Phase 2 (ink, sticky notes, shapes)", () => {
     await waitFor(() => expect(container.querySelector(".pdf-drawing-overlay rect")).toBeTruthy());
   });
 
+  it("a pointercancel discards an in-progress shape drag instead of leaving the draft preview stuck (regression)", async () => {
+    mockDoc(["a"]);
+    const { getByRole, getByText, findByText, container } = render(<PdfViewer path="/vault/doc.pdf" />);
+    await findByText("/ 1");
+
+    await act(async () => {
+      fireEvent.click(getByRole("button", { name: "Square" }));
+    });
+    const pageContainer = container.querySelector(".pdf-page-container") as HTMLDivElement;
+
+    await act(async () => {
+      fireEvent.pointerDown(pageContainer, { pointerId: 1, clientX: 10, clientY: 10 });
+      fireEvent.pointerMove(pageContainer, { pointerId: 1, clientX: 60, clientY: 60 });
+    });
+    await waitFor(() => expect(container.querySelector(".pdf-drawing-overlay rect")).toBeTruthy());
+
+    // A drag interrupted by an OS/browser context switch, a multi-touch
+    // conflict, or the tab losing focus delivers pointercancel instead
+    // of pointerup; without handling it the draft rectangle would stay
+    // stuck on screen and no pending shape would ever be recorded.
+    await act(async () => {
+      fireEvent.pointerCancel(pageContainer, { pointerId: 1 });
+    });
+
+    expect(container.querySelector(".pdf-drawing-overlay rect")).toBeNull();
+    const saveButton = getByText("Save annotations") as HTMLButtonElement;
+    expect(saveButton.disabled).toBe(true);
+  });
+
   it("a drag shorter than the click-vs-drag threshold does not commit a degenerate shape", async () => {
     mockDoc(["a"]);
     const { getByRole, getByText, findByText, container } = render(<PdfViewer path="/vault/doc.pdf" />);

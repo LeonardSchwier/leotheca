@@ -588,6 +588,17 @@ export function PdfViewer({ path }: PdfViewerProps) {
     setShapeDraft({ subtype: shapeDragRef.current.subtype, points: [shapeDragRef.current.start, point] });
   }, []);
 
+  // A drag gesture can be interrupted without ever delivering a pointerup
+  // (an OS/browser context switch, a multi-touch conflict, the tab losing
+  // focus mid-drag): discard it instead of leaving the draft preview
+  // stuck on screen, the same reasoning CanvasView.tsx's card dragging
+  // and SplitSeparator.tsx's divider already apply. Discards rather than
+  // committing a shape, since the drag never reached a real end point.
+  const handleShapeDragCancel = useCallback(() => {
+    shapeDragRef.current = null;
+    setShapeDraft(null);
+  }, []);
+
   const handleShapeDragEnd = useCallback(
     (event: JSX.TargetedPointerEvent<HTMLDivElement>) => {
       const drag = shapeDragRef.current;
@@ -854,6 +865,7 @@ export function PdfViewer({ path }: PdfViewerProps) {
           onPointerDown={handleShapeDragStart}
           onPointerMove={handleShapeDragMove}
           onPointerUp={handleShapeDragEnd}
+          onPointerCancel={handleShapeDragCancel}
         >
           <canvas ref={canvasRef} class="pdf-page-canvas" />
           <div ref={textLayerRef} class={`pdf-text-layer${activeTool ? " pdf-text-layer-marking" : ""}`} />

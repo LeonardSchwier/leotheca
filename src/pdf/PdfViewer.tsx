@@ -510,6 +510,18 @@ export function PdfViewer({ path }: PdfViewerProps) {
     if (pendingCount === 0 || !bytesRef.current) return;
     setSaving(true);
     setSaveError(null);
+    // Snapshot exactly which pending items this save commits. No pointer/
+    // click handler is disabled while `saving` is true, so the user can
+    // keep drawing during the several-hundred-ms-plus async gap below (a
+    // binary write plus up to four sequential pdf-lib parse/serialize
+    // passes); resetting each pending array to `[]` on success would
+    // silently discard anything added in that window. Filtering each
+    // array down to "not one of the items this save just wrote" instead
+    // keeps a later addition intact.
+    const committedAnnotations = pendingAnnotations;
+    const committedInk = pendingInk;
+    const committedStickyNotes = pendingStickyNotes;
+    const committedShapes = pendingShapes;
     try {
       // Each apply*ToPdf call is its own pdf-lib load/save pass; chaining
       // them (rather than one combined function) keeps Phase 1's writer
@@ -518,10 +530,10 @@ export function PdfViewer({ path }: PdfViewerProps) {
       // four times per save instead of once -- fine at the annotation
       // counts a real editing session produces.
       let nextBytes = bytesRef.current;
-      if (pendingAnnotations.length > 0) nextBytes = await applyAnnotationsToPdf(nextBytes, pendingAnnotations);
-      if (pendingInk.length > 0) nextBytes = await applyInkAnnotationsToPdf(nextBytes, pendingInk);
-      if (pendingStickyNotes.length > 0) nextBytes = await applyStickyNotesToPdf(nextBytes, pendingStickyNotes);
-      if (pendingShapes.length > 0) nextBytes = await applyShapeAnnotationsToPdf(nextBytes, pendingShapes);
+      if (committedAnnotations.length > 0) nextBytes = await applyAnnotationsToPdf(nextBytes, committedAnnotations);
+      if (committedInk.length > 0) nextBytes = await applyInkAnnotationsToPdf(nextBytes, committedInk);
+      if (committedStickyNotes.length > 0) nextBytes = await applyStickyNotesToPdf(nextBytes, committedStickyNotes);
+      if (committedShapes.length > 0) nextBytes = await applyShapeAnnotationsToPdf(nextBytes, committedShapes);
 
       await writeActiveWorkspaceBinaryFile(path, nextBytes);
       bytesRef.current = nextBytes;
@@ -535,10 +547,10 @@ export function PdfViewer({ path }: PdfViewerProps) {
       setSavedInk(ink);
       setSavedStickyNotes(sticky);
       setSavedShapes(shapes);
-      setPendingAnnotations([]);
-      setPendingInk([]);
-      setPendingStickyNotes([]);
-      setPendingShapes([]);
+      setPendingAnnotations((prev) => prev.filter((item) => !committedAnnotations.includes(item)));
+      setPendingInk((prev) => prev.filter((item) => !committedInk.includes(item)));
+      setPendingStickyNotes((prev) => prev.filter((item) => !committedStickyNotes.includes(item)));
+      setPendingShapes((prev) => prev.filter((item) => !committedShapes.includes(item)));
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : String(error));
     } finally {

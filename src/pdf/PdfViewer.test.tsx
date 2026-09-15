@@ -85,10 +85,12 @@ vi.mock("./pdfAnnotations", async () => {
     readInkAnnotations: vi.fn(async () => []),
     readStickyNotes: vi.fn(async () => []),
     readShapeAnnotations: vi.fn(async () => []),
+    applyStickyNotesToPdf: vi.fn(async (bytes: Uint8Array) => bytes),
   };
 });
 
 const { PdfViewer } = await import("./PdfViewer");
+const { applyStickyNotesToPdf } = await import("./pdfAnnotations");
 
 function mockDoc(pageTexts: string[]) {
   const doc = makeFakeDoc(pageTexts);
@@ -351,6 +353,62 @@ describe("PdfViewer -- PDF Phase 2 (ink, sticky notes, shapes)", () => {
     expect(container.querySelector(".pdf-sticky-note-draft")).toBeNull();
     const saveButton = getByText("Save annotations") as HTMLButtonElement;
     expect(saveButton.disabled).toBe(true);
+  });
+
+  it("keeps an annotation added while a save is still in flight, instead of silently discarding it", async () => {
+    mockDoc(["a"]);
+    const { getByRole, getByText, findByText, container } = render(<PdfViewer path="/vault/doc.pdf" />);
+    await findByText("/ 1");
+
+    const addStickyNote = async (text: string) => {
+      const noteButton = getByRole("button", { name: "Note" });
+      // The Note tool toggles off if clicked while already active (it
+      // stays active across a committed note, since committing a draft
+      // doesn't reset the active tool), so only click it into place once.
+      if (!noteButton.className.includes("active")) {
+        await act(async () => {
+          fireEvent.click(noteButton);
+        });
+      }
+      const pageContainer = container.querySelector(".pdf-page-container") as HTMLDivElement;
+      await act(async () => {
+        fireEvent.click(pageContainer, { clientX: 50, clientY: 60 });
+      });
+      const textarea = container.querySelector(".pdf-sticky-note-draft textarea") as HTMLTextAreaElement;
+      await act(async () => {
+        fireEvent.input(textarea, { target: { value: text } });
+      });
+      await act(async () => {
+        fireEvent.keyDown(textarea, { key: "Enter" });
+      });
+    };
+
+    await addStickyNote("first note");
+    expect((getByText(/Save annotations/) as HTMLButtonElement).textContent).toContain("(1)");
+
+    // Hold the save open so a second annotation can be added while it is
+    // still in flight, the exact window handleSave's fix must survive.
+    let resolveApply: ((bytes: Uint8Array) => void) | null = null;
+    const applyPromise = new Promise<Uint8Array>((resolve) => {
+      resolveApply = resolve;
+    });
+    vi.mocked(applyStickyNotesToPdf).mockReturnValueOnce(applyPromise);
+
+    const saveButton = getByText(/Save annotations/) as HTMLButtonElement;
+    await act(async () => {
+      fireEvent.click(saveButton);
+    });
+
+    await addStickyNote("second note");
+
+    await act(async () => {
+      resolveApply?.(new Uint8Array([9, 9, 9]));
+      await applyPromise;
+    });
+
+    await waitFor(() =>
+      expect((getByText(/Save annotations/) as HTMLButtonElement).textContent).toContain("(1)"),
+    );
   });
 
   it("dragging with the Square tool commits one pending shape annotation", async () => {

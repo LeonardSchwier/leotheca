@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added tab reordering (drag to reorder, or right-click a tab for Move left/Move right) within either editor group, and restored cursor/scroll position when switching back to a note you'd already had open (previously every tab switch reset the cursor to the start of the note).
+
 - Added split panes on desktop: a "Split right" toolbar button opens a second editor group beside the first, each with its own tabs and its own Source/Split/Preview mode, resizable by a draggable (and keyboard-operable) divider. Move the active tab to the other group, or close the second group to merge its tabs back. Canvas and ink notes aren't supported in the second group yet (they still open normally in the first); compact/Android layouts, and routing every note-opening feature (backlinks, search, tasks, etc.) into a specific group, are still to come.
 
 - Fixed the Markdown table toolbar's "Add column right", "Delete column", and "Add row below" commands doing nothing, or inserting a new row in the wrong place, whenever the cursor sat immediately after a cell's text (the ordinary position right after typing or clicking a word) rather than inside its trailing padding. In particular, "Add row below" could silently insert the new blank row at the very top of the table instead of below the row you were actually in.

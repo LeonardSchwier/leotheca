@@ -34,11 +34,13 @@ import {
   markTabSaved,
   markTabSaveError,
   moveActiveTabToOtherGroup,
+  moveTabWithinGroup,
   openDocuments,
   openOrFocusTab,
   openTabs,
   pinTab,
   renameOpenTab,
+  reorderTabWithinGroup,
   resetSplitRatio,
   secondaryActiveTabPath,
   secondaryOpenTabs,
@@ -1254,6 +1256,18 @@ export function App() {
               unpinAndCloseTab(path);
               refresh();
             }}
+            onReorder={(path, beforePath) => {
+              moveTabWithinGroup(path, beforePath);
+              refresh();
+            }}
+            onMoveLeft={(path) => {
+              reorderTabWithinGroup(path, "left");
+              refresh();
+            }}
+            onMoveRight={(path) => {
+              reorderTabWithinGroup(path, "right");
+              refresh();
+            }}
           />
           {current?.kind === "text" && workspaceSettings.value.noteReadOnlyLockEnabled && (
             <div class="note-lock-bar" role="status">
@@ -1431,6 +1445,18 @@ export function App() {
                 }}
                 onClosePane={attemptCloseSecondaryGroup}
                 hasPrimaryActiveTab={!!activeTabPath.value}
+                onReorder={(path, beforePath) => {
+                  moveTabWithinGroup(path, beforePath);
+                  refresh();
+                }}
+                onMoveLeft={(path) => {
+                  reorderTabWithinGroup(path, "left");
+                  refresh();
+                }}
+                onMoveRight={(path) => {
+                  reorderTabWithinGroup(path, "right");
+                  refresh();
+                }}
               />
             </div>
           </>

@@ -37,6 +37,9 @@ interface SecondaryEditorPaneProps {
   onMoveActiveTabHere: () => void;
   onClosePane: () => void;
   hasPrimaryActiveTab: boolean;
+  onReorder: (path: string, beforePath: string | null) => void;
+  onMoveLeft: (path: string) => void;
+  onMoveRight: (path: string) => void;
 }
 
 /** F07 Phase 3's secondary editor group. A deliberately smaller sibling of
@@ -75,6 +78,9 @@ export function SecondaryEditorPane({
   onMoveActiveTabHere,
   onClosePane,
   hasPrimaryActiveTab,
+  onReorder,
+  onMoveLeft,
+  onMoveRight,
 }: SecondaryEditorPaneProps) {
   const currentReadOnly =
     current?.kind === "text" && isNoteReadOnlyActive(current.content, noteReadOnlyLockEnabled);
@@ -93,6 +99,9 @@ export function SecondaryEditorPane({
         onUnpin={onUnpin}
         onUnpinAndClose={onUnpinAndClose}
         onRename={onRename}
+        onReorder={onReorder}
+        onMoveLeft={onMoveLeft}
+        onMoveRight={onMoveRight}
       />
       {current?.kind === "text" && noteReadOnlyLockEnabled && (
         <div class="note-lock-bar" role="status">

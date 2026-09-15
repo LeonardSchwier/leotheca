@@ -26,6 +26,7 @@ import { resolveBlockLinkAtCursor } from "./blockLinkActions";
 import type { BlockLinkCopyRequest, BlockLinkCreateRequest } from "./blockLinkRequest";
 import { tableEditAtCursor, type MarkdownTableCommand } from "../markdown/tableCommands";
 import type { TableCommandRequest } from "./tableCommandRequest";
+import { getDocumentViewState, saveDocumentViewState } from "../editorGroups/documentViewState";
 
 export interface MarkdownEditorProps {
   path: string;
@@ -497,6 +498,16 @@ export function MarkdownEditor({
 }: MarkdownEditorProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
+  // Always the latest `path` prop, read only by the mount effect's unmount
+  // cleanup below (which needs the path this instance was last showing at
+  // the moment it is actually torn down, not the path it was created
+  // with -- effect closures over `[]` deps only ever see that first one).
+  const pathRef = useRef(path);
+  pathRef.current = path;
+  // The path the view was showing immediately before the current switch,
+  // updated at the end of the path-switch effect below rather than on
+  // every render, so it lags by exactly one switch on purpose.
+  const previousPathForViewStateRef = useRef(path);
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
   const onCursorChangeRef = useRef(onCursorChange);
@@ -537,14 +548,32 @@ export function MarkdownEditor({
 
     const view = new EditorView({ state, parent: hostRef.current });
     viewRef.current = view;
+
+    // Restores this path's remembered cursor/scroll position (F07 Phase 3
+    // follow-up, spec section 9.2) if this exact instance was destroyed and
+    // recreated for the same path with unchanged content -- e.g. moving a
+    // tab to a group whose editor pane wasn't previously mounted. Silently
+    // does nothing for a path with no cached entry or changed content.
+    const initialCached = getDocumentViewState(path, value.length);
+    if (initialCached) {
+      view.dispatch({ selection: EditorSelection.single(initialCached.anchor, initialCached.head) });
+      view.scrollDOM.scrollTop = initialCached.scrollTop;
+    }
+
     onCursorChangeRef.current?.(view.state.selection.main.head);
-    
+
     // Set search query if provided when opening from search results
     if (searchQuery) {
       view.dispatch({ effects: setSearchQuery.of(new SearchQuery({ search: searchQuery })) });
     }
 
     return () => {
+      saveDocumentViewState(pathRef.current, {
+        anchor: view.state.selection.main.anchor,
+        head: view.state.selection.main.head,
+        scrollTop: view.scrollDOM.scrollTop,
+        docLength: view.state.doc.length,
+      });
       view.destroy();
       viewRef.current = null;
     };
@@ -570,6 +599,20 @@ export function MarkdownEditor({
     }
     const view = viewRef.current;
     if (!view) return;
+
+    // Remembers the outgoing file's cursor/scroll (F07 Phase 3 follow-up,
+    // spec section 9.2) before its state is replaced below, so switching
+    // back to it -- in this group or, after a move, in the other one --
+    // can restore roughly where the user left off. Content/dirty/save
+    // state were already preserved before this change; only position was
+    // missing.
+    saveDocumentViewState(previousPathForViewStateRef.current, {
+      anchor: view.state.selection.main.anchor,
+      head: view.state.selection.main.head,
+      scrollTop: view.scrollDOM.scrollTop,
+      docLength: view.state.doc.length,
+    });
+
     view.setState(
       EditorState.create({
         doc: value,
@@ -585,12 +628,20 @@ export function MarkdownEditor({
         ),
       }),
     );
+
+    const cached = getDocumentViewState(path, value.length);
+    if (cached) {
+      view.dispatch({ selection: EditorSelection.single(cached.anchor, cached.head) });
+      view.scrollDOM.scrollTop = cached.scrollTop;
+    }
+
     onCursorChangeRef.current?.(view.state.selection.main.head);
-    
+
     // Set search query if provided when switching files
     if (searchQuery) {
       view.dispatch({ effects: setSearchQuery.of(new SearchQuery({ search: searchQuery })) });
     }
+    previousPathForViewStateRef.current = path;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [path]);
 

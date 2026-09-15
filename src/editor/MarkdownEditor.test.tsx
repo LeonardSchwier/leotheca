@@ -7,6 +7,7 @@ import { undo } from "@codemirror/commands";
 import { CompletionContext } from "@codemirror/autocomplete";
 import { MarkdownEditor, blockLinkCompletions, headingLinkCompletions, wikilinkCompletions } from "./MarkdownEditor";
 import { linkIndex } from "../linking/store";
+import { __resetDocumentViewStateForTests, saveDocumentViewState } from "../editorGroups/documentViewState";
 
 const { writeWorkspaceBinaryFile, readTextFile } = vi.hoisted(() => ({
   writeWorkspaceBinaryFile: vi.fn<
@@ -21,7 +22,10 @@ vi.mock("../workspace/tauriBridge", () => ({
   writeWorkspaceBinaryFile,
 }));
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  __resetDocumentViewStateForTests();
+});
 
 function baseEditorProps() {
   return {
@@ -1031,5 +1035,71 @@ describe("MarkdownEditor: RTL text direction", () => {
     );
     const view = editorView(container);
     expect(view.state.facet(EditorView.perLineTextDirection)).toBe(true);
+  });
+});
+
+describe("MarkdownEditor: remembers cursor position across a file switch (F07 Phase 3 follow-up)", () => {
+  it("restores the exact cursor position when switching back to a file with unchanged content", () => {
+    const { container, rerender } = render(
+      <MarkdownEditor path="/vault/a.md" value="hello world" {...baseEditorProps()} />,
+    );
+    const view = editorView(container);
+    view.dispatch({ selection: { anchor: 5, head: 5 } });
+
+    rerender(<MarkdownEditor path="/vault/b.md" value="second file" {...baseEditorProps()} />);
+    expect(editorView(container).state.selection.main.head).toBe(0); // b.md never had a cursor cached
+
+    rerender(<MarkdownEditor path="/vault/a.md" value="hello world" {...baseEditorProps()} />);
+    expect(editorView(container).state.selection.main.head).toBe(5);
+    expect(editorView(container).state.selection.main.anchor).toBe(5);
+  });
+
+  it("restores a non-empty selection range, not just a collapsed cursor", () => {
+    const { container, rerender } = render(
+      <MarkdownEditor path="/vault/a.md" value="hello world" {...baseEditorProps()} />,
+    );
+    editorView(container).dispatch({ selection: { anchor: 0, head: 5 } }); // selects "hello"
+
+    rerender(<MarkdownEditor path="/vault/b.md" value="other" {...baseEditorProps()} />);
+    rerender(<MarkdownEditor path="/vault/a.md" value="hello world" {...baseEditorProps()} />);
+
+    const restored = editorView(container).state.selection.main;
+    expect(restored.anchor).toBe(0);
+    expect(restored.head).toBe(5);
+  });
+
+  it("ignores a cached position when the content length has changed since (stale guard)", () => {
+    const { container, rerender } = render(
+      <MarkdownEditor path="/vault/a.md" value="hello world" {...baseEditorProps()} />,
+    );
+    editorView(container).dispatch({ selection: { anchor: 8, head: 8 } });
+
+    rerender(<MarkdownEditor path="/vault/b.md" value="other" {...baseEditorProps()} />);
+    // a.md's content changed length since it was last shown (e.g. edited elsewhere, or reloaded).
+    rerender(<MarkdownEditor path="/vault/a.md" value="hello world, edited" {...baseEditorProps()} />);
+
+    expect(editorView(container).state.selection.main.head).toBe(0); // falls back to the default, not an out-of-place restore
+  });
+
+  it("restores a cursor position on initial mount when a prior instance already cached one for this exact path/content", () => {
+    saveDocumentViewState("/vault/a.md", { anchor: 3, head: 3, scrollTop: 0, docLength: 11 });
+
+    const { container } = render(
+      <MarkdownEditor path="/vault/a.md" value="hello world" {...baseEditorProps()} />,
+    );
+
+    expect(editorView(container).state.selection.main.head).toBe(3);
+  });
+
+  it("does not let undo history preservation regress: the fresh-history-per-file guarantee still holds", () => {
+    const { container, rerender } = render(
+      <MarkdownEditor path="/vault/a.md" value="first file" {...baseEditorProps()} />,
+    );
+    rerender(<MarkdownEditor path="/vault/b.md" value="second file" {...baseEditorProps()} />);
+    rerender(<MarkdownEditor path="/vault/a.md" value="first file" {...baseEditorProps()} />);
+
+    const view = editorView(container);
+    undo(view); // must not reach into "second file"'s history, or any other file's
+    expect(view.state.doc.toString()).toBe("first file");
   });
 });

@@ -402,3 +402,69 @@ export function setGroupViewMode(groupId: EditorGroupId, mode: ViewMode) {
     },
   };
 }
+
+// ============ F07 Phase 3 follow-up: within-group tab reordering ============
+// Spec section 7.2: "Pinned and unpinned regions are distinct. Dragging an
+// unpinned tab into the pinned region does not pin it implicitly ... Pin or
+// Unpin is explicit." Both functions below enforce that the same way: a
+// reorder or move never crosses from one region into the other.
+
+function regionOf(group: EditorGroupState, pinned: boolean): string[] {
+  return pinned ? group.pinnedPaths : group.tabPaths.filter((path) => !group.pinnedPaths.includes(path));
+}
+
+function applyReorderedRegion(groupId: EditorGroupId, group: EditorGroupState, pinned: boolean, reorderedRegion: string[]) {
+  const pinnedPaths = pinned ? reorderedRegion : group.pinnedPaths;
+  const tabPaths = pinned
+    ? [...reorderedRegion, ...regionOf(group, false)]
+    : [...group.pinnedPaths, ...reorderedRegion];
+  const updatedGroup: EditorGroupState = { ...group, tabPaths, pinnedPaths };
+  const layout = editorLayout.value;
+  editorLayout.value = {
+    ...layout,
+    groups: {
+      primary: groupId === "primary" ? updatedGroup : layout.groups.primary,
+      secondary: groupId === "secondary" ? updatedGroup : layout.groups.secondary,
+    },
+  };
+}
+
+/** `Move tab left` / `Move tab right` (spec 7.2, section 13): swaps `path`
+ * with its neighbor within its own pinned/unpinned region. A no-op at
+ * either edge of that region, or for a path that isn't open. */
+export function reorderTabWithinGroup(path: string, direction: "left" | "right") {
+  const groupId = groupOwning(path);
+  const group = groupState(groupId);
+  if (!group || !group.tabPaths.includes(path)) return;
+  const pinned = group.pinnedPaths.includes(path);
+  const region = regionOf(group, pinned);
+  const index = region.indexOf(path);
+  const targetIndex = direction === "left" ? index - 1 : index + 1;
+  if (targetIndex < 0 || targetIndex >= region.length) return;
+  const reordered = [...region];
+  [reordered[index], reordered[targetIndex]] = [reordered[targetIndex], reordered[index]];
+  applyReorderedRegion(groupId, group, pinned, reordered);
+}
+
+/** Pointer-drag reordering (spec 7.2): moves `path` to sit immediately
+ * before `beforePath` within its own group, or to the end of its region
+ * when `beforePath` is `null`. A no-op if `beforePath` belongs to the
+ * other pinned/unpinned region (the drop indicator is expected to have
+ * already constrained the drop to a valid position; this is the
+ * corresponding data-layer guarantee, not merely a UI nicety) or isn't a
+ * real open tab in this group. */
+export function moveTabWithinGroup(path: string, beforePath: string | null) {
+  const groupId = groupOwning(path);
+  const group = groupState(groupId);
+  if (!group || !group.tabPaths.includes(path) || path === beforePath) return;
+  const pinned = group.pinnedPaths.includes(path);
+  if (beforePath !== null) {
+    if (!group.tabPaths.includes(beforePath) || group.pinnedPaths.includes(beforePath) !== pinned) return;
+  }
+  const region = regionOf(group, pinned);
+  const withoutPath = region.filter((candidate) => candidate !== path);
+  const insertAt = beforePath === null ? withoutPath.length : withoutPath.indexOf(beforePath);
+  if (insertAt === -1) return;
+  const reordered = [...withoutPath.slice(0, insertAt), path, ...withoutPath.slice(insertAt)];
+  applyReorderedRegion(groupId, group, pinned, reordered);
+}

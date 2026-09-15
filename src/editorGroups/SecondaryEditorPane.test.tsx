@@ -77,6 +77,9 @@ function baseProps(overrides: Partial<Parameters<typeof SecondaryEditorPane>[0]>
     onMoveActiveTabHere: noop,
     onClosePane: noop,
     hasPrimaryActiveTab: false,
+    onReorder: noop,
+    onMoveLeft: noop,
+    onMoveRight: noop,
     ...overrides,
   };
 }

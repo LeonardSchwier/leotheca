@@ -205,3 +205,123 @@ describe("TabBar", () => {
     expect(queryByText("Rename")).toBeNull();
   });
 });
+
+function fakeDataTransfer() {
+  let stored = "";
+  return {
+    setData: (_type: string, value: string) => {
+      stored = value;
+    },
+    getData: () => stored,
+    effectAllowed: "",
+  };
+}
+
+describe("TabBar: reordering (F07 Phase 3 follow-up)", () => {
+  it("dragging a tab and dropping it on another calls onReorder(dragged, target)", () => {
+    const onReorder = vi.fn();
+    const tabs = [tab("/a.md", "a.md"), tab("/b.md", "b.md"), tab("/c.md", "c.md")];
+    const { getByText } = render(
+      <TabBar
+        tabs={tabs}
+        activePath="/a.md"
+        onSelect={noop}
+        onClose={noop}
+        onCloseOthers={noop}
+        onCloseAll={noop}
+        onRename={noop}
+        onReorder={onReorder}
+      />,
+    );
+    const dataTransfer = fakeDataTransfer();
+    fireEvent.dragStart(getByText("c.md"), { dataTransfer });
+    fireEvent.drop(getByText("a.md"), { dataTransfer });
+
+    expect(onReorder).toHaveBeenCalledWith("/c.md", "/a.md");
+  });
+
+  it("dropping on the tab bar's own empty space moves the dragged tab to the end (beforePath: null)", () => {
+    const onReorder = vi.fn();
+    const tabs = [tab("/a.md", "a.md"), tab("/b.md", "b.md")];
+    const { getByText, container } = render(
+      <TabBar
+        tabs={tabs}
+        activePath="/a.md"
+        onSelect={noop}
+        onClose={noop}
+        onCloseOthers={noop}
+        onCloseAll={noop}
+        onRename={noop}
+        onReorder={onReorder}
+      />,
+    );
+    const dataTransfer = fakeDataTransfer();
+    fireEvent.dragStart(getByText("a.md"), { dataTransfer });
+    fireEvent.drop(container.querySelector(".tab-bar")!, { dataTransfer });
+
+    expect(onReorder).toHaveBeenCalledWith("/a.md", null);
+  });
+
+  it("dropping on the same tab it was dragged from does not call onReorder (no-op self-drop)", () => {
+    const onReorder = vi.fn();
+    const tabs = [tab("/a.md", "a.md"), tab("/b.md", "b.md")];
+    const { getByText } = render(
+      <TabBar
+        tabs={tabs}
+        activePath="/a.md"
+        onSelect={noop}
+        onClose={noop}
+        onCloseOthers={noop}
+        onCloseAll={noop}
+        onRename={noop}
+        onReorder={onReorder}
+      />,
+    );
+    const dataTransfer = fakeDataTransfer();
+    fireEvent.dragStart(getByText("a.md"), { dataTransfer });
+    fireEvent.drop(getByText("a.md"), { dataTransfer });
+
+    expect(onReorder).not.toHaveBeenCalled();
+  });
+
+  it("tabs are not draggable, and no drag handlers attach, when onReorder is omitted", () => {
+    const { getByText } = render(
+      <TabBar
+        tabs={[tab("/a.md", "a.md")]}
+        activePath="/a.md"
+        onSelect={noop}
+        onClose={noop}
+        onCloseOthers={noop}
+        onCloseAll={noop}
+        onRename={noop}
+      />,
+    );
+    expect(getByText("a.md").closest(".tab")?.getAttribute("draggable")).toBe("false");
+  });
+
+  it("the context menu's Move left/Move right call onMoveLeft/onMoveRight with the right-clicked path", () => {
+    const onMoveLeft = vi.fn();
+    const onMoveRight = vi.fn();
+    const tabs = [tab("/a.md", "a.md"), tab("/b.md", "b.md")];
+    const { getByText } = render(
+      <TabBar
+        tabs={tabs}
+        activePath="/a.md"
+        onSelect={noop}
+        onClose={noop}
+        onCloseOthers={noop}
+        onCloseAll={noop}
+        onRename={noop}
+        onMoveLeft={onMoveLeft}
+        onMoveRight={onMoveRight}
+      />,
+    );
+    fireEvent.contextMenu(getByText("b.md"));
+    fireEvent.click(getByText("Move left"));
+    expect(onMoveLeft).toHaveBeenCalledWith("/b.md");
+
+    fireEvent.contextMenu(getByText("b.md"));
+    fireEvent.click(getByText("Move right"));
+    expect(onMoveRight).toHaveBeenCalledWith("/b.md");
+  });
+});

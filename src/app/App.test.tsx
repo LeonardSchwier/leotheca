@@ -1154,3 +1154,20 @@ describe("App: F07 Phase 3 close blocks on an unresolved save error", () => {
     alertSpy.mockRestore();
   });
 });
+
+describe("App: F07 Phase 3 follow-up -- tab reordering", () => {
+  it("the tab bar's context menu 'Move right' reorders the real primary tab list", () => {
+    workspacePath.value = "/vault";
+    openOrFocusTab("/vault/a.md", "a.md", "", "text");
+    openOrFocusTab("/vault/b.md", "b.md", "", "text");
+    const { container, getByText } = render(<App />);
+
+    fireEvent.contextMenu(getByText("a.md"));
+    fireEvent.click(getByText("Move right"));
+
+    expect(openTabs.value.map((t) => t.path)).toEqual(["/vault/b.md", "/vault/a.md"]);
+    const names = Array.from(container.querySelectorAll(".tab-name")).map((el) => el.textContent);
+    expect(names).toEqual(["b.md", "a.md"]);
+  });
+
+});

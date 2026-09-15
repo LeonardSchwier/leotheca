@@ -15,12 +15,14 @@ import {
   focusTab,
   markTabSaved,
   moveActiveTabToOtherGroup,
+  moveTabWithinGroup,
   openDocuments,
   openInOtherGroup,
   openOrFocusTab,
   openTabs,
   pinTab,
   renameOpenTab,
+  reorderTabWithinGroup,
   resetSplitRatio,
   secondaryActiveTabPath,
   secondaryOpenTabs,
@@ -572,5 +574,102 @@ describe("per-group view mode and split ratio", () => {
 
     resetSplitRatio();
     expect(editorLayout.value.preferredRatio).toBe(0.5);
+  });
+});
+
+// ============ F07 Phase 3 follow-up: within-group tab reordering ============
+
+describe("reorderTabWithinGroup", () => {
+  it("swaps a tab with its left/right neighbor in the unpinned region", () => {
+    openOrFocusTab("/a.md", "a.md", "", "text");
+    openOrFocusTab("/b.md", "b.md", "", "text");
+    openOrFocusTab("/c.md", "c.md", "", "text");
+
+    reorderTabWithinGroup("/b.md", "left");
+    expect(openTabs.value.map((t) => t.path)).toEqual(["/b.md", "/a.md", "/c.md"]);
+
+    reorderTabWithinGroup("/b.md", "right");
+    reorderTabWithinGroup("/b.md", "right");
+    expect(openTabs.value.map((t) => t.path)).toEqual(["/a.md", "/c.md", "/b.md"]);
+  });
+
+  it("is a no-op at either edge of the region", () => {
+    openOrFocusTab("/a.md", "a.md", "", "text");
+    openOrFocusTab("/b.md", "b.md", "", "text");
+
+    reorderTabWithinGroup("/a.md", "left"); // already first
+    expect(openTabs.value.map((t) => t.path)).toEqual(["/a.md", "/b.md"]);
+
+    reorderTabWithinGroup("/b.md", "right"); // already last
+    expect(openTabs.value.map((t) => t.path)).toEqual(["/a.md", "/b.md"]);
+  });
+
+  it("reorders within the pinned region without touching unpinned tabs", () => {
+    openOrFocusTab("/a.md", "a.md", "", "text");
+    openOrFocusTab("/b.md", "b.md", "", "text");
+    openOrFocusTab("/c.md", "c.md", "", "text");
+    pinTab("/a.md");
+    pinTab("/b.md");
+
+    reorderTabWithinGroup("/a.md", "right"); // swaps within {a,b}, the pinned region
+
+    expect(openTabs.value.map((t) => t.path)).toEqual(["/b.md", "/a.md", "/c.md"]);
+    expect(editorLayout.value.groups.primary.pinnedPaths).toEqual(["/b.md", "/a.md"]);
+  });
+
+  it("reorders within whichever group the path belongs to", () => {
+    openOrFocusTab("/a.md", "a.md", "", "text");
+    splitRight();
+    focusGroup("secondary");
+    openOrFocusTab("/b.md", "b.md", "", "text");
+    openOrFocusTab("/c.md", "c.md", "", "text");
+
+    reorderTabWithinGroup("/b.md", "right");
+
+    expect(secondaryOpenTabs.value.map((t) => t.path)).toEqual(["/c.md", "/b.md"]);
+    expect(openTabs.value.map((t) => t.path)).toEqual(["/a.md"]); // untouched
+  });
+});
+
+describe("moveTabWithinGroup", () => {
+  it("moves a tab to sit immediately before another, within the unpinned region", () => {
+    openOrFocusTab("/a.md", "a.md", "", "text");
+    openOrFocusTab("/b.md", "b.md", "", "text");
+    openOrFocusTab("/c.md", "c.md", "", "text");
+
+    moveTabWithinGroup("/c.md", "/a.md");
+
+    expect(openTabs.value.map((t) => t.path)).toEqual(["/c.md", "/a.md", "/b.md"]);
+  });
+
+  it("moves a tab to the end of its region when beforePath is null", () => {
+    openOrFocusTab("/a.md", "a.md", "", "text");
+    openOrFocusTab("/b.md", "b.md", "", "text");
+    openOrFocusTab("/c.md", "c.md", "", "text");
+
+    moveTabWithinGroup("/a.md", null);
+
+    expect(openTabs.value.map((t) => t.path)).toEqual(["/b.md", "/c.md", "/a.md"]);
+  });
+
+  it("does not implicitly pin or unpin: dropping across regions is a no-op", () => {
+    openOrFocusTab("/a.md", "a.md", "", "text"); // pinned
+    openOrFocusTab("/b.md", "b.md", "", "text"); // unpinned
+    pinTab("/a.md");
+
+    moveTabWithinGroup("/b.md", "/a.md"); // b (unpinned) dropped onto a (pinned) -- invalid region
+
+    expect(openTabs.value.map((t) => t.path)).toEqual(["/a.md", "/b.md"]); // unchanged
+    expect(editorLayout.value.groups.primary.pinnedPaths).toEqual(["/a.md"]); // still just a
+  });
+
+  it("is a no-op for a path or target that isn't actually open", () => {
+    openOrFocusTab("/a.md", "a.md", "", "text");
+    const before = editorLayout.value;
+
+    moveTabWithinGroup("/nonexistent.md", "/a.md");
+    moveTabWithinGroup("/a.md", "/also-nonexistent.md");
+
+    expect(editorLayout.value).toBe(before);
   });
 });

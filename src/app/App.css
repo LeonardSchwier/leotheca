@@ -790,6 +790,10 @@ button.icon-button.active {
   background: var(--bg-base);
 }
 
+.tab-dragging {
+  opacity: 0.5;
+}
+
 .tab-pin {
   color: var(--text-muted);
   font-size: 0.72rem;

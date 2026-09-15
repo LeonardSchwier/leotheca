@@ -61,7 +61,9 @@
 
   </details>
 
-- ⬜ **F07 Phase 5: Route feature opens and F03 rename through `OpenNoteRequest`** (spec: `spec/f07-split-panes-pinned-tabs.md`): Make every location-opening feature (backlinks, search, bookmarks, task hub, tables, etc.) and F03's rename/move path migration go through the central `openNoteRouter.ts` instead of any ad hoc tab-array access, under one mutation lock.
+- 🚧 **F07 Phase 5: Route feature opens and F03 rename through `OpenNoteRequest`** (spec: `spec/f07-split-panes-pinned-tabs.md`): Make every location-opening feature (backlinks, search, bookmarks, task hub, tables, etc.) and F03's rename/move path migration go through the central `openNoteRouter.ts` instead of any ad hoc tab-array access, under one mutation lock.
+  <!-- agent-state: {"schema":1,"id":"rm-aad1140c718435f1","state":"claimed","touch":["src/app/App.tsx","src/editor/MarkdownPreview.tsx","src/workspace/store.ts"],"resources":["editor-groups-ui","open-note-routing"],"owner":"Claude-Code-web-20260915T124004Z-1cb1a066","token":"ef0cdd8184b6ad037dfa729fe27017e3","branch":"agent/rm-aad1140c718435f1/ef0cdd8184b6","claimed_at":"2026-09-15T12:40:04Z","heartbeat_at":"2026-09-15T12:40:04Z","lease_until":"2026-09-15T14:10:04Z"} -->
+  Agent: Claude-Code-web-20260915T124004Z-1cb1a066 | item: rm-aad1140c718435f1 | lease until: 2026-09-15T14:10:04Z
 
   <details>
   <summary>Scope, requirements, and dependency</summary>

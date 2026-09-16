@@ -2,6 +2,7 @@ import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { appConfigDir, join } from "@tauri-apps/api/path";
 import { getVersion } from "@tauri-apps/api/app";
+import { listen } from "@tauri-apps/api/event";
 import type { FsEntry } from "./types";
 import type { WorkspaceStats } from "../settings/VaultStatsPanel";
 
@@ -306,3 +307,34 @@ export interface FavoritesWidgetEntry {
  * in the real Android implementation) since this file's lint config has no
  * unused-parameter exemption. */
 export async function updateFavoritesWidget(): Promise<void> {}
+
+/** Cold-start half of ROADMAP.md's "Open a Markdown file from outside the
+ * workspace via OS file association": `lib.rs`'s own `run()` buffers the
+ * path from this process's own launch arguments (when the OS spawned a
+ * *fresh* Leotheca process via its "Open with" registration) into managed
+ * state, since no window/listener exists yet to receive a live event at
+ * that point. Consumed at most once per launch -- the Rust side `take`s
+ * rather than merely reads it -- so this only ever returns a real path on
+ * the very first call after a genuine file-association cold start. */
+export async function takePendingExternalFile(): Promise<string | null> {
+  return invoke("take_pending_open_file");
+}
+
+/** Live half of the same feature: an already-running instance's relaunch
+ * is intercepted by the single-instance plugin (Windows/Linux) or
+ * delivered as `RunEvent::Opened` (macOS) in `lib.rs`, both of which emit
+ * this one event so the frontend has a single live path to listen on
+ * regardless of which platform mechanism actually delivered it. Returns
+ * an unlisten function, mirroring `onOpenUrl`'s own shape. */
+export function onExternalFileOpen(callback: (path: string) => void): () => void {
+  let unlisten: (() => void) | null = null;
+  let cancelled = false;
+  void listen<string>("open-external-file", (event) => callback(event.payload)).then((fn) => {
+    if (cancelled) fn();
+    else unlisten = fn;
+  });
+  return () => {
+    cancelled = true;
+    unlisten?.();
+  };
+}

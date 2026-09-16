@@ -57,10 +57,12 @@ import {
 import { SplitSeparator } from "../editorGroups/SplitSeparator";
 import { SecondaryEditorPane } from "../editorGroups/SecondaryEditorPane";
 import { CompactGroupSwitcher } from "../editorGroups/CompactGroupSwitcher";
-import { readTextFile } from "../workspace/tauriBridge";
+import { onExternalFileOpen, readTextFile, takePendingExternalFile } from "../workspace/tauriBridge";
 import { isPathWithinWorkspace } from "../workspace/paths";
 import { beginFileOpenAuthority, isCurrentFileOpen } from "../workspace/fileOpenAuthority";
 import {
+  addWorkspaceFromPath,
+  externalFileOpenEnabled,
   initSettings,
   settingsLoaded,
   settingsPanelOpen,
@@ -71,6 +73,7 @@ import {
   workspaceSettings,
   waitForSettingsLoaded,
 } from "../settings/store";
+import { ExternalFileView } from "./ExternalFileView";
 import type { ViewMode } from "../settings/workspaceSettings";
 import { SettingsPanel } from "../settings/SettingsPanel";
 import { WelcomeDialog } from "../settings/WelcomeDialog";
@@ -340,6 +343,11 @@ export function App() {
     targetDir: string;
     templates: NoteTemplate[];
   } | null>(null);
+  // ROADMAP.md's "Open a Markdown file from outside the workspace via OS
+  // file association": read-only scratch-view state for a note opened
+  // this way whose path resolves outside every currently open workspace.
+  const [externalFile, setExternalFile] = useState<{ path: string; name: string; content: string } | null>(null);
+  const [externalFileOpeningWorkspace, setExternalFileOpeningWorkspace] = useState(false);
   // Fullscreen image viewer overlay state
   const [imageOverlay, setImageOverlay] = useState<{ src: string; alt: string } | null>(null);
   const handleImageClick = useCallback((src: string, alt: string) => {
@@ -624,6 +632,81 @@ export function App() {
       void unlistenPromise.then((unlisten) => unlisten());
     };
   }, [runAutomationUrl]);
+
+  /** ROADMAP.md's "Open a Markdown file from outside the workspace via OS
+   * file association". `waitForSettingsLoaded()` closes the same cold-start
+   * race `createNoteQuick`'s own automation-command handling above guards
+   * against: `workspacePath` may not have finished hydrating from disk yet
+   * when this fires at mount. A target outside every `.md` extension (the
+   * only thing `tauri.conf.json`'s `bundle.fileAssociations` registers
+   * this app to be launched with) or that fails to read is a silent
+   * no-op, the same convention `handleOpenFile`'s other callers already
+   * use for a target that turns out missing. Disabling the feature
+   * (`externalFileOpenEnabled`) makes the request a no-op entirely rather
+   * than un-registering the static OS association itself, per that
+   * setting's own doc comment in globalConfig.ts. */
+  const handleExternalFileOpen = useCallback(
+    async (path: string) => {
+      if (!/\.md$/i.test(path)) return;
+      await waitForSettingsLoaded();
+      if (!externalFileOpenEnabled.value) return;
+      const name = path.slice(Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\")) + 1);
+      if (workspacePath.value && isPathWithinWorkspace(workspacePath.value, path)) {
+        try {
+          await handleOpenFile(path, name);
+          // A second external open landing inside the workspace supersedes
+          // any scratch view still open from an earlier one.
+          setExternalFile(null);
+        } catch {
+          // Real read failure (e.g. the file was deleted since the OS
+          // launched Leotheca with it): same silent no-op as
+          // handleOpenFile's other callers document above.
+        }
+        return;
+      }
+      let content: string;
+      try {
+        content = await readTextFile(path);
+      } catch {
+        return;
+      }
+      setExternalFile({ path, name, content });
+    },
+    [handleOpenFile],
+  );
+
+  useEffect(() => {
+    if (Capacitor.isNativePlatform()) return;
+    let cancelled = false;
+    void takePendingExternalFile().then((path) => {
+      if (!cancelled && path) void handleExternalFileOpen(path);
+    });
+    const unlisten = onExternalFileOpen((path) => void handleExternalFileOpen(path));
+    return () => {
+      cancelled = true;
+      unlisten();
+    };
+  }, [handleExternalFileOpen]);
+
+  const handleCloseExternalFile = useCallback(() => {
+    setExternalFile(null);
+    setExternalFileOpeningWorkspace(false);
+  }, []);
+
+  const handleOpenExternalFileAsWorkspace = useCallback(async () => {
+    if (!externalFile) return;
+    const folder = externalFile.path.slice(
+      0,
+      Math.max(externalFile.path.lastIndexOf("/"), externalFile.path.lastIndexOf("\\")),
+    );
+    setExternalFileOpeningWorkspace(true);
+    try {
+      await addWorkspaceFromPath(folder);
+      setExternalFile(null);
+    } finally {
+      setExternalFileOpeningWorkspace(false);
+    }
+  }, [externalFile]);
 
   const handleChange = useCallback(
     (path: string, content: string) => {
@@ -1598,6 +1681,16 @@ export function App() {
       <PendingCapturesPanel />
       {captureSheetOpen.value && (
         <CaptureSheet onCreated={(path, name) => void handleOpenFile(path, name)} />
+      )}
+      {externalFile && (
+        <ExternalFileView
+          path={externalFile.path}
+          name={externalFile.name}
+          content={externalFile.content}
+          opening={externalFileOpeningWorkspace}
+          onClose={handleCloseExternalFile}
+          onOpenAsWorkspace={() => void handleOpenExternalFileAsWorkspace()}
+        />
       )}
     </div>
   );

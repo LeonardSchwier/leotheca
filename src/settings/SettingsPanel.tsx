@@ -1,12 +1,15 @@
 import { effect } from "@preact/signals";
 import { useState } from "preact/hooks";
 import licenseText from "../../LICENSE?raw";
+import { Capacitor } from "@capacitor/core";
 import {
   addWorkspaceFromPicker,
   appVersion,
+  externalFileOpenEnabled,
   globalConfigCorrupted,
   repairGlobalConfigFile,
   settingsPanelOpen,
+  setExternalFileOpenEnabled,
   setTheme,
   repairWorkspaceSettingsFile,
   retryWorkspaceSettingsSave,
@@ -172,6 +175,10 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
   // error because it doesn't match the search text would be a real UX
   // regression, not a filtering convenience.
   const showRootFolder = matches("Root folder", "Change Folder");
+  const showExternalFileOpen = matches(
+    "Open Markdown files from outside your workspace",
+    "Register Leotheca as an Open with option for .md files from your file manager",
+  );
   const showAccentThemes = matches("Accent themes", "Use this workspace's restrained accent color");
   const showAccentColor = matches("Accent color", "Changes highlights without replacing the light or dark palette");
   const showEditorSnippets = matches("Editor snippets", "Type ;trigger then Tab to expand a local writing shortcut");
@@ -244,8 +251,10 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
 
   const filteredShortcuts = KEYBOARD_SHORTCUTS.filter((shortcut) => matches(shortcut.description, shortcut.keys));
 
+  const showExternalFileOpenRow = showExternalFileOpen && !Capacitor.isNativePlatform();
   const generalVisible =
     showRootFolder ||
+    showExternalFileOpenRow ||
     Boolean(workspaceSettingsSaveError.value) ||
     workspaceSettingsCorrupted.value ||
     Boolean(
@@ -333,6 +342,28 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
             <button onClick={handleChangeFolder} disabled={folderPickerLoading}>
               {folderPickerLoading ? "Opening folder picker…" : "Change Folder"}
             </button>
+          </div>
+          )}
+
+          {showExternalFileOpenRow && (
+          <div class="settings-row">
+            <div>
+              <div class="settings-label">Open Markdown files from outside your workspace</div>
+              <div class="settings-hint">
+                Register Leotheca as an &quot;Open with&quot; option for .md files in your file manager
+              </div>
+            </div>
+            <div class="settings-switch">
+              {OPTIONAL_FEATURE_OPTIONS.map((option) => (
+                <button
+                  key={String(option.value)}
+                  class={externalFileOpenEnabled.value === option.value ? "active" : ""}
+                  onClick={() => void setExternalFileOpenEnabled(option.value)}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
           </div>
           )}
 

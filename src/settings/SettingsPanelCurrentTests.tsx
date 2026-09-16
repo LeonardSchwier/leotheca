@@ -12,9 +12,11 @@ import type { ThemePreference } from "./globalConfig";
 vi.mock("./store", () => ({
   addWorkspaceFromPicker: vi.fn(),
   appVersion: signal(""),
+  externalFileOpenEnabled: signal(true),
   globalConfigCorrupted: signal(false),
   repairGlobalConfigFile: vi.fn(),
   settingsPanelOpen: signal(true),
+  setExternalFileOpenEnabled: vi.fn(),
   setTheme: vi.fn(),
   repairWorkspaceSettingsFile: vi.fn(),
   retryWorkspaceSettingsSave: vi.fn(),
@@ -60,9 +62,11 @@ import { matchesSettingsSearch, SettingsPanel } from "./SettingsPanel";
 import {
   addWorkspaceFromPicker,
   appVersion,
+  externalFileOpenEnabled,
   globalConfigCorrupted,
   repairGlobalConfigFile,
   settingsPanelOpen,
+  setExternalFileOpenEnabled,
   setTheme,
   repairWorkspaceSettingsFile,
   retryWorkspaceSettingsSave,
@@ -84,7 +88,9 @@ afterEach(() => {
   theme.value = "system";
   appVersion.value = "";
   viewMode.value = "source";
+  externalFileOpenEnabled.value = true;
   vi.mocked(setTheme).mockReset();
+  vi.mocked(setExternalFileOpenEnabled).mockReset();
   vi.mocked(addWorkspaceFromPicker).mockReset();
   vi.mocked(updateWorkspaceSettings).mockReset();
   vi.mocked(retryWorkspaceSettingsSave).mockReset();
@@ -427,6 +433,29 @@ describe("SettingsPanel", () => {
       const { getByText } = render(<SettingsPanel onOpenFile={vi.fn()} />);
       const row = getByText("Speech-to-text dictation").closest(".settings-row") as HTMLElement;
       expect(within(row).getByText("On").className).toContain("active");
+    });
+  });
+
+  describe("Open Markdown files from outside your workspace (OS file association)", () => {
+    it("shows and wires the switch, visible with no workspace open, on by default", () => {
+      workspacePath.value = null;
+      externalFileOpenEnabled.value = true;
+      const { getByText } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+      const row = getByText("Open Markdown files from outside your workspace").closest(
+        ".settings-row",
+      ) as HTMLElement;
+      expect(within(row).getByText("On").className).toContain("active");
+      fireEvent.click(within(row).getByText("Off"));
+      expect(setExternalFileOpenEnabled).toHaveBeenCalledWith(false);
+    });
+
+    it("marks Off active once the setting is disabled", () => {
+      externalFileOpenEnabled.value = false;
+      const { getByText } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+      const row = getByText("Open Markdown files from outside your workspace").closest(
+        ".settings-row",
+      ) as HTMLElement;
+      expect(within(row).getByText("Off").className).toContain("active");
     });
   });
 

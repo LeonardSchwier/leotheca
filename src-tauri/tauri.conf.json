@@ -37,6 +37,14 @@
       "icons/icon.png",
       "icons/icon.icns",
       "icons/icon.ico"
+    ],
+    "fileAssociations": [
+      {
+        "ext": ["md"],
+        "description": "Markdown Document",
+        "mimeType": "text/markdown",
+        "role": "Editor"
+      }
     ]
   },
   "plugins": {

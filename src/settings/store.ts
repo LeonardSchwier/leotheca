@@ -117,6 +117,7 @@ export const globalConfigCorrupted = signal(false);
 export const settingsPanelOpen = signal(false);
 export const appVersion = signal("");
 export const theme = signal<ThemePreference>("system");
+export const externalFileOpenEnabled = signal(true);
 // Applied from workspaceSettings.defaultViewMode whenever a workspace is
 // (re)opened, see setWorkspacePath/initSettings below; free to change
 // during the session afterward without touching that setting.
@@ -307,6 +308,7 @@ function readCurrentGlobalConfig(): GlobalConfigV2 {
     workspaceProfiles: workspaceProfiles.value,
     lastWorkspacePath: active?.path ?? null,
     workspaceToken: active?.token,
+    externalFileOpenEnabled: externalFileOpenEnabled.value,
   };
 }
 
@@ -370,6 +372,7 @@ export async function initSettings(): Promise<void> {
   const { config: global, corrupt: globalCorrupt } = await loadGlobalConfig();
   globalConfigCorrupted.value = globalCorrupt;
   theme.value = global.theme;
+  externalFileOpenEnabled.value = global.externalFileOpenEnabled;
   workspaceProfiles.value = sortWorkspaceProfiles(global.workspaceProfiles);
   activeWorkspaceId.value = global.activeWorkspaceId;
   const activeProfile = global.activeWorkspaceId
@@ -630,6 +633,11 @@ export async function setTheme(next: ThemePreference): Promise<void> {
   await persistGlobalConfig();
 }
 
+export async function setExternalFileOpenEnabled(next: boolean): Promise<void> {
+  externalFileOpenEnabled.value = next;
+  await persistGlobalConfig();
+}
+
 /** F20 Phase 1/2b-iii-a, spec section 20/10.4: activates a known catalog
  * profile. Selecting the already-active *and actually open* profile is a
  * genuine no-op (spec 10.4: "performs no filesystem work, does not
@@ -661,9 +669,11 @@ export async function activateWorkspaceProfile(id: string): Promise<void> {
  * `setWorkspacePath`'s own `afterPublish` overwrites it with the real
  * open time via `markProfileOpened`, and only on success, per step 8's
  * "only after successful activation is the candidate committed." */
-export async function addWorkspaceFromPicker(): Promise<void> {
-  const folder = await pickWorkspaceFolder();
-  if (!folder) return;
+async function addOrActivateWorkspaceFolder(folder: {
+  path: string;
+  token?: string;
+  name?: string;
+}): Promise<void> {
   const existing = findProfileByLocator(workspaceProfiles.value, folder.path, folder.token);
   if (existing) {
     await activateWorkspaceProfile(existing.id);
@@ -678,6 +688,25 @@ export async function addWorkspaceFromPicker(): Promise<void> {
     lastOpenedAt: 0,
   };
   await setWorkspacePath(candidate.path, candidate.token, candidate);
+}
+
+export async function addWorkspaceFromPicker(): Promise<void> {
+  const folder = await pickWorkspaceFolder();
+  if (!folder) return;
+  await addOrActivateWorkspaceFolder(folder);
+}
+
+/** Desktop-only counterpart of `addWorkspaceFromPicker` for a folder path
+ * already known without going through the native picker (ROADMAP.md's
+ * "Open a Markdown file from outside the workspace via OS file
+ * association": its own "Open containing folder as a workspace" recovery
+ * action, offered when an externally-opened note resolves outside every
+ * known workspace). No SAF `token` applies here -- that concept is
+ * Android-only, and this feature is desktop-only per its own acceptance
+ * sketch -- so this always creates or activates a plain path-only profile,
+ * exactly as a Desktop picker selection already does today. */
+export async function addWorkspaceFromPath(path: string): Promise<void> {
+  await addOrActivateWorkspaceFolder({ path });
 }
 
 /** F20 Phase 2a: rename catalog metadata only. Validation follows section

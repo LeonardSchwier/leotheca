@@ -50,6 +50,8 @@ vi.mock("./tauriBridgeImpl", () => ({
   getPendingShareData: vi.fn(),
   hasPendingShareData: vi.fn(),
   updateFavoritesWidget: vi.fn(),
+  takePendingExternalFile: vi.fn(),
+  onExternalFileOpen: vi.fn(),
 }));
 vi.mock("./capacitorBridgeImpl", () => ({}));
 

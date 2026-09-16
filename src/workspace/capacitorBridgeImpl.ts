@@ -769,3 +769,18 @@ export async function updateFavoritesWidget(entries: FavoritesWidgetEntry[]): Pr
     // Best-effort widget sync; the in-app bookmark list is unaffected.
   }
 }
+
+/** No-op on Android: OS file-association opens (ROADMAP.md's "Open a
+ * Markdown file from outside the workspace via OS file association") are
+ * Desktop (Tauri) only, per that feature's own acceptance sketch. */
+export async function takePendingExternalFile(): Promise<string | null> {
+  return null;
+}
+
+/** No-op on Android; see takePendingExternalFile above. Declares no
+ * parameter (still callable with one, matching updateFavoritesWidget's
+ * own asymmetry above) since this file's lint config has no
+ * unused-parameter exemption. */
+export function onExternalFileOpen(): () => void {
+  return () => {};
+}

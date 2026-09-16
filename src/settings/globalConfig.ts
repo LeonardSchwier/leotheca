@@ -1,4 +1,4 @@
-import { anyCorrupt, decodeEnum, decodeNullableString, decodeNumberInRange, decodeString } from "./decode";
+import { anyCorrupt, decodeBoolean, decodeEnum, decodeNullableString, decodeNumberInRange, decodeString } from "./decode";
 import {
   getAppConfigFilePath,
   readTextFile,
@@ -70,6 +70,18 @@ export interface GlobalConfigV2 {
   // workspace. Not read as the primary source once a v2 catalog exists.
   lastWorkspacePath: string | null;
   workspaceToken?: string;
+
+  /** Desktop only (ROADMAP.md's "Open a Markdown file from outside the
+   * workspace via OS file association"): whether opening a `.md` file
+   * through the OS's own "Open with"/default-app registration is acted on
+   * at all. App-level rather than per-workspace, since the whole point is
+   * to work with no workspace open yet -- there may be no
+   * `workspaceSettings.json` to hold this when the request arrives.
+   * Defaults to on; turning it off does not un-register the OS
+   * association itself (that is static, bundled at install time), it only
+   * makes an incoming open request a silent no-op, same as this app's
+   * other "off" conventions leave existing behavior untouched. */
+  externalFileOpenEnabled: boolean;
 }
 
 const DEFAULT_GLOBAL_CONFIG: GlobalConfigV2 = {
@@ -78,6 +90,7 @@ const DEFAULT_GLOBAL_CONFIG: GlobalConfigV2 = {
   activeWorkspaceId: null,
   workspaceProfiles: [],
   lastWorkspacePath: null,
+  externalFileOpenEnabled: true,
 };
 
 async function globalConfigPath(): Promise<string> {
@@ -179,6 +192,10 @@ export function decodeGlobalConfig(raw: string): {
   const hasV2Catalog = record.version === 2 && Array.isArray(record.workspaceProfiles);
   const profiles = decodeWorkspaceProfiles(record.workspaceProfiles);
   const activeWorkspaceId = decodeNullableString(record.activeWorkspaceId, null);
+  const externalFileOpenEnabled = decodeBoolean(
+    record.externalFileOpenEnabled,
+    DEFAULT_GLOBAL_CONFIG.externalFileOpenEnabled,
+  );
 
   let workspaceProfiles = profiles.value;
   let resolvedActiveWorkspaceId = activeWorkspaceId.value;
@@ -220,12 +237,16 @@ export function decodeGlobalConfig(raw: string): {
     activeWorkspaceId: resolvedActiveWorkspaceId,
     workspaceProfiles,
     lastWorkspacePath: lastWorkspacePath.value,
+    externalFileOpenEnabled: externalFileOpenEnabled.value,
     ...(workspaceTokenCorrupt ? { workspaceToken: undefined } : {}),
   } as GlobalConfigV2;
 
   return {
     config,
-    corrupt: anyCorrupt(lastWorkspacePath, theme, activeWorkspaceId) || workspaceTokenCorrupt || profiles.corrupt,
+    corrupt:
+      anyCorrupt(lastWorkspacePath, theme, activeWorkspaceId, externalFileOpenEnabled) ||
+      workspaceTokenCorrupt ||
+      profiles.corrupt,
   };
 }
 

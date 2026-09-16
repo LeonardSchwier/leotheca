@@ -1020,6 +1020,39 @@ button.icon-button.active {
   font-size: 14px;
 }
 
+/* Wider than the shared .modal's 420px default: a Markdown preview needs
+   real reading width, unlike the form-shaped dialogs (Settings, Capture,
+   License) that class was originally sized for. */
+.external-file-view {
+  width: min(720px, 92vw);
+}
+
+.external-file-view-path {
+  margin: 0 0 var(--space-3);
+  color: var(--text-secondary);
+  font-size: 13px;
+  word-break: break-all;
+}
+
+.external-file-view-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-sunken);
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.external-file-view-body {
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
 .settings-search {
   margin-bottom: var(--space-4);
 }

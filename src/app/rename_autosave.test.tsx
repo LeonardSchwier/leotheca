@@ -62,6 +62,8 @@ vi.mock("../workspace/tauriBridge", () => ({
   getWorkspaceStats: vi.fn(),
   setStatusBarAppearance: vi.fn(),
   updateFavoritesWidget: vi.fn(async () => {}),
+  takePendingExternalFile: vi.fn(async () => null),
+  onExternalFileOpen: vi.fn(() => () => {}),
 }));
 
 const { renameEntry } = vi.hoisted(() => ({

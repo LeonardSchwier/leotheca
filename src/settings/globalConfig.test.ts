@@ -26,6 +26,7 @@ const DEFAULTS: GlobalConfigV2 = {
   activeWorkspaceId: null,
   workspaceProfiles: [],
   lastWorkspacePath: null,
+  externalFileOpenEnabled: true,
 };
 
 describe("loadGlobalConfig", () => {
@@ -56,6 +57,7 @@ describe("loadGlobalConfig", () => {
       ],
       lastWorkspacePath: "/vault",
       workspaceToken: "content://tree/abc",
+      externalFileOpenEnabled: false,
     };
     readTextFile.mockResolvedValueOnce(JSON.stringify(saved));
     const { config, corrupt } = await loadGlobalConfig();
@@ -120,6 +122,28 @@ describe("decodeGlobalConfig", () => {
     expect(corrupt).toBe(true);
   });
 
+  it("defaults externalFileOpenEnabled to true when absent", () => {
+    const { config, corrupt } = decodeGlobalConfig(JSON.stringify({ theme: "dark" }));
+    expect(config.externalFileOpenEnabled).toBe(true);
+    expect(corrupt).toBe(false);
+  });
+
+  it("rejects a wrong-typed externalFileOpenEnabled, falling back to the default", () => {
+    const { config, corrupt } = decodeGlobalConfig(
+      JSON.stringify({ externalFileOpenEnabled: "yes" }),
+    );
+    expect(config.externalFileOpenEnabled).toBe(true);
+    expect(corrupt).toBe(true);
+  });
+
+  it("keeps an explicit externalFileOpenEnabled: false", () => {
+    const { config, corrupt } = decodeGlobalConfig(
+      JSON.stringify({ externalFileOpenEnabled: false }),
+    );
+    expect(config.externalFileOpenEnabled).toBe(false);
+    expect(corrupt).toBe(false);
+  });
+
   it("keeps a valid, fully-populated v2 config as not corrupt", () => {
     const saved: GlobalConfigV2 = {
       version: 2,
@@ -130,6 +154,7 @@ describe("decodeGlobalConfig", () => {
       ],
       lastWorkspacePath: "/vault",
       workspaceToken: "content://x",
+      externalFileOpenEnabled: false,
     };
     const { config, corrupt } = decodeGlobalConfig(JSON.stringify(saved));
     expect(config).toEqual(saved);

@@ -24,6 +24,11 @@ tauri-plugin-clipboard-manager = "2"
 tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+# Only Url::to_file_path() below (macOS file-association opens deliver a
+# file:// URL via RunEvent::Opened, not a CLI argument) needs this
+# directly; every other platform already pulls it in transitively via
+# `tauri` itself.
+url = "2"
 
 # Local whisper.cpp FFI bindings for speech recognition
 # If whisper.cpp source is available, it will be compiled and used;

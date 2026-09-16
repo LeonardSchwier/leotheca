@@ -69,7 +69,9 @@ window.matchMedia = vi.fn().mockImplementation((query: string) => ({
 const {
   activateWorkspaceProfile,
   activeWorkspaceId,
+  addWorkspaceFromPath,
   addWorkspaceFromPicker,
+  externalFileOpenEnabled,
   forgetWorkspaceProfile,
   relinkWorkspaceProfile,
   restoreLastOpenTabs,
@@ -77,6 +79,7 @@ const {
   globalConfigCorrupted,
   repairGlobalConfigFile,
   repairWorkspaceSettingsFile,
+  setExternalFileOpenEnabled,
   setTheme,
   setWorkspacePath,
   settingsLoaded,
@@ -432,6 +435,37 @@ describe("global configuration corruption recovery", () => {
   });
 });
 
+describe("setExternalFileOpenEnabled", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    globalConfigCorrupted.value = false;
+    externalFileOpenEnabled.value = true;
+  });
+
+  it("defaults to true and persists an explicit change", async () => {
+    expect(externalFileOpenEnabled.value).toBe(true);
+
+    await setExternalFileOpenEnabled(false);
+    await flushSettingsWrites();
+
+    expect(externalFileOpenEnabled.value).toBe(false);
+    expect(globalConfigWrites().at(-1)).toMatchObject({ externalFileOpenEnabled: false });
+  });
+
+  it("hydrates from a loaded config on initSettings", async () => {
+    readTextFile.mockImplementation(async (path) => {
+      if (path === "/config/config.json") {
+        return JSON.stringify({ version: 2, externalFileOpenEnabled: false });
+      }
+      throw new Error("not found");
+    });
+
+    await initSettings();
+
+    expect(externalFileOpenEnabled.value).toBe(false);
+  });
+});
+
 describe("F20 Phase 1: workspace profile catalog", () => {
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -566,6 +600,32 @@ describe("F20 Phase 1: workspace profile catalog", () => {
 
       expect(workspaceProfiles.value).toEqual([]);
       expect(activeWorkspaceId.value).toBeNull();
+    });
+  });
+
+  describe("addWorkspaceFromPath", () => {
+    it("creates and activates a new profile for a plain path, without a picker", async () => {
+      await addWorkspaceFromPath("/Users/me/externalvault");
+
+      expect(pickWorkspaceFolder).not.toHaveBeenCalled();
+      expect(workspacePath.value).toBe("/Users/me/externalvault");
+      expect(workspaceProfiles.value).toHaveLength(1);
+      const [created] = workspaceProfiles.value;
+      expect(created.name).toBe("externalvault");
+      expect(created.icon).toBe("folder");
+      expect(created.token).toBeUndefined();
+      expect(activeWorkspaceId.value).toBe(created.id);
+    });
+
+    it("activates an existing profile instead of creating a duplicate when the path matches", async () => {
+      workspaceProfiles.value = [
+        { id: "p1", name: "Vault", icon: "folder", path: "/vaultA", lastOpenedAt: 1 },
+      ];
+
+      await addWorkspaceFromPath("/vaultA");
+
+      expect(workspaceProfiles.value).toHaveLength(1);
+      expect(activeWorkspaceId.value).toBe("p1");
     });
   });
 

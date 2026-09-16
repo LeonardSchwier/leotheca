@@ -6,15 +6,17 @@ import { DEFAULT_WORKSPACE_SETTINGS } from "../settings/workspaceSettings";
 import { scanTasks, type TaskRecord } from "../markdown/tasks";
 import { pendingCapturesStore, addPendingCapture } from "../capture/pendingCaptures";
 
-const { updateWorkspaceSettingsSpy, initSettings } = vi.hoisted(() => ({
+const { updateWorkspaceSettingsSpy, initSettings, addWorkspaceFromPathSpy } = vi.hoisted(() => ({
   updateWorkspaceSettingsSpy: vi.fn(),
   initSettings: vi.fn(),
+  addWorkspaceFromPathSpy: vi.fn(async () => {}),
 }));
 
 vi.mock("../settings/store", () => {
   const workspacePath = signal<string | null>(null);
   const workspaceSettings = signal(DEFAULT_WORKSPACE_SETTINGS);
   const settingsLoaded = signal(false);
+  const externalFileOpenEnabled = signal(true);
   return {
     workspacePath,
     workspaceSession: signal(0),
@@ -39,6 +41,8 @@ vi.mock("../settings/store", () => {
     activeWorkspaceId: signal<string | null>(null),
     activateWorkspaceProfile: vi.fn(),
     addWorkspaceFromPicker: vi.fn(),
+    addWorkspaceFromPath: addWorkspaceFromPathSpy,
+    externalFileOpenEnabled,
     forgetWorkspaceProfile: vi.fn(),
     workspaceTransitionRecovery: signal(null),
     updateWorkspaceSettings: async (
@@ -51,14 +55,17 @@ vi.mock("../settings/store", () => {
   };
 });
 
-const { readTextFile, writeTextFile } = vi.hoisted(() => ({
-  readTextFile: vi.fn<(path: string) => Promise<string>>(() =>
-    Promise.resolve(""),
-  ),
-  writeTextFile: vi.fn<(path: string, content: string) => Promise<void>>(() =>
-    Promise.resolve(),
-  ),
-}));
+const { readTextFile, writeTextFile, takePendingExternalFile, externalFileOpenListeners } =
+  vi.hoisted(() => ({
+    readTextFile: vi.fn<(path: string) => Promise<string>>(() =>
+      Promise.resolve(""),
+    ),
+    writeTextFile: vi.fn<(path: string, content: string) => Promise<void>>(() =>
+      Promise.resolve(),
+    ),
+    takePendingExternalFile: vi.fn<() => Promise<string | null>>(async () => null),
+    externalFileOpenListeners: [] as ((path: string) => void)[],
+  }));
 
 vi.mock("../workspace/tauriBridge", () => ({
   readTextFile,
@@ -77,6 +84,11 @@ vi.mock("../workspace/tauriBridge", () => ({
   getWorkspaceStats: vi.fn(),
   setStatusBarAppearance: vi.fn(),
   updateFavoritesWidget: vi.fn(async () => {}),
+  takePendingExternalFile,
+  onExternalFileOpen: vi.fn((listener: (path: string) => void) => {
+    externalFileOpenListeners.push(listener);
+    return () => {};
+  }),
 }));
 
 const { renameEntry, createNoteQuick } = vi.hoisted(() => ({
@@ -185,7 +197,7 @@ const {
   openTabs,
   secondaryOpenTabs,
 } = await import("../workspace/store");
-const { settingsLoaded, settingsPanelOpen, workspacePath, workspaceSettings, viewMode } =
+const { settingsLoaded, settingsPanelOpen, workspacePath, workspaceSettings, viewMode, externalFileOpenEnabled } =
   await import("../settings/store");
 const { linkIndex } = await import("../linking/store");
 const { outlineRevealRequest } = await import("../outline/outlineNavigation");
@@ -226,6 +238,11 @@ afterEach(() => {
   createNoteQuick.mockReset();
   initSettings.mockReset();
   openUrlListeners.length = 0;
+  externalFileOpenListeners.length = 0;
+  takePendingExternalFile.mockReset();
+  takePendingExternalFile.mockResolvedValue(null);
+  addWorkspaceFromPathSpy.mockClear();
+  externalFileOpenEnabled.value = true;
   pendingCapturesStore.value = [];
 });
 
@@ -1020,6 +1037,118 @@ describe("App: new-note automation command (Android home-screen widget cold star
     });
 
     expect(createNoteQuick).not.toHaveBeenCalled();
+  });
+});
+
+describe("App: OS file-association external file open (ROADMAP.md desktop-only feature)", () => {
+  it("opens the note directly, through the ordinary tab machinery, when the path is inside the current workspace", async () => {
+    workspacePath.value = "/vault";
+    readTextFile.mockResolvedValueOnce("note content");
+    render(<App />);
+
+    await act(async () => {
+      externalFileOpenListeners.at(-1)?.("/vault/note.md");
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(activeTabPath.value).toBe("/vault/note.md");
+    expect(readTextFile).toHaveBeenCalledWith("/vault/note.md");
+  });
+
+  it("shows a read-only scratch view, not an editable tab, when the path is outside the current workspace", async () => {
+    workspacePath.value = "/vault";
+    readTextFile.mockResolvedValueOnce("external content");
+    const { findByText, getByText } = render(<App />);
+
+    await act(async () => {
+      externalFileOpenListeners.at(-1)?.("/elsewhere/other.md");
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    await findByText("external content");
+    expect(getByText("/elsewhere/other.md")).toBeTruthy();
+    expect(getByText(/Opened from outside your workspace/)).toBeTruthy();
+    // Never routed through the workspace tab machinery: no tab opens for it.
+    expect(activeTabPath.value).not.toBe("/elsewhere/other.md");
+  });
+
+  it("shows the scratch view when no workspace is open at all", async () => {
+    workspacePath.value = null;
+    readTextFile.mockResolvedValueOnce("orphan content");
+    const { findByText } = render(<App />);
+
+    await act(async () => {
+      externalFileOpenListeners.at(-1)?.("/notes/orphan.md");
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    await findByText("orphan content");
+  });
+
+  it("does nothing when externalFileOpenEnabled is off", async () => {
+    workspacePath.value = "/vault";
+    externalFileOpenEnabled.value = false;
+    render(<App />);
+
+    await act(async () => {
+      externalFileOpenListeners.at(-1)?.("/vault/note.md");
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(readTextFile).not.toHaveBeenCalled();
+    expect(activeTabPath.value).toBeNull();
+  });
+
+  it("ignores a path that isn't a .md file", async () => {
+    workspacePath.value = "/vault";
+    render(<App />);
+
+    await act(async () => {
+      externalFileOpenListeners.at(-1)?.("/vault/image.png");
+      await Promise.resolve();
+    });
+
+    expect(readTextFile).not.toHaveBeenCalled();
+  });
+
+  it("opens a cold-start pending file (fresh launch via OS file association) once settings finish loading", async () => {
+    workspacePath.value = "/vault";
+    readTextFile.mockResolvedValueOnce("note content");
+    takePendingExternalFile.mockResolvedValueOnce("/vault/note.md");
+    render(<App />);
+
+    await act(async () => {
+      settingsLoaded.value = true;
+      for (let i = 0; i < 6; i++) await Promise.resolve();
+    });
+
+    expect(activeTabPath.value).toBe("/vault/note.md");
+  });
+
+  it("'Open containing folder as a workspace' activates that folder and closes the scratch view", async () => {
+    workspacePath.value = "/vault";
+    readTextFile.mockResolvedValueOnce("external content");
+    const { findByText, getByText, queryByText } = render(<App />);
+
+    await act(async () => {
+      externalFileOpenListeners.at(-1)?.("/elsewhere/notes/other.md");
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    await findByText("external content");
+
+    await act(async () => {
+      fireEvent.click(getByText("Open containing folder as a workspace"));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(addWorkspaceFromPathSpy).toHaveBeenCalledWith("/elsewhere/notes");
+    expect(queryByText("external content")).toBeNull();
   });
 });
 

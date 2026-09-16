@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added support for opening a `.md` file directly from your file manager or another app, even when its folder isn't your currently open workspace (Desktop only). Leotheca now registers itself as an "Open with"/default-app option for Markdown files. A file inside your current workspace opens normally, as an editable tab; a file outside it opens in a new read-only view, with a button to open its containing folder as a workspace if you want to edit it. A new "Open Markdown files from outside your workspace" setting (Settings → General, on by default) lets you turn this off.
+
 - Fixed the Rename Preview dialog never appearing for a rename whose only pending references elsewhere were Markdown-style links (`[label](target)`/`![alt](target)`), rather than wikilinks: the dialog's "anything to review?" check only looked at wikilink edits, so a real, correctly-computed Markdown-link edit never triggered the Review step at all, and the user got no warning that a Markdown link would break.
 
 - Fixed a PDF shape tool (Square/Circle/Line) leaving its in-progress draft rectangle/line stuck on screen if the drag gesture was interrupted (an OS/browser context switch, a multi-touch conflict, the tab losing focus mid-drag) instead of ending normally.

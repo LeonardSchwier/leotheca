@@ -1048,6 +1048,12 @@ button.icon-button.active {
   font-size: 13px;
 }
 
+.external-file-view-error {
+  color: #c0392b;
+  font-size: 12px;
+  margin: 0 0 var(--space-3);
+}
+
 .external-file-view-body {
   max-height: 60vh;
   overflow-y: auto;

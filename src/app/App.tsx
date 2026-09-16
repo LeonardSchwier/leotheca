@@ -348,6 +348,7 @@ export function App() {
   // this way whose path resolves outside every currently open workspace.
   const [externalFile, setExternalFile] = useState<{ path: string; name: string; content: string } | null>(null);
   const [externalFileOpeningWorkspace, setExternalFileOpeningWorkspace] = useState(false);
+  const [externalFileWorkspaceError, setExternalFileWorkspaceError] = useState<string | null>(null);
   // Fullscreen image viewer overlay state
   const [imageOverlay, setImageOverlay] = useState<{ src: string; alt: string } | null>(null);
   const handleImageClick = useCallback((src: string, alt: string) => {
@@ -691,8 +692,21 @@ export function App() {
   const handleCloseExternalFile = useCallback(() => {
     setExternalFile(null);
     setExternalFileOpeningWorkspace(false);
+    setExternalFileWorkspaceError(null);
   }, []);
 
+  /** `addWorkspaceFromPath` (via `setWorkspacePath`/`workspaceTransitions.run`)
+   * rethrows on failure after already publishing a message to
+   * `workspaceSelectionError` for surfaces like WelcomeDialog that stay
+   * mounted through the failure. This scratch view is not one of those --
+   * it unmounts on success (`setExternalFile(null)`) and would otherwise
+   * unmount on failure too with nothing left to show that signal, so the
+   * failure must be caught and kept local instead: same
+   * catch-and-setState-error shape as handleTabRenameSubmit above. Without
+   * this catch, a rejection (e.g. the folder was deleted or access denied
+   * since the file was opened) left the promise returned to the plain
+   * `onClick={() => void ...}` handler unhandled, and the dialog silently
+   * reverted to its normal state with no indication anything had failed. */
   const handleOpenExternalFileAsWorkspace = useCallback(async () => {
     if (!externalFile) return;
     const folder = externalFile.path.slice(
@@ -700,9 +714,12 @@ export function App() {
       Math.max(externalFile.path.lastIndexOf("/"), externalFile.path.lastIndexOf("\\")),
     );
     setExternalFileOpeningWorkspace(true);
+    setExternalFileWorkspaceError(null);
     try {
       await addWorkspaceFromPath(folder);
       setExternalFile(null);
+    } catch (e) {
+      setExternalFileWorkspaceError(e instanceof Error ? e.message : String(e));
     } finally {
       setExternalFileOpeningWorkspace(false);
     }
@@ -1688,6 +1705,7 @@ export function App() {
           name={externalFile.name}
           content={externalFile.content}
           opening={externalFileOpeningWorkspace}
+          error={externalFileWorkspaceError}
           onClose={handleCloseExternalFile}
           onOpenAsWorkspace={() => void handleOpenExternalFileAsWorkspace()}
         />

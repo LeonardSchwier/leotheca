@@ -1150,6 +1150,47 @@ describe("App: OS file-association external file open (ROADMAP.md desktop-only f
     expect(addWorkspaceFromPathSpy).toHaveBeenCalledWith("/elsewhere/notes");
     expect(queryByText("external content")).toBeNull();
   });
+
+  it("shows an error and keeps the scratch view open when 'Open containing folder as a workspace' fails", async () => {
+    workspacePath.value = "/vault";
+    readTextFile.mockResolvedValueOnce("external content");
+    addWorkspaceFromPathSpy.mockRejectedValueOnce(new Error("permission denied"));
+    const { findByText, getByText, queryByText } = render(<App />);
+
+    await act(async () => {
+      externalFileOpenListeners.at(-1)?.("/elsewhere/notes/other.md");
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    await findByText("external content");
+
+    await act(async () => {
+      fireEvent.click(getByText("Open containing folder as a workspace"));
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(addWorkspaceFromPathSpy).toHaveBeenCalledWith("/elsewhere/notes");
+    // The scratch view stays open (unlike the success case above) with the
+    // failure surfaced, rather than silently reverting to its normal state
+    // with no indication anything went wrong.
+    expect(queryByText("external content")).toBeTruthy();
+    expect(getByText("permission denied")).toBeTruthy();
+    expect(getByText("Open containing folder as a workspace")).toBeTruthy();
+
+    // A second attempt clears the stale error rather than leaving it stuck
+    // once the underlying problem is fixed.
+    addWorkspaceFromPathSpy.mockResolvedValueOnce(undefined);
+    await act(async () => {
+      fireEvent.click(getByText("Open containing folder as a workspace"));
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(queryByText("permission denied")).toBeNull();
+    expect(queryByText("external content")).toBeNull();
+  });
 });
 
 describe("App: pending captures require explicit review before writing (spec F05-FR-03)", () => {

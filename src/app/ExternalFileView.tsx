@@ -6,6 +6,10 @@ interface ExternalFileViewProps {
   name: string;
   content: string;
   opening: boolean;
+  /** Message from the most recent failed `onOpenAsWorkspace` attempt, or
+   * `null` before any attempt or after a successful one closed this view.
+   * Cleared by the caller on retry and on close. */
+  error: string | null;
   onClose: () => void;
   onOpenAsWorkspace: () => void;
 }
@@ -29,6 +33,7 @@ export function ExternalFileView({
   name,
   content,
   opening,
+  error,
   onClose,
   onOpenAsWorkspace,
 }: ExternalFileViewProps) {
@@ -68,6 +73,11 @@ export function ExternalFileView({
             {opening ? "Opening…" : "Open containing folder as a workspace"}
           </button>
         </div>
+        {error && (
+          <p role="alert" class="external-file-view-error">
+            {error}
+          </p>
+        )}
         <div class="external-file-view-body">
           <MarkdownPreview source={content} headingLinksEnabled={false} />
         </div>

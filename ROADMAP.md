@@ -8,7 +8,9 @@
 
 ### Bugs
 
-- ⬜ **Maintenance review: heading-link copy failure is silently swallowed**: `HeadingLinkActions.tsx`'s `handleCopy` has no `try`/`catch` around its clipboard write, so a rejected `navigator.clipboard.writeText` becomes an unhandled promise rejection and the button silently stays "Copy link" with no screen-reader feedback.
+- 🚧 **Maintenance review: heading-link copy failure is silently swallowed**: `HeadingLinkActions.tsx`'s `handleCopy` has no `try`/`catch` around its clipboard write, so a rejected `navigator.clipboard.writeText` becomes an unhandled promise rejection and the button silently stays "Copy link" with no screen-reader feedback.
+  <!-- agent-state: {"schema":1,"id":"rm-2a74d1a0d23d3165","state":"claimed","touch":["src/outline/HeadingLinkActions.tsx","src/outline/headingLinkOperations.ts"],"resources":["heading-link-actions"],"owner":"ClaudeCode-cloud-scheduled-kindbardeen-20260916T231603Z-8f88b156","token":"b4d6e53e5e89a757b12e65c13abe17b6","branch":"agent/rm-2a74d1a0d23d3165/b4d6e53e5e89","claimed_at":"2026-09-16T23:16:46Z","heartbeat_at":"2026-09-16T23:16:46Z","lease_until":"2026-09-17T00:46:46Z"} -->
+  Agent: ClaudeCode-cloud-scheduled-kindbardeen-20260916T231603Z-8f88b156 | item: rm-2a74d1a0d23d3165 | lease until: 2026-09-17T00:46:46Z
 
 
 

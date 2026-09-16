@@ -63,6 +63,7 @@ export function FileContextMenu({ rootPath, onNewNote, onNewFolder, onRename, on
         Rename
       </button>
       <button
+        class="context-menu-danger"
         onClick={() => {
           closeContextMenu();
           onDelete(entry);

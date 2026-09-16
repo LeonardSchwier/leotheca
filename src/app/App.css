@@ -897,6 +897,19 @@ button.icon-button.active {
   background: none;
 }
 
+/* UX-01 spec section 15.3: "destructive actions use semantic danger
+   styling but are not color-only." The button's own text label ("Delete")
+   already names the action; this color is reinforcement, not the sole
+   signal, matching the spec's intent without needing a second visual
+   marker on a plain text menu item. */
+.context-menu-danger {
+  color: var(--color-danger);
+}
+
+.context-menu-danger:hover {
+  background: color-mix(in srgb, var(--color-danger) 12%, transparent);
+}
+
 .modal-overlay {
   position: fixed;
   inset: 0;

@@ -974,6 +974,19 @@ button.icon-button.active {
   padding-top: 12vh;
 }
 
+/* UX-01 spec section 16.1: "Settings opens as a large adaptive dialog,
+   approximately 800px wide." Settings previously had no width override at
+   all, so it inherited .modal's own 420px -- reasonable for a short
+   confirmation dialog, cramped for Settings' actual content (General,
+   Appearance, Features, Workspace Profiles, Shortcuts, Health, About),
+   all still stacked in one column here (categorized left-nav Settings, the
+   rest of 16.1, is separate follow-up work). Same width: min(...) shape as
+   .command-palette just below, for the same narrow-viewport reason its own
+   comment explains. */
+.settings-panel {
+  width: min(800px, 92vw);
+}
+
 .command-palette {
   padding: 0;
   /* A fixed min-width here (like .modal's 420px) would exceed the actual

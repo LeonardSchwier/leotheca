@@ -7,7 +7,7 @@
   flex-direction: column;
   height: 100%;
   min-height: 0; /* Allow flex children to shrink */
-  background: var(--bg-color, #ffffff);
+  background: var(--bg-raised);
 }
 
 .ink-toolbar {
@@ -15,8 +15,8 @@
   flex-wrap: wrap;
   gap: 0.5rem;
   padding: 0.5rem;
-  border-bottom: 1px solid var(--border-color, #e5e7eb);
-  background: var(--toolbar-bg, #f9fafb);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-sunken);
   align-items: center;
 }
 
@@ -34,23 +34,23 @@
   align-items: center;
   gap: 0.25rem;
   padding: 0.25rem 0.5rem;
-  border: 1px solid var(--border-color, #e5e7eb);
+  border: 1px solid var(--border);
   border-radius: 0.375rem;
-  background: var(--bg-color, #ffffff);
-  color: var(--text-color, #1f2937);
+  background: var(--bg-raised);
+  color: var(--text-primary);
   cursor: pointer;
   font-size: 0.875rem;
   transition: all 0.15s ease;
 }
 
 .ink-tool-button:hover:not(:disabled) {
-  background: var(--hover-bg, #f3f4f6);
+  background: var(--bg-hover);
 }
 
 .ink-tool-button.active {
-  background: var(--accent-color, #3b82f6);
-  color: white;
-  border-color: var(--accent-color, #3b82f6);
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  border-color: var(--color-accent);
 }
 
 .ink-tool-button:disabled {
@@ -65,9 +65,9 @@
   width: 2rem;
   height: 2rem;
   padding: 0;
-  border: 1px solid var(--border-color, #e5e7eb);
+  border: 1px solid var(--border);
   border-radius: 0.375rem;
-  background: var(--bg-color, #ffffff);
+  background: var(--bg-raised);
   cursor: pointer;
 }
 
@@ -92,22 +92,22 @@
 
 .ink-width-group select {
   padding: 0.25rem 0.5rem;
-  border: 1px solid var(--border-color, #e5e7eb);
+  border: 1px solid var(--border);
   border-radius: 0.375rem;
-  background: var(--bg-color, #ffffff);
-  color: var(--text-color, #1f2937);
+  background: var(--bg-raised);
+  color: var(--text-primary);
   font-size: 0.875rem;
   cursor: pointer;
 }
 
 .ink-width-group select:hover {
-  background: var(--hover-bg, #f3f4f6);
+  background: var(--bg-hover);
 }
 
 .ink-width-group select:focus {
   outline: none;
-  border-color: var(--accent-color, #3b82f6);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-accent-soft);
 }
 
 .ink-action-group button {
@@ -115,16 +115,16 @@
   align-items: center;
   gap: 0.25rem;
   padding: 0.25rem 0.5rem;
-  border: 1px solid var(--border-color, #e5e7eb);
+  border: 1px solid var(--border);
   border-radius: 0.375rem;
-  background: var(--bg-color, #ffffff);
-  color: var(--text-color, #1f2937);
+  background: var(--bg-raised);
+  color: var(--text-primary);
   cursor: pointer;
   font-size: 0.875rem;
 }
 
 .ink-action-group button:hover:not(:disabled) {
-  background: var(--hover-bg, #f3f4f6);
+  background: var(--bg-hover);
 }
 
 .ink-action-group button:disabled {

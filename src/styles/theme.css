@@ -342,8 +342,8 @@
 
 /* F05-FR-27: Capture Sheet accessibility styles */
 .capture-sheet-error {
-  color: var(--error-color, #d32f2f);
-  background-color: var(--error-bg, rgba(211, 47, 47, 0.1));
+  color: var(--color-danger);
+  background-color: color-mix(in srgb, var(--color-danger) 12%, transparent);
   padding: 8px 12px;
   border-radius: 4px;
   margin-bottom: 12px;

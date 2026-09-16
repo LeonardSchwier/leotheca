@@ -25,8 +25,8 @@
   margin: 0;
   padding: var(--space-2);
   border-radius: var(--radius-sm);
-  border: 1px solid #c0392b;
-  color: #c0392b;
+  border: 1px solid var(--color-danger);
+  color: var(--color-danger);
   font-size: 12px;
 }
 
@@ -125,7 +125,7 @@
 
 .collections-view-switcher button.active {
   background: var(--accent);
-  color: var(--bg-primary, #fff);
+  color: var(--color-on-accent);
 }
 
 .collections-results-list {
@@ -242,7 +242,7 @@
   margin: 0;
   padding: 2px 0 0;
   font-size: 12px;
-  color: var(--error-color, #d32f2f);
+  color: var(--color-danger);
 }
 
 .collections-property-editor {
@@ -276,7 +276,7 @@
 }
 
 .collections-property-editor [role="alert"] {
-  color: #c0392b;
+  color: var(--color-danger);
 }
 
 .collections-card-grid {
@@ -407,7 +407,7 @@
   padding: var(--space-2);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  background: var(--bg-primary);
+  background: var(--bg-raised);
   color: var(--text-primary);
   font: inherit;
   text-align: left;
@@ -452,7 +452,7 @@
 }
 
 .collections-field input[aria-invalid="true"] {
-  border-color: #c0392b;
+  border-color: var(--color-danger);
 }
 
 .collections-group {
@@ -489,7 +489,7 @@
 
 .collections-group-toggle button.active {
   background: var(--accent);
-  color: var(--bg-primary, #fff);
+  color: var(--color-on-accent);
 }
 
 .collections-group-empty {
@@ -510,7 +510,7 @@
 }
 
 .collections-clause-row.collections-row-invalid {
-  outline: 1px solid #c0392b;
+  outline: 1px solid var(--color-danger);
   border-radius: var(--radius-sm);
 }
 
@@ -548,7 +548,7 @@
 .collections-save-button {
   background: var(--accent);
   border-color: var(--accent);
-  color: var(--bg-primary, #fff);
+  color: var(--color-on-accent);
 }
 
 .collections-save-button:disabled {
@@ -558,7 +558,7 @@
 
 .collections-builder-error {
   margin: 0;
-  color: #c0392b;
+  color: var(--color-danger);
   font-size: 12px;
 }
 

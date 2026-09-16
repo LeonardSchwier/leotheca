@@ -45,7 +45,7 @@
 }
 
 .app-title-hint-warning {
-  color: #c0392b;
+  color: var(--color-danger);
 }
 
 /* F20 Phase 1: minimal workspace switcher (spec
@@ -316,7 +316,7 @@ button.icon-button.active {
   justify-content: space-between;
   gap: var(--space-3);
   padding: var(--space-2) var(--space-4);
-  color: var(--error-color, #d32f2f);
+  color: var(--color-danger);
   background: var(--bg-sunken);
   border-bottom: 1px solid var(--border);
   font-size: 0.875rem;
@@ -520,12 +520,29 @@ button.icon-button.active {
   color: var(--text-faint);
 }
 
+/* UX-01 spec section 14.2/READ-002: centered content column at a readable
+   maximum line length (72ch, with an 820px hard cap for very large font
+   sizes/zoom levels where 72ch alone would grow too wide) instead of the
+   previous full-width stretch. Wide-layout padding widened from
+   --space-6 (24px) to --space-8 (32px) per the spec's 32-48px reference
+   range; the existing narrow-breakpoint override below still applies its
+   own --space-4 (16px), within the spec's 16-20px narrow range. */
 .markdown-preview {
-  padding: var(--space-6);
+  max-width: min(72ch, 820px);
+  margin-inline: auto;
+  padding: var(--space-8);
   font-family: var(--font-reading);
   font-size: var(--content-font-size);
-  line-height: 1.65;
+  line-height: 1.7;
   color: var(--text-primary);
+}
+
+.markdown-preview > :first-child {
+  margin-top: 0;
+}
+
+.markdown-preview > :last-child {
+  margin-bottom: 0;
 }
 
 .markdown-preview h1,
@@ -692,7 +709,7 @@ button.icon-button.active {
   margin: 0;
   padding: 2px var(--space-1) var(--space-1) calc(0.75em + var(--space-1));
   font-size: 12px;
-  color: var(--error-color, #d32f2f);
+  color: var(--color-danger);
 }
 
 .sidebar-inner {
@@ -827,7 +844,7 @@ button.icon-button.active {
 }
 
 .tab-pin {
-  color: var(--text-muted);
+  color: var(--text-faint);
   font-size: 0.72rem;
   margin-left: 0.35rem;
 }
@@ -1049,7 +1066,7 @@ button.icon-button.active {
 }
 
 .external-file-view-error {
-  color: #c0392b;
+  color: var(--color-danger);
   font-size: 12px;
   margin: 0 0 var(--space-3);
 }
@@ -1184,7 +1201,7 @@ button.icon-button.active {
 }
 
 .name-prompt-error {
-  color: #c0392b;
+  color: var(--color-danger);
   font-size: 12px;
   margin: 0 0 var(--space-2);
 }
@@ -1218,7 +1235,7 @@ button.icon-button.active {
 }
 
 .workspace-transition-banner-danger {
-  color: #c0392b;
+  color: var(--color-danger);
 }
 
 .workspace-transition-banner-dismiss {
@@ -1472,11 +1489,21 @@ button.icon-button.active {
     justify-content: center;
   }
 
+  /* This overlay's own backdrop is a fixed, theme-independent dark scrim
+     (rgba(0, 0, 0, 0.9) above, on .image-overlay) regardless of whether the
+     app is in Light or Dark mode -- the usual "lightbox" convention, since
+     photos read better against black either way. These buttons previously
+     read `color: var(--text-primary, #fff)`, but --text-primary is always
+     defined (theme.css's :root sets it unconditionally), so that fallback
+     could never actually apply: in Light theme this rendered dark ink-colored
+     text on the always-dark #333 button background, a real, near-unreadable
+     contrast failure. Colors here are intentionally hardcoded rather than
+     theme tokens, since the surface itself never changes with the theme. */
   .image-overlay-button {
-    background: var(--bg-primary, #333);
-    color: var(--text-primary, #fff);
-    border: 1px solid var(--border-primary, #555);
-    border-radius: var(--radius-2, 4px);
+    background: #333;
+    color: #fff;
+    border: 1px solid #555;
+    border-radius: var(--radius-sm);
     padding: var(--space-2) var(--space-4);
     font-size: 1.1em;
     cursor: pointer;
@@ -1485,16 +1512,16 @@ button.icon-button.active {
   }
 
   .image-overlay-button:hover {
-    background: var(--bg-secondary, #444);
+    background: #444;
   }
 
   .image-overlay-close {
-    background: var(--accent-red, #d32f2f);
-    border-color: var(--accent-red, #d32f2f);
+    background: #d32f2f;
+    border-color: #d32f2f;
   }
 
   .image-overlay-close:hover {
-    background: var(--accent-red-dark, #b71c1c);
+    background: #b71c1c;
   }
 
   /* Enhanced Image Viewer for standalone tabs */
@@ -1504,7 +1531,7 @@ button.icon-button.active {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    background-color: var(--bg-secondary, #222);
+    background-color: #222;
     position: relative;
   }
 
@@ -1532,14 +1559,17 @@ button.icon-button.active {
     transform: translateX(-50%);
     background: rgba(0, 0, 0, 0.7);
     padding: var(--space-2);
-    border-radius: var(--radius-2, 4px);
+    border-radius: var(--radius-sm);
   }
 
+  /* Same theme-independent-dark reasoning and same real contrast fix as
+     .image-overlay-button above: this sits over the same kind of fixed
+     dark scrim (.image-viewer-controls' rgba(0, 0, 0, 0.7) background). */
   .image-viewer-button {
-    background: var(--bg-primary, #333);
-    color: var(--text-primary, #fff);
-    border: 1px solid var(--border-primary, #555);
-    border-radius: var(--radius-2, 4px);
+    background: #333;
+    color: #fff;
+    border: 1px solid #555;
+    border-radius: var(--radius-sm);
     padding: var(--space-2) var(--space-4);
     font-size: 1.1em;
     cursor: pointer;
@@ -1548,7 +1578,7 @@ button.icon-button.active {
   }
 
   .image-viewer-button:hover {
-    background: var(--bg-tertiary, #444);
+    background: #444;
   }
 
   /* F05: Capture Sheet */
@@ -1557,14 +1587,21 @@ button.icon-button.active {
     width: 90vw;
   }
 
+  /* border-primary/bg-secondary/accent-blue below were never-defined
+     custom properties (no such tokens exist in theme.css), so these
+     rules were quietly falling back to CSS's own invalid-at-computed-
+     value handling -- an implicit transparent background and a
+     currentColor border -- rather than any deliberately chosen color.
+     Mapped onto this file's real tokens, respecting the user's chosen
+     accent/theme like the rest of the app instead of a fixed blue. */
   .capture-sheet-textarea {
     width: 100%;
     min-height: 150px;
     padding: var(--space-3);
     margin: var(--space-3) 0;
-    border: 1px solid var(--border-primary);
-    border-radius: var(--radius-2);
-    background-color: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background-color: var(--bg-sunken);
     color: var(--text-primary);
     font-family: inherit;
     font-size: inherit;
@@ -1574,8 +1611,8 @@ button.icon-button.active {
 
   .capture-sheet-textarea:focus {
     outline: none;
-    border-color: var(--accent-blue, #4285f4);
-    box-shadow: 0 0 0 2px rgba(66, 133, 244, 0.2);
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 2px var(--color-accent-soft);
   }
 
   .capture-sheet-textarea::placeholder {
@@ -1603,17 +1640,17 @@ button.icon-button.active {
   }
 
   .capture-sheet .primary {
-    background-color: var(--accent-blue, #4285f4);
-    color: white;
+    background-color: var(--color-accent);
+    color: var(--color-on-accent);
     border: none;
   }
 
   .capture-sheet .primary:hover:not(:disabled) {
-    background-color: var(--accent-blue-dark, #3367d6);
+    background-color: var(--color-accent-hover);
   }
 
   .capture-sheet .primary:disabled {
-    background-color: var(--accent-blue, #4285f4);
+    background-color: var(--color-accent);
     opacity: 0.5;
     cursor: not-allowed;
   }
@@ -1633,45 +1670,66 @@ button.icon-button.active {
   position: relative;
 }
 
-.speech-button recording {
-  color: #f44336;
-  animation: pulse 1s infinite;
+/* These five selectors were a plain space (a descendant combinator) rather
+   than a dot before the state class name -- `.speech-button recording`
+   instead of `.speech-button.recording` -- which only ever matches a
+   literal `<recording>` element nested inside `.speech-button`, never the
+   real markup (SpeechRecognitionButton.tsx sets `recording`/etc. as one of
+   several space-separated classes on the button itself, not a child
+   element). None of the recording pulse, transcribing spin, starting dim,
+   error color, or disabled cursor/opacity states have ever actually
+   applied since this feature shipped; fixed to compound class selectors.
+   Colors also moved from a hardcoded, theme/accent-independent
+   blue/red onto the shared semantic tokens, so this respects the user's
+   chosen accent and theme like the rest of the app. */
+.speech-button.recording {
+  color: var(--color-danger);
+  animation: speech-pulse 1s infinite;
 }
 
-.speech-button transcribing {
-  color: #4285f4;
-  animation: spin 1s linear infinite;
+.speech-button.transcribing {
+  color: var(--color-accent);
+  animation: speech-spin 1s linear infinite;
 }
 
-.speech-button starting {
-  color: #4285f4;
+.speech-button.starting {
+  color: var(--color-accent);
   opacity: 0.7;
 }
 
-.speech-button error {
-  color: #f44336;
+.speech-button.error {
+  color: var(--color-danger);
 }
 
-.speech-button disabled {
+.speech-button.disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }
 
 .speech-error-message {
   font-size: 12px;
-  color: #f44336;
+  color: var(--color-danger);
   white-space: nowrap;
   max-width: 200px;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-@keyframes pulse {
+@keyframes speech-pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.6; }
 }
 
-@keyframes spin {
+@keyframes speech-spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .speech-button.recording {
+    animation: none;
+  }
+  .speech-button.transcribing {
+    animation-duration: 4s;
+  }
 }

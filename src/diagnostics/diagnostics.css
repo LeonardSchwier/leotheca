@@ -54,7 +54,7 @@
   margin: 0;
   padding: 2px var(--space-2) var(--space-1);
   font-size: 12px;
-  color: var(--error-color, #d32f2f);
+  color: var(--color-danger);
 }
 
 .diagnostics-badge {
@@ -70,12 +70,12 @@
  * error/warning custom property exists in styles/theme.css yet, and
  * adding one is out of scope for this claim's touch set. */
 .diagnostics-badge-broken {
-  color: #c0392b;
+  color: var(--color-danger);
 }
 
 .diagnostics-badge-missing-heading,
 .diagnostics-badge-ambiguous-heading {
-  color: #b7791f;
+  color: var(--color-warning);
 }
 
 .diagnostics-link-text {

@@ -64,14 +64,30 @@ describe("WelcomeDialog: no profiles at all (spec 9.4)", () => {
     expect(addWorkspaceFromPicker).toHaveBeenCalledTimes(1);
   });
 
-  it("stays open and swallows a rejection so the user can retry", async () => {
+  it("stays open for a retry and surfaces a visible error on rejection", async () => {
     vi.mocked(addWorkspaceFromPicker).mockRejectedValue(new Error("boom"));
-    const { getByText } = render(<WelcomeDialog />);
+    const { getByText, getByRole } = render(<WelcomeDialog />);
 
     await fireEvent.click(getByText("Choose Folder"));
     await Promise.resolve();
 
     expect(getByText("Choose Folder")).toBeTruthy();
+    expect(getByRole("alert").textContent).toBe(
+      "Could not open that folder. Try again or choose another folder.",
+    );
+  });
+
+  it("does not overwrite a more specific error setWorkspacePath already published", async () => {
+    vi.mocked(addWorkspaceFromPicker).mockImplementation(async () => {
+      workspaceSelectionError.value = "Could not open that workspace: permission denied.";
+      throw new Error("boom");
+    });
+    const { getByText, getByRole } = render(<WelcomeDialog />);
+
+    await fireEvent.click(getByText("Choose Folder"));
+    await Promise.resolve();
+
+    expect(getByRole("alert").textContent).toBe("Could not open that workspace: permission denied.");
   });
 });
 

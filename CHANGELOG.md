@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fixed the "Choose Folder"/"Add workspace" button on the welcome screen appearing to do nothing when the native folder picker itself failed (most notably on Android: some storage providers reject persistable access, a case `FolderAccessPlugin` already caught and rejected on the native side). The rejection never reached `workspaceSelectionError`, so the button silently reset to its idle label with no feedback at all. It now shows an actionable inline error so a retry (or choosing a different folder) is obvious, matching the same silently-swallowed-rejection fix already applied elsewhere (bookmarks, backlinks, diagnostics, external-file opens).
+
 - Added support for opening a `.md` file directly from your file manager or another app, even when its folder isn't your currently open workspace (Desktop only). Leotheca now registers itself as an "Open with"/default-app option for Markdown files. A file inside your current workspace opens normally, as an editable tab; a file outside it opens in a new read-only view, with a button to open its containing folder as a workspace if you want to edit it. A new "Open Markdown files from outside your workspace" setting (Settings → General, on by default) lets you turn this off.
 
 - Fixed the Rename Preview dialog never appearing for a rename whose only pending references elsewhere were Markdown-style links (`[label](target)`/`![alt](target)`), rather than wikilinks: the dialog's "anything to review?" check only looked at wikilink edits, so a real, correctly-computed Markdown-link edit never triggered the Review step at all, and the user got no warning that a Markdown link would break.

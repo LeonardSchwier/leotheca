@@ -58,8 +58,20 @@ export function WelcomeDialog() {
     try {
       await addWorkspaceFromPicker();
     } catch {
-      // setWorkspacePath publishes the actionable, non-sensitive error and
-      // leaves no active workspace. The dialog stays open for a retry.
+      // setWorkspacePath publishes its own actionable, non-sensitive error
+      // when the failure happens there, and the dialog stays open for a
+      // retry. But addWorkspaceFromPicker can also reject before ever
+      // reaching it -- e.g. the native Android folder picker itself
+      // rejecting (a storage provider that doesn't support persistable
+      // access, confirmed as a real, already-handled case in
+      // FolderAccessPlugin.pickFolderResult's own try/catch) -- and that
+      // path never touches workspaceSelectionError at all. Left unhandled,
+      // this button would silently reset to its idle label with no
+      // feedback: a tap that visibly does nothing. Only fill in a generic
+      // fallback when nothing more specific was already published.
+      if (!workspaceSelectionError.value) {
+        workspaceSelectionError.value = "Could not open that folder. Try again or choose another folder.";
+      }
     } finally {
       setLoading(false);
     }

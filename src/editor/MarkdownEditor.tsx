@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "preact/hooks";
 import { Compartment, EditorSelection, EditorState, Transaction } from "@codemirror/state";
-import { EditorView, keymap, lineNumbers, highlightActiveLine } from "@codemirror/view";
+import { EditorView, keymap, lineNumbers, highlightActiveLine, drawSelection } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { searchKeymap, search, setSearchQuery, SearchQuery } from "@codemirror/search";
 import { markdown } from "@codemirror/lang-markdown";
@@ -441,6 +441,14 @@ function buildExtensions(
     }),
     lineNumbers(),
     highlightActiveLine(),
+    // Without this, CM6 never creates a `.cm-selectionBackground` decoration
+    // layer at all and falls back to the browser's native `::selection`
+    // (unthemed, and typically a plain platform blue) -- the theme's own
+    // `.cm-selectionBackground`/`.cm-selectionMatch` overrides just below
+    // are otherwise dead code with no element to ever apply to. Purely a
+    // visual/rendering change: the underlying DOM Selection API (copy,
+    // native find-in-page, screen readers) is unaffected.
+    drawSelection(),
     history(),
     autocompletion({ override: [wikilinkCompletions, headingLinkCompletions(path), blockLinkCompletions(path)] }),
     keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap, ...completionKeymap]),
@@ -464,10 +472,58 @@ function buildExtensions(
         onCursorChangeRef.current?.(update.state.selection.main.head);
       }
     }),
+    // UX-01 spec section 14.1/EDIT-002: CodeMirror's own bundled base theme
+    // (and @codemirror/search's own match-highlight theme) only differ
+    // between a light and dark palette when the editor is explicitly told
+    // it's running in dark mode (`EditorView.darkTheme.of(true)`), which
+    // this app never does. Left alone, every one of those rules -- cursor,
+    // selection, gutters, active line, search matches -- keeps using its
+    // hardcoded light-mode colors even in this app's own Dark theme: most
+    // visibly, `.cm-cursor` is unconditionally `border-left: ... black`
+    // (invisible against a dark canvas) and `.cm-gutters` is
+    // unconditionally `#f5f5f5` (a bright light-gray strip down the whole
+    // left edge of an otherwise dark editor). Overridden here with the
+    // shared semantic tokens instead, so the editor actually follows
+    // whichever theme/accent is active rather than assuming light mode
+    // always. `!important` is required specifically for the selectors
+    // CodeMirror's own base/search themes gate behind a `&light`/`&dark`
+    // class (compiling to a two-class selector, higher specificity than a
+    // plain one-class override); the unconditional ones below (cursor,
+    // content padding/font, outline color) don't strictly need it, since a
+    // later-registered EditorView.theme() extension like this one already
+    // wins equal-specificity ties against CodeMirror's own Prec.lowest
+    // base theme, matching this file's own pre-existing (and already
+    // working) font-family override just below.
     EditorView.theme({
       "&": { height: "100%", fontSize: "var(--content-font-size)" },
+      "&.cm-focused": { outlineColor: "var(--color-focus)" },
       ".cm-scroller": { fontFamily: "var(--font-mono)", lineHeight: "1.6" },
-      ".cm-content": { padding: "var(--space-4)" },
+      ".cm-content": { padding: "var(--space-4)", caretColor: "var(--color-focus)" },
+      ".cm-cursor, .cm-dropCursor": { borderLeftColor: "var(--color-focus)" },
+      ".cm-gutters": {
+        backgroundColor: "var(--bg-sunken) !important",
+        color: "var(--text-faint) !important",
+        border: "none !important",
+      },
+      ".cm-activeLineGutter, .cm-activeLine": {
+        backgroundColor: "var(--bg-hover) !important",
+      },
+      ".cm-selectionBackground": {
+        backgroundColor: "var(--color-accent-soft) !important",
+      },
+      ".cm-searchMatch": {
+        backgroundColor: "var(--color-accent-soft) !important",
+      },
+      ".cm-searchMatch.cm-searchMatch-selected": {
+        backgroundColor: "var(--color-accent) !important",
+        color: "var(--color-on-accent) !important",
+      },
+      ".cm-selectionMatch": {
+        backgroundColor: "var(--color-accent-soft) !important",
+      },
+      ".cm-matchingBracket, .cm-nonmatchingBracket": {
+        backgroundColor: "var(--bg-hover) !important",
+      },
     }),
   ];
 }

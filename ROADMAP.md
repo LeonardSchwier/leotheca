@@ -68,6 +68,16 @@
 
 - ⬜ **Compatibility Layer**: Read community extension manifests and run compatible extensions only after the maintainer approves the third-party-code security model required by `CONSTITUTION.md`.
 - ⬜ **Per-Note Lock**: Encrypt and session-unlock individual notes only after the maintainer gives the cryptography design approval required by `CONSTITUTION.md`.
+- ⬜ **Open a Markdown file from outside the workspace via OS file association**: Let a user open any `.md` file directly from their file manager or another app even when its folder isn't a currently open workspace, and register Leotheca as an OS "Open with"/default-app option for Markdown files on each desktop platform.
+
+  <details>
+  <summary>Source and acceptance sketch</summary>
+
+  Queued 2026-09-16 by the daily competitor changelog scan. Market Solution #2 Desktop v1.14.2 (2026-09-15) added a new "Open file from outside the vault..." command plus OS-level registration so the app appears in the platform's own "Open with" menu for Markdown files ("(Desktop only)" per its own changelog); no equivalent existed before this release, and nothing in this project's existing `leotheca://` deep-link/single-instance work (see the Implemented "Local Automation Commands" entry) currently handles being launched with a real file path argument.
+
+  Desktop (Tauri: Linux/macOS/Windows) only, matching the source feature's own "Desktop only" scope; no Android/mobile equivalent is implied. Reuse the file-association pattern Tauri's bundler already supports (`tauri.conf.json` `bundle.fileAssociations`) and this project's existing single-instance argument-handling precedent (`tauri-plugin-single-instance`, already wired for `leotheca://` URLs per "Local Automation Commands") rather than inventing a second dispatch path. Implementation must decide, and test, how an externally opened note that lives outside any configured workspace interacts with this codebase's existing workspace-containment security invariant (`PROJECT_RULES.md`) -- for example opening it in a scratch/read-only view, or prompting to add its parent folder as a workspace -- rather than silently widening what "inside the workspace" means. Per `PROJECT_RULES.md`, ship a workspace/app setting to turn this OS integration off.
+
+  </details>
 
 ## Implemented
 

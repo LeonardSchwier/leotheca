@@ -9,7 +9,9 @@
 ### Bugs
 
 
-- ⬜ **Maintenance review: a fingerprint-mismatched capture attachment is never deleted, leaving an orphaned file on disk**: `captureCommit.ts`'s `copyAttachmentsToWorkspace` re-verifies each copied attachment by comparing source/destination fingerprints; on a mismatch it logs a warning and skips the attachment (never referenced from the note), but the `try` block meant to delete the stray destination file is empty (only comments: "In a real implementation, we'd have a way to delete the file / For now, just log the issue"), so the corrupted, unreferenced file is left permanently in the workspace.
+- 🚧 **Maintenance review: a fingerprint-mismatched capture attachment is never deleted, leaving an orphaned file on disk**: `captureCommit.ts`'s `copyAttachmentsToWorkspace` re-verifies each copied attachment by comparing source/destination fingerprints; on a mismatch it logs a warning and skips the attachment (never referenced from the note), but the `try` block meant to delete the stray destination file is empty (only comments: "In a real implementation, we'd have a way to delete the file / For now, just log the issue"), so the corrupted, unreferenced file is left permanently in the workspace.
+  <!-- agent-state: {"schema":1,"id":"rm-079177bb14f2d405","state":"claimed","touch":["src/capture/captureCommit.test.ts","src/capture/captureCommit.ts"],"resources":["capture-attachment-copy"],"owner":"ClaudeCode-cloud-scheduled-kindbardeen-20260916T181604Z-2ac3795c","token":"145efd9c8665559bf07496979bef3374","branch":"agent/rm-079177bb14f2d405/145efd9c8665","claimed_at":"2026-09-16T18:16:21Z","heartbeat_at":"2026-09-16T18:16:21Z","lease_until":"2026-09-16T19:46:21Z"} -->
+  Agent: ClaudeCode-cloud-scheduled-kindbardeen-20260916T181604Z-2ac3795c | item: rm-079177bb14f2d405 | lease until: 2026-09-16T19:46:21Z
 
   <details>
   <summary>Why / evidence</summary>

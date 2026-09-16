@@ -268,6 +268,36 @@
   box-sizing: border-box;
 }
 
+/* src/ui/icons.tsx's shared Icon registry: base sizing/alignment for every
+ * icon, plus the spin animation its "spinner" icon opts into via
+ * `spin`. Reduced motion (22.6/21.2) keeps the loading indication (the
+ * icon itself, not the spin) rather than removing it, by freezing
+ * rotation instead of disabling the class outright. */
+.icon {
+  display: inline-block;
+  vertical-align: -0.125em;
+  flex-shrink: 0;
+}
+
+.icon-spin {
+  animation: icon-spin 0.9s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .icon-spin {
+    animation-duration: 4s;
+  }
+}
+
+@keyframes icon-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* App-wide keyboard focus indicator. Most of this app's custom buttons set
  * `background: none; border: none;`, and some engines (notably Safari)
  * draw no default focus ring at all on a border-less button, so without

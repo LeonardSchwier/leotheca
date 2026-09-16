@@ -1644,3 +1644,51 @@ describe("App: UX-01 Activity Rail (Wide+ layout)", () => {
     expect(getByLabelText("Files").getAttribute("aria-current")).toBe("true");
   });
 });
+
+describe("App: UX-01 Document Header (Wide+ layout)", () => {
+  it("shows the Document Header for an open note at Wide width, with the toolbar's own view-mode/bookmark buttons hidden", () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1200 });
+    workspacePath.value = "/vault";
+    openOrFocusTab("/vault/a.md", "a.md", "hello", "text");
+    const { container } = render(<App />);
+
+    expect(container.querySelector(".document-header")).toBeTruthy();
+    expect(container.querySelector(".document-header-title")?.textContent).toBe("a.md");
+    // Exactly one Source/Split/Preview switch should exist (inside the
+    // header), not a second copy left behind in the toolbar.
+    expect(container.querySelectorAll(".view-mode-switch").length).toBe(1);
+    expect(container.querySelector(".document-header .view-mode-switch")).toBeTruthy();
+  });
+
+  it("has no Document Header at Medium width; the toolbar keeps its own view-mode switch instead", () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 900 });
+    workspacePath.value = "/vault";
+    openOrFocusTab("/vault/a.md", "a.md", "hello", "text");
+    const { container } = render(<App />);
+
+    expect(container.querySelector(".document-header")).toBeNull();
+    expect(container.querySelectorAll(".view-mode-switch").length).toBe(1);
+    expect(container.querySelector(".toolbar .view-mode-switch")).toBeTruthy();
+  });
+
+  it("switching view mode from the Document Header updates the rendered pane", () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1200 });
+    workspacePath.value = "/vault";
+    openOrFocusTab("/vault/a.md", "a.md", "hello", "text");
+    const { container, getByLabelText } = render(<App />);
+
+    expect(viewMode.value).toBe("source");
+    fireEvent.click(getByLabelText("Preview"));
+
+    expect(viewMode.value).toBe("preview");
+    expect(container.querySelector(".markdown-preview")).toBeTruthy();
+  });
+
+  it("does not show the Document Header when no note is open, even at Wide width", () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1200 });
+    workspacePath.value = "/vault";
+    const { container } = render(<App />);
+
+    expect(container.querySelector(".document-header")).toBeNull();
+  });
+});

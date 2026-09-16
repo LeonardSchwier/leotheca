@@ -136,6 +136,7 @@ import { nextUiZoom, zoomActionForKey, zoomActionForWheel } from "./zoomControls
 import { isNarrowViewport } from "./responsiveLayout";
 import { classifyLayout, showsActivityRail } from "./layout/adaptiveLayout";
 import { ActivityRail } from "./layout/ActivityRail";
+import { DocumentHeader } from "./layout/DocumentHeader";
 import { createSaveCoordinator } from "../workspace/saveCoordinator";
 import { workspaceTransitions } from "../workspace/workspaceTransition";
 import { EmptyEditorState } from "./EmptyEditorState";
@@ -1154,7 +1155,10 @@ export function App() {
             <SwapGroupsIcon />
           </button>
         )}
-        {current?.kind === "text" && (
+        {/* UX-01 spec section 13.5/UX-005: at Wide+, DocumentHeader (below,
+            between TabBar and the editor content) is these two actions'
+            home instead, so neither is duplicated here. */}
+        {!showActivityRailNav && current?.kind === "text" && (
           <div class="view-mode-switch">
             {(["source", "split", "preview"] as ViewMode[]).map((mode) => {
               const Icon = VIEW_MODE_ICONS[mode];
@@ -1191,7 +1195,7 @@ export function App() {
           />
         )}
         <div class="toolbar-spacer" />
-        {current?.kind === "text" && (
+        {!showActivityRailNav && current?.kind === "text" && (
           <button
             class={`icon-button ${currentBookmark ? "active" : ""}`}
             aria-label={currentBookmark ? "Remove bookmark" : "Bookmark this note"}
@@ -1433,6 +1437,15 @@ export function App() {
               refresh();
             }}
           />
+          {showActivityRailNav && current?.kind === "text" && (
+            <DocumentHeader
+              noteName={current.name}
+              viewMode={viewMode.value}
+              onSetViewMode={(mode) => (viewMode.value = mode)}
+              bookmarked={!!currentBookmark}
+              onToggleBookmark={toggleCurrentNoteBookmark}
+            />
+          )}
           {current?.kind === "text" && workspaceSettings.value.noteReadOnlyLockEnabled && (
             <div class="note-lock-bar" role="status">
               <span>{currentNoteReadOnly ? "This note is locked." : "This note is editable."}</span>

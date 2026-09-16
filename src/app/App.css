@@ -356,6 +356,33 @@ button.icon-button.active {
   min-width: 0;
 }
 
+/* UX-01 spec section 13.5: view-mode + bookmark for the active note, Wide+
+   only for now (see DocumentHeader.tsx's own doc comment for what's
+   deliberately not here yet: title/save-state stay owned by TabBar). */
+.document-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--border);
+}
+
+.document-header-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.document-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
 .note-lock-bar {
   display: flex;
   align-items: center;

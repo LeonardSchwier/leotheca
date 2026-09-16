@@ -21,8 +21,22 @@
 
 :root {
   --font-ui: -apple-system, "Segoe UI", "Inter", "Noto Sans", sans-serif;
-  --font-reading: "Source Code Pro", ui-monospace, monospace;
+  /* UX-01 spec section 9.5/19.4/READ-001: rendered-preview prose uses a
+     proportional local font by default, independent of the source editor
+     and code blocks (both always stay on --font-mono). All three reading
+     stacks below are local system fonts; none ever triggers a network
+     request. */
+  --font-reading-sans: -apple-system, "Segoe UI", "Inter", "Noto Sans", sans-serif;
+  --font-reading-serif: ui-serif, Georgia, Cambria, "Times New Roman", serif;
   --font-mono: "Source Code Pro", ui-monospace, monospace;
+  --font-reading-mono: var(--font-mono);
+  /* .markdown-preview (App.css) reads this variable; settings/store.ts
+     keeps it in sync with the open workspace's readingFont setting (an
+     effect, same pattern as --content-font-size/--ui-zoom below). This
+     default only applies before that effect has run (no workspace open
+     yet), and matches readingFont's own "sans" default. */
+  --font-reading: var(--font-reading-sans);
+
   /* Default before any workspace is open or its settings have loaded;
      kept in sync with the open workspace's fontSize setting afterward,
      see the effect in settings/store.ts. */
@@ -32,60 +46,223 @@
      property on .app-shell (see App.css). */
   --ui-zoom: 1;
 
-  --radius-sm: 4px;
-  --radius-md: 8px;
+  /* UX-01 spec section 19.5 reference spacing scale. --space-1/2/3/4/6
+     predate this and every existing consumer keeps working unchanged;
+     the rest fill in the scale's remaining steps for new code. */
+  --space-0-5: 2px;
   --space-1: 4px;
+  --space-1-5: 6px;
   --space-2: 8px;
   --space-3: 12px;
   --space-4: 16px;
+  --space-5: 20px;
   --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
 
-  --bg-base: #faf9f6;
-  --bg-raised: #ffffff;
-  --bg-sunken: #f0eee8;
-  --bg-hover: #eae7de;
-  --bg-selected: #e4dfce;
-  --border: #ddd8ca;
-  --text-primary: #26241f;
-  --text-secondary: #6b6656;
-  --text-faint: #9a9584;
-  --accent: #6f5b3e;
-  --accent-strong: #4d3f2b;
+  /* UX-01 spec section 19.6 reference corner-radius scale. --radius-sm
+     keeps its pre-existing 4px value; --radius-md moves from 8px to the
+     spec's 6px "standard control" step (a deliberate, purely-visual
+     tightening -- every existing `var(--radius-md)` consumer picks this
+     up automatically) so it no longer overlaps --radius-lg's new
+     10px "menus/popovers/compact panels" step. --radius-xl (14px,
+     dialogs/sheets) and --radius-full (true pills) are net new.
+     Per 19.6: large surfaces (editor, navigation panel, settings
+     content) intentionally stay unrounded, not part of this scale. */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+  --radius-xl: 14px;
+  --radius-full: 999px;
+
+  /* UX-01 spec section 19.3: floating surfaces (menus, dialogs) may use
+     one low-elevation shadow; docked panels and application canvas use
+     borders, not shadows, so no token exists for those. Values match
+     this app's own pre-existing .context-menu/.modal shadows exactly
+     (see App.css), just promoted to reusable tokens. */
+  --shadow-low: 0 8px 24px rgba(0, 0, 0, 0.2);
+  --shadow-high: 0 16px 48px rgba(0, 0, 0, 0.3);
+
+  /* UX-01 spec section 21.1 reference motion durations. The
+     prefers-reduced-motion block below collapses all four to near-instant
+     per section 21.2/22.6. */
+  --motion-fast: 100ms;
+  --motion-popover: 160ms;
+  --motion-sheet: 200ms;
+  --motion-saved: 1500ms;
+
+  /* UX-01 spec section 19.2: semantic "Quiet Library" theme tokens, light
+     theme initial values. Component aliases (--bg-raised, --text-primary,
+     etc.) follow below so the app's ~16 existing feature stylesheets pick
+     this palette up without a mechanical rename pass across every one of
+     them; new code should prefer these --color-* names directly. */
+  --color-canvas: #f6f5f2;
+  --color-panel: #fcfbf9;
+  --color-raised: #ffffff;
+  --color-muted-surface: #efeeea;
+  --color-hover: #e9e7e1;
+  --color-selected: #e8e0d3;
+  --color-text: #25231f;
+  --color-text-secondary: #68635b;
+  --color-text-muted: #756f66;
+  --color-border: #d8d4cb;
+  --color-border-strong: #beb8ad;
+  --color-accent: #725331;
+  --color-accent-hover: #5e4328;
+  --color-accent-soft: #ede3d5;
+  --color-on-accent: #ffffff;
+  --color-success: #2f6b4f;
+  --color-warning: #8b6116;
+  --color-danger: #a43d35;
+  --color-focus: #28647a;
+
+  /* Back-compat aliases: every existing component still reads these
+     names across ~16 feature stylesheets, so the whole app picks up the
+     palette above without a mechanical rename pass through all of them. */
+  --bg-base: var(--color-canvas);
+  --bg-raised: var(--color-raised);
+  --bg-sunken: var(--color-muted-surface);
+  --bg-hover: var(--color-hover);
+  --bg-selected: var(--color-selected);
+  --border: var(--color-border);
+  --text-primary: var(--color-text);
+  --text-secondary: var(--color-text-secondary);
+  --text-faint: var(--color-text-muted);
+  --accent: var(--color-accent);
+  --accent-strong: var(--color-accent-hover);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg-base: #1c1b18;
-    --bg-raised: #232220;
-    --bg-sunken: #171614;
-    --bg-hover: #2c2a25;
-    --bg-selected: #3a3630;
-    --border: #37342c;
-    --text-primary: #ece8de;
-    --text-secondary: #ada791;
-    --text-faint: #726c58;
-    --accent: #c9a86a;
-    --accent-strong: #e0c088;
+    --color-canvas: #171815;
+    --color-panel: #1e201c;
+    --color-raised: #262824;
+    --color-muted-surface: #2b2d28;
+    --color-hover: #31332e;
+    --color-selected: #3a342b;
+    --color-text: #f0eee7;
+    --color-text-secondary: #b8b4aa;
+    --color-text-muted: #918c82;
+    --color-border: #3b3d37;
+    --color-border-strong: #55574f;
+    --color-accent: #d1ad77;
+    --color-accent-hover: #e1c18d;
+    --color-accent-soft: #3a3125;
+    --color-on-accent: #1b1712;
+    --color-success: #78b994;
+    --color-warning: #d5a350;
+    --color-danger: #e07a70;
+    --color-focus: #70b6cf;
   }
 }
 
 :root[data-theme="dark"] {
-  --bg-base: #1c1b18;
-  --bg-raised: #232220;
-  --bg-sunken: #171614;
-  --bg-hover: #2c2a25;
-  --bg-selected: #3a3630;
-  --border: #37342c;
-  --text-primary: #ece8de;
-  --text-secondary: #ada791;
-  --text-faint: #726c58;
-  --accent: #c9a86a;
-  --accent-strong: #e0c088;
+  --color-canvas: #171815;
+  --color-panel: #1e201c;
+  --color-raised: #262824;
+  --color-muted-surface: #2b2d28;
+  --color-hover: #31332e;
+  --color-selected: #3a342b;
+  --color-text: #f0eee7;
+  --color-text-secondary: #b8b4aa;
+  --color-text-muted: #918c82;
+  --color-border: #3b3d37;
+  --color-border-strong: #55574f;
+  --color-accent: #d1ad77;
+  --color-accent-hover: #e1c18d;
+  --color-accent-soft: #3a3125;
+  --color-on-accent: #1b1712;
+  --color-success: #78b994;
+  --color-warning: #d5a350;
+  --color-danger: #e07a70;
+  --color-focus: #70b6cf;
 }
 
-:root[data-accent="ocean"] { --accent: #216b8f; --accent-strong: #164d68; }
-:root[data-accent="forest"] { --accent: #3d7150; --accent-strong: #28513a; }
-:root[data-accent="plum"] { --accent: #76506f; --accent-strong: #563950; }
+/* UX-01 spec section 9.6/19.2/VIS-003: Ocean, Forest, and Plum each define
+   their own solid/hover/soft/on-accent quad in both themes (contrast
+   verified: every solid-vs-panel and on-accent-vs-solid pair below is at
+   least 5.3:1, comfortably past the 4.5:1 normal-text gate), rather than
+   the single theme-independent value these accents used before this
+   file's rewrite (a real gap: a light-tuned accent color used unchanged
+   as e.g. selected-tab text on a dark panel is not guaranteed to still
+   pass contrast). */
+:root[data-accent="ocean"] {
+  --color-accent: #21708f;
+  --color-accent-hover: #17536b;
+  --color-accent-soft: #dceaf0;
+  --color-on-accent: #ffffff;
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-accent="ocean"]:not([data-theme="light"]) {
+    --color-accent: #6fb8d6;
+    --color-accent-hover: #8cc9e2;
+    --color-accent-soft: #1e3540;
+    --color-on-accent: #0e2129;
+  }
+}
+:root[data-theme="dark"][data-accent="ocean"] {
+  --color-accent: #6fb8d6;
+  --color-accent-hover: #8cc9e2;
+  --color-accent-soft: #1e3540;
+  --color-on-accent: #0e2129;
+}
+
+:root[data-accent="forest"] {
+  --color-accent: #3d7150;
+  --color-accent-hover: #2a5138;
+  --color-accent-soft: #dcebe0;
+  --color-on-accent: #ffffff;
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-accent="forest"]:not([data-theme="light"]) {
+    --color-accent: #7fc79a;
+    --color-accent-hover: #9ad6b1;
+    --color-accent-soft: #1e3327;
+    --color-on-accent: #0e1f16;
+  }
+}
+:root[data-theme="dark"][data-accent="forest"] {
+  --color-accent: #7fc79a;
+  --color-accent-hover: #9ad6b1;
+  --color-accent-soft: #1e3327;
+  --color-on-accent: #0e1f16;
+}
+
+:root[data-accent="plum"] {
+  --color-accent: #7a5473;
+  --color-accent-hover: #593d54;
+  --color-accent-soft: #ede1ea;
+  --color-on-accent: #ffffff;
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-accent="plum"]:not([data-theme="light"]) {
+    --color-accent: #cb9dc4;
+    --color-accent-hover: #dbb4d5;
+    --color-accent-soft: #362b34;
+    --color-on-accent: #1d161c;
+  }
+}
+:root[data-theme="dark"][data-accent="plum"] {
+  --color-accent: #cb9dc4;
+  --color-accent-hover: #dbb4d5;
+  --color-accent-soft: #362b34;
+  --color-on-accent: #1d161c;
+}
+
+/* UX-01 spec section 21.2/22.6: reduced-motion disables non-essential
+   entrance/selection animation and shortens required transitions to
+   near-instant, expressed here as a blanket collapse of the motion
+   tokens above so any component that consumes them (present or future)
+   gets this for free without its own media query. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-fast: 1ms;
+    --motion-popover: 1ms;
+    --motion-sheet: 1ms;
+    --motion-saved: 1ms;
+  }
+}
 
 * {
   box-sizing: border-box;
@@ -99,9 +276,15 @@
  * where a shadow is typically suppressed. A more specific selector (e.g.
  * outline.css's per-element rules, predating this one) still wins over
  * this universal selector's zero specificity, so this is a safety net,
- * not a replacement for a more tailored existing rule. */
+ * not a replacement for a more tailored existing rule.
+ *
+ * UX-01 spec section 19.8: uses the dedicated --color-focus token rather
+ * than --accent/--color-accent, so the ring stays a stable,
+ * always-legible color independent of the user's chosen accent (some
+ * accent/theme combinations would otherwise risk the ring blending into
+ * an accent-colored selected or hover surface). */
 *:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--color-focus);
   outline-offset: 2px;
 }
 

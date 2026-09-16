@@ -31,6 +31,7 @@ import {
   MIN_UI_ZOOM,
   type DeleteBehavior,
   type AccentColor,
+  type ReadingFont,
   type ViewMode,
 } from "./workspaceSettings";
 import { getWorkspaceStats } from "../workspace/tauriBridge";
@@ -104,6 +105,11 @@ const ACCENT_OPTIONS: { value: AccentColor; label: string }[] = [
   { value: "ocean", label: "Ocean" },
   { value: "forest", label: "Forest" },
   { value: "plum", label: "Plum" },
+];
+const READING_FONT_OPTIONS: { value: ReadingFont; label: string }[] = [
+  { value: "sans", label: "Sans" },
+  { value: "serif", label: "Serif" },
+  { value: "mono", label: "Mono" },
 ];
 
 /**
@@ -181,6 +187,7 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
   );
   const showAccentThemes = matches("Accent themes", "Use this workspace's restrained accent color");
   const showAccentColor = matches("Accent color", "Changes highlights without replacing the light or dark palette");
+  const showReadingFont = matches("Reading font", "Font used for rendered Markdown preview text");
   const showEditorSnippets = matches("Editor snippets", "Type ;trigger then Tab to expand a local writing shortcut");
   const showSnippetDefinitions = matches("Snippet definitions", "One per line: trigger, a tab, then replacement text");
   const showCanvas = matches("Canvas", "Allow creation and viewing of local canvas files");
@@ -278,7 +285,7 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
       (showAccentThemes || showEditorSnippets || showCanvas || showTags || showTemplates || showCollections),
   );
   const profilesVisible = showWorkspaceProfiles;
-  const appearanceVisible = showTheme || Boolean(workspacePath.value && (showFontSize || showZoom || showDefaultViewMode || showRtlWorkspace));
+  const appearanceVisible = showTheme || Boolean(workspacePath.value && (showFontSize || showZoom || showDefaultViewMode || showRtlWorkspace || showReadingFont));
   const shortcutsVisible = filteredShortcuts.length > 0;
   const aboutVisible = showVersion || showLicenseRow;
   const healthVisible = Boolean(workspacePath.value && showHealth);
@@ -991,6 +998,35 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                       });
                     }}
                   />
+                </div>
+              </div>
+              )}
+              {showReadingFont && (
+              <div class="settings-row">
+                <div>
+                  <div class="settings-label">Reading font</div>
+                  <div class="settings-hint">
+                    Applies to rendered Markdown preview text only; source editing and code always stay monospaced
+                  </div>
+                </div>
+                <div class="settings-switch">
+                  {READING_FONT_OPTIONS.map((option) => (
+                    <button
+                      key={option.value}
+                      class={
+                        workspaceSettings.value.readingFont === option.value
+                          ? "active"
+                          : ""
+                      }
+                      onClick={() =>
+                        void updateWorkspaceSettings({
+                          readingFont: option.value,
+                        })
+                      }
+                    >
+                      {option.label}
+                    </button>
+                  ))}
                 </div>
               </div>
               )}

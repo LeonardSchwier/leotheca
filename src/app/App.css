@@ -87,8 +87,8 @@
   overflow-y: auto;
   background: var(--bg-raised);
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-low);
   padding: var(--space-1);
 }
 
@@ -141,7 +141,7 @@
 }
 
 .workspace-switcher-forget:hover {
-  color: #c0392b;
+  color: var(--color-danger);
 }
 
 .workspace-switcher-add {
@@ -849,8 +849,8 @@ button.icon-button.active {
   min-width: 160px;
   background: var(--bg-raised);
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-low);
   padding: var(--space-1);
   /* Prevent text selection within context menus to avoid conflict with touch/long-press */
   user-select: none;
@@ -893,8 +893,8 @@ button.icon-button.active {
 .modal {
   background: var(--bg-raised);
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.3);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-high);
   padding: var(--space-6);
   /* A fixed min-width here would exceed the actual viewport on narrow
      phones, since min-width wins over max-width when the two conflict —

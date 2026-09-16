@@ -82,6 +82,10 @@ describe("DEFAULT_WORKSPACE_SETTINGS", () => {
     expect(DEFAULT_WORKSPACE_SETTINGS.headingLinksEnabled).toBe(true);
   });
 
+  it("defaults reading font to sans, per UX-01 spec section 23.2", () => {
+    expect(DEFAULT_WORKSPACE_SETTINGS.readingFont).toBe("sans");
+  });
+
   it("defaults the accidental-edit note lock to on", () => {
     expect(DEFAULT_WORKSPACE_SETTINGS.noteReadOnlyLockEnabled).toBe(true);
   });
@@ -221,6 +225,33 @@ describe("decodeWorkspaceSettings", () => {
     );
     expect(settings.accentColor).toBe(DEFAULT_WORKSPACE_SETTINGS.accentColor);
     expect(corrupt).toBe(true);
+  });
+
+  it("defaults readingFont to sans when missing, without flagging corruption", () => {
+    const { settings, corrupt } = decodeWorkspaceSettings(
+      JSON.stringify({ ...DEFAULT_WORKSPACE_SETTINGS, readingFont: undefined }),
+      ROOT,
+    );
+    expect(settings.readingFont).toBe("sans");
+    expect(corrupt).toBe(false);
+  });
+
+  it("falls back readingFont to sans for an unrecognized value and flags corruption", () => {
+    const { settings, corrupt } = decodeWorkspaceSettings(
+      JSON.stringify({ ...DEFAULT_WORKSPACE_SETTINGS, readingFont: "comic-sans" }),
+      ROOT,
+    );
+    expect(settings.readingFont).toBe("sans");
+    expect(corrupt).toBe(true);
+  });
+
+  it("round-trips a real readingFont choice", () => {
+    const { settings, corrupt } = decodeWorkspaceSettings(
+      JSON.stringify({ ...DEFAULT_WORKSPACE_SETTINGS, readingFont: "serif" }),
+      ROOT,
+    );
+    expect(settings.readingFont).toBe("serif");
+    expect(corrupt).toBe(false);
   });
 
   it("rejects an absolute attachmentsFolder instead of treating it as workspace-relative", () => {

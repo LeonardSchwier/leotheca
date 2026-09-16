@@ -172,6 +172,7 @@ function createBasicWorkspaceSettings(): WorkspaceSettings {
     canvasEnabled: true,
     themesEnabled: true,
     accentColor: "warm",
+    readingFont: "sans",
     snippetsEnabled: true,
     snippets: "",
     headingLinksEnabled: true,

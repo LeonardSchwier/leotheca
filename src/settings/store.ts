@@ -46,6 +46,7 @@ import {
   DEFAULT_WORKSPACE_SETTINGS,
   loadWorkspaceSettings,
   saveWorkspaceSettings,
+  type ReadingFont,
   type ViewMode,
   type WorkspaceSettings,
 } from "./workspaceSettings";
@@ -196,6 +197,26 @@ if (typeof document !== "undefined") {
 if (typeof document !== "undefined") {
   effect(() => {
     document.documentElement.style.setProperty("--ui-zoom", `${workspaceSettings.value.uiZoom / 100}`);
+  });
+}
+
+/** UX-01 spec section 9.5/23.2: `.markdown-preview` (App.css) reads
+ * `--font-reading`; this effect keeps that variable in sync with the
+ * workspace's `readingFont` choice, the same reactive-CSS-variable pattern
+ * `--content-font-size`/`--ui-zoom` already use above. The source editor
+ * and code blocks are untouched -- both read `--font-mono` directly, never
+ * this variable. */
+const READING_FONT_VARS: Record<ReadingFont, string> = {
+  sans: "var(--font-reading-sans)",
+  serif: "var(--font-reading-serif)",
+  mono: "var(--font-reading-mono)",
+};
+if (typeof document !== "undefined") {
+  effect(() => {
+    document.documentElement.style.setProperty(
+      "--font-reading",
+      READING_FONT_VARS[workspaceSettings.value.readingFont],
+    );
   });
 }
 

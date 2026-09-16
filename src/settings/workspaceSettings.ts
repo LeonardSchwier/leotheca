@@ -36,6 +36,12 @@ const ACCENT_COLORS: readonly AccentColor[] = [
   "forest",
   "plum",
 ];
+/** UX-01 spec section 9.5/23.2: the rendered Markdown preview's prose font,
+ * independent of the source editor and code blocks (both always stay on
+ * the bundled monospaced face). All three stacks are local system fonts;
+ * none ever triggers a network request. */
+export type ReadingFont = "sans" | "serif" | "mono";
+const READING_FONTS: readonly ReadingFont[] = ["sans", "serif", "mono"];
 
 /** One entry in the graph view's color-groups list (see
  * graph/GraphView.tsx): every note whose display name contains `query`
@@ -146,6 +152,10 @@ export interface WorkspaceSettings {
   themesEnabled: boolean;
   /** A restrained accent choice that leaves the light/dark palette intact. */
   accentColor: AccentColor;
+  /** UX-01 spec section 9.5: font family for rendered Markdown prose only
+   * (the source editor and code blocks, in either mode, always stay on the
+   * bundled monospaced face). Defaults to "sans" per section 23.2. */
+  readingFont: ReadingFont;
   /** Whether typing a configured `;trigger` followed by Tab expands it. */
   snippetsEnabled: boolean;
   /** One snippet per line: `trigger<TAB>replacement`. Stored with the
@@ -230,6 +240,7 @@ export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   canvasEnabled: true,
   themesEnabled: true,
   accentColor: "warm",
+  readingFont: "sans",
   snippetsEnabled: true,
   snippets: "todo\t- [ ] ",
   headingLinksEnabled: true,
@@ -652,6 +663,11 @@ export function decodeWorkspaceSettings(
     ACCENT_COLORS,
     DEFAULT_WORKSPACE_SETTINGS.accentColor,
   );
+  const readingFont = decodeEnum(
+    record.readingFont,
+    READING_FONTS,
+    DEFAULT_WORKSPACE_SETTINGS.readingFont,
+  );
   const snippetsEnabled = decodeBoolean(
     record.snippetsEnabled,
     DEFAULT_WORKSPACE_SETTINGS.snippetsEnabled,
@@ -741,6 +757,7 @@ export function decodeWorkspaceSettings(
     canvasEnabled: canvasEnabled.value,
     themesEnabled: themesEnabled.value,
     accentColor: accentColor.value,
+    readingFont: readingFont.value,
     snippetsEnabled: snippetsEnabled.value,
     snippets: snippets.value,
     headingLinksEnabled: headingLinksEnabled.value,
@@ -781,6 +798,7 @@ export function decodeWorkspaceSettings(
       canvasEnabled,
       themesEnabled,
       accentColor,
+      readingFont,
       snippetsEnabled,
       snippets,
       headingLinksEnabled,

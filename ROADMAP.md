@@ -8,6 +8,8 @@
 
 ### Bugs
 
+- ⬜ **Maintenance review: heading-link copy failure is silently swallowed**: `HeadingLinkActions.tsx`'s `handleCopy` has no `try`/`catch` around its clipboard write, so a rejected `navigator.clipboard.writeText` becomes an unhandled promise rejection and the button silently stays "Copy link" with no screen-reader feedback.
+
 
 
 - ⬜ **Fedora Wayland AppImage WebKit/EGL startup crash**: The current development AppImage reproducibly leaves a blank window on Fedora because `WebKitWebProcess` aborts with `Could not create default EGL display: EGL_BAD_PARAMETER`; `WEBKIT_DISABLE_DMABUF_RENDERER=1`, `WEBKIT_DISABLE_COMPOSITING_MODE=1`, and `GDK_BACKEND=x11` all fail. Reproduce on a clean Fedora session and compare the bundled versus host WebKit, Wayland, EGL, GBM, and Mesa libraries. Correct the AppImage dependency/runtime composition so the WebKit process starts with the host graphics stack it requires, then add a Wayland-capable release smoke test that proves the welcome screen renders and no WebKit process core-dumps. Do not declare the AppImage supported on Fedora until that test passes.

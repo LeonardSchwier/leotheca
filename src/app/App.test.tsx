@@ -1533,3 +1533,114 @@ describe("App: F07 Phase 4 -- compact layout and group switching", () => {
     expect(editorLayout.value.splitEnabled).toBe(true);
   });
 });
+
+/** sidebarOpen/bookmarksOpen/etc. are module-level signals internal to
+ * App.tsx (not exported, and not reset by this file's own afterEach,
+ * which -- like every other pre-existing test here -- never needed to
+ * know their value directly). Selecting Files is idempotent from any
+ * starting destination except when Files is already exclusively active,
+ * where it closes the panel instead, so one conditional click reaches a
+ * known baseline regardless of what an earlier test in this file left
+ * behind. */
+function ensureFilesActive(getByLabelText: (text: string) => HTMLElement): void {
+  if (getByLabelText("Files").getAttribute("aria-current") !== "true") {
+    fireEvent.click(getByLabelText("Files"));
+  }
+}
+
+describe("App: UX-01 Activity Rail (Wide+ layout)", () => {
+  it("shows the Activity Rail and hides its now-duplicated toolbar buttons at Wide width", () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1200 });
+    workspacePath.value = "/vault";
+    const { container, getByLabelText, queryByLabelText } = render(<App />);
+
+    expect(container.querySelector(".activity-rail")).toBeTruthy();
+    expect(getByLabelText("Files")).toBeTruthy();
+    expect(getByLabelText("Bookmarks")).toBeTruthy();
+    expect(getByLabelText("Tags")).toBeTruthy();
+    expect(getByLabelText("Graph view")).toBeTruthy();
+    expect(getByLabelText("Settings")).toBeTruthy();
+    // The toolbar's own versions of these five are now hidden, not
+    // duplicated (aria-label collisions would otherwise make getByLabelText
+    // above ambiguous, and did fail loudly during development of this
+    // feature until the toolbar-side buttons were actually hidden).
+    expect(queryByLabelText("Toggle file browser")).toBeNull();
+    expect(queryByLabelText("View bookmarks")).toBeNull();
+    expect(queryByLabelText("View tags")).toBeNull();
+  });
+
+  it("keeps the pre-existing toolbar (no rail) below the Wide threshold, e.g. at Medium width", () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 900 });
+    workspacePath.value = "/vault";
+    const { container, getByLabelText, queryByLabelText } = render(<App />);
+
+    expect(container.querySelector(".activity-rail")).toBeNull();
+    expect(getByLabelText("Toggle file browser")).toBeTruthy();
+    expect(getByLabelText("View bookmarks")).toBeTruthy();
+    expect(getByLabelText("View tags")).toBeTruthy();
+    expect(queryByLabelText("Files")).toBeNull();
+  });
+
+  it("crossing the Wide boundary on resize swaps between the two without losing the open note", () => {
+    workspacePath.value = "/vault";
+    openOrFocusTab("/vault/a.md", "a.md", "hello", "text");
+    const { container } = render(<App />);
+
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1200 });
+    fireEvent(window, new Event("resize"));
+    expect(container.querySelector(".activity-rail")).toBeTruthy();
+    expect(openTabs.value.map((t) => t.path)).toEqual(["/vault/a.md"]);
+
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 900 });
+    fireEvent(window, new Event("resize"));
+    expect(container.querySelector(".activity-rail")).toBeNull();
+    expect(openTabs.value.map((t) => t.path)).toEqual(["/vault/a.md"]);
+  });
+
+  it("selecting Bookmarks from the rail swaps the Navigation Panel content and marks Bookmarks active", () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1200 });
+    workspacePath.value = "/vault";
+    const { getByLabelText, getByText } = render(<App />);
+    ensureFilesActive(getByLabelText);
+
+    fireEvent.click(getByLabelText("Bookmarks"));
+
+    // No bookmarks are seeded in this test, so BookmarksPanel renders its
+    // own empty state rather than a populated .bookmarks-list -- its text
+    // is still an unambiguous signal that BookmarksPanel, not the file
+    // tree, is what the Navigation Panel is now showing.
+    expect(getByText("No bookmarks yet.")).toBeTruthy();
+    expect(getByLabelText("Bookmarks").getAttribute("aria-current")).toBe("true");
+    expect(getByLabelText("Files").getAttribute("aria-current")).toBeNull();
+  });
+
+  it("re-selecting the already-active Files destination closes the Navigation Panel", () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1200 });
+    workspacePath.value = "/vault";
+    const { container, getByLabelText } = render(<App />);
+    ensureFilesActive(getByLabelText);
+
+    expect(getByLabelText("Files").getAttribute("aria-current")).toBe("true");
+    expect(container.querySelector(".sidebar")).toBeTruthy();
+
+    fireEvent.click(getByLabelText("Files"));
+
+    expect(container.querySelector(".sidebar")).toBeNull();
+  });
+
+  it("selecting Files after Bookmarks switches the panel back rather than closing it", () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1200 });
+    workspacePath.value = "/vault";
+    const { container, getByLabelText, getByText, queryByText } = render(<App />);
+    ensureFilesActive(getByLabelText);
+
+    fireEvent.click(getByLabelText("Bookmarks"));
+    expect(getByText("No bookmarks yet.")).toBeTruthy();
+
+    fireEvent.click(getByLabelText("Files"));
+
+    expect(container.querySelector(".sidebar")).toBeTruthy();
+    expect(queryByText("No bookmarks yet.")).toBeNull();
+    expect(getByLabelText("Files").getAttribute("aria-current")).toBe("true");
+  });
+});

@@ -134,9 +134,28 @@ import { MarkdownHelpDialog } from "./MarkdownHelpDialog";
 import { CommandPalette, type Command } from "./CommandPalette";
 import { nextUiZoom, zoomActionForKey, zoomActionForWheel } from "./zoomControls";
 import { isNarrowViewport } from "./responsiveLayout";
+import { classifyLayout, showsActivityRail } from "./layout/adaptiveLayout";
+import { ActivityRail } from "./layout/ActivityRail";
 import { createSaveCoordinator } from "../workspace/saveCoordinator";
 import { workspaceTransitions } from "../workspace/workspaceTransition";
 import { EmptyEditorState } from "./EmptyEditorState";
+import {
+  BookmarkIcon,
+  BookmarkFilledIcon,
+  TagIcon,
+  GraphIcon,
+  TaskIcon,
+  CollectionsIcon,
+  OutlineIcon,
+  SourceModeIcon,
+  SplitModeIcon,
+  PreviewModeIcon,
+  CommandPaletteIcon,
+  MenuIcon,
+  CloseIcon,
+  SwapGroupsIcon,
+  SettingsIcon,
+} from "./shellIcons";
 
 // Workspace-scoped stores participate in the same generation-authoritative
 // transition as settings and autosave. Registration is synchronous at module
@@ -145,154 +164,6 @@ import { EmptyEditorState } from "./EmptyEditorState";
 workspaceTransitions.registerReset(resetWorkspaceTree);
 workspaceTransitions.registerReset(resetLinkIndexCache);
 
-// Plain inline SVG, not the 🔖 emoji this used to use: it rendered as an
-// unrelated (reportedly pepper-shaped) glyph on Android, the same class of
-// cross-platform emoji-font problem the sidebar's new-note/new-folder
-// icons hit earlier.
-function BookmarkIcon() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round">
-      <path d="M5 3h10a1 1 0 0 1 1 1v13l-6-4-6 4V4a1 1 0 0 1 1-1z" />
-    </svg>
-  );
-}
-
-function TagIcon() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M11 3h5a1 1 0 0 1 1 1v5l-8.3 8.3a1 1 0 0 1-1.4 0l-4.6-4.6a1 1 0 0 1 0-1.4L11 3z" />
-      <circle cx="14" cy="7" r="1.1" fill="currentColor" stroke="none" />
-    </svg>
-  );
-}
-
-function GraphIcon() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="5" cy="6" r="2" />
-      <circle cx="15" cy="5" r="2" />
-      <circle cx="6" cy="15" r="2" />
-      <circle cx="15" cy="14" r="2" />
-      <path d="M6.7 7.3L13.3 5.7M7 13.2L13.5 13.9M6.4 7.8L7 13" />
-    </svg>
-  );
-}
-
-function TaskIcon() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-      <rect x="3" y="3" width="6" height="6" rx="1" />
-      <path d="M4.5 6l1 1 2-2" stroke-width="1.2" />
-      <path d="M12 6h5M3 14h6M12 14h5" />
-    </svg>
-  );
-}
-
-function CollectionsIcon() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-      <rect x="3" y="4" width="14" height="4" rx="1" />
-      <rect x="3" y="10" width="14" height="4" rx="1" />
-      <circle cx="5.5" cy="6" r="0.6" fill="currentColor" stroke="none" />
-      <circle cx="5.5" cy="12" r="0.6" fill="currentColor" stroke="none" />
-    </svg>
-  );
-}
-
-function OutlineIcon() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
-      <path d="M4 5h12M4 10h8M4 15h10" />
-    </svg>
-  );
-}
-
-function SourceModeIcon() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-      <polyline points="7,5 3,10 7,15" />
-      <polyline points="13,5 17,10 13,15" />
-    </svg>
-  );
-}
-
-function SplitModeIcon() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-      <rect x="2" y="3" width="7" height="14" rx="1" />
-      <rect x="11" y="3" width="7" height="14" rx="1" />
-    </svg>
-  );
-}
-
-function PreviewModeIcon() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M2 10s3-6 8-6 8 6 8 6-3 6-8 6-8-6-8-6z" />
-      <circle cx="10" cy="10" r="2.2" />
-    </svg>
-  );
-}
-
-function CommandPaletteIcon() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-      <rect x="2" y="4" width="16" height="12" rx="1.5" />
-      <path d="M6 8l2.5 2L6 12M10.5 12h3.5" />
-    </svg>
-  );
-}
-
-/** UX-01 spec section 19.7/AC-03: "no primary shell action is represented
- * only by an emoji or Unicode glyph". These five, plus the ten above, are
- * the toolbar's full icon set; matching the existing components' own
- * convention (15px render, 20x20 viewBox, 1.5 stroke) rather than
- * src/ui/icons.tsx's separately-introduced registry -- that file predates
- * this discovery and uses a different stroke weight, so reconciling the
- * two is left as follow-up (see ROADMAP.md) rather than risking a
- * toolbar-wide stroke-weight change to already-shipped, already-tested
- * icons for this pass. */
-function MenuIcon() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
-      <path d="M3 5.5h14M3 10h14M3 14.5h14" />
-    </svg>
-  );
-}
-
-function CloseIcon() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
-      <path d="M5 5l10 10M15 5L5 15" />
-    </svg>
-  );
-}
-
-function SwapGroupsIcon() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M3 7h11M11 3.5L14.5 7 11 10.5" />
-      <path d="M17 13H6M9 9.5L5.5 13 9 16.5" />
-    </svg>
-  );
-}
-
-function BookmarkFilledIcon() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round">
-      <path d="M5 3h10a1 1 0 0 1 1 1v13l-6-4-6 4V4a1 1 0 0 1 1-1z" />
-    </svg>
-  );
-}
-
-function SettingsIcon() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="10" cy="10" r="2.6" />
-      <path d="M10 3v2.2M10 14.8V17M17 10h-2.2M5.2 10H3M14.8 5.2l-1.5 1.5M6.7 13.3l-1.5 1.5M14.8 14.8l-1.5-1.5M6.7 6.7L5.2 5.2" />
-    </svg>
-  );
-}
 
 const VIEW_MODE_ICONS: Record<ViewMode, ComponentType> = {
   source: SourceModeIcon,
@@ -351,6 +222,26 @@ export function App() {
     return () => window.removeEventListener("resize", onResize);
   }, [viewportWidth]);
   const isCompactLayout = isNarrowViewport(viewportWidth.value);
+  // UX-01 spec section 12.1/13.2, Phase 2 (Wide/Expanded first): reuses the
+  // same viewportWidth signal above rather than a second subscription, per
+  // section 24.3's "one match-media subscription per application."
+  const layoutClass = classifyLayout(viewportWidth.value);
+  const showActivityRailNav = showsActivityRail(layoutClass);
+  // Matches the sidebar-content ternary chain's own precedence below
+  // exactly (tags > Task Hub > Collections > bookmarks > Files), so the
+  // rail's selected destination always agrees with what's actually shown.
+  // Task Hub and Collections have no Activity Rail slot in the base spec
+  // (see ActivityRailProps' own doc comment), so the rail shows no
+  // selection while either is open rather than a misleading one.
+  const activeNavDestination: "files" | "bookmarks" | "tags" | null = !sidebarOpen.value
+    ? null
+    : tagsOpen.value && workspaceSettings.value.tagsEnabled
+      ? "tags"
+      : taskHubOpen.value || (collectionsOpen.value && workspaceSettings.value.collectionsEnabled)
+        ? null
+        : bookmarksOpen.value
+          ? "bookmarks"
+          : "files";
   // Spec 8.2: in compact layout, only the switcher's currently-selected
   // group is mounted (never both at once); outside compact layout, both
   // panes and the separator render as before, unaffected by
@@ -913,6 +804,30 @@ export function App() {
     save.change(session, current.path, content);
   }, [current, currentNoteReadOnly, save, session]);
 
+  // UX-01 spec section 13.2: the Activity Rail's Files destination, the
+  // one member of the sidebar's existing mutually-exclusive panel group
+  // (see toggleSidebarPanel above) that never had a dedicated toggle of
+  // its own before this -- it was only ever reachable as the implicit
+  // "none of the others" default. Mirrors toggleSidebarPanel's own
+  // click-active-again-closes-it behavior for consistency.
+  const openFilesPanel = () => {
+    const filesAlreadyActive =
+      sidebarOpen.value &&
+      !bookmarksOpen.value &&
+      !tagsOpen.value &&
+      !taskHubOpen.value &&
+      !collectionsOpen.value;
+    if (filesAlreadyActive) {
+      sidebarOpen.value = false;
+      return;
+    }
+    bookmarksOpen.value = false;
+    tagsOpen.value = false;
+    taskHubOpen.value = false;
+    collectionsOpen.value = false;
+    sidebarOpen.value = true;
+  };
+
   const openTagsPanel = () => {
     toggleSidebarPanel(tagsOpen);
     if (tagsOpen.value && rootPath) {
@@ -1177,14 +1092,21 @@ export function App() {
     <div class={`app-shell ${rtlWorkspaceEnabled.value ? "rtl" : ""}`}>
       <OutlineLiveRegion />
       <header class="toolbar">
-        <button
-          class={`icon-button ${sidebarOpen.value ? "active" : ""}`}
-          aria-label="Toggle file browser"
-          title="Toggle file browser"
-          onClick={() => (sidebarOpen.value = !sidebarOpen.value)}
-        >
-          <MenuIcon />
-        </button>
+        {/* UX-01 spec section 13.1/13.8: at Wide+, the Activity Rail (below)
+            is the sidebar-toggle/Bookmarks/Tags/Graph/Settings entry point
+            instead of these toolbar buttons, so each is hidden here rather
+            than duplicated. Unchanged below Wide, per Phase 2's own
+            "preserve the current narrow path temporarily" guidance. */}
+        {!showActivityRailNav && (
+          <button
+            class={`icon-button ${sidebarOpen.value ? "active" : ""}`}
+            aria-label="Toggle file browser"
+            title="Toggle file browser"
+            onClick={() => (sidebarOpen.value = !sidebarOpen.value)}
+          >
+            <MenuIcon />
+          </button>
+        )}
         <span class="app-title">Leotheca</span>
         <WorkspaceSwitcher />
         {linkIndexBuilding.value && (
@@ -1279,15 +1201,17 @@ export function App() {
             {currentBookmark ? <BookmarkFilledIcon /> : <BookmarkIcon />}
           </button>
         )}
-        <button
-          class={`icon-button ${bookmarksOpen.value ? "active" : ""}`}
-          aria-label="View bookmarks"
-          title="View bookmarks"
-          onClick={() => toggleSidebarPanel(bookmarksOpen)}
-        >
-          <BookmarkIcon />
-        </button>
-        {workspaceSettings.value.tagsEnabled && (
+        {!showActivityRailNav && (
+          <button
+            class={`icon-button ${bookmarksOpen.value ? "active" : ""}`}
+            aria-label="View bookmarks"
+            title="View bookmarks"
+            onClick={() => toggleSidebarPanel(bookmarksOpen)}
+          >
+            <BookmarkIcon />
+          </button>
+        )}
+        {!showActivityRailNav && workspaceSettings.value.tagsEnabled && (
           <button
             class={`icon-button ${tagsOpen.value ? "active" : ""}`}
             aria-label="View tags"
@@ -1325,7 +1249,7 @@ export function App() {
             <OutlineIcon />
           </button>
         )}
-        {rootPath && (
+        {!showActivityRailNav && rootPath && (
           <button
             class="icon-button"
             aria-label="Graph view"
@@ -1354,16 +1278,33 @@ export function App() {
         >
           ?
         </button>
-        <button
-          class="icon-button"
-          aria-label="Settings"
-          title="Settings (Ctrl+,)"
-          onClick={() => (settingsPanelOpen.value = true)}
-        >
-          <SettingsIcon />
-        </button>
+        {!showActivityRailNav && (
+          <button
+            class="icon-button"
+            aria-label="Settings"
+            title="Settings (Ctrl+,)"
+            onClick={() => (settingsPanelOpen.value = true)}
+          >
+            <SettingsIcon />
+          </button>
+        )}
       </header>
       <div class="app-body">
+        {showActivityRailNav && (
+          <ActivityRail
+            activeDestination={activeNavDestination}
+            graphActive={graphOpen.value}
+            tagsEnabled={workspaceSettings.value.tagsEnabled}
+            onSelectFiles={openFilesPanel}
+            onSelectBookmarks={() => toggleSidebarPanel(bookmarksOpen)}
+            onSelectTags={openTagsPanel}
+            onOpenGraph={() => {
+              if (rootPath) void rebuildLinkIndex(rootPath, workspaceSettings.value.frontmatterAliasesEnabled, workspaceSettings.value.tagsEnabled);
+              graphOpen.value = true;
+            }}
+            onOpenSettings={() => (settingsPanelOpen.value = true)}
+          />
+        )}
         {sidebarOpen.value && (
           <>
             <aside class="sidebar" style={{ width: `${sidebarWidth.value}px` }}>

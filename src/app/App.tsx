@@ -243,6 +243,57 @@ function CommandPaletteIcon() {
   );
 }
 
+/** UX-01 spec section 19.7/AC-03: "no primary shell action is represented
+ * only by an emoji or Unicode glyph". These five, plus the ten above, are
+ * the toolbar's full icon set; matching the existing components' own
+ * convention (15px render, 20x20 viewBox, 1.5 stroke) rather than
+ * src/ui/icons.tsx's separately-introduced registry -- that file predates
+ * this discovery and uses a different stroke weight, so reconciling the
+ * two is left as follow-up (see ROADMAP.md) rather than risking a
+ * toolbar-wide stroke-weight change to already-shipped, already-tested
+ * icons for this pass. */
+function MenuIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+      <path d="M3 5.5h14M3 10h14M3 14.5h14" />
+    </svg>
+  );
+}
+
+function CloseIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+      <path d="M5 5l10 10M15 5L5 15" />
+    </svg>
+  );
+}
+
+function SwapGroupsIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 7h11M11 3.5L14.5 7 11 10.5" />
+      <path d="M17 13H6M9 9.5L5.5 13 9 16.5" />
+    </svg>
+  );
+}
+
+function BookmarkFilledIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 20 20" fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round">
+      <path d="M5 3h10a1 1 0 0 1 1 1v13l-6-4-6 4V4a1 1 0 0 1 1-1z" />
+    </svg>
+  );
+}
+
+function SettingsIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="10" cy="10" r="2.6" />
+      <path d="M10 3v2.2M10 14.8V17M17 10h-2.2M5.2 10H3M14.8 5.2l-1.5 1.5M6.7 13.3l-1.5 1.5M14.8 14.8l-1.5-1.5M6.7 6.7L5.2 5.2" />
+    </svg>
+  );
+}
+
 const VIEW_MODE_ICONS: Record<ViewMode, ComponentType> = {
   source: SourceModeIcon,
   split: SplitModeIcon,
@@ -1132,7 +1183,7 @@ export function App() {
           title="Toggle file browser"
           onClick={() => (sidebarOpen.value = !sidebarOpen.value)}
         >
-          ☰
+          <MenuIcon />
         </button>
         <span class="app-title">Leotheca</span>
         <WorkspaceSwitcher />
@@ -1164,7 +1215,7 @@ export function App() {
               }
             }}
           >
-            {editorLayout.value.splitEnabled ? "⛶" : "⧉"}
+            {editorLayout.value.splitEnabled ? <CloseIcon /> : <SplitModeIcon />}
           </button>
         )}
         {editorLayout.value.splitEnabled && (
@@ -1178,7 +1229,7 @@ export function App() {
               refresh();
             }}
           >
-            ⇄
+            <SwapGroupsIcon />
           </button>
         )}
         {current?.kind === "text" && (
@@ -1225,7 +1276,7 @@ export function App() {
             title={currentBookmark ? "Remove bookmark" : "Bookmark this note"}
             onClick={toggleCurrentNoteBookmark}
           >
-            {currentBookmark ? "★" : "☆"}
+            {currentBookmark ? <BookmarkFilledIcon /> : <BookmarkIcon />}
           </button>
         )}
         <button
@@ -1309,7 +1360,7 @@ export function App() {
           title="Settings (Ctrl+,)"
           onClick={() => (settingsPanelOpen.value = true)}
         >
-          ⚙
+          <SettingsIcon />
         </button>
       </header>
       <div class="app-body">

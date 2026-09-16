@@ -68,7 +68,9 @@
 
 - ⬜ **Compatibility Layer**: Read community extension manifests and run compatible extensions only after the maintainer approves the third-party-code security model required by `CONSTITUTION.md`.
 - ⬜ **Per-Note Lock**: Encrypt and session-unlock individual notes only after the maintainer gives the cryptography design approval required by `CONSTITUTION.md`.
-- ⬜ **Open a Markdown file from outside the workspace via OS file association**: Let a user open any `.md` file directly from their file manager or another app even when its folder isn't a currently open workspace, and register Leotheca as an OS "Open with"/default-app option for Markdown files on each desktop platform.
+- 🚧 **Open a Markdown file from outside the workspace via OS file association**: Let a user open any `.md` file directly from their file manager or another app even when its folder isn't a currently open workspace, and register Leotheca as an OS "Open with"/default-app option for Markdown files on each desktop platform.
+  <!-- agent-state: {"schema":1,"id":"rm-e4c235739e0d4eeb","state":"claimed","touch":["src-tauri/Cargo.toml","src-tauri/src/external_open.rs","src-tauri/src/lib.rs","src-tauri/tauri.conf.json","src/app/App.tsx","src/app/ExternalFileView.tsx","src/settings/SettingsPanel.tsx","src/settings/globalConfig.ts","src/settings/store.ts","src/workspace/capacitorBridgeImpl.ts","src/workspace/tauriBridge.ts","src/workspace/tauriBridgeImpl.ts"],"resources":[],"owner":"ClaudeCode-cloud-scheduled-kindbardeen-20260916T000000Z-ou7cik1","token":"1b23b9d6103607f83b55391e769e448a","branch":"agent/rm-e4c235739e0d4eeb/1b23b9d61036","claimed_at":"2026-09-16T06:41:28Z","heartbeat_at":"2026-09-16T06:41:28Z","lease_until":"2026-09-16T08:11:28Z"} -->
+  Agent: ClaudeCode-cloud-scheduled-kindbardeen-20260916T000000Z-ou7cik1 | item: rm-e4c235739e0d4eeb | lease until: 2026-09-16T08:11:28Z
 
   <details>
   <summary>Source and acceptance sketch</summary>

@@ -993,8 +993,10 @@ button.icon-button.active {
      viewport on narrow phones, since min-width wins over max-width when
      the two conflict, causing the whole palette to overflow off-screen.
      A single width expression that already accounts for the viewport
-     avoids that. */
-  width: min(480px, 92vw);
+     avoids that. UX-01 spec section 15.2: "centered dialog, approximately
+     560px to 640px wide" -- widened from 480px to the middle of that
+     range. */
+  width: min(600px, 92vw);
   overflow: hidden;
 }
 

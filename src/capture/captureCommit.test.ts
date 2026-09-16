@@ -324,6 +324,7 @@ describe("appendToInboxNote", () => {
     const mockWriteWorkspaceBinaryFile = vi.fn().mockResolvedValue(undefined);
     const mockListDir = vi.fn().mockResolvedValue([]);
     const mockCreateWorkspaceTextFileNew = vi.fn().mockResolvedValue(undefined);
+    const mockDeleteWorkspacePathPermanent = vi.fn().mockResolvedValue(undefined);
 
     vi.resetModules();
     vi.doMock("../workspace/tauriBridge", () => ({
@@ -333,6 +334,7 @@ describe("appendToInboxNote", () => {
       createWorkspaceTextFileNew: mockCreateWorkspaceTextFileNew,
       writeWorkspaceBinaryFile: mockWriteWorkspaceBinaryFile,
       readBinaryFile: mockReadBinaryFile,
+      deleteWorkspacePathPermanent: mockDeleteWorkspacePathPermanent,
     }));
 
     const { createNoteWithTitle } = await import("./captureCommit");
@@ -357,6 +359,76 @@ describe("appendToInboxNote", () => {
     expect(result.name).toBe("Note title.md");
     const noteContent = mockCreateWorkspaceTextFileNew.mock.calls[0][2] as string;
     expect(noteContent).not.toContain("photo2");
+
+    // The corrupted destination file must not be left behind, orphaned and
+    // unreferenced by any note.
+    expect(mockDeleteWorkspacePathPermanent).toHaveBeenCalledTimes(1);
+    const [deletedRoot, deletedRelativePath] = mockDeleteWorkspacePathPermanent.mock
+      .calls[0] as [string, string];
+    expect(deletedRoot).toBe("/workspace");
+    expect(deletedRelativePath).toContain("photo2");
+    expect(deletedRelativePath).not.toMatch(/^\//);
+  });
+
+  it("swallows a failure to clean up a mismatched attachment without throwing or logging the raw error", async () => {
+    const sourcePath = "/app-private/staging/att-3.png";
+    const sourceBytes = new Uint8Array([1, 2, 3, 4]);
+
+    const mockReadBinaryFile = vi.fn(async (path: string) =>
+      path === sourcePath ? sourceBytes : new Uint8Array([9, 9, 9])
+    );
+    const mockWriteWorkspaceBinaryFile = vi.fn().mockResolvedValue(undefined);
+    const mockListDir = vi.fn().mockResolvedValue([]);
+    const mockCreateWorkspaceTextFileNew = vi.fn().mockResolvedValue(undefined);
+    const sensitiveDeleteError = new Error("content://com.evil/att-3.png denied");
+    const mockDeleteWorkspacePathPermanent = vi.fn().mockRejectedValue(sensitiveDeleteError);
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    vi.resetModules();
+    vi.doMock("../workspace/tauriBridge", () => ({
+      readTextFile: vi.fn(),
+      writeTextFile: vi.fn(),
+      listDir: mockListDir,
+      createWorkspaceTextFileNew: mockCreateWorkspaceTextFileNew,
+      writeWorkspaceBinaryFile: mockWriteWorkspaceBinaryFile,
+      readBinaryFile: mockReadBinaryFile,
+      deleteWorkspacePathPermanent: mockDeleteWorkspacePathPermanent,
+    }));
+
+    const { createNoteWithTitle } = await import("./captureCommit");
+
+    const result = await createNoteWithTitle(
+      "/workspace",
+      "Captured text",
+      "Note title",
+      "/workspace",
+      [
+        {
+          id: "att-3",
+          filePath: sourcePath,
+          fileName: "photo3.png",
+          fileSize: sourceBytes.length,
+          fingerprint: "irrelevant",
+          mimeType: "image/png",
+        },
+      ]
+    );
+
+    // A failed cleanup attempt must not crash the whole capture commit.
+    expect(result.name).toBe("Note title.md");
+    expect(mockDeleteWorkspacePathPermanent).toHaveBeenCalledTimes(1);
+
+    // F05-AC-25: never log the raw error object/message, which may embed a
+    // sensitive path/URI.
+    for (const call of consoleErrorSpy.mock.calls) {
+      for (const arg of call) {
+        expect(arg).not.toBe(sensitiveDeleteError);
+        if (typeof arg === "string") {
+          expect(arg).not.toContain("content://");
+        }
+      }
+    }
+    consoleErrorSpy.mockRestore();
   });
 
   it("F05-FR-15: writes an attachment through the workspace-contained bridge function, never an absolute caller-assembled path", async () => {

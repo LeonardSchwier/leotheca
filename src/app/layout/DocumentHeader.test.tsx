@@ -18,6 +18,10 @@ const BASE_PROPS = {
   onRetrySave: vi.fn(),
   inspectorOpen: false,
   onToggleInspector: vi.fn(),
+  onRename: vi.fn(),
+  onCopyRelativePath: vi.fn(),
+  onDelete: vi.fn(),
+  onShowHelp: vi.fn(),
 };
 
 describe("DocumentHeader", () => {
@@ -145,6 +149,103 @@ describe("DocumentHeader", () => {
       const { rerender, queryByText } = render(<DocumentHeader {...BASE_PROPS} saving={true} />);
       rerender(<DocumentHeader {...BASE_PROPS} saving={false} saveError="disk full" />);
       expect(queryByText("Saved")).toBeNull();
+    });
+  });
+
+  describe("overflow menu (spec 13.5)", () => {
+    it("is closed by default", () => {
+      const { queryByRole } = render(<DocumentHeader {...BASE_PROPS} />);
+      expect(queryByRole("menu")).toBeNull();
+    });
+
+    it("opens on click and reflects the state via aria-expanded", () => {
+      const { getByLabelText, getByRole } = render(<DocumentHeader {...BASE_PROPS} />);
+      const trigger = getByLabelText("More note actions");
+      expect(trigger.getAttribute("aria-expanded")).toBe("false");
+
+      fireEvent.click(trigger);
+
+      expect(trigger.getAttribute("aria-expanded")).toBe("true");
+      expect(getByRole("menu")).toBeTruthy();
+    });
+
+    it("toggles closed when the trigger is clicked again", () => {
+      const { getByLabelText, queryByRole } = render(<DocumentHeader {...BASE_PROPS} />);
+      const trigger = getByLabelText("More note actions");
+      fireEvent.click(trigger);
+      fireEvent.click(trigger);
+      expect(queryByRole("menu")).toBeNull();
+    });
+
+    it("closes on an outside click without requiring an action", () => {
+      const { getByLabelText, queryByRole } = render(<DocumentHeader {...BASE_PROPS} />);
+      fireEvent.click(getByLabelText("More note actions"));
+      expect(queryByRole("menu")).toBeTruthy();
+
+      fireEvent.click(window);
+
+      expect(queryByRole("menu")).toBeNull();
+    });
+
+    it("closes on Escape", () => {
+      const { getByLabelText, queryByRole } = render(<DocumentHeader {...BASE_PROPS} />);
+      fireEvent.click(getByLabelText("More note actions"));
+      expect(queryByRole("menu")).toBeTruthy();
+
+      fireEvent.keyDown(window, { key: "Escape" });
+
+      expect(queryByRole("menu")).toBeNull();
+    });
+
+    it("invokes onRename and closes the menu", () => {
+      const onRename = vi.fn();
+      const { getByLabelText, getByText, queryByRole } = render(
+        <DocumentHeader {...BASE_PROPS} onRename={onRename} />,
+      );
+      fireEvent.click(getByLabelText("More note actions"));
+      fireEvent.click(getByText("Rename"));
+
+      expect(onRename).toHaveBeenCalledTimes(1);
+      expect(queryByRole("menu")).toBeNull();
+    });
+
+    it("invokes onCopyRelativePath and closes the menu", () => {
+      const onCopyRelativePath = vi.fn();
+      const { getByLabelText, getByText, queryByRole } = render(
+        <DocumentHeader {...BASE_PROPS} onCopyRelativePath={onCopyRelativePath} />,
+      );
+      fireEvent.click(getByLabelText("More note actions"));
+      fireEvent.click(getByText("Copy Relative Path"));
+
+      expect(onCopyRelativePath).toHaveBeenCalledTimes(1);
+      expect(queryByRole("menu")).toBeNull();
+    });
+
+    it("invokes onDelete and closes the menu, marking Delete with danger styling", () => {
+      const onDelete = vi.fn();
+      const { getByLabelText, getByText, queryByRole } = render(
+        <DocumentHeader {...BASE_PROPS} onDelete={onDelete} />,
+      );
+      fireEvent.click(getByLabelText("More note actions"));
+      const deleteItem = getByText("Delete");
+      expect(deleteItem.className).toContain("context-menu-danger");
+
+      fireEvent.click(deleteItem);
+
+      expect(onDelete).toHaveBeenCalledTimes(1);
+      expect(queryByRole("menu")).toBeNull();
+    });
+
+    it("invokes onShowHelp and closes the menu", () => {
+      const onShowHelp = vi.fn();
+      const { getByLabelText, getByText, queryByRole } = render(
+        <DocumentHeader {...BASE_PROPS} onShowHelp={onShowHelp} />,
+      );
+      fireEvent.click(getByLabelText("More note actions"));
+      fireEvent.click(getByText("Markdown Help"));
+
+      expect(onShowHelp).toHaveBeenCalledTimes(1);
+      expect(queryByRole("menu")).toBeNull();
     });
   });
 });

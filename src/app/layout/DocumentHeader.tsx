@@ -8,8 +8,6 @@ import { Icon as RegistryIcon, type IconName } from "../../ui/icons";
  * the full spec for this pass, matching ActivityRail's own Medium+-first
  * phasing (section 30's Phase 2 guidance):
  *
- * - Note-action overflow doesn't exist as a concept in this codebase yet,
- *   so it has no home here yet either.
  * - The path breadcrumb is the spec's own explicitly-allowed simpler
  *   variant ("The full path is available via tooltip or overflow
  *   details", 13.5), not a separate clickable segmented row.
@@ -33,6 +31,16 @@ import { Icon as RegistryIcon, type IconName } from "../../ui/icons";
  * Inspector.tsx itself renders elsewhere in the tree, not here -- this
  * button only reflects and requests that state, per 24.2's
  * presentational-only rule.
+ *
+ * The overflow menu (13.5: "Overflow contains lower-frequency current-note
+ * actions and Help entries appropriate to the note") is new this pass:
+ * Rename, Copy relative path, Delete (mirroring the file tree's own
+ * FileContextMenu action set for the currently open note, so a user gets
+ * the same actions whether they reach a note from the sidebar or from an
+ * already-open tab) and Markdown Help. Every action is a plain callback
+ * prop -- this component owns only the menu's open/closed state and its
+ * own dismiss-on-outside-click/Escape behavior, never the note's actual
+ * rename/delete/clipboard logic, per 24.2.
  */
 
 const VIEW_MODE_ICONS: Record<ViewMode, IconName> = {
@@ -60,6 +68,10 @@ export interface DocumentHeaderProps {
   onRetrySave: () => void;
   inspectorOpen: boolean;
   onToggleInspector: () => void;
+  onRename: () => void;
+  onCopyRelativePath: () => void;
+  onDelete: () => void;
+  onShowHelp: () => void;
 }
 
 export function DocumentHeader({
@@ -75,7 +87,37 @@ export function DocumentHeader({
   onRetrySave,
   inspectorOpen,
   onToggleInspector,
+  onRename,
+  onCopyRelativePath,
+  onDelete,
+  onShowHelp,
 }: DocumentHeaderProps) {
+  const [overflowOpen, setOverflowOpen] = useState(false);
+
+  // Dismiss on any outside click or on losing window focus, the same
+  // pattern FileContextMenu.tsx already uses for its own dropdown. Each
+  // menu item closes the menu itself before running its action (below),
+  // so this only needs to handle the "user clicked/tabbed away" case.
+  useEffect(() => {
+    if (!overflowOpen) return;
+    const dismiss = () => setOverflowOpen(false);
+    window.addEventListener("click", dismiss);
+    window.addEventListener("blur", dismiss);
+    return () => {
+      window.removeEventListener("click", dismiss);
+      window.removeEventListener("blur", dismiss);
+    };
+  }, [overflowOpen]);
+
+  useEffect(() => {
+    if (!overflowOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOverflowOpen(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [overflowOpen]);
+
   // Triggered only by the real saving->settled transition below, never by
   // a timer racing typing: this is what keeps the "Saved" pulse honest
   // per 13.6 rather than a guess about whether autosave "probably" ran.
@@ -171,6 +213,66 @@ export function DocumentHeader({
         >
           <RegistryIcon name="panelRight" size={16} />
         </button>
+        <div class="document-header-overflow">
+          <button
+            class="icon-button"
+            aria-label="More note actions"
+            aria-haspopup="menu"
+            aria-expanded={overflowOpen}
+            title="More note actions"
+            onClick={(e) => {
+              e.stopPropagation();
+              setOverflowOpen((open) => !open);
+            }}
+          >
+            <RegistryIcon name="moreHorizontal" size={16} />
+          </button>
+          {overflowOpen && (
+            <div class="document-header-overflow-menu" role="menu">
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setOverflowOpen(false);
+                  onRename();
+                }}
+              >
+                Rename
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setOverflowOpen(false);
+                  onCopyRelativePath();
+                }}
+              >
+                Copy Relative Path
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                class="context-menu-danger"
+                onClick={() => {
+                  setOverflowOpen(false);
+                  onDelete();
+                }}
+              >
+                Delete
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setOverflowOpen(false);
+                  onShowHelp();
+                }}
+              >
+                <RegistryIcon name="helpCircle" size={16} /> Markdown Help
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

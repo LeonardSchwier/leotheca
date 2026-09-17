@@ -91,10 +91,11 @@ vi.mock("../workspace/tauriBridge", () => ({
   }),
 }));
 
-const { renameEntry, createNoteQuick } = vi.hoisted(() => ({
+const { renameEntry, createNoteQuick, deleteEntry } = vi.hoisted(() => ({
   renameEntry: vi.fn<(oldPath: string, newName: string) => Promise<string>>(),
   createNoteQuick:
     vi.fn<(dirPath: string, content?: string) => Promise<{ path: string; name: string }>>(),
+  deleteEntry: vi.fn<(rootPath: string, path: string) => Promise<void>>(async () => {}),
 }));
 
 vi.mock("../workspace/fileTreeStore", () => ({
@@ -105,6 +106,14 @@ vi.mock("../workspace/fileTreeStore", () => ({
   runSearch: vi.fn(),
   resetWorkspaceTree: vi.fn(),
   selectedDir: signal<string | null>(null),
+  deleteEntry,
+  // Same real, pure implementation as fileTreeStore.ts's own -- this is
+  // pure path-string arithmetic, not a workspace/bridge call, so there is
+  // no fake to keep in sync and no reason to diverge from the real logic
+  // the Document Header overflow menu's "Copy Relative Path" action (and
+  // FileContextMenu.tsx, elsewhere) actually calls at runtime.
+  relativePath: (rootPath: string, path: string): string =>
+    path.startsWith(rootPath) ? path.slice(rootPath.length).replace(/^\//, "") : path,
 }));
 
 const { openUrlListeners } = vi.hoisted(() => ({
@@ -1845,6 +1854,108 @@ describe("App: UX-01 Document Header (Medium+ layout)", () => {
     const { getByLabelText } = render(<App />);
 
     expect(getByLabelText("Unsaved changes")).toBeTruthy();
+  });
+
+  describe("overflow menu (spec 13.5: 'lower-frequency current-note actions and Help entries')", () => {
+    it("opens Rename with the current note's name pre-filled", () => {
+      Object.defineProperty(window, "innerWidth", { configurable: true, value: 1200 });
+      workspacePath.value = "/vault";
+      openOrFocusTab("/vault/notes/a.md", "a.md", "hello", "text");
+      const { getByLabelText, getByText, container } = render(<App />);
+
+      fireEvent.click(getByLabelText("More note actions"));
+      fireEvent.click(getByText("Rename"));
+
+      const dialog = container.querySelector(".name-prompt");
+      expect(dialog).toBeTruthy();
+      expect(dialog?.querySelector("h2")?.textContent).toBe("Rename");
+      expect((dialog?.querySelector("input") as HTMLInputElement | null)?.value).toBe("a.md");
+    });
+
+    it("copies the note's path relative to the workspace root, not the absolute path", async () => {
+      Object.defineProperty(window, "innerWidth", { configurable: true, value: 1200 });
+      const writeText = vi.fn(async () => {});
+      Object.assign(navigator, { clipboard: { writeText } });
+      workspacePath.value = "/vault";
+      openOrFocusTab("/vault/notes/a.md", "a.md", "hello", "text");
+      const { getByLabelText, getByText } = render(<App />);
+
+      fireEvent.click(getByLabelText("More note actions"));
+      fireEvent.click(getByText("Copy Relative Path"));
+
+      await waitFor(() => expect(writeText).toHaveBeenCalledWith("notes/a.md"));
+    });
+
+    it("opens Markdown Help", () => {
+      Object.defineProperty(window, "innerWidth", { configurable: true, value: 1200 });
+      workspacePath.value = "/vault";
+      openOrFocusTab("/vault/a.md", "a.md", "hello", "text");
+      const { getByLabelText, getByText, container } = render(<App />);
+
+      fireEvent.click(getByLabelText("More note actions"));
+      fireEvent.click(getByText("Markdown Help"));
+
+      expect(getByText("Markdown formatting")).toBeTruthy();
+
+      // markdownHelpOpen is a module-level signal App.tsx never exports, so
+      // there is no afterEach hook that can reset it for us: leaving this
+      // dialog open here would leak into every later test in this file
+      // (its own ".modal" node would then coexist with any dialog a later
+      // test opens, breaking a plain ".modal" query/waitFor there).
+      fireEvent.click(container.querySelector(".modal-close")!);
+    });
+
+    it("deletes the note and closes its tab without a confirmation prompt when trashing (the default deleteBehavior)", async () => {
+      Object.defineProperty(window, "innerWidth", { configurable: true, value: 1200 });
+      workspacePath.value = "/vault";
+      workspaceSettings.value = { ...DEFAULT_WORKSPACE_SETTINGS, deleteBehavior: "project-trash" };
+      openOrFocusTab("/vault/a.md", "a.md", "hello", "text");
+      const { getByLabelText, getByText, container } = render(<App />);
+
+      fireEvent.click(getByLabelText("More note actions"));
+      fireEvent.click(getByText("Delete"));
+
+      await waitFor(() => expect(deleteEntry).toHaveBeenCalledWith("/vault", "/vault/a.md"));
+      await waitFor(() => expect(container.querySelector(".document-header")).toBeNull());
+    });
+
+    it("asks for confirmation before a permanent delete, and does not delete on Cancel", async () => {
+      Object.defineProperty(window, "innerWidth", { configurable: true, value: 1200 });
+      workspacePath.value = "/vault";
+      workspaceSettings.value = { ...DEFAULT_WORKSPACE_SETTINGS, deleteBehavior: "permanent" };
+      openOrFocusTab("/vault/a.md", "a.md", "hello", "text");
+      deleteEntry.mockClear();
+      const { getByLabelText, getByText, container } = render(<App />);
+
+      fireEvent.click(getByLabelText("More note actions"));
+      fireEvent.click(getByText("Delete"));
+
+      await waitFor(() => expect(container.querySelector(".modal")).toBeTruthy());
+      fireEvent.click(getByText("Cancel"));
+      await waitFor(() => expect(container.querySelector(".modal")).toBeNull());
+
+      expect(deleteEntry).not.toHaveBeenCalled();
+      expect(container.querySelector(".document-header")).toBeTruthy();
+    });
+
+    it("surfaces a delete failure instead of leaving it silent", async () => {
+      Object.defineProperty(window, "innerWidth", { configurable: true, value: 1200 });
+      workspacePath.value = "/vault";
+      workspaceSettings.value = { ...DEFAULT_WORKSPACE_SETTINGS, deleteBehavior: "project-trash" };
+      openOrFocusTab("/vault/a.md", "a.md", "hello", "text");
+      deleteEntry.mockRejectedValueOnce(new Error("disk full"));
+      const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => {});
+      const { getByLabelText, getByText, container } = render(<App />);
+
+      fireEvent.click(getByLabelText("More note actions"));
+      fireEvent.click(getByText("Delete"));
+
+      await waitFor(() => expect(alertSpy).toHaveBeenCalledWith(expect.stringContaining("disk full")));
+      // The tab must still be open: a failed delete must not silently
+      // close the note out from under the user.
+      expect(container.querySelector(".document-header")).toBeTruthy();
+      alertSpy.mockRestore();
+    });
   });
 });
 

@@ -26,6 +26,7 @@ import {
   closeAllUnpinnedTabs,
   closeOtherTabs,
   closeSecondaryGroup,
+  closeTabsUnder,
   focusGroup,
   focusTab,
   closeTab,
@@ -116,12 +117,15 @@ import {
   createCanvasQuick,
   createInkQuick,
   createNoteQuick,
+  deleteEntry,
   listTemplates,
+  relativePath,
   renameEntry,
   runSearch,
   selectedDir,
   type NoteTemplate,
 } from "../workspace/fileTreeStore";
+import { confirmAction } from "./confirmDialog";
 import { NamePrompt } from "../workspace/NamePrompt";
 import { useRenamePreview } from "../refactor/useRenamePreview";
 import { RenamePreviewDialog } from "../refactor/RenamePreviewDialog";
@@ -1141,6 +1145,45 @@ export function App() {
     }
   }, [tabRename, flushPendingAutosave, renamePreview, setTabRename, setTabRenameError]);
 
+  // Document Header overflow menu (spec 13.5): "Copy Relative Path" and
+  // "Delete" for the currently open note, mirroring FileContextMenu.tsx's
+  // own actions for the same note reached via the sidebar instead, so
+  // both entry points offer the same capability set. Delete follows
+  // Sidebar.tsx's handleDelete exactly (confirm only for a permanent
+  // delete, flush any pending autosave first so it can't resurrect the
+  // file after this deletes it, then close every tab under the deleted
+  // path) but additionally surfaces a failure instead of leaving it an
+  // unhandled promise rejection, since this call site has no existing
+  // inline error UI to fall back to the way the rename dialog does.
+  const handleDeleteCurrentNote = useCallback(async () => {
+    if (!current || !rootPath) return;
+    const target = current;
+    if (workspaceSettings.value.deleteBehavior === "permanent") {
+      const confirmed = await confirmAction({
+        title: "Delete permanently",
+        message: `Permanently delete "${target.name}"? This cannot be undone.`,
+        confirmLabel: "Delete",
+        danger: true,
+      });
+      if (!confirmed) return;
+    }
+    try {
+      await flushPendingAutosave(target.path);
+      await deleteEntry(rootPath, target.path);
+      closeTabsUnder(target.path);
+    } catch (e) {
+      window.alert(`Couldn't delete "${target.name}": ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }, [current, rootPath, flushPendingAutosave]);
+
+  const handleCopyCurrentNoteRelativePath = useCallback(() => {
+    if (!current || !rootPath) return;
+    const path = relativePath(rootPath, current.path);
+    void navigator.clipboard.writeText(path).catch((e) => {
+      window.alert(`Couldn't copy path: ${e instanceof Error ? e.message : String(e)}`);
+    });
+  }, [current, rootPath]);
+
   return (
     <div class={`app-shell ${rtlWorkspaceEnabled.value ? "rtl" : ""}`}>
       <OutlineLiveRegion />
@@ -1528,6 +1571,10 @@ export function App() {
               onRetrySave={() => void save.retry(session, current.path)}
               inspectorOpen={inspectorOpen.value}
               onToggleInspector={toggleInspector}
+              onRename={() => setTabRename(current)}
+              onCopyRelativePath={handleCopyCurrentNoteRelativePath}
+              onDelete={() => void handleDeleteCurrentNote()}
+              onShowHelp={() => (markdownHelpOpen.value = true)}
             />
           )}
           {current?.kind === "text" && workspaceSettings.value.noteReadOnlyLockEnabled && (

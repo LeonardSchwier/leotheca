@@ -1,6 +1,5 @@
 import { batch, computed, effect, signal, useSignal } from "@preact/signals";
 import { useCallback, useEffect, useMemo, useRef, useState } from "preact/hooks";
-import type { ComponentType } from "preact";
 import { Capacitor } from "@capacitor/core";
 import { App as CapacitorApp } from "@capacitor/app";
 import { getCurrent as getCurrentDeepLinkUrls, onOpenUrl } from "@tauri-apps/plugin-deep-link";
@@ -143,23 +142,7 @@ import { ConfirmDialogHost } from "./ConfirmDialogHost";
 import { createSaveCoordinator } from "../workspace/saveCoordinator";
 import { workspaceTransitions } from "../workspace/workspaceTransition";
 import { EmptyEditorState } from "./EmptyEditorState";
-import {
-  BookmarkIcon,
-  BookmarkFilledIcon,
-  TagIcon,
-  GraphIcon,
-  TaskIcon,
-  CollectionsIcon,
-  OutlineIcon,
-  SourceModeIcon,
-  SplitModeIcon,
-  PreviewModeIcon,
-  CommandPaletteIcon,
-  MenuIcon,
-  CloseIcon,
-  SwapGroupsIcon,
-  SettingsIcon,
-} from "./shellIcons";
+import { Icon as RegistryIcon, type IconName } from "../ui/icons";
 
 // Workspace-scoped stores participate in the same generation-authoritative
 // transition as settings and autosave. Registration is synchronous at module
@@ -169,10 +152,10 @@ workspaceTransitions.registerReset(resetWorkspaceTree);
 workspaceTransitions.registerReset(resetLinkIndexCache);
 
 
-const VIEW_MODE_ICONS: Record<ViewMode, ComponentType> = {
-  source: SourceModeIcon,
-  split: SplitModeIcon,
-  preview: PreviewModeIcon,
+const VIEW_MODE_ICONS: Record<ViewMode, IconName> = {
+  source: "code",
+  split: "columns",
+  preview: "eye",
 };
 
 const bookmarksOpen = signal(false);
@@ -1174,7 +1157,7 @@ export function App() {
             title="Toggle file browser"
             onClick={() => (sidebarOpen.value = !sidebarOpen.value)}
           >
-            <MenuIcon />
+            <RegistryIcon name="menu" size={16} />
           </button>
         )}
         <span class="app-title">Leotheca</span>
@@ -1207,7 +1190,11 @@ export function App() {
               }
             }}
           >
-            {editorLayout.value.splitEnabled ? <CloseIcon /> : <SplitModeIcon />}
+            {editorLayout.value.splitEnabled ? (
+              <RegistryIcon name="close" size={16} />
+            ) : (
+              <RegistryIcon name="columns" size={16} />
+            )}
           </button>
         )}
         {editorLayout.value.splitEnabled && (
@@ -1221,7 +1208,7 @@ export function App() {
               refresh();
             }}
           >
-            <SwapGroupsIcon />
+            <RegistryIcon name="swapGroups" size={16} />
           </button>
         )}
         {/* UX-01 spec section 13.5/UX-005: at Wide+, DocumentHeader (below,
@@ -1230,7 +1217,6 @@ export function App() {
         {!showActivityRailNav && current?.kind === "text" && (
           <div class="view-mode-switch">
             {(["source", "split", "preview"] as ViewMode[]).map((mode) => {
-              const Icon = VIEW_MODE_ICONS[mode];
               const label = mode[0].toUpperCase() + mode.slice(1);
               return (
                 <button
@@ -1240,7 +1226,7 @@ export function App() {
                   aria-label={label}
                   onClick={() => (viewMode.value = mode)}
                 >
-                  <Icon />
+                  <RegistryIcon name={VIEW_MODE_ICONS[mode]} size={16} />
                 </button>
               );
             })}
@@ -1271,7 +1257,11 @@ export function App() {
             title={currentBookmark ? "Remove bookmark" : "Bookmark this note"}
             onClick={toggleCurrentNoteBookmark}
           >
-            {currentBookmark ? <BookmarkFilledIcon /> : <BookmarkIcon />}
+            {currentBookmark ? (
+              <RegistryIcon name="bookmarkFilled" size={16} />
+            ) : (
+              <RegistryIcon name="bookmark" size={16} />
+            )}
           </button>
         )}
         {!showActivityRailNav && (
@@ -1281,7 +1271,7 @@ export function App() {
             title="View bookmarks"
             onClick={() => toggleSidebarPanel(bookmarksOpen)}
           >
-            <BookmarkIcon />
+            <RegistryIcon name="bookmark" size={16} />
           </button>
         )}
         {!showActivityRailNav && workspaceSettings.value.tagsEnabled && (
@@ -1291,7 +1281,7 @@ export function App() {
             title="View tags"
             onClick={openTagsPanel}
           >
-            <TagIcon />
+            <RegistryIcon name="tag" size={16} />
           </button>
         )}
         <button
@@ -1300,7 +1290,7 @@ export function App() {
           title="Open Task Hub"
           onClick={openTaskHubPanel}
         >
-          <TaskIcon />
+          <RegistryIcon name="task" size={16} />
         </button>
         {workspaceSettings.value.collectionsEnabled && (
           <button
@@ -1309,7 +1299,7 @@ export function App() {
             title="Open Collections"
             onClick={openCollectionsPanel}
           >
-            <CollectionsIcon />
+            <RegistryIcon name="collections" size={16} />
           </button>
         )}
         {current?.kind === "text" && (
@@ -1319,7 +1309,7 @@ export function App() {
             title={outlineOpen.value ? "Hide note outline" : "Show note outline"}
             onClick={() => (outlineOpen.value = !outlineOpen.value)}
           >
-            <OutlineIcon />
+            <RegistryIcon name="outline" size={16} />
           </button>
         )}
         {!showActivityRailNav && rootPath && (
@@ -1332,7 +1322,7 @@ export function App() {
               graphOpen.value = true;
             }}
           >
-            <GraphIcon />
+            <RegistryIcon name="graph" size={16} />
           </button>
         )}
         <button
@@ -1341,7 +1331,7 @@ export function App() {
           title="Command palette (Ctrl+K)"
           onClick={() => (commandPaletteOpen.value = true)}
         >
-          <CommandPaletteIcon />
+          <RegistryIcon name="command" size={16} />
         </button>
         <button
           class="icon-button"
@@ -1358,7 +1348,7 @@ export function App() {
             title="Settings (Ctrl+,)"
             onClick={() => (settingsPanelOpen.value = true)}
           >
-            <SettingsIcon />
+            <RegistryIcon name="settings" size={16} />
           </button>
         )}
       </header>

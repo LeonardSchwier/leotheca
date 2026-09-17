@@ -1,8 +1,6 @@
-import type { ComponentType } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 import type { ViewMode } from "../../settings/workspaceSettings";
-import { BookmarkFilledIcon, BookmarkIcon, SourceModeIcon, SplitModeIcon, PreviewModeIcon } from "../shellIcons";
-import { Icon as RegistryIcon } from "../../ui/icons";
+import { Icon as RegistryIcon, type IconName } from "../../ui/icons";
 
 /** UX-01 spec section 13.5/UX-005: "Note-specific view, bookmark,
  * Inspector, and overflow actions shall appear in the Document Header or
@@ -37,10 +35,10 @@ import { Icon as RegistryIcon } from "../../ui/icons";
  * presentational-only rule.
  */
 
-const VIEW_MODE_ICONS: Record<ViewMode, ComponentType> = {
-  source: SourceModeIcon,
-  split: SplitModeIcon,
-  preview: PreviewModeIcon,
+const VIEW_MODE_ICONS: Record<ViewMode, IconName> = {
+  source: "code",
+  split: "columns",
+  preview: "eye",
 };
 
 const VIEW_MODES: ViewMode[] = ["source", "split", "preview"];
@@ -138,7 +136,6 @@ export function DocumentHeader({
       <div class="document-header-actions">
         <div class="view-mode-switch">
           {VIEW_MODES.map((mode) => {
-            const Icon = VIEW_MODE_ICONS[mode];
             const label = mode[0].toUpperCase() + mode.slice(1);
             return (
               <button
@@ -148,7 +145,7 @@ export function DocumentHeader({
                 aria-label={label}
                 onClick={() => onSetViewMode(mode)}
               >
-                <Icon />
+                <RegistryIcon name={VIEW_MODE_ICONS[mode]} size={16} />
               </button>
             );
           })}
@@ -159,7 +156,11 @@ export function DocumentHeader({
           title={bookmarked ? "Remove bookmark" : "Bookmark this note"}
           onClick={onToggleBookmark}
         >
-          {bookmarked ? <BookmarkFilledIcon /> : <BookmarkIcon />}
+          {bookmarked ? (
+            <RegistryIcon name="bookmarkFilled" size={16} />
+          ) : (
+            <RegistryIcon name="bookmark" size={16} />
+          )}
         </button>
         <button
           class={`icon-button ${inspectorOpen ? "active" : ""}`}

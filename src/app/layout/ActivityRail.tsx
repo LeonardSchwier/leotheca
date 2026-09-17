@@ -1,5 +1,5 @@
 import type { ComponentChildren } from "preact";
-import { FilesIcon, BookmarkIcon, TagIcon, GraphIcon, SettingsIcon } from "../shellIcons";
+import { Icon as RegistryIcon } from "../../ui/icons";
 
 /** UX-01 spec section 13.2: "a fixed navigation strip" for Files,
  * Bookmarks, Tags, and Graph, with Settings pinned at the bottom.
@@ -66,23 +66,23 @@ export function ActivityRail({
     <nav class="activity-rail" aria-label="Primary navigation">
       <div class="activity-rail-primary">
         <RailButton active={activeDestination === "files"} label="Files" onClick={onSelectFiles}>
-          <FilesIcon />
+          <RegistryIcon name="folder" size={16} />
         </RailButton>
         <RailButton active={activeDestination === "bookmarks"} label="Bookmarks" onClick={onSelectBookmarks}>
-          <BookmarkIcon />
+          <RegistryIcon name="bookmark" size={16} />
         </RailButton>
         {tagsEnabled && (
           <RailButton active={activeDestination === "tags"} label="Tags" onClick={onSelectTags}>
-            <TagIcon />
+            <RegistryIcon name="tag" size={16} />
           </RailButton>
         )}
         <RailButton active={graphActive} label="Graph view" onClick={onOpenGraph}>
-          <GraphIcon />
+          <RegistryIcon name="graph" size={16} />
         </RailButton>
       </div>
       <div class="activity-rail-bottom">
         <RailButton active={false} label="Settings" onClick={onOpenSettings}>
-          <SettingsIcon />
+          <RegistryIcon name="settings" size={16} />
         </RailButton>
       </div>
     </nav>

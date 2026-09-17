@@ -25,6 +25,7 @@ export type IconName =
   | "folder"
   | "fileText"
   | "bookmark"
+  | "bookmarkFilled"
   | "tag"
   | "graph"
   | "settings"
@@ -36,7 +37,11 @@ export type IconName =
   | "panelRight"
   | "columns"
   | "code"
-  | "eye";
+  | "eye"
+  | "task"
+  | "collections"
+  | "outline"
+  | "swapGroups";
 
 /** Every path/shape below sits on a 24x24 canvas, round caps/joins, no
  * fill except where an icon's meaning specifically needs a solid dot (a
@@ -53,9 +58,11 @@ export type IconName =
  * 20-unit canvas (this file's icons are more numerous and more complex),
  * this stroke width is set to the same 7.5% ratio scaled to a 24-unit
  * canvas (24 * 0.075 = 1.8), so an icon from either set renders at the
- * same relative visual weight for a given pixel size. shellIcons.tsx
- * itself is unchanged; migrating its 15 call sites onto this registry
- * remains separate follow-up (see ROADMAP.md). */
+ * same relative visual weight for a given pixel size. `bookmarkFilled`,
+ * `task`, `collections`, `outline`, and `swapGroups` below are the same
+ * shapes `shellIcons.tsx` used to draw, scaled 1.2x from its 20-unit
+ * canvas onto this one, added when that file's 15 call sites were
+ * migrated onto this registry (now deleted, see ROADMAP.md). */
 const STROKE_WIDTH = 1.8;
 
 const ICON_SHAPES: Record<IconName, () => JSX.Element> = {
@@ -106,6 +113,7 @@ const ICON_SHAPES: Record<IconName, () => JSX.Element> = {
     </>
   ),
   bookmark: () => <path d="M6.5 4H17.5V20L12 16.5L6.5 20V4Z" />,
+  bookmarkFilled: () => <path d="M6.5 4H17.5V20L12 16.5L6.5 20V4Z" fill="currentColor" />,
   tag: () => (
     <>
       <path d="M12.5 4H19C19.55 4 20 4.45 20 5V11.5L11 20.5L3.5 13L12.5 4Z" />
@@ -177,6 +185,28 @@ const ICON_SHAPES: Record<IconName, () => JSX.Element> = {
     <>
       <path d="M2.5 12C2.5 12 6 5.5 12 5.5C18 5.5 21.5 12 21.5 12C21.5 12 18 18.5 12 18.5C6 18.5 2.5 12 2.5 12Z" />
       <circle cx="12" cy="12" r="2.6" />
+    </>
+  ),
+  task: () => (
+    <>
+      <rect x="3.6" y="3.6" width="7.2" height="7.2" rx="1.2" />
+      <path d="M5.4 7.2l1.2 1.2 2.4-2.4" strokeWidth={1.44} />
+      <path d="M14.4 7.2h6M3.6 16.8h7.2M14.4 16.8h6" />
+    </>
+  ),
+  collections: () => (
+    <>
+      <rect x="3.6" y="4.8" width="16.8" height="4.8" rx="1.2" />
+      <rect x="3.6" y="12" width="16.8" height="4.8" rx="1.2" />
+      <circle cx="6.6" cy="7.2" r="0.72" fill="currentColor" stroke="none" />
+      <circle cx="6.6" cy="14.4" r="0.72" fill="currentColor" stroke="none" />
+    </>
+  ),
+  outline: () => <path d="M4.8 6h14.4M4.8 12h9.6M4.8 18h12" />,
+  swapGroups: () => (
+    <>
+      <path d="M3.6 8.4h13.2M13.2 4.2L17.4 8.4 13.2 12.6" />
+      <path d="M20.4 15.6H7.2M10.8 11.4L6.6 15.6 10.8 19.8" />
     </>
   ),
 };

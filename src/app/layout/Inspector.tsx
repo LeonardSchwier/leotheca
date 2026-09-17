@@ -1,6 +1,6 @@
 import { FrontmatterPropertiesPanel, type FrontmatterPropertiesPanelProps } from "../../editor/FrontmatterPropertiesPanel";
 import { BacklinksPanel } from "../../linking/BacklinksPanel";
-import { CloseIcon } from "../shellIcons";
+import { Icon as RegistryIcon } from "../../ui/icons";
 
 /** UX-01 spec section 13.7: consolidates Properties and Backlinks into one
  * on-demand panel "without permanently reducing editor height" -- the
@@ -61,7 +61,7 @@ export function Inspector({ activeTab, onSetActiveTab, onClose, properties, path
           </button>
         </div>
         <button type="button" class="icon-button" aria-label="Close Inspector" onClick={onClose}>
-          <CloseIcon />
+          <RegistryIcon name="close" size={16} />
         </button>
       </div>
       <div class="inspector-content">

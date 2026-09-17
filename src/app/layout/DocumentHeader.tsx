@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import type { ViewMode } from "../../settings/workspaceSettings";
 import { Icon as RegistryIcon, type IconName } from "../../ui/icons";
+import { IconButton } from "../../ui/IconButton";
 
 /** UX-01 spec section 13.5/UX-005: "Note-specific view, bookmark,
  * Inspector, and overflow actions shall appear in the Document Header or
@@ -31,6 +32,13 @@ import { Icon as RegistryIcon, type IconName } from "../../ui/icons";
  * Inspector.tsx itself renders elsewhere in the tree, not here -- this
  * button only reflects and requests that state, per 24.2's
  * presentational-only rule.
+ *
+ * Bookmark and Inspector are the first real call sites of the section 20
+ * `IconButton` primitive (`ui/IconButton.tsx`), both toggles whose active
+ * state maps directly onto that primitive's `active`/`aria-pressed`
+ * prop; the overflow trigger stays a plain button since its semantics
+ * (a menu disclosure, `aria-haspopup`/`aria-expanded`) don't fit that
+ * same toggle contract.
  *
  * The overflow menu (13.5: "Overflow contains lower-frequency current-note
  * actions and Help entries appropriate to the note") is new this pass:
@@ -146,7 +154,11 @@ export function DocumentHeader({
   return (
     <div class="document-header">
       <span class="document-header-title" title={notePath}>
-        <RegistryIcon name="fileText" size={16} className="document-header-icon" />
+        <RegistryIcon
+          name="fileText"
+          size={16}
+          className="document-header-icon"
+        />
         <span class="document-header-title-text">{noteName}</span>
       </span>
       <div
@@ -157,7 +169,11 @@ export function DocumentHeader({
           <>
             <RegistryIcon name="alertCircle" size={16} />
             <span>Save failed</span>
-            <button type="button" class="document-header-savestate-retry" onClick={onRetrySave}>
+            <button
+              type="button"
+              class="document-header-savestate-retry"
+              onClick={onRetrySave}
+            >
               Retry
             </button>
           </>
@@ -192,27 +208,18 @@ export function DocumentHeader({
             );
           })}
         </div>
-        <button
-          class={`icon-button ${bookmarked ? "active" : ""}`}
-          aria-label={bookmarked ? "Remove bookmark" : "Bookmark this note"}
-          title={bookmarked ? "Remove bookmark" : "Bookmark this note"}
+        <IconButton
+          icon={bookmarked ? "bookmarkFilled" : "bookmark"}
+          label={bookmarked ? "Remove bookmark" : "Bookmark this note"}
+          active={bookmarked}
           onClick={onToggleBookmark}
-        >
-          {bookmarked ? (
-            <RegistryIcon name="bookmarkFilled" size={16} />
-          ) : (
-            <RegistryIcon name="bookmark" size={16} />
-          )}
-        </button>
-        <button
-          class={`icon-button ${inspectorOpen ? "active" : ""}`}
-          aria-label="Inspector"
-          aria-pressed={inspectorOpen}
-          title="Inspector"
+        />
+        <IconButton
+          icon="panelRight"
+          label="Inspector"
+          active={inspectorOpen}
           onClick={onToggleInspector}
-        >
-          <RegistryIcon name="panelRight" size={16} />
-        </button>
+        />
         <div class="document-header-overflow">
           <button
             class="icon-button"

@@ -1,0 +1,153 @@
+/* UX-01 spec section 20 "UI primitives" / Phase 1 ("Button, IconButton,
+ * SegmentedControl, Tooltip, Menu, Dialog, and status primitives needed
+ * by the current shell"). This slice lands only Button and IconButton;
+ * the rest of that Phase 1 list remains open follow-up work, see
+ * ROADMAP.md's UX-01 entry.
+ *
+ * All colors/spacing/radius/motion below consume the semantic tokens in
+ * theme.css (spec 19.1: "Components must consume semantic tokens rather
+ * than literal theme colors"), never a literal value, so both primitives
+ * automatically follow theme/accent switches and the reduced-motion
+ * override (theme.css sets --motion-fast to 1ms under
+ * prefers-reduced-motion, which the transitions below already read).
+ */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  font: inherit;
+  font-weight: 500;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition:
+    background-color var(--motion-fast) ease,
+    border-color var(--motion-fast) ease,
+    color var(--motion-fast) ease,
+    opacity var(--motion-fast) ease;
+  white-space: nowrap;
+}
+
+.btn:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+/* Sizes (spec 20: "Each primitive must define: sizes"). */
+.btn-sm {
+  height: 28px;
+  padding: 0 var(--space-3);
+  font-size: 13px;
+}
+
+.btn-md {
+  height: 34px;
+  padding: 0 var(--space-4);
+  font-size: 14px;
+}
+
+/* Visual variants (spec 20: "visual variants"). */
+.btn-primary {
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  border-color: var(--color-accent);
+}
+
+.btn-primary:not(:disabled):hover {
+  background: var(--color-accent-hover);
+  border-color: var(--color-accent-hover);
+}
+
+.btn-secondary {
+  background: var(--bg-raised);
+  color: var(--text-primary);
+  border-color: var(--border);
+}
+
+.btn-secondary:not(:disabled):hover {
+  background: var(--bg-hover);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-primary);
+  border-color: transparent;
+}
+
+.btn-ghost:not(:disabled):hover {
+  background: var(--bg-hover);
+}
+
+.btn-danger {
+  background: var(--color-danger);
+  color: var(--color-on-accent);
+  border-color: var(--color-danger);
+}
+
+.btn-danger:not(:disabled):hover {
+  filter: brightness(0.92);
+}
+
+/* Loading (spec 20: "loading and disabled behavior where relevant"). The
+ * label stays in the DOM (not swapped out) so the button's accessible
+ * name never disappears while busy. */
+.btn-loading {
+  cursor: default;
+}
+
+.btn-spinner {
+  display: inline-flex;
+}
+
+/* IconButton: a square, icon-only control. Deliberately not shared class
+ * names with the legacy ad hoc `.icon-button` selectors elsewhere in the
+ * app (App.css and friends) -- those remain unmigrated call sites outside
+ * this slice's claimed scope; this is a separate, self-contained
+ * component so adopting it incrementally elsewhere never risks an
+ * unrelated cascade collision with the old class. */
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition:
+    background-color var(--motion-fast) ease,
+    color var(--motion-fast) ease,
+    opacity var(--motion-fast) ease;
+}
+
+.icon-btn:not(:disabled):hover {
+  background: var(--bg-hover);
+}
+
+.icon-btn:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.icon-btn-active {
+  background: var(--bg-selected);
+  color: var(--text-primary);
+}
+
+/* Sizes (spec 20). -sm matches this app's existing 28px icon-button
+ * footprint (App.css's `.icon-button`) so adopting this component causes
+ * no visual regression at default desktop density; -md is the touch
+ * target size 22.4 requires ("at least 44 by 44 CSS pixels where
+ * possible") for future compact/Android call sites. */
+.icon-btn-sm {
+  width: 28px;
+  height: 28px;
+}
+
+.icon-btn-md {
+  width: 44px;
+  height: 44px;
+}

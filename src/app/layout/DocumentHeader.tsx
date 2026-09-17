@@ -7,19 +7,16 @@ import { Icon as RegistryIcon } from "../../ui/icons";
 /** UX-01 spec section 13.5/UX-005: "Note-specific view, bookmark,
  * Inspector, and overflow actions shall appear in the Document Header or
  * compact equivalent" instead of the global toolbar. Scoped narrower than
- * the full spec for this pass, matching ActivityRail's own Wide+-first
+ * the full spec for this pass, matching ActivityRail's own Medium+-first
  * phasing (section 30's Phase 2 guidance):
  *
- * - Inspector and note-action overflow don't exist as concepts in this
- *   codebase yet (Properties/Backlinks are separate always-visible
- *   sidebar panels, not a togglable Inspector), so neither has a home
- *   here yet either.
+ * - Note-action overflow doesn't exist as a concept in this codebase yet,
+ *   so it has no home here yet either.
  * - The path breadcrumb is the spec's own explicitly-allowed simpler
  *   variant ("The full path is available via tooltip or overflow
  *   details", 13.5), not a separate clickable segmented row.
  *
- * This pass adds what the previous one deliberately left out: title now
- * carries a note icon and a full-path tooltip, and a real save-state
+ * Title carries a note icon and a full-path tooltip; a real save-state
  * message (13.6) sits in the header's center, replacing the note-lock-bar
  * area's `.save-error-bar` duplicate for text notes at this width (the
  * bar stays for canvas/ink notes and narrower widths, where this header
@@ -32,6 +29,12 @@ import { Icon as RegistryIcon } from "../../ui/icons";
  * when a write actually begins) rather than inferred from the 400ms
  * debounce timer, matching 13.6's explicit "must never display Saved
  * based only on a debounce timer."
+ *
+ * The Inspector trigger (13.5: "Inspector action reflects whether the
+ * Inspector is open") toggles `inspectorOpen`, App.tsx's own signal;
+ * Inspector.tsx itself renders elsewhere in the tree, not here -- this
+ * button only reflects and requests that state, per 24.2's
+ * presentational-only rule.
  */
 
 const VIEW_MODE_ICONS: Record<ViewMode, ComponentType> = {
@@ -57,6 +60,8 @@ export interface DocumentHeaderProps {
   saving: boolean;
   saveError: string | null;
   onRetrySave: () => void;
+  inspectorOpen: boolean;
+  onToggleInspector: () => void;
 }
 
 export function DocumentHeader({
@@ -70,6 +75,8 @@ export function DocumentHeader({
   saving,
   saveError,
   onRetrySave,
+  inspectorOpen,
+  onToggleInspector,
 }: DocumentHeaderProps) {
   // Triggered only by the real saving->settled transition below, never by
   // a timer racing typing: this is what keeps the "Saved" pulse honest
@@ -153,6 +160,15 @@ export function DocumentHeader({
           onClick={onToggleBookmark}
         >
           {bookmarked ? <BookmarkFilledIcon /> : <BookmarkIcon />}
+        </button>
+        <button
+          class={`icon-button ${inspectorOpen ? "active" : ""}`}
+          aria-label="Inspector"
+          aria-pressed={inspectorOpen}
+          title="Inspector"
+          onClick={onToggleInspector}
+        >
+          <RegistryIcon name="panelRight" size={16} />
         </button>
       </div>
     </div>

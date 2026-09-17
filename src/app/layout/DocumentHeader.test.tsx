@@ -16,6 +16,8 @@ const BASE_PROPS = {
   saving: false,
   saveError: null as string | null,
   onRetrySave: vi.fn(),
+  inspectorOpen: false,
+  onToggleInspector: vi.fn(),
 };
 
 describe("DocumentHeader", () => {
@@ -62,6 +64,31 @@ describe("DocumentHeader", () => {
   it("shows the full path as a tooltip on the title", () => {
     const { getByTitle } = render(<DocumentHeader {...BASE_PROPS} />);
     expect(getByTitle("/workspace/notes/Meeting notes.md")).toBeTruthy();
+  });
+
+  describe("Inspector trigger (spec 13.5)", () => {
+    it("is not marked active when the Inspector is closed", () => {
+      const { getByLabelText } = render(<DocumentHeader {...BASE_PROPS} inspectorOpen={false} />);
+      const button = getByLabelText("Inspector");
+      expect(button.className).not.toContain("active");
+      expect(button.getAttribute("aria-pressed")).toBe("false");
+    });
+
+    it("is marked active when the Inspector is open", () => {
+      const { getByLabelText } = render(<DocumentHeader {...BASE_PROPS} inspectorOpen={true} />);
+      const button = getByLabelText("Inspector");
+      expect(button.className).toContain("active");
+      expect(button.getAttribute("aria-pressed")).toBe("true");
+    });
+
+    it("invokes onToggleInspector when clicked", () => {
+      const onToggleInspector = vi.fn();
+      const { getByLabelText } = render(
+        <DocumentHeader {...BASE_PROPS} onToggleInspector={onToggleInspector} />,
+      );
+      fireEvent.click(getByLabelText("Inspector"));
+      expect(onToggleInspector).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe("save-state (spec 13.6)", () => {

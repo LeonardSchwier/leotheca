@@ -138,6 +138,7 @@ import { isNarrowViewport } from "./responsiveLayout";
 import { classifyLayout, navigationPanelOverlays, showsActivityRail } from "./layout/adaptiveLayout";
 import { ActivityRail } from "./layout/ActivityRail";
 import { DocumentHeader } from "./layout/DocumentHeader";
+import { Inspector, type InspectorTab } from "./layout/Inspector";
 import { ConfirmDialogHost } from "./ConfirmDialogHost";
 import { createSaveCoordinator } from "../workspace/saveCoordinator";
 import { workspaceTransitions } from "../workspace/workspaceTransition";
@@ -187,6 +188,17 @@ const outlineOpen = signal(false);
 const markdownHelpOpen = signal(false);
 const commandPaletteOpen = signal(false);
 const sidebarOpen = signal(!Capacitor.isNativePlatform());
+// UX-01 spec section 13.7: the Inspector consolidates Properties and
+// Backlinks into one on-demand panel instead of the always-visible inline
+// frontmatter box and always-visible sidebar backlinks list, per that
+// section's own "without permanently reducing editor height." Closed by
+// default, matching every other Activity Rail-adjacent overlay
+// (bookmarksOpen/tagsOpen above). Medium+ only, same scoping as
+// DocumentHeader/ActivityRail (see showsActivityRail's own doc comment);
+// Compact keeps the pre-Inspector always-visible rendering untouched (see
+// App()'s own render tree below).
+const inspectorOpen = signal(false);
+const inspectorTab = signal<InspectorTab>("properties");
 
 // RTL Phase 2: Derived signal for workspace-level RTL mode
 const rtlWorkspaceEnabled = computed(() => workspaceSettings.value.rtlWorkspaceEnabled);
@@ -248,6 +260,22 @@ export function App() {
     return () => window.removeEventListener("keydown", onKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- sidebarOpen.value is a signal read, not plain outer-scope state; the component (and so this effect's own deps array) already re-runs whenever it changes.
   }, [navPanelOverlay, sidebarOpen.value]);
+  // Inspector.tsx is always an overlay in this pass (see its own doc
+  // comment), so its own Escape handling isn't gated on navPanelOverlay
+  // the way the Navigation Panel's above is -- it applies at every width
+  // Inspector can be open at.
+  useEffect(() => {
+    if (!inspectorOpen.value) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        inspectorOpen.value = false;
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- inspectorOpen.value is a signal read, not plain outer-scope state; the component (and so this effect's own deps array) already re-runs whenever it changes.
+  }, [inspectorOpen.value]);
   // Matches the sidebar-content ternary chain's own precedence below
   // exactly (tags > Task Hub > Collections > bookmarks > Files), so the
   // rail's selected destination always agrees with what's actually shown.
@@ -832,6 +860,24 @@ export function App() {
   // its own before this -- it was only ever reachable as the implicit
   // "none of the others" default. Mirrors toggleSidebarPanel's own
   // click-active-again-closes-it behavior for consistency.
+  // Spec 12.4: "Opening one does not automatically close the other unless
+  // the remaining visible surface would be less than 320 CSS pixels."
+  // Rather than compute that threshold precisely against the Inspector's
+  // and Navigation Panel's own resizable widths, this pass takes the
+  // simpler, disclosed position that at Medium width the two overlays are
+  // mutually exclusive outright (there is rarely enough room for both):
+  // whichever one a click just opened wins, closing the other. Wide and
+  // Expanded (navPanelOverlay false) never call this -- there is ample
+  // room for both there, so they stay independent as today.
+  const closeInspectorForMediumOverlayCollision = () => {
+    if (navPanelOverlay && sidebarOpen.value) inspectorOpen.value = false;
+  };
+
+  const toggleInspector = () => {
+    inspectorOpen.value = !inspectorOpen.value;
+    if (navPanelOverlay && inspectorOpen.value) sidebarOpen.value = false;
+  };
+
   const openFilesPanel = () => {
     const filesAlreadyActive =
       sidebarOpen.value &&
@@ -848,10 +894,12 @@ export function App() {
     taskHubOpen.value = false;
     collectionsOpen.value = false;
     sidebarOpen.value = true;
+    closeInspectorForMediumOverlayCollision();
   };
 
   const openTagsPanel = () => {
     toggleSidebarPanel(tagsOpen);
+    closeInspectorForMediumOverlayCollision();
     if (tagsOpen.value && rootPath) {
       void rebuildLinkIndex(
         rootPath,
@@ -1321,7 +1369,10 @@ export function App() {
             graphActive={graphOpen.value}
             tagsEnabled={workspaceSettings.value.tagsEnabled}
             onSelectFiles={openFilesPanel}
-            onSelectBookmarks={() => toggleSidebarPanel(bookmarksOpen)}
+            onSelectBookmarks={() => {
+              toggleSidebarPanel(bookmarksOpen);
+              closeInspectorForMediumOverlayCollision();
+            }}
             onSelectTags={openTagsPanel}
             onOpenGraph={() => {
               if (rootPath) void rebuildLinkIndex(rootPath, workspaceSettings.value.frontmatterAliasesEnabled, workspaceSettings.value.tagsEnabled);
@@ -1381,7 +1432,12 @@ export function App() {
                       }}
                     />
                   )}
-                  {current?.kind === "text" && (
+                  {/* UX-01 spec 13.7: at Medium+ this moves into Inspector's
+                      own Backlinks tab instead (rendered elsewhere in this
+                      tree), so Backlinks is no longer permanently visible
+                      here -- Compact keeps this exact pre-Inspector
+                      rendering, since Inspector doesn't render there. */}
+                  {!showActivityRailNav && current?.kind === "text" && (
                     <BacklinksPanel
                       path={current.path}
                       onOpenFile={handleOpenFile}
@@ -1480,6 +1536,8 @@ export function App() {
               saving={current.saving}
               saveError={current.saveError}
               onRetrySave={() => void save.retry(session, current.path)}
+              inspectorOpen={inspectorOpen.value}
+              onToggleInspector={toggleInspector}
             />
           )}
           {current?.kind === "text" && workspaceSettings.value.noteReadOnlyLockEnabled && (
@@ -1541,13 +1599,20 @@ export function App() {
                   }}
                   canInsertLink={viewMode.value !== "preview"}
                 />
-                <FrontmatterPropertiesPanel
-                  key={current.path}
-                  source={current.content}
-                  onChange={(value) => handleChange(current.path, value)}
-                  enabled={workspaceSettings.value.frontmatterPropertiesEnabled}
-                  readOnly={currentNoteReadOnly}
-                />
+                {/* UX-01 spec 13.7: at Medium+ this moves into Inspector's
+                    own Properties tab instead (rendered elsewhere in this
+                    tree), so it no longer permanently occupies editor
+                    height here -- Compact keeps this exact pre-Inspector
+                    rendering, since Inspector doesn't render there. */}
+                {!showActivityRailNav && (
+                  <FrontmatterPropertiesPanel
+                    key={current.path}
+                    source={current.content}
+                    onChange={(value) => handleChange(current.path, value)}
+                    enabled={workspaceSettings.value.frontmatterPropertiesEnabled}
+                    readOnly={currentNoteReadOnly}
+                  />
+                )}
                 <div class={`editor-panes mode-${viewMode.value}`}>
                   {viewMode.value !== "preview" && (
                     <MarkdownEditor
@@ -1678,6 +1743,24 @@ export function App() {
             </div>
         )}
         </div>
+        {showActivityRailNav && current?.kind === "text" && inspectorOpen.value && (
+          <>
+            <div class="inspector-overlay-backdrop" onClick={() => (inspectorOpen.value = false)} />
+            <Inspector
+              activeTab={inspectorTab.value}
+              onSetActiveTab={(tab) => (inspectorTab.value = tab)}
+              onClose={() => (inspectorOpen.value = false)}
+              properties={{
+                source: current.content,
+                onChange: (value) => handleChange(current.path, value),
+                enabled: workspaceSettings.value.frontmatterPropertiesEnabled,
+                readOnly: currentNoteReadOnly,
+              }}
+              path={current.path}
+              onOpenFile={handleOpenFile}
+            />
+          </>
+        )}
       </div>
       <SettingsPanel onOpenFile={handleOpenFile} />
       {rootPath && <WorkspaceTransitionBanner />}

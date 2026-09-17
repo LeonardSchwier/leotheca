@@ -1559,6 +1559,22 @@ function ensureFilesActive(getByLabelText: (text: string) => HTMLElement): void 
   }
 }
 
+/** Same reasoning as ensureFilesActive above: inspectorOpen is another
+ * not-exported, not-reset-by-afterEach module-level signal internal to
+ * App.tsx, this time toggled by the Document Header's own Inspector
+ * button (only present with a text note open). DOM-checked and closed
+ * via a real click rather than assumed, so a leftover open Inspector from
+ * an earlier test in this file can't flip a later test's own toggle
+ * click the wrong way. */
+function ensureInspectorClosed(
+  container: Element,
+  getByLabelText: (text: string) => HTMLElement,
+): void {
+  if (container.querySelector(".inspector")) {
+    fireEvent.click(getByLabelText("Close Inspector"));
+  }
+}
+
 describe("App: UX-01 Activity Rail (Medium+ layout)", () => {
   it("shows the Activity Rail and hides its now-duplicated toolbar buttons at Wide width", () => {
     Object.defineProperty(window, "innerWidth", { configurable: true, value: 1200 });
@@ -1829,5 +1845,164 @@ describe("App: UX-01 Document Header (Medium+ layout)", () => {
     const { getByLabelText } = render(<App />);
 
     expect(getByLabelText("Unsaved changes")).toBeTruthy();
+  });
+});
+
+describe("App: UX-01 Inspector (Medium+ layout, spec 13.7)", () => {
+  it("moves Properties/Backlinks out of their old always-visible spots at Medium+", () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1200 });
+    workspacePath.value = "/vault";
+    workspaceSettings.value = { ...DEFAULT_WORKSPACE_SETTINGS, frontmatterPropertiesEnabled: true };
+    openOrFocusTab("/vault/a.md", "a.md", "---\ntitle: Hello\n---\nBody", "text");
+    const { container, getByLabelText } = render(<App />);
+    ensureInspectorClosed(container, getByLabelText);
+
+    expect(container.querySelector(".frontmatter-properties")).toBeNull();
+    expect(container.querySelector(".backlinks-panel")).toBeNull();
+    // Closed by default -- opening it is the whole point of this test file's
+    // other cases below.
+    expect(container.querySelector(".inspector")).toBeNull();
+  });
+
+  it("keeps the pre-Inspector inline Properties and sidebar Backlinks at Compact width", () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 600 });
+    workspacePath.value = "/vault";
+    workspaceSettings.value = { ...DEFAULT_WORKSPACE_SETTINGS, frontmatterPropertiesEnabled: true };
+    openOrFocusTab("/vault/a.md", "a.md", "---\ntitle: Hello\n---\nBody", "text");
+    const { container, getByLabelText } = render(<App />);
+    // sidebarOpen (BacklinksPanel's own ancestor) is another not-reset
+    // module-level signal; a Medium-width test earlier in this file may
+    // have left it closed. Compact width uses the toolbar's own sidebar
+    // toggle, not the rail, so ensureFilesActive doesn't apply here.
+    if (!container.querySelector(".sidebar")) {
+      fireEvent.click(getByLabelText("Toggle file browser"));
+    }
+
+    // No Document Header (and so no Inspector trigger) exists at Compact
+    // width at all, so a leaked-open inspectorOpen from an earlier test
+    // cannot affect this one the way it could the Medium+ tests below.
+    expect(container.querySelector(".frontmatter-properties")).toBeTruthy();
+    expect(container.querySelector(".backlinks-panel")).toBeTruthy();
+    expect(container.querySelector(".inspector")).toBeNull();
+  });
+
+  it("opens the Inspector via the Document Header trigger, defaulting to Properties", () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1200 });
+    workspacePath.value = "/vault";
+    workspaceSettings.value = { ...DEFAULT_WORKSPACE_SETTINGS, frontmatterPropertiesEnabled: true };
+    openOrFocusTab("/vault/a.md", "a.md", "---\ntitle: Hello\n---\nBody", "text");
+    const { container, getByLabelText, getByRole } = render(<App />);
+    ensureInspectorClosed(container, getByLabelText);
+
+    fireEvent.click(getByLabelText("Inspector"));
+
+    expect(container.querySelector(".inspector")).toBeTruthy();
+    expect(getByRole("tab", { name: "Properties" }).getAttribute("aria-selected")).toBe("true");
+    expect(getByLabelText("Inspector").getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("switches to the Backlinks tab and shows real backlink data", () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1200 });
+    workspacePath.value = "/vault";
+    linkIndex.value = {
+      ...emptyLinkIndex(),
+      backlinksByPath: new Map([["/vault/a.md", ["/vault/b.md"]]]),
+    };
+    openOrFocusTab("/vault/a.md", "a.md", "hello", "text");
+    const { container, getByLabelText, getByRole, getByText } = render(<App />);
+    ensureInspectorClosed(container, getByLabelText);
+
+    fireEvent.click(getByLabelText("Inspector"));
+    fireEvent.click(getByRole("tab", { name: "Backlinks" }));
+
+    expect(getByText("b.md")).toBeTruthy();
+  });
+
+  it("closes via its own close button", () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1200 });
+    workspacePath.value = "/vault";
+    openOrFocusTab("/vault/a.md", "a.md", "hello", "text");
+    const { container, getByLabelText } = render(<App />);
+    ensureInspectorClosed(container, getByLabelText);
+
+    fireEvent.click(getByLabelText("Inspector"));
+    expect(container.querySelector(".inspector")).toBeTruthy();
+
+    fireEvent.click(getByLabelText("Close Inspector"));
+    expect(container.querySelector(".inspector")).toBeNull();
+  });
+
+  it("closes on Escape", () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1200 });
+    workspacePath.value = "/vault";
+    openOrFocusTab("/vault/a.md", "a.md", "hello", "text");
+    const { container, getByLabelText } = render(<App />);
+    ensureInspectorClosed(container, getByLabelText);
+
+    fireEvent.click(getByLabelText("Inspector"));
+    expect(container.querySelector(".inspector")).toBeTruthy();
+
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(container.querySelector(".inspector")).toBeNull();
+  });
+
+  it("closes when clicking its own backdrop", () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1200 });
+    workspacePath.value = "/vault";
+    openOrFocusTab("/vault/a.md", "a.md", "hello", "text");
+    const { container, getByLabelText } = render(<App />);
+    ensureInspectorClosed(container, getByLabelText);
+
+    fireEvent.click(getByLabelText("Inspector"));
+    fireEvent.click(container.querySelector(".inspector-overlay-backdrop")!);
+
+    expect(container.querySelector(".inspector")).toBeNull();
+  });
+
+  it("hides the Properties tab and defaults to Backlinks when frontmatterPropertiesEnabled is off", () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1200 });
+    workspacePath.value = "/vault";
+    workspaceSettings.value = { ...DEFAULT_WORKSPACE_SETTINGS, frontmatterPropertiesEnabled: false };
+    openOrFocusTab("/vault/a.md", "a.md", "hello", "text");
+    const { container, getByLabelText, getByRole, queryByRole } = render(<App />);
+    ensureInspectorClosed(container, getByLabelText);
+
+    fireEvent.click(getByLabelText("Inspector"));
+
+    expect(queryByRole("tab", { name: "Properties" })).toBeNull();
+    expect(getByRole("tab", { name: "Backlinks" }).getAttribute("aria-selected")).toBe("true");
+  });
+
+  it("at Wide width, opening the Inspector leaves an open Navigation Panel untouched", () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1200 });
+    workspacePath.value = "/vault";
+    openOrFocusTab("/vault/a.md", "a.md", "hello", "text");
+    const { container, getByLabelText } = render(<App />);
+    ensureInspectorClosed(container, getByLabelText);
+    ensureFilesActive(getByLabelText);
+    expect(container.querySelector(".sidebar")).toBeTruthy();
+
+    fireEvent.click(getByLabelText("Inspector"));
+
+    expect(container.querySelector(".sidebar")).toBeTruthy();
+    expect(container.querySelector(".inspector")).toBeTruthy();
+  });
+
+  it("at Medium width, opening the Inspector and the Navigation Panel are mutually exclusive (spec 12.4)", () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 900 });
+    workspacePath.value = "/vault";
+    openOrFocusTab("/vault/a.md", "a.md", "hello", "text");
+    const { container, getByLabelText } = render(<App />);
+    ensureInspectorClosed(container, getByLabelText);
+    ensureFilesActive(getByLabelText);
+    expect(container.querySelector(".sidebar")).toBeTruthy();
+
+    fireEvent.click(getByLabelText("Inspector"));
+    expect(container.querySelector(".sidebar")).toBeNull();
+    expect(container.querySelector(".inspector")).toBeTruthy();
+
+    fireEvent.click(getByLabelText("Files"));
+    expect(container.querySelector(".sidebar")).toBeTruthy();
+    expect(container.querySelector(".inspector")).toBeNull();
   });
 });

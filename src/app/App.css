@@ -392,6 +392,93 @@ button.icon-button.active {
   }
 }
 
+/* UX-01 spec section 13.7: consolidated Properties/Backlinks panel,
+   overlaying from the right at every width it appears at (Medium+, see
+   Inspector.tsx's own doc comment for why this pass always overlays
+   rather than adding an optional docked mode at Expanded). Mirrors
+   .sidebar--overlay's own anchoring/elevation/backdrop pattern exactly,
+   mirrored to the opposite edge. */
+.inspector {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  width: 320px;
+  max-width: 90vw;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-sunken);
+  border-left: 1px solid var(--border);
+  box-shadow: var(--shadow-high);
+}
+
+.inspector-overlay-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 19;
+  background: rgba(0, 0, 0, 0.25);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .inspector {
+    animation: inspector-overlay-in var(--motion-sheet) ease-out;
+  }
+}
+
+@keyframes inspector-overlay-in {
+  from {
+    transform: translateX(8px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.inspector-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.inspector-tabs {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.inspector-tabs button {
+  background: none;
+  border: none;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.inspector-tabs button:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.inspector-tabs button.active {
+  background: var(--color-selected);
+  color: var(--text-primary);
+}
+
+.inspector-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-2);
+}
+
 .editor-area {
   flex: 1;
   display: flex;

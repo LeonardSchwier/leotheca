@@ -1247,9 +1247,10 @@ button.icon-button.active {
    approximately 800px wide." Settings previously had no width override at
    all, so it inherited .modal's own 420px -- reasonable for a short
    confirmation dialog, cramped for Settings' actual content (General,
-   Appearance, Features, Workspace Profiles, Shortcuts, Health, About),
-   all still stacked in one column here (categorized left-nav Settings, the
-   rest of 16.1, is separate follow-up work). Same width: min(...) shape as
+   Appearance, Features, Workspace Profiles, Shortcuts, Health, About).
+   Desktop width matches 16.1's "approximately 800px wide"; the
+   `max-width: 720px` media query below overrides this to a true
+   full-screen presentation per 16.2. Same width: min(...) shape as
    .command-palette just below, for the same narrow-viewport reason its own
    comment explains. */
 .settings-panel {
@@ -1423,6 +1424,16 @@ button.icon-button.active {
 .settings-content {
   flex: 1;
   min-width: 0;
+}
+
+/* UX-01 spec 16.2's compact category-list-then-detail Back action.
+   Hidden outside the `max-width: 720px` compact breakpoint below, where
+   the category list and detail content already sit side by side and a
+   Back control would be meaningless -- see SettingsPanel.tsx's own
+   compactDetailOpen doc comment for why this needs no JS-side width
+   check to stay correct at every width. */
+.settings-compact-back {
+  display: none;
 }
 
 .settings-section {
@@ -2022,18 +2033,58 @@ button.icon-button.active {
     cursor: not-allowed;
   }
 
-  /* A real compact Settings (full-screen, category-list-then-detail
-     navigation per spec section 16.2) is separate follow-up work; this
-     alone just keeps the new category nav from squeezing into a narrow
-     side column on a phone-width Settings dialog. */
+  /* UX-01 spec 16.2: compact Settings uses a full-screen presentation
+     with a category landing page, then a detail page per category.
+     .settings-panel grows to fill the viewport (overriding just this one
+     modal's own width/height, not .modal generally -- every other dialog
+     sharing that class is unaffected); .settings-body's two children
+     (the category list and the detail content) are toggled by
+     compactDetailOpen's settings-body--compact-detail class rather than
+     being shown side by side, both only true here, under this same
+     breakpoint SettingsPanel.tsx's own narrow-width behavior already
+     used before this pass. */
+  .settings-panel {
+    width: 100vw;
+    max-width: 100vw;
+    height: 100vh;
+    max-height: 100vh;
+    border-radius: 0;
+  }
+
   .settings-body {
     flex-direction: column;
   }
 
   .settings-nav {
-    flex-direction: row;
-    flex-wrap: wrap;
+    flex-direction: column;
     width: auto;
+  }
+
+  .settings-nav button {
+    min-height: 44px;
+    font-size: 15px;
+  }
+
+  .settings-body--compact-detail .settings-nav {
+    display: none;
+  }
+
+  .settings-body:not(.settings-body--compact-detail) .settings-content {
+    display: none;
+  }
+
+  .settings-body--compact-detail .settings-compact-back {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    margin-bottom: var(--space-2);
+    background: none;
+    border: none;
+    color: var(--color-accent);
+    font: inherit;
+    font-size: 15px;
+    cursor: pointer;
+    padding: 0;
   }
 }
 

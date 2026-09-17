@@ -1,5 +1,5 @@
 import { effect } from "@preact/signals";
-import { useState } from "preact/hooks";
+import { useEffect, useState } from "preact/hooks";
 import licenseText from "../../LICENSE?raw";
 import { Capacitor } from "@capacitor/core";
 import {
@@ -152,6 +152,22 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
   const [folderPickerLoading, setFolderPickerLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState<SettingsCategory>("general");
+  // UX-01 spec 16.2: "A category landing page lists the same categories.
+  // Selecting a category opens a detail page." Deliberately not driven by
+  // any JS-side viewport-width check: the category list and the detail
+  // pane both stay in the DOM at every width, and this state's effect on
+  // which one is visible is entirely scoped to App.css's own
+  // `max-width: 720px` media query (the same breakpoint this panel's
+  // existing narrow-width override already uses). Outside that query this
+  // flag has no visible effect at all -- nav and content render side by
+  // side exactly as they did before this pass, matching 16.1. Resets to
+  // the landing page every time Settings re-opens (an effect below), not
+  // persisted across a close/reopen.
+  const [compactDetailOpen, setCompactDetailOpen] = useState(false);
+  useEffect(() => {
+    if (settingsPanelOpen.value) setCompactDetailOpen(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- settingsPanelOpen.value is a signal read, not plain outer-scope state; the component (and so this effect's own deps array) already re-runs whenever it changes.
+  }, [settingsPanelOpen.value]);
 
   // Link Diagnostics (Health section) reads the shared linkIndex directly,
   // the same as it did in its old sidebar-panel home; refreshed on open so
@@ -331,6 +347,17 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
     { id: "about", label: "About", visible: aboutVisible },
   ];
 
+  // A live search already bypasses category selection (inActiveCategory
+  // above); at compact width it also bypasses the category-list landing
+  // page itself and jumps straight to results, the same way selecting a
+  // category explicitly would -- typing to search is itself a clear
+  // enough signal the user doesn't need the intermediate list screen.
+  const compactShowingDetail = compactDetailOpen || searchQuery.trim() !== "";
+  const returnToCompactList = () => {
+    setCompactDetailOpen(false);
+    setSearchQuery("");
+  };
+
   return (
     <div
       class="modal-overlay"
@@ -367,7 +394,7 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
           <p class="empty-hint">No settings match &quot;{searchQuery.trim()}&quot;.</p>
         )}
 
-        <div class="settings-body">
+        <div class={`settings-body ${compactShowingDetail ? "settings-body--compact-detail" : ""}`}>
           <nav class="settings-nav" aria-label="Settings categories">
             {categories
               .filter((category) => category.visible)
@@ -376,13 +403,23 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                   key={category.id}
                   class={activeCategory === category.id ? "active" : ""}
                   aria-current={activeCategory === category.id ? "true" : undefined}
-                  onClick={() => setActiveCategory(category.id)}
+                  onClick={() => {
+                    setActiveCategory(category.id);
+                    setCompactDetailOpen(true);
+                  }}
                 >
                   {category.label}
                 </button>
               ))}
           </nav>
           <div class="settings-content">
+        {/* UX-01 spec 16.2: "Each category retains a stable heading and
+            Close or Back action." Only visible under App.css's own
+            `max-width: 720px` media query -- see compactDetailOpen's own
+            doc comment above for why this needs no JS-side width check. */}
+        <button type="button" class="settings-compact-back" onClick={returnToCompactList}>
+          ← Back
+        </button>
         {generalVisible && inActiveCategory("general") && (
         <section class="settings-section">
           <h3>General</h3>

@@ -696,6 +696,80 @@ describe("SettingsPanel", () => {
     });
   });
 
+  // App.css's own `max-width: 720px` media query is what actually makes
+  // any of this visible (jsdom doesn't evaluate real CSS media queries,
+  // so these tests exercise the underlying state/class toggling that
+  // query reads, not literal pixel visibility -- see App.css's and
+  // SettingsPanel.tsx's own compactDetailOpen doc comments for why no
+  // JS-side viewport-width check is involved at all).
+  describe("UX-01 spec section 16.2: compact category-list-then-detail Settings", () => {
+    it("starts on the landing page (no compact-detail class) when Settings opens", () => {
+      workspacePath.value = "/vault";
+      const { container } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+
+      expect(container.querySelector(".settings-body")?.className).not.toContain(
+        "settings-body--compact-detail",
+      );
+    });
+
+    it("selecting a category switches to the compact-detail state", () => {
+      workspacePath.value = "/vault";
+      const { container, getByRole } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+
+      openCategory(getByRole, "Appearance");
+
+      expect(container.querySelector(".settings-body")?.className).toContain(
+        "settings-body--compact-detail",
+      );
+    });
+
+    it("clicking Back returns to the landing page and clears the search query", () => {
+      workspacePath.value = "/vault";
+      const { container, getByRole, getByPlaceholderText } = render(
+        <SettingsPanel onOpenFile={vi.fn()} />,
+      );
+      openCategory(getByRole, "Appearance");
+      const searchInput = getByPlaceholderText("Search settings…") as HTMLInputElement;
+      fireEvent.input(searchInput, { target: { value: "theme" } });
+
+      fireEvent.click(container.querySelector(".settings-compact-back")!);
+
+      expect(container.querySelector(".settings-body")?.className).not.toContain(
+        "settings-body--compact-detail",
+      );
+      expect(searchInput.value).toBe("");
+    });
+
+    it("typing a search query switches to the compact-detail state without selecting a category first", () => {
+      workspacePath.value = "/vault";
+      const { container, getByPlaceholderText } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+
+      fireEvent.input(getByPlaceholderText("Search settings…"), { target: { value: "theme" } });
+
+      expect(container.querySelector(".settings-body")?.className).toContain(
+        "settings-body--compact-detail",
+      );
+    });
+
+    it("resets to the landing page the next time Settings is reopened", () => {
+      workspacePath.value = "/vault";
+      const { container, getByRole, rerender } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+      openCategory(getByRole, "Appearance");
+      expect(container.querySelector(".settings-body")?.className).toContain(
+        "settings-body--compact-detail",
+      );
+
+      settingsPanelOpen.value = false;
+      rerender(<SettingsPanel onOpenFile={vi.fn()} />);
+      settingsPanelOpen.value = true;
+      rerender(<SettingsPanel onOpenFile={vi.fn()} />);
+
+      expect(container.querySelector(".settings-body")?.className).not.toContain(
+        "settings-body--compact-detail",
+      );
+    });
+  });
+
   describe("Saving indicator (2026-09-04)", () => {
     it("shows a Saving… status in the header while workspaceSettingsSaving is true", () => {
       workspacePath.value = "/vault";

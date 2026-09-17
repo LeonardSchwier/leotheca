@@ -137,6 +137,7 @@ import { isNarrowViewport } from "./responsiveLayout";
 import { classifyLayout, showsActivityRail } from "./layout/adaptiveLayout";
 import { ActivityRail } from "./layout/ActivityRail";
 import { DocumentHeader } from "./layout/DocumentHeader";
+import { ConfirmDialogHost } from "./ConfirmDialogHost";
 import { createSaveCoordinator } from "../workspace/saveCoordinator";
 import { workspaceTransitions } from "../workspace/workspaceTransition";
 import { EmptyEditorState } from "./EmptyEditorState";
@@ -1693,6 +1694,7 @@ export function App() {
       {commandPaletteOpen.value && (
         <CommandPalette commands={commands} onClose={() => (commandPaletteOpen.value = false)} />
       )}
+      <ConfirmDialogHost />
       {imageOverlay && (
         <ImageViewerOverlay
           src={imageOverlay.src}

@@ -16,6 +16,7 @@ import {
   workspaceSwitcherOpenRequest,
 } from "./workspaceSwitcherControl";
 import type { WorkspaceIcon } from "./globalConfig";
+import { confirmAction } from "../app/confirmDialog";
 
 const ICON_GLYPHS: Record<WorkspaceIcon, string> = {
   folder: "📁",
@@ -50,9 +51,12 @@ export async function forgetWithUnsavedWorkConfirmation(id: string): Promise<voi
     await forgetWorkspaceProfile(id);
   } catch (error) {
     if (error instanceof WorkspaceForgetUnsavedWorkError) {
-      const discard = window.confirm(
-        "This workspace has changes that have not been saved yet. Forget it anyway and lose those changes?",
-      );
+      const discard = await confirmAction({
+        title: "Forget workspace",
+        message: "This workspace has changes that have not been saved yet. Forget it anyway and lose those changes?",
+        confirmLabel: "Forget anyway",
+        danger: true,
+      });
       if (!discard) return;
       try {
         await forgetWorkspaceProfile(id, { discardUnsaved: true });

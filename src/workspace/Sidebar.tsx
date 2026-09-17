@@ -21,6 +21,7 @@ import type { FsEntry } from "./types";
 import { workspaceSettings } from "../settings/store";
 import { useRenamePreview } from "../refactor/useRenamePreview";
 import { RenamePreviewDialog } from "../refactor/RenamePreviewDialog";
+import { confirmAction } from "../app/confirmDialog";
 
 const SEARCH_DEBOUNCE_MS = 200;
 
@@ -138,7 +139,12 @@ export function Sidebar({ rootPath, onOpenFile, flushPendingAutosave }: SidebarP
 
   const handleDelete = async (entry: FsEntry) => {
     if (workspaceSettings.value.deleteBehavior === "permanent") {
-      const confirmed = window.confirm(`Permanently delete "${entry.name}"? This cannot be undone.`);
+      const confirmed = await confirmAction({
+        title: "Delete permanently",
+        message: `Permanently delete "${entry.name}"? This cannot be undone.`,
+        confirmLabel: "Delete",
+        danger: true,
+      });
       if (!confirmed) return;
     }
     // Same reasoning as the rename flush above: without this, a still-

@@ -2,6 +2,7 @@ import { useState } from "preact/hooks";
 import { workspaceTransitionRecovery } from "./store";
 import { workspaceTransitions } from "../workspace/workspaceTransition";
 import type { WorkspaceTransitionRecoveryAction } from "../workspace/workspaceTransitionRecovery";
+import { confirmAction } from "../app/confirmDialog";
 
 const ACTION_LABELS: Record<WorkspaceTransitionRecoveryAction["id"], string> = {
   retry: "Retry",
@@ -29,8 +30,8 @@ const ACTION_LABELS: Record<WorkspaceTransitionRecoveryAction["id"], string> = {
  * action id to its label and its already-bound closure, never re-derive
  * which ids are valid for which kind itself. `discard`'s destructive intent
  * (spec 16.6: "requires explicit confirmation... unsaved editor changes can
- * be lost") gets a `window.confirm` gate the other, non-destructive actions
- * don't need.
+ * be lost") gets a shared-confirm-dialog gate (confirmDialog.ts, per UX-01
+ * spec 15.4) the other, non-destructive actions don't need.
  */
 export function WorkspaceTransitionBanner() {
   const [busy, setBusy] = useState<WorkspaceTransitionRecoveryAction["id"] | null>(null);
@@ -51,10 +52,16 @@ export function WorkspaceTransitionBanner() {
     }
   };
 
-  const handleAction = (action: WorkspaceTransitionRecoveryAction) => {
+  const handleAction = async (action: WorkspaceTransitionRecoveryAction) => {
     if (action.id === "discard") {
       if (!recovery.discard) return;
-      if (!window.confirm("Unsaved changes in this workspace will be lost. Switch anyway?")) return;
+      const confirmed = await confirmAction({
+        title: "Switch without saving",
+        message: "Unsaved changes in this workspace will be lost. Switch anyway?",
+        confirmLabel: "Switch anyway",
+        danger: true,
+      });
+      if (!confirmed) return;
       void run("discard", recovery.discard);
       return;
     }
@@ -80,7 +87,7 @@ export function WorkspaceTransitionBanner() {
           <button
             key={action.id}
             class={action.id === "discard" ? "workspace-transition-banner-danger" : undefined}
-            onClick={() => handleAction(action)}
+            onClick={() => void handleAction(action)}
             disabled={busy !== null}
           >
             {busy === action.id ? "Working…" : ACTION_LABELS[action.id]}

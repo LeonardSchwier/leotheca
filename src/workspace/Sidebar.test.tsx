@@ -66,6 +66,10 @@ vi.mock("../settings/store", () => ({
 }));
 
 const { Sidebar } = await import("./Sidebar");
+const { workspaceSettings } = await import("../settings/store");
+const { DEFAULT_WORKSPACE_SETTINGS } = await import("../settings/workspaceSettings");
+const { ConfirmDialogHost } = await import("../app/ConfirmDialogHost");
+const { confirmRequest } = await import("../app/confirmDialog");
 
 const note: FsEntry = { name: "note.md", path: "/workspace/note.md", isDir: false };
 
@@ -143,6 +147,46 @@ describe("Sidebar rename/delete flush the pending autosave for the affected file
 
   afterEach(() => {
     cleanup();
+    workspaceSettings.value = { ...DEFAULT_WORKSPACE_SETTINGS, deleteBehavior: "project-trash", sortOrder: "name-asc" };
+    confirmRequest.value = null;
+  });
+
+  it("permanent delete asks for confirmation via the shared confirm dialog and only deletes once confirmed", async () => {
+    workspaceSettings.value = { ...DEFAULT_WORKSPACE_SETTINGS, deleteBehavior: "permanent", sortOrder: "name-asc" };
+    contextMenuTarget.value = note;
+    const { getByText, getByRole } = render(
+      <>
+        <Sidebar rootPath="/workspace" onOpenFile={vi.fn()} flushPendingAutosave={flushPendingAutosave} />
+        <ConfirmDialogHost />
+      </>,
+    );
+
+    fireEvent.click(getByText("Delete"));
+    expect(deleteEntry).not.toHaveBeenCalled();
+    expect(getByRole("alertdialog")).toBeTruthy();
+
+    fireEvent.click(getByRole("button", { name: "Delete" }));
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    expect(deleteEntry).toHaveBeenCalledWith("/workspace", "/workspace/note.md");
+  });
+
+  it("permanent delete does nothing when the confirmation is cancelled", async () => {
+    workspaceSettings.value = { ...DEFAULT_WORKSPACE_SETTINGS, deleteBehavior: "permanent", sortOrder: "name-asc" };
+    contextMenuTarget.value = note;
+    const { getByText, getByRole, queryByRole } = render(
+      <>
+        <Sidebar rootPath="/workspace" onOpenFile={vi.fn()} flushPendingAutosave={flushPendingAutosave} />
+        <ConfirmDialogHost />
+      </>,
+    );
+
+    fireEvent.click(getByText("Delete"));
+    fireEvent.click(getByRole("button", { name: "Cancel" }));
+    await Promise.resolve();
+
+    expect(deleteEntry).not.toHaveBeenCalled();
+    expect(queryByRole("alertdialog")).toBeNull();
   });
 
   it("renaming a file flushes its pending autosave before renameEntry runs", async () => {

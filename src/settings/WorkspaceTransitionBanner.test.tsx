@@ -23,6 +23,8 @@ vi.mock("../workspace/workspaceTransition", () => ({
 
 import { WorkspaceTransitionBanner } from "./WorkspaceTransitionBanner";
 import { workspaceTransitionRecovery } from "./store";
+import { ConfirmDialogHost } from "../app/ConfirmDialogHost";
+import { confirmRequest } from "../app/confirmDialog";
 
 function makeRecovery(overrides: Partial<WorkspaceTransitionRecoveryInfo> = {}): WorkspaceTransitionRecoveryInfo {
   return {
@@ -49,6 +51,7 @@ afterEach(() => {
   cleanup();
   workspaceTransitionRecovery.value = null;
   transitionState.value = { status: "idle" };
+  confirmRequest.value = null;
 });
 
 describe("WorkspaceTransitionBanner", () => {
@@ -120,7 +123,7 @@ describe("WorkspaceTransitionBanner", () => {
     expect(recovery.relink).toHaveBeenCalledTimes(1);
   });
 
-  it("gates discard behind window.confirm and does nothing if declined", () => {
+  it("gates discard behind the shared confirm dialog and does nothing if declined", async () => {
     const recovery = makeRecovery({
       kind: "save_failed",
       actions: [
@@ -129,17 +132,23 @@ describe("WorkspaceTransitionBanner", () => {
       ],
     });
     workspaceTransitionRecovery.value = recovery;
-    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
 
-    const { getByText } = render(<WorkspaceTransitionBanner />);
+    const { getByText, getByRole } = render(
+      <>
+        <WorkspaceTransitionBanner />
+        <ConfirmDialogHost />
+      </>,
+    );
     fireEvent.click(getByText("Switch without saving"));
+    expect(getByRole("alertdialog")).toBeTruthy();
 
-    expect(confirmSpy).toHaveBeenCalledTimes(1);
+    fireEvent.click(getByRole("button", { name: "Cancel" }));
+    await Promise.resolve();
+
     expect(recovery.discard).not.toHaveBeenCalled();
-    confirmSpy.mockRestore();
   });
 
-  it("calls discard once window.confirm is accepted", () => {
+  it("calls discard once the shared confirm dialog is accepted", async () => {
     const recovery = makeRecovery({
       kind: "save_failed",
       actions: [
@@ -148,13 +157,18 @@ describe("WorkspaceTransitionBanner", () => {
       ],
     });
     workspaceTransitionRecovery.value = recovery;
-    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
 
-    const { getByText } = render(<WorkspaceTransitionBanner />);
+    const { getByText, getByRole } = render(
+      <>
+        <WorkspaceTransitionBanner />
+        <ConfirmDialogHost />
+      </>,
+    );
     fireEvent.click(getByText("Switch without saving"));
+    fireEvent.click(getByRole("button", { name: "Switch anyway" }));
+    await Promise.resolve();
 
     expect(recovery.discard).toHaveBeenCalledTimes(1);
-    confirmSpy.mockRestore();
   });
 
   it("dismisses by resetting workspaceTransitions.state to idle, without calling any recovery action", () => {

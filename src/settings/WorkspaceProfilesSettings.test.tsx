@@ -36,6 +36,8 @@ import {
   setWorkspaceProfileIcon,
   workspaceProfiles,
 } from "./store";
+import { ConfirmDialogHost } from "../app/ConfirmDialogHost";
+import { confirmRequest } from "../app/confirmDialog";
 
 const DESKTOP: WorkspaceProfile = {
   id: "desktop",
@@ -57,6 +59,7 @@ afterEach(() => {
   cleanup();
   workspaceProfiles.value = [];
   activeWorkspaceId.value = null;
+  confirmRequest.value = null;
   vi.restoreAllMocks();
   vi.mocked(addWorkspaceFromPicker).mockReset().mockResolvedValue(undefined);
   vi.mocked(forgetWorkspaceProfile).mockReset().mockResolvedValue(undefined);
@@ -129,31 +132,45 @@ describe("WorkspaceProfilesSettings", () => {
   it("offers a confirmed 'forget without saving' retry when unsaved work blocks forgetting the active profile", async () => {
     workspaceProfiles.value = [DESKTOP];
     activeWorkspaceId.value = "desktop";
-    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
     vi.mocked(forgetWorkspaceProfile).mockRejectedValueOnce(
       new MockWorkspaceForgetUnsavedWorkError("unsaved"),
     );
 
-    const { getByText } = render(<WorkspaceProfilesSettings />);
+    const { getByText, getByRole } = render(
+      <>
+        <WorkspaceProfilesSettings />
+        <ConfirmDialogHost />
+      </>,
+    );
     fireEvent.click(getByText("Forget"));
     await Promise.resolve();
     await Promise.resolve();
 
-    expect(confirm).toHaveBeenCalled();
+    expect(getByRole("alertdialog")).toBeTruthy();
+    fireEvent.click(getByRole("button", { name: "Forget anyway" }));
+    await Promise.resolve();
+
     expect(forgetWorkspaceProfile).toHaveBeenNthCalledWith(2, "desktop", { discardUnsaved: true });
   });
 
   it("does not retry forgetting the active profile when the unsaved-work confirmation is declined", async () => {
     workspaceProfiles.value = [DESKTOP];
     activeWorkspaceId.value = "desktop";
-    vi.spyOn(window, "confirm").mockReturnValue(false);
     vi.mocked(forgetWorkspaceProfile).mockRejectedValueOnce(
       new MockWorkspaceForgetUnsavedWorkError("unsaved"),
     );
 
-    const { getByText } = render(<WorkspaceProfilesSettings />);
+    const { getByText, getByRole } = render(
+      <>
+        <WorkspaceProfilesSettings />
+        <ConfirmDialogHost />
+      </>,
+    );
     fireEvent.click(getByText("Forget"));
     await Promise.resolve();
+    await Promise.resolve();
+
+    fireEvent.click(getByRole("button", { name: "Cancel" }));
     await Promise.resolve();
 
     expect(forgetWorkspaceProfile).toHaveBeenCalledTimes(1);

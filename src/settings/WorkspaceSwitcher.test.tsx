@@ -25,6 +25,8 @@ vi.mock("./store", () => ({
 }));
 
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
+import { ConfirmDialogHost } from "../app/ConfirmDialogHost";
+import { confirmRequest } from "../app/confirmDialog";
 import {
   activateWorkspaceProfile,
   activeWorkspaceId,
@@ -55,6 +57,7 @@ afterEach(() => {
   workspaceSwitcherOpenRequest.value = 0;
   workspaceAddRequest.value = 0;
   workspaceManageRequest.value = 0;
+  confirmRequest.value = null;
   vi.mocked(activateWorkspaceProfile).mockReset().mockResolvedValue(undefined);
   vi.mocked(addWorkspaceFromPicker).mockReset().mockResolvedValue(undefined);
   vi.mocked(forgetWorkspaceProfile).mockReset().mockResolvedValue(undefined);
@@ -172,33 +175,46 @@ describe("WorkspaceSwitcher", () => {
   it("offers a confirmed 'forget without saving' retry when unsaved work blocks forgetting the active profile", async () => {
     workspaceProfiles.value = [PROFILE_A];
     activeWorkspaceId.value = "a";
-    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
     vi.mocked(forgetWorkspaceProfile).mockRejectedValueOnce(
       new MockWorkspaceForgetUnsavedWorkError("unsaved"),
     );
 
-    const { getByLabelText } = render(<WorkspaceSwitcher />);
+    const { getByLabelText, getByRole } = render(
+      <>
+        <WorkspaceSwitcher />
+        <ConfirmDialogHost />
+      </>,
+    );
     fireEvent.click(getByLabelText("Switch workspace"));
     fireEvent.click(getByLabelText("Forget Personal"));
     await Promise.resolve();
     await Promise.resolve();
 
-    expect(confirm).toHaveBeenCalled();
+    fireEvent.click(getByRole("button", { name: "Forget anyway" }));
+    await Promise.resolve();
+
     expect(forgetWorkspaceProfile).toHaveBeenNthCalledWith(2, "a", { discardUnsaved: true });
   });
 
   it("does not retry forgetting the active profile when the unsaved-work confirmation is declined", async () => {
     workspaceProfiles.value = [PROFILE_A];
     activeWorkspaceId.value = "a";
-    vi.spyOn(window, "confirm").mockReturnValue(false);
     vi.mocked(forgetWorkspaceProfile).mockRejectedValueOnce(
       new MockWorkspaceForgetUnsavedWorkError("unsaved"),
     );
 
-    const { getByLabelText } = render(<WorkspaceSwitcher />);
+    const { getByLabelText, getByRole } = render(
+      <>
+        <WorkspaceSwitcher />
+        <ConfirmDialogHost />
+      </>,
+    );
     fireEvent.click(getByLabelText("Switch workspace"));
     fireEvent.click(getByLabelText("Forget Personal"));
     await Promise.resolve();
+    await Promise.resolve();
+
+    fireEvent.click(getByRole("button", { name: "Cancel" }));
     await Promise.resolve();
 
     expect(forgetWorkspaceProfile).toHaveBeenCalledTimes(1);

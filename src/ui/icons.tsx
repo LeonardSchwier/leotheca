@@ -38,12 +38,25 @@ export type IconName =
   | "code"
   | "eye";
 
-/** Every path/shape below sits on a 24x24 canvas at the spec's
- * ~1.75px-at-20px stroke weight (scaled here to 1.75 * 24/20 = 2.1 so a
- * 20px rendered icon keeps that exact stroke weight), round caps/joins,
- * no fill except where an icon's meaning specifically needs a solid dot
- * (a period, a pupil) -- see each icon's own shape for that exception. */
-const STROKE_WIDTH = 2.1;
+/** Every path/shape below sits on a 24x24 canvas, round caps/joins, no
+ * fill except where an icon's meaning specifically needs a solid dot (a
+ * period, a pupil) -- see each icon's own shape for that exception.
+ *
+ * UX-01 icon-convention reconciliation: this registry originally used a
+ * 2.1 stroke width (the spec's literal ~1.75px-at-20px reading, scaled to
+ * this file's 24-unit canvas). That produced a visibly heavier stroke
+ * than `src/app/shellIcons.tsx`'s already-shipped, already-user-visible
+ * toolbar icons (1.5 stroke on a 20-unit canvas, a 7.5% stroke-to-canvas
+ * ratio) once both were rendered at a comparable on-screen size --
+ * confirmed visually via headless Chromium screenshots of both sets side
+ * by side. Rather than redraw every path here onto shellIcons.tsx's
+ * 20-unit canvas (this file's icons are more numerous and more complex),
+ * this stroke width is set to the same 7.5% ratio scaled to a 24-unit
+ * canvas (24 * 0.075 = 1.8), so an icon from either set renders at the
+ * same relative visual weight for a given pixel size. shellIcons.tsx
+ * itself is unchanged; migrating its 15 call sites onto this registry
+ * remains separate follow-up (see ROADMAP.md). */
+const STROKE_WIDTH = 1.8;
 
 const ICON_SHAPES: Record<IconName, () => JSX.Element> = {
   close: () => (

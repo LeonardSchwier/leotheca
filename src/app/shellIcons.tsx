@@ -9,11 +9,12 @@
  * icons hit separately.
  *
  * One consistent convention throughout: 15px render size, 20x20 viewBox,
- * 1.5 stroke width, currentColor. This predates and differs from
- * src/ui/icons.tsx's separately-introduced registry (2.1 stroke at a
- * 24x24 canvas); reconciling the two is tracked as follow-up in
- * ROADMAP.md rather than risked in the same pass that discovered the
- * mismatch. */
+ * 1.5 stroke width, currentColor (a 7.5% stroke-to-canvas ratio). This
+ * predates src/ui/icons.tsx's separately-introduced registry, whose own
+ * stroke width is now tuned to match this same 7.5% ratio on its 24x24
+ * canvas so both sets carry the same relative visual weight; migrating
+ * these 15 call sites onto that registry's shapes remains separate
+ * follow-up (see ROADMAP.md), not attempted here. */
 
 export function FilesIcon() {
   return (

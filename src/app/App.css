@@ -1208,6 +1208,56 @@ button.icon-button.active {
   font-size: 13px;
 }
 
+/* UX-01 spec section 16.1: "left category navigation; right scrollable
+   content pane." Both regions scroll together as one unit within .modal's
+   own existing scroll container (see .modal's own comment on why it has a
+   height cap and scrolls at all) rather than each having an independent
+   scroll region: the simpler, already-proven-correct behavior, at the
+   disclosed cost of the category nav not staying pinned in view on a very
+   tall Settings page. A real independent-scroll-regions version is
+   follow-up work, not attempted here. */
+.settings-body {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-6);
+}
+
+.settings-nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  flex-shrink: 0;
+  width: 160px;
+}
+
+.settings-nav button {
+  text-align: left;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.settings-nav button:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.settings-nav button.active {
+  background: var(--color-selected);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.settings-content {
+  flex: 1;
+  min-width: 0;
+}
+
 .settings-section {
   margin-bottom: var(--space-4);
 }
@@ -1770,6 +1820,20 @@ button.icon-button.active {
     background-color: var(--color-accent);
     opacity: 0.5;
     cursor: not-allowed;
+  }
+
+  /* A real compact Settings (full-screen, category-list-then-detail
+     navigation per spec section 16.2) is separate follow-up work; this
+     alone just keeps the new category nav from squeezing into a narrow
+     side column on a phone-width Settings dialog. */
+  .settings-body {
+    flex-direction: column;
+  }
+
+  .settings-nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+    width: auto;
   }
 }
 

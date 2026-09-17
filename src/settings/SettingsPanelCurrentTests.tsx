@@ -40,6 +40,18 @@ vi.mock("./VaultStatsPanel", () => ({
 vi.mock("../linking/store", () => ({
   rebuildLinkIndex: vi.fn(),
 }));
+// UX-01 spec section 16.1: Settings now shows one category at a time
+// (General by default), rather than every section simultaneously. Tests
+// below that exercise a setting living in a different category select it
+// first via its own left-nav button, matching how a real user would
+// actually reach that setting now.
+function openCategory(
+  getByRole: (role: string, options: { name: string }) => HTMLElement,
+  label: string,
+): void {
+  fireEvent.click(getByRole("button", { name: label }));
+}
+
 // The Health section's own DiagnosticsPanel content (which findings show,
 // how they're computed from linkIndex) is already covered by
 // diagnostics.test.ts and DiagnosticsPanel.test.tsx; a plain stand-in here
@@ -230,7 +242,8 @@ describe("SettingsPanel", () => {
   });
 
   it("theme switch is always visible and calls setTheme with the clicked option", () => {
-    const { getByText } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+    const { getByText, getByRole } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+    openCategory(getByRole, "Appearance");
     expect(getByText("Follow System").className).toContain("active");
     fireEvent.click(getByText("Dark"));
     expect(setTheme).toHaveBeenCalledWith("dark");
@@ -238,7 +251,8 @@ describe("SettingsPanel", () => {
 
   it("clamps an out-of-range font size before saving it", () => {
     workspacePath.value = "/vault";
-    const { container } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+    const { container, getByRole } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+    openCategory(getByRole, "Appearance");
     const inputs = container.querySelectorAll('input[type="number"]');
     const fontInput = inputs[0] as HTMLInputElement;
     fireEvent.input(fontInput, { target: { value: "999" } });
@@ -247,7 +261,8 @@ describe("SettingsPanel", () => {
 
   it("clamps an out-of-range zoom value before saving it", () => {
     workspacePath.value = "/vault";
-    const { container } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+    const { container, getByRole } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+    openCategory(getByRole, "Appearance");
     const inputs = container.querySelectorAll('input[type="number"]');
     const zoomInput = inputs[1] as HTMLInputElement;
     fireEvent.input(zoomInput, { target: { value: "5" } });
@@ -339,7 +354,8 @@ describe("SettingsPanel", () => {
       ...DEFAULT_WORKSPACE_SETTINGS,
       tagsEnabled: true,
     };
-    const { getByText } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+    const { getByText, getByRole } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+    openCategory(getByRole, "Features");
     const row = getByText("Tags").closest(".settings-row") as HTMLElement;
     expect(within(row).getByText("On").className).toContain("active");
     fireEvent.click(within(row).getByText("Off"));
@@ -354,7 +370,8 @@ describe("SettingsPanel", () => {
       ...DEFAULT_WORKSPACE_SETTINGS,
       templatesEnabled: true,
     };
-    const { getByText } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+    const { getByText, getByRole } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+    openCategory(getByRole, "Features");
     const row = getByText("Templates").closest(".settings-row") as HTMLElement;
     expect(within(row).getByText("On").className).toContain("active");
     fireEvent.click(within(row).getByText("Off"));
@@ -376,20 +393,27 @@ describe("SettingsPanel", () => {
   describe("Feature selection (Collections off by default, 2026-09-03)", () => {
     it("groups Accent themes, Editor snippets, Canvas, Tags, Templates, and Collections under their own section, not General", () => {
       workspacePath.value = "/vault";
-      const { getByText } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+      const { getByText, getByRole, queryByText } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+      openCategory(getByRole, "Features");
       const featureSection = getByText("Feature selection").closest(".settings-section") as HTMLElement;
       for (const label of ["Accent themes", "Editor snippets", "Canvas", "Tags", "Templates", "Collections"]) {
         expect(within(featureSection).getByText(label)).toBeTruthy();
       }
-      const generalSection = getByText("General").closest(".settings-section") as HTMLElement;
-      expect(within(generalSection).queryByText("Collections")).toBeNull();
-      expect(within(generalSection).queryByText("Tags")).toBeNull();
+      // Switching to General (Features' own section, and everything in it,
+      // stops rendering entirely now that only one category shows at a
+      // time) is a more direct proof these labels belong to Features alone
+      // than searching within a specific General DOM subtree ever was.
+      openCategory(getByRole, "General");
+      expect(queryByText("Feature selection")).toBeNull();
+      expect(queryByText("Collections")).toBeNull();
+      expect(queryByText("Tags")).toBeNull();
     });
 
     it("shows and wires the collections switch, off by default", () => {
       workspacePath.value = "/vault";
       workspaceSettings.value = { ...DEFAULT_WORKSPACE_SETTINGS, collectionsEnabled: false };
-      const { getByText } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+      const { getByText, getByRole } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+      openCategory(getByRole, "Features");
       const row = getByText("Collections").closest(".settings-row") as HTMLElement;
       expect(within(row).getByText("Off").className).toContain("active");
       fireEvent.click(within(row).getByText("On"));
@@ -404,7 +428,8 @@ describe("SettingsPanel", () => {
 
     it("gives each Feature selection row's description the italic hint class", () => {
       workspacePath.value = "/vault";
-      const { getByText } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+      const { getByText, getByRole } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+      openCategory(getByRole, "Features");
       const hint = getByText("Group notes by a saved search or a manual list, in their own panel. Off by default");
       expect(hint.className).toContain("settings-hint-italic");
     });
@@ -465,7 +490,8 @@ describe("SettingsPanel", () => {
       ...DEFAULT_WORKSPACE_SETTINGS,
       defaultViewMode: "split",
     };
-    const { getByText } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+    const { getByText, getByRole } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+    openCategory(getByRole, "Appearance");
     expect(getByText("Split").className).toContain("active");
     fireEvent.click(getByText("Preview"));
     expect(updateWorkspaceSettings).toHaveBeenCalledWith({
@@ -474,14 +500,16 @@ describe("SettingsPanel", () => {
   });
 
   it("lists the keyboard shortcuts, always, regardless of whether a workspace is open", () => {
-    const { getByText } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+    const { getByText, getByRole } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+    openCategory(getByRole, "Shortcuts");
     expect(getByText("Ctrl+K")).toBeTruthy();
     expect(getByText("Command palette")).toBeTruthy();
     expect(getByText("Ctrl+,")).toBeTruthy();
   });
 
   it("shows the app version, or a placeholder while it's still loading", () => {
-    const { getByText, rerender } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+    const { getByText, getByRole, rerender } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+    openCategory(getByRole, "About");
     expect(getByText("...")).toBeTruthy();
 
     appVersion.value = "1.2.3";
@@ -490,7 +518,8 @@ describe("SettingsPanel", () => {
   });
 
   it("opens the license view and closes it independently of the settings panel", () => {
-    const { getByText, container } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+    const { getByText, getByRole, container } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+    openCategory(getByRole, "About");
     fireEvent.click(getByText("View License"));
     expect(container.querySelector(".license-viewer")).toBeTruthy();
 
@@ -502,7 +531,8 @@ describe("SettingsPanel", () => {
   });
 
   it("clicking the license dialog's own backdrop closes only the license view, not the whole settings panel", () => {
-    const { getByText, container } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+    const { getByText, getByRole, container } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+    openCategory(getByRole, "About");
     fireEvent.click(getByText("View License"));
 
     const overlays = container.querySelectorAll(".modal-overlay");
@@ -515,9 +545,21 @@ describe("SettingsPanel", () => {
   });
 
   describe("search (competitor-queued 2026-09-03)", () => {
-    it("shows every setting when the search box is empty", () => {
-      const { getByText } = render(<SettingsPanel onOpenFile={vi.fn()} />);
-      expect(getByText("Theme")).toBeTruthy();
+    it("shows only the active category (General) when the search box is empty", () => {
+      const { getByText, queryByText } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+      expect(getByText("Root folder")).toBeTruthy();
+      // UX-01 spec 16.1: categorized Settings shows one category at a
+      // time by default now; Theme/Version live in Appearance/About, not
+      // General, so an empty search no longer means "every setting" the
+      // way it did before category navigation existed.
+      expect(queryByText("Theme")).toBeNull();
+      expect(queryByText("Version")).toBeNull();
+    });
+
+    it("a non-empty search overrides category selection and shows matches from every category", () => {
+      const { getByLabelText, getByText } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+      const search = getByLabelText("Search settings") as HTMLInputElement;
+      fireEvent.input(search, { target: { value: "version" } });
       expect(getByText("Version")).toBeTruthy();
     });
 
@@ -582,8 +624,9 @@ describe("SettingsPanel", () => {
   describe("Health section: Link Diagnostics, moved off the main screen (2026-09-03)", () => {
     it("shows a Health section with Link Diagnostics once a workspace is open", () => {
       workspacePath.value = "/vault";
-      const { getByText } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+      const { getByText, getByRole } = render(<SettingsPanel onOpenFile={vi.fn()} />);
       expect(getByText("Health")).toBeTruthy();
+      openCategory(getByRole, "Health");
       expect(getByText("Mock diagnostic row")).toBeTruthy();
     });
 
@@ -596,7 +639,8 @@ describe("SettingsPanel", () => {
       workspacePath.value = "/vault";
       viewMode.value = "preview";
       const onOpenFile = vi.fn();
-      const { getByText } = render(<SettingsPanel onOpenFile={onOpenFile} />);
+      const { getByText, getByRole } = render(<SettingsPanel onOpenFile={onOpenFile} />);
+      openCategory(getByRole, "Health");
 
       fireEvent.click(getByText("Mock diagnostic row"));
       await Promise.resolve();
@@ -604,6 +648,51 @@ describe("SettingsPanel", () => {
       expect(onOpenFile).toHaveBeenCalledWith("/vault/broken.md", "broken.md");
       expect(settingsPanelOpen.value).toBe(false);
       expect(viewMode.value).toBe("split");
+    });
+  });
+
+  describe("UX-01 spec section 16.1: categorized left-nav Settings", () => {
+    it("shows General by default and nothing from other categories", () => {
+      workspacePath.value = "/vault";
+      const { getByText, queryByText } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+      expect(getByText("Root folder")).toBeTruthy();
+      expect(queryByText("Feature selection")).toBeNull();
+      expect(queryByText("Keyboard shortcuts")).toBeNull();
+    });
+
+    it("only lists a category's nav button when that category actually has something to show", () => {
+      // No workspace open: Health, Workspace Profiles, and General's own
+      // workspace-scoped rows all have nothing to show, but Appearance's
+      // Theme and Shortcuts/About are workspace-independent.
+      const { queryByRole } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+      expect(queryByRole("button", { name: "Health" })).toBeNull();
+      expect(queryByRole("button", { name: "Appearance" })).toBeTruthy();
+      expect(queryByRole("button", { name: "Shortcuts" })).toBeTruthy();
+      expect(queryByRole("button", { name: "About" })).toBeTruthy();
+    });
+
+    it("switches the visible section when a different category is selected, and marks it current", () => {
+      workspacePath.value = "/vault";
+      const { getByText, getByRole, queryByText } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+
+      openCategory(getByRole, "Shortcuts");
+
+      expect(queryByText("Root folder")).toBeNull();
+      expect(getByText("Keyboard shortcuts")).toBeTruthy();
+      expect(getByRole("button", { name: "Shortcuts" }).getAttribute("aria-current")).toBe("true");
+      expect(getByRole("button", { name: "General" }).getAttribute("aria-current")).toBeNull();
+    });
+
+    it("keeps only one category's nav button marked active at a time", () => {
+      workspacePath.value = "/vault";
+      const { getByRole } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+
+      expect(getByRole("button", { name: "General" }).className).toContain("active");
+
+      openCategory(getByRole, "Appearance");
+
+      expect(getByRole("button", { name: "Appearance" }).className).toContain("active");
+      expect(getByRole("button", { name: "General" }).className).not.toContain("active");
     });
   });
 

@@ -133,10 +133,25 @@ interface SettingsPanelProps {
   onOpenFile: (path: string, name: string) => void | Promise<void>;
 }
 
+/** UX-01 spec section 16.1: "Settings opens as a large adaptive dialog...
+ * left category navigation; right scrollable content pane." Matches this
+ * app's own existing section groupings (each already gated by its own
+ * `xVisible` boolean below) rather than forcing the spec's own merely
+ * "suggested" category list (16.1) onto a different existing structure. */
+type SettingsCategory =
+  | "general"
+  | "profiles"
+  | "features"
+  | "appearance"
+  | "shortcuts"
+  | "health"
+  | "about";
+
 export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
   const [showLicense, setShowLicense] = useState(false);
   const [folderPickerLoading, setFolderPickerLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [activeCategory, setActiveCategory] = useState<SettingsCategory>("general");
 
   // Link Diagnostics (Health section) reads the shared linkIndex directly,
   // the same as it did in its old sidebar-panel home; refreshed on open so
@@ -299,6 +314,23 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
     !aboutVisible &&
     !healthVisible;
 
+  // A search query overrides category selection entirely (shows every
+  // matching section regardless of which category is selected), matching
+  // this panel's existing pre-category search behavior exactly rather than
+  // narrowing search results to just the active category.
+  const inActiveCategory = (category: SettingsCategory): boolean =>
+    searchQuery.trim() !== "" || activeCategory === category;
+
+  const categories: { id: SettingsCategory; label: string; visible: boolean }[] = [
+    { id: "general", label: "General", visible: generalVisible },
+    { id: "profiles", label: "Workspace Profiles", visible: profilesVisible },
+    { id: "features", label: "Features", visible: featureSelectionVisible },
+    { id: "appearance", label: "Appearance", visible: appearanceVisible },
+    { id: "shortcuts", label: "Shortcuts", visible: shortcutsVisible },
+    { id: "health", label: "Health", visible: healthVisible },
+    { id: "about", label: "About", visible: aboutVisible },
+  ];
+
   return (
     <div
       class="modal-overlay"
@@ -335,7 +367,23 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
           <p class="empty-hint">No settings match &quot;{searchQuery.trim()}&quot;.</p>
         )}
 
-        {generalVisible && (
+        <div class="settings-body">
+          <nav class="settings-nav" aria-label="Settings categories">
+            {categories
+              .filter((category) => category.visible)
+              .map((category) => (
+                <button
+                  key={category.id}
+                  class={activeCategory === category.id ? "active" : ""}
+                  aria-current={activeCategory === category.id ? "true" : undefined}
+                  onClick={() => setActiveCategory(category.id)}
+                >
+                  {category.label}
+                </button>
+              ))}
+          </nav>
+          <div class="settings-content">
+        {generalVisible && inActiveCategory("general") && (
         <section class="settings-section">
           <h3>General</h3>
           {showRootFolder && (
@@ -825,9 +873,9 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
         </section>
         )}
 
-        {profilesVisible && <WorkspaceProfilesSettings />}
+        {profilesVisible && inActiveCategory("profiles") && <WorkspaceProfilesSettings />}
 
-        {featureSelectionVisible && (
+        {featureSelectionVisible && inActiveCategory("features") && (
         <section class="settings-section">
           <h3>Feature selection</h3>
           {showAccentThemes && (
@@ -959,7 +1007,7 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
         </section>
         )}
 
-        {appearanceVisible && (
+        {appearanceVisible && inActiveCategory("appearance") && (
         <section class="settings-section">
           <h3>Appearance</h3>
           {showTheme && (
@@ -1119,7 +1167,7 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
           />
         )}
 
-        {shortcutsVisible && (
+        {shortcutsVisible && inActiveCategory("shortcuts") && (
         <section class="settings-section" aria-label="Keyboard shortcuts">
           <h3>Keyboard shortcuts</h3>
           {filteredShortcuts.map((shortcut) => (
@@ -1133,14 +1181,14 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
         </section>
         )}
 
-        {healthVisible && (
+        {healthVisible && inActiveCategory("health") && (
         <section class="settings-section">
           <h3>Health</h3>
           <DiagnosticsPanel onOpenFile={handleSelectDiagnostic} />
         </section>
         )}
 
-        {aboutVisible && (
+        {aboutVisible && inActiveCategory("about") && (
         <section class="settings-section">
           <h3>About</h3>
           {showVersion && (
@@ -1159,6 +1207,8 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
           )}
         </section>
         )}
+          </div>
+        </div>
       </div>
 
       {showLicense && (

@@ -27,6 +27,11 @@ const ALL_NAMES: IconName[] = [
   "columns",
   "code",
   "eye",
+  "bookmarkFilled",
+  "task",
+  "collections",
+  "outline",
+  "swapGroups",
 ];
 
 describe("Icon", () => {

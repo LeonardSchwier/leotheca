@@ -31,7 +31,7 @@ window.matchMedia = vi.fn().mockImplementation((query: string) => ({
 const { SecondaryEditorPane } = await import("./SecondaryEditorPane");
 
 function tab(overrides: Partial<OpenTab> = {}): OpenTab {
-  return { path: "/a.md", name: "a.md", content: "hello", kind: "text", dirty: false, saveError: null, ...overrides };
+  return { path: "/a.md", name: "a.md", content: "hello", kind: "text", dirty: false, saving: false, saveError: null, ...overrides };
 }
 
 const noop = () => {};

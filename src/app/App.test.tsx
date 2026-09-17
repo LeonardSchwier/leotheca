@@ -1691,4 +1691,55 @@ describe("App: UX-01 Document Header (Wide+ layout)", () => {
 
     expect(container.querySelector(".document-header")).toBeNull();
   });
+
+  it("shows the full path as the title's tooltip", () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1200 });
+    workspacePath.value = "/vault";
+    openOrFocusTab("/vault/notes/a.md", "a.md", "hello", "text");
+    const { container } = render(<App />);
+
+    expect(container.querySelector(".document-header-title")?.getAttribute("title")).toBe(
+      "/vault/notes/a.md",
+    );
+  });
+
+  it("surfaces a save error through the Document Header's own save-state area instead of the classic save-error-bar", () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1200 });
+    workspacePath.value = "/vault";
+    openOrFocusTab("/vault/a.md", "a.md", "hello", "text");
+    openDocuments.value = openDocuments.value.map((d) =>
+      d.path === "/vault/a.md" ? { ...d, saveError: "disk full" } : d,
+    );
+    const { container, getByText } = render(<App />);
+
+    expect(container.querySelector(".document-header-savestate")?.textContent).toContain(
+      "Save failed",
+    );
+    expect(container.querySelector(".save-error-bar")).toBeNull();
+    expect(getByText("Save failed")).toBeTruthy();
+  });
+
+  it("keeps the classic save-error-bar at Medium width, where there is no Document Header", () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 900 });
+    workspacePath.value = "/vault";
+    openOrFocusTab("/vault/a.md", "a.md", "hello", "text");
+    openDocuments.value = openDocuments.value.map((d) =>
+      d.path === "/vault/a.md" ? { ...d, saveError: "disk full" } : d,
+    );
+    const { container } = render(<App />);
+
+    expect(container.querySelector(".save-error-bar")).toBeTruthy();
+  });
+
+  it("shows a dirty indicator in the Document Header for unsaved changes", () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1200 });
+    workspacePath.value = "/vault";
+    openOrFocusTab("/vault/a.md", "a.md", "hello", "text");
+    openDocuments.value = openDocuments.value.map((d) =>
+      d.path === "/vault/a.md" ? { ...d, dirty: true } : d,
+    );
+    const { getByLabelText } = render(<App />);
+
+    expect(getByLabelText("Unsaved changes")).toBeTruthy();
+  });
 });

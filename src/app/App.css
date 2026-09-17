@@ -356,9 +356,10 @@ button.icon-button.active {
   min-width: 0;
 }
 
-/* UX-01 spec section 13.5: view-mode + bookmark for the active note, Wide+
-   only for now (see DocumentHeader.tsx's own doc comment for what's
-   deliberately not here yet: title/save-state stay owned by TabBar). */
+/* UX-01 spec section 13.5: title/icon, save-state, view-mode, and bookmark
+   for the active note, Wide+ only for now (see DocumentHeader.tsx's own
+   doc comment for what's deliberately not here yet: Inspector, overflow,
+   and a full clickable path breadcrumb beyond the tooltip variant). */
 .document-header {
   display: flex;
   align-items: center;
@@ -369,11 +370,47 @@ button.icon-button.active {
 }
 
 .document-header-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  min-width: 0;
+  flex-shrink: 1;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.document-header-icon {
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.document-header-title-text {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--text-secondary);
-  font-size: 0.875rem;
+}
+
+.document-header-savestate {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  flex-shrink: 0;
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+}
+
+.document-header-savestate-error {
+  color: var(--color-danger);
+}
+
+.document-header-savestate-retry {
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+  font: inherit;
 }
 
 .document-header-actions {

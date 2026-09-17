@@ -112,7 +112,7 @@ export function openOrFocusTab(path: string, name: string, content: string, kind
   if (!group) return;
   const documents = existing
     ? openDocuments.value.map((document) => (document.path === path ? { ...document, searchQuery } : document))
-    : [...openDocuments.value, { path, name, content, kind, dirty: false, saveError: null, searchQuery }];
+    : [...openDocuments.value, { path, name, content, kind, dirty: false, saving: false, saveError: null, searchQuery }];
   const tabPaths = existing ? group.tabPaths : [...group.tabPaths, path];
   batch(() => {
     setGroupTabs(targetGroupId, tabPaths, path, documents);
@@ -126,19 +126,29 @@ export function updateTabContent(path: string, content: string) {
   );
 }
 
+/** Marks a tab as having a write actually in flight (saveCoordinator.ts's
+ * own onSaveStart callback, fired when entry.inFlight is set true, never
+ * on its debounce timer alone). Drives the Document Header's Saving
+ * indicator (spec 13.6). */
+export function markTabSaving(path: string) {
+  openDocuments.value = openDocuments.value.map((t) =>
+    t.path === path ? { ...t, saving: true } : t,
+  );
+}
+
 /** Marks a tab saved AND clears its revision. The save coordinator calls
  * this only when the write completed for the exact revision that was in
  * flight — never for a stale revision. The tab stays dirty until its
  * revision reaches the value of the last change() call. */
 export function markTabSaved(path: string) {
   openDocuments.value = openDocuments.value.map((t) =>
-    t.path === path ? { ...t, dirty: false } : t,
+    t.path === path ? { ...t, dirty: false, saving: false } : t,
   );
 }
 
 export function markTabSaveError(path: string, error: string) {
   openDocuments.value = openDocuments.value.map((t) =>
-    t.path === path ? { ...t, saveError: error } : t,
+    t.path === path ? { ...t, saving: false, saveError: error } : t,
   );
 }
 
@@ -383,7 +393,7 @@ export function openInOtherGroup(
     const group = groupState(targetGroupId)!;
     setGroupTabs(targetGroupId, [...group.tabPaths, path], path, [
       ...openDocuments.value,
-      { path, name, content, kind, dirty: false, saveError: null },
+      { path, name, content, kind, dirty: false, saving: false, saveError: null },
     ]);
     // Same reasoning as createSplitLayout/moveTabToGroup: this note was
     // just deliberately opened into targetGroupId, so the compact

@@ -34,6 +34,7 @@ import {
   editorLayout,
   markTabSaved,
   markTabSaveError,
+  markTabSaving,
   moveActiveTabToOtherGroup,
   moveTabWithinGroup,
   openDocuments,
@@ -271,6 +272,7 @@ export function App() {
     // coordinator's callback signature, since it is already the same
     // content this save just wrote (a still-open tab is the only source
     // `save.change` ever writes from).
+    onSaveStart: (path: string) => markTabSaving(path),
     onSaved: (path: string) => {
       markTabSaved(path);
       clearTabSaveError(path);
@@ -1440,11 +1442,17 @@ export function App() {
           />
           {showActivityRailNav && current?.kind === "text" && (
             <DocumentHeader
+              key={current.path}
               noteName={current.name}
+              notePath={current.path}
               viewMode={viewMode.value}
               onSetViewMode={(mode) => (viewMode.value = mode)}
               bookmarked={!!currentBookmark}
               onToggleBookmark={toggleCurrentNoteBookmark}
+              dirty={current.dirty}
+              saving={current.saving}
+              saveError={current.saveError}
+              onRetrySave={() => void save.retry(session, current.path)}
             />
           )}
           {current?.kind === "text" && workspaceSettings.value.noteReadOnlyLockEnabled && (
@@ -1455,7 +1463,7 @@ export function App() {
               </button>
             </div>
           )}
-          {current?.saveError && (
+          {!(showActivityRailNav && current?.kind === "text") && current?.saveError && (
             <div class="save-error-bar" role="alert">
               <span>
                 Couldn't save "{current.name}": {current.saveError}

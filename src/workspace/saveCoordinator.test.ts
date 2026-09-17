@@ -149,6 +149,61 @@ describe("save coordinator workspace transitions", () => {
   });
 });
 
+// UX-01 spec 13.6: the Document Header's Saving indicator must be driven
+// by a real write-start event, never the 400ms debounce timer alone.
+describe("onSaveStart callback", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    writeTextFile.mockReset();
+  });
+
+  afterEach(() => vi.useRealTimers());
+
+  it("fires exactly when the debounced write actually begins, before it resolves", async () => {
+    const nativeWrite = deferred<void>();
+    writeTextFile.mockReturnValueOnce(nativeWrite.promise);
+    const onSaveStart = vi.fn();
+    const onSaved = vi.fn();
+    const saves = createSaveCoordinator({ onSaveStart, onSaved });
+
+    saves.change(1, "/workspace/note.md", "hello");
+    expect(onSaveStart).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(400);
+    expect(onSaveStart).toHaveBeenCalledWith("/workspace/note.md");
+    expect(onSaveStart).toHaveBeenCalledTimes(1);
+    expect(onSaved).not.toHaveBeenCalled();
+
+    nativeWrite.resolve();
+    await Promise.resolve();
+    expect(onSaved).toHaveBeenCalledWith("/workspace/note.md");
+  });
+
+  it("fires again for a second edit's own debounced write, not just the first", async () => {
+    writeTextFile.mockResolvedValue();
+    const onSaveStart = vi.fn();
+    const saves = createSaveCoordinator({ onSaveStart });
+
+    saves.change(1, "/workspace/note.md", "v1");
+    await vi.advanceTimersByTimeAsync(400);
+    saves.change(1, "/workspace/note.md", "v2");
+    await vi.advanceTimersByTimeAsync(400);
+
+    expect(onSaveStart).toHaveBeenCalledTimes(2);
+  });
+
+  it("is suppressed for a blocked session's own drain write, matching onSaved/onError", async () => {
+    writeTextFile.mockResolvedValue();
+    const onSaveStart = vi.fn();
+    const saves = createSaveCoordinator({ onSaveStart });
+
+    saves.change(4, "/workspace/note.md", "outgoing");
+    await saves.prepareForTransition(4);
+
+    expect(onSaveStart).not.toHaveBeenCalled();
+  });
+});
+
 // F20 Phase 2b-ii, spec section 15.2: forgetting the active profile must
 // know whether there is anything left to lose *before* prepareForTransition
 // runs, since that drain discards exactly this state (see the tests above)

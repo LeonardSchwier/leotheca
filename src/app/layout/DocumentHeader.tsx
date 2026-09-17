@@ -1,6 +1,8 @@
 import type { ComponentType } from "preact";
+import { useEffect, useRef, useState } from "preact/hooks";
 import type { ViewMode } from "../../settings/workspaceSettings";
 import { BookmarkFilledIcon, BookmarkIcon, SourceModeIcon, SplitModeIcon, PreviewModeIcon } from "../shellIcons";
+import { Icon as RegistryIcon } from "../../ui/icons";
 
 /** UX-01 spec section 13.5/UX-005: "Note-specific view, bookmark,
  * Inspector, and overflow actions shall appear in the Document Header or
@@ -8,24 +10,28 @@ import { BookmarkFilledIcon, BookmarkIcon, SourceModeIcon, SplitModeIcon, Previe
  * the full spec for this pass, matching ActivityRail's own Wide+-first
  * phasing (section 30's Phase 2 guidance):
  *
- * - Title, path, and save state are deliberately NOT duplicated here.
- *   TabBar already owns the active note's title and dirty/save-error
- *   display (see App.tsx's .save-error-bar), and rebuilding that as a
- *   second, parallel "truthful save state" surface risked exactly the
- *   kind of contradicting-sources-of-truth bug this SDD's own section
- *   13.6 warns against, for a component this pass has no way to verify
- *   against every real save-state transition. Left as-is; a real
- *   Document Header title/save-state merge is separate follow-up work.
  * - Inspector and note-action overflow don't exist as concepts in this
  *   codebase yet (Properties/Backlinks are separate always-visible
  *   sidebar panels, not a togglable Inspector), so neither has a home
  *   here yet either.
+ * - The path breadcrumb is the spec's own explicitly-allowed simpler
+ *   variant ("The full path is available via tooltip or overflow
+ *   details", 13.5), not a separate clickable segmented row.
  *
- * What this pass DOES move here: the view-mode switch and the
- * bookmark-this-note toggle, the two note-level actions that were
- * otherwise sitting in the generic global toolbar with no clear
- * document-level home. Presentational only, per section 24.2: every
- * prop is a value or callback App.tsx already owns.
+ * This pass adds what the previous one deliberately left out: title now
+ * carries a note icon and a full-path tooltip, and a real save-state
+ * message (13.6) sits in the header's center, replacing the note-lock-bar
+ * area's `.save-error-bar` duplicate for text notes at this width (the
+ * bar stays for canvas/ink notes and narrower widths, where this header
+ * doesn't render at all). `dirty`/`saving`/`saveError` are read straight
+ * from the active tab's own OpenDocument fields (App.tsx), the exact same
+ * single source of truth TabBar's dirty dot and the save-error-bar
+ * already use -- this never recomputes save state independently, only
+ * displays it a second place, so it cannot contradict them. `saving` in
+ * particular is a real event (saveCoordinator.ts's onSaveStart, fired
+ * when a write actually begins) rather than inferred from the 400ms
+ * debounce timer, matching 13.6's explicit "must never display Saved
+ * based only on a debounce timer."
  */
 
 const VIEW_MODE_ICONS: Record<ViewMode, ComponentType> = {
@@ -36,26 +42,92 @@ const VIEW_MODE_ICONS: Record<ViewMode, ComponentType> = {
 
 const VIEW_MODES: ViewMode[] = ["source", "split", "preview"];
 
+/** How long a completed save stays visible as "Saved" before the header
+ * goes quiet again (13.6's "about 1.5 seconds"). */
+const SAVED_PULSE_MS = 1500;
+
 export interface DocumentHeaderProps {
   noteName: string;
+  notePath: string;
   viewMode: ViewMode;
   onSetViewMode: (mode: ViewMode) => void;
   bookmarked: boolean;
   onToggleBookmark: () => void;
+  dirty: boolean;
+  saving: boolean;
+  saveError: string | null;
+  onRetrySave: () => void;
 }
 
 export function DocumentHeader({
   noteName,
+  notePath,
   viewMode,
   onSetViewMode,
   bookmarked,
   onToggleBookmark,
+  dirty,
+  saving,
+  saveError,
+  onRetrySave,
 }: DocumentHeaderProps) {
+  // Triggered only by the real saving->settled transition below, never by
+  // a timer racing typing: this is what keeps the "Saved" pulse honest
+  // per 13.6 rather than a guess about whether autosave "probably" ran.
+  const [showSavedPulse, setShowSavedPulse] = useState(false);
+  const wasSaving = useRef(saving);
+  useEffect(() => {
+    if (wasSaving.current && !saving && !saveError) {
+      setShowSavedPulse(true);
+      const timer = setTimeout(() => setShowSavedPulse(false), SAVED_PULSE_MS);
+      wasSaving.current = saving;
+      return () => clearTimeout(timer);
+    }
+    wasSaving.current = saving;
+  }, [saving, saveError]);
+
+  const saveState: "error" | "saving" | "saved" | "dirty" | "clean" = saveError
+    ? "error"
+    : saving
+      ? "saving"
+      : showSavedPulse
+        ? "saved"
+        : dirty
+          ? "dirty"
+          : "clean";
+
   return (
     <div class="document-header">
-      <span class="document-header-title" title={noteName}>
-        {noteName}
+      <span class="document-header-title" title={notePath}>
+        <RegistryIcon name="fileText" size={16} className="document-header-icon" />
+        <span class="document-header-title-text">{noteName}</span>
       </span>
+      <div
+        class={`document-header-savestate document-header-savestate-${saveState}`}
+        role={saveState === "error" ? "alert" : undefined}
+      >
+        {saveState === "error" && (
+          <>
+            <RegistryIcon name="alertCircle" size={16} />
+            <span>Save failed</span>
+            <button type="button" class="document-header-savestate-retry" onClick={onRetrySave}>
+              Retry
+            </button>
+          </>
+        )}
+        {saveState === "saving" && (
+          <>
+            <RegistryIcon name="spinner" size={16} spin />
+            <span>Saving</span>
+          </>
+        )}
+        {saveState === "saved" && <span>Saved</span>}
+        {saveState === "dirty" && (
+          <span aria-label="Unsaved changes">
+            <span aria-hidden="true">•</span> Unsaved
+          </span>
+        )}
+      </div>
       <div class="document-header-actions">
         <div class="view-mode-switch">
           {VIEW_MODES.map((mode) => {

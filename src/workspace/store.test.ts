@@ -14,6 +14,8 @@ import {
   focusOtherGroup,
   focusTab,
   markTabSaved,
+  markTabSaveError,
+  markTabSaving,
   moveActiveTabToOtherGroup,
   moveTabWithinGroup,
   openDocuments,
@@ -43,7 +45,7 @@ describe("openOrFocusTab", () => {
   it("opens a new tab and makes it active", () => {
     openOrFocusTab("/a.md", "a.md", "content", "text");
     expect(openTabs.value).toEqual([
-      { path: "/a.md", name: "a.md", content: "content", kind: "text", dirty: false, saveError: null },
+      { path: "/a.md", name: "a.md", content: "content", kind: "text", dirty: false, saving: false, saveError: null },
     ]);
     expect(activeTabPath.value).toBe("/a.md");
   });
@@ -100,6 +102,38 @@ describe("updateTabContent / markTabSaved", () => {
     markTabSaved("/a.md");
 
     expect(openTabs.value[0]).toMatchObject({ content: "new", dirty: false });
+  });
+
+  it("markTabSaved also clears saving, so the Document Header's Saving indicator ends with the write", () => {
+    openOrFocusTab("/a.md", "a.md", "old", "text");
+    markTabSaving("/a.md");
+    expect(openTabs.value[0]).toMatchObject({ saving: true });
+
+    markTabSaved("/a.md");
+
+    expect(openTabs.value[0]).toMatchObject({ dirty: false, saving: false });
+  });
+
+  it("markTabSaveError also clears saving, and leaves the tab dirty for the user to retry", () => {
+    openOrFocusTab("/a.md", "a.md", "old", "text");
+    updateTabContent("/a.md", "new");
+    markTabSaving("/a.md");
+
+    markTabSaveError("/a.md", "disk full");
+
+    expect(openTabs.value[0]).toMatchObject({ dirty: true, saving: false, saveError: "disk full" });
+  });
+
+  it("markTabSaving only touches the matching tab, leaving others untouched", () => {
+    openOrFocusTab("/a.md", "a.md", "content a", "text");
+    openOrFocusTab("/b.md", "b.md", "content b", "text");
+
+    markTabSaving("/a.md");
+
+    const a = openTabs.value.find((t) => t.path === "/a.md");
+    const b = openTabs.value.find((t) => t.path === "/b.md");
+    expect(a).toMatchObject({ saving: true });
+    expect(b).toMatchObject({ saving: false });
   });
 });
 
@@ -264,7 +298,7 @@ describe("renameOpenTab", () => {
     renameOpenTab("/old.md", "/new.md", "new.md");
 
     expect(openTabs.value).toEqual([
-      { path: "/new.md", name: "new.md", content: "content", kind: "text", dirty: false, saveError: null },
+      { path: "/new.md", name: "new.md", content: "content", kind: "text", dirty: false, saving: false, saveError: null },
     ]);
     expect(activeTabPath.value).toBe("/new.md");
   });
@@ -347,7 +381,7 @@ describe("openOrFocusTab routes through the active group (spec 7.1)", () => {
     openOrFocusTab("/a.md", "a.md", "must not overwrite or duplicate", "text");
 
     expect(openTabs.value).toEqual([
-      { path: "/a.md", name: "a.md", content: "content", kind: "text", dirty: false, saveError: null },
+      { path: "/a.md", name: "a.md", content: "content", kind: "text", dirty: false, saving: false, saveError: null },
     ]);
     expect(secondaryOpenTabs.value).toEqual([]);
     expect(editorLayout.value.activeGroupId).toBe("primary"); // focusing it moved activation back from secondary

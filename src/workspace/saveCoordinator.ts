@@ -29,6 +29,11 @@ export function makeKey(session: string | number | null, path: string): string {
 }
 
 export interface SaveCoordinatorCallbacks {
+  /** Fired the instant a debounced write actually begins (entry.inFlight
+   * set true), never on the debounce timer alone: spec 13.6 forbids
+   * inferring "Saving" from a timer, so the UI's Saving state must be
+   * driven from this real event, not schedule()'s own 400ms delay. */
+  onSaveStart?: (path: string) => void;
   onSaved?: (path: string) => void;
   onError?: (path: string, error: string) => void;
 }
@@ -176,6 +181,7 @@ export function createSaveCoordinator(cbs?: SaveCoordinatorCallbacks): SaveCoord
     if (!bypassBlockGate && isBlocked(session)) return;
     entry.inFlight = true;
     entry.inFlightRevision = revision;
+    if (!isBlocked(session)) cbs?.onSaveStart?.(path);
     const content = entry.latestContent;
     try {
       await writeWorkspaceRevision(path, content);

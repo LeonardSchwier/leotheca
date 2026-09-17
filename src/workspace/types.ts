@@ -37,6 +37,11 @@ export interface OpenDocument {
    * field (see `pdf/PdfViewer.tsx`). */
   content: string;
   dirty: boolean;
+  /** True for exactly the span between a debounced write actually starting
+   * (saveCoordinator.ts's writeRevision setting entry.inFlight) and it
+   * settling, success or failure. Drives the Document Header's real
+   * Saving indicator (spec 13.6); never inferred from a debounce timer. */
+  saving: boolean;
   /** Non-null when the last save attempt failed. The user can see this
    * error and retry; the tab stays dirty until a successful write. */
   saveError: string | null;

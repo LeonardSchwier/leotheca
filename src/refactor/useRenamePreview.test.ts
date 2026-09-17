@@ -164,6 +164,7 @@ describe("useRenamePreview", () => {
         kind: "text",
         content: "See [[target]].",
         dirty: true,
+        saving: false,
         saveError: null,
       },
     ];

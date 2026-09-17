@@ -111,6 +111,22 @@ function trimSlashes(path: string): string {
   return path.replace(/^\/+/, "").replace(/\/+$/, "");
 }
 
+/** Whether `folded` is the target folder itself or nested under it. For the
+ * `path` field, `folded` always has a trailing filename after the folder
+ * segment, so a plain `startsWith(target + "/")` already covers a note
+ * directly inside the target folder. For the `folder` field, `folded` is
+ * the bare parent-folder string with no filename, so that same check alone
+ * would wrongly exclude a note whose folder *is* the target folder exactly
+ * (maintenance review: this used to make `folder is-under-folder X` and its
+ * negation `folder is-not-under-folder X` both match such a note, an
+ * internally contradictory result). Checking equality first fixes the
+ * `folder` field without changing the `path` field's already-tested
+ * behavior, since a full note path (with its file extension) never equals
+ * a bare target folder string. */
+function isUnderFolder(folded: string, foldedTarget: string): boolean {
+  return folded === foldedTarget || folded.startsWith(`${foldedTarget}/`);
+}
+
 function evaluatePathLike(
   fieldValue: string,
   operator: QueryOperatorV1,
@@ -126,9 +142,9 @@ function evaluatePathLike(
     case "is":
       return target !== undefined && folded === fold(trimSlashes(target));
     case "is-under-folder":
-      return target !== undefined && folded.startsWith(`${fold(trimSlashes(target))}/`);
+      return target !== undefined && isUnderFolder(folded, fold(trimSlashes(target)));
     case "is-not-under-folder":
-      return target !== undefined && !folded.startsWith(`${fold(trimSlashes(target))}/`);
+      return target !== undefined && !isUnderFolder(folded, fold(trimSlashes(target)));
     case "contains-segment":
       return target !== undefined && folded.split("/").some((segment) => segment === fold(target));
     default:

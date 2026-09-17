@@ -3,7 +3,7 @@
  * Handles appending to inbox note and creating new notes with proper formatting
  */
 
-import { readTextFile, writeTextFile, listDir, createWorkspaceTextFileNew, writeWorkspaceBinaryFile, readBinaryFile } from "../workspace/tauriBridge";
+import { readTextFile, writeTextFile, listDir, createWorkspaceTextFileNew, writeWorkspaceBinaryFile, readBinaryFile, deleteWorkspacePathPermanent } from "../workspace/tauriBridge";
 import { resolvePathWithinWorkspace } from "../workspace/paths";
 import { PendingAttachment } from "./pendingCaptures";
 import { rebuildLinkIndex } from "../linking/store";
@@ -227,10 +227,10 @@ async function copyAttachmentsToWorkspace(
       
       if (sourceFingerprint !== destFingerprint) {
         console.warn("F05: Attachment fingerprint mismatch after copy");
-        // Try to clean up the destination file
+        // Clean up the corrupted destination file so it doesn't linger in
+        // the workspace, unreferenced by any note.
         try {
-          // In a real implementation, we'd have a way to delete the file
-          // For now, just log the issue
+          await deleteWorkspacePathPermanent(workspaceRoot, relativePath(workspaceRoot, finalPath));
         } catch (cleanupError) {
           // F05-AC-25: Don't log raw errors that may contain sensitive data
           void cleanupError;

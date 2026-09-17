@@ -117,6 +117,64 @@ describe("evaluateQueryNode: system fields", () => {
     ).toBe(true);
   });
 
+  // Maintenance-review regression: `folder is-under-folder X` used to
+  // require a note's folder to be a *strict* subfolder of X, wrongly
+  // excluding a note whose folder is X itself, even though `path
+  // is-under-folder X` already matches a note directly inside X (its path
+  // always has a trailing filename after the folder segment). The negation
+  // compounded this: such a note simultaneously failed `is-under-folder`
+  // and matched `is-not-under-folder`, a contradictory pair of results for
+  // the same folder.
+  it("matches folder 'is-under-folder' for a note directly inside the target folder, not just a subfolder", () => {
+    const direct = note({ folder: "Projects" });
+    const nested = note({ folder: "Projects/Alpha" });
+    const unrelated = note({ folder: "Other" });
+
+    for (const n of [direct, nested]) {
+      expect(
+        evaluateQueryNode(
+          clause({ kind: "system", field: "folder" }, "is-under-folder", { type: "path", value: "Projects" }),
+          n,
+        ),
+      ).toBe(true);
+      expect(
+        evaluateQueryNode(
+          clause({ kind: "system", field: "folder" }, "is-not-under-folder", { type: "path", value: "Projects" }),
+          n,
+        ),
+      ).toBe(false);
+    }
+
+    expect(
+      evaluateQueryNode(
+        clause({ kind: "system", field: "folder" }, "is-under-folder", { type: "path", value: "Projects" }),
+        unrelated,
+      ),
+    ).toBe(false);
+    expect(
+      evaluateQueryNode(
+        clause({ kind: "system", field: "folder" }, "is-not-under-folder", { type: "path", value: "Projects" }),
+        unrelated,
+      ),
+    ).toBe(true);
+  });
+
+  it("matches path 'is-under-folder' for a note directly inside the target folder (unchanged by the folder-field fix)", () => {
+    const n = note({ path: "Projects/Note.md", folder: "Projects" });
+    expect(
+      evaluateQueryNode(
+        clause({ kind: "system", field: "path" }, "is-under-folder", { type: "path", value: "Projects" }),
+        n,
+      ),
+    ).toBe(true);
+    expect(
+      evaluateQueryNode(
+        clause({ kind: "system", field: "path" }, "is-not-under-folder", { type: "path", value: "Projects" }),
+        n,
+      ),
+    ).toBe(false);
+  });
+
   it("matches tag 'contains-item' against the lowercased tag list", () => {
     const n = note({ tags: ["work", "urgent"] });
     expect(

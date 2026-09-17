@@ -51,7 +51,18 @@ export function HeadingLinkActions({
   const headingLabel = heading.displayText || "heading";
 
   async function handleCopy() {
-    await copyHeadingLink(heading, noteTitle);
+    try {
+      await copyHeadingLink(heading, noteTitle);
+    } catch {
+      // A rejected clipboard write (denied permission, unfocused document,
+      // a restrictive WebView) must not become an unhandled promise
+      // rejection with the button silently staying "Copy link" and no
+      // screen-reader feedback at all. Route the failure through the same
+      // shared announcement channel success uses below, rather than
+      // leaving it unobserved.
+      announceOutline(`Couldn't copy link to ${headingLabel}.`);
+      return;
+    }
     setCopied(true);
     // section 15.2: "Copy success is announced once." The visible button
     // label already changes to "Copied" above, but that alone is not a

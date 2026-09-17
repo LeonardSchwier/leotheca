@@ -265,6 +265,11 @@ button.icon-button.active {
   flex: 1;
   display: flex;
   min-height: 0;
+  /* Anchors .sidebar--overlay/.sidebar-overlay-backdrop below (Medium
+     width, spec 12.1/12.4): both position themselves relative to this
+     element, not the viewport, so they stay confined to the document
+     area and never cover the Global Top Bar. */
+  position: relative;
 }
 
 /* UX-01 spec section 12.2/13.2: 48px fixed strip, Wide+ only for now (see
@@ -347,6 +352,44 @@ button.icon-button.active {
   min-height: 0;
   overflow-y: auto;
   padding: var(--space-2);
+}
+
+/* Spec 12.1/12.4: Medium width's "collision-safe side sheet" -- floats
+   over the document surface, after the Activity Rail, instead of taking
+   up permanent flex-row space the way the Wide/Expanded docked column
+   does. Same .sidebar content and width as docked; only positioning,
+   elevation, and the backdrop below are Medium-specific. */
+.sidebar--overlay {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 48px; /* .activity-rail's own fixed width */
+  z-index: 20;
+  box-shadow: var(--shadow-high);
+}
+
+.sidebar-overlay-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 19;
+  background: rgba(0, 0, 0, 0.25);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .sidebar--overlay {
+    animation: sidebar-overlay-in var(--motion-sheet) ease-out;
+  }
+}
+
+@keyframes sidebar-overlay-in {
+  from {
+    transform: translateX(-8px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
 }
 
 .editor-area {

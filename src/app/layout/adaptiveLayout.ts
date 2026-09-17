@@ -28,17 +28,20 @@ export function classifyLayout(viewportWidth: number): LayoutClass {
   return "compact";
 }
 
-/** Section 13.2 itself specifies the Activity Rail at "720px and above"
- * (Medium, Wide, and Expanded alike), but section 30's own Phase 2
- * guidance is to "start at Wide and Expanded layouts while preserving the
- * current narrow path temporarily": at Medium width the Navigation Panel
- * is supposed to become a floating overlay rather than a docked column
- * (12.1/12.4), which is real, separate work this pass doesn't attempt --
- * the existing `.sidebar` is a plain docked column today, correct for
- * Wide/Expanded's row in the layout-class table but not for Medium's.
- * Scoped to Wide+ only for now, disclosed here rather than silently
- * matching the spec's own wider "720px and above" wording; widening this
- * to Medium is real follow-up work once the overlay behavior exists. */
+/** Section 13.2: the Activity Rail shows at "720px and above" -- Medium,
+ * Wide, and Expanded alike. Compact keeps its own top-bar-and-sheets
+ * pattern (12.5) instead. */
 export function showsActivityRail(layoutClass: LayoutClass): boolean {
-  return layoutClass === "wide" || layoutClass === "expanded";
+  return layoutClass !== "compact";
+}
+
+/** Section 12.1/12.4: at Medium width the Navigation Panel is a
+ * floating, collision-safe overlay over the document surface rather than
+ * the docked column Wide and Expanded use (12.1's own table: "Activity
+ * Rail, overlay Navigation Panel" for Medium vs. "docked Navigation
+ * Panel" for Wide/Expanded). The panel's own content and open/closed
+ * state are unchanged between the two; only how `.sidebar` is
+ * positioned and dismissed differs. */
+export function navigationPanelOverlays(layoutClass: LayoutClass): boolean {
+  return layoutClass === "medium";
 }

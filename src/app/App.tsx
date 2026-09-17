@@ -135,7 +135,7 @@ import { MarkdownHelpDialog } from "./MarkdownHelpDialog";
 import { CommandPalette, type Command } from "./CommandPalette";
 import { nextUiZoom, zoomActionForKey, zoomActionForWheel } from "./zoomControls";
 import { isNarrowViewport } from "./responsiveLayout";
-import { classifyLayout, showsActivityRail } from "./layout/adaptiveLayout";
+import { classifyLayout, navigationPanelOverlays, showsActivityRail } from "./layout/adaptiveLayout";
 import { ActivityRail } from "./layout/ActivityRail";
 import { DocumentHeader } from "./layout/DocumentHeader";
 import { ConfirmDialogHost } from "./ConfirmDialogHost";
@@ -230,6 +230,24 @@ export function App() {
   // section 24.3's "one match-media subscription per application."
   const layoutClass = classifyLayout(viewportWidth.value);
   const showActivityRailNav = showsActivityRail(layoutClass);
+  // Section 12.1/12.4: at Medium width the Navigation Panel floats over
+  // the document surface (collision-safe side sheet) instead of the
+  // docked column Wide/Expanded use; the panel's own content and
+  // open/closed state (sidebarOpen, activeNavDestination below) are
+  // identical either way, only its positioning and dismissal differ.
+  const navPanelOverlay = navigationPanelOverlays(layoutClass);
+  useEffect(() => {
+    if (!navPanelOverlay || !sidebarOpen.value) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        sidebarOpen.value = false;
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- sidebarOpen.value is a signal read, not plain outer-scope state; the component (and so this effect's own deps array) already re-runs whenever it changes.
+  }, [navPanelOverlay, sidebarOpen.value]);
   // Matches the sidebar-content ternary chain's own precedence below
   // exactly (tags > Task Hub > Collections > bookmarks > Files), so the
   // rail's selected destination always agrees with what's actually shown.
@@ -1314,7 +1332,16 @@ export function App() {
         )}
         {sidebarOpen.value && (
           <>
-            <aside class="sidebar" style={{ width: `${sidebarWidth.value}px` }}>
+            {navPanelOverlay && (
+              <div
+                class="sidebar-overlay-backdrop"
+                onClick={() => (sidebarOpen.value = false)}
+              />
+            )}
+            <aside
+              class={`sidebar ${navPanelOverlay ? "sidebar--overlay" : ""}`}
+              style={{ width: `${sidebarWidth.value}px` }}
+            >
               {rootPath ? (
                 <>
                   <div class="sidebar-primary">

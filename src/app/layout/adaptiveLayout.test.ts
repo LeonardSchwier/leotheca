@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { classifyLayout, LAYOUT_BREAKPOINTS, showsActivityRail } from "./adaptiveLayout";
+import {
+  classifyLayout,
+  LAYOUT_BREAKPOINTS,
+  navigationPanelOverlays,
+  showsActivityRail,
+} from "./adaptiveLayout";
 
 describe("classifyLayout", () => {
   it("classifies the minimum supported viewport (320px, spec 12.6) as compact", () => {
@@ -19,13 +24,25 @@ describe("classifyLayout", () => {
 });
 
 describe("showsActivityRail", () => {
-  it("is false for compact and medium (Medium's Navigation Panel overlay isn't built yet)", () => {
+  it("is false for compact only", () => {
     expect(showsActivityRail("compact")).toBe(false);
-    expect(showsActivityRail("medium")).toBe(false);
   });
 
-  it("is true for wide and expanded", () => {
+  it("is true for medium, wide, and expanded (spec 13.2's '720px and above')", () => {
+    expect(showsActivityRail("medium")).toBe(true);
     expect(showsActivityRail("wide")).toBe(true);
     expect(showsActivityRail("expanded")).toBe(true);
+  });
+});
+
+describe("navigationPanelOverlays", () => {
+  it("is true for medium only", () => {
+    expect(navigationPanelOverlays("medium")).toBe(true);
+  });
+
+  it("is false for compact, wide, and expanded", () => {
+    expect(navigationPanelOverlays("compact")).toBe(false);
+    expect(navigationPanelOverlays("wide")).toBe(false);
+    expect(navigationPanelOverlays("expanded")).toBe(false);
   });
 });

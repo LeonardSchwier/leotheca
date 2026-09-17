@@ -810,6 +810,11 @@ describe("App: accent color applies live (2026-09-04 repro)", () => {
 
 describe("App: Tags toolbar button gated by tagsEnabled (2026-09-04)", () => {
   it("shows the Tags toolbar button when tagsEnabled is on (the default)", () => {
+    // Compact width: at Medium+ (the jsdom-default 1024px width otherwise
+    // used here) the Activity Rail now takes over Tags navigation (spec
+    // 13.2's "720px and above"), hiding this toolbar button in favor of
+    // the rail's own -- this test is specifically about the toolbar one.
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 600 });
     workspacePath.value = "/vault";
     const { queryByLabelText } = render(<App />);
     expect(queryByLabelText("View tags")).toBeTruthy();
@@ -878,6 +883,12 @@ describe("App: Task Hub index stays fresh after an ordinary editor save (2026-09
 
 describe("App: a failed autosave shows a visible error and lets the user retry (maintenance review)", () => {
   it("shows an alert with the failure reason instead of failing silently", async () => {
+    // Compact width: at Medium+ (the jsdom-default 1024px width otherwise
+    // used here) a text note's save error surfaces through the terser
+    // Document Header save-state area instead (spec 13.6), not this
+    // detailed classic bar -- this test is specifically about that bar's
+    // own full message.
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 600 });
     vi.useFakeTimers();
     writeTextFile.mockRejectedValueOnce(new Error("disk full"));
     openOrFocusTab("/vault/note.md", "note.md", "hello", "text");
@@ -1548,7 +1559,7 @@ function ensureFilesActive(getByLabelText: (text: string) => HTMLElement): void 
   }
 }
 
-describe("App: UX-01 Activity Rail (Wide+ layout)", () => {
+describe("App: UX-01 Activity Rail (Medium+ layout)", () => {
   it("shows the Activity Rail and hides its now-duplicated toolbar buttons at Wide width", () => {
     Object.defineProperty(window, "innerWidth", { configurable: true, value: 1200 });
     workspacePath.value = "/vault";
@@ -1569,8 +1580,8 @@ describe("App: UX-01 Activity Rail (Wide+ layout)", () => {
     expect(queryByLabelText("View tags")).toBeNull();
   });
 
-  it("keeps the pre-existing toolbar (no rail) below the Wide threshold, e.g. at Medium width", () => {
-    Object.defineProperty(window, "innerWidth", { configurable: true, value: 900 });
+  it("keeps the pre-existing toolbar (no rail) below the Medium threshold, e.g. at Compact width", () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 600 });
     workspacePath.value = "/vault";
     const { container, getByLabelText, queryByLabelText } = render(<App />);
 
@@ -1581,17 +1592,27 @@ describe("App: UX-01 Activity Rail (Wide+ layout)", () => {
     expect(queryByLabelText("Files")).toBeNull();
   });
 
-  it("crossing the Wide boundary on resize swaps between the two without losing the open note", () => {
+  it("shows the Activity Rail at Medium width too, per spec 13.2's '720px and above'", () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 900 });
+    workspacePath.value = "/vault";
+    const { container, queryByLabelText } = render(<App />);
+
+    expect(container.querySelector(".activity-rail")).toBeTruthy();
+    expect(queryByLabelText("Toggle file browser")).toBeNull();
+  });
+
+  it("crossing the Medium boundary on resize swaps between the two without losing the open note", () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 600 });
     workspacePath.value = "/vault";
     openOrFocusTab("/vault/a.md", "a.md", "hello", "text");
     const { container } = render(<App />);
 
-    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1200 });
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 900 });
     fireEvent(window, new Event("resize"));
     expect(container.querySelector(".activity-rail")).toBeTruthy();
     expect(openTabs.value.map((t) => t.path)).toEqual(["/vault/a.md"]);
 
-    Object.defineProperty(window, "innerWidth", { configurable: true, value: 900 });
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 600 });
     fireEvent(window, new Event("resize"));
     expect(container.querySelector(".activity-rail")).toBeNull();
     expect(openTabs.value.map((t) => t.path)).toEqual(["/vault/a.md"]);
@@ -1645,7 +1666,65 @@ describe("App: UX-01 Activity Rail (Wide+ layout)", () => {
   });
 });
 
-describe("App: UX-01 Document Header (Wide+ layout)", () => {
+describe("App: UX-01 Medium width Navigation Panel overlay (spec 12.1/12.4)", () => {
+  it("renders the Navigation Panel as an overlay with a backdrop at Medium width", () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 900 });
+    workspacePath.value = "/vault";
+    const { container, getByLabelText } = render(<App />);
+    ensureFilesActive(getByLabelText);
+
+    expect(container.querySelector(".sidebar--overlay")).toBeTruthy();
+    expect(container.querySelector(".sidebar-overlay-backdrop")).toBeTruthy();
+  });
+
+  it("stays docked, with no overlay backdrop, at Wide width", () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1200 });
+    workspacePath.value = "/vault";
+    const { container, getByLabelText } = render(<App />);
+    ensureFilesActive(getByLabelText);
+
+    expect(container.querySelector(".sidebar")).toBeTruthy();
+    expect(container.querySelector(".sidebar--overlay")).toBeNull();
+    expect(container.querySelector(".sidebar-overlay-backdrop")).toBeNull();
+  });
+
+  it("clicking the backdrop closes the overlay Navigation Panel", () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 900 });
+    workspacePath.value = "/vault";
+    const { container, getByLabelText } = render(<App />);
+    ensureFilesActive(getByLabelText);
+    expect(container.querySelector(".sidebar")).toBeTruthy();
+
+    fireEvent.click(container.querySelector(".sidebar-overlay-backdrop")!);
+
+    expect(container.querySelector(".sidebar")).toBeNull();
+  });
+
+  it("pressing Escape closes the overlay Navigation Panel", () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 900 });
+    workspacePath.value = "/vault";
+    const { container, getByLabelText } = render(<App />);
+    ensureFilesActive(getByLabelText);
+    expect(container.querySelector(".sidebar")).toBeTruthy();
+
+    fireEvent.keyDown(window, { key: "Escape" });
+
+    expect(container.querySelector(".sidebar")).toBeNull();
+  });
+
+  it("does not react to Escape when the Navigation Panel is already closed", () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 900 });
+    workspacePath.value = "/vault";
+    const { container } = render(<App />);
+    expect(container.querySelector(".sidebar")).toBeNull();
+
+    fireEvent.keyDown(window, { key: "Escape" });
+
+    expect(container.querySelector(".sidebar")).toBeNull();
+  });
+});
+
+describe("App: UX-01 Document Header (Medium+ layout)", () => {
   it("shows the Document Header for an open note at Wide width, with the toolbar's own view-mode/bookmark buttons hidden", () => {
     Object.defineProperty(window, "innerWidth", { configurable: true, value: 1200 });
     workspacePath.value = "/vault";
@@ -1660,8 +1739,8 @@ describe("App: UX-01 Document Header (Wide+ layout)", () => {
     expect(container.querySelector(".document-header .view-mode-switch")).toBeTruthy();
   });
 
-  it("has no Document Header at Medium width; the toolbar keeps its own view-mode switch instead", () => {
-    Object.defineProperty(window, "innerWidth", { configurable: true, value: 900 });
+  it("has no Document Header at Compact width; the toolbar keeps its own view-mode switch instead", () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 600 });
     workspacePath.value = "/vault";
     openOrFocusTab("/vault/a.md", "a.md", "hello", "text");
     const { container } = render(<App />);
@@ -1669,6 +1748,15 @@ describe("App: UX-01 Document Header (Wide+ layout)", () => {
     expect(container.querySelector(".document-header")).toBeNull();
     expect(container.querySelectorAll(".view-mode-switch").length).toBe(1);
     expect(container.querySelector(".toolbar .view-mode-switch")).toBeTruthy();
+  });
+
+  it("shows the Document Header at Medium width too, per spec 13.2's '720px and above'", () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 900 });
+    workspacePath.value = "/vault";
+    openOrFocusTab("/vault/a.md", "a.md", "hello", "text");
+    const { container } = render(<App />);
+
+    expect(container.querySelector(".document-header")).toBeTruthy();
   });
 
   it("switching view mode from the Document Header updates the rendered pane", () => {
@@ -1719,8 +1807,8 @@ describe("App: UX-01 Document Header (Wide+ layout)", () => {
     expect(getByText("Save failed")).toBeTruthy();
   });
 
-  it("keeps the classic save-error-bar at Medium width, where there is no Document Header", () => {
-    Object.defineProperty(window, "innerWidth", { configurable: true, value: 900 });
+  it("keeps the classic save-error-bar at Compact width, where there is no Document Header", () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 600 });
     workspacePath.value = "/vault";
     openOrFocusTab("/vault/a.md", "a.md", "hello", "text");
     openDocuments.value = openDocuments.value.map((d) =>

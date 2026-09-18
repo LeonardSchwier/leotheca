@@ -208,7 +208,7 @@ const {
 } = await import("../workspace/store");
 const { settingsLoaded, settingsPanelOpen, workspacePath, workspaceSettings, viewMode, externalFileOpenEnabled } =
   await import("../settings/store");
-const { linkIndex } = await import("../linking/store");
+const { linkIndex, linkIndexBuilding, linkIndexUnreadablePaths } = await import("../linking/store");
 const { outlineRevealRequest } = await import("../outline/outlineNavigation");
 const { outlineAnnouncement } = await import("../outline/outlineAnnouncements");
 const { workspaceTransitions } = await import("../workspace/workspaceTransition");
@@ -234,6 +234,8 @@ afterEach(() => {
   workspaceSettings.value = DEFAULT_WORKSPACE_SETTINGS;
   viewMode.value = "source";
   linkIndex.value = emptyLinkIndex();
+  linkIndexBuilding.value = false;
+  linkIndexUnreadablePaths.value = [];
   outlineRevealRequest.value = null;
   outlineAnnouncement.value = null;
   updateWorkspaceSettingsSpy.mockClear();
@@ -253,6 +255,27 @@ afterEach(() => {
   addWorkspaceFromPathSpy.mockClear();
   externalFileOpenEnabled.value = true;
   pendingCapturesStore.value = [];
+});
+
+describe("App: shared indexing status (UX-01 STATE-003)", () => {
+  it("announces real indexing work as busy, then exposes unreadable notes as a warning", () => {
+    const { getByText } = render(<App />);
+
+    act(() => {
+      linkIndexBuilding.value = true;
+    });
+    const progress = getByText("Indexing…").closest('[role="status"]');
+    expect(progress?.getAttribute("aria-busy")).toBe("true");
+    expect(getByText("Indexing…")).toBeTruthy();
+
+    act(() => {
+      linkIndexBuilding.value = false;
+      linkIndexUnreadablePaths.value = ["/vault/locked.md"];
+    });
+    const warning = getByText("1 note couldn't be indexed").closest('[role="status"]');
+    expect(warning?.className).toContain("status-indicator-warning");
+    expect(warning?.getAttribute("title")).toContain("/vault/locked.md");
+  });
 });
 
 describe("App: keyboard shortcuts", () => {

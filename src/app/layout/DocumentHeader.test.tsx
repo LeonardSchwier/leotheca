@@ -113,7 +113,8 @@ describe("DocumentHeader", () => {
       const { getByText, queryByText } = render(
         <DocumentHeader {...BASE_PROPS} dirty={true} saving={true} />,
       );
-      expect(getByText("Saving")).toBeTruthy();
+      const savingStatus = getByText("Saving").closest('[role="status"]');
+      expect(savingStatus?.getAttribute("aria-busy")).toBe("true");
       expect(queryByText("Unsaved")).toBeNull();
     });
 
@@ -135,7 +136,7 @@ describe("DocumentHeader", () => {
           <DocumentHeader {...BASE_PROPS} saving={true} />,
         );
         rerender(<DocumentHeader {...BASE_PROPS} saving={false} />);
-        expect(getByText("Saved")).toBeTruthy();
+        expect(getByText("Saved").closest('[role="status"]')).toBeTruthy();
 
         vi.advanceTimersByTime(1500);
         await Promise.resolve();

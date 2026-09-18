@@ -1,6 +1,7 @@
 import { useState } from "preact/hooks";
 import { fileNameFromPath, linkIndex } from "../linking/store";
 import { buildTagTree, type TagTreeNode } from "./tags";
+import { EmptyState } from "../ui/EmptyState";
 import "./tags.css";
 
 interface TagsPanelProps {
@@ -110,7 +111,15 @@ export function TagsPanel({ onOpenFile }: TagsPanelProps) {
 
   const tree = buildTagTree(linkIndex.value.pathsByTag);
 
-  if (tree.length === 0) return <p class="empty-hint">No tags yet.</p>;
+  if (tree.length === 0)
+    return (
+      <EmptyState
+        size="sm"
+        icon="tag"
+        title="No tags yet."
+        description="Add a #tag or frontmatter tag to a note to organize it here."
+      />
+    );
 
   return (
     <ul class="tags-list" aria-label="Tags">

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Workspace indexing, note save state, and empty Bookmarks/Tags panels now use shared accessible status primitives. Progress is marked busy and announced politely, save failures remain assertive and retryable, warning/success states pair text with local icons, and empty panels provide concise next-step guidance.
+
 - Confirmation dialogs now use the UX-01 refresh's shared `Dialog` component, keeping the safe Cancel action focused first while consistently trapping and restoring focus, supporting Escape and backdrop cancellation, preventing the page behind the dialog from scrolling, and keeping the title and actions reachable when content is tall.
 
 - The Document Header's "More note actions" menu now supports Arrow Up/Down, Home, End, Escape, and reliable focus restoration, skips disabled actions, and stays inside the visible window at screen edges. This is the first real use of the UX-01 refresh's shared `Menu` component; the existing Rename, Copy Relative Path, Delete, and Markdown Help actions are unchanged.

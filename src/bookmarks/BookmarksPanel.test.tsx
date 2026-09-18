@@ -41,8 +41,12 @@ afterEach(() => {
 
 describe("BookmarksPanel", () => {
   it("shows a placeholder when there are no bookmarks", () => {
-    const { getByText } = render(<BookmarksPanel onOpenFile={vi.fn()} onRunSearch={vi.fn()} />);
+    const { getByText, getByRole } = render(
+      <BookmarksPanel onOpenFile={vi.fn()} onRunSearch={vi.fn()} />,
+    );
     expect(getByText("No bookmarks yet.")).toBeTruthy();
+    expect(getByRole("region", { name: "No bookmarks yet." })).toBeTruthy();
+    expect(getByText("Bookmark a note or saved search to find it here.")).toBeTruthy();
   });
 
   it("lists file and search bookmarks with their kind badge", () => {

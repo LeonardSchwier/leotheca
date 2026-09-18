@@ -1,6 +1,7 @@
 import { useState } from "preact/hooks";
 import { bookmarks, removeBookmark } from "./store";
 import type { Bookmark } from "./types";
+import { EmptyState } from "../ui/EmptyState";
 import "./bookmarks.css";
 
 interface BookmarksPanelProps {
@@ -26,7 +27,14 @@ export function BookmarksPanel({
   const [openErrorId, setOpenErrorId] = useState<string | null>(null);
 
   if (bookmarks.value.length === 0)
-    return <p class="empty-hint">No bookmarks yet.</p>;
+    return (
+      <EmptyState
+        size="sm"
+        icon="bookmark"
+        title="No bookmarks yet."
+        description="Bookmark a note or saved search to find it here."
+      />
+    );
 
   async function handleOpenFileBookmark(
     bookmark: Extract<Bookmark, { kind: "file" }>,

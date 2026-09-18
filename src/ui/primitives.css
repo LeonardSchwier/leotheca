@@ -1,8 +1,7 @@
 /* UX-01 spec section 20 "UI primitives" / Phase 1 ("Button, IconButton,
  * SegmentedControl, Tooltip, Menu, Dialog, and status primitives needed
- * by the current shell"). This slice lands only Button and IconButton;
- * the rest of that Phase 1 list remains open follow-up work, see
- * ROADMAP.md's UX-01 entry.
+ * by the current shell"). Shared controls land incrementally; see
+ * ROADMAP.md's UX-01 entry for the remaining adaptive-shell work.
  *
  * All colors/spacing/radius/motion below consume the semantic tokens in
  * theme.css (spec 19.1: "Components must consume semantic tokens rather
@@ -99,6 +98,104 @@
 
 .btn-spinner {
   display: inline-flex;
+}
+
+/* Spinner and compact operational status (spec 18.2/20). The icon's
+ * rotation is defined centrally in theme.css and remains a slower visible
+ * progress cue under reduced motion. Visible text prevents icon/color-only
+ * state communication. */
+.spinner {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+
+.status-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  min-width: 0;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.status-indicator-sm {
+  font-size: 0.8125rem;
+}
+
+.status-indicator-md {
+  font-size: 0.875rem;
+}
+
+.status-indicator-success {
+  color: var(--color-success);
+}
+
+.status-indicator-warning {
+  color: var(--color-warning);
+}
+
+.status-indicator-danger {
+  color: var(--color-danger);
+}
+
+.status-indicator-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  min-width: 0;
+}
+
+/* EmptyState (spec 18.3/20). It stays intentionally quiet and compact:
+ * no remote illustration, one primary and one secondary action slot. */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  max-width: 32rem;
+  margin-inline: auto;
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+
+.empty-state-sm {
+  gap: var(--space-2);
+  padding: var(--space-6) var(--space-4);
+}
+
+.empty-state-md {
+  gap: var(--space-3);
+  padding: var(--space-8) var(--space-6);
+}
+
+.empty-state-icon {
+  display: inline-flex;
+  color: var(--color-text-muted);
+}
+
+.empty-state-title,
+.empty-state-description {
+  margin: 0;
+}
+
+.empty-state-title {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.empty-state-description {
+  font-size: 0.875rem;
+}
+
+.empty-state-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
 }
 
 /* IconButton: a square, icon-only control. Deliberately not shared class

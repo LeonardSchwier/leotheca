@@ -40,12 +40,7 @@
 
 .app-title-hint {
   font-size: 12px;
-  color: var(--text-faint);
   white-space: nowrap;
-}
-
-.app-title-hint-warning {
-  color: var(--color-danger);
 }
 
 /* F20 Phase 1: minimal workspace switcher (spec
@@ -521,16 +516,7 @@ button.icon-button.active {
 }
 
 .document-header-savestate {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1-5);
   flex-shrink: 0;
-  font-size: 0.8125rem;
-  color: var(--text-muted);
-}
-
-.document-header-savestate-error {
-  color: var(--color-danger);
 }
 
 .document-header-savestate-retry {

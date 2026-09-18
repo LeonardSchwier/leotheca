@@ -57,6 +57,7 @@ import {
 } from "../workspace/store";
 import { SplitSeparator } from "../editorGroups/SplitSeparator";
 import { SecondaryEditorPane } from "../editorGroups/SecondaryEditorPane";
+import { StatusIndicator } from "../ui/StatusIndicator";
 import { CompactGroupSwitcher } from "../editorGroups/CompactGroupSwitcher";
 import { onExternalFileOpen, readTextFile, takePendingExternalFile } from "../workspace/tauriBridge";
 import { isPathWithinWorkspace } from "../workspace/paths";
@@ -1206,19 +1207,28 @@ export function App() {
         <span class="app-title">Leotheca</span>
         <WorkspaceSwitcher />
         {linkIndexBuilding.value && (
-          <span class="app-title-hint" title="Building the wikilink index for this workspace">
+          <StatusIndicator
+            variant="progress"
+            size="sm"
+            live="polite"
+            className="app-title-hint"
+            title="Building the wikilink index for this workspace"
+          >
             Indexing…
-          </span>
+          </StatusIndicator>
         )}
         {!linkIndexBuilding.value && linkIndexUnreadablePaths.value.length > 0 && (
-          <span
-            class="app-title-hint app-title-hint-warning"
+          <StatusIndicator
+            variant="warning"
+            size="sm"
+            live="polite"
+            className="app-title-hint"
             title={`Could not read: ${linkIndexUnreadablePaths.value.join(", ")}`}
           >
             {linkIndexUnreadablePaths.value.length === 1
               ? "1 note couldn't be indexed"
               : `${linkIndexUnreadablePaths.value.length} notes couldn't be indexed`}
-          </span>
+          </StatusIndicator>
         )}
         {rootPath && (
           <button

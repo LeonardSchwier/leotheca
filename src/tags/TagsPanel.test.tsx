@@ -23,8 +23,10 @@ afterEach(() => {
 
 describe("TagsPanel", () => {
   it("shows a placeholder when there are no tags", () => {
-    const { getByText } = render(<TagsPanel onOpenFile={vi.fn()} />);
+    const { getByText, getByRole } = render(<TagsPanel onOpenFile={vi.fn()} />);
     expect(getByText("No tags yet.")).toBeTruthy();
+    expect(getByRole("region", { name: "No tags yet." })).toBeTruthy();
+    expect(getByText("Add a #tag or frontmatter tag to a note to organize it here.")).toBeTruthy();
   });
 
   it("lists a top-level tag with its note count", () => {

@@ -4,6 +4,7 @@ import { Icon as RegistryIcon, type IconName } from "../../ui/icons";
 import { IconButton } from "../../ui/IconButton";
 import { Menu } from "../../ui/Menu";
 import { SegmentedControl } from "../../ui/SegmentedControl";
+import { StatusIndicator } from "../../ui/StatusIndicator";
 
 /** UX-01 spec section 13.5/UX-005: "Note-specific view, bookmark,
  * Inspector, and overflow actions shall appear in the Document Header or
@@ -145,12 +146,10 @@ export function DocumentHeader({
       </span>
       <div
         class={`document-header-savestate document-header-savestate-${saveState}`}
-        role={saveState === "error" ? "alert" : undefined}
       >
         {saveState === "error" && (
-          <>
-            <RegistryIcon name="alertCircle" size={16} />
-            <span>Save failed</span>
+          <StatusIndicator variant="danger" size="sm" live="assertive">
+            Save failed
             <button
               type="button"
               class="document-header-savestate-retry"
@@ -158,19 +157,22 @@ export function DocumentHeader({
             >
               Retry
             </button>
-          </>
+          </StatusIndicator>
         )}
         {saveState === "saving" && (
-          <>
-            <RegistryIcon name="spinner" size={16} spin />
-            <span>Saving</span>
-          </>
+          <StatusIndicator variant="progress" size="sm" live="polite">
+            Saving
+          </StatusIndicator>
         )}
-        {saveState === "saved" && <span>Saved</span>}
+        {saveState === "saved" && (
+          <StatusIndicator variant="success" size="sm" live="polite">
+            Saved
+          </StatusIndicator>
+        )}
         {saveState === "dirty" && (
-          <span aria-label="Unsaved changes">
+          <StatusIndicator size="sm" icon={false} ariaLabel="Unsaved changes">
             <span aria-hidden="true">•</span> Unsaved
-          </span>
+          </StatusIndicator>
         )}
       </div>
       <div class="document-header-actions">

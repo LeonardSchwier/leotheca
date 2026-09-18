@@ -177,12 +177,12 @@ describe("DocumentHeader", () => {
       expect(queryByRole("menu")).toBeNull();
     });
 
-    it("closes on an outside click without requiring an action", () => {
+    it("closes on an outside pointer interaction without requiring an action", () => {
       const { getByLabelText, queryByRole } = render(<DocumentHeader {...BASE_PROPS} />);
       fireEvent.click(getByLabelText("More note actions"));
       expect(queryByRole("menu")).toBeTruthy();
 
-      fireEvent.click(window);
+      fireEvent.pointerDown(document.body);
 
       expect(queryByRole("menu")).toBeNull();
     });
@@ -192,7 +192,7 @@ describe("DocumentHeader", () => {
       fireEvent.click(getByLabelText("More note actions"));
       expect(queryByRole("menu")).toBeTruthy();
 
-      fireEvent.keyDown(window, { key: "Escape" });
+      fireEvent.keyDown(queryByRole("menu")!, { key: "Escape" });
 
       expect(queryByRole("menu")).toBeNull();
     });
@@ -228,7 +228,9 @@ describe("DocumentHeader", () => {
       );
       fireEvent.click(getByLabelText("More note actions"));
       const deleteItem = getByText("Delete");
-      expect(deleteItem.className).toContain("context-menu-danger");
+      expect(deleteItem.closest("button")?.className).toContain(
+        "menu-item-danger",
+      );
 
       fireEvent.click(deleteItem);
 

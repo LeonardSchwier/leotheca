@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- The Document Header's "More note actions" menu now supports Arrow Up/Down, Home, End, Escape, and reliable focus restoration, skips disabled actions, and stays inside the visible window at screen edges. This is the first real use of the UX-01 refresh's shared `Menu` component; the existing Rename, Copy Relative Path, Delete, and Markdown Help actions are unchanged.
+
 - The Activity Rail's Files/Bookmarks/Tags/Graph/Settings buttons now show a proper tooltip on hover and on keyboard focus (previously only a plain browser tooltip on hover, nothing on focus), as part of the ongoing UX-01 visual-system refresh's shared `Tooltip` component (spec section 20). It's dismissible with Escape and respects reduced-motion.
 
 - The note view-mode switch (Source/Split/Preview) in the Document Header now supports arrow-key navigation between options, as part of the ongoing UX-01 visual-system refresh's shared `SegmentedControl` component (spec section 20). Its look and click behavior are unchanged.

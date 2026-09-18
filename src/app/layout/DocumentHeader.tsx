@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import type { ViewMode } from "../../settings/workspaceSettings";
 import { Icon as RegistryIcon, type IconName } from "../../ui/icons";
 import { IconButton } from "../../ui/IconButton";
+import { Menu } from "../../ui/Menu";
 import { SegmentedControl } from "../../ui/SegmentedControl";
 
 /** UX-01 spec section 13.5/UX-005: "Note-specific view, bookmark,
@@ -37,9 +38,10 @@ import { SegmentedControl } from "../../ui/SegmentedControl";
  * Bookmark and Inspector are the first real call sites of the section 20
  * `IconButton` primitive (`ui/IconButton.tsx`), both toggles whose active
  * state maps directly onto that primitive's `active`/`aria-pressed`
- * prop; the overflow trigger stays a plain button since its semantics
- * (a menu disclosure, `aria-haspopup`/`aria-expanded`) don't fit that
- * same toggle contract. The view-mode switch is the first real call site
+ * prop; the overflow trigger and popup now use the shared `Menu` primitive,
+ * whose disclosure semantics, keyboard behavior, viewport fitting, and
+ * focus restoration do not fit the toggle-only IconButton contract. The
+ * view-mode switch is the first real call site
  * of the section 20 `SegmentedControl` primitive (`ui/SegmentedControl.tsx`),
  * replacing the hand-written icon-only `.view-mode-switch` button row this
  * header used before; `SecondaryEditorPane.tsx`'s own
@@ -106,32 +108,6 @@ export function DocumentHeader({
   onDelete,
   onShowHelp,
 }: DocumentHeaderProps) {
-  const [overflowOpen, setOverflowOpen] = useState(false);
-
-  // Dismiss on any outside click or on losing window focus, the same
-  // pattern FileContextMenu.tsx already uses for its own dropdown. Each
-  // menu item closes the menu itself before running its action (below),
-  // so this only needs to handle the "user clicked/tabbed away" case.
-  useEffect(() => {
-    if (!overflowOpen) return;
-    const dismiss = () => setOverflowOpen(false);
-    window.addEventListener("click", dismiss);
-    window.addEventListener("blur", dismiss);
-    return () => {
-      window.removeEventListener("click", dismiss);
-      window.removeEventListener("blur", dismiss);
-    };
-  }, [overflowOpen]);
-
-  useEffect(() => {
-    if (!overflowOpen) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOverflowOpen(false);
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [overflowOpen]);
-
   // Triggered only by the real saving->settled transition below, never by
   // a timer racing typing: this is what keeps the "Saved" pulse honest
   // per 13.6 rather than a guess about whether autosave "probably" ran.
@@ -221,66 +197,33 @@ export function DocumentHeader({
           active={inspectorOpen}
           onClick={onToggleInspector}
         />
-        <div class="document-header-overflow">
-          <button
-            class="icon-button"
-            aria-label="More note actions"
-            aria-haspopup="menu"
-            aria-expanded={overflowOpen}
-            title="More note actions"
-            onClick={(e) => {
-              e.stopPropagation();
-              setOverflowOpen((open) => !open);
-            }}
-          >
-            <RegistryIcon name="moreHorizontal" size={16} />
-          </button>
-          {overflowOpen && (
-            <div class="document-header-overflow-menu" role="menu">
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  setOverflowOpen(false);
-                  onRename();
-                }}
-              >
-                Rename
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  setOverflowOpen(false);
-                  onCopyRelativePath();
-                }}
-              >
-                Copy Relative Path
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                class="context-menu-danger"
-                onClick={() => {
-                  setOverflowOpen(false);
-                  onDelete();
-                }}
-              >
-                Delete
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  setOverflowOpen(false);
-                  onShowHelp();
-                }}
-              >
-                <RegistryIcon name="helpCircle" size={16} /> Markdown Help
-              </button>
-            </div>
-          )}
-        </div>
+        <Menu
+          label="More note actions"
+          title="More note actions"
+          triggerClassName="icon-button"
+          trigger={<RegistryIcon name="moreHorizontal" size={16} />}
+          items={[
+            { id: "rename", label: "Rename", onSelect: onRename },
+            {
+              id: "copy-relative-path",
+              label: "Copy Relative Path",
+              onSelect: onCopyRelativePath,
+            },
+            {
+              id: "delete",
+              label: "Delete",
+              icon: "warningTriangle",
+              variant: "danger",
+              onSelect: onDelete,
+            },
+            {
+              id: "help",
+              label: "Markdown Help",
+              icon: "helpCircle",
+              onSelect: onShowHelp,
+            },
+          ]}
+        />
       </div>
     </div>
   );

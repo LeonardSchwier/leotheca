@@ -550,48 +550,6 @@ button.icon-button.active {
   flex-shrink: 0;
 }
 
-.document-header-overflow {
-  position: relative;
-}
-
-.document-header-overflow-menu {
-  position: absolute;
-  top: calc(100% + var(--space-1));
-  right: 0;
-  z-index: 100;
-  display: flex;
-  flex-direction: column;
-  min-width: 180px;
-  background: var(--bg-raised);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-low);
-  padding: var(--space-1);
-}
-
-.document-header-overflow-menu button {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  font: inherit;
-  text-align: left;
-  white-space: nowrap;
-  background: none;
-  border: none;
-  color: var(--text-primary);
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-}
-
-.document-header-overflow-menu button:hover {
-  background: var(--bg-hover);
-}
-
-.document-header-overflow-menu .context-menu-danger:hover {
-  background: color-mix(in srgb, var(--color-danger) 12%, transparent);
-}
-
 .note-lock-bar {
   display: flex;
   align-items: center;

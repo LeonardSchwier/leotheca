@@ -1570,6 +1570,7 @@ export function App() {
             <DocumentHeader
               key={current.path}
               noteName={current.name}
+              workspaceRelativePath={rootPath ? relativePath(rootPath, current.path) : current.name}
               notePath={current.path}
               viewMode={viewMode.value}
               onSetViewMode={(mode) => (viewMode.value = mode)}

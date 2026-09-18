@@ -74,6 +74,9 @@ const SAVED_PULSE_MS = 1500;
 
 export interface DocumentHeaderProps {
   noteName: string;
+  /** The path relative to the active workspace, for the visible breadcrumb. */
+  workspaceRelativePath: string;
+  /** The complete native path, kept available as a title for long paths. */
   notePath: string;
   viewMode: ViewMode;
   onSetViewMode: (mode: ViewMode) => void;
@@ -93,6 +96,7 @@ export interface DocumentHeaderProps {
 
 export function DocumentHeader({
   noteName,
+  workspaceRelativePath,
   notePath,
   viewMode,
   onSetViewMode,
@@ -134,6 +138,11 @@ export function DocumentHeader({
           ? "dirty"
           : "clean";
 
+  const breadcrumbSegments = workspaceRelativePath
+    .split("/")
+    .filter(Boolean)
+    .slice(0, -1);
+
   return (
     <div class="document-header">
       <span class="document-header-title" title={notePath}>
@@ -143,6 +152,11 @@ export function DocumentHeader({
           className="document-header-icon"
         />
         <span class="document-header-title-text">{noteName}</span>
+        {breadcrumbSegments.length > 0 && (
+          <span class="document-header-breadcrumb" aria-label={`Path: ${workspaceRelativePath}`}>
+            {breadcrumbSegments.join(" / ")}
+          </span>
+        )}
       </span>
       <div
         class={`document-header-savestate document-header-savestate-${saveState}`}

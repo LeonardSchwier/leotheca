@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Preview now renders Markdown footnotes: a `[^1]` reference shows as a numbered, clickable superscript, and its `[^1]: ...` definition (which can span several lines when indented) renders in a "Footnotes" section at the end of the note, with a back-link from the definition to where it was referenced. Only footnotes actually referenced in the note appear there, numbered in the order they're first used. Previously `[^1]` and its definition rendered as plain, unlinked text.
+
 - Quick Capture now traps focus properly while open, restores it to whatever you were doing when you close it, locks the page behind it from scrolling, and closes on the Android hardware back button as well as Escape, backdrop tap, or its own close button — all previously missing or only partially implemented. This is the first real use of the UX-01 refresh's new shared `Sheet` component (spec section 20), the touch-first, edge-anchored counterpart to the existing `Dialog` component; both now share one overlay stack so opening one above the other dismisses only the correct one.
 
 - Workspace indexing, note save state, and empty Bookmarks/Tags panels now use shared accessible status primitives. Progress is marked busy and announced politely, save failures remain assertive and retryable, warning/success states pair text with local icons, and empty panels provide concise next-step guidance.

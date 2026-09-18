@@ -1759,9 +1759,10 @@ describe("App: UX-01 Document Header (Medium+ layout)", () => {
     expect(container.querySelector(".document-header")).toBeTruthy();
     expect(container.querySelector(".document-header-title")?.textContent).toBe("a.md");
     // Exactly one Source/Split/Preview switch should exist (inside the
-    // header), not a second copy left behind in the toolbar.
-    expect(container.querySelectorAll(".view-mode-switch").length).toBe(1);
-    expect(container.querySelector(".document-header .view-mode-switch")).toBeTruthy();
+    // header, now DocumentHeader's SegmentedControl), not a second copy
+    // left behind in the toolbar (still the old .view-mode-switch markup).
+    expect(container.querySelectorAll(".view-mode-switch").length).toBe(0);
+    expect(container.querySelector(".document-header .segmented")).toBeTruthy();
   });
 
   it("has no Document Header at Compact width; the toolbar keeps its own view-mode switch instead", () => {

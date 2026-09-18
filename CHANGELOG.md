@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- The note view-mode switch (Source/Split/Preview) in the Document Header now supports arrow-key navigation between options, as part of the ongoing UX-01 visual-system refresh's shared `SegmentedControl` component (spec section 20). Its look and click behavior are unchanged.
+
 - Started the UX-01 visual-system refresh (`spec/leotheca-visual-system-adaptive-ux-sdd.md`), Phase 1a: a full semantic design-token layer for light and dark ("Quiet Library" palette), contrast-checked accent mappings for Warm/Ocean/Forest/Plum that now differ correctly between themes, a new "Reading font" setting (Sans/Serif/Mono) for the rendered Markdown preview (previously always rendered in the monospaced editor font), and a local SVG icon registry ready for future migration. See ROADMAP.md for what's landed versus what's still open in this multi-phase refresh.
 
 - Fixed the "Choose Folder"/"Add workspace" button on the welcome screen appearing to do nothing when the native folder picker itself failed (most notably on Android: some storage providers reject persistable access, a case `FolderAccessPlugin` already caught and rejected on the native side). The rejection never reached `workspaceSelectionError`, so the button silently reset to its idle label with no feedback at all. It now shows an actionable inline error so a retry (or choosing a different folder) is obvious, matching the same silently-swallowed-rejection fix already applied elsewhere (bookmarks, backlinks, diagnostics, external-file opens).

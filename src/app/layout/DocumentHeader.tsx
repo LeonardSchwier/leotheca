@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import type { ViewMode } from "../../settings/workspaceSettings";
 import { Icon as RegistryIcon, type IconName } from "../../ui/icons";
 import { IconButton } from "../../ui/IconButton";
+import { SegmentedControl } from "../../ui/SegmentedControl";
 
 /** UX-01 spec section 13.5/UX-005: "Note-specific view, bookmark,
  * Inspector, and overflow actions shall appear in the Document Header or
@@ -38,7 +39,12 @@ import { IconButton } from "../../ui/IconButton";
  * state maps directly onto that primitive's `active`/`aria-pressed`
  * prop; the overflow trigger stays a plain button since its semantics
  * (a menu disclosure, `aria-haspopup`/`aria-expanded`) don't fit that
- * same toggle contract.
+ * same toggle contract. The view-mode switch is the first real call site
+ * of the section 20 `SegmentedControl` primitive (`ui/SegmentedControl.tsx`),
+ * replacing the hand-written icon-only `.view-mode-switch` button row this
+ * header used before; `SecondaryEditorPane.tsx`'s own
+ * `.secondary-view-mode-switch` still uses the old hand-written markup and
+ * stays out of this slice's claimed scope.
  *
  * The overflow menu (13.5: "Overflow contains lower-frequency current-note
  * actions and Help entries appropriate to the note") is new this pass:
@@ -192,22 +198,17 @@ export function DocumentHeader({
         )}
       </div>
       <div class="document-header-actions">
-        <div class="view-mode-switch">
-          {VIEW_MODES.map((mode) => {
-            const label = mode[0].toUpperCase() + mode.slice(1);
-            return (
-              <button
-                key={mode}
-                class={viewMode === mode ? "active" : ""}
-                title={label}
-                aria-label={label}
-                onClick={() => onSetViewMode(mode)}
-              >
-                <RegistryIcon name={VIEW_MODE_ICONS[mode]} size={16} />
-              </button>
-            );
-          })}
-        </div>
+        <SegmentedControl
+          aria-label="View mode"
+          value={viewMode}
+          onChange={onSetViewMode}
+          size="sm"
+          options={VIEW_MODES.map((mode) => ({
+            value: mode,
+            label: mode[0].toUpperCase() + mode.slice(1),
+            icon: VIEW_MODE_ICONS[mode],
+          }))}
+        />
         <IconButton
           icon={bookmarked ? "bookmarkFilled" : "bookmark"}
           label={bookmarked ? "Remove bookmark" : "Bookmark this note"}

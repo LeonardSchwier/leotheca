@@ -126,3 +126,62 @@
   color: var(--text-faint);
   font-style: italic;
 }
+
+/* Footnote references ([^1]) and their "Footnotes" section at the end of
+ * the rendered note. The reference link keeps the surrounding text's own
+ * color (no accent tint) so a run of prose with several footnotes doesn't
+ * read as a run of links; the superscript position and smaller size are
+ * what mark it as a footnote. */
+.markdown-preview .footnote-ref a {
+  color: inherit;
+  text-decoration: none;
+  padding: 0 1px;
+}
+
+.markdown-preview .footnote-ref a:hover,
+.markdown-preview .footnote-ref a:focus-visible {
+  text-decoration: underline;
+  color: var(--accent);
+}
+
+.markdown-preview section.footnotes {
+  margin-top: var(--space-4);
+  padding-top: var(--space-2);
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.markdown-preview section.footnotes hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 0 0 var(--space-2);
+  width: 25%;
+}
+
+.markdown-preview section.footnotes ol {
+  margin: 0;
+  padding-left: var(--space-4);
+}
+
+.markdown-preview section.footnotes li {
+  margin-bottom: var(--space-1);
+}
+
+.markdown-preview section.footnotes li > :first-child {
+  margin-top: 0;
+}
+
+.markdown-preview section.footnotes li > :last-child {
+  margin-bottom: 0;
+}
+
+.markdown-preview .footnote-backref {
+  color: var(--text-faint);
+  text-decoration: none;
+  margin-left: var(--space-1);
+}
+
+.markdown-preview .footnote-backref:hover,
+.markdown-preview .footnote-backref:focus-visible {
+  color: var(--accent);
+}

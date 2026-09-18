@@ -357,6 +357,120 @@ describe("MarkdownPreview: math rendering", () => {
   });
 });
 
+describe("MarkdownPreview: footnotes", () => {
+  it("renders a footnote reference as a numbered, linked superscript and a matching Footnotes section", () => {
+    const { container } = render(
+      <MarkdownPreview source={"Some text with a footnote.[^1]\n\n[^1]: Here is the footnote."} />,
+    );
+    const ref = container.querySelector(".footnote-ref a");
+    expect(ref?.textContent).toBe("1");
+    expect(ref?.getAttribute("href")).toBe("#fn-1");
+    expect(ref?.getAttribute("id")).toBe("fnref-1");
+
+    const section = container.querySelector("section.footnotes");
+    expect(section).toBeTruthy();
+    const item = section?.querySelector("li#fn-1");
+    expect(item?.textContent).toContain("Here is the footnote.");
+    const backref = item?.querySelector("a.footnote-backref");
+    expect(backref?.getAttribute("href")).toBe("#fnref-1");
+  });
+
+  it("numbers multiple footnotes by first-reference order, not definition order", () => {
+    const { container } = render(
+      <MarkdownPreview
+        source={
+          "First[^b] then second[^a].\n\n[^a]: Definition A.\n[^b]: Definition B."
+        }
+      />,
+    );
+    const refs = Array.from(container.querySelectorAll(".footnote-ref a"));
+    expect(refs.map((el) => el.textContent)).toEqual(["1", "2"]);
+
+    const items = Array.from(container.querySelectorAll("section.footnotes li"));
+    expect(items[0].textContent).toContain("Definition B.");
+    expect(items[1].textContent).toContain("Definition A.");
+  });
+
+  it("reuses the same number for a footnote referenced more than once", () => {
+    const { container } = render(
+      <MarkdownPreview source={"One[^x] and again[^x].\n\n[^x]: Shared definition."} />,
+    );
+    const refs = Array.from(container.querySelectorAll(".footnote-ref a"));
+    expect(refs.map((el) => el.textContent)).toEqual(["1", "1"]);
+    expect(container.querySelectorAll("section.footnotes li").length).toBe(1);
+  });
+
+  it("supports a multi-line, indented footnote definition body", () => {
+    const { container } = render(
+      <MarkdownPreview
+        source={"See note.[^1]\n\n[^1]: First line of the note.\n    Second line, indented."}
+      />,
+    );
+    const item = container.querySelector("li#fn-1");
+    expect(item?.textContent).toContain("First line of the note.");
+    expect(item?.textContent).toContain("Second line, indented.");
+  });
+
+  it("parses the footnote definition body as Markdown", () => {
+    const { container } = render(
+      <MarkdownPreview source={"Text.[^1]\n\n[^1]: A **bold** word."} />,
+    );
+    const item = container.querySelector("li#fn-1");
+    expect(item?.querySelector("strong")?.textContent).toBe("bold");
+  });
+
+  it("leaves an unreferenced footnote definition out of the rendered output entirely", () => {
+    const { container } = render(
+      <MarkdownPreview source={"No references here.\n\n[^unused]: Never linked."} />,
+    );
+    expect(container.querySelector("section.footnotes")).toBeNull();
+    expect(container.textContent).not.toContain("Never linked");
+  });
+
+  it("leaves an undefined [^id] reference as literal text", () => {
+    const { container } = render(<MarkdownPreview source={"A reference to nowhere.[^missing]"} />);
+    expect(container.querySelector(".footnote-ref")).toBeNull();
+    expect(container.textContent).toContain("[^missing]");
+  });
+
+  it("does not render a Footnotes section when there are no footnotes at all", () => {
+    const { container } = render(<MarkdownPreview source={"Just an ordinary paragraph."} />);
+    expect(container.querySelector("section.footnotes")).toBeNull();
+  });
+
+  it("removes the footnote-definition line from the flowing document text", () => {
+    const { container } = render(
+      <MarkdownPreview source={"Body text.[^1]\n\n[^1]: The definition text."} />,
+    );
+    const paragraphs = Array.from(container.querySelectorAll(".markdown-preview > p"));
+    expect(paragraphs.some((p) => p.textContent?.includes("[^1]: The definition text."))).toBe(false);
+  });
+
+  it("does not treat a footnote-shaped line inside a fenced code block as a real definition", () => {
+    const { container } = render(
+      <MarkdownPreview
+        source={"Example syntax:\n\n```\n[^1]: not a real footnote\n```"}
+      />,
+    );
+    expect(container.querySelector("section.footnotes")).toBeNull();
+    expect(container.querySelector("code")?.textContent).toContain("[^1]: not a real footnote");
+  });
+
+  it("does not cross-contaminate footnote numbering between two separately rendered notes", () => {
+    const { container: first } = render(
+      <MarkdownPreview source={"Note one.[^1]\n\n[^1]: First note's footnote."} />,
+    );
+    expect(first.querySelector(".footnote-ref")).toBeTruthy();
+    cleanup();
+
+    const { container: second } = render(
+      <MarkdownPreview source={"Note two, no footnotes at all."} />,
+    );
+    expect(second.querySelector(".footnote-ref")).toBeNull();
+    expect(second.querySelector("section.footnotes")).toBeNull();
+  });
+});
+
 describe("MarkdownPreview: onActiveHeadingChange", () => {
   function setRect(el: Element, top: number, height = 20) {
     vi.spyOn(el, "getBoundingClientRect").mockReturnValue({

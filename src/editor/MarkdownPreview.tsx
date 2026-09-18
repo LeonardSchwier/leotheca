@@ -114,6 +114,187 @@ const BLOCK_MATH = /^\$\$([\s\S]+?)\$\$/;
 // text like "$5 and $10" is never mistaken for math.
 const INLINE_MATH = /^\$((?!\s)(?:\\\$|[^$\n])+?)(?<!\s)\$(?!\$)/;
 
+/**
+ * GFM-style footnotes: a `[^id]` inline reference and a `[^id]: text`
+ * block definition (optionally continued on following lines indented by
+ * four spaces or a tab, same continuation rule Markdown list items use).
+ * Definitions can appear anywhere in the source (conventionally at the
+ * bottom) but references are numbered by first-appearance order, which a
+ * single left-to-right tokenizer pass can't know ahead of time without
+ * having already seen every definition. So, same shape as the wikilink
+ * preprocessing below (renderWikilinksStructured/Legacy): a text pass
+ * (extractFootnoteDefinitions) strips every definition out of the source
+ * before marked ever sees it, into a plain id->body map; only the
+ * `footnoteRef` inline extension below runs inside marked itself, purely
+ * to number and link references against that map. `footnoteState` is a
+ * module-level "reset right before each parse call" flag for the same
+ * reason `mathRenderingActive` above is: marked extensions are
+ * registered once, globally, on marked's shared singleton, and
+ * marked.parse with `async: false` runs entirely synchronously, so
+ * nothing else observes this state between the reset and the parse
+ * call it belongs to.
+ */
+interface FootnoteState {
+  /** Every `[^id]: ...` definition found in this parse's own source, keyed
+   * by its raw (un-slugified) id, value is its still-unparsed Markdown body. */
+  definitions: Map<string, string>;
+  /** ids in the order their first `[^id]` reference was encountered;
+   * empty until/unless the document actually references any of them. */
+  order: string[];
+  /** id -> the sequential footnote number assigned to its first reference. */
+  numbers: Map<string, number>;
+}
+
+let footnoteState: FootnoteState = { definitions: new Map(), order: [], numbers: new Map() };
+
+function resetFootnoteState(definitions: Map<string, string>): void {
+  footnoteState = { definitions, order: [], numbers: new Map() };
+}
+
+// A definition's id can contain anything except `]`/whitespace (the same
+// token marked already stops a reference at); its DOM id/href pair below
+// must stay a valid, unambiguous CSS selector, so anything outside
+// [A-Za-z0-9_-] is replaced rather than percent-escaped.
+function slugifyFootnoteId(id: string): string {
+  return id.replace(/[^a-zA-Z0-9_-]/g, "-");
+}
+
+const FOOTNOTE_DEFINITION_START = /^\[\^([^\]\s]+)\]:[ \t]?(.*)$/;
+
+// Same fenced-code-block detection markdown/blocks.ts's own FENCE_RE uses
+// (a line, indented at most 3 spaces, of 3+ backticks or 3+ tildes): a
+// `[^1]: ...`-shaped line inside a fenced code sample (documenting the
+// syntax itself, say) must never be extracted as a real definition.
+const FOOTNOTE_FENCE_RE = /^ {0,3}(`{3,}|~{3,})/;
+
+/**
+ * Strips every top-level `[^id]: body` footnote definition (plus its
+ * indented continuation lines) out of `text`, returning both the
+ * remaining text and the extracted id->body map. Only ever called as the
+ * very last preprocessing step, directly on the exact string about to be
+ * handed to `marked.parse`: every earlier step (stripBlockIdMarkers,
+ * markLocalImageAttachments, renderWikilinksStructured/Legacy) either
+ * works from character offsets computed against an earlier snapshot of
+ * the source, or performs its own independent substring replacement:
+ * running this first would shift or hide the very text those steps key
+ * off. A definition line's own body can freely contain those other
+ * syntaxes (a wikilink, an attachment path, bold/italic) since it is
+ * parsed by the same `marked.parse` call as everything else, just later,
+ * from renderFootnotesSection below, once numbering is known.
+ */
+function extractFootnoteDefinitions(text: string): { text: string; definitions: Map<string, string> } {
+  const lines = text.split("\n");
+  const definitions = new Map<string, string>();
+  const keptLines: string[] = [];
+
+  let index = 0;
+  let inFence = false;
+  let fenceChar = "";
+  let fenceLength = 0;
+  while (index < lines.length) {
+    const line = lines[index];
+
+    if (inFence) {
+      keptLines.push(line);
+      const close = FOOTNOTE_FENCE_RE.exec(line);
+      if (close && close[1][0] === fenceChar && close[1].length >= fenceLength && line.trim() === close[1]) {
+        inFence = false;
+      }
+      index += 1;
+      continue;
+    }
+    const open = FOOTNOTE_FENCE_RE.exec(line);
+    if (open) {
+      keptLines.push(line);
+      inFence = true;
+      fenceChar = open[1][0];
+      fenceLength = open[1].length;
+      index += 1;
+      continue;
+    }
+
+    const start = FOOTNOTE_DEFINITION_START.exec(line);
+    if (!start) {
+      keptLines.push(line);
+      index += 1;
+      continue;
+    }
+
+    const [, rawId, firstLine] = start;
+    const bodyLines = [firstLine];
+    index += 1;
+    // Continuation: an indented line (4+ spaces or a tab) belongs to this
+    // same definition, mirroring list-item continuation; a following
+    // blank line is kept provisionally and only folded in if further
+    // indented content follows it, so a blank line that actually ends
+    // the definition (the common case) isn't captured as trailing
+    // whitespace inside its body.
+    let pendingBlankLines = 0;
+    while (index < lines.length) {
+      const candidate = lines[index];
+      if (candidate.trim() === "") {
+        pendingBlankLines += 1;
+        index += 1;
+        continue;
+      }
+      if (/^(?: {4}|\t)/.test(candidate)) {
+        for (let blank = 0; blank < pendingBlankLines; blank += 1) bodyLines.push("");
+        pendingBlankLines = 0;
+        bodyLines.push(candidate.replace(/^(?: {4}|\t)/, ""));
+        index += 1;
+        continue;
+      }
+      break;
+    }
+    // Unconsumed trailing blank lines belong to the document, not this
+    // definition: put them back so surrounding block structure (a
+    // following paragraph needing its blank-line separator) is unchanged.
+    for (let blank = 0; blank < pendingBlankLines; blank += 1) keptLines.push("");
+
+    // First definition for a given id wins, same as marked's own
+    // "first definition wins" rule for reference-style links/images.
+    if (!definitions.has(rawId)) {
+      definitions.set(rawId, bodyLines.join("\n").trim());
+    }
+  }
+
+  return { text: keptLines.join("\n"), definitions };
+}
+
+/** Renders the "Footnotes" section for whatever `footnoteState` accumulated
+ * during the most recent `marked.parse` call, in first-reference order
+ * (GFM convention; an unreferenced definition never appears at all). Each
+ * definition's body is itself Markdown (see extractFootnoteDefinitions'
+ * own doc comment), parsed here rather than inline in the tokenizer/
+ * renderer above so a multi-paragraph body parses as real block content;
+ * `marked.parse`'s own synchronous, re-entrant-safe design (already
+ * relied on by renderEmbeddedMarkdownToHtml calling it from inside
+ * another component's render pass) makes a second top-level call here
+ * safe once the first has fully returned. */
+function renderFootnotesSection(): string {
+  if (footnoteState.order.length === 0) return "";
+
+  const items = footnoteState.order
+    .map((id) => {
+      const slug = slugifyFootnoteId(id);
+      const body = footnoteState.definitions.get(id) ?? "";
+      const bodyHtml = (marked.parse(body, { async: false }) as string).trim();
+      // A single-paragraph body's wrapping <p>...</p> is unwrapped so the
+      // back-reference link sits on the same line as the (usual) common
+      // case text, matching how other footnote implementations render;
+      // a genuinely multi-paragraph body (parses to more than one
+      // top-level element) keeps its own paragraph structure and the
+      // back-reference becomes its own trailing paragraph instead.
+      const singleParagraph = /^<p>([\s\S]*)<\/p>$/.exec(bodyHtml);
+      const backref = `<a href="#fnref-${slug}" class="footnote-backref" aria-label="Back to reference">↩</a>`;
+      const content = singleParagraph ? `<p>${singleParagraph[1]} ${backref}</p>` : `${bodyHtml}<p>${backref}</p>`;
+      return `<li id="fn-${slug}">${content}</li>`;
+    })
+    .join("");
+
+  return `<section class="footnotes"><hr />\n<ol>${items}</ol>\n</section>`;
+}
+
 marked.use({
   extensions: [
     {
@@ -139,6 +320,33 @@ marked.use({
         return { type: "inlineMath", raw: match[0], text: match[1] };
       },
       renderer: (token: Tokens.Generic) => renderMath(token.text as string, false),
+    },
+    {
+      name: "footnoteRef",
+      level: "inline",
+      start: (src: string) => src.indexOf("[^"),
+      tokenizer(src: string) {
+        const match = /^\[\^([^\]\s]+)\]/.exec(src);
+        if (!match) return undefined;
+        const id = match[1];
+        // No matching definition: leave the literal text alone (return
+        // undefined so marked's own inline-text tokenizer consumes it),
+        // same as every unrecognized syntax already does, rather than
+        // rendering a dead-end footnote marker for a typo'd/missing id.
+        if (!footnoteState.definitions.has(id)) return undefined;
+        return { type: "footnoteRef", raw: match[0], id };
+      },
+      renderer(token: Tokens.Generic) {
+        const id = token.id as string;
+        let number = footnoteState.numbers.get(id);
+        if (number === undefined) {
+          number = footnoteState.numbers.size + 1;
+          footnoteState.numbers.set(id, number);
+          footnoteState.order.push(id);
+        }
+        const slug = slugifyFootnoteId(id);
+        return `<sup class="footnote-ref"><a href="#fn-${slug}" id="fnref-${slug}">${number}</a></sup>`;
+      },
     },
   ],
 });
@@ -647,6 +855,14 @@ function renderEmbeddedMarkdownToHtml(
     workspaceRoot,
     embedRecursion: recursion,
   });
+  // Footnote syntax inside an embedded section is intentionally left as
+  // plain, unlinked text (this function never calls
+  // extractFootnoteDefinitions): resetting with an empty map, rather than
+  // leaving whatever `footnoteState` an earlier, unrelated top-level parse
+  // left behind, guarantees a `[^id]` here never accidentally matches that
+  // leftover state and renders a numbered reference with no corresponding
+  // "Footnotes" section for this embed to link to.
+  resetFootnoteState(new Map());
   return marked.parse(withWikilinks, { async: false }) as string;
 }
 
@@ -1076,10 +1292,21 @@ export function MarkdownPreview({
           embedRecursion,
         })
       : renderWikilinksLegacy(withAttachments);
-    const rendered = marked.parse(withWikilinks, {
+    // Last preprocessing step, deliberately: every earlier step above
+    // still needs its own offsets/substrings intact (see
+    // extractFootnoteDefinitions' own doc comment). Any same-note embed
+    // reached while building withWikilinks already ran its own nested
+    // marked.parse and reset footnoteState for that call; this reset
+    // starts the actual top-level document's own numbering from zero
+    // regardless of what that left behind.
+    const { text: withoutFootnoteDefinitions, definitions: footnoteDefinitions } =
+      extractFootnoteDefinitions(withWikilinks);
+    resetFootnoteState(footnoteDefinitions);
+    const rendered = marked.parse(withoutFootnoteDefinitions, {
       async: false,
     }) as string;
-    return { html: DOMPurify.sanitize(addAutoTextDirection(rendered)), crossNoteEmbeds: crossNoteEmbedsOut };
+    const renderedWithFootnotes = rendered + renderFootnotesSection();
+    return { html: DOMPurify.sanitize(addAutoTextDirection(renderedWithFootnotes)), crossNoteEmbeds: crossNoteEmbedsOut };
   }, [
     source,
     mathRenderingEnabled,

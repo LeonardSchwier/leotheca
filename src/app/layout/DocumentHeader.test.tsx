@@ -7,6 +7,7 @@ afterEach(cleanup);
 
 const BASE_PROPS = {
   noteName: "Meeting notes.md",
+  workspaceRelativePath: "notes/Meetings/Meeting notes.md",
   notePath: "/workspace/notes/Meeting notes.md",
   viewMode: "source" as const,
   onSetViewMode: vi.fn(),
@@ -68,6 +69,19 @@ describe("DocumentHeader", () => {
   it("shows the full path as a tooltip on the title", () => {
     const { getByTitle } = render(<DocumentHeader {...BASE_PROPS} />);
     expect(getByTitle("/workspace/notes/Meeting notes.md")).toBeTruthy();
+  });
+
+  it("shows parent folders as a concise workspace-relative breadcrumb", () => {
+    const { getByLabelText, getByText } = render(<DocumentHeader {...BASE_PROPS} />);
+    expect(getByText("notes / Meetings")).toBeTruthy();
+    expect(getByLabelText("Path: notes/Meetings/Meeting notes.md")).toBeTruthy();
+  });
+
+  it("omits the breadcrumb for a note at the workspace root", () => {
+    const { queryByLabelText } = render(
+      <DocumentHeader {...BASE_PROPS} workspaceRelativePath="Meeting notes.md" />,
+    );
+    expect(queryByLabelText("Path: Meeting notes.md")).toBeNull();
   });
 
   describe("Inspector trigger (spec 13.5)", () => {

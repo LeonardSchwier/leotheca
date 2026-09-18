@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Quick Capture now traps focus properly while open, restores it to whatever you were doing when you close it, locks the page behind it from scrolling, and closes on the Android hardware back button as well as Escape, backdrop tap, or its own close button — all previously missing or only partially implemented. This is the first real use of the UX-01 refresh's new shared `Sheet` component (spec section 20), the touch-first, edge-anchored counterpart to the existing `Dialog` component; both now share one overlay stack so opening one above the other dismisses only the correct one.
+
 - Workspace indexing, note save state, and empty Bookmarks/Tags panels now use shared accessible status primitives. Progress is marked busy and announced politely, save failures remain assertive and retryable, warning/success states pair text with local icons, and empty panels provide concise next-step guidance.
 
 - Confirmation dialogs now use the UX-01 refresh's shared `Dialog` component, keeping the safe Cancel action focused first while consistently trapping and restoring focus, supporting Escape and backdrop cancellation, preventing the page behind the dialog from scrolling, and keeping the title and actions reachable when content is tall.

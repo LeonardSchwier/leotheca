@@ -1,16 +1,24 @@
-/** UX-01 spec sections 15.4, 20, and 24.5: shared modal dialog behavior.
- * The primitive owns modal semantics, focus containment/restoration,
- * dismissal policy, viewport fitting, and scroll locking. Callers supply
- * trusted Preact children only; no raw/untrusted HTML path exists here.
+/** UX-01 spec sections 20 and 24.5: shared adaptive Sheet primitive.
+ * A Sheet is a dismissible, modal, edge-anchored panel -- the touch-first
+ * counterpart to Dialog, used where a surface needs to feel reachable from
+ * the bottom of a compact screen rather than centered like a desktop
+ * dialog (spec section 20's initial primitive set explicitly lists both).
  *
- * Stacking order, scroll locking, and Android back-button dispatch are
- * delegated to `overlayStack.ts` (spec 24.5: Dialog and Sheet share this
- * behavior) so a Sheet opened above a Dialog, or vice versa, dismisses only
- * the topmost overlay via Escape or the hardware back button.
+ * It shares Dialog's modal contract (focus containment/restoration,
+ * Escape/backdrop/Android-back dismissal, scroll locking, viewport
+ * fitting) via `overlayStack.ts` rather than reimplementing it, so a
+ * Sheet opened above a Dialog -- or a Dialog above a Sheet -- dismisses
+ * only the topmost overlay. Unlike Dialog, a Sheet always renders a
+ * visible close affordance in its header: spec 22.4 requires that "hover
+ * is never required to discover or use an action on Android", and a
+ * Sheet's caller-supplied `actions` are not guaranteed to include an
+ * equivalent dismiss control. Callers supply trusted Preact children
+ * only; no raw/untrusted HTML path exists here.
  */
 import type { ComponentChildren, JSX } from "preact";
 import { useEffect, useLayoutEffect, useRef } from "preact/hooks";
 import "./primitives.css";
+import { IconButton } from "./IconButton";
 import {
   acquireScrollLock,
   focusableElements,
@@ -20,39 +28,37 @@ import {
   type OverlayDismissReason,
 } from "./overlayStack";
 
-export type DialogRole = "dialog" | "alertdialog";
-export type DialogSize = "sm" | "md" | "lg";
-export type DialogDismissReason = OverlayDismissReason;
+export type SheetDismissReason = OverlayDismissReason;
 
-export interface DialogProps {
+export interface SheetProps {
   title: string;
   description?: ComponentChildren;
   children?: ComponentChildren;
   actions?: ComponentChildren;
-  role?: DialogRole;
-  size?: DialogSize;
   className?: string;
   closeOnEscape?: boolean;
   closeOnBackdrop?: boolean;
   restoreFocus?: boolean;
   initialFocusRef?: { current: HTMLElement | null };
-  onDismiss: (reason: DialogDismissReason) => void;
+  /** Default true: see this file's header comment on why Sheet, unlike
+   * Dialog, ships its own always-present dismiss control. */
+  showCloseButton?: boolean;
+  onDismiss: (reason: SheetDismissReason) => void;
 }
 
-export function Dialog({
+export function Sheet({
   title,
   description,
   children,
   actions,
-  role = "dialog",
-  size = "md",
   className,
   closeOnEscape = true,
   closeOnBackdrop = true,
   restoreFocus = true,
   initialFocusRef,
+  showCloseButton = true,
   onDismiss,
-}: DialogProps): JSX.Element {
+}: SheetProps): JSX.Element {
   const surfaceRef = useRef<HTMLElement>(null);
   const previouslyFocusedRef = useRef<HTMLElement | null>(null);
   const dismissRef = useRef(onDismiss);
@@ -65,7 +71,7 @@ export function Dialog({
   initialFocusTargetRef.current = initialFocusRef;
   const idRef = useRef<string | undefined>(undefined);
   if (!idRef.current) {
-    idRef.current = nextOverlayId("dialog");
+    idRef.current = nextOverlayId("sheet");
   }
   const titleId = `${idRef.current}-title`;
   const descriptionId = description
@@ -91,8 +97,8 @@ export function Dialog({
     function onDocumentKeyDown(event: KeyboardEvent) {
       if (!isTopmostOverlay(instanceId)) return;
       if (event.key === "Escape") {
-        // A non-dismissible dialog must also keep Escape from reaching a
-        // lower overlay or navigation layer behind it.
+        // A non-dismissible sheet must also keep Escape from reaching a
+        // lower overlay or navigation layer behind it (matches Dialog).
         event.preventDefault();
         event.stopPropagation();
         if (closeOnEscapeRef.current) dismissRef.current("escape");
@@ -142,7 +148,7 @@ export function Dialog({
 
   return (
     <div
-      class="dialog-backdrop"
+      class="sheet-backdrop"
       onMouseDown={(event) => {
         if (event.target !== event.currentTarget) return;
         if (closeOnBackdrop) dismissRef.current("backdrop");
@@ -150,27 +156,33 @@ export function Dialog({
     >
       <section
         ref={surfaceRef}
-        class={["modal", "dialog-surface", `dialog-${size}`, className]
-          .filter(Boolean)
-          .join(" ")}
-        role={role}
+        class={["sheet-surface", className].filter(Boolean).join(" ")}
+        role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={descriptionId}
         tabIndex={-1}
       >
-        <header class="dialog-header">
+        <header class="sheet-header">
           <h2 id={titleId}>{title}</h2>
+          {showCloseButton && (
+            <IconButton
+              icon="close"
+              label="Close"
+              size="md"
+              onClick={() => dismissRef.current("close-button")}
+            />
+          )}
         </header>
-        <div class="dialog-content">
+        <div class="sheet-content">
           {description && (
-            <div id={descriptionId} class="dialog-description">
+            <div id={descriptionId} class="sheet-description">
               {description}
             </div>
           )}
           {children}
         </div>
-        {actions && <footer class="dialog-actions">{actions}</footer>}
+        {actions && <footer class="sheet-actions">{actions}</footer>}
       </section>
     </div>
   );

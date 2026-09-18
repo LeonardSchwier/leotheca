@@ -1912,11 +1912,12 @@ button.icon-button.active {
     background: #444;
   }
 
-  /* F05: Capture Sheet */
-  .capture-sheet {
-    max-width: 600px;
-    width: 90vw;
-  }
+  /* F05: Capture Sheet. Its own backdrop/surface sizing now comes from
+     the shared Sheet primitive (primitives.css's .sheet-surface), which
+     already governs width responsively at every viewport size -- this
+     compact-only override predates that migration and would otherwise
+     fight the primitive's own max-width. Only the field/textarea-level
+     styling below is still this component's own. */
 
   /* border-primary/bg-secondary/accent-blue below were never-defined
      custom properties (no such tokens exist in theme.css), so these

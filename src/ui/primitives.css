@@ -1,6 +1,6 @@
 /* UX-01 spec section 20 "UI primitives" / Phase 1 ("Button, IconButton,
- * SegmentedControl, Tooltip, Menu, Dialog, and status primitives needed
- * by the current shell"). Shared controls land incrementally; see
+ * SegmentedControl, Tooltip, Menu, Dialog, Sheet, and status primitives
+ * needed by the current shell"). Shared controls land incrementally; see
  * ROADMAP.md's UX-01 entry for the remaining adaptive-shell work.
  *
  * All colors/spacing/radius/motion below consume the semantic tokens in
@@ -612,5 +612,86 @@
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
+  }
+}
+
+/* Sheet (spec 20/24.5). Edge-anchored, touch-first counterpart to Dialog:
+ * pinned to the bottom of the viewport rather than centered, with a
+ * higher z-index so a Sheet opened above a Dialog visually sits on top of
+ * it (overlayStack.ts already ensures only the true topmost overlay
+ * receives Escape/backdrop/back-button dismissal regardless of paint
+ * order). The surface caps its own height and scrolls its content
+ * internally, the same fix Dialog/.modal already apply, since a sheet's
+ * content is frequently taller than a compact viewport. */
+.sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1150;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.sheet-surface {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 640px;
+  max-height: min(85vh, 720px);
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-bottom: none;
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  background: var(--color-raised);
+  color: var(--color-text);
+  box-shadow: var(--shadow-high);
+  animation: sheet-slide-in var(--motion-sheet) ease;
+}
+
+.sheet-header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-5) var(--space-3) var(--space-3) var(--space-6);
+}
+
+.sheet-header h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.sheet-content {
+  min-height: 0;
+  overflow-y: auto;
+  /* Bottom padding covers the home-indicator safe area directly: when no
+   * `actions` footer follows, this is the sheet's own trailing edge. */
+  padding: 0 var(--space-6) max(var(--space-6), env(safe-area-inset-bottom));
+}
+
+.sheet-description {
+  color: var(--color-text-secondary);
+}
+
+.sheet-actions {
+  flex: none;
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-6)
+    max(var(--space-6), env(safe-area-inset-bottom));
+  border-top: 1px solid var(--color-border);
+}
+
+@keyframes sheet-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }

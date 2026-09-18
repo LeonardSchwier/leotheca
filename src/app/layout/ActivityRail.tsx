@@ -1,5 +1,6 @@
 import type { ComponentChildren } from "preact";
 import { Icon as RegistryIcon } from "../../ui/icons";
+import { Tooltip } from "../../ui/Tooltip";
 
 /** UX-01 spec section 13.2: "a fixed navigation strip" for Files,
  * Bookmarks, Tags, and Graph, with Settings pinned at the bottom.
@@ -40,15 +41,16 @@ function RailButton({
   children: ComponentChildren;
 }) {
   return (
-    <button
-      class={`activity-rail-button ${active ? "active" : ""}`}
-      aria-label={label}
-      aria-current={active ? "true" : undefined}
-      title={label}
-      onClick={onClick}
-    >
-      {children}
-    </button>
+    <Tooltip content={label} placement="right">
+      <button
+        class={`activity-rail-button ${active ? "active" : ""}`}
+        aria-label={label}
+        aria-current={active ? "true" : undefined}
+        onClick={onClick}
+      >
+        {children}
+      </button>
+    </Tooltip>
   );
 }
 
@@ -65,18 +67,34 @@ export function ActivityRail({
   return (
     <nav class="activity-rail" aria-label="Primary navigation">
       <div class="activity-rail-primary">
-        <RailButton active={activeDestination === "files"} label="Files" onClick={onSelectFiles}>
+        <RailButton
+          active={activeDestination === "files"}
+          label="Files"
+          onClick={onSelectFiles}
+        >
           <RegistryIcon name="folder" size={16} />
         </RailButton>
-        <RailButton active={activeDestination === "bookmarks"} label="Bookmarks" onClick={onSelectBookmarks}>
+        <RailButton
+          active={activeDestination === "bookmarks"}
+          label="Bookmarks"
+          onClick={onSelectBookmarks}
+        >
           <RegistryIcon name="bookmark" size={16} />
         </RailButton>
         {tagsEnabled && (
-          <RailButton active={activeDestination === "tags"} label="Tags" onClick={onSelectTags}>
+          <RailButton
+            active={activeDestination === "tags"}
+            label="Tags"
+            onClick={onSelectTags}
+          >
             <RegistryIcon name="tag" size={16} />
           </RailButton>
         )}
-        <RailButton active={graphActive} label="Graph view" onClick={onOpenGraph}>
+        <RailButton
+          active={graphActive}
+          label="Graph view"
+          onClick={onOpenGraph}
+        >
           <RegistryIcon name="graph" size={16} />
         </RailButton>
       </div>

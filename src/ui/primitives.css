@@ -225,3 +225,108 @@
   padding: 0 var(--space-3);
   font-size: 14px;
 }
+
+/* Tooltip (spec 20/19.7/21.1/22.2/22.3). Positioned with plain relative/
+ * absolute CSS against its own anchor wrapper -- no floating-positioning
+ * dependency exists in this project, see Tooltip.tsx's header comment.
+ * `--motion-popover` (160ms, spec 21.1's "small popover or menu: 140ms to
+ * 180ms") drives the entrance animation and already collapses to 1ms
+ * under prefers-reduced-motion (theme.css), so reduced motion is handled
+ * for free rather than re-implemented here. */
+.tooltip-anchor {
+  position: relative;
+  display: inline-flex;
+}
+
+.tooltip-bubble {
+  position: absolute;
+  z-index: 1000;
+  max-width: 240px;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-raised);
+  color: var(--text-primary);
+  font-size: 12px;
+  line-height: 1.4;
+  text-align: center;
+  box-shadow: var(--shadow-low);
+  /* The bubble must never itself become a hover/pointer target: it sits
+     just outside the trigger's own box, but rounding/zoom could still let
+     the pointer graze it, which would otherwise re-trigger nothing useful
+     and could visually flicker against the trigger's own mouseleave. */
+  pointer-events: none;
+  white-space: normal;
+}
+
+.tooltip-bubble-top {
+  bottom: calc(100% + var(--space-1));
+  left: 50%;
+  transform: translateX(-50%);
+  animation: tooltip-fade-in-top var(--motion-popover) ease;
+}
+
+.tooltip-bubble-bottom {
+  top: calc(100% + var(--space-1));
+  left: 50%;
+  transform: translateX(-50%);
+  animation: tooltip-fade-in-bottom var(--motion-popover) ease;
+}
+
+.tooltip-bubble-left {
+  right: calc(100% + var(--space-1));
+  top: 50%;
+  transform: translateY(-50%);
+  animation: tooltip-fade-in-left var(--motion-popover) ease;
+}
+
+.tooltip-bubble-right {
+  left: calc(100% + var(--space-1));
+  top: 50%;
+  transform: translateY(-50%);
+  animation: tooltip-fade-in-right var(--motion-popover) ease;
+}
+
+@keyframes tooltip-fade-in-top {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+@keyframes tooltip-fade-in-bottom {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+@keyframes tooltip-fade-in-left {
+  from {
+    opacity: 0;
+    transform: translateY(-50%) translateX(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0);
+  }
+}
+
+@keyframes tooltip-fade-in-right {
+  from {
+    opacity: 0;
+    transform: translateY(-50%) translateX(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0);
+  }
+}

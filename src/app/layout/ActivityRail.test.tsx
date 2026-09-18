@@ -27,12 +27,16 @@ describe("ActivityRail", () => {
   });
 
   it("omits Tags when the workspace has tags disabled", () => {
-    const { queryByLabelText } = render(<ActivityRail {...BASE_PROPS} tagsEnabled={false} />);
+    const { queryByLabelText } = render(
+      <ActivityRail {...BASE_PROPS} tagsEnabled={false} />,
+    );
     expect(queryByLabelText("Tags")).toBeNull();
   });
 
   it("marks exactly the active destination with aria-current and the active class", () => {
-    const { getByLabelText } = render(<ActivityRail {...BASE_PROPS} activeDestination="bookmarks" />);
+    const { getByLabelText } = render(
+      <ActivityRail {...BASE_PROPS} activeDestination="bookmarks" />,
+    );
     const bookmarks = getByLabelText("Bookmarks");
     const files = getByLabelText("Files");
     const tags = getByLabelText("Tags");
@@ -45,7 +49,11 @@ describe("ActivityRail", () => {
 
   it("marks Graph active independently of activeDestination (it isn't one of the three panel destinations)", () => {
     const { getByLabelText } = render(
-      <ActivityRail {...BASE_PROPS} activeDestination={null} graphActive={true} />,
+      <ActivityRail
+        {...BASE_PROPS}
+        activeDestination={null}
+        graphActive={true}
+      />,
     );
     const graph = getByLabelText("Graph view");
     expect(graph.getAttribute("aria-current")).toBe("true");
@@ -53,7 +61,9 @@ describe("ActivityRail", () => {
   });
 
   it("shows no destination selected while Task Hub or Collections occupy the panel (activeDestination null)", () => {
-    const { getByLabelText } = render(<ActivityRail {...BASE_PROPS} activeDestination={null} />);
+    const { getByLabelText } = render(
+      <ActivityRail {...BASE_PROPS} activeDestination={null} />,
+    );
     expect(getByLabelText("Files").className).not.toContain("active");
     expect(getByLabelText("Bookmarks").className).not.toContain("active");
     expect(getByLabelText("Tags").className).not.toContain("active");
@@ -88,6 +98,8 @@ describe("ActivityRail", () => {
 
   it("gives the rail a labeled navigation landmark", () => {
     const { getByRole } = render(<ActivityRail {...BASE_PROPS} />);
-    expect(getByRole("navigation", { name: "Primary navigation" })).toBeTruthy();
+    expect(
+      getByRole("navigation", { name: "Primary navigation" }),
+    ).toBeTruthy();
   });
 });

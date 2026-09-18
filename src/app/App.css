@@ -1612,39 +1612,6 @@ button.icon-button.active {
   color: var(--text-secondary);
 }
 
-/* UX-01 spec section 15.4/20: the shared confirmation dialog primitive
-   (confirmDialog.ts/ConfirmDialogHost.tsx), replacing window.confirm on
-   this app's destructive-action paths. */
-.confirm-dialog {
-  max-width: 420px;
-}
-
-.confirm-dialog h2 {
-  margin: 0 0 var(--space-2);
-  font-size: 16px;
-}
-
-.confirm-dialog p {
-  margin: 0 0 var(--space-4);
-  color: var(--text-secondary);
-}
-
-.confirm-dialog-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--space-2);
-}
-
-.confirm-dialog-danger {
-  background: var(--color-danger);
-  border-color: var(--color-danger);
-  color: var(--color-on-accent);
-}
-
-.confirm-dialog-danger:hover {
-  background: color-mix(in srgb, var(--color-danger) 85%, black);
-}
-
 .markdown-help {
   max-width: 480px;
 }

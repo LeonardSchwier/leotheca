@@ -423,3 +423,97 @@
     transform: translateY(0);
   }
 }
+
+/* Dialog (spec 15.4/20/24.5). The backdrop owns safe-area-aware viewport
+ * padding; the surface is a flex column so only content scrolls while the
+ * title and actions stay reachable. Motion uses the shared sheet/dialog
+ * token, which theme.css reduces to 1ms under prefers-reduced-motion. */
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(var(--space-2), env(safe-area-inset-top))
+    max(var(--space-2), env(safe-area-inset-right))
+    max(var(--space-2), env(safe-area-inset-bottom))
+    max(var(--space-2), env(safe-area-inset-left));
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.dialog-surface {
+  display: flex;
+  flex-direction: column;
+  width: min(100%, 640px);
+  max-height: 100%;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  background: var(--color-raised);
+  color: var(--color-text);
+  box-shadow: var(--shadow-high);
+  animation: dialog-pop-in var(--motion-sheet) ease;
+}
+
+/* `.modal` is kept as a transitional app-wide selector contract for
+ * existing shell integrations. This higher-specificity rule prevents the
+ * legacy App.css layout from altering the new primitive. */
+.dialog-surface.modal {
+  width: min(100%, 640px);
+  max-height: 100%;
+  overflow: hidden;
+  padding: 0;
+}
+
+.dialog-surface.dialog-sm {
+  max-width: 420px;
+}
+
+.dialog-surface.dialog-md {
+  max-width: 640px;
+}
+
+.dialog-surface.dialog-lg {
+  max-width: 800px;
+}
+
+.dialog-header {
+  flex: none;
+  padding: var(--space-6) var(--space-6) var(--space-3);
+}
+
+.dialog-header h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.dialog-content {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 var(--space-6) var(--space-6);
+}
+
+.dialog-description {
+  color: var(--color-text-secondary);
+}
+
+.dialog-actions {
+  flex: none;
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-6) var(--space-6);
+  border-top: 1px solid var(--color-border);
+}
+
+@keyframes dialog-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}

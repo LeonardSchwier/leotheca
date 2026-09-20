@@ -4,6 +4,7 @@
 
 ### Bugs and CI
 
+- ⬜ **Main CI red: `FileTree.test.tsx` uses `as any` casts on `mockWorkspaceSettings.sortOrder`** (regression from `e83e3f9`): Commit `e83e3f9` ("feat(workspace): add 'last modified' sort mode to file tree") introduced five `@typescript-eslint/no-explicit-any` errors in `src/workspace/FileTree.test.tsx` — `(mockWorkspaceSettings as any).sortOrder = ...` — because `mockWorkspaceSettings` was typed as `{ sortOrder: string }`. The CI frontend Lint step fails on these, breaking `main`. Fix: type `mockWorkspaceSettings` as `{ sortOrder: SortOrder }` (importing the existing `SortOrder` type from `../settings/workspaceSettings`) and remove all `as any` casts. Verified: `npx eslint .` clean, `npx tsc --noEmit` clean, all 24 tests in `FileTree.test.tsx` pass.
 - ⬜ **macOS Gatekeeper: Sign, notarize, and staple release DMGs**: Current macOS artifacts are deliberately unsigned and unnotarized, so Gatekeeper warns that the app cannot be verified. The maintainer must provide an Apple Developer Program membership, a Developer ID Application certificate, and an App Store Connect API key as repository secrets. Update the macOS release job to sign the universal `.app`, submit it with `notarytool`, wait for acceptance, staple the ticket to both `.app` and DMG, and fail publication if any step fails. Verify `codesign`, `spctl`, and a fresh download/open on both Apple Silicon and Intel macOS; only then remove the unsigned-install workaround from user documentation and complete the Homebrew Cask.
 
 ### Bugs

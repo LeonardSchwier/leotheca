@@ -58,11 +58,21 @@ vi.mock("./fileTreeStore", () => ({
 vi.mock("./store", () => ({
   closeTabsUnder: vi.fn(),
   renameOpenTab: vi.fn(),
+  editorLayout: { value: { openTabs: [] } },
 }));
 
 vi.mock("../settings/store", () => ({
   workspaceSettings: signal({ deleteBehavior: "project-trash", sortOrder: "name-asc" }),
   workspaceSession: signal(0),
+}));
+
+vi.mock("../refactor/useRenamePreview", () => ({
+  useRenamePreview: () => ({
+    confirmRenameWithPreview: vi.fn(async () => true),
+    continueRename: vi.fn(),
+    cancelRename: vi.fn(),
+    preview: null,
+  }),
 }));
 
 const { Sidebar } = await import("./Sidebar");

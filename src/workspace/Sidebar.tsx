@@ -19,8 +19,8 @@ import {
 import { closeTabsUnder, renameOpenTab } from "./store";
 import type { FsEntry } from "./types";
 import { workspaceSettings } from "../settings/store";
+import { editorLayout } from "../workspace/store";
 import { useRenamePreview } from "../refactor/useRenamePreview";
-import { RenamePreviewDialog } from "../refactor/RenamePreviewDialog";
 import { confirmAction } from "../app/confirmDialog";
 
 const SEARCH_DEBOUNCE_MS = 200;
@@ -70,7 +70,13 @@ interface RenamePromptState {
 export function Sidebar({ rootPath, onOpenFile, flushPendingAutosave }: SidebarProps) {
   const [createPrompt, setCreatePrompt] = useState<CreatePromptState | null>(null);
   const [renamePrompt, setRenamePrompt] = useState<RenamePromptState | null>(null);
-  const renamePreview = useRenamePreview();
+  const renamePreview = useRenamePreview({
+    workspaceRoot: rootPath,
+    editorLayout: editorLayout.value,
+    workspaceSettings: workspaceSettings.value,
+    aliasesEnabled: workspaceSettings.value.frontmatterAliasesEnabled,
+    tagsEnabled: workspaceSettings.value.tagsEnabled,
+  });
   const [expandAllLoading, setExpandAllLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchOpenErrorPath, setSearchOpenErrorPath] = useState<string | null>(null);
@@ -130,6 +136,8 @@ export function Sidebar({ rootPath, onOpenFile, flushPendingAutosave }: SidebarP
       await flushPendingAutosave(renamePrompt.path);
       const newPath = await renameEntry(renamePrompt.path, name);
       renameOpenTab(renamePrompt.path, newPath, name);
+      // Apply the reviewed rename plan (wikilink rewrites, metadata migration).
+      void renamePreview.applyRenameAfterRename(renamePrompt.path, newPath);
       setRenamePrompt(null);
       setError(null);
     } catch (e) {
@@ -283,15 +291,6 @@ export function Sidebar({ rootPath, onOpenFile, flushPendingAutosave }: SidebarP
             setRenamePrompt(null);
             setError(null);
           }}
-        />
-      )}
-      {renamePreview.preview && (
-        <RenamePreviewDialog
-          oldPath={renamePreview.preview.oldPath}
-          newPath={renamePreview.preview.newPath}
-          plan={renamePreview.preview.plan}
-          onContinue={renamePreview.continueRename}
-          onCancel={renamePreview.cancelRename}
         />
       )}
     </div>

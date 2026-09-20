@@ -2,17 +2,37 @@
 import { act, renderHook, waitFor } from "@testing-library/preact";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { linkIndex, type LinkIndex } from "../linking/store";
-import { openDocuments } from "../workspace/store";
+import { openDocuments, editorLayout } from "../workspace/store";
 import { parseWikiLinks } from "../linking/wikiSyntax";
+import { DEFAULT_WORKSPACE_SETTINGS } from "../settings/workspaceSettings";
 import { useRenamePreview } from "./useRenamePreview";
 
-const { readTextFile } = vi.hoisted(() => ({
+// Mock tauriBridge before importing useRenamePreview (which imports it).
+// readTextFile is a vi.fn so tests can assert on / configure it via
+// `await import("../workspace/tauriBridge")` at the call site.
+vi.mock("../workspace/tauriBridge", () => ({
   readTextFile: vi.fn<(path: string) => Promise<string>>(async () => {
     throw new Error("unexpected readTextFile call");
   }),
+  writeTextFile: vi.fn<(path: string, content: string) => Promise<void>>(async () => {}),
+  updateFavoritesWidget: vi.fn(async () => {}),
+  writeWorkspaceTextFile: vi.fn(async () => {}),
+}));
+vi.mock("../settings/store", () => ({
+  updateWorkspaceSettings: vi.fn(async () => {}),
+  workspaceSettings: { value: { ...DEFAULT_WORKSPACE_SETTINGS, frontmatterAliasesEnabled: true, tagsEnabled: true } },
 }));
 
-vi.mock("../workspace/tauriBridge", () => ({ readTextFile }));
+const { readTextFile } = await import("../workspace/tauriBridge");
+const mockReadTextFile = vi.mocked(readTextFile);
+
+const previewOpts = {
+  workspaceRoot: "/workspace",
+  editorLayout: editorLayout.value,
+  workspaceSettings: { ...DEFAULT_WORKSPACE_SETTINGS, frontmatterAliasesEnabled: true, tagsEnabled: true },
+  aliasesEnabled: true,
+  tagsEnabled: true,
+};
 
 function emptyIndex(): LinkIndex {
   return {
@@ -38,13 +58,13 @@ function indexWithBacklink(referrerPath: string, referrerContent: string): LinkI
 afterEach(() => {
   linkIndex.value = emptyIndex();
   openDocuments.value = [];
-  readTextFile.mockClear();
+  mockReadTextFile.mockClear();
 });
 
 describe("useRenamePreview", () => {
   it("resolves true immediately, with no preview, for a non-note path", async () => {
     linkIndex.value = indexWithBacklink("/vault/referrer.md", "See [[target]].");
-    const { result } = renderHook(() => useRenamePreview());
+    const { result } = renderHook(() => useRenamePreview(previewOpts));
 
     let proceed: boolean | undefined;
     await act(async () => {
@@ -53,12 +73,12 @@ describe("useRenamePreview", () => {
 
     expect(proceed).toBe(true);
     expect(result.current.preview).toBeNull();
-    expect(readTextFile).not.toHaveBeenCalled();
+    expect(mockReadTextFile).not.toHaveBeenCalled();
   });
 
   it("resolves true immediately, with no preview, when nothing references the renamed note", async () => {
     linkIndex.value = emptyIndex();
-    const { result } = renderHook(() => useRenamePreview());
+    const { result } = renderHook(() => useRenamePreview(previewOpts));
 
     let proceed: boolean | undefined;
     await act(async () => {
@@ -71,8 +91,8 @@ describe("useRenamePreview", () => {
 
   it("shows a preview with the computed new path and plan when a reference exists, resolving only once continued", async () => {
     linkIndex.value = indexWithBacklink("/vault/referrer.md", "See [[target]].");
-    readTextFile.mockResolvedValue("See [[target]].");
-    const { result } = renderHook(() => useRenamePreview());
+    mockReadTextFile.mockResolvedValue("See [[target]].");
+    const { result } = renderHook(() => useRenamePreview(previewOpts));
 
     let proceed: boolean | undefined;
     act(() => {
@@ -95,8 +115,8 @@ describe("useRenamePreview", () => {
 
   it("resolves false and clears the preview when the user cancels", async () => {
     linkIndex.value = indexWithBacklink("/vault/referrer.md", "See [[target]].");
-    readTextFile.mockResolvedValue("See [[target]].");
-    const { result } = renderHook(() => useRenamePreview());
+    mockReadTextFile.mockResolvedValue("See [[target]].");
+    const { result } = renderHook(() => useRenamePreview(previewOpts));
 
     let proceed: boolean | undefined;
     act(() => {
@@ -127,8 +147,8 @@ describe("useRenamePreview", () => {
         ["referrer", [referrerPath]],
       ]),
     };
-    readTextFile.mockResolvedValue(referrerContent);
-    const { result } = renderHook(() => useRenamePreview());
+    mockReadTextFile.mockResolvedValue(referrerContent);
+    const { result } = renderHook(() => useRenamePreview(previewOpts));
 
     let proceed: boolean | undefined;
     act(() => {
@@ -156,7 +176,7 @@ describe("useRenamePreview", () => {
     // fail with 0 edits, not silently pass, if the open tab's own newer
     // content were ever bypassed in favor of a disk read.
     linkIndex.value = indexWithBacklink("/vault/referrer.md", "See [[target]].");
-    readTextFile.mockResolvedValue("no links here");
+    mockReadTextFile.mockResolvedValue("no links here");
     openDocuments.value = [
       {
         path: "/vault/referrer.md",
@@ -168,14 +188,14 @@ describe("useRenamePreview", () => {
         saveError: null,
       },
     ];
-    const { result } = renderHook(() => useRenamePreview());
+    const { result } = renderHook(() => useRenamePreview(previewOpts));
 
     act(() => {
       void result.current.confirmRenameWithPreview("/vault/target.md", "renamed.md");
     });
 
     await waitFor(() => expect(result.current.preview).not.toBeNull());
-    expect(readTextFile).not.toHaveBeenCalled();
+    expect(mockReadTextFile).not.toHaveBeenCalled();
     expect(result.current.preview?.plan.edits).toHaveLength(1);
   });
 });

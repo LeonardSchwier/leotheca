@@ -90,7 +90,7 @@ function bookmarksPath(rootPath: string): string {
 // actually run always persists whatever is genuinely current at that time.
 let bookmarksWriteTail: Promise<void> = Promise.resolve();
 
-function saveBookmarks(): Promise<void> {
+export function saveBookmarks(): Promise<void> {
   const root = workspacePath.value;
   if (!root) return Promise.resolve();
   const write = bookmarksWriteTail.then(() =>

@@ -318,7 +318,13 @@ export function App() {
   }), [refresh]);
   const [tabRename, setTabRename] = useState<{ path: string; name: string } | null>(null);
   const [tabRenameError, setTabRenameError] = useState<string | null>(null);
-  const renamePreview = useRenamePreview();
+  const renamePreview = useRenamePreview({
+    workspaceRoot: workspacePath.value ?? "",
+    editorLayout: editorLayout.value,
+    workspaceSettings: workspaceSettings.value,
+    aliasesEnabled: workspaceSettings.value.frontmatterAliasesEnabled,
+    tagsEnabled: workspaceSettings.value.tagsEnabled,
+  });
   const [templatePicker, setTemplatePicker] = useState<{
     targetDir: string;
     templates: NoteTemplate[];
@@ -1139,6 +1145,8 @@ export function App() {
       await flushPendingAutosave(tabRename.path);
       const newPath = await renameEntry(tabRename.path, newName);
       renameOpenTab(tabRename.path, newPath, newName);
+      // Apply the reviewed rename plan (wikilink rewrites, metadata migration).
+      void renamePreview.applyRenameAfterRename(tabRename.path, newPath);
       setTabRename(null);
       setTabRenameError(null);
     } catch (e) {

@@ -62,22 +62,33 @@ pendingCapturesStore.subscribe(() => {
  * Loads from localStorage if available
  */
 export function initPendingCaptures(): void {
-  // Try to load from localStorage
+  // A capture queued while the app is not yet mounted (e.g. a deep link
+  // received during cold start, or an Android share staged by
+  // processAndroidPendingShareData before App's first effect ran) already
+  // lives in the in-memory signal. Spec F05-FR-10 / AC8 / section 7.4
+  // require the pending queue to survive cold start, warm start, and
+  // workspace recovery: the in-memory queue is the recovery mechanism,
+  // so it must never be wiped by initialization. Only hydrate from
+  // localStorage when the queue is empty (the normal first-mount case);
+  // an existing entry in the queue is authoritative and takes precedence
+  // over whatever localStorage holds.
+  if (pendingCapturesStore.value.length > 0) {
+    return;
+  }
   try {
     if (typeof window !== "undefined" && window.localStorage) {
       const saved = window.localStorage.getItem(PENDING_CAPTURES_STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved) as PendingCapture[];
-        pendingCapturesStore.value = parsed;
-        return;
+        if (Array.isArray(parsed)) {
+          pendingCapturesStore.value = parsed;
+          return;
+        }
       }
     }
   } catch (error) {
     console.warn("Failed to load pending captures from storage:", error);
   }
-  
-  // Initialize with empty store
-  pendingCapturesStore.value = [];
 }
 
 /**

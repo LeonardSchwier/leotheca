@@ -1,6 +1,7 @@
 /** @vitest-environment jsdom */
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, waitFor } from "@testing-library/preact";
+import type { SortOrder } from "../settings/workspaceSettings";
 
 // fileTreeStore.ts pulls in ../settings/store for workspaceSettings (whose
 // module-load side effects call window.matchMedia, unimplemented in jsdom)
@@ -9,7 +10,9 @@ import { cleanup, fireEvent, render, waitFor } from "@testing-library/preact";
 // selectedDir signals this test drives directly — running for real.
 // `vi.hoisted` runs before the vi.mock factory (which is itself hoisted), so
 // `mockWorkspaceSettings` is defined by the time the factory body executes.
-const mockWorkspaceSettings = vi.hoisted(() => ({ sortOrder: "name-asc" as string }));
+const mockWorkspaceSettings = vi.hoisted<{ sortOrder: SortOrder }>(
+  () => ({ sortOrder: "name-asc" })
+);
 vi.mock("../settings/store", () => ({
   workspaceSettings: { value: mockWorkspaceSettings },
   workspaceSession: { value: 0 },
@@ -425,11 +428,11 @@ describe("sortEntries", () => {
 
   afterEach(() => {
     // Restore default sort order
-    (mockWorkspaceSettings as any).sortOrder = "name-asc";
+    mockWorkspaceSettings.sortOrder = "name-asc";
   });
 
   it("modified-desc: files sorted newest-first, dirs always alphabetical first", () => {
-    (mockWorkspaceSettings as any).sortOrder = "modified-desc";
+    mockWorkspaceSettings.sortOrder = "modified-desc";
     const entries = [dirA, old, noMtime, dirB, recent];
     const result = sortEntries(entries);
     // Dirs first (alphabetical): adir, zdir; then files by mtime desc: recent, old, no-mtime
@@ -437,7 +440,7 @@ describe("sortEntries", () => {
   });
 
   it("modified-desc: files without mtime fall to the bottom, alphabetically", () => {
-    (mockWorkspaceSettings as any).sortOrder = "modified-desc";
+    mockWorkspaceSettings.sortOrder = "modified-desc";
     const entries = [
       { name: "b.md", path: "/b.md", isDir: false },
       { name: "a.md", path: "/a.md", isDir: false },
@@ -449,14 +452,14 @@ describe("sortEntries", () => {
   });
 
   it("name-asc: alphabetical ascending, dirs before files", () => {
-    (mockWorkspaceSettings as any).sortOrder = "name-asc";
+    mockWorkspaceSettings.sortOrder = "name-asc";
     const entries = [recent, old, dirB, dirA];
     const result = sortEntries(entries);
     expect(result.map((e) => e.name)).toEqual(["adir", "zdir", "old.md", "recent.md"]);
   });
 
   it("name-desc: alphabetical descending, dirs before files", () => {
-    (mockWorkspaceSettings as any).sortOrder = "name-desc";
+    mockWorkspaceSettings.sortOrder = "name-desc";
     const entries = [recent, old, dirB, dirA];
     const result = sortEntries(entries);
     expect(result.map((e) => e.name)).toEqual(["zdir", "adir", "recent.md", "old.md"]);

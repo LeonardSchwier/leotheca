@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "preact/hooks";
+import { useCallback, useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { memo } from "preact/compat";
 import {
   dirChildren,
@@ -18,6 +18,11 @@ import type { FsEntry } from "./types";
 interface FileTreeProps {
   rootPath: string;
   onOpenFile: (path: string, name: string) => void | Promise<void>;
+}
+
+/** Collect all visible (rendered) treeitem buttons in DOM order. */
+function getVisibleTreeItems(root: HTMLElement): HTMLElement[] {
+  return Array.from(root.querySelectorAll<HTMLElement>('[role="treeitem"]'));
 }
 
 export function FileTree({ rootPath, onOpenFile }: FileTreeProps) {
@@ -46,12 +51,134 @@ export function FileTree({ rootPath, onOpenFile }: FileTreeProps) {
     return entries ? memoizedSortEntries(entries) : [];
   }, [entries]);
 
+  const treeRef = useRef<HTMLUListElement>(null);
+
+  // Set the first treeitem's tabindex to 0 on mount so Tab key can enter
+  // the tree. After that, roving tabindex is managed by keydown handler.
+  useEffect(() => {
+    const tree = treeRef.current;
+    if (!tree) return;
+    const firstItem = tree.querySelector<HTMLElement>('[role="treeitem"]');
+    if (firstItem) {
+      firstItem.setAttribute("tabindex", "0");
+    }
+  }, [entries]);
+
+  // Keyboard navigation handler attached to the tree container.
+  // Uses roving tabindex: only the focused treeitem has tabindex=0.
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      const tree = treeRef.current;
+      if (!tree) return;
+
+      const treeItems = getVisibleTreeItems(tree);
+      if (treeItems.length === 0) return;
+
+      // Find the currently focused item within the tree.
+      let focusedIndex = -1;
+      for (let i = 0; i < treeItems.length; i++) {
+        if (treeItems[i] === document.activeElement) {
+          focusedIndex = i;
+          break;
+        }
+      }
+
+      const focusItem = (idx: number) => {
+        const clamped = Math.max(0, Math.min(idx, treeItems.length - 1));
+        // Update roving tabindex
+        treeItems.forEach((el) => el.setAttribute("tabindex", "-1"));
+        treeItems[clamped].setAttribute("tabindex", "0");
+        treeItems[clamped].focus();
+      };
+
+      switch (e.key) {
+        case "ArrowDown":
+          e.preventDefault();
+          focusItem(focusedIndex + 1);
+          return;
+        case "ArrowUp":
+          e.preventDefault();
+          focusItem(focusedIndex - 1);
+          return;
+        case "Home":
+          e.preventDefault();
+          focusItem(0);
+          return;
+        case "End":
+          e.preventDefault();
+          focusItem(treeItems.length - 1);
+          return;
+        case "ArrowRight": {
+          e.preventDefault();
+          if (focusedIndex === -1) return;
+          const item = treeItems[focusedIndex];
+          const path = item.getAttribute("data-tree-path");
+          if (!path) return;
+          // If collapsed, expand; if already expanded, move to first child.
+          if (item.getAttribute("aria-expanded") === "false") {
+            item.click();
+          } else if (item.getAttribute("aria-expanded") === "true") {
+            const firstChild = treeItems[focusedIndex + 1];
+            // Only move down if the next item is actually a child (deeper indent).
+            if (firstChild && parseInt(firstChild.getAttribute("data-tree-depth") || "0") > parseInt(item.getAttribute("data-tree-depth") || "0")) {
+              focusItem(focusedIndex + 1);
+            }
+          }
+          return;
+        }
+        case "ArrowLeft": {
+          e.preventDefault();
+          if (focusedIndex === -1) return;
+          const item = treeItems[focusedIndex];
+          const path = item.getAttribute("data-tree-path");
+          if (!path) return;
+          if (item.getAttribute("aria-expanded") === "true") {
+            // Collapse this folder.
+            item.click();
+          } else {
+            // Move to parent: find the nearest preceding item with lower depth.
+            const myDepth = parseInt(item.getAttribute("data-tree-depth") || "0");
+            for (let i = focusedIndex - 1; i >= 0; i--) {
+              if (parseInt(treeItems[i].getAttribute("data-tree-depth") || "0") < myDepth) {
+                focusItem(i);
+                return;
+              }
+            }
+            // No parent found (we're at root level); stay put.
+          }
+          return;
+        }
+        case "Enter":
+        case " ":
+          e.preventDefault();
+          if (focusedIndex !== -1) {
+            treeItems[focusedIndex].click();
+          }
+          return;
+        default:
+          return;
+      }
+    },
+    []
+  );
+
   if (!entries) return null;
 
   return (
-    <ul class="file-tree">
+    <ul
+      ref={treeRef}
+      class="file-tree"
+      role="tree"
+      aria-label="File tree"
+      onKeyDown={handleKeyDown}
+    >
       {sortedEntries.map((entry) => (
-        <FileTreeNode key={entry.path} entry={entry} onOpenFile={onOpenFile} />
+        <FileTreeNode
+          key={entry.path}
+          entry={entry}
+          onOpenFile={onOpenFile}
+          depth={0}
+        />
       ))}
     </ul>
   );
@@ -61,15 +188,20 @@ export function FileTree({ rootPath, onOpenFile }: FileTreeProps) {
 const FileTreeNodeComponent = function FileTreeNode({
   entry,
   onOpenFile,
+  depth = 0,
 }: {
   entry: FsEntry;
   onOpenFile: (path: string, name: string) => void | Promise<void>;
+  depth?: number;
 }) {
   const expanded = expandedDirs.value.has(entry.path);
   const children = dirChildren.value.get(entry.path);
   const selected = selectedPath.value === entry.path;
   const [openError, setOpenError] = useState(false);
 
+  // Initialize roving tabindex: only the first treeitem in the tree gets
+  // tabindex=0. We handle this by defaulting to -1 and letting the tree
+  // container's keydown handler manage focus.
   const handleClick = async () => {
     selectedPath.value = entry.path;
     if (!entry.isDir) {
@@ -94,18 +226,29 @@ const FileTreeNodeComponent = function FileTreeNode({
     if (!entry.isDir || !expanded || !children) return null;
     const sortedChildren = memoizedSortEntries(children);
     return (
-      <ul class="file-tree">
+      <ul class="file-tree" role="group" aria-label={entry.name}>
         {sortedChildren.map((child) => (
-          <FileTreeNode key={child.path} entry={child} onOpenFile={onOpenFile} />
+          <FileTreeNode
+            key={child.path}
+            entry={child}
+            onOpenFile={onOpenFile}
+            depth={depth + 1}
+          />
         ))}
       </ul>
     );
-  }, [entry.isDir, expanded, children, onOpenFile]);
+  }, [entry.isDir, entry.name, expanded, children, onOpenFile, depth]);
 
   return (
-    <li>
+    <li role="none">
       <button
         class={`file-tree-item ${selected ? "selected" : ""}`}
+        role="treeitem"
+        aria-expanded={entry.isDir ? expanded : undefined}
+        aria-selected={selected}
+        data-tree-path={entry.path}
+        data-tree-depth={depth}
+        tabindex={-1}
         onClick={handleClick}
         onContextMenu={(e) => {
           e.preventDefault();
@@ -127,11 +270,12 @@ const FileTreeNodeComponent = function FileTreeNode({
 
 // Memoize the FileTreeNode component to prevent re-renders when props haven't changed
 export const FileTreeNode = memo(FileTreeNodeComponent, (prevProps, nextProps) => {
-  // Only re-render if entry or onOpenFile changes
+  // Only re-render if entry, onOpenFile, or depth changes
   return (
     prevProps.entry.path === nextProps.entry.path &&
     prevProps.entry.name === nextProps.entry.name &&
     prevProps.entry.isDir === nextProps.entry.isDir &&
-    prevProps.onOpenFile === nextProps.onOpenFile
+    prevProps.onOpenFile === nextProps.onOpenFile &&
+    prevProps.depth === nextProps.depth
   );
 });

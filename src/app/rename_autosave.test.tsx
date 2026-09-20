@@ -240,7 +240,7 @@ describe("App: rename shows a link-impact preview when a reference exists (F03 P
     fireEvent.click(getByRole("button", { name: "Rename" }));
 
     await waitFor(() => expect(getByText("Review rename")).toBeTruthy());
-    expect(getByText("1 link elsewhere will still need updating")).toBeTruthy();
+    expect(getByText("1 link elsewhere will be updated")).toBeTruthy();
     expect(getByText("/vault/referrer.md")).toBeTruthy();
     expect(renameEntry).not.toHaveBeenCalled();
 

@@ -31,7 +31,7 @@ describe("RenamePreviewDialog", () => {
         onCancel={vi.fn()}
       />,
     );
-    expect(getByText("1 link elsewhere will still need updating")).toBeTruthy();
+    expect(getByText("1 link elsewhere will be updated")).toBeTruthy();
     expect(getByText("/vault/referrer.md")).toBeTruthy();
     expect(getByText("[[target]]")).toBeTruthy();
     expect(getByText("[[renamed]]")).toBeTruthy();
@@ -72,7 +72,7 @@ describe("RenamePreviewDialog", () => {
         onCancel={vi.fn()}
       />,
     );
-    expect(getByText("2 links elsewhere will still need updating")).toBeTruthy();
+    expect(getByText("2 links elsewhere will be updated")).toBeTruthy();
     expect(getByText("2 links cannot be safely updated automatically")).toBeTruthy();
   });
 
@@ -80,7 +80,7 @@ describe("RenamePreviewDialog", () => {
     const { queryByText } = render(
       <RenamePreviewDialog oldPath="/vault/target.md" newPath="/vault/renamed.md" plan={plan()} onContinue={vi.fn()} onCancel={vi.fn()} />,
     );
-    expect(queryByText(/will still need updating/)).toBeNull();
+    expect(queryByText(/will be updated/)).toBeNull();
     expect(queryByText(/cannot be safely updated/)).toBeNull();
   });
 

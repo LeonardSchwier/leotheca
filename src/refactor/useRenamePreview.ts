@@ -2,13 +2,20 @@ import { useCallback, useRef, useState } from "preact/hooks";
 import { linkIndex } from "../linking/store";
 import { openDocuments } from "../workspace/store";
 import { dirname } from "../workspace/paths";
-import { readTextFile } from "../workspace/tauriBridge";
+import { readTextFile, writeTextFile } from "../workspace/tauriBridge";
 import { planNoteRename, type RenamePlan } from "./renamePlan";
+import { applyRenamePlan } from "./renameExecutor";
 
 export interface RenamePreviewState {
   oldPath: string;
   newPath: string;
   plan: RenamePlan;
+  /** Set to true after applyRenamePlan succeeds; used by the caller to
+   * know whether the wikilink rewrites have already been applied before
+   * it calls renameEntry. */
+  applied: boolean;
+  /** Error message if applyRenamePlan failed; caller should surface this. */
+  applyError?: string;
 }
 
 export interface RenamePreviewController {
@@ -20,13 +27,16 @@ export interface RenamePreviewController {
    * replaced or wrapped so a rename cannot bypass F03"). Call this with
    * exactly the same `(oldPath, newName)` a caller's own existing rename
    * flow already has, before its own `renameEntry` call, not instead of
-   * it: this never renames anything itself, Apply automation is explicit
-   * follow-up scope (see `renamePlan.ts`'s and this claim's own
-   * ROADMAP.md entry). Resolves `true` immediately, with no dialog shown
-   * at all, for a non-note path or a plan with nothing to review (most
-   * renames, since most notes have no backlinks); otherwise shows the
-   * Review dialog and resolves once the user continues (`true`) or
-   * cancels (`false`).
+   * it: this never renames anything itself; instead it plans the rewrite,
+   * shows the Review dialog if there's anything to review, and — once the
+   * user clicks Continue — applies the wikilink/markdown rewrites to the
+   * other notes via `applyRenamePlan`. The caller then proceeds with its
+   * own `renameEntry` call to actually rename the file.
+   *
+   * Resolves `true` immediately (no dialog) for a non-note path or a plan
+   * with nothing to review; resolves `false` if the user cancels or if
+   * the apply step fails (in which case `preview.applyError` carries the
+   * message to surface to the user).
    */
   confirmRenameWithPreview: (oldPath: string, newName: string) => Promise<boolean>;
   continueRename: () => void;
@@ -54,13 +64,6 @@ export function useRenamePreview(): RenamePreviewController {
 
     const newPath = `${dirname(oldPath)}/${newName}`;
     const plan = await planNoteRename(oldPath, newPath, linkIndex.value, readFreshestNote);
-    // Must also check the Markdown-link fields (spec 6.2/F03 Phase 2b-ii), not
-    // just the wikilink ones: a plan can have zero wikilink edits/blocked and
-    // still carry real markdownEdits/markdownBlocked entries (the common case
-    // whenever the referrer has no unrelated wikilink of its own), and
-    // RenamePreviewDialog.tsx already has a dedicated rendering section for
-    // exactly that data. Skipping the dialog here made that whole section
-    // unreachable in the running app regardless of what the plan contained.
     const hasNothingToReview =
       plan.edits.length === 0 &&
       plan.blocked.length === 0 &&
@@ -70,15 +73,35 @@ export function useRenamePreview(): RenamePreviewController {
 
     return new Promise<boolean>((resolve) => {
       resolverRef.current = resolve;
-      setPreview({ oldPath, newPath, plan });
+      setPreview({ oldPath, newPath, plan, applied: false });
     });
   }, []);
 
   const continueRename = useCallback(() => {
-    resolverRef.current?.(true);
-    resolverRef.current = null;
-    setPreview(null);
-  }, []);
+    const current = preview;
+    if (current) {
+      // Apply the wikilink/markdown rewrites before resolving.
+      void (async () => {
+        const result = await applyRenamePlan(current.plan, {
+          readNote: readFreshestNote,
+          writeNote: (path: string, content: string) => writeTextFile(path, content),
+        });
+        if (result.success) {
+          setPreview(null);
+          resolverRef.current?.(true);
+        } else {
+          // Keep the dialog open so the user sees the error and can retry or cancel.
+          setPreview((prev) => (prev ? { ...prev, applyError: result.error } : null));
+          resolverRef.current?.(false);
+        }
+        resolverRef.current = null;
+      })();
+    } else {
+      resolverRef.current?.(true);
+      resolverRef.current = null;
+      setPreview(null);
+    }
+  }, [preview]);
 
   const cancelRename = useCallback(() => {
     resolverRef.current?.(false);

@@ -6,13 +6,14 @@ import { openDocuments } from "../workspace/store";
 import { parseWikiLinks } from "../linking/wikiSyntax";
 import { useRenamePreview } from "./useRenamePreview";
 
-const { readTextFile } = vi.hoisted(() => ({
+const { readTextFile, writeTextFile } = vi.hoisted(() => ({
   readTextFile: vi.fn<(path: string) => Promise<string>>(async () => {
     throw new Error("unexpected readTextFile call");
   }),
+  writeTextFile: vi.fn<(path: string, content: string) => Promise<void>>(async () => {}),
 }));
 
-vi.mock("../workspace/tauriBridge", () => ({ readTextFile }));
+vi.mock("../workspace/tauriBridge", () => ({ readTextFile, writeTextFile }));
 
 function emptyIndex(): LinkIndex {
   return {
@@ -39,6 +40,7 @@ afterEach(() => {
   linkIndex.value = emptyIndex();
   openDocuments.value = [];
   readTextFile.mockClear();
+  writeTextFile.mockClear();
 });
 
 describe("useRenamePreview", () => {
@@ -145,6 +147,61 @@ describe("useRenamePreview", () => {
 
     act(() => result.current.continueRename());
     await waitFor(() => expect(proceed).toBe(true));
+  });
+
+  it("applies wikilink rewrites via writeTextFile when the user continues", async () => {
+    linkIndex.value = indexWithBacklink("/vault/referrer.md", "See [[target]].");
+    readTextFile.mockResolvedValue("See [[target]].");
+    const { result } = renderHook(() => useRenamePreview());
+
+    let proceed: boolean | undefined;
+    act(() => {
+      void result.current
+        .confirmRenameWithPreview("/vault/target.md", "renamed.md")
+        .then((value) => (proceed = value));
+    });
+
+    await waitFor(() => expect(result.current.preview).not.toBeNull());
+    // Verify the plan has a wikilink edit from [[target]] to [[renamed]]
+    expect(result.current.preview?.plan.edits).toHaveLength(1);
+    expect(result.current.preview?.plan.edits[0].oldText).toBe("[[target]]");
+    expect(result.current.preview?.plan.edits[0].newText).toBe("[[renamed]]");
+    expect(proceed).toBeUndefined();
+
+    // Continue — this should trigger applyRenamePlan which calls writeTextFile
+    act(() => result.current.continueRename());
+    await waitFor(() => expect(proceed).toBe(true));
+    expect(result.current.preview).toBeNull();
+
+    // writeTextFile must have been called once for the referrer note
+    expect(writeTextFile).toHaveBeenCalledTimes(1);
+    const [writtenPath, writtenContent] = writeTextFile.mock.calls[0];
+    expect(writtenPath).toBe("/vault/referrer.md");
+    expect(writtenContent).toBe("See [[renamed]].");
+  });
+
+  it("resolves false and keeps the dialog open when applyRenamePlan fails", async () => {
+    linkIndex.value = indexWithBacklink("/vault/referrer.md", "See [[target]].");
+    readTextFile.mockResolvedValue("See [[target]].");
+    // Make writeTextFile fail to simulate a disk error
+    writeTextFile.mockRejectedValueOnce(new Error("disk full"));
+    const { result } = renderHook(() => useRenamePreview());
+
+    let proceed: boolean | undefined;
+    act(() => {
+      void result.current
+        .confirmRenameWithPreview("/vault/target.md", "renamed.md")
+        .then((value) => (proceed = value));
+    });
+
+    await waitFor(() => expect(result.current.preview).not.toBeNull());
+
+    act(() => result.current.continueRename());
+    await waitFor(() => expect(proceed).toBe(false));
+
+    // Dialog stays open with the error message
+    expect(result.current.preview).not.toBeNull();
+    expect(result.current.preview?.applyError).toBe("disk full");
   });
 
   it("reads an open tab's live content instead of disk for a candidate note", async () => {

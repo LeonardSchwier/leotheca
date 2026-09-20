@@ -9,8 +9,8 @@
 ### Bugs
 
 - 🚧 **Fix 6 pre-existing test failures in App.test.tsx and PdfViewer.test.tsx**: `App.test.tsx` has 2 failures from a `getPendingShareData` mock setup issue, and `PdfViewer.test.tsx` has 4 failures because canvas overlay computation was tightly coupled to the canvas render effect, so overlays went stale/empty in test environments where `canvas.getContext("2d")` yields no usable context. Fixed by extracting overlay computation into a pure `computeOverlays` function and adding a separate `useEffect` that keeps overlays in sync with annotation state independently of canvas rendering; also fixed `initPendingCaptures` to never wipe an already-populated in-memory queue during cold-start hydration.
-  <!-- agent-state: {"schema":1,"id":"rm-097be0161ea2a398","state":"claimed","touch":["src/capture/pendingCaptures.ts","src/pdf/PdfViewer.tsx"],"resources":["annotation-overlays","pending-capture-queue"],"owner":"hermes-local-20260920T192821Z-620d68be","token":"0f3c0b202bc335f53782417c40c16d21","branch":"agent/rm-097be0161ea2a398/0f3c0b202bc3","claimed_at":"2026-09-20T19:33:45Z","heartbeat_at":"2026-09-20T19:33:45Z","lease_until":"2026-09-20T21:03:45Z"} -->
-  Agent: hermes-local-20260920T192821Z-620d68be | item: rm-097be0161ea2a398 | lease until: 2026-09-20T21:03:45Z
+  <!-- agent-state: {"schema":1,"id":"rm-097be0161ea2a398","state":"claimed","touch":["src/capture/pendingCaptures.ts","src/pdf/PdfViewer.tsx"],"resources":["annotation-overlays","pending-capture-queue"],"owner":"hermes-local-20260920T192821Z-620d68be","token":"0f3c0b202bc335f53782417c40c16d21","branch":"agent/rm-097be0161ea2a398/0f3c0b202bc3","claimed_at":"2026-09-20T19:33:45Z","heartbeat_at":"2026-09-20T19:43:00Z","lease_until":"2026-09-20T21:13:00Z"} -->
+  Agent: hermes-local-20260920T192821Z-620d68be | item: rm-097be0161ea2a398 | lease until: 2026-09-20T21:13:00Z
   <details>
   <summary>Root cause, fix, and verification</summary>
 

@@ -127,6 +127,20 @@ export function sortEntries(entries: FsEntry[]): FsEntry[] {
   const order = workspaceSettings.value.sortOrder;
   const dirs = entries.filter((e) => e.isDir);
   const files = entries.filter((e) => !e.isDir);
+  if (order === "modified-desc") {
+    // Directories are always alphabetical (mtime is undefined for dirs on most
+    // platforms). Files are sorted newest-first; files without an mtime fall
+    // to the bottom, alphabetically among themselves.
+    const dirCmp = (a: FsEntry, b: FsEntry) =>
+      a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+    const fileCmp = (a: FsEntry, b: FsEntry) => {
+      const am = a.mtime ?? 0;
+      const bm = b.mtime ?? 0;
+      if (bm !== am) return bm - am;
+      return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+    };
+    return [...dirs.sort(dirCmp), ...files.sort(fileCmp)];
+  }
   const cmp = (a: FsEntry, b: FsEntry) => {
     const c = a.name.toLowerCase().localeCompare(b.name.toLowerCase());
     return order === "name-asc" ? c : -c;
@@ -265,8 +279,13 @@ export async function expandFirstLevel(rootPath: string): Promise<void> {
 }
 
 export function toggleSortOrder() {
-  const next =
-    workspaceSettings.value.sortOrder === "name-asc" ? "name-desc" : "name-asc";
+  const current = workspaceSettings.value.sortOrder;
+  const next: SortOrder =
+    current === "name-asc"
+      ? "name-desc"
+      : current === "name-desc"
+        ? "modified-desc"
+        : "name-asc";
   updateWorkspaceSettings({ sortOrder: next });
 }
 

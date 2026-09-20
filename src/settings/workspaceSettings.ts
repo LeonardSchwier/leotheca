@@ -15,8 +15,8 @@ import { createPrimaryEditorLayout } from "../workspace/documentGroups";
 import type { EditorLayoutState, ViewMode } from "../workspace/types";
 
 export type { ViewMode };
-export type SortOrder = "name-asc" | "name-desc";
-const SORT_ORDERS: readonly SortOrder[] = ["name-asc", "name-desc"];
+export type SortOrder = "name-asc" | "name-desc" | "modified-desc";
+const SORT_ORDERS: readonly SortOrder[] = ["name-asc", "name-desc", "modified-desc"];
 const VIEW_MODES: readonly ViewMode[] = ["source", "split", "preview"];
 /** "project-trash" moves a deleted entry into `<workspace>/.trash` (the
  * only behavior before this setting existed); "permanent" deletes it

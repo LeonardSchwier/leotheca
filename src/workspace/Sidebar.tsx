@@ -180,8 +180,23 @@ export function Sidebar({ rootPath, onOpenFile, flushPendingAutosave }: SidebarP
         >
           <NewFolderIcon />
         </button>
-        <button class="icon-button" title="Toggle sort order" aria-label="Toggle sort order" onClick={toggleSortOrder}>
-          {workspaceSettings.value.sortOrder === "name-asc" ? "↓" : "↑"}
+        <button
+          class="icon-button"
+          title={
+            workspaceSettings.value.sortOrder === "name-asc"
+              ? "Sort: name A→Z (click for Z→A)"
+              : workspaceSettings.value.sortOrder === "name-desc"
+                ? "Sort: name Z→A (click for newest first)"
+                : "Sort: newest first (click for A→Z)"
+          }
+          aria-label="Toggle sort order"
+          onClick={toggleSortOrder}
+        >
+          {workspaceSettings.value.sortOrder === "name-asc"
+            ? "↓"
+            : workspaceSettings.value.sortOrder === "name-desc"
+              ? "↑"
+              : "🕒"}
         </button>
         <button
           class="icon-button"

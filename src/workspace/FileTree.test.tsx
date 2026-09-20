@@ -7,8 +7,11 @@ import { cleanup, fireEvent, render, waitFor } from "@testing-library/preact";
 // and ./tauriBridge for the real filesystem calls. Mocking both keeps the
 // rest of fileTreeStore — including the real dirChildren/expandedDirs/
 // selectedDir signals this test drives directly — running for real.
+// `vi.hoisted` runs before the vi.mock factory (which is itself hoisted), so
+// `mockWorkspaceSettings` is defined by the time the factory body executes.
+const mockWorkspaceSettings = vi.hoisted(() => ({ sortOrder: "name-asc" as string }));
 vi.mock("../settings/store", () => ({
-  workspaceSettings: { value: { sortOrder: "name-asc" } },
+  workspaceSettings: { value: mockWorkspaceSettings },
   workspaceSession: { value: 0 },
   workspacePath: { value: "/vault" },
   updateWorkspaceSettings: vi.fn(),
@@ -30,6 +33,7 @@ import {
   selectedDir,
   selectedPath,
   contextMenuTarget,
+  sortEntries,
 } from "./fileTreeStore";
 import { listDir } from "./tauriBridge";
 import type { FsEntry } from "./types";
@@ -409,5 +413,52 @@ describe("FileTree", () => {
     // Should still be focused (no parent to go to)
     expect(document.activeElement).toBe(noteEl);
     expect(noteEl.getAttribute("tabindex")).toBe("0");
+  });
+});
+
+describe("sortEntries", () => {
+  const old: FsEntry = { name: "old.md", path: "/vault/old.md", isDir: false, mtime: 1000 };
+  const recent: FsEntry = { name: "recent.md", path: "/vault/recent.md", isDir: false, mtime: 999999 };
+  const noMtime: FsEntry = { name: "no-mtime.md", path: "/vault/no-mtime.md", isDir: false };
+  const dirA: FsEntry = { name: "zdir", path: "/vault/zdir", isDir: true };
+  const dirB: FsEntry = { name: "adir", path: "/vault/adir", isDir: true };
+
+  afterEach(() => {
+    // Restore default sort order
+    (mockWorkspaceSettings as any).sortOrder = "name-asc";
+  });
+
+  it("modified-desc: files sorted newest-first, dirs always alphabetical first", () => {
+    (mockWorkspaceSettings as any).sortOrder = "modified-desc";
+    const entries = [dirA, old, noMtime, dirB, recent];
+    const result = sortEntries(entries);
+    // Dirs first (alphabetical): adir, zdir; then files by mtime desc: recent, old, no-mtime
+    expect(result.map((e) => e.name)).toEqual(["adir", "zdir", "recent.md", "old.md", "no-mtime.md"]);
+  });
+
+  it("modified-desc: files without mtime fall to the bottom, alphabetically", () => {
+    (mockWorkspaceSettings as any).sortOrder = "modified-desc";
+    const entries = [
+      { name: "b.md", path: "/b.md", isDir: false },
+      { name: "a.md", path: "/a.md", isDir: false },
+      { name: "c.md", path: "/c.md", isDir: false, mtime: 500 },
+    ];
+    const result = sortEntries(entries);
+    // c.md has mtime so comes first, then a.md, b.md (both no mtime, alphabetical)
+    expect(result.map((e) => e.name)).toEqual(["c.md", "a.md", "b.md"]);
+  });
+
+  it("name-asc: alphabetical ascending, dirs before files", () => {
+    (mockWorkspaceSettings as any).sortOrder = "name-asc";
+    const entries = [recent, old, dirB, dirA];
+    const result = sortEntries(entries);
+    expect(result.map((e) => e.name)).toEqual(["adir", "zdir", "old.md", "recent.md"]);
+  });
+
+  it("name-desc: alphabetical descending, dirs before files", () => {
+    (mockWorkspaceSettings as any).sortOrder = "name-desc";
+    const entries = [recent, old, dirB, dirA];
+    const result = sortEntries(entries);
+    expect(result.map((e) => e.name)).toEqual(["zdir", "adir", "recent.md", "old.md"]);
   });
 });

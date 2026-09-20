@@ -4,9 +4,6 @@
 
 ### Bugs and CI
 
-- 🚧 **Main CI red: `FileTree.test.tsx` uses `as any` casts on `mockWorkspaceSettings.sortOrder`** (regression from `e83e3f9`): Commit `e83e3f9` ("feat(workspace): add 'last modified' sort mode to file tree") introduced five `@typescript-eslint/no-explicit-any` errors in `src/workspace/FileTree.test.tsx` — `(mockWorkspaceSettings as any).sortOrder = ...` — because `mockWorkspaceSettings` was typed as `{ sortOrder: string }`. The CI frontend Lint step fails on these, breaking `main`. Fix: type `mockWorkspaceSettings` as `{ sortOrder: SortOrder }` (importing the existing `SortOrder` type from `../settings/workspaceSettings`) and remove all `as any` casts. Verified: `npx eslint .` clean, `npx tsc --noEmit` clean, all 24 tests in `FileTree.test.tsx` pass.
-  <!-- agent-state: {"schema":1,"id":"rm-eb7ec85f9fd680d9","state":"claimed","touch":["src/workspace/FileTree.test.tsx"],"resources":[],"owner":"hermes-local-20260920T222254Z-0d6f138c","token":"e58b71ff770f89848dcccb09d524aba7","branch":"agent/rm-eb7ec85f9fd680d9/e58b71ff770f","claimed_at":"2026-09-20T22:32:12Z","heartbeat_at":"2026-09-20T22:33:50Z","lease_until":"2026-09-21T00:03:50Z"} -->
-  Agent: hermes-local-20260920T222254Z-0d6f138c | item: rm-eb7ec85f9fd680d9 | lease until: 2026-09-21T00:03:50Z
 - ⬜ **macOS Gatekeeper: Sign, notarize, and staple release DMGs**: Current macOS artifacts are deliberately unsigned and unnotarized, so Gatekeeper warns that the app cannot be verified. The maintainer must provide an Apple Developer Program membership, a Developer ID Application certificate, and an App Store Connect API key as repository secrets. Update the macOS release job to sign the universal `.app`, submit it with `notarytool`, wait for acceptance, staple the ticket to both `.app` and DMG, and fail publication if any step fails. Verify `codesign`, `spctl`, and a fresh download/open on both Apple Silicon and Intel macOS; only then remove the unsigned-install workaround from user documentation and complete the Homebrew Cask.
 
 ### Bugs
@@ -112,6 +109,11 @@
   Agent: hermes-20260920T111221Z-10b59f74 | item: rm-1de67912dd4a245f | lease until: 2026-09-20T12:42:32Z
 
 ## Implemented
+
+- ✅ **Main CI red: `FileTree.test.tsx` uses `as any` casts on `mockWorkspaceSettings.sortOrder`** (regression from `e83e3f9`): Commit `e83e3f9` ("feat(workspace): add 'last modified' sort mode to file tree") introduced five `@typescript-eslint/no-explicit-any` errors in `src/workspace/FileTree.test.tsx` — `(mockWorkspaceSettings as any).sortOrder = ...` — because `mockWorkspaceSettings` was typed as `{ sortOrder: string }`. The CI frontend Lint step fails on these, breaking `main`. Fix: type `mockWorkspaceSettings` as `{ sortOrder: SortOrder }` (importing the existing `SortOrder` type from `../settings/workspaceSettings`) and remove all `as any` casts. Verified: `npx eslint .` clean, `npx tsc --noEmit` clean, all 24 tests in `FileTree.test.tsx` pass.
+  <!-- agent-state: {"schema":1,"id":"rm-eb7ec85f9fd680d9","state":"done","touch":["src/workspace/FileTree.test.tsx"],"resources":[],"note":"Fix landed f85fec4b96a65fcf5375b7d02a5d4406dd402a64. CI success. eslint clean, tsc clean, vitest 24/24 passed. Replaced 5 as any casts with SortOrder type import.","completed_at":"2026-09-20T22:41:52Z","completed_by":"hermes-local-20260920T222254Z-0d6f138c","branch":"agent/rm-eb7ec85f9fd680d9/e58b71ff770f"} -->
+  Agent: completed by hermes-local-20260920T222254Z-0d6f138c | item: rm-eb7ec85f9fd680d9
+
 
 - ✅ **Configurable file tree sort order**: Let a user choose how the file tree sorts entries — alphabetical, last modified, or manual drag-and-drop ordering — instead of one fixed order today.
   <!-- agent-state: {"schema":1,"id":"rm-bcb4704a8972eb15","state":"done","touch":["src/settings/workspaceSettings.ts","src/workspace/FileTree.test.tsx","src/workspace/Sidebar.test.tsx","src/workspace/Sidebar.tsx","src/workspace/fileTreeStore.ts"],"resources":["file-tree-sort"],"note":"Completed: added modified-desc sort mode. Landed as e83e3f9 on main.","completed_at":"2026-09-20T22:21:40Z","completed_by":"hermes-local-20260920T221034Z-5fae4daf","branch":"agent/rm-bcb4704a8972eb15/1e7a73e24613"} -->

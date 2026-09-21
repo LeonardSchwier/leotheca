@@ -14,6 +14,7 @@ import { SpeechRecognitionButton } from "../editor/SpeechRecognitionButton";
 import { ImageViewer } from "../editor/ImageViewer";
 import { ImageViewerOverlay } from "../editor/ImageViewerOverlay";
 import { PdfViewer } from "../pdf/PdfViewer";
+import { printNoteHtml } from "../export/printNote";
 import { CaptureSheet, captureSheetOpen, openCaptureSheet } from "./CaptureSheet";
 import { PendingCapturesPanel, initPendingCaptures, processAndroidPendingShareData } from "../capture";
 import { classifyWorkspaceResource } from "../workspace/types";
@@ -1016,6 +1017,24 @@ export function App() {
           label: "Switch to Preview view",
           run: () => (viewMode.value = "preview"),
         },
+        ...(!Capacitor.isNativePlatform()
+          ? [
+              {
+                id: "print-note",
+                label: "Print note",
+                run: () => {
+                  const container = document.querySelector<HTMLElement>(
+                    "#primary-editor-panes .markdown-preview",
+                  );
+                  if (!container) {
+                    window.alert("Switch to Preview or Split view to print this note.");
+                    return;
+                  }
+                  printNoteHtml(current.name, container.innerHTML);
+                },
+              },
+            ]
+          : []),
         {
           id: "toggle-bookmark",
           label: currentBookmark ? "Remove bookmark from this note" : "Bookmark this note",
@@ -1667,7 +1686,7 @@ export function App() {
                     readOnly={currentNoteReadOnly}
                   />
                 )}
-                <div class={`editor-panes mode-${viewMode.value}`}>
+                <div id="primary-editor-panes" class={`editor-panes mode-${viewMode.value}`}>
                   {viewMode.value !== "preview" && (
                     <MarkdownEditor
                       path={current.path}

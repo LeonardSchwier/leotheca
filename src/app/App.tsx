@@ -15,6 +15,8 @@ import { ImageViewer } from "../editor/ImageViewer";
 import { ImageViewerOverlay } from "../editor/ImageViewerOverlay";
 import { PdfViewer } from "../pdf/PdfViewer";
 import { printNoteHtml } from "../export/printNote";
+import { inlineLocalImages, buildExportDocument } from "../export/exportNoteHtml";
+import { pickHtmlExportPath } from "../workspace/tauriBridgeImpl";
 import { CaptureSheet, captureSheetOpen, openCaptureSheet } from "./CaptureSheet";
 import { PendingCapturesPanel, initPendingCaptures, processAndroidPendingShareData } from "../capture";
 import { classifyWorkspaceResource } from "../workspace/types";
@@ -60,7 +62,7 @@ import { SplitSeparator } from "../editorGroups/SplitSeparator";
 import { SecondaryEditorPane } from "../editorGroups/SecondaryEditorPane";
 import { StatusIndicator } from "../ui/StatusIndicator";
 import { CompactGroupSwitcher } from "../editorGroups/CompactGroupSwitcher";
-import { onExternalFileOpen, readTextFile, takePendingExternalFile } from "../workspace/tauriBridge";
+import { onExternalFileOpen, readTextFile, takePendingExternalFile, writeTextFile } from "../workspace/tauriBridge";
 import { isPathWithinWorkspace } from "../workspace/paths";
 import { beginFileOpenAuthority, isCurrentFileOpen } from "../workspace/fileOpenAuthority";
 import {
@@ -1031,6 +1033,30 @@ export function App() {
                     return;
                   }
                   printNoteHtml(current.name, container.innerHTML);
+                },
+              },
+              {
+                id: "export-note-html",
+                label: "Export note to HTML…",
+                run: () => {
+                  const container = document.querySelector<HTMLElement>(
+                    "#primary-editor-panes .markdown-preview",
+                  );
+                  if (!container) {
+                    window.alert("Switch to Preview or Split view to export this note.");
+                    return;
+                  }
+                  const bodyHtml = container.innerHTML;
+                  void (async () => {
+                    try {
+                      const path = await pickHtmlExportPath(`${current.name}.html`);
+                      if (!path) return;
+                      const inlined = await inlineLocalImages(bodyHtml);
+                      await writeTextFile(path, buildExportDocument(current.name, inlined));
+                    } catch (e) {
+                      window.alert(`Couldn't export note: ${e instanceof Error ? e.message : String(e)}`);
+                    }
+                  })();
                 },
               },
             ]

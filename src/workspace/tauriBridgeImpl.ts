@@ -1,5 +1,5 @@
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
-import { open } from "@tauri-apps/plugin-dialog";
+import { open, save } from "@tauri-apps/plugin-dialog";
 import { appConfigDir, join } from "@tauri-apps/api/path";
 import { getVersion } from "@tauri-apps/api/app";
 import { listen } from "@tauri-apps/api/event";
@@ -18,6 +18,24 @@ export async function pickWorkspaceFolder(): Promise<{
   // produces the right name without one, unlike Android's opaque,
   // synthetic "/workspace" root.
   return path ? { path } : null;
+}
+
+/** "Save As…" dialog for exporting a note as a standalone file outside
+ * the workspace (ROADMAP.md's "Export a note to standalone HTML
+ * (desktop)"). Deliberately not routed through `tauriBridge.ts`'s
+ * platform dispatcher: unlike every other function in this file, this
+ * one has no Android/Capacitor counterpart (see ROADMAP.md's "Print/
+ * export a note on Android", which needs a real native "Save As"/share
+ * plugin, not this desktop file-system dialog), so a caller that wants
+ * it imports this module directly and gates the whole feature to
+ * desktop, the same way the "Print note" command already does. Returns
+ * `null` when the user cancels, same convention as `pickWorkspaceFolder`
+ * above. */
+export async function pickHtmlExportPath(defaultFileName: string): Promise<string | null> {
+  return save({
+    defaultPath: defaultFileName,
+    filters: [{ name: "HTML", extensions: ["html"] }],
+  });
 }
 
 /** No-op on desktop: the real folder path from `pickWorkspaceFolder` is

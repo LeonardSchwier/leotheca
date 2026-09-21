@@ -813,6 +813,57 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
             </div>
           )}
 
+          {workspacePath.value && (
+            <div class="settings-row">
+              <div>
+                <div class="settings-label">Custom CSS</div>
+                <div class="settings-hint">
+                  Enable and point to a CSS file inside the workspace to
+                  override the app's styles (e.g. .leotheca/custom.css)
+                </div>
+              </div>
+              <div class="settings-switch">
+                <button
+                  class={
+                    workspaceSettings.value.customCssEnabled ? "active" : ""
+                  }
+                  onClick={() => {
+                    void updateWorkspaceSettings({
+                      customCssEnabled: !workspaceSettings.value.customCssEnabled,
+                    });
+                  }}
+                >
+                  {workspaceSettings.value.customCssEnabled
+                    ? "Enabled"
+                    : "Disabled"}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {workspacePath.value && workspaceSettings.value.customCssEnabled && (
+            <div class="settings-row">
+              <div>
+                <div class="settings-label">Custom CSS file path</div>
+                <div class="settings-hint">
+                  Path to the CSS file, relative to the workspace root
+                </div>
+              </div>
+              <div class="settings-value">
+                <input
+                  type="text"
+                  placeholder=".leotheca/custom.css"
+                  value={workspaceSettings.value.customCssPath}
+                  onInput={(e) => {
+                    void updateWorkspaceSettings({
+                      customCssPath: (e.target as HTMLInputElement).value,
+                    });
+                  }}
+                />
+              </div>
+            </div>
+          )}
+
           {workspacePath.value && showFrontmatterProperties && (
             <div class="settings-row">
               <div>

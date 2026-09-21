@@ -183,6 +183,8 @@ function createBasicWorkspaceSettings(): WorkspaceSettings {
     captureInboxFolder: "",
     captureInboxNote: "Inbox.md",
     captureDatePattern: "",
+    customCssEnabled: false,
+    customCssPath: ".leotheca/custom.css",
   };
 }
 
@@ -697,6 +699,8 @@ export async function applyRenamePlan(
         captureInboxFolder: "",
         captureInboxNote: "Inbox.md",
         captureDatePattern: "",
+        customCssEnabled: false,
+        customCssPath: ".leotheca/custom.css",
       },
     },
     step: "wikilink_updates_started",

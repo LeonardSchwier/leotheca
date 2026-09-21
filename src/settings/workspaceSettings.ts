@@ -207,6 +207,21 @@ export interface WorkspaceSettings {
   captureInboxNote: string;
   /** F05: Date-pattern destination for new captures (e.g., "Daily/{{date:YYYY-MM-DD}}.md") */
   captureDatePattern: string;
+  /** Whether the user's custom CSS file (see customCssPath) is loaded and
+   * applied to the app's UI. Defaults to off: the app's bundled styles are
+   * the only styling applied until the user explicitly enables this and
+   * points it at a CSS file inside the workspace. When enabled and the
+   * file exists, its contents are injected as a <style> tag after all
+   * bundled styles, so it can override any CSS variable or class the app
+   * uses. This is a deliberate, smaller step than a full plugin system:
+   * user-authored CSS only, no JavaScript, no third-party code execution. */
+  customCssEnabled: boolean;
+  /** Path to the user's custom CSS file, relative to the workspace root.
+   * Defaults to `.leotheca/custom.css`. A missing file is not an error;
+   * the app simply applies no custom CSS. The file must live inside the
+   * workspace (enforced by isPathWithinWorkspace) to prevent escaping
+   * to system locations. */
+  customCssPath: string;
 }
 
 export const MIN_UI_ZOOM = 50;
@@ -251,6 +266,8 @@ export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   captureInboxFolder: "",
   captureInboxNote: "Inbox.md",
   captureDatePattern: "",
+  customCssEnabled: false,
+  customCssPath: ".leotheca/custom.css",
 };
 
 // Plain string join is intentional here (not a path-resolution API call):
@@ -629,6 +646,14 @@ export function decodeWorkspaceSettings(
     record.captureDatePattern,
     DEFAULT_WORKSPACE_SETTINGS.captureDatePattern,
   );
+  const customCssEnabled = decodeBoolean(
+    record.customCssEnabled,
+    DEFAULT_WORKSPACE_SETTINGS.customCssEnabled,
+  );
+  const customCssPath = decodeRelativeFolder(
+    record.customCssPath,
+    DEFAULT_WORKSPACE_SETTINGS.customCssPath,
+  );
   const frontmatterPropertiesEnabled = decodeBoolean(
     record.frontmatterPropertiesEnabled,
     DEFAULT_WORKSPACE_SETTINGS.frontmatterPropertiesEnabled,
@@ -768,6 +793,8 @@ export function decodeWorkspaceSettings(
     captureInboxFolder: captureInboxFolder.value,
     captureInboxNote: captureInboxNote.value,
     captureDatePattern: captureDatePattern.value,
+    customCssEnabled: customCssEnabled.value,
+    customCssPath: customCssPath.value,
   } as unknown as WorkspaceSettings;
 
   // F07 Phase 2b: Corruption only when editorLayout is invalid AND cannot be migrated from legacy
@@ -809,6 +836,8 @@ export function decodeWorkspaceSettings(
       captureInboxFolder,
       captureInboxNote,
       captureDatePattern,
+      customCssEnabled,
+      customCssPath,
     );
 
   return { settings, corrupt };

@@ -8,7 +8,9 @@
 
 ### Bugs
 
-- ⬜ **Offline spellchecking silently dead if first lint pass runs before dictionary loads**: The CodeMirror linter extension's `getChecker()` (in `src/spellcheck/spellCheck.ts`, wired into `src/editor/MarkdownEditor.tsx`) caches its first `null` result permanently. `lintSource` runs on an 800ms debounce; the dictionary is loaded asynchronously in a mount effect. If the very first lint pass fires before `spellcheckAffRef`/`spellcheckDicRef` are populated, `getChecker()` stores `null` and every later lint pass keeps returning `null` even after the dictionary loads — spellchecking never activates for that editor view's whole lifetime, with no error shown to the user.
+- 🚧 **Offline spellchecking silently dead if first lint pass runs before dictionary loads**: The CodeMirror linter extension's `getChecker()` (in `src/spellcheck/spellCheck.ts`, wired into `src/editor/MarkdownEditor.tsx`) caches its first `null` result permanently. `lintSource` runs on an 800ms debounce; the dictionary is loaded asynchronously in a mount effect. If the very first lint pass fires before `spellcheckAffRef`/`spellcheckDicRef` are populated, `getChecker()` stores `null` and every later lint pass keeps returning `null` even after the dictionary loads — spellchecking never activates for that editor view's whole lifetime, with no error shown to the user.
+  <!-- agent-state: {"schema":1,"id":"rm-f506e6522fb79cba","state":"claimed","touch":["src/editor/MarkdownEditor.tsx","src/spellcheck/spellCheck.test.ts","src/spellcheck/spellCheck.ts"],"resources":["spellcheck-linter-contract"],"owner":"hermes-local-20260921T203758Z-b20dabd6","token":"38fd0dbfb2cdf6f88cffed4b4a04c77e","branch":"agent/rm-f506e6522fb79cba/38fd0dbfb2cd","claimed_at":"2026-09-21T20:59:44Z","heartbeat_at":"2026-09-21T20:59:44Z","lease_until":"2026-09-21T22:29:44Z"} -->
+  Agent: hermes-local-20260921T203758Z-b20dabd6 | item: rm-f506e6522fb79cba | lease until: 2026-09-21T22:29:44Z
 
   <details>
   <summary>Root cause and fix</summary>

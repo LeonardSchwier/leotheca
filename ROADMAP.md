@@ -67,7 +67,9 @@
 - ⬜ **Compatibility Layer**: Read community extension manifests and run compatible extensions only after the maintainer approves the third-party-code security model required by `CONSTITUTION.md`.
 - ⬜ **Per-Note Lock**: Encrypt and session-unlock individual notes only after the maintainer gives the cryptography design approval required by `CONSTITUTION.md`.
 
-- ⬜ **Print/export a note on Android**: Phase 3 of the split below. Neither printing nor HTML/PDF export exists on Android yet. Needs a real Capacitor/native plugin (Android's `PrintManager`/`ACTION_CREATE_DOCUMENT`), not just calling the same desktop code, and this cloud sandbox has no physical Android device to verify UI behavior on, the same class of gap as this file's other Android-verification items.
+- 🚧 **Print/export a note on Android**: Phase 3 of the split below. Neither printing nor HTML/PDF export exists on Android yet. Needs a real Capacitor/native plugin (Android's `PrintManager`/`ACTION_CREATE_DOCUMENT`), not just calling the same desktop code, and this cloud sandbox has no physical Android device to verify UI behavior on, the same class of gap as this file's other Android-verification items.
+  <!-- agent-state: {"schema":1,"id":"rm-aafb783f25b67c4e","state":"claimed","touch":["ROADMAP.md","android/app/src/main/AndroidManifest.xml","android/app/src/main/java/com/leonardschwier/leotheca/PrintExportPlugin.java","src/app/App.tsx","src/export/exportNoteHtml.ts","src/export/printNote.ts","src/workspace/capacitorBridgeImpl.ts","src/workspace/tauriBridge.ts","src/workspace/tauriBridgeImpl.ts"],"resources":["print-export-android","print-export-scaffold"],"owner":"Claude-Code-cloud-20260921T232516Z-b419f37d","token":"1b9b8c342144ab6423bee2b1509411f6","branch":"agent/rm-aafb783f25b67c4e/1b9b8c342144","claimed_at":"2026-09-21T23:25:21Z","heartbeat_at":"2026-09-21T23:25:21Z","lease_until":"2026-09-22T00:55:21Z"} -->
+  Agent: Claude-Code-cloud-20260921T232516Z-b419f37d | item: rm-aafb783f25b67c4e | lease until: 2026-09-22T00:55:21Z
 
   <details>
   <summary>Why this is split into three items</summary>

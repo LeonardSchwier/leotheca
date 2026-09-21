@@ -40,6 +40,7 @@ import { WorkspaceProfilesSettings } from "./WorkspaceProfilesSettings";
 import { KEYBOARD_SHORTCUTS } from "../app/shortcuts";
 import { rebuildLinkIndex } from "../linking/store";
 import { DiagnosticsPanel } from "../diagnostics/DiagnosticsPanel";
+import { HealthAuditPanel } from "../diagnostics/HealthAuditPanel";
 
 const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
   { value: "system", label: "Follow System" },

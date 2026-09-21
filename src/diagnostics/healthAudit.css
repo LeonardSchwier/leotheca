@@ -1,0 +1,161 @@
+/* Health audit panel styles — extends diagnostics.css with the new
+ * grouped dashboard and one-click fix UI. */
+
+.health-audit-panel {
+  /* Inherit the same base as diagnostics-panel. */
+}
+
+.health-audit-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.health-audit-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding: 0.5rem;
+}
+
+.health-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.health-chip-duplicate {
+  background: var(--warning-bg, #fff3cd);
+  color: var(--warning-text, #856404);
+}
+
+.health-chip-near-duplicate {
+  background: var(--warning-bg, #fff3cd);
+  color: var(--warning-text, #856404);
+}
+
+.health-chip-orphan {
+  background: var(--info-bg, #d1ecf1);
+  color: var(--info-text, #0c5460);
+}
+
+.health-chip-empty {
+  background: var(--danger-bg, #f8d7da);
+  color: var(--danger-text, #721c24);
+}
+
+.health-chip-broken-image {
+  background: var(--danger-bg, #f8d7da);
+  color: var(--danger-text, #721c24);
+}
+
+.health-audit-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.health-audit-group-single {
+  gap: 0;
+}
+
+.health-audit-group-heading {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted, #6c757d);
+  padding: 0.25rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.health-audit-group-count {
+  font-size: 0.7rem;
+  font-weight: 500;
+  background: var(--surface-secondary, #e9ecef);
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+}
+
+.health-audit-issue {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.health-audit-row {
+  width: 100%;
+}
+
+.health-audit-detail {
+  margin: 0;
+  padding: 0 0.5rem;
+  font-size: 0.75rem;
+  color: var(--text-muted, #6c757d);
+  font-style: italic;
+}
+
+.health-audit-fix {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.5rem 0.5rem;
+}
+
+.health-audit-fix-btn {
+  padding: 0.3rem 0.75rem;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  background: var(--accent, #0d6efd);
+  color: #fff;
+  transition: background 0.15s ease;
+}
+
+.health-audit-fix-btn:hover:not(:disabled) {
+  background: var(--accent-hover, #0b5ed7);
+}
+
+.health-audit-fix-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.health-audit-fix-error {
+  font-size: 0.75rem;
+  color: var(--danger-text, #dc3545);
+}
+
+/* Badge variants for health issue types */
+.health-badge-duplicate {
+  background: var(--warning-bg, #fff3cd);
+  color: var(--warning-text, #856404);
+}
+
+.health-badge-near-duplicate {
+  background: var(--warning-bg, #fff3cd);
+  color: var(--warning-text, #856404);
+}
+
+.health-badge-orphan {
+  background: var(--info-bg, #d1ecf1);
+  color: var(--info-text, #0c5460);
+}
+
+.health-badge-empty {
+  background: var(--danger-bg, #f8d7da);
+  color: var(--danger-text, #721c24);
+}
+
+.health-badge-broken-image {
+  background: var(--danger-bg, #f8d7da);
+  color: var(--danger-text, #721c24);
+}

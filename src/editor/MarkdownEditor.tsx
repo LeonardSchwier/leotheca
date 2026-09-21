@@ -25,6 +25,7 @@ import { parseSnippets, snippetExpansion } from "./snippets";
 import { resolveBlockLinkAtCursor } from "./blockLinkActions";
 import type { BlockLinkCopyRequest, BlockLinkCreateRequest } from "./blockLinkRequest";
 import { tableEditAtCursor, type MarkdownTableCommand } from "../markdown/tableCommands";
+import { slashCommandCompletions } from "./slashCommands";
 import type { TableCommandRequest } from "./tableCommandRequest";
 import { getDocumentViewState, saveDocumentViewState } from "../editorGroups/documentViewState";
 
@@ -450,7 +451,7 @@ function buildExtensions(
     // native find-in-page, screen readers) is unaffected.
     drawSelection(),
     history(),
-    autocompletion({ override: [wikilinkCompletions, headingLinkCompletions(path), blockLinkCompletions(path)] }),
+    autocompletion({ override: [slashCommandCompletions, wikilinkCompletions, headingLinkCompletions(path), blockLinkCompletions(path)] }),
     keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap, ...completionKeymap]),
     markdown({ codeLanguages: languages }),
     syntaxHighlighting(defaultHighlightStyle, { fallback: true }),

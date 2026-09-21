@@ -52,6 +52,31 @@ describe("filterCommands", () => {
     expect(filterCommands("")).toHaveLength(SLASH_COMMANDS.length);
   });
 
+  it("matches commands by description substring, not just label prefix", () => {
+    // Spec contract: filterCommands matches on label prefix OR label
+    // substring OR description substring. The tests must pin all three
+    // paths so that a future refactor that drops description matching
+    // (or changes it to strict prefix) is caught.
+    const result = filterCommands("quote");
+    // "quote" has label "quote" (prefix match) and description
+    // "Insert a blockquote" (also contains "quote").
+    expect(result.some((c) => c.label === "quote")).toBe(true);
+
+    // A term that only appears in a description, not in any label:
+    // "Insert a 3-column, 3-row table" contains "column"
+    const result2 = filterCommands("column");
+    expect(result2.some((c) => c.label === "table")).toBe(true);
+
+    // "Insert a bold text snippet" contains "text"
+    const result3 = filterCommands("text snippet");
+    expect(result3.some((c) => c.label === "bold")).toBe(true);
+  });
+
+  it("does not match a command whose label and description both exclude the query", () => {
+    const result = filterCommands("nonexistent-xyz-123");
+    expect(result).toHaveLength(0);
+  });
+
   it("filters by label prefix", () => {
     const results = filterCommands("ta");
     expect(results.map((c) => c.label)).toContain("table");

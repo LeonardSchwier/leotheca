@@ -119,7 +119,9 @@ function relativePath(rootPath: string, path: string): string {
  * F05-FR-15: Attachment filenames shall be sanitized and final paths shall be collision-free
  */
 function generateAttachmentFilename(safeName: string): string {
-  const date = new Date().toISOString().replace(":", "-").replace(".", "-").slice(0, 19).replace("T", "-");
+  const now = new Date();
+  const pad = (n: number) => n.toString().padStart(2, "0");
+  const date = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}-${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`;
   const randomId = Math.random().toString(36).substring(2, 8);
   
   // Extract extension if present
@@ -328,7 +330,9 @@ export async function createNoteWithTitle(
     baseName = title.trim();
   } else {
     // Use timestamp as base name if no title provided
-    const timestamp = new Date().toISOString().replace(":", "-").replace(".", "-").slice(0, 19);
+    const now = new Date();
+    const pad = (n: number) => n.toString().padStart(2, "0");
+    const timestamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}-${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`;
     baseName = timestamp;
   }
   

@@ -106,6 +106,18 @@ Tauri/Desktop does.
     cannot run here. This is the one evidence gap this item cannot close
     from this sandbox.
 
+## Hosted CI (confirmed after landing)
+Real hosted `CI` run `35668352211` on the landed SHA (`02f52e8`): all 5
+expected jobs green — `frontend`, `backend`, `android`, `appimage-smoke`,
+`validation`. The `android` job's own "Install debug APK in emulator"
+step (a real KVM-backed emulator on the GitHub-hosted runner, unlike this
+sandbox) succeeded too: confirms the APK with `PrintExportPlugin` compiled
+in installs and the package resolves on a real running Android emulator.
+That step only runs `adb install` + `pm path`, not the app's UI, so it
+does not exercise "Print note"/"Export note to HTML…" themselves — the
+on-device UI gap below is unchanged — but it is one more genuine, hosted
+confirmation beyond this session's own local build.
+
 ## What's still genuinely open
 Real on-device/emulator confirmation that: the system print dialog
 actually opens and offers "Save as PDF" for a printed note; the

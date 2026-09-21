@@ -504,3 +504,55 @@ describe("appendToInboxNote", () => {
     expect(relativePathArg.length).toBeGreaterThan(0);
   });
 });
+
+describe("attachment filename generation (F05 §9.3)", () => {
+  it("generates a filename with no colon characters", async () => {
+    const attachments = [
+      {
+        id: "att-1",
+        filePath: "/tmp/photo.jpg",
+        fileName: "photo.jpg",
+        fileSize: 100,
+        fingerprint: "abc123def456",
+        mimeType: "image/jpeg",
+      },
+    ];
+
+    const mockReadTextFile = vi.fn().mockResolvedValue("# Existing note\n\nOld content");
+    const mockWriteTextFile = vi.fn().mockResolvedValue(undefined);
+    const mockWriteWorkspaceBinaryFile = vi.fn().mockResolvedValue(undefined);
+    const mockListDir = vi.fn().mockResolvedValue([]);
+    const mockCreateWorkspaceTextFileNew = vi.fn().mockResolvedValue(undefined);
+
+    vi.resetModules();
+    vi.doMock("../workspace/tauriBridge", () => ({
+      readTextFile: mockReadTextFile,
+      writeTextFile: mockWriteTextFile,
+      listDir: mockListDir,
+      createWorkspaceTextFileNew: mockCreateWorkspaceTextFileNew,
+      writeWorkspaceBinaryFile: mockWriteWorkspaceBinaryFile,
+      readBinaryFile: vi.fn(),
+      deleteWorkspacePathPermanent: vi.fn(),
+    }));
+
+    const { appendToInboxNote } = await import("./captureCommit");
+    await appendToInboxNote({
+      inboxNotePath: "/workspace/inbox.md",
+      content: "Capture body",
+      attachments,
+      attachmentsFolder: "/workspace/attachments",
+    });
+
+    // The attachment should have been written via writeWorkspaceBinaryFile
+    expect(mockWriteWorkspaceBinaryFile).toHaveBeenCalled();
+    const relativePathArg = mockWriteWorkspaceBinaryFile.mock.calls[0][1] as string;
+
+    // CRITICAL REGRESSION: filename must not contain a colon
+    expect(relativePathArg).not.toContain(":");
+
+    // Should match the capture-YYYY-MM-DD-HH-MM-SS-random-name pattern
+    expect(relativePathArg).toMatch(/capture-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}-[a-z0-9]{6}-photo\.jpg$/);
+
+    vi.restoreAllMocks();
+  });
+});

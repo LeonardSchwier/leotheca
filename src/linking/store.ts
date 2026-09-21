@@ -103,6 +103,11 @@ export interface LinkIndex {
    * Only notes with at least one block ID are present, same sparse-map
    * convention as `headingsByPath`/`tasksByPath`. */
   blocksByPath?: Map<string, BlockRecord[]>;
+  /** Total number of notes in this workspace, for workspace-level
+   * diagnostics (orphan detection, empty-note detection). Set by
+   * `rebuildLinkIndex`; `undefined` in hand-built test fixtures.
+   * Consumers must treat `undefined` as `0`. */
+  noteCount?: number;
 }
 
 const emptyLinkIndex = (): LinkIndex => ({
@@ -119,6 +124,7 @@ const emptyLinkIndex = (): LinkIndex => ({
   wikiLinksByPath: new Map(),
   headingsByPath: new Map(),
   blocksByPath: new Map(),
+  noteCount: 0,
 });
 
 export const linkIndex = signal<LinkIndex>(emptyLinkIndex());
@@ -838,6 +844,7 @@ export async function rebuildLinkIndex(
       wikiLinksByPath,
       headingsByPath,
       blocksByPath,
+      noteCount: noteEntries.length,
     };
     linkIndexUnreadablePaths.value = unreadablePaths;
     await savePersistedCache(rootPath, freshCache);

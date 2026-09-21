@@ -101,6 +101,7 @@
 - ⬜ **Export a note to PDF/HTML, and print**: No way currently exists to export a note (or a selection of notes) to PDF or standalone HTML, or to print directly from the app. A natural next step after Graph View and Backlinks for getting notes out to people who don't have Leotheca; should reuse the already-rendered Preview output rather than a second Markdown-to-HTML pipeline.
 - ⬜ **Offline, multi-language spellchecking**: Flag misspelled words in the editor using local dictionaries only (e.g. `nspell`), no network call ever, matching the offline-by-design rule. Needs a way to pick a language from bundled or user-supplied dictionary files — never one fetched at runtime.
 - ⬜ **Unify the standalone ImageViewer's zoom buttons with the preview-local overlay's**: `ImageViewer.tsx` and `ImageViewerOverlay.tsx` are two independent components for the same zoom feature whose button styling drifted apart in `src/app/App.css`; the standalone viewer also lacks the close button its overlay counterpart has. Details, acceptance criteria, and scope in the drill-down.
+<!-- agent-state: {"schema":1,"id":"rm-5b8a1d3e7c2f4960","state":"available","touch":[],"resources":["image-viewer-button-unification","src/app/App.css","src/editor/ImageViewer.tsx","src/editor/ImageViewerOverlay.tsx"]} -->
 
   <details>
   <summary>What drifted, acceptance criteria, scope</summary>

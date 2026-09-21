@@ -1818,6 +1818,7 @@ export function App() {
           oldPath={renamePreview.preview.oldPath}
           newPath={renamePreview.preview.newPath}
           plan={renamePreview.preview.plan}
+          applyError={renamePreview.preview.applyError}
           onContinue={renamePreview.continueRename}
           onCancel={renamePreview.cancelRename}
         />

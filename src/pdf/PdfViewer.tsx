@@ -108,6 +108,97 @@ function clampScale(scale: number): number {
   return Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale));
 }
 
+/** Computes the current page's annotation overlay state (markup rects,
+ * ink strokes, shapes, sticky notes) in viewport-pixel space. Extracted
+ * from the canvas render effect so overlays stay in sync with the
+ * annotation state even when canvas rendering can't run -- e.g. in test
+ * or other environments where `canvas.getContext("2d")` yields no
+ * usable context -- instead of silently going stale/empty. */
+function computeOverlays(
+  viewport: PageViewport,
+  pageIndex: number,
+  inputs: {
+    savedAnnotations: SavedAnnotation[];
+    pendingAnnotations: PendingAnnotation[];
+    savedInk: SavedInkAnnotation[];
+    pendingInk: PendingInkAnnotation[];
+    savedShapes: SavedShapeAnnotation[];
+    pendingShapes: PendingShapeAnnotation[];
+    savedStickyNotes: SavedStickyNote[];
+    pendingStickyNotes: PendingStickyNote[];
+  },
+): {
+  rects: OverlayRect[];
+  inkStrokes: InkOverlayStroke[];
+  shapes: ShapeOverlay[];
+  stickies: StickyNoteOverlay[];
+} {
+  const {
+    savedAnnotations,
+    pendingAnnotations,
+    savedInk,
+    pendingInk,
+    savedShapes,
+    pendingShapes,
+    savedStickyNotes,
+    pendingStickyNotes,
+  } = inputs;
+
+  const rects: OverlayRect[] = [];
+  for (const saved of savedAnnotations) {
+    if (saved.pageIndex !== pageIndex) continue;
+    for (const rect of quadPointsToViewportRects(saved.quadPoints, viewport)) {
+      rects.push({ ...rect, subtype: saved.subtype, color: saved.color, opacity: saved.opacity, saved: true });
+    }
+  }
+  for (const pending of pendingAnnotations) {
+    if (pending.pageIndex !== pageIndex) continue;
+    const color = pending.color ?? DEFAULT_MARKUP_COLOR[pending.subtype];
+    const opacity = pending.opacity ?? (pending.subtype === "Highlight" ? 0.4 : 1);
+    for (const rect of quadPointsToViewportRects(pending.quadPoints, viewport)) {
+      rects.push({ ...rect, subtype: pending.subtype, color, opacity, saved: false });
+    }
+  }
+
+  const inkStrokes: InkOverlayStroke[] = [];
+  for (const ink of [...savedInk, ...pendingInk]) {
+    if (ink.pageIndex !== pageIndex) continue;
+    const color = ink.color ?? DEFAULT_INK_COLOR;
+    const width = ink.width ?? DEFAULT_INK_WIDTH;
+    for (const stroke of ink.inkList) {
+      const points: ViewportPoint[] = [];
+      for (let i = 0; i + 1 < stroke.length; i += 2) {
+        const [x, y] = viewport.convertToViewportPoint(stroke[i], stroke[i + 1]);
+        points.push({ x, y });
+      }
+      if (points.length > 0) inkStrokes.push({ points, color, width });
+    }
+  }
+
+  const shapes: ShapeOverlay[] = [];
+  for (const shape of [...savedShapes, ...pendingShapes]) {
+    if (shape.pageIndex !== pageIndex) continue;
+    const color = shape.color ?? DEFAULT_SHAPE_COLOR;
+    const width = shape.width ?? DEFAULT_SHAPE_WIDTH;
+    const points: ViewportPoint[] = [];
+    for (let i = 0; i + 1 < shape.points.length; i += 2) {
+      const [x, y] = viewport.convertToViewportPoint(shape.points[i], shape.points[i + 1]);
+      points.push({ x, y });
+    }
+    shapes.push({ subtype: shape.subtype, points, color, width });
+  }
+
+  const stickies: StickyNoteOverlay[] = [];
+  for (const note of [...savedStickyNotes, ...pendingStickyNotes]) {
+    if (note.pageIndex !== pageIndex) continue;
+    const [x, y] = viewport.convertToViewportPoint(note.x, note.y);
+    const color = note.color ?? DEFAULT_STICKY_NOTE_COLOR;
+    stickies.push({ x, y, contents: note.contents, color });
+  }
+
+  return { rects, inkStrokes, shapes, stickies };
+}
+
 /** Converts a pointer/mouse event's client coordinates into coordinates
  * relative to the page container's own top-left corner -- the same
  * viewport-pixel space `rectToQuadPoints`/`viewport.convertToPdfPoint`
@@ -387,60 +478,19 @@ export function PdfViewer({ path }: PdfViewerProps) {
       }
 
       const pageIndex = pageNum - 1;
-      const rects: OverlayRect[] = [];
-      for (const saved of savedAnnotations) {
-        if (saved.pageIndex !== pageIndex) continue;
-        for (const rect of quadPointsToViewportRects(saved.quadPoints, viewport)) {
-          rects.push({ ...rect, subtype: saved.subtype, color: saved.color, opacity: saved.opacity, saved: true });
-        }
-      }
-      for (const pending of pendingAnnotations) {
-        if (pending.pageIndex !== pageIndex) continue;
-        const color = pending.color ?? DEFAULT_MARKUP_COLOR[pending.subtype];
-        const opacity = pending.opacity ?? (pending.subtype === "Highlight" ? 0.4 : 1);
-        for (const rect of quadPointsToViewportRects(pending.quadPoints, viewport)) {
-          rects.push({ ...rect, subtype: pending.subtype, color, opacity, saved: false });
-        }
-      }
+      const { rects, inkStrokes, shapes, stickies } = computeOverlays(viewport, pageIndex, {
+        savedAnnotations,
+        pendingAnnotations,
+        savedInk,
+        pendingInk,
+        savedShapes,
+        pendingShapes,
+        savedStickyNotes,
+        pendingStickyNotes,
+      });
       setOverlayRects(rects);
-
-      const inkStrokes: InkOverlayStroke[] = [];
-      for (const ink of [...savedInk, ...pendingInk]) {
-        if (ink.pageIndex !== pageIndex) continue;
-        const color = ink.color ?? DEFAULT_INK_COLOR;
-        const width = ink.width ?? DEFAULT_INK_WIDTH;
-        for (const stroke of ink.inkList) {
-          const points: ViewportPoint[] = [];
-          for (let i = 0; i + 1 < stroke.length; i += 2) {
-            const [x, y] = viewport.convertToViewportPoint(stroke[i], stroke[i + 1]);
-            points.push({ x, y });
-          }
-          if (points.length > 0) inkStrokes.push({ points, color, width });
-        }
-      }
       setInkOverlayStrokes(inkStrokes);
-
-      const shapes: ShapeOverlay[] = [];
-      for (const shape of [...savedShapes, ...pendingShapes]) {
-        if (shape.pageIndex !== pageIndex) continue;
-        const color = shape.color ?? DEFAULT_SHAPE_COLOR;
-        const width = shape.width ?? DEFAULT_SHAPE_WIDTH;
-        const points: ViewportPoint[] = [];
-        for (let i = 0; i + 1 < shape.points.length; i += 2) {
-          const [x, y] = viewport.convertToViewportPoint(shape.points[i], shape.points[i + 1]);
-          points.push({ x, y });
-        }
-        shapes.push({ subtype: shape.subtype, points, color, width });
-      }
       setShapeOverlays(shapes);
-
-      const stickies: StickyNoteOverlay[] = [];
-      for (const note of [...savedStickyNotes, ...pendingStickyNotes]) {
-        if (note.pageIndex !== pageIndex) continue;
-        const [x, y] = viewport.convertToViewportPoint(note.x, note.y);
-        const color = note.color ?? DEFAULT_STICKY_NOTE_COLOR;
-        stickies.push({ x, y, contents: note.contents, color });
-      }
       setStickyOverlays(stickies);
     })().catch((error: unknown) => {
       if (renderGenerationRef.current !== generation) return;
@@ -464,6 +514,46 @@ export function PdfViewer({ path }: PdfViewerProps) {
     savedStickyNotes,
     pendingStickyNotes,
     searchQuery,
+  ]);
+
+  // Keep the annotation overlays in sync with the annotation state
+  // independently of canvas rendering. The render effect above also
+  // computes these (after the page finishes rendering), but if canvas
+  // rendering can't run -- e.g. in an environment whose
+  // `canvas.getContext("2d")` yields no usable context -- the render
+  // effect bails out early and this is the only thing keeping overlays
+  // (pending ink, shapes, sticky notes, markup rects) from silently
+  // going stale or empty. Runs whenever a new viewport or annotation
+  // state lands; cheap enough to run on every relevant change.
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport || status !== "ready") return;
+    const { rects, inkStrokes, shapes, stickies } = computeOverlays(viewport, pageNum - 1, {
+      savedAnnotations,
+      pendingAnnotations,
+      savedInk,
+      pendingInk,
+      savedShapes,
+      pendingShapes,
+      savedStickyNotes,
+      pendingStickyNotes,
+    });
+    setOverlayRects(rects);
+    setInkOverlayStrokes(inkStrokes);
+    setShapeOverlays(shapes);
+    setStickyOverlays(stickies);
+  }, [
+    status,
+    pageNum,
+    scale,
+    savedAnnotations,
+    pendingAnnotations,
+    savedInk,
+    pendingInk,
+    savedShapes,
+    pendingShapes,
+    savedStickyNotes,
+    pendingStickyNotes,
   ]);
 
   const goToPage = useCallback(

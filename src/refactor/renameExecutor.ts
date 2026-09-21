@@ -183,6 +183,8 @@ function createBasicWorkspaceSettings(): WorkspaceSettings {
     captureInboxFolder: "",
     captureInboxNote: "Inbox.md",
     captureDatePattern: "",
+    customCssEnabled: false,
+    customCssPath: ".leotheca/custom.css",
   };
 }
 
@@ -591,6 +593,177 @@ async function rollbackOperation(entry: RenameJournalEntry, options: {
     // If rollback fails, we have a serious problem
     console.error("Rollback failed:", rollbackError);
     throw rollbackError;
+  }
+}
+
+/**
+ * Apply the reference-rewrite edits from a `RenamePlan` to the notes that
+ * contain them, using the existing `applyRangeReplacementsGroupedByPath`
+ * helper (which reads and writes each affected note exactly once, applying
+ * replacements right-to-left so offsets remain valid).
+ *
+ * This is the "Apply" step that `RenamePreviewDialog` currently describes
+ * as future scope: the dialog shows the user exactly which links will be
+ * rewritten, and after they click Continue this function performs the
+ * rewrites. It deliberately does NOT rename the file itself (that is the
+ * caller's responsibility via `renameEntry`) and does NOT migrate
+ * application metadata (editor layout, bookmarks, workspace settings) —
+ * those are already handled by `executeRenameOperation` for the full
+ * transactional path, and the lighter `useRenamePreview` flow only needs
+ * the note-content rewrites to keep backlinks correct.
+ *
+ * A journal entry is created and completed so `recoverFromIncompleteOperations`
+ * can see the operation on app restart; the entry's `originalWikilinks`
+ * captures enough to roll back if the write fails partway through.
+ *
+ * Returns `{ success, error? }`. On failure the caller should surface
+ * `error` to the user; the file itself has not been renamed yet, so the
+ * workspace is left in a consistent state (old note still at its old path,
+ * no partial rewrites left behind after rollback).
+ */
+export async function applyRenamePlan(
+  plan: RenamePlan,
+  options: {
+    readNote: (path: string) => Promise<string>;
+    writeNote: (path: string, content: string) => Promise<void>;
+  },
+): Promise<{ success: boolean; error?: string }> {
+  const edits = plan.edits ?? [];
+  const markdownEdits = plan.markdownEdits ?? [];
+  if (edits.length === 0 && markdownEdits.length === 0) {
+    return { success: true };
+  }
+
+  // Capture original text for rollback, exactly as executeRenameOperation does.
+  const originalWikilinks = edits.map((e) => ({
+    path: e.path,
+    from: e.from,
+    to: e.to,
+    oldText: e.oldText,
+    newText: e.newText,
+  }));
+  const originalMarkdown = markdownEdits.map((e) => ({
+    path: e.path,
+    from: e.from,
+    to: e.to,
+    oldText: e.oldText,
+    newText: e.newText,
+  }));
+
+  const journalEntry: RenameJournalEntry = {
+    operationId: `apply-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    startedAt: Date.now(),
+    oldPath: plan.oldPath,
+    newPath: plan.newPath,
+    originalWikilinks: [...originalWikilinks, ...originalMarkdown],
+    originalMetadata: {
+      editorLayout: {
+        activeGroupId: "primary",
+        splitEnabled: false,
+        preferredRatio: 0.5,
+        compactVisibleGroupId: "primary",
+        groups: {
+          primary: { id: "primary", tabPaths: [], pinnedPaths: [], activePath: null, viewMode: "source" },
+        },
+      },
+      bookmarks: [],
+      workspaceSettings: {
+        version: 1,
+        sortOrder: "name-asc" as const,
+        fontSize: 15,
+        defaultViewMode: "source" as const,
+        deleteBehavior: "project-trash" as const,
+        lastOpenPaths: [],
+        lastActivePath: null,
+        uiZoom: 100,
+        frontmatterAliasesEnabled: true,
+        mathRenderingEnabled: true,
+        pasteImagesEnabled: true,
+        attachmentsFolder: "",
+        frontmatterPropertiesEnabled: true,
+        graphColorGroups: [],
+        tagsEnabled: true,
+        templatesEnabled: true,
+        templatesFolder: "Templates",
+        canvasEnabled: true,
+        themesEnabled: true,
+        accentColor: "warm" as const,
+        readingFont: "sans" as const,
+        snippetsEnabled: true,
+        snippets: "",
+        headingLinksEnabled: true,
+        collectionsEnabled: false,
+        noteReadOnlyLockEnabled: true,
+        rtlWorkspaceEnabled: false,
+        speechToTextEnabled: false,
+        captureInboxFolder: "",
+        captureInboxNote: "Inbox.md",
+        captureDatePattern: "",
+        customCssEnabled: false,
+        customCssPath: ".leotheca/custom.css",
+      },
+    },
+    step: "wikilink_updates_started",
+    completed: false,
+  };
+
+  renameJournal.push(journalEntry);
+
+  try {
+    // Apply wikilink edits
+    if (edits.length > 0) {
+      await applyRangeReplacementsGroupedByPath(
+        edits.map((e) => ({
+          path: e.path,
+          from: e.from,
+          length: e.to - e.from,
+          text: e.newText,
+        })),
+        options,
+      );
+    }
+
+    // Apply markdown link edits
+    if (markdownEdits.length > 0) {
+      await applyRangeReplacementsGroupedByPath(
+        markdownEdits.map((e) => ({
+          path: e.path,
+          from: e.from,
+          length: e.to - e.from,
+          text: e.newText,
+        })),
+        options,
+      );
+    }
+
+    journalEntry.completed = true;
+    journalEntry.step = "completed";
+    return { success: true };
+  } catch (error) {
+    // Rollback: restore original text using the same right-to-left strategy
+    try {
+      await applyRangeReplacementsGroupedByPath(
+        [...originalWikilinks, ...originalMarkdown].map((e) => ({
+          path: e.path,
+          from: e.from,
+          length: e.newText.length,
+          text: e.oldText,
+          verify: e.newText,
+        })),
+        options,
+        {
+          continueOnError: true,
+          log: (path, err) => console.error(`Failed to rollback wikilink(s) in ${path}:`, err),
+        },
+      );
+    } catch (rollbackError) {
+      console.error("Rollback of applyRenamePlan failed:", rollbackError);
+    }
+
+    journalEntry.completed = false;
+    journalEntry.step = "failed";
+    journalEntry.error = error instanceof Error ? error.message : String(error);
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
   }
 }
 

@@ -50,6 +50,7 @@ import {
   type ViewMode,
   type WorkspaceSettings,
 } from "./workspaceSettings";
+import { applyCustomCss, removeCustomCss } from "./customCss";
 
 export const workspacePath = signal<string | null>(null);
 export const workspaceSession = signal(0);
@@ -420,6 +421,10 @@ export async function initSettings(): Promise<void> {
           workspaceSession.value++;
           markProfileOpened(activeProfile);
         });
+        // Apply custom CSS if enabled.
+        if (loadedWorkspaceSettings.customCssEnabled) {
+          void applyCustomCss(activeProfile.path, loadedWorkspaceSettings.customCssPath);
+        }
         const active = lastActivePath ?? lastOpenPaths[0] ?? null;
         if (active) {
           const content = await readTextFile(active);
@@ -1046,7 +1051,22 @@ export async function updateWorkspaceSettings(
   patch: Partial<WorkspaceSettings>,
 ): Promise<void> {
   if (!workspacePath.value) return;
-  workspaceSettings.value = { ...workspaceSettings.value, ...patch };
+  const prev = workspaceSettings.value;
+  workspaceSettings.value = { ...prev, ...patch };
+  
+  // Apply or remove custom CSS when the setting changes.
+  if (
+    patch.customCssEnabled !== undefined ||
+    patch.customCssPath !== undefined
+  ) {
+    const next = workspaceSettings.value;
+    if (next.customCssEnabled) {
+      void applyCustomCss(workspacePath.value, next.customCssPath);
+    } else {
+      removeCustomCss();
+    }
+  }
+  
   if (workspaceSettingsCorrupted.value) return;
   const path = workspacePath.value;
   try {

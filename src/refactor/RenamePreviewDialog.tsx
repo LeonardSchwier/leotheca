@@ -5,6 +5,8 @@ interface RenamePreviewDialogProps {
   oldPath: string;
   newPath: string;
   plan: RenamePlan;
+  /** Error message from a failed applyRenamePlan call, if any. */
+  applyError?: string;
   onContinue: () => void;
   onCancel: () => void;
 }
@@ -22,7 +24,7 @@ interface RenamePreviewDialogProps {
  * a button that would need to stay disabled, per this feature's own
  * "keep Apply disabled until journal and rollback tests pass" instruction.
  */
-export function RenamePreviewDialog({ oldPath, newPath, plan, onContinue, onCancel }: RenamePreviewDialogProps) {
+export function RenamePreviewDialog({ oldPath, newPath, plan, applyError, onContinue, onCancel }: RenamePreviewDialogProps) {
   return (
     <div class="modal-overlay" onClick={onCancel}>
       <div class="modal rename-preview-dialog" onClick={(e) => e.stopPropagation()}>
@@ -30,13 +32,22 @@ export function RenamePreviewDialog({ oldPath, newPath, plan, onContinue, onCanc
         <p class="rename-preview-summary">
           Renaming <code>{oldPath}</code> to <code>{newPath}</code>.
         </p>
+        {applyError && (
+          <div class="rename-preview-section rename-preview-error">
+            <h3>Something went wrong</h3>
+            <p>{applyError}</p>
+            <p class="rename-preview-hint">
+              The rename was not applied. You can try again or cancel.
+            </p>
+          </div>
+        )}
         {plan.edits.length > 0 && (
           <div class="rename-preview-section">
             <h3>
-              {plan.edits.length} link{plan.edits.length === 1 ? "" : "s"} elsewhere will still need updating
+              {plan.edits.length} link{plan.edits.length === 1 ? "" : "s"} elsewhere will be updated
             </h3>
             <p class="rename-preview-hint">
-              Renaming does not rewrite these yet; update them by hand after continuing.
+              These references will be rewritten automatically when you continue.
             </p>
             <ul class="rename-preview-list">
               {plan.edits.map((edit, index) => (
@@ -67,10 +78,10 @@ export function RenamePreviewDialog({ oldPath, newPath, plan, onContinue, onCanc
         {(plan.markdownEdits?.length ?? 0) > 0 && (
           <div class="rename-preview-section">
             <h3>
-              {plan.markdownEdits!.length} Markdown link{plan.markdownEdits!.length === 1 ? "" : "s"} elsewhere will still need updating
+              {plan.markdownEdits!.length} Markdown link{plan.markdownEdits!.length === 1 ? "" : "s"} elsewhere will be updated
             </h3>
             <p class="rename-preview-hint">
-              Renaming does not rewrite these yet; update them by hand after continuing.
+              These references will be rewritten automatically when you continue.
             </p>
             <ul class="rename-preview-list">
               {plan.markdownEdits!.map((edit, index) => (

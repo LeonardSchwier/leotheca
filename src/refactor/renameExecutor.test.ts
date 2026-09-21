@@ -24,6 +24,7 @@ import type { EditorLayoutState } from "../workspace/types";
 import type { WorkspaceSettings } from "../settings/workspaceSettings";
 import { DEFAULT_WORKSPACE_SETTINGS } from "../settings/workspaceSettings";
 import type { RenamePlan, PlannedWikiLinkEdit, BlockedWikiLinkEdit } from "./renamePlan";
+import type { Bookmark } from "../bookmarks/types";
 
 // Helper to create a basic editor layout state
 function createEditorLayout(tabPaths: string[] = [], activePath: string | null = null): EditorLayoutState {
@@ -702,7 +703,7 @@ describe("renameExecutor - Error Handling", () => {
     // pre-rename state, not left in the half-migrated state.
 
     const originalLayout = createEditorLayout(["old.md"], "old.md");
-    const originalBookmarks = [{ id: "1", kind: "file", label: "test", path: "old.md" } as any];
+    const originalBookmarks: Bookmark[] = [{ id: "1", kind: "file", label: "test", path: "old.md" }];
     const originalSettings = createWorkspaceSettings(["old.md"], "old.md");
 
     const edits: PlannedWikiLinkEdit[] = [

@@ -114,7 +114,14 @@
 - ✅ **Custom CSS snippets / theme overrides**: Let a user drop their own CSS file into the workspace (e.g. under `.leotheca/`) and have Leotheca load it, so they can restyle the app without a full plugin/extension system. A smaller, safer step than the "Compatibility Layer" item above — user-authored CSS only, no third-party code execution.
   <!-- agent-state: {"schema":1,"id":"rm-5d2554ecbaab43d7","state":"done","touch":["src/settings/workspaceSettings.ts"],"resources":["custom-css-injection"],"note":"Custom CSS snippets / theme overrides implemented","completed_at":"2026-09-21T00:29:43Z","completed_by":"hermes-local-20260921T001511Z-4faa3916","branch":"agent/rm-5d2554ecbaab43d7/90728e3619bb"} -->
   Agent: completed by hermes-local-20260921T001511Z-4faa3916 | item: rm-5d2554ecbaab43d7
-  - ✅ 2026-09-21: Added `customCssEnabled` and `customCssPath` settings to `WorkspaceSettings` (defaults: disabled, `.leotheca/custom.css`). Created `src/settings/customCss.ts` with `applyCustomCss`/`removeCustomCss` that loads the file from within the workspace (enforced by `isPathWithinWorkspace`) and injects it as a `<style>` tag. Wired into `store.ts` on workspace load and on setting change. Added UI toggle and path input to `SettingsPanel.tsx`. 7 unit tests in `customCss.test.ts` covering: apply, path-escape rejection, missing file, empty file, replace-existing, remove, no-op remove. All 2716 tests pass. No external resources needed.
+  - ✅ 2026-09-21: Settings, loader, UI toggle, and 7 unit tests added; all 2716 tests pass.
+
+    <details>
+    <summary>Implementation details</summary>
+
+    Added `customCssEnabled` and `customCssPath` settings to `WorkspaceSettings` (defaults: disabled, `.leotheca/custom.css`). Created `src/settings/customCss.ts` with `applyCustomCss`/`removeCustomCss` that loads the file from within the workspace (enforced by `isPathWithinWorkspace`) and injects it as a `<style>` tag. Wired into `store.ts` on workspace load and on setting change. Added UI toggle and path input to `SettingsPanel.tsx`. 7 unit tests in `customCss.test.ts` covering: apply, path-escape rejection, missing file, empty file, replace-existing, remove, no-op remove. All 2716 tests pass. No external resources needed.
+
+    </details>
 
 
 - ✅ **Main CI red: `FileTree.test.tsx` uses `as any` casts on `mockWorkspaceSettings.sortOrder`** (regression from `e83e3f9`): Commit `e83e3f9` ("feat(workspace): add 'last modified' sort mode to file tree") introduced five `@typescript-eslint/no-explicit-any` errors in `src/workspace/FileTree.test.tsx` — `(mockWorkspaceSettings as any).sortOrder = ...` — because `mockWorkspaceSettings` was typed as `{ sortOrder: string }`. The CI frontend Lint step fails on these, breaking `main`. Fix: type `mockWorkspaceSettings` as `{ sortOrder: SortOrder }` (importing the existing `SortOrder` type from `../settings/workspaceSettings`) and remove all `as any` casts. Verified: `npx eslint .` clean, `npx tsc --noEmit` clean, all 24 tests in `FileTree.test.tsx` pass.

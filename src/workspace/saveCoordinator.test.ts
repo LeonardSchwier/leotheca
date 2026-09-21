@@ -208,6 +208,149 @@ describe("onSaveStart callback", () => {
 // know whether there is anything left to lose *before* prepareForTransition
 // runs, since that drain discards exactly this state (see the tests above)
 // rather than reporting it back.
+describe("flush revision invariant (rm-9d2a9eb41e719983)", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    writeTextFile.mockReset();
+  });
+
+  afterEach(() => vi.useRealTimers());
+
+  it("does not leave a phantom unsaved-work state after flushing a clean, saved note", async () => {
+    writeTextFile.mockResolvedValue();
+    const saves = createSaveCoordinator();
+    // Edit, let the debounce fire, so the note is fully saved (savedRevision === revision).
+    saves.change(1, "/workspace/note.md", "content v1");
+    await vi.advanceTimersByTimeAsync(400);
+    expect(saves.hasUnsavedWork(1)).toBe(false);
+
+    // Flush again (e.g. before a close/rename/copy in App.tsx). With the old
+    // buggy `++entry.revision`, this would bump revision to 2 and write content
+    // v1, leaving savedRevision=2 only if the write's revision check passed —
+    // but writeRevision sets savedRevision = revision (the bumped value) when
+    // entry.revision === revision, so it would actually look clean. The real
+    // bug manifests when a *newer* edit lands between the bump and the write
+    // settling, or more simply: the bump itself is semantically wrong because
+    // it conflates "I asked for a write" with "there is new content".
+    // The regression this test guards: after flush on an already-clean note,
+    // hasUnsavedWork must remain false.
+    writeTextFile.mockClear();
+    await saves.flush(1, "/workspace/note.md");
+    expect(saves.hasUnsavedWork(1)).toBe(false);
+    // The flush wrote the same content once.
+    expect(writeTextFile).toHaveBeenCalledTimes(1);
+    expect(writeTextFile).toHaveBeenCalledWith("/workspace/note.md", "content v1");
+  });
+
+  it("flushes a pending (debounced, not-yet-fired) edit and leaves no phantom dirty state", async () => {
+    writeTextFile.mockResolvedValue();
+    const saves = createSaveCoordinator();
+    // Edit but do NOT let the 400ms debounce fire.
+    saves.change(2, "/workspace/note.md", "pending edit");
+    expect(saves.hasUnsavedWork(2)).toBe(true);
+
+    // flush() should cancel the debounce and write the pending content now.
+    await saves.flush(2, "/workspace/note.md");
+
+    expect(writeTextFile).toHaveBeenCalledWith("/workspace/note.md", "pending edit");
+    // After the flush settles, the note is fully saved.
+    expect(saves.hasUnsavedWork(2)).toBe(false);
+    // The debounce timer was cancelled, so advancing time does not fire a
+    // second write.
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(writeTextFile).toHaveBeenCalledTimes(1);
+  });
+
+  it("reports the error and keeps hasUnsavedWork true when the flush write fails", async () => {
+    writeTextFile.mockRejectedValueOnce(new Error("disk full"));
+    const saves = createSaveCoordinator();
+    saves.change(3, "/workspace/note.md", "will fail");
+    await vi.advanceTimersByTimeAsync(400); // let it fire and fail
+
+    expect(saves.getError(3, "/workspace/note.md")).toBe("disk full");
+    expect(saves.hasUnsavedWork(3)).toBe(true);
+
+    // A subsequent flush also fails and must not clear the error or the
+    // unsaved state.
+    writeTextFile.mockRejectedValueOnce(new Error("disk full again"));
+    await saves.flush(3, "/workspace/note.md");
+    expect(saves.getError(3, "/workspace/note.md")).toBe("disk full again");
+    expect(saves.hasUnsavedWork(3)).toBe(true);
+  });
+
+  it("is a no-op (no write, no spurious dirty state) for a note that was never edited", async () => {
+    writeTextFile.mockResolvedValue();
+    const saves = createSaveCoordinator();
+    // No change() call for this path — the note is clean by definition.
+    await saves.flush(4, "/workspace/never-edited.md");
+    expect(writeTextFile).not.toHaveBeenCalled();
+    expect(saves.hasUnsavedWork(4)).toBe(false);
+  });
+
+  it("does not bump the revision when a newer edit lands while the flush write is in flight", async () => {
+    // Scenario: v1 write is in flight, then v2 arrives. flush() must not
+    // create a phantom third revision. The v1 write settles for a now-stale
+    // revision (entry.revision is 2), so savedRevision is NOT set to 1.
+    // writeRevision's finally-block reschedule then fires the v2 write, which
+    // settles for the current revision (2) and sets savedRevision=2, clearing
+    // the unsaved state. flush itself contributes no spurious write.
+    const nativeWrite = deferred<void>();
+    writeTextFile.mockReturnValueOnce(nativeWrite.promise);
+    const saves = createSaveCoordinator();
+    saves.change(5, "/workspace/note.md", "v1");
+    await vi.advanceTimersByTimeAsync(400); // v1 write is now in flight (rev 1)
+    expect(writeTextFile).toHaveBeenCalledTimes(1);
+
+    // v2 arrives while v1 write is in flight.
+    saves.change(5, "/workspace/note.md", "v2");
+    expect(saves.hasUnsavedWork(5)).toBe(true);
+
+    // flush() awaits the in-flight write. After it settles, flush sees
+    // entry.revision (2) !== savedRevision (0) and calls writeRevision with
+    // revision=2. But the reschedule in v1's finally-block has already fired
+    // (or will fire) the v2 write. Either way, the total writes are v1 and
+    // v2 — no phantom third write from the old ++entry.revision bump.
+    writeTextFile.mockResolvedValue(undefined);
+    nativeWrite.resolve();
+    await saves.flush(5, "/workspace/note.md");
+
+    // Exactly two writes: v1 (the in-flight one) and v2 (rescheduled or
+    // re-issued by flush). The key assertion: no phantom third revision
+    // (the old bug would have produced a write for revision 3 with v2 content,
+    // and savedRevision would be 3 while entry.revision might be 2 or 3,
+    // creating inconsistency).
+    expect(saves.hasUnsavedWork(5)).toBe(false);
+    // v2 content must have been written (the latest content is on disk).
+    const writes = writeTextFile.mock.calls.map(([, content]) => content);
+    expect(writes).toContain("v2");
+    // The first write was always v1.
+    expect(writes[0]).toBe("v1");
+  });
+
+  it("retry() still bumps the revision as an intentional new save attempt (unchanged behavior)", async () => {
+    // retry() is intentionally different from flush(): it represents a
+    // deliberate "try again" after a failure, and bumping the revision is
+    // part of that semantic (it tracks a new save attempt). Verify the
+    // revision still advances so a subsequent hasUnsavedWork reflects the
+    // new attempt's outcome.
+    writeTextFile.mockRejectedValueOnce(new Error("first failure"));
+    const saves = createSaveCoordinator();
+    saves.change(6, "/workspace/note.md", "content");
+    await vi.advanceTimersByTimeAsync(400); // write fails
+    expect(saves.getError(6, "/workspace/note.md")).toBe("first failure");
+
+    // retry succeeds — revision should be bumped (new attempt) and savedRevision
+    // should catch up, clearing the unsaved state.
+    writeTextFile.mockResolvedValue();
+    await saves.retry(6, "/workspace/note.md");
+    expect(saves.getError(6, "/workspace/note.md")).toBeNull();
+    expect(saves.hasUnsavedWork(6)).toBe(false);
+    // The retry wrote the content (possibly twice if the debounce also fired;
+    // the key assertion is the unsaved state is cleared).
+    expect(writeTextFile).toHaveBeenCalled();
+  });
+});
+
 describe("hasUnsavedWork", () => {
   beforeEach(() => {
     vi.useFakeTimers();

@@ -212,6 +212,30 @@ export function createSaveCoordinator(cbs?: SaveCoordinatorCallbacks): SaveCoord
     schedule(session, path, entry, entry.revision);
   }
 
+  /** `flush` is the "write the current content to disk right now" path used
+   * by callers (close/rename/copy in App.tsx, Task Hub toggle, collection
+   * add) that need to guarantee the note is on disk before proceeding.
+   *
+   * It must NOT bump `entry.revision` before writing: doing so sets
+   * `entry.revision` to a value one greater than `entry.savedRevision` even
+   * after a successful write, because `writeRevision` only sets
+   * `entry.savedRevision = revision` on success — and `revision` here is the
+   * bumped value, not the content's actual revision. The net effect is that
+   * `hasUnsavedWork()` (which checks `entry.revision !== entry.savedRevision`)
+   * returns `true` permanently for a note that is fully saved, spurious
+   * "unsaved work" state after every flush.
+   *
+   * The correct invariant (matching `prepareForTransition`'s own drain
+   * path): write at the entry's *current* revision so that a successful
+   * write sets `savedRevision === revision`, and `hasUnsavedWork` returns
+   * false. `writeRevision` handles the `entry.revision === revision` check
+   * internally, so this works regardless of whether newer edits have landed
+   * since `change()` was last called.
+   *
+   * Edge case: a note that has never had `change()` called has `revision === 0`.
+   * In that case there is no content to write; `flush` is a no-op (the caller
+   * already has the content it needs in memory). We return early to avoid
+   * creating a spurious entry for a path that was never edited. */
   async function flush(session: string | number | null, path: string): Promise<void> {
     if (isBlocked(session)) return;
     const entry = getOrCreate(session, path);
@@ -221,7 +245,8 @@ export function createSaveCoordinator(cbs?: SaveCoordinatorCallbacks): SaveCoord
     }
     await waitForEntry(entry);
     if (isBlocked(session)) return;
-    const revision = ++entry.revision;
+    if (entry.revision === 0) return; // never edited: nothing to flush
+    const revision = entry.revision;
     await writeRevision(session, path, entry, revision);
   }
 

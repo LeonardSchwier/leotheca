@@ -1,5 +1,5 @@
 import { readTextFile } from "../workspace/tauriBridge";
-import { isPathWithinWorkspace } from "../workspace/paths";
+import { isPathWithinWorkspace, resolvePath } from "../workspace/paths";
 
 /**
  * Loads and applies the user's custom CSS file to the app's UI.
@@ -32,12 +32,17 @@ export async function applyCustomCss(
   workspacePath: string,
   customCssPath: string,
 ): Promise<boolean> {
-  // Security: the file must live inside the workspace.
-  if (!isPathWithinWorkspace(workspacePath, customCssPath)) {
+  // The path may be relative (e.g. `.leotheca/custom.css` stored as a
+  // workspace-relative default) or absolute. `isPathWithinWorkspace`
+  // requires an absolute path because `splitAbsolutePath` only recognises
+  // `/` or `C:\` prefixes — a relative path silently fails the workspace
+  // check. Resolve before validating.
+  const absolutePath = resolvePath(customCssPath, workspacePath);
+  if (!isPathWithinWorkspace(absolutePath, workspacePath)) {
     return false;
   }
 
-  const fullPath = workspacePath + "/" + customCssPath;
+  const fullPath = absolutePath;
 
   let css: string;
   try {

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { applyCustomCss, removeCustomCss } from "./customCss";
 import { readTextFile } from "../workspace/tauriBridge";
-import { isPathWithinWorkspace } from "../workspace/paths";
+import { isPathWithinWorkspace, resolvePath } from "../workspace/paths";
 
 // Mock the dependencies
 vi.mock("../workspace/tauriBridge", () => ({
@@ -10,11 +10,13 @@ vi.mock("../workspace/tauriBridge", () => ({
 
 vi.mock("../workspace/paths", () => ({
   isPathWithinWorkspace: vi.fn(),
+  resolvePath: vi.fn(),
 }));
 
 describe("applyCustomCss", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(resolvePath).mockImplementation((p, ws) => ws + "/" + p);
     // Clean up any existing style tag
     const existing = document.getElementById("leotheca-custom-css");
     if (existing) {
@@ -45,6 +47,18 @@ describe("applyCustomCss", () => {
     const style = document.getElementById("leotheca-custom-css");
     expect(style).toBeNull();
     expect(readTextFile).not.toHaveBeenCalled();
+  });
+
+  it("resolves a relative custom.css path to an absolute path before validation", async () => {
+    vi.mocked(isPathWithinWorkspace).mockReturnValue(true);
+    vi.mocked(readTextFile).mockResolvedValue("body { background: #fff; }");
+
+    const result = await applyCustomCss("/workspace", ".leotheca/custom.css");
+
+    expect(result).toBe(true);
+    // The relative path must be resolved to an absolute path before being
+    // passed to readTextFile (and isPathWithinWorkspace).
+    expect(readTextFile).toHaveBeenCalledWith("/workspace/.leotheca/custom.css");
   });
 
   it("returns false when the file is missing", async () => {
@@ -88,6 +102,7 @@ describe("applyCustomCss", () => {
 describe("removeCustomCss", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(resolvePath).mockImplementation((p, ws) => ws + "/" + p);
   });
 
   it("removes the custom CSS style tag", async () => {

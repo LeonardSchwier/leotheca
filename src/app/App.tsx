@@ -1743,6 +1743,7 @@ export function App() {
                       source={current.content}
                       onOpenFile={handleOpenFile}
                       mathRenderingEnabled={workspaceSettings.value.mathRenderingEnabled}
+                      mermaidRenderingEnabled={workspaceSettings.value.mermaidRenderingEnabled}
                       headingLinksEnabled={workspaceSettings.value.headingLinksEnabled}
                       notePath={current.path}
                       onActiveHeadingChange={setPreviewActiveIndex}
@@ -1787,6 +1788,8 @@ export function App() {
                 workspaceRoot={rootPath ?? ""}
                 attachmentsFolder={workspaceSettings.value.attachmentsFolder}
                 pasteImagesEnabled={workspaceSettings.value.pasteImagesEnabled}
+                mathRenderingEnabled={workspaceSettings.value.mathRenderingEnabled}
+                mermaidRenderingEnabled={workspaceSettings.value.mermaidRenderingEnabled}
                 snippetsEnabled={workspaceSettings.value.snippetsEnabled}
                 snippets={workspaceSettings.value.snippets}
                 noteReadOnlyLockEnabled={workspaceSettings.value.noteReadOnlyLockEnabled}

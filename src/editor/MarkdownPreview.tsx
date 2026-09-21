@@ -3,6 +3,7 @@ import { marked, type Tokens } from "marked";
 import DOMPurify from "dompurify";
 import katex from "katex";
 import "katex/dist/katex.min.css";
+import { setMermaidRenderingEnabled, renderMermaidToSvg } from "../markdown/mermaid";
 import { fileNameFromPath, resolveWikilink } from "../linking/store";
 import { parseWikiLinks, type WikiLinkFragment, type WikiLinkRecord } from "../linking/wikiSyntax";
 import {
@@ -390,6 +391,11 @@ export interface MarkdownPreviewProps {
    * feature existed. Defaults to on, see
    * WorkspaceSettings.mathRenderingEnabled for why. */
   mathRenderingEnabled?: boolean;
+  /** Whether ```mermaid``` fenced code blocks render as diagrams in
+   * Preview (see markdown/mermaid.ts). When false, that fence renders as
+   * an ordinary code block, exactly as before this feature existed.
+   * Defaults to on, see WorkspaceSettings.mermaidRenderingEnabled. */
+  mermaidRenderingEnabled?: boolean;
   /** Whether `[[Note#Heading]]`/`[[#Heading]]` heading-link syntax and
    * the `[[Note|Label]]` display-label separator are parsed (F04 Phase
    * 1, see linking/wikiSyntax.ts). Defaults to on, see
@@ -1237,6 +1243,7 @@ export function MarkdownPreview({
   source,
   onOpenFile,
   mathRenderingEnabled = true,
+  mermaidRenderingEnabled = true,
   headingLinksEnabled = true,
   notePath,
   onActiveHeadingChange,
@@ -1264,6 +1271,7 @@ export function MarkdownPreview({
 
   const { html: rawHtml, crossNoteEmbeds } = useMemo(() => {
     mathRenderingActive = mathRenderingEnabled;
+    setMermaidRenderingEnabled(mermaidRenderingEnabled);
     // Must run first, against the pristine source: see
     // stripBlockIdMarkers's own doc comment for why offset-based rewrites
     // have to happen in this order. Gated behind the same
@@ -1314,10 +1322,17 @@ export function MarkdownPreview({
       async: false,
     }) as string;
     const renderedWithFootnotes = rendered + renderFootnotesSection();
-    return { html: DOMPurify.sanitize(addAutoTextDirection(renderedWithFootnotes)), crossNoteEmbeds: crossNoteEmbedsOut };
+    // Allow the mermaid-placeholder data attribute through DOMPurify so
+    // the useEffect below can read the diagram source and replace the
+    // placeholder with real SVG.
+    const sanitized = DOMPurify.sanitize(addAutoTextDirection(renderedWithFootnotes), {
+      ADD_ATTR: ["data-mermaid-source"],
+    });
+    return { html: sanitized, crossNoteEmbeds: crossNoteEmbedsOut };
   }, [
     source,
     mathRenderingEnabled,
+    mermaidRenderingEnabled,
     headingLinksEnabled,
     noteDir,
     workspaceRoot,
@@ -1611,6 +1626,47 @@ export function MarkdownPreview({
     container.addEventListener("scroll", handleScroll, { passive: true });
     return () => {
       container.removeEventListener("scroll", handleScroll);
+    };
+  }, [html]);
+
+  // Resolve mermaid placeholders: the marked extension (src/markdown/mermaid.ts)
+  // emits a <div class="mermaid-placeholder" data-mermaid-source="..."> for
+  // each ```mermaid fence. This effect finds them in the rendered DOM and
+  // replaces each with real SVG via renderMermaidToSvg (async). Falls back
+  // to a plain code block on any rendering failure — the user still sees
+  // the diagram source rather than a blank pane.
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const placeholders = Array.from(container.querySelectorAll<HTMLElement>(".mermaid-placeholder"));
+    if (placeholders.length === 0) return;
+    let cancelled = false;
+    for (const el of placeholders) {
+      const encoded = el.getAttribute("data-mermaid-source") ?? "";
+      if (!encoded) continue;
+      let source: string;
+      try {
+        source = decodeURIComponent(encoded);
+      } catch {
+        el.outerHTML = `<pre><code class="language-mermaid"></code></pre>`;
+        continue;
+      }
+      void renderMermaidToSvg(source)
+        .then((svg: string) => {
+          if (cancelled) return;
+          el.outerHTML = svg;
+        })
+        .catch(() => {
+          if (cancelled) return;
+          const escaped = source
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;");
+          el.outerHTML = `<pre><code class="language-mermaid">${escaped}</code></pre>`;
+        });
+    }
+    return () => {
+      cancelled = true;
     };
   }, [html]);
 

@@ -113,8 +113,8 @@
   Added missing `aria-label` to three icon-only `modal-close` buttons (SettingsPanel settings close, SettingsPanel license viewer close, MarkdownHelpDialog close) that were only labeled "x" and indistinguishable to screen readers. Audit confirmed: all other buttons have visible text or existing aria-labels; FileTree uses roving tabindex; TabBar, App toolbar, and WorkspaceSwitcher already have proper aria-labels; inputs have visible labels or aria-labels; dialogs use `role="dialog"`. All 2716 tests pass; `tsc --noEmit` and ESLint clean.
   </details>
 - 🚧 **Slash commands in the editor (`/table`, `/task`, `/heading`, …)**: Typing `/` at the start of a line opens a quick-insert menu for common Markdown constructs, complementing the existing Command Palette rather than duplicating it — the palette is for app-wide actions, this is for inline content insertion while typing.
-  <!-- agent-state: {"schema":1,"id":"rm-d06ca88e23882927","state":"claimed","touch":["ROADMAP.md"],"resources":[],"owner":"hermes-local-20260921T071115Z-38bedc25","token":"efdcd816fe4b0c3e45b1bb2b163cdf67","branch":"agent/rm-d06ca88e23882927/efdcd816fe4b","claimed_at":"2026-09-21T07:15:15Z","heartbeat_at":"2026-09-21T07:19:24Z","lease_until":"2026-09-21T08:49:24Z"} -->
-  Agent: hermes-local-20260921T071115Z-38bedc25 | item: rm-d06ca88e23882927 | lease until: 2026-09-21T08:49:24Z
+  <!-- agent-state: {"schema":1,"id":"rm-d06ca88e23882927","state":"claimed","touch":["ROADMAP.md"],"resources":[],"owner":"hermes-local-20260921T093611Z-7af6abc4","token":"c82ed0f3944ade8c921268dff49790ae","branch":"agent/rm-d06ca88e23882927/c82ed0f3944a","claimed_at":"2026-09-21T09:39:26Z","heartbeat_at":"2026-09-21T09:39:26Z","lease_until":"2026-09-21T11:09:26Z"} -->
+  Agent: hermes-local-20260921T093611Z-7af6abc4 | item: rm-d06ca88e23882927 | lease until: 2026-09-21T11:09:26Z
 
 ## Implemented
 

@@ -143,6 +143,17 @@ describe("DocumentHeader", () => {
       expect(onRetrySave).toHaveBeenCalledTimes(1);
     });
 
+    it("renders the Retry control as the section 20 Button primitive (ghost, sm)", () => {
+      const { getByRole } = render(
+        <DocumentHeader {...BASE_PROPS} dirty={true} saveError="disk full" />,
+      );
+      const retry = getByRole("button", { name: "Retry" });
+      expect(retry.className).toContain("btn");
+      expect(retry.className).toContain("btn-ghost");
+      expect(retry.className).toContain("btn-sm");
+      expect(retry.className).toContain("document-header-savestate-retry");
+    });
+
     it("shows a transient Saved message after saving finishes successfully, then goes quiet", async () => {
       vi.useFakeTimers();
       try {

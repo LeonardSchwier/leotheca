@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import type { ViewMode } from "../../settings/workspaceSettings";
+import { Button } from "../../ui/Button";
 import { Icon as RegistryIcon, type IconName } from "../../ui/icons";
 import { IconButton } from "../../ui/IconButton";
 import { Menu } from "../../ui/Menu";
@@ -164,13 +165,14 @@ export function DocumentHeader({
         {saveState === "error" && (
           <StatusIndicator variant="danger" size="sm" live="assertive">
             Save failed
-            <button
-              type="button"
-              class="document-header-savestate-retry"
+            <Button
+              variant="ghost"
+              size="sm"
+              className="document-header-savestate-retry"
               onClick={onRetrySave}
             >
               Retry
-            </button>
+            </Button>
           </StatusIndicator>
         )}
         {saveState === "saving" && (

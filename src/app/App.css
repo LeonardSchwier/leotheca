@@ -533,14 +533,18 @@ button.icon-button.active {
   flex-shrink: 0;
 }
 
+/* The Retry control is now the section 20 `Button` primitive (variant
+   ghost, size sm, see DocumentHeader.tsx) -- its base appearance comes
+   from src/ui/primitives.css. `.btn-sm` is 28px tall, which is a poor
+   inline fit inside the 12px-tall StatusIndicator label, so this
+   call-site override keeps the button as a true inline text action
+   (the `Button` contract -- size, token colors, hover, focus ring --
+   still applies to everything it does define). */
 .document-header-savestate-retry {
-  background: none;
-  border: none;
+  height: auto;
   padding: 0;
-  color: inherit;
   text-decoration: underline;
-  cursor: pointer;
-  font: inherit;
+  margin-left: var(--space-2);
 }
 
 .document-header-actions {

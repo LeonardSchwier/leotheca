@@ -1,7 +1,17 @@
 import { useEffect, useState, useRef, useCallback } from "preact/hooks";
 import { fileSrc } from "../workspace/tauriBridge";
 
-export function ImageViewer({ path }: { path: string }) {
+interface ImageViewerProps {
+  path: string;
+  /** Optional: only passable when the viewer is a transient surface (e.g. a
+   * tab the user can close). Standalone-tab callers in `App.tsx` and
+   * `SecondaryEditorPane.tsx` pass the tab's close handler; a viewer rendered
+   * without this prop gets no close button and no Escape handling, since it
+   * has no surface to dismiss into. */
+  onClose?: () => void;
+}
+
+export function ImageViewer({ path, onClose }: ImageViewerProps) {
   const [src, setSrc] = useState<string | null>(null);
   const [scale, setScale] = useState<number>(1);
   const [isDragging, setIsDragging] = useState<boolean>(false);
@@ -59,6 +69,12 @@ export function ImageViewer({ path }: { path: string }) {
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     switch (e.key) {
+      case "Escape":
+        // Only dismiss when this viewer is a transient surface with a caller
+        // to hand back to; a bare ImageViewer (no onClose) has nothing to
+        // close and must not swallow Escape from any surrounding context.
+        if (onClose) onClose();
+        break;
       case "+":
       case "=":
         handleZoomIn();
@@ -71,7 +87,7 @@ export function ImageViewer({ path }: { path: string }) {
         handleReset();
         break;
     }
-  }, [handleZoomIn, handleZoomOut, handleReset]);
+  }, [onClose, handleZoomIn, handleZoomOut, handleReset]);
 
   useEffect(() => {
     if (isDragging) {
@@ -120,6 +136,16 @@ export function ImageViewer({ path }: { path: string }) {
         <button class="image-viewer-button" onClick={handleZoomOut} title="Zoom out" aria-label="Zoom out">−</button>
         <button class="image-viewer-button" onClick={handleReset} title="Reset zoom" aria-label="Reset zoom">1:1</button>
         <button class="image-viewer-button" onClick={handleZoomIn} title="Zoom in" aria-label="Zoom in">+</button>
+        {onClose && (
+          <button
+            class="image-viewer-button image-viewer-close"
+            onClick={onClose}
+            title="Close"
+            aria-label="Close"
+          >
+            ×
+          </button>
+        )}
       </div>
     </div>
   );

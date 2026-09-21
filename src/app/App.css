@@ -1930,6 +1930,18 @@ button.icon-button.active {
     background: #444;
   }
 
+  /* Mirror of .image-overlay-close above: the standalone viewer's close
+     button sits on the same fixed dark scrim (.image-viewer-controls), so it
+     shares that surface's same intentional always-dark treatment. */
+  .image-viewer-close {
+    background: #d32f2f;
+    border-color: #d32f2f;
+  }
+
+  .image-viewer-close:hover {
+    background: #b71c1c;
+  }
+
   /* F05: Capture Sheet. Its own backdrop/surface sizing now comes from
      the shared Sheet primitive (primitives.css's .sheet-surface), which
      already governs width responsively at every viewport size -- this

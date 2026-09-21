@@ -100,9 +100,6 @@
 
 - ⬜ **Export a note to PDF/HTML, and print**: No way currently exists to export a note (or a selection of notes) to PDF or standalone HTML, or to print directly from the app. A natural next step after Graph View and Backlinks for getting notes out to people who don't have Leotheca; should reuse the already-rendered Preview output rather than a second Markdown-to-HTML pipeline.
 - ⬜ **Offline, multi-language spellchecking**: Flag misspelled words in the editor using local dictionaries only (e.g. `nspell`), no network call ever, matching the offline-by-design rule. Needs a way to pick a language from bundled or user-supplied dictionary files — never one fetched at runtime.
-- 🚧 **Render Mermaid diagrams in Preview**: Render fenced `mermaid` code blocks as flowcharts, sequence diagrams, etc. via `mermaid.js`, bundled and rendered fully client-side, no network call. A widely adopted Markdown convention (Obsidian, GitHub) worth adopting rather than inventing a competing diagram syntax.
-  <!-- agent-state: {"schema":1,"id":"rm-b43136ef6a2b5c19","state":"claimed","touch":["package.json","src/editor/MarkdownPreview.tsx","src/markdown"],"resources":["markdown-preview-rendering"],"owner":"hermes-local-20260921T104804Z-59944066","token":"f79191636ad26745287afde995a6a245","branch":"agent/rm-b43136ef6a2b5c19/f79191636ad2","claimed_at":"2026-09-21T10:57:08Z","heartbeat_at":"2026-09-21T11:08:28Z","lease_until":"2026-09-21T12:38:28Z"} -->
-  Agent: hermes-local-20260921T104804Z-59944066 | item: rm-b43136ef6a2b5c19 | lease until: 2026-09-21T12:38:28Z
 - ✅ **Accessibility / screen-reader audit**: A focused pass auditing the shipped app against WCAG basics (screen-reader labeling, focus order, keyboard reachability, contrast) across the whole app, not just the `UX-01` visual-system spec's own new primitives. Easy to under-invest in for a small MIT-licensed tool, disproportionately valuable for the users it unblocks.
   <!-- agent-state: {"schema":1,"id":"rm-8c2d9a04257e33f6","state":"done","touch":[],"resources":["accessibility-audit"],"completed_by":"hermes-local-20260921T003126Z-6b378149","completed_at":"2026-09-21T02:50:00Z","branch":"agent/rm-8c2d9a04257e33f6/a7ebd48c9d65"} -->
   Agent: hermes-local-20260921T003126Z-6b378149 | item: rm-8c2d9a04257e33f6 | lease until: 2026-09-21T02:10:29Z
@@ -112,6 +109,11 @@
   </details>
 
 ## Implemented
+
+- ✅ **Render Mermaid diagrams in Preview**: Render fenced `mermaid` code blocks as flowcharts, sequence diagrams, etc. via `mermaid.js`, bundled and rendered fully client-side, no network call. A widely adopted Markdown convention (Obsidian, GitHub) worth adopting rather than inventing a competing diagram syntax.
+  <!-- agent-state: {"schema":1,"id":"rm-b43136ef6a2b5c19","state":"done","touch":["package.json","src/editor/MarkdownPreview.tsx","src/markdown"],"resources":["markdown-preview-rendering"],"note":"Implemented Mermaid diagram rendering in Preview. Merged 1581292 into fresh main (cebb980). Fixed lint regression in renameExecutor.test.ts. All checks green: tsc, lint, check-version, vitest 8246, build. Landed: d6abfc9 on agent/rm-b43136ef6a2b5c19/f79191636ad2","completed_at":"2026-09-21T11:14:47Z","completed_by":"hermes-local-20260921T104804Z-59944066","branch":"agent/rm-b43136ef6a2b5c19/f79191636ad2"} -->
+  Agent: completed by hermes-local-20260921T104804Z-59944066 | item: rm-b43136ef6a2b5c19
+
 
 - ✅ **Automatically fix wikilinks when a note is renamed**: Today a rename only shows a read-only preview (F03) of which `[[wikilinks]]` would break; nothing ever applies the fix, so they go stale. `renameExecutor.ts`'s `executeRenameOperation`/rollback engine already exists, is tested, and is correct (`rm-b8b4267f997dc1e8`) but has zero callers — wire it into the real rename flow behind a confirm step instead of building a second link-rewrite implementation.
   <!-- agent-state: {"schema":1,"id":"rm-afd1f5619b2be1c5","state":"done","touch":["src/linking"],"resources":[],"note":"Wikilink auto-fix on rename is implemented and on main (SHA 8806879). applyRenamePlan is wired into both rename entry points (Sidebar, App) via useRenamePreview. 29/29 rename executor tests pass. Ledger reconciliation only.","completed_at":"2026-09-21T09:45:22Z","completed_by":"hermes-local-20260921T093611Z-7af6abc4","branch":"agent/rm-afd1f5619b2be1c5/2e6cc7fb0a4c"} -->

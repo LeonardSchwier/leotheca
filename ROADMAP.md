@@ -100,7 +100,9 @@
 
 - ⬜ **Export a note to PDF/HTML, and print**: No way currently exists to export a note (or a selection of notes) to PDF or standalone HTML, or to print directly from the app. A natural next step after Graph View and Backlinks for getting notes out to people who don't have Leotheca; should reuse the already-rendered Preview output rather than a second Markdown-to-HTML pipeline.
 - ⬜ **Offline, multi-language spellchecking**: Flag misspelled words in the editor using local dictionaries only (e.g. `nspell`), no network call ever, matching the offline-by-design rule. Needs a way to pick a language from bundled or user-supplied dictionary files — never one fetched at runtime.
-- ⬜ **Unify the standalone ImageViewer's zoom buttons with the preview-local overlay's**: `ImageViewer.tsx` and `ImageViewerOverlay.tsx` are two independent components for the same zoom feature whose button styling drifted apart in `src/app/App.css`; the standalone viewer also lacks the close button its overlay counterpart has. Details, acceptance criteria, and scope in the drill-down.
+- 🚧 **Unify the standalone ImageViewer's zoom buttons with the preview-local overlay's**: `ImageViewer.tsx` and `ImageViewerOverlay.tsx` are two independent components for the same zoom feature whose button styling drifted apart in `src/app/App.css`; the standalone viewer also lacks the close button its overlay counterpart has. Details, acceptance criteria, and scope in the drill-down.
+  <!-- agent-state: {"schema":1,"id":"rm-9aa6f953818c34f6","state":"claimed","touch":["src/app/App.css","src/editor/ImageViewer.tsx","src/editor/ImageViewerOverlay.tsx"],"resources":["image-viewer-button-unification"],"owner":"hermes-local-20260921T141718Z-ff8daeae","token":"3771c369b3afea149d7a0346f35d09a5","branch":"agent/rm-9aa6f953818c34f6/3771c369b3af","claimed_at":"2026-09-21T14:31:05Z","heartbeat_at":"2026-09-21T14:31:05Z","lease_until":"2026-09-21T16:01:05Z"} -->
+  Agent: hermes-local-20260921T141718Z-ff8daeae | item: rm-9aa6f953818c34f6 | lease until: 2026-09-21T16:01:05Z
   <details>
   <summary>What drifted, acceptance criteria, scope</summary>
 

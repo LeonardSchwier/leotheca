@@ -100,6 +100,23 @@
 
 - ⬜ **Export a note to PDF/HTML, and print**: No way currently exists to export a note (or a selection of notes) to PDF or standalone HTML, or to print directly from the app. A natural next step after Graph View and Backlinks for getting notes out to people who don't have Leotheca; should reuse the already-rendered Preview output rather than a second Markdown-to-HTML pipeline.
 - ⬜ **Offline, multi-language spellchecking**: Flag misspelled words in the editor using local dictionaries only (e.g. `nspell`), no network call ever, matching the offline-by-design rule. Needs a way to pick a language from bundled or user-supplied dictionary files — never one fetched at runtime.
+- ⬜ **Unify the standalone ImageViewer's zoom buttons with the preview-local overlay's**: `ImageViewer.tsx` and `ImageViewerOverlay.tsx` are two independent components for the same zoom feature whose button styling drifted apart in `src/app/App.css`; the standalone viewer also lacks the close button its overlay counterpart has. Details, acceptance criteria, and scope in the drill-down.
+
+  <details>
+  <summary>What drifted, acceptance criteria, scope</summary>
+
+  `src/editor/ImageViewer.tsx` (standalone-tab viewer, added 2026-09-06, "Fullscreen zoom viewer follow-up" slice) and `src/editor/ImageViewerOverlay.tsx` (earlier, preview-local full-screen overlay from the same feature's Phase 1) are two independent components offering the same zoom-out/zoom-in/1:1 controls, but their button styling drifted apart in `src/app/App.css`: `.image-viewer-button`/`.image-viewer-button:hover` (lines 1917-1931) use `background: #333; color: #fff; border: 1px solid #555;` on hover `#444`, while the visually-identical `.image-overlay-button` (lines 1851-1874) is already token-based via `var(--radius-sm)`/`var(--space-2)`/`var(--space-4)` and, for its own close button, `--color-danger`. This is a real visible inconsistency between two surfaces of the same feature (different base gray, and the overlay-only red "close" affordance has no counterpart in the standalone viewer, which instead has no explicit close at all), not cosmetic churn: both files' own comments (`.image-overlay-button`'s 1844-1850, `.image-viewer-button`'s 1914-1916) independently document the same "always-dark, theme-independent" design rationale, confirming they were written to match and drifted by accident.
+
+  **Acceptance criteria**
+
+  1. `.image-viewer-button` and `.image-overlay-button` render the same base gray/hover gray/border across Light and Dark themes.
+  2. The standalone viewer's buttons gain an explicit, accessible close affordance consistent with the overlay's `.image-overlay-close` red-button convention (`ImageViewer.tsx` is a standalone-tab component that takes only `{ path }` and has no existing close mechanism or parent close handler, so one must be added here and wired through from the tab's existing close mechanism; check `src/editorGroups/SecondaryEditorPane.tsx` and wherever the standalone image tab is actually closed today so the new button reuses that path rather than inventing a new one).
+  3. Both rules move to the shared `--radius-*`/`--space-*` token vocabulary `App.css` already uses elsewhere (they already partially do; finish the job consistently).
+  4. `src/app/App.css`'s remaining hardcoded-hex count drops by however many these two rules account for, with the delta recorded in the handoff.
+  5. Full frontend verification suite (tsc, eslint, check-version, vitest, build) green.
+
+  **Scope**: `src/app/App.css` only, plus `src/editor/ImageViewer.tsx`/`ImageViewerOverlay.tsx` if a missing close affordance turns out to be needed there. No change to zoom behavior itself. Do not touch the 12 other hardcoded-hex sites in `App.css` (`.image-overlay-button` family, `.image-viewer` backdrop, etc.) unless the fix for criterion 1/2/3 requires it; those are separately defensible as the intentionally-theme-independent dark-scrim surfaces their own comments already explain.
+  </details>
 - ✅ **Accessibility / screen-reader audit**: A focused pass auditing the shipped app against WCAG basics (screen-reader labeling, focus order, keyboard reachability, contrast) across the whole app, not just the `UX-01` visual-system spec's own new primitives. Easy to under-invest in for a small MIT-licensed tool, disproportionately valuable for the users it unblocks.
   <!-- agent-state: {"schema":1,"id":"rm-8c2d9a04257e33f6","state":"done","touch":[],"resources":["accessibility-audit"],"completed_by":"hermes-local-20260921T003126Z-6b378149","completed_at":"2026-09-21T02:50:00Z","branch":"agent/rm-8c2d9a04257e33f6/a7ebd48c9d65"} -->
   Agent: hermes-local-20260921T003126Z-6b378149 | item: rm-8c2d9a04257e33f6 | lease until: 2026-09-21T02:10:29Z

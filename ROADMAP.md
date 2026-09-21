@@ -78,7 +78,7 @@
   </details>
 
 - ✅ **Offline, multi-language spellchecking**: Flag misspelled words in the editor using local dictionaries only (e.g. `nspell`), no network call ever, matching the offline-by-design rule. Needs a way to pick a language from bundled or user-supplied dictionary files — never one fetched at runtime.
-  <!-- agent-state: {"schema":1,"id":"rm-29652584c09436d3","state":"done","touch":["src/spellcheck/spellCheck.ts","src/spellcheck/spellCheck.test.ts","src/editor/MarkdownEditor.tsx","src/settings/SettingsPanel.tsx","src/settings/workspaceSettings.ts","src/app/App.tsx","src/refactor/renameExecutor.ts","package.json"],"resources":["nspell","spellcheck"],"completed_by":"hermes-local-20260921T193156Z-9e45e854","completed_at":"2026-09-21T22:02:00Z","branch":"agent/rm-29652584c09436d3/9c38942fcb75"} -->
+  <!-- agent-state: {"schema":1,"id":"rm-29652584c09436d3","state":"done","touch":["package.json","src/app/App.tsx","src/editor/MarkdownEditor.tsx","src/refactor/renameExecutor.ts","src/settings/SettingsPanel.tsx","src/settings/workspaceSettings.ts","src/spellcheck/spellCheck.test.ts","src/spellcheck/spellCheck.ts"],"resources":["nspell","spellcheck"],"completed_by":"hermes-local-20260921T193156Z-9e45e854","completed_at":"2026-09-21T22:02:00Z","branch":"agent/rm-29652584c09436d3/9c38942fcb75"} -->
   Agent: hermes-local-20260921T193156Z-9e45e854 | item: rm-29652584c09436d3 | lease until: 2026-09-21T21:35:00Z
   <details>
   <summary>What was implemented and verified</summary>

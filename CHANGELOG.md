@@ -2,7 +2,9 @@
 
 ## Unreleased
 
-- Added a "Print note" command on desktop: prints the current note via the OS print dialog (which already offers "Save as PDF" on every desktop platform this app ships for), reusing the already-rendered Preview pane's own output rather than a second Markdown-to-HTML pipeline. Available whenever Preview or Split view is showing the note you want to print; switch to one of those views first if you're in Source view. Standalone HTML export and Android support are tracked separately and not yet available.
+- Added an "Export note to HTML…" command on desktop: saves the current note as a standalone `.html` file via a native Save dialog, with local attachment images embedded directly in the file so it opens correctly with no Leotheca installed. Same Preview/Split-view availability as "Print note" below. Android support is tracked separately and not yet available.
+
+- Added a "Print note" command on desktop: prints the current note via the OS print dialog (which already offers "Save as PDF" on every desktop platform this app ships for), reusing the already-rendered Preview pane's own output rather than a second Markdown-to-HTML pipeline. Available whenever Preview or Split view is showing the note you want to print; switch to one of those views first if you're in Source view. Android support is tracked separately and not yet available.
 
 - Preview now renders Markdown footnotes: a `[^1]` reference shows as a numbered, clickable superscript, and its `[^1]: ...` definition (which can span several lines when indented) renders in a "Footnotes" section at the end of the note, with a back-link from the definition to where it was referenced. Only footnotes actually referenced in the note appear there, numbered in the order they're first used. Previously `[^1]` and its definition rendered as plain, unlinked text.
 

@@ -111,9 +111,21 @@
 - ✅ **Main CI red: `renameExecutor.test.ts` `as any` lint error (regression from `19e88ce`)**: Commit `19e88ce` ("test: pin slash command filter contract + rename integrity tests") introduced `@typescript-eslint/no-explicit-any` error at `src/refactor/renameExecutor.test.ts:705` — `[{ id: "1", kind: "file", label: "test", path: "old.md" } as any]`. CI frontend Lint step fails on this, breaking `main`. Fix: replace `as any` with an explicit `Bookmark[]` type annotation (import `Bookmark` from `../bookmarks/types`).
   <!-- agent-state: {"schema":1,"id":"rm-8b7d7fc2519f9ac5","state":"done","touch":["src/refactor/renameExecutor.test.ts"],"resources":[],"branch":"agent/rm-8b7d7fc2519f9ac5/11c91b1c2f16","completed_by":"hermes-local-20260921T111759Z-8548a6be","completed_at":"2026-09-21T11:36:00Z","note":"Replace `as any` with typed Bookmark[] annotation. tsc --noEmit clean, ESLint clean, 31 renameExecutor tests pass. CI run 35594064382: all 5 jobs green. Handoff: .agents/handoffs/rm-8b7d7fc2519f9ac5-hermes-local-20260921T111759Z-8548a6be.md"} -->
 
-- ✅ **Maintenance review: `slashCommandCompletions` crashes the entire completion overlay with a `RangeError` when `context.pos > doc.length`**: `src/editor/slashCommands.ts` line 150 calls `context.state.doc.lineAt(context.pos)` without bounds-checking. CodeMirror's `lineAt` throws `RangeError: Invalid position` when the position exceeds `doc.length` (e.g. cursor at position 1 in a one-character document). Because `slashCommandCompletions` is the **first** source in `MarkdownEditor.tsx`'s autocomplete array, an uncaught throw there takes down the entire completion overlay, including wikilink completions. Fix: clamp `pos` to `Math.min(context.pos, doc.length)` before calling `lineAt`.
+- ✅ **Maintenance review: `slashCommandCompletions` crashes the completion overlay with `RangeError` when `context.pos > doc.length`**: `lineAt(context.pos)` throws when position exceeds doc length. Because `slashCommandCompletions` is the first autocomplete source in `MarkdownEditor.tsx`, the throw takes down the entire overlay. Fix: clamp `pos` before `lineAt`.
   <!-- agent-state: {"schema":1,"id":"rm-38baa9f000000000","state":"done","touch":["src/editor/slashCommands.test.ts","src/editor/slashCommands.ts"],"resources":["completion-overlay","slash-commands"],"branch":"agent/rm-38baa9f000000000/38baa9f34d7c","completed_by":"hermes-local-20260921T120727Z-b32b94d5","completed_at":"2026-09-21T14:12:00Z","note":"Fixed lineAt RangeError in slashCommandCompletions. 3 new regression tests. Revert-confirmed to fail without fix. tsc, eslint, check-version, vitest 8246/8246, build all green. Landed 38baa9f on main."} -->
   Agent: completed by hermes-local-20260921T120727Z-b32b94d5 | item: rm-38baa9f000000000
+
+  <details>
+  <summary>Root cause, fix, and verification</summary>
+
+  `src/editor/slashCommands.ts` line 150 called `context.state.doc.lineAt(context.pos)` without bounds-checking. CodeMirror's `lineAt` throws `RangeError: Invalid position` when the position exceeds `doc.length`. Because `slashCommandCompletions` is the first source in `MarkdownEditor.tsx`'s autocomplete array, an uncaught throw takes down the entire completion overlay, including wikilink completions.
+
+  Fix: clamp `pos` to `Math.min(context.pos, doc.length)` before calling `lineAt`.
+
+  Regression tests: 3 new tests covering one-char doc, empty doc, and cursor past last line. Revert-confirmed to fail without the fix.
+
+  Verification: tsc clean, eslint clean, check-version pass, vitest 8246/8246 pass, build success.
+  </details>
 
 ## Implemented
 

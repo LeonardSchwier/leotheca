@@ -178,7 +178,15 @@ export function spellCheckExtension(
         continue;
       }
 
-      const results = checkSpelling(text, lineObj.from, checker);
+      // Mask URL tokens (https://... or www...) with spaces of the same
+      // length so that words inside embedded URLs are not flagged as
+      // misspellings, while preserving character offsets for any words
+      // that follow the URL in the line.
+      const textWithoutUrls = text.replace(
+        /\b(https?:\/\/[^\s]+|www\.[^\s]+)/gi,
+        (match) => " ".repeat(match.length),
+      );
+      const results = checkSpelling(textWithoutUrls, lineObj.from, checker);
       diagnostics.push(...toDiagnostics(results));
     }
 

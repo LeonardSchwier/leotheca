@@ -101,11 +101,14 @@ describe("checkSpelling", () => {
     expect(results).toHaveLength(0);
   });
 
-  it("handles URLs in prose (words in URLs are checked)", () => {
-    // "example" and "com" would be checked — this is expected behaviour;
-    // the caller (lintSource) filters out URL-only lines.
-    const results = checkSpelling("visit https://example.com for info", 0, mockChecker(new Set()));
-    expect(results.length).toBeGreaterThan(0);
+  it("does not flag words inside URLs embedded in prose (lintSource filters them)", () => {
+    // URL tokens in prose (not entire-line URLs) were previously flagged
+    // as misspellings. lintSource now strips URL tokens before calling
+    // checkSpelling, so "example" and "com" from https://example.com
+    // should not appear in the results.
+    // This is tested at the lintSource level in the spellCheckExtension
+    // tests below, not here, because checkSpelling is a pure function
+    // that checks a single line without context.
   });
 });
 
@@ -226,5 +229,26 @@ describe("spellCheckExtension linter race (rm-f506e6522fb79cba)", () => {
     // count grows, but every call returns null quickly (no nspell parse
     // because createChecker's empty-dictionary guard short-circuits).
     expect(callCount).toBe(3);
+  });
+
+  it("does not flag words inside URLs embedded in prose", async () => {
+    // URL tokens in prose (not entire-line URLs) were previously flagged
+    // as misspellings. lintSource now strips URL tokens before calling
+    // checkSpelling, so "example" and "com" from https://example.com
+    // should not appear in the results.
+    const extensions = spellCheckExtension(
+      () => mockChecker(new Set(["visit", "for", "info"])),
+      true,
+    );
+    const lintSource = extractLinterSource(extensions) as (
+      view: unknown,
+    ) => Promise<{ message: string }[]>;
+
+    const doc = "visit https://example.com for info";
+    const results = await lintSource(viewWithDoc(doc));
+    const messages = results.map((d) => d.message);
+    expect(messages).not.toContain("Misspelled word: example");
+    expect(messages).not.toContain("Misspelled word: com");
+    expect(messages).not.toContain("Misspelled word: https");
   });
 });

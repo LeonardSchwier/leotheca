@@ -33,7 +33,7 @@ export function MarkdownHelpDialog({ onClose }: MarkdownHelpDialogProps) {
       <div class="modal markdown-help" onClick={(e) => e.stopPropagation()}>
         <div class="modal-header">
           <h2>Markdown formatting</h2>
-          <button class="modal-close" onClick={onClose}>
+          <button class="modal-close" aria-label="Close Markdown help" onClick={onClose}>
             x
           </button>
         </div>

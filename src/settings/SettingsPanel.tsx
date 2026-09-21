@@ -373,6 +373,7 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
           )}
           <button
             class="modal-close"
+            aria-label="Close settings"
             onClick={() => (settingsPanelOpen.value = false)}
           >
             x
@@ -1319,7 +1320,7 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
           >
             <div class="modal-header">
               <h2>License</h2>
-              <button class="modal-close" onClick={() => setShowLicense(false)}>
+              <button class="modal-close" aria-label="Close license viewer" onClick={() => setShowLicense(false)}>
                 x
               </button>
             </div>

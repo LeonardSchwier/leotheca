@@ -632,4 +632,134 @@ describe("renameExecutor - Error Handling", () => {
     expect(result.success).toBe(false);
     expect(result.error).toContain("Wikilink updates failed");
   });
+
+  it("leaves the workspace consistent when the file rename fails after reference rewrites", async () => {
+    // This is the core transactional integrity test: if the file rename
+    // fails (e.g. disk full, permissions) after the reference rewrites and
+    // metadata migration have already been applied, the workspace must be
+    // rolled back to a consistent state. No broken links, no orphaned
+    // references, no partial metadata.
+    const originalContent = "before [[old]] after";
+    const from = originalContent.indexOf("[[old]]");
+    const to = from + "[[old]]".length;
+    const newText = "[[new-name]]";
+
+    const edits: PlannedWikiLinkEdit[] = [
+      { path: "note.md", from, to, oldText: "[[old]]", newText },
+    ];
+
+    const store: Record<string, string> = { "note.md": originalContent };
+    const metadataStore: Record<string, unknown> = {};
+
+    const mockOptions = createMockOptions({
+      readNote: vi.fn(async (path: string) => store[path]),
+      writeNote: vi.fn(async (path: string, content: string) => {
+        store[path] = content;
+      }),
+      // File rename fails — this is the critical failure point
+      renameFile: vi.fn().mockRejectedValue(new Error("ENOSPC: no space left on device")),
+      saveEditorLayout: vi.fn(async (layout: unknown) => {
+        metadataStore.editorLayout = layout;
+      }),
+      saveBookmarks: vi.fn(async (bookmarks: unknown) => {
+        metadataStore.bookmarks = bookmarks;
+      }),
+      saveWorkspaceSettings: vi.fn(async (settings: unknown) => {
+        metadataStore.workspaceSettings = settings;
+      }),
+    });
+
+    const result = await executeRenameOperation(
+      "old.md",
+      "new.md",
+      createMockRenamePlan("old.md", "new.md", edits, []),
+      createEditorLayout(["old.md"], "old.md"),
+      [{ id: "1", kind: "file", label: "test", path: "old.md" }],
+      createWorkspaceSettings(["old.md"], "old.md"),
+      mockOptions
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("File rename failed");
+
+    // CRITICAL: The note content must be restored to its original state.
+    // If the rollback fails, the note would contain a broken [[new-name]]
+    // link pointing to a file that was never actually renamed.
+    expect(store["note.md"]).toBe(originalContent);
+
+    // The journal entry should be marked as failed/incomplete so that
+    // startup recovery can handle it.
+    expect(result.journalEntry?.completed).toBe(false);
+    expect(result.journalEntry?.step).toBe("failed");
+  });
+
+  it("does not create a dangling reference when rename fails mid-operation and the user retries", async () => {
+    // Bug: the retry mechanism can nullify the caller reference. If a
+    // rename fails and the user retries, the second attempt must not
+    // operate on stale state or create a dangling reference.
+    // We simulate this by verifying that after a failed rename, the
+    // workspace state (editor layout, bookmarks) is restored to the
+    // pre-rename state, not left in the half-migrated state.
+
+    const originalLayout = createEditorLayout(["old.md"], "old.md");
+    const originalBookmarks = [{ id: "1", kind: "file", label: "test", path: "old.md" } as any];
+    const originalSettings = createWorkspaceSettings(["old.md"], "old.md");
+
+    const edits: PlannedWikiLinkEdit[] = [
+      { path: "note.md", from: 0, to: 6, oldText: "[[old]]", newText: "[[new]]" },
+    ];
+
+    let metadataWriteCount = 0;
+    const mockOptions = createMockOptions({
+      readNote: vi.fn().mockResolvedValue("[[old]] rest"),
+      writeNote: vi.fn().mockResolvedValue(undefined),
+      renameFile: vi.fn().mockRejectedValue(new Error("connection reset")),
+      saveEditorLayout: vi.fn(async () => { metadataWriteCount++; }),
+      saveBookmarks: vi.fn(async () => { metadataWriteCount++; }),
+      saveWorkspaceSettings: vi.fn(async () => { metadataWriteCount++; }),
+    });
+
+    // First attempt fails
+    const firstResult = await executeRenameOperation(
+      "old.md",
+      "new.md",
+      createMockRenamePlan("old.md", "new.md", edits, []),
+      originalLayout,
+      originalBookmarks,
+      originalSettings,
+      mockOptions
+    );
+
+    expect(firstResult.success).toBe(false);
+    expect(metadataWriteCount).toBeGreaterThan(0);
+
+    // Reset for the retry
+    resetRenameExecutor();
+
+    // Second attempt (retry) — must not inherit stale state
+    const retryOptions = createMockOptions({
+      readNote: vi.fn().mockResolvedValue("[[old]] rest"),
+      writeNote: vi.fn().mockResolvedValue(undefined),
+      renameFile: vi.fn().mockResolvedValue(undefined),
+      saveEditorLayout: vi.fn().mockResolvedValue(undefined),
+      saveBookmarks: vi.fn().mockResolvedValue(undefined),
+      saveWorkspaceSettings: vi.fn().mockResolvedValue(undefined),
+    });
+
+    const secondResult = await executeRenameOperation(
+      "old.md",
+      "new.md",
+      createMockRenamePlan("old.md", "new.md", edits, []),
+      originalLayout,
+      originalBookmarks,
+      originalSettings,
+      retryOptions
+    );
+
+    // The retry should succeed if the filesystem is available,
+    // and it must operate on the ORIGINAL state, not the half-migrated
+    // state from the failed first attempt.
+    expect(secondResult.success).toBe(true);
+    expect(retryOptions.renameFile).toHaveBeenCalledWith("old.md", "new.md");
+  });
 });

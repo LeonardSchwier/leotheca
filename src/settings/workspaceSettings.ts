@@ -98,6 +98,13 @@ export interface WorkspaceSettings {
    * Preview (see editor/MarkdownPreview.tsx). Defaults to on; also an
    * opt-out per CONSTITUTION.md's "Daily competitor feature scan" policy. */
   mathRenderingEnabled: boolean;
+  /** Whether ```mermaid``` fenced code blocks render as diagrams in
+   * Preview (see markdown/mermaid.ts). Defaults to on; also an opt-out
+   * per CONSTITUTION.md's "Daily competitor feature scan" policy, the
+   * same shape as mathRenderingEnabled: off means a ```mermaid``` fence
+   * renders exactly as an ordinary code block, as before this feature
+   * existed. */
+  mermaidRenderingEnabled: boolean;
   /** Whether pasting or dropping an image into the editor saves it as a
    * new attachment file and inserts a markdown link to it (see
    * editor/attachments.ts and editor/MarkdownEditor.tsx). Defaults to
@@ -245,6 +252,7 @@ export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   uiZoom: 100,
   frontmatterAliasesEnabled: true,
   mathRenderingEnabled: true,
+  mermaidRenderingEnabled: true,
   pasteImagesEnabled: true,
   attachmentsFolder: "",
   frontmatterPropertiesEnabled: true,
@@ -626,6 +634,10 @@ export function decodeWorkspaceSettings(
     record.mathRenderingEnabled,
     DEFAULT_WORKSPACE_SETTINGS.mathRenderingEnabled,
   );
+  const mermaidRenderingEnabled = decodeBoolean(
+    record.mermaidRenderingEnabled,
+    DEFAULT_WORKSPACE_SETTINGS.mermaidRenderingEnabled,
+  );
   const pasteImagesEnabled = decodeBoolean(
     record.pasteImagesEnabled,
     DEFAULT_WORKSPACE_SETTINGS.pasteImagesEnabled,
@@ -815,6 +827,7 @@ export function decodeWorkspaceSettings(
       uiZoom,
       frontmatterAliasesEnabled,
       mathRenderingEnabled,
+      mermaidRenderingEnabled,
       pasteImagesEnabled,
       attachmentsFolder,
       frontmatterPropertiesEnabled,

@@ -86,4 +86,56 @@ describe("ImageViewer", () => {
     const img = container.querySelector("img") as HTMLImageElement;
     expect(img.getAttribute("src")).toBe("asset://b.png");
   });
+
+  it("renders a close button (aria-label \"Close\") only when an onClose prop is supplied", async () => {
+    vi.mocked(fileSrc).mockResolvedValue("asset://localhost/vault/a.png");
+    const { container, rerender } = render(<ImageViewer path="/vault/a.png" />);
+    await waitFor(() => expect(container.querySelector("img")).not.toBeNull());
+    expect(container.querySelector('button[aria-label="Close"]')).toBeNull();
+
+    const onClose = vi.fn();
+    rerender(<ImageViewer path="/vault/a.png" onClose={onClose} />);
+    const close = container.querySelector('button[aria-label="Close"]') as HTMLButtonElement;
+    expect(close).not.toBeNull();
+    expect(close.textContent).toBe("×");
+
+    expect(onClose).not.toHaveBeenCalled();
+    close.click();
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not render a close button or fire Escape when no onClose prop is supplied", async () => {
+    vi.mocked(fileSrc).mockResolvedValue("asset://localhost/vault/a.png");
+    const { container } = render(<ImageViewer path="/vault/a.png" />);
+    await waitFor(() => expect(container.querySelector("img")).not.toBeNull());
+    expect(container.querySelector('button[aria-label="Close"]')).toBeNull();
+
+    // Escape with no onClose prop: the guard must not crash and must not call
+    // anything (there is no handler to call). We can only observe that it did
+    // not throw; the "does not fire" half of the contract is covered by the
+    // render check above (no close button exists to fire).
+    expect(() => {
+      act(() => {
+        document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+      });
+    }).not.toThrow();
+  });
+
+  it("calls onClose once per Escape press when the prop is supplied", async () => {
+    vi.mocked(fileSrc).mockResolvedValue("asset://localhost/vault/a.png");
+    const onClose = vi.fn();
+    render(<ImageViewer path="/vault/a.png" onClose={onClose} />);
+    await waitFor(() => expect(document.querySelector("img")).not.toBeNull());
+
+    expect(onClose).not.toHaveBeenCalled();
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    });
+    expect(onClose).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    });
+    expect(onClose).toHaveBeenCalledTimes(2);
+  });
 });

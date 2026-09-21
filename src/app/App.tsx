@@ -1608,7 +1608,13 @@ export function App() {
           )}
           {current ? (
             current.kind === "image" ? (
-              <ImageViewer path={current.path} />
+              <ImageViewer
+                path={current.path}
+                onClose={() => {
+                  closeTab(current.path);
+                  refresh();
+                }}
+              />
             ) : current.kind === "pdf" ? (
               <PdfViewer path={current.path} />
             ) : current.kind === "canvas" ? (

@@ -129,7 +129,12 @@ export function SecondaryEditorPane({
       )}
       {current ? (
         current.kind === "image" ? (
-          <ImageViewer path={current.path} />
+          <ImageViewer
+            path={current.path}
+            onClose={() => {
+              onClose(current.path);
+            }}
+          />
         ) : current.kind === "canvas" || current.kind === "ink" || current.kind === "pdf" ? (
           <div class="secondary-pane-unsupported">
             <p>

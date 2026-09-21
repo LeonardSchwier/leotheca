@@ -28,6 +28,7 @@ import { tableEditAtCursor, type MarkdownTableCommand } from "../markdown/tableC
 import { slashCommandCompletions } from "./slashCommands";
 import type { TableCommandRequest } from "./tableCommandRequest";
 import { getDocumentViewState, saveDocumentViewState } from "../editorGroups/documentViewState";
+import { spellCheckExtension, createNspellChecker } from "../spellcheck/spellCheck";
 
 export interface MarkdownEditorProps {
   path: string;
@@ -46,6 +47,10 @@ export interface MarkdownEditorProps {
   readOnly?: boolean;
   snippetsEnabled: boolean;
   snippets: string;
+  /** Offline spellchecking toggle; see WorkspaceSettings.spellcheckEnabled. */
+  spellcheckEnabled?: boolean;
+  /** Workspace root path, needed by spellcheck to load `.leotheca/dictionary.*`. */
+  workspaceRootPath?: string;
   /** A request to move the selection to a source range and scroll it
    * into view without remounting the editor or touching undo history,
    * e.g. from OutlinePanel's click-to-navigate (see
@@ -426,6 +431,9 @@ function buildExtensions(
   readOnlyCompartment: Compartment,
   readOnly: boolean,
   searchCompartment: Compartment,
+  spellcheckEnabled: boolean,
+  spellcheckAffRef: { current: string },
+  spellcheckDicRef: { current: string },
 ) {
   return [
     readOnlyCompartment.of([EditorState.readOnly.of(readOnly), EditorView.editable.of(!readOnly)]),
@@ -526,6 +534,25 @@ function buildExtensions(
         backgroundColor: "var(--bg-hover) !important",
       },
     }),
+    // Offline spellchecking: only active when the workspace setting is on
+    // AND a dictionary is loadable. Missing/broken dictionary files are
+    // silently ignored (no diagnostics) — the linter returns [] rather
+    // than surfacing an error to the user. The dictionary is loaded
+    // synchronously on first lint pass; readTextFile is a Tauri bridge
+    // call (microseconds in desktop context).
+    spellCheckExtension(
+      () => {
+        // readTextFile is async (Tauri bridge). The linter's lintSource
+        // is async, so we can't block here. Instead we store the
+        // dictionary contents in a ref that the linter closure reads.
+        // The mount effect populates them before the first lint pass.
+        const aff = spellcheckAffRef.current;
+        const dic = spellcheckDicRef.current;
+        if (!aff || !dic) return null;
+        return createNspellChecker(aff, dic);
+      },
+      spellcheckEnabled,
+    ),
   ];
 }
 
@@ -545,6 +572,8 @@ export function MarkdownEditor({
   readOnly = false,
   snippetsEnabled,
   snippets,
+  spellcheckEnabled = false,
+  workspaceRootPath,
   reveal,
   insertRequest,
   blockLinkCopyRequest,
@@ -580,6 +609,33 @@ export function MarkdownEditor({
   const searchCompartmentRef = useRef(new Compartment());
   const snippetSettingsRef = useRef<SnippetSettings>({ enabled: snippetsEnabled, source: snippets });
   snippetSettingsRef.current = { enabled: snippetsEnabled, source: snippets };
+  const spellcheckAffRef = useRef("");
+  const spellcheckDicRef = useRef("");
+
+  // Load spellcheck dictionary files in the background so the first
+  // lint pass already has a checker ready. Missing files are silently
+  // ignored (spellcheck stays off for this view).
+  useEffect(() => {
+    if (!spellcheckEnabled || !workspaceRootPath) return;
+    const affPath = `${workspaceRootPath}/.leotheca/dictionary.aff`;
+    const dicPath = `${workspaceRootPath}/.leotheca/dictionary.dic`;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const [aff, dic] = await Promise.all([
+          readTextFile(affPath),
+          readTextFile(dicPath),
+        ]);
+        if (!cancelled) {
+          spellcheckAffRef.current = aff;
+          spellcheckDicRef.current = dic;
+        }
+      } catch {
+        // Missing or unreadable dictionary — spellcheck stays off.
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [spellcheckEnabled, workspaceRootPath]);
 
   // Creates the CodeMirror view once and keeps it alive for the component's
   // whole lifetime. A file switch used to destroy and recreate this (full
@@ -600,6 +656,9 @@ export function MarkdownEditor({
         readOnlyCompartmentRef.current,
         readOnly,
         searchCompartmentRef.current,
+        spellcheckEnabled,
+        spellcheckAffRef,
+        spellcheckDicRef,
       ),
     });
 
@@ -682,6 +741,9 @@ export function MarkdownEditor({
           readOnlyCompartmentRef.current,
           readOnly,
           searchCompartmentRef.current,
+          spellcheckEnabled,
+          spellcheckAffRef,
+          spellcheckDicRef,
         ),
       }),
     );

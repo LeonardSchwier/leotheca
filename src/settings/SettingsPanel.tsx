@@ -274,6 +274,10 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
     "Speech-to-text dictation",
     "Dictate note text by voice; off by default, only requests microphone access once enabled",
   );
+  const showSpellchecking = matches(
+    "Spellchecking",
+    "Flag misspelled words in the editor using a local dictionary; off by default",
+  );
   const showWorkspaceProfiles = matches(
     "Workspace profiles",
     "Rename, identify, add, and forget known workspaces without deleting their files",
@@ -306,7 +310,7 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
           showCaptureInboxFolder ||
           showCaptureInboxNote ||
           showCaptureDatePattern ||
-          showFrontmatterProperties || showNoteReadOnlyLock || showSpeechToText ||
+          showFrontmatterProperties || showNoteReadOnlyLock || showSpeechToText || showSpellchecking ||
           (workspaceSettings.value.themesEnabled && showAccentColor) ||
           (workspaceSettings.value.snippetsEnabled && showSnippetDefinitions) ||
           (workspaceSettings.value.templatesEnabled && showTemplatesFolder)),
@@ -929,6 +933,29 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                     key={String(option.value)}
                     class={workspaceSettings.value.speechToTextEnabled === option.value ? "active" : ""}
                     onClick={() => void updateWorkspaceSettings({ speechToTextEnabled: option.value })}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {workspacePath.value && showSpellchecking && (
+            <div class="settings-row">
+              <div>
+                <div class="settings-label">Spellchecking</div>
+                <div class="settings-hint">
+                  Flag misspelled words in the editor using a local Hunspell dictionary
+                  ({"<code>.leotheca/dictionary.aff</code> + <code>.leotheca/dictionary.dic</code>"});
+                  off by default, no network access ever
+                </div>
+              </div>
+              <div class="settings-switch">
+                {OPTIONAL_FEATURE_OPTIONS.map((option) => (
+                  <button
+                    key={String(option.value)}
+                    class={workspaceSettings.value.spellcheckEnabled === option.value ? "active" : ""}
+                    onClick={() => void updateWorkspaceSettings({ spellcheckEnabled: option.value })}
                   >
                     {option.label}
                   </button>

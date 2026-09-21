@@ -200,6 +200,11 @@ export interface WorkspaceSettings {
    * button doesn't render at all, the same as before this feature
    * existed. */
   speechToTextEnabled: boolean;
+  /** Offline spellchecking: flags misspelled words in the editor using a
+   * local Hunspell-compatible dictionary (`.leotheca/dictionary.aff` and
+   * `.leotheca/dictionary.dic`). Off by default to avoid loading a
+   * dictionary into memory in workspaces that don't want it. */
+  spellcheckEnabled: boolean;
   /** F05: Default folder path for quick captures, relative to workspace root.
    * Empty means captures go to the currently selected directory. */
   captureInboxFolder: string;
@@ -263,6 +268,7 @@ export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   noteReadOnlyLockEnabled: true,
   rtlWorkspaceEnabled: false,
   speechToTextEnabled: false,
+  spellcheckEnabled: false,
   captureInboxFolder: "",
   captureInboxNote: "Inbox.md",
   captureDatePattern: "",
@@ -721,6 +727,10 @@ export function decodeWorkspaceSettings(
     record.speechToTextEnabled,
     DEFAULT_WORKSPACE_SETTINGS.speechToTextEnabled,
   );
+  const spellcheckEnabled = decodeBoolean(
+    record.spellcheckEnabled,
+    DEFAULT_WORKSPACE_SETTINGS.spellcheckEnabled,
+  );
 
 
   // F07 Phase 2b: decode editorLayout with legacy migration
@@ -790,6 +800,7 @@ export function decodeWorkspaceSettings(
     noteReadOnlyLockEnabled: noteReadOnlyLockEnabled.value,
     rtlWorkspaceEnabled: rtlWorkspaceEnabled.value,
     speechToTextEnabled: speechToTextEnabled.value,
+    spellcheckEnabled: spellcheckEnabled.value,
     captureInboxFolder: captureInboxFolder.value,
     captureInboxNote: captureInboxNote.value,
     captureDatePattern: captureDatePattern.value,
@@ -833,6 +844,7 @@ export function decodeWorkspaceSettings(
       noteReadOnlyLockEnabled,
       rtlWorkspaceEnabled,
       speechToTextEnabled,
+      spellcheckEnabled,
       captureInboxFolder,
       captureInboxNote,
       captureDatePattern,

@@ -39,6 +39,7 @@
     "dompurify": "^3.2.3",
     "katex": "^0.18.4",
     "marked": "^15.0.4",
+    "nspell": "^2.1.5",
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^6.3.289",
     "preact": "^10.25.1"
@@ -54,6 +55,7 @@
     "@testing-library/preact": "^3.2.4",
     "@types/dompurify": "^3.0.5",
     "@types/node": "^22.10.2",
+    "@types/nspell": "^2.1.6",
     "eslint": "^10.9.1",
     "eslint-plugin-react-hooks": "^7.1.1",
     "jsdom": "^30.0.1",

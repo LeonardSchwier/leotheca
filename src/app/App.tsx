@@ -1724,6 +1724,8 @@ export function App() {
                       readOnly={currentNoteReadOnly}
                       snippetsEnabled={workspaceSettings.value.snippetsEnabled}
                       snippets={workspaceSettings.value.snippets}
+                      spellcheckEnabled={workspaceSettings.value.spellcheckEnabled}
+                      workspaceRootPath={rootPath ?? undefined}
                       reveal={outlineRevealRequest.value}
                       insertRequest={outlineInsertRequest.value}
                       blockLinkCopyRequest={blockLinkCopyRequest.value}

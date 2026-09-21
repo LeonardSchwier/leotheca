@@ -63,9 +63,17 @@ function highlightSearchMatches(html: string, query: string): string {
     if (part.startsWith('<') || part.startsWith('&')) {
       return part;
     }
-    // This is text content, apply highlighting
+    // This is text content, apply highlighting. Match text is
+    // re-escaped before injection: the query is user input and could
+    // contain "&", "<", ">" characters that must survive as character
+    // references in the injected HTML (the span's innerHTML is parsed
+    // again by the browser, so a raw "&" would be misread as an entity).
     return part.replace(caseInsensitiveQuery, (match) => {
-      return `<span class="search-highlight">${match}</span>`;
+      const escaped = match
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+      return `<span class="search-highlight">${escaped}</span>`;
     });
   }).join('');
 }

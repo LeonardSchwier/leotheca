@@ -1781,8 +1781,8 @@ button.icon-button.active {
   }
 
   .search-highlight {
-    background-color: var(--accent-yellow, #ffff00);
-    color: var(--text-on-accent, var(--text, #000));
+    background-color: var(--color-highlight, #f5d678);
+    color: var(--color-highlight-text, #25231f);
     padding: 0 2px;
     border-radius: 2px;
   }

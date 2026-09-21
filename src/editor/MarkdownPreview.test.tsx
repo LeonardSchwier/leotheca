@@ -156,7 +156,11 @@ describe("MarkdownPreview: search-query highlighting", () => {
     expect(container.textContent?.trim()).toBe("AT&T reported");
   });
 
-  it("does not highlight a lone ampersand that is really an entity's leading character", () => {
+  it("does not split an HTML character reference when the query is the entity's leading &", () => {
+    // A lone "&" in the source becomes "&amp;" in the sanitized HTML;
+    // the entity-splitting logic treats "&amp;" as a single token and
+    // skips it, so a "&" query produces no highlight — this is correct
+    // (highlighting only part of the entity would corrupt the text).
     const { container } = render(<MarkdownPreview source="Bed & Breakfast" searchQuery="&" />);
     expect(container.querySelector(".search-highlight")).toBeNull();
     expect(container.textContent?.trim()).toBe("Bed & Breakfast");

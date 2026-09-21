@@ -116,6 +116,12 @@
   --color-warning: #8b6116;
   --color-danger: #a43d35;
   --color-focus: #28647a;
+  /* Search-match highlight: a warm yellow that is visible on both light
+     and dark surfaces without overwhelming the surrounding prose.
+     Distinct from --color-accent (the interactive accent) to avoid
+     conflating "selected/interactive" with "matched text". */
+  --color-highlight: #f5d678;
+  --color-highlight-text: #25231f;
 
   /* Back-compat aliases: every existing component still reads these
      names across ~16 feature stylesheets, so the whole app picks up the
@@ -154,6 +160,10 @@
     --color-warning: #d5a350;
     --color-danger: #e07a70;
     --color-focus: #70b6cf;
+    /* Highlight tokens: slightly brighter in dark mode for contrast against
+       the dark surface; text stays dark since the highlight bg is light. */
+    --color-highlight: #e8c96a;
+    --color-highlight-text: #25231f;
   }
 }
 
@@ -177,6 +187,8 @@
   --color-warning: #d5a350;
   --color-danger: #e07a70;
   --color-focus: #70b6cf;
+  --color-highlight: #e8c96a;
+  --color-highlight-text: #25231f;
 }
 
 /* UX-01 spec section 9.6/19.2/VIS-003: Ocean, Forest, and Plum each define

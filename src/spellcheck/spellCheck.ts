@@ -120,15 +120,19 @@ export function spellCheckExtension(
   if (!enabled) return [];
 
   let cachedChecker: SpellChecker | null = null;
-  let checkerChecked = false;
+  // Re-derive on every pass while the last attempt yielded null, so a
+  // first lint pass that fires before the dictionary-load effect resolves
+  // does not permanently disable spellchecking (see roadmap
+  // rm-f506e6522fb79cba). createChecker() returns null in O(1) when the
+  // dictionary files are empty, so the "missing dictionary stays off"
+  // behavior is preserved and no nspell parse is repeated needlessly once
+  // a real checker is cached.
   function getChecker(): SpellChecker | null {
-    if (!checkerChecked) {
-      checkerChecked = true;
-      try {
-        cachedChecker = createChecker();
-      } catch {
-        cachedChecker = null;
-      }
+    if (cachedChecker) return cachedChecker;
+    try {
+      cachedChecker = createChecker();
+    } catch {
+      cachedChecker = null;
     }
     return cachedChecker;
   }

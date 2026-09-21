@@ -232,6 +232,10 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
     "Resolve [[Note#Heading]] and [[#Heading]] links to a specific heading, with Preview click navigation to it. Off, [[wikilinks]] parse exactly as before this feature existed",
   );
   const showMathRendering = matches("Math rendering", "Render $inline$ and $$block$$ LaTeX math in Preview, via KaTeX");
+  const showMermaidRendering = matches(
+    "Mermaid diagrams",
+    "Render ```mermaid``` code blocks as diagrams in Preview",
+  );
   const showPasteImages = matches(
     "Paste images as attachments",
     "Pasting or dropping an image into a note saves it as a file and inserts a link to it",
@@ -305,6 +309,7 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
           showFrontmatterAliases ||
           showHeadingLinks ||
           showMathRendering ||
+          showMermaidRendering ||
           showPasteImages ||
           showAttachmentsFolder ||
           showCaptureInboxFolder ||
@@ -683,6 +688,37 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                     onClick={() =>
                       void updateWorkspaceSettings({
                         mathRenderingEnabled: option.value,
+                      })
+                    }
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {workspacePath.value && showMermaidRendering && (
+            <div class="settings-row">
+              <div>
+                <div class="settings-label">Mermaid diagrams</div>
+                <div class="settings-hint">
+                  Render ```mermaid``` code blocks as diagrams in Preview
+                </div>
+              </div>
+              <div class="settings-switch">
+                {MATH_RENDERING_OPTIONS.map((option) => (
+                  <button
+                    key={String(option.value)}
+                    class={
+                      workspaceSettings.value.mermaidRenderingEnabled ===
+                      option.value
+                        ? "active"
+                        : ""
+                    }
+                    onClick={() =>
+                      void updateWorkspaceSettings({
+                        mermaidRenderingEnabled: option.value,
                       })
                     }
                   >

@@ -80,6 +80,8 @@ function baseProps(overrides: Partial<Parameters<typeof SecondaryEditorPane>[0]>
     onReorder: noop,
     onMoveLeft: noop,
     onMoveRight: noop,
+    mathRenderingEnabled: false,
+    mermaidRenderingEnabled: false,
     ...overrides,
   };
 }

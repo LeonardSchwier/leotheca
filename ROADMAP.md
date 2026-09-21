@@ -116,8 +116,12 @@
 
 ## Implemented
 
-- ✅ **Spellcheck: do not flag words inside URLs embedded in prose**: `lintSource` in `src/spellcheck/spellCheck.ts` only skips lines that are *entirely* a URL. URLs embedded in prose (e.g. "See https://example.com/path?q=1 for details") have their words (`https`, `example`, `com`, `path`, `q`) flagged as misspellings, creating false-positive diagnostics. Acceptance: `lintSource` masks URL tokens with spaces of the same length before calling `checkSpelling`, preserving character offsets for words that follow the URL. Regression test added. Full suite green.
+- ✅ **Spellcheck: do not flag words inside URLs embedded in prose**: `lintSource` only skipped lines that are entirely a URL, so URLs inside prose got their words flagged as misspellings.
   <!-- agent-state: {"schema":1,"id":"rm-bf44db1dc944dc35","state":"done","touch":["ROADMAP.md#rm-bf44db1dc944dc35"],"resources":[],"note":"Fixed: lintSource now masks URL tokens with spaces of the same length before calling checkSpelling, preserving character offsets. Landed SHA: 689a97d. CI: success (all 12 jobs green). Tests: 30 spellcheck tests pass, full suite 24,912 tests pass.","completed_at":"2026-09-21T21:55:37Z","completed_by":"hermes-local-20260921T213023Z-7116b0eb","branch":"agent/rm-bf44db1dc944dc35/3c78ed4e825e"} -->
+  <details>
+  <summary>Root cause, fix, and verification</summary>
+  URLs embedded in prose (e.g. "See https://example.com/path?q=1 for details") had their words (`https`, `example`, `com`, `path`, `q`) flagged as misspellings, creating false-positive diagnostics. `lintSource` in `src/spellcheck/spellCheck.ts` masks URL tokens with spaces of the same length before calling `checkSpelling`, preserving character offsets for words that follow the URL. Regression test added; 30 spellcheck tests pass, full suite green.
+  </details>
   Agent: completed by hermes-local-20260921T213023Z-7116b0eb | item: rm-bf44db1dc944dc35
 
 

@@ -5,6 +5,8 @@ import { registerPlugin } from "@capacitor/core";
 import type { FsEntry } from "./types";
 import type { WorkspaceStats } from "../settings/VaultStatsPanel";
 import { mapWithConcurrency } from "./concurrency";
+import { buildPrintDocument } from "../export/printNote";
+import { buildExportDocument } from "../export/exportNoteHtml";
 
 /**
  * Real Android workspace storage, via a small custom Capacitor plugin
@@ -146,6 +148,13 @@ interface FolderAccessPlugin {
 }
 
 const FolderAccess = registerPlugin<FolderAccessPlugin>("FolderAccess");
+
+interface PrintExportPlugin {
+  printHtml(options: { html: string; title: string }): Promise<void>;
+  exportHtml(options: { html: string; defaultFileName: string }): Promise<{ saved: boolean }>;
+}
+
+const PrintExport = registerPlugin<PrintExportPlugin>("PrintExport");
 
 const APP_DATA_ROOT = "/leotheca-appdata";
 export const WORKSPACE_ROOT = "/workspace";
@@ -768,6 +777,40 @@ export async function updateFavoritesWidget(entries: FavoritesWidgetEntry[]): Pr
   } catch {
     // Best-effort widget sync; the in-app bookmark list is unaffected.
   }
+}
+
+/**
+ * Prints a note via Android's real `PrintManager` (see
+ * `PrintExportPlugin.java`'s own doc comment), reusing the same
+ * `buildPrintDocument` standalone-document builder Desktop's
+ * `printNote.ts` already uses so both platforms print byte-identical
+ * markup. `title` becomes both the print job's name (shown in Android's
+ * print queue/notification) and the printed document's `<title>`.
+ */
+export async function printNote(title: string, bodyHtml: string): Promise<void> {
+  await PrintExport.printHtml({ html: buildPrintDocument(title, bodyHtml), title });
+}
+
+/**
+ * Exports a note to a standalone `.html` file via Android's
+ * `ACTION_CREATE_DOCUMENT` "Save As" picker (see `PrintExportPlugin.java`).
+ * Unlike Desktop's `exportNoteHtml.ts` counterpart, no `inlineLocalImages`
+ * pass is needed: `fileSrc` below already resolves every image the
+ * Preview pane renders to a `data:` URI, so `bodyHtml` is already fully
+ * self-contained. Resolves to whether the user actually picked a location
+ * and the file was written; `false` means they cancelled the picker, not
+ * an error.
+ */
+export async function exportNoteHtml(
+  title: string,
+  bodyHtml: string,
+  defaultFileName: string,
+): Promise<boolean> {
+  const { saved } = await PrintExport.exportHtml({
+    html: buildExportDocument(title, bodyHtml),
+    defaultFileName,
+  });
+  return saved;
 }
 
 /** No-op on Android: OS file-association opens (ROADMAP.md's "Open a

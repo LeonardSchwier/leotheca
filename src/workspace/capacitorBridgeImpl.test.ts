@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const { folderAccess } = vi.hoisted(() => ({
+const { folderAccess, printExport } = vi.hoisted(() => ({
   folderAccess: {
     createDir: vi.fn(),
     deletePath: vi.fn(),
@@ -20,9 +20,15 @@ const { folderAccess } = vi.hoisted(() => ({
     getPendingShareData: vi.fn(),
     hasPendingShareData: vi.fn(),
   },
+  printExport: {
+    printHtml: vi.fn(),
+    exportHtml: vi.fn(),
+  },
 }));
 
-vi.mock("@capacitor/core", () => ({ registerPlugin: () => folderAccess }));
+vi.mock("@capacitor/core", () => ({
+  registerPlugin: (name: string) => (name === "PrintExport" ? printExport : folderAccess),
+}));
 
 import {
   WORKSPACE_ROOT,
@@ -31,11 +37,13 @@ import {
   createWorkspaceDir,
   deletePathPermanent,
   deleteWorkspacePathPermanent,
+  exportNoteHtml,
   findAllEntries,
   findAllFiles,
   findMarkdownFiles,
   getWorkspaceStats,
   pickWorkspaceFolder,
+  printNote,
   readBinaryFile,
   readTextFile,
   renamePath,
@@ -584,5 +592,58 @@ describe("Android URI cache mutations", () => {
     expect(folderAccess.deletePath).toHaveBeenCalledWith({
       uri: "content://a",
     });
+  });
+});
+
+describe("printNote (Android)", () => {
+  it("builds the standalone print document and hands it to the native PrintManager bridge", async () => {
+    printExport.printHtml.mockResolvedValue(undefined);
+
+    await printNote("My Note", "<p>Hello</p>");
+
+    expect(printExport.printHtml).toHaveBeenCalledTimes(1);
+    const { html, title } = printExport.printHtml.mock.calls[0][0];
+    expect(title).toBe("My Note");
+    expect(html).toContain("<title>My Note</title>");
+    expect(html).toContain("<article><p>Hello</p></article>");
+  });
+
+  it("propagates a native rejection (e.g. no PrintManager on this device)", async () => {
+    printExport.printHtml.mockRejectedValue(new Error("Printing is not available on this device."));
+
+    await expect(printNote("My Note", "<p>Hello</p>")).rejects.toThrow(
+      "Printing is not available on this device.",
+    );
+  });
+});
+
+describe("exportNoteHtml (Android)", () => {
+  it("builds the standalone export document and resolves true when the native Save As succeeds", async () => {
+    printExport.exportHtml.mockResolvedValue({ saved: true });
+
+    const result = await exportNoteHtml("My Note", "<p>Hello</p>", "My Note.html");
+
+    expect(result).toBe(true);
+    expect(printExport.exportHtml).toHaveBeenCalledTimes(1);
+    const { html, defaultFileName } = printExport.exportHtml.mock.calls[0][0];
+    expect(defaultFileName).toBe("My Note.html");
+    expect(html).toContain("<title>My Note</title>");
+    expect(html).toContain("<article><p>Hello</p></article>");
+  });
+
+  it("resolves false, not an error, when the user cancels the native Save As picker", async () => {
+    printExport.exportHtml.mockResolvedValue({ saved: false });
+
+    await expect(exportNoteHtml("My Note", "<p>Hello</p>", "My Note.html")).resolves.toBe(false);
+  });
+
+  it("does not fetch/inline images: bodyHtml already contains data: URIs from fileSrc", async () => {
+    printExport.exportHtml.mockResolvedValue({ saved: true });
+    const bodyHtml = '<img src="data:image/png;base64,AAAA">';
+
+    await exportNoteHtml("My Note", bodyHtml, "My Note.html");
+
+    const { html } = printExport.exportHtml.mock.calls[0][0];
+    expect(html).toContain('<img src="data:image/png;base64,AAAA">');
   });
 });

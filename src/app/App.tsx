@@ -17,6 +17,7 @@ import { PdfViewer } from "../pdf/PdfViewer";
 import { printNoteHtml } from "../export/printNote";
 import { inlineLocalImages, buildExportDocument } from "../export/exportNoteHtml";
 import { pickHtmlExportPath } from "../workspace/tauriBridgeImpl";
+import { printNote as printNoteAndroid, exportNoteHtml as exportNoteHtmlAndroid } from "../workspace/capacitorBridgeImpl";
 import { CaptureSheet, captureSheetOpen, openCaptureSheet } from "./CaptureSheet";
 import { PendingCapturesPanel, initPendingCaptures, processAndroidPendingShareData } from "../capture";
 import { classifyWorkspaceResource } from "../workspace/types";
@@ -1060,7 +1061,42 @@ export function App() {
                 },
               },
             ]
-          : []),
+          : [
+              {
+                id: "print-note",
+                label: "Print note",
+                run: () => {
+                  const container = document.querySelector<HTMLElement>(
+                    "#primary-editor-panes .markdown-preview",
+                  );
+                  if (!container) {
+                    window.alert("Switch to Preview or Split view to print this note.");
+                    return;
+                  }
+                  void printNoteAndroid(current.name, container.innerHTML).catch((e) => {
+                    window.alert(`Couldn't print note: ${e instanceof Error ? e.message : String(e)}`);
+                  });
+                },
+              },
+              {
+                id: "export-note-html",
+                label: "Export note to HTML…",
+                run: () => {
+                  const container = document.querySelector<HTMLElement>(
+                    "#primary-editor-panes .markdown-preview",
+                  );
+                  if (!container) {
+                    window.alert("Switch to Preview or Split view to export this note.");
+                    return;
+                  }
+                  void exportNoteHtmlAndroid(current.name, container.innerHTML, `${current.name}.html`).catch(
+                    (e) => {
+                      window.alert(`Couldn't export note: ${e instanceof Error ? e.message : String(e)}`);
+                    },
+                  );
+                },
+              },
+            ]),
         {
           id: "toggle-bookmark",
           label: currentBookmark ? "Remove bookmark from this note" : "Bookmark this note",

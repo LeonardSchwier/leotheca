@@ -77,7 +77,13 @@
 
   </details>
 
-- ⬜ **Offline, multi-language spellchecking**: Flag misspelled words in the editor using local dictionaries only (e.g. `nspell`), no network call ever, matching the offline-by-design rule. Needs a way to pick a language from bundled or user-supplied dictionary files — never one fetched at runtime.
+- ✅ **Offline, multi-language spellchecking**: Flag misspelled words in the editor using local dictionaries only (e.g. `nspell`), no network call ever, matching the offline-by-design rule. Needs a way to pick a language from bundled or user-supplied dictionary files — never one fetched at runtime.
+  <!-- agent-state: {"schema":1,"id":"rm-29652584c09436d3","state":"done","touch":["src/spellcheck/spellCheck.ts","src/spellcheck/spellCheck.test.ts","src/editor/MarkdownEditor.tsx","src/settings/SettingsPanel.tsx","src/settings/workspaceSettings.ts","src/app/App.tsx","src/refactor/renameExecutor.ts","package.json"],"resources":["nspell","spellcheck"],"completed_by":"hermes-local-20260921T193156Z-9e45e854","completed_at":"2026-09-21T22:02:00Z","branch":"agent/rm-29652584c09436d3/9c38942fcb75"} -->
+  Agent: hermes-local-20260921T193156Z-9e45e854 | item: rm-29652584c09436d3 | lease until: 2026-09-21T21:35:00Z
+  <details>
+  <summary>What was implemented and verified</summary>
+  Implemented offline spellchecking using nspell (Hunspell-compatible). Dictionary files (.leotheca/dictionary.aff + dictionary.dic) are loaded from the workspace via the Tauri file bridge — no network access. New src/spellcheck/ module with pure checkSpelling() (16 unit tests) and a CodeMirror 6 linter extension. Added spellcheckEnabled workspace setting (off by default), SettingsPanel toggle, and wired the editor to load and use the dictionary. tsc --noEmit clean, ESLint clean, 24909/24909 tests pass, checkVersion.js pass.
+  </details>
 - ✅ **Accessibility / screen-reader audit**: A focused pass auditing the shipped app against WCAG basics (screen-reader labeling, focus order, keyboard reachability, contrast) across the whole app, not just the `UX-01` visual-system spec's own new primitives. Easy to under-invest in for a small MIT-licensed tool, disproportionately valuable for the users it unblocks.
   <!-- agent-state: {"schema":1,"id":"rm-8c2d9a04257e33f6","state":"done","touch":[],"resources":["accessibility-audit"],"completed_by":"hermes-local-20260921T003126Z-6b378149","completed_at":"2026-09-21T02:50:00Z","branch":"agent/rm-8c2d9a04257e33f6/a7ebd48c9d65"} -->
   Agent: hermes-local-20260921T003126Z-6b378149 | item: rm-8c2d9a04257e33f6 | lease until: 2026-09-21T02:10:29Z

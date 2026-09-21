@@ -68,7 +68,17 @@
 - ⬜ **Compatibility Layer**: Read community extension manifests and run compatible extensions only after the maintainer approves the third-party-code security model required by `CONSTITUTION.md`.
 - ⬜ **Per-Note Lock**: Encrypt and session-unlock individual notes only after the maintainer gives the cryptography design approval required by `CONSTITUTION.md`.
 
-- ⬜ **Export a note to PDF/HTML, and print**: No way currently exists to export a note (or a selection of notes) to PDF or standalone HTML, or to print directly from the app. A natural next step after Graph View and Backlinks for getting notes out to people who don't have Leotheca; should reuse the already-rendered Preview output rather than a second Markdown-to-HTML pipeline.
+- ⬜ **Print the active note (desktop)**: No way currently exists to print a note or save it as a PDF via the OS print dialog. Phase 1 of the "export/print" work (split below): add a "Print note" command on desktop that reuses the already-rendered Preview pane's HTML for the current note, rather than a second Markdown-to-HTML pipeline, and drives the OS print dialog (which already offers "Save as PDF" on every desktop platform this app ships for).
+- ⬜ **Export a note to standalone HTML (desktop)**: Phase 2 of the split below. No way currently exists to export a note as a standalone `.html` file for sharing with people who don't have Leotheca. Reuse Phase 1's print-document scaffold; unlike printing, attachment images need `data:` URIs instead of the app's internal `asset://` URLs, and the save target needs a real "Save As" dialog to a path outside the workspace.
+- ⬜ **Print/export a note on Android**: Phase 3 of the split below. Neither printing nor HTML/PDF export exists on Android yet. Needs a real Capacitor/native plugin (Android's `PrintManager`/`ACTION_CREATE_DOCUMENT`), not just calling the same desktop code, and this cloud sandbox has no physical Android device to verify UI behavior on, the same class of gap as this file's other Android-verification items.
+
+  <details>
+  <summary>Why this is split into three items</summary>
+
+  The original single "Export a note to PDF/HTML, and print" item bundled three genuinely independent deliverables (desktop print, desktop HTML export, Android support) with different native surfaces and risk profiles. Splitting preserves all of the original scope across the three items above; claim and land them independently rather than reviving the combined title.
+
+  </details>
+
 - ⬜ **Offline, multi-language spellchecking**: Flag misspelled words in the editor using local dictionaries only (e.g. `nspell`), no network call ever, matching the offline-by-design rule. Needs a way to pick a language from bundled or user-supplied dictionary files — never one fetched at runtime.
 - ✅ **Accessibility / screen-reader audit**: A focused pass auditing the shipped app against WCAG basics (screen-reader labeling, focus order, keyboard reachability, contrast) across the whole app, not just the `UX-01` visual-system spec's own new primitives. Easy to under-invest in for a small MIT-licensed tool, disproportionately valuable for the users it unblocks.
   <!-- agent-state: {"schema":1,"id":"rm-8c2d9a04257e33f6","state":"done","touch":[],"resources":["accessibility-audit"],"completed_by":"hermes-local-20260921T003126Z-6b378149","completed_at":"2026-09-21T02:50:00Z","branch":"agent/rm-8c2d9a04257e33f6/a7ebd48c9d65"} -->

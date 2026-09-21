@@ -109,7 +109,7 @@
   </details>
 
 - ✅ **Main CI red: `renameExecutor.test.ts` `as any` lint error (regression from `19e88ce`)**: Commit `19e88ce` ("test: pin slash command filter contract + rename integrity tests") introduced `@typescript-eslint/no-explicit-any` error at `src/refactor/renameExecutor.test.ts:705` — `[{ id: "1", kind: "file", label: "test", path: "old.md" } as any]`. CI frontend Lint step fails on this, breaking `main`. Fix: replace `as any` with an explicit `Bookmark[]` type annotation (import `Bookmark` from `../bookmarks/types`).
-  <!-- agent-state: {"schema":1,"id":"rm-8b7d7fc2519f9ac5","state":"done","touch":["src/refactor/renameExecutor.test.ts"],"resources":[],"branch":"agent/rm-8b7d7fc2519f9ac5/11c91b1c2f16","completed_by":"hermes-local-20260921T111759Z-8548a6be","completed_at":"2026-09-21T11:36:00Z","note":"Replace `as any` with typed Bookmark[] annotation. tsc --noEmit clean, ESLint clean, 31 renameExecutor tests pass. CI run 35594064382: all 5 jobs green."} -->
+  <!-- agent-state: {"schema":1,"id":"rm-8b7d7fc2519f9ac5","state":"done","touch":["src/refactor/renameExecutor.test.ts"],"resources":[],"branch":"agent/rm-8b7d7fc2519f9ac5/11c91b1c2f16","completed_by":"hermes-local-20260921T111759Z-8548a6be","completed_at":"2026-09-21T11:36:00Z","note":"Replace `as any` with typed Bookmark[] annotation. tsc --noEmit clean, ESLint clean, 31 renameExecutor tests pass. CI run 35594064382: all 5 jobs green. Handoff: .agents/handoffs/rm-8b7d7fc2519f9ac5-hermes-local-20260921T111759Z-8548a6be.md"} -->
 
 ## Implemented
 

@@ -223,3 +223,28 @@ describe("slashCommandCompletions", () => {
     expect(tableOption!.detail).toMatch(/table/i);
   });
 });
+
+
+describe("slashCommandCompletions (cursor position edge cases)", () => {
+  it("does not throw when the cursor is at the very end of a one-character doc", () => {
+    // Regression: doc.lineAt(context.pos) throws RangeError when pos
+    // is past the last line's .to (e.g. a single-char doc with cursor
+    // at position 1). slashCommandCompletions is the FIRST override in
+    // MarkdownEditor's autocompletion array, so an uncaught throw there
+    // takes down the entire completion overlay, including wikilinks.
+    const ctx = makeContext("a", 1);
+    expect(() => slashCommandCompletions(ctx)).not.toThrow();
+    expect(slashCommandCompletions(ctx)).toBeNull();
+  });
+
+  it("does not throw when the cursor is at end of doc on an empty document", () => {
+    const ctx = makeContext("", 0);
+    expect(() => slashCommandCompletions(ctx)).not.toThrow();
+  });
+
+  it("does not throw when the cursor sits just past the last line of a multi-line doc", () => {
+    // The last line is the empty line after the final newline.
+    const ctx = makeContext("hello\n", 7);
+    expect(() => slashCommandCompletions(ctx)).not.toThrow();
+  });
+});

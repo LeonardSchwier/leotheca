@@ -147,7 +147,9 @@ export const SLASH_TRIGGER = /^\/([a-zA-Z][a-zA-Z0-9-]*)$/;
  */
 export function slashCommandCompletions(context: CompletionContext): CompletionResult | null {
   // We need the current line, not just the text before the cursor.
-  const line = context.state.doc.lineAt(context.pos);
+  // lineAt throws RangeError when pos > doc.length; clamp to a valid range.
+  const pos = Math.min(context.pos, context.state.doc.length);
+  const line = context.state.doc.lineAt(pos);
   const textBeforeCursor = line.text.slice(0, context.pos - line.from);
 
   const match = textBeforeCursor.match(SLASH_TRIGGER);

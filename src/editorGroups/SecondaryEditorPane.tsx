@@ -21,6 +21,8 @@ interface SecondaryEditorPaneProps {
   workspaceRoot: string;
   attachmentsFolder: string;
   pasteImagesEnabled: boolean;
+  mathRenderingEnabled: boolean;
+  mermaidRenderingEnabled: boolean;
   snippetsEnabled: boolean;
   snippets: string;
   noteReadOnlyLockEnabled: boolean;
@@ -62,6 +64,8 @@ export function SecondaryEditorPane({
   workspaceRoot,
   attachmentsFolder,
   pasteImagesEnabled,
+  mathRenderingEnabled,
+  mermaidRenderingEnabled,
   snippetsEnabled,
   snippets,
   noteReadOnlyLockEnabled,
@@ -175,6 +179,8 @@ export function SecondaryEditorPane({
                   source={current.content}
                   onOpenFile={onOpenFile}
                   notePath={current.path}
+                  mathRenderingEnabled={mathRenderingEnabled}
+                  mermaidRenderingEnabled={mermaidRenderingEnabled}
                   searchQuery={current.searchQuery}
                 />
               )}

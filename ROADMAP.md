@@ -108,6 +108,8 @@
   Added missing `aria-label` to three icon-only `modal-close` buttons (SettingsPanel settings close, SettingsPanel license viewer close, MarkdownHelpDialog close) that were only labeled "x" and indistinguishable to screen readers. Audit confirmed: all other buttons have visible text or existing aria-labels; FileTree uses roving tabindex; TabBar, App toolbar, and WorkspaceSwitcher already have proper aria-labels; inputs have visible labels or aria-labels; dialogs use `role="dialog"`. All 2716 tests pass; `tsc --noEmit` and ESLint clean.
   </details>
 
+- ⬜ **Main CI red: `renameExecutor.test.ts` `as any` lint error (regression from `19e88ce`)**: Commit `19e88ce` ("test: pin slash command filter contract + rename integrity tests") introduced `@typescript-eslint/no-explicit-any` error at `src/refactor/renameExecutor.test.ts:705` — `[{ id: "1", kind: "file", label: "test", path: "old.md" } as any]`. CI frontend Lint step fails on this, breaking `main`. Fix: replace `as any` with an explicit `Bookmark[]` type annotation (import `Bookmark` from `../bookmarks/types`), matching the fix already made on branch `agent/rm-b43136ef6a2b5c19/f79191636ad2` (commit `f558872`).
+
 ## Implemented
 
 - ✅ **Render Mermaid diagrams in Preview**: Render fenced `mermaid` code blocks as flowcharts, sequence diagrams, etc. via `mermaid.js`, bundled and rendered fully client-side, no network call. A widely adopted Markdown convention (Obsidian, GitHub) worth adopting rather than inventing a competing diagram syntax.

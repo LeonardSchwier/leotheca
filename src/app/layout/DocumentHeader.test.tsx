@@ -45,6 +45,23 @@ describe("DocumentHeader", () => {
     expect(onSetViewMode).toHaveBeenCalledWith("preview");
   });
 
+  it("renders visible text labels for every view mode (spec 13.5: text labels at Wide and Expanded)", () => {
+    const { container, getByRole } = render(<DocumentHeader {...BASE_PROPS} />);
+    const group = container.querySelector(".document-header .segmented");
+    expect(group).toBeTruthy();
+    // Each option shows its text label next to (or instead of) its icon.
+    // These are the only three options, so a simple text scan over the
+    // group's buttons is the honest way to confirm the labels are present.
+    const optionTexts = Array.from(
+      group!.querySelectorAll(".segmented-option"),
+    ).map((el) => el.textContent?.trim() ?? "");
+    expect(optionTexts).toEqual(["Source", "Split", "Preview"]);
+    // The group is still the section 20 primitive (radiogroup), and each
+    // option still carries its icon (icon+label, not icon-only).
+    expect(getByRole("radiogroup").getAttribute("aria-label")).toBe("View mode");
+    expect(group!.querySelectorAll(".segmented-option svg").length).toBe(3);
+  });
+
   it("shows the outline bookmark icon and 'Bookmark this note' label when not bookmarked", () => {
     const { getByLabelText } = render(<DocumentHeader {...BASE_PROPS} bookmarked={false} />);
     const button = getByLabelText("Bookmark this note");

@@ -50,6 +50,16 @@ import { StatusIndicator } from "../../ui/StatusIndicator";
  * `.secondary-view-mode-switch` still uses the old hand-written markup and
  * stays out of this slice's claimed scope.
  *
+ * The view selector's visible text labels implement 13.5's "The view
+ * selector uses text labels at Wide and Expanded widths": this header
+ * only renders at those widths (App.tsx hides it at Compact/Medium, where
+ * the toolbar's own icon-only `.view-mode-switch` applies), so labels
+ * here are always the correct presentation -- no width sniffing needed.
+ * Icon+label together also satisfy 22.3's "Icon-only controls need a
+ * persistent or discoverable label": the text is the persistent label,
+ * and the `title`/`aria-label` split the primitive already provides
+ * remains for the icon.
+ *
  * The overflow menu (13.5: "Overflow contains lower-frequency current-note
  * actions and Help entries appropriate to the note") is new this pass:
  * Rename, Copy relative path, Delete (mirroring the file tree's own
@@ -202,6 +212,7 @@ export function DocumentHeader({
             label: mode[0].toUpperCase() + mode.slice(1),
             icon: VIEW_MODE_ICONS[mode],
           }))}
+          className="document-header-viewmode"
         />
         <IconButton
           icon={bookmarked ? "bookmarkFilled" : "bookmark"}

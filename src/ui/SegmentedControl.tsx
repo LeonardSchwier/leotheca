@@ -30,8 +30,12 @@ export type SegmentedControlSize = "sm" | "md";
 
 export interface SegmentedControlOption<Value extends string> {
   value: Value;
-  /** Accessible name for this option; also the visible label when `icon`
-   * is not set, or the pointer tooltip/aria-label when it is. */
+  /** Accessible name for this option. Always rendered as visible text
+   * (spec 13.5: "text labels at Wide and Expanded widths"); when `icon`
+   * is also set the icon is the leading glyph and `label` is the
+   * accompanying text. When `icon` is not set the label is the entire
+   * visible option. Also doubles as the pointer tooltip/aria-label when
+   * `icon` is set (the icon-only pattern used in compact widths). */
   label: string;
   icon?: IconName;
   disabled?: boolean;
@@ -150,11 +154,16 @@ export function SegmentedControl<Value extends string>({
             onClick={() => focusAndSelect(index)}
             onKeyDown={(event) => onKeyDown(event, index)}
           >
-            {option.icon ? (
+            {option.icon && (
               <Icon name={option.icon} size={size === "md" ? 20 : 16} />
-            ) : (
-              option.label
             )}
+            <span>{option.label}</span>
+            {/* 13.5: when both icon and label are set, the label is the
+                 visible text and the icon is the leading glyph; the
+                 primitive's prior icon-only vs text-only split was
+                 designed before 13.5's "icon with label" variant. The
+                 `title`/`aria-label` contract above is unchanged: the
+                 accessible name is always `option.label` either way. */}
           </button>
         );
       })}

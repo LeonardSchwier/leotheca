@@ -554,6 +554,22 @@ button.icon-button.active {
   flex-shrink: 0;
 }
 
+/* The view-mode switch is the section 20 `SegmentedControl` primitive
+   (see DocumentHeader.tsx). 13.5 requires visible text labels at Wide and
+   Expanded widths -- the only widths this header renders at -- so the
+   call site passes icon+label options; the primitive already renders
+   both when set. Icon+label is wider than the legacy icon-only row, so
+   the call site also passes the `document-header-viewmode` class, which
+   this override narrows: drop the 30px icon-slot minimum (the label is
+   the size now, not the icon) and tighten the icon-text gap so the
+   option reads as one labeled control. Everything else -- border, radius,
+   colors, hover, focus ring, active state -- stays the primitive's, per
+   the section 20 contract. */
+.document-header-viewmode .segmented-option {
+  min-width: 0;
+  column-gap: var(--space-1-5);
+}
+
 .note-lock-bar {
   display: flex;
   align-items: center;

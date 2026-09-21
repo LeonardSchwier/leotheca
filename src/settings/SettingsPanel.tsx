@@ -1223,6 +1223,7 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
         <section class="settings-section">
           <h3>Health</h3>
           <DiagnosticsPanel onOpenFile={handleSelectDiagnostic} />
+          <HealthAuditPanel onOpenFile={handleSelectDiagnostic} />
         </section>
         )}
 

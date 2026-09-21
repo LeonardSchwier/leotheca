@@ -69,6 +69,9 @@ vi.mock("../diagnostics/DiagnosticsPanel", () => ({
     </button>
   ),
 }));
+vi.mock("../diagnostics/HealthAuditPanel", () => ({
+  HealthAuditPanel: () => null,
+}));
 
 import { matchesSettingsSearch, SettingsPanel } from "./SettingsPanel";
 import {

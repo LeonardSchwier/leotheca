@@ -392,7 +392,8 @@ describe('SpeechController', () => {
       const result: SpeechRecognitionResult = {
         text: 'Test transcription',
         isFinal: true,
-        confidence: 0.95,
+        // Arbitrary test data — not a measured quality signal.
+        confidence: 0.5,
       };
       
       (controller as any).notifyResult(result);

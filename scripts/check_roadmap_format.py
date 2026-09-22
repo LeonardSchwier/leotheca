@@ -60,7 +60,11 @@ def new_items(current_items, base_items):
     result = []
     for item in current_items:
         if item["metadata"]:
-            if item["metadata"]["id"] not in base_ids:
+            # An item is genuinely new when neither its id nor its title
+            # exists in the base.  A legacy 🚧 entry that gains its first
+            # metadata line via observe/claim has a title that already
+            # existed in the base, so it must not be treated as new.
+            if item["metadata"]["id"] not in base_ids and item["title"] not in base_titles:
                 result.append(item)
         elif item["title"] not in base_titles:
             result.append(item)

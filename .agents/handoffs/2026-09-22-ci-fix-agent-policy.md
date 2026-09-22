@@ -2,7 +2,8 @@
 
 **Date:** 2026-09-22
 **Agent:** hermes-local-20260922T024857Z-ec8cd6a8
-**Landed SHA:** (this commit — see git log)
+**Landed SHA:** 41d226b (2543361 was the handoff-only commit; 41d226b triggered CI)
+**CI state:** Agent policy: success, CI: success (Release still queued)
 
 ## Problem
 
@@ -27,7 +28,9 @@ but CI still failed because `before=080805a` (invalid base).
 This is a **one-time transient failure** — the first commit that fixes an invalid
 base always carries the invalid base itself. A no-op content commit cannot trigger
 CI (empty commits don't fire push events), so this file was added to produce a
-real push event.
+real push event. The handoff file alone did not trigger CI (not in the paths
+filter); 41d226b added a zero-width-space comment to agent-policy.yml to
+produce the required tracked-path diff.
 
 After this push:
 - CI runs with `before=83ca0cd` (valid, no owner/token in done entries)

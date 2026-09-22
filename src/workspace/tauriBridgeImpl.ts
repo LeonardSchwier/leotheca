@@ -30,11 +30,43 @@ export async function pickWorkspaceFolder(): Promise<{
  * it imports this module directly and gates the whole feature to
  * desktop, the same way the "Print note" command already does. Returns
  * `null` when the user cancels, same convention as `pickWorkspaceFolder`
- * above. */
+ * above.
+ *
+ * `App.tsx`'s actual "Export note to HTML…" command no longer uses this
+ * two-step pick-then-write: the returned path used to be handed straight
+ * to the unscoped `writeTextFile`, which a compromised webview could just
+ * as easily call directly with any path of its own choosing, never going
+ * through this dialog at all (2026-09-22 security review). It now calls
+ * `exportTextFileViaDialog` below instead, which performs the dialog and
+ * the write together in Rust so the destination is never a value JS
+ * supplies. Kept here, still exercised by its own test, as a plain
+ * dialog-only utility for any future caller that genuinely just needs a
+ * path back (not a write). */
 export async function pickHtmlExportPath(defaultFileName: string): Promise<string | null> {
   return save({
     defaultPath: defaultFileName,
     filters: [{ name: "HTML", extensions: ["html"] }],
+  });
+}
+
+/** Shows the same native "Save As…" dialog as `pickHtmlExportPath` above,
+ * but performs the write in the same Rust command as the pick
+ * (`export_text_file_via_dialog`) instead of returning the chosen path to
+ * JS for a separate `writeTextFile` call. This is what actually closes the
+ * export flow's own instance of the arbitrary-path-write gap
+ * `check_unscoped_write_allowed` fixes for every other unscoped writer: a
+ * webview cannot forge "the dialog's return value" the way it could forge
+ * a plain path argument, since here there is no separate value to forge at
+ * all. Desktop-only, not routed through the platform dispatcher, same as
+ * `pickHtmlExportPath`. Returns `false` (no error) when the user cancels
+ * the dialog. */
+export async function exportTextFileViaDialog(
+  defaultFileName: string,
+  contents: string,
+): Promise<boolean> {
+  return invoke("export_text_file_via_dialog", {
+    defaultFileName,
+    contents,
   });
 }
 
@@ -134,6 +166,17 @@ export async function writeBinaryFile(
   data: Uint8Array,
 ): Promise<void> {
   return invoke("write_binary_file", { path, data: Array.from(data) });
+}
+
+/** Mirrors `tauriBridge.ts`'s own in-memory `activeWorkspaceRoot` into the
+ * Rust side's `ActiveWorkspaceRoot` state, so `write_text_file`/
+ * `write_binary_file`'s native containment gate (2026-09-22 security
+ * review) has a server-side notion of "the active workspace" to check
+ * against, not just this module's own JS variable. `null` clears it (no
+ * workspace open). Called by `tauriBridge.ts`'s `restoreWorkspaceAccess`
+ * wrapper, never called directly by anything else. */
+export async function setActiveWorkspaceRoot(path: string | null): Promise<void> {
+  return invoke("set_active_workspace_root", { path });
 }
 
 export async function createDir(path: string): Promise<void> {

@@ -1,7 +1,10 @@
 use serde::Serialize;
 use std::fs;
 use std::path::{Component, Path, PathBuf};
+use std::sync::Mutex;
 use std::time::UNIX_EPOCH;
+use tauri::Manager;
+use tauri_plugin_dialog::DialogExt;
 
 #[derive(Serialize)]
 pub struct FsEntry {
@@ -693,6 +696,125 @@ fn resolve_within_workspace(workspace_root: &str, relative_path: &str) -> Result
     }
 }
 
+/// Mirrors the frontend's own `activeWorkspaceRoot` (`tauriBridge.ts`),
+/// kept in sync by `set_active_workspace_root` below every time the
+/// frontend activates or clears one. This is the server-side half of the
+/// containment gate `write_text_file`/`write_binary_file` apply to
+/// themselves (see `check_unscoped_write_allowed`): unlike every
+/// `*_workspace_*` command, whose whole call contract is a trusted,
+/// explicit `workspace_root` argument checked by `resolve_within_workspace`
+/// on every call, those two commands' contract is a single caller-supplied
+/// absolute `path` with no root argument at all, so the boundary needs its
+/// own state to check against rather than trusting the call's own
+/// arguments alone.
+#[derive(Default)]
+pub struct ActiveWorkspaceRoot(pub Mutex<Option<PathBuf>>);
+
+/// Updates the server-side mirror of the active workspace root. Called by
+/// `tauriBridge.ts`'s `restoreWorkspaceAccess` wrapper immediately before
+/// (with `None`) and after (with the new root) every workspace
+/// activation/switch, the same "clear before attempting, publish only
+/// after the underlying activation succeeds" sequencing that function
+/// already applies to its own in-memory `activeWorkspaceRoot`.
+#[tauri::command]
+pub fn set_active_workspace_root(
+    path: Option<String>,
+    state: tauri::State<'_, ActiveWorkspaceRoot>,
+) -> Result<(), String> {
+    let mut guard = state
+        .0
+        .lock()
+        .map_err(|_| "active workspace root state is poisoned".to_string())?;
+    *guard = path.map(PathBuf::from);
+    Ok(())
+}
+
+fn active_workspace_root_snapshot(state: &ActiveWorkspaceRoot) -> Option<PathBuf> {
+    state.0.lock().ok().and_then(|guard| guard.clone())
+}
+
+/// Canonicalizes `target` the same way `resolve_within_workspace` resolves
+/// an already-joined candidate: if `target` itself is a symlink, its real
+/// destination is what counts; otherwise the nearest existing ancestor is
+/// canonicalized and the still-nonexistent suffix (if any) is appended
+/// back on, uncanonicalized (there is nothing to resolve in path segments
+/// that don't exist yet). Returns `None` when even the nearest existing
+/// ancestor can't be canonicalized (for example, no ancestor at all exists
+/// on disk).
+fn canonicalize_existing_or_ancestor(target: &Path) -> Option<PathBuf> {
+    if let Ok(link_metadata) = fs::symlink_metadata(target) {
+        if link_metadata.file_type().is_symlink() {
+            return fs::canonicalize(target).ok();
+        }
+    }
+    let (existing_ancestor, remaining_suffix) = nearest_existing_ancestor(target);
+    let canonical_ancestor = fs::canonicalize(&existing_ancestor).ok()?;
+    if remaining_suffix.as_os_str().is_empty() {
+        Some(canonical_ancestor)
+    } else {
+        Some(canonical_ancestor.join(remaining_suffix))
+    }
+}
+
+/// True if `target` resolves (after the same symlink-aware canonicalization
+/// `resolve_within_workspace` applies) inside `canonical_root`, which the
+/// caller must already have canonicalized itself.
+fn is_within_canonical_root(target: &Path, canonical_root: &Path) -> bool {
+    canonicalize_existing_or_ancestor(target)
+        .map(|canonical_target| canonical_target.starts_with(canonical_root))
+        .unwrap_or(false)
+}
+
+/// The actual containment decision for `write_text_file`/`write_binary_file`
+/// (2026-09-22 security review, this item's own `ROADMAP.md` entry): these
+/// two commands are exposed over ordinary Tauri IPC with no containment of
+/// any kind, so a compromised webview could invoke them directly --
+/// bypassing every frontend wrapper, including the JS-side check
+/// `tauriBridge.ts`'s own `writeActiveWorkspaceTextFile` already applies to
+/// itself -- to overwrite any file the desktop process user can write to.
+/// Allowed exactly like every other write surface this app already ships:
+/// inside the currently active workspace (`active_workspace_root`, `None`
+/// when no workspace is open) or inside this app's own config directory
+/// (`app_config_dir`; `globalConfig.ts`'s single `config.json` is the one
+/// legitimate caller with no workspace to contain against at all, called
+/// even before any workspace is ever opened). A target satisfying neither
+/// is refused before any filesystem access happens, matching
+/// `resolve_within_workspace`'s own "reject before touching disk" contract.
+///
+/// Exporting a note to an arbitrary user-chosen location outside the
+/// workspace (`App.tsx`'s "Export note to HTML...") is legitimate but is
+/// deliberately never routed through this gate at all: seeing this function
+/// only as "the allowed destinations for the *_workspace_*-style callers of
+/// `write_text_file`" would miss that the export flow's own
+/// `export_text_file_via_dialog` command performs the native save dialog
+/// and the write together in one Rust call, so the destination there is
+/// never a value a webview can supply in the first place, a strictly
+/// stronger guarantee than any allowlist entry could give it.
+fn check_unscoped_write_allowed(
+    target: &Path,
+    active_workspace_root: Option<&Path>,
+    app_config_dir: Option<&Path>,
+) -> Result<(), String> {
+    if let Some(root) = active_workspace_root {
+        if let Ok(canonical_root) = fs::canonicalize(root) {
+            if is_within_canonical_root(target, &canonical_root) {
+                return Ok(());
+            }
+        }
+    }
+    if let Some(config_dir) = app_config_dir {
+        let canonical_config_dir =
+            fs::canonicalize(config_dir).unwrap_or_else(|_| config_dir.to_path_buf());
+        if is_within_canonical_root(target, &canonical_config_dir) {
+            return Ok(());
+        }
+    }
+    Err(format!(
+        "\"{}\" is outside both the active workspace and the app config directory",
+        target.display()
+    ))
+}
+
 /// Writes `bytes` to `target` crash-safely (audit follow-up F-004's
 /// remaining "atomic replacement" item): writes to a sibling temporary
 /// file in the same directory first, then atomically renames it over
@@ -735,9 +857,11 @@ fn write_file_atomically(target: &Path, bytes: &[u8]) -> Result<(), String> {
 /// Writes `contents` to a workspace-relative path, after verifying with
 /// `resolve_within_workspace` that it cannot escape `workspace_root`. This
 /// is the workspace-scoped counterpart to `write_text_file` below, which
-/// still exists unchanged for the one caller that genuinely has no
-/// workspace to contain against (the global app config file, written
-/// before any workspace is ever opened).
+/// still exists for callers with an already-open workspace file's absolute
+/// path in hand or with genuinely no workspace to contain against (the
+/// global app config file, written before any workspace is ever opened);
+/// see `check_unscoped_write_allowed` for the containment those callers now
+/// get instead of the historical none-at-all (2026-09-22 security review).
 #[tauri::command]
 pub fn write_workspace_text_file(
     workspace_root: String,
@@ -808,24 +932,51 @@ pub fn delete_workspace_path_permanent(
     }
 }
 
-/// Writes `contents` to `path`, creating any missing parent directories
-/// first (needed for first-run writes like the settings file, whose config
-/// directory may not exist yet). This is the command the actual
-/// keystroke-autosave path still goes through (`saveCoordinator.ts`; see
-/// F-004's own notes on why its containment-check migration is deferred),
-/// so it gets the same crash-safe atomic replacement as the
-/// workspace-scoped writes above, via `write_file_atomically`.
-#[tauri::command]
-pub fn write_text_file(path: String, contents: String) -> Result<(), String> {
-    let target = Path::new(&path);
+/// Shared body for `write_text_file`/`write_binary_file` below, once
+/// `check_unscoped_write_allowed` has already cleared `target`: creates any
+/// missing parent directories first (needed for first-run writes like the
+/// settings file, whose config directory may not exist yet), then writes
+/// crash-safely via `write_file_atomically`. Kept separate from its own
+/// containment check so the create-parent-directories/atomic-write
+/// behavior stays covered by its own tests independent of the 2026-09-22
+/// security review's containment gate.
+fn write_unscoped_file(target: &Path, bytes: &[u8]) -> Result<(), String> {
     if let Some(parent) = target.parent() {
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
-    write_file_atomically(target, contents.as_bytes())
+    write_file_atomically(target, bytes)
 }
 
-/// Writes raw bytes to `path`, creating any missing parent directories
-/// first, same as `write_text_file`. Used for saving a pasted or
+/// Writes `contents` to `path`. `path` is a single caller-supplied absolute
+/// path with no separate root argument, unlike every `*_workspace_*`
+/// command above, so `check_unscoped_write_allowed` gates it against the
+/// active workspace (if any) and this app's own config directory before any
+/// filesystem access happens -- closing the arbitrary-path write a
+/// compromised webview could otherwise reach directly through this
+/// command's own IPC surface (2026-09-22 security review; this item's own
+/// `ROADMAP.md` entry has the full history). Real callers today:
+/// `saveCoordinator.ts`'s note autosave when no capability-aware writer is
+/// registered, `globalConfig.ts`'s `config.json`, and a handful of
+/// already-open-workspace-file overwrites (`captureCommit.ts`,
+/// `taskMutation.ts`, `useRenamePreview.ts`).
+#[tauri::command]
+pub fn write_text_file(
+    path: String,
+    contents: String,
+    app: tauri::AppHandle,
+    workspace_root: tauri::State<'_, ActiveWorkspaceRoot>,
+) -> Result<(), String> {
+    let target = Path::new(&path);
+    check_unscoped_write_allowed(
+        target,
+        active_workspace_root_snapshot(&workspace_root).as_deref(),
+        app.path().app_config_dir().ok().as_deref(),
+    )?;
+    write_unscoped_file(target, contents.as_bytes())
+}
+
+/// Writes raw bytes to `path`, gated the same way `write_text_file` above
+/// is (see `check_unscoped_write_allowed`). Used for saving a pasted or
 /// dropped image attachment (see the frontend's paste/drop handling in
 /// `editor/MarkdownEditor.tsx`); text notes never go through this
 /// command. `data` arrives as a plain array of bytes rather than
@@ -834,12 +985,54 @@ pub fn write_text_file(path: String, contents: String) -> Result<(), String> {
 /// decode anything (unlike the Android bridge, whose Capacitor plugin
 /// call boundary makes base64 the practical choice instead).
 #[tauri::command]
-pub fn write_binary_file(path: String, data: Vec<u8>) -> Result<(), String> {
+pub fn write_binary_file(
+    path: String,
+    data: Vec<u8>,
+    app: tauri::AppHandle,
+    workspace_root: tauri::State<'_, ActiveWorkspaceRoot>,
+) -> Result<(), String> {
     let target = Path::new(&path);
-    if let Some(parent) = target.parent() {
-        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
-    }
-    write_file_atomically(target, &data)
+    check_unscoped_write_allowed(
+        target,
+        active_workspace_root_snapshot(&workspace_root).as_deref(),
+        app.path().app_config_dir().ok().as_deref(),
+    )?;
+    write_unscoped_file(target, &data)
+}
+
+/// Shows a native "Save As" dialog and, if the user picks a destination,
+/// writes `contents` there directly -- both steps in this one command, so
+/// the destination path a webview could otherwise supply to
+/// `write_text_file` directly never exists as a JS-controlled value at all
+/// for this flow. This is the desktop-only "Export a note to standalone
+/// HTML" command (`App.tsx`'s "Export note to HTML..." menu item; see
+/// `check_unscoped_write_allowed`'s own doc comment for why the generic
+/// unscoped writers cannot safely serve an intentionally-outside-the-
+/// workspace destination like this one). `default_file_name` only seeds the
+/// dialog's own suggested name; it is never itself part of the resulting
+/// write path unless the user keeps it verbatim. Returns `Ok(false)` (no
+/// error, no write) when the user cancels the dialog, matching the
+/// frontend's existing `null`-on-cancel convention for a picker result.
+#[tauri::command]
+pub fn export_text_file_via_dialog(
+    default_file_name: String,
+    contents: String,
+    app: tauri::AppHandle,
+) -> Result<bool, String> {
+    let picked = app
+        .dialog()
+        .file()
+        .set_file_name(&default_file_name)
+        .add_filter("HTML", &["html"])
+        .blocking_save_file();
+
+    let file_path = match picked {
+        Some(file_path) => file_path,
+        None => return Ok(false),
+    };
+    let target = file_path.into_path().map_err(|e| e.to_string())?;
+    write_unscoped_file(&target, contents.as_bytes())?;
+    Ok(true)
 }
 
 /// Creates `path` and any missing parent directories. Does not error if the
@@ -995,7 +1188,7 @@ mod tests {
         let tmp = std::env::temp_dir().join(format!("leotheca-test-file-{}", std::process::id()));
         let path = tmp.to_string_lossy().to_string();
 
-        write_text_file(path.clone(), "# Hello\n\nBody text.".into()).unwrap();
+        write_unscoped_file(&tmp, "# Hello\n\nBody text.".as_bytes()).unwrap();
         let contents = read_text_file(path.clone()).unwrap();
 
         assert_eq!(contents, "# Hello\n\nBody text.");
@@ -1012,7 +1205,7 @@ mod tests {
         // UTF-8 decode read_text_file would apply to the same bytes.
         let bytes: Vec<u8> = vec![0, 1, 2, 0xff, 0xfe, 0xfd, 137, 80, 78, 71];
 
-        write_binary_file(path.clone(), bytes.clone()).unwrap();
+        write_unscoped_file(&tmp, &bytes).unwrap();
         let read_back = read_binary_file(path.clone()).unwrap();
 
         assert_eq!(read_back, bytes);
@@ -1058,60 +1251,188 @@ mod tests {
         fs::remove_dir_all(&root).unwrap();
     }
 
+    // `write_text_file`/`write_binary_file` themselves now take a
+    // `tauri::AppHandle`/`tauri::State<ActiveWorkspaceRoot>` (2026-09-22
+    // security review's containment gate below), so these exercise their
+    // shared `write_unscoped_file` body directly instead -- the same
+    // create-parent-directories/atomic-write/overwrite behavior those
+    // commands still delegate to once `check_unscoped_write_allowed` (its
+    // own dedicated tests further down) has already cleared the target.
+
     #[test]
-    fn write_text_file_creates_missing_parent_directories() {
+    fn write_unscoped_file_creates_missing_parent_directories() {
         let base =
             std::env::temp_dir().join(format!("leotheca-test-mkdirp-{}", std::process::id()));
         let _ = fs::remove_dir_all(&base);
         let nested = base.join("nested").join("dir").join("settings.json");
 
-        write_text_file(nested.to_string_lossy().to_string(), "{}".into()).unwrap();
+        write_unscoped_file(&nested, b"{}").unwrap();
 
         assert_eq!(fs::read_to_string(&nested).unwrap(), "{}");
         fs::remove_dir_all(&base).unwrap();
     }
 
     #[test]
-    fn write_binary_file_round_trips_bytes() {
+    fn write_unscoped_file_round_trips_bytes() {
         let tmp =
             std::env::temp_dir().join(format!("leotheca-test-binfile-{}", std::process::id()));
-        let path = tmp.to_string_lossy().to_string();
         let bytes: Vec<u8> = vec![0, 1, 2, 255, 254, 253];
 
-        write_binary_file(path.clone(), bytes.clone()).unwrap();
+        write_unscoped_file(&tmp, &bytes).unwrap();
 
         assert_eq!(fs::read(&tmp).unwrap(), bytes);
         fs::remove_file(&tmp).unwrap();
     }
 
     #[test]
-    fn write_binary_file_creates_missing_parent_directories() {
-        let base = std::env::temp_dir().join(format!(
-            "leotheca-test-binfile-mkdirp-{}",
-            std::process::id()
-        ));
-        let _ = fs::remove_dir_all(&base);
-        let nested = base.join("attachments").join("pasted.png");
-
-        write_binary_file(nested.to_string_lossy().to_string(), vec![1, 2, 3]).unwrap();
-
-        assert_eq!(fs::read(&nested).unwrap(), vec![1, 2, 3]);
-        fs::remove_dir_all(&base).unwrap();
-    }
-
-    #[test]
-    fn write_binary_file_overwrites_an_existing_file() {
+    fn write_unscoped_file_overwrites_an_existing_file() {
         let tmp = std::env::temp_dir().join(format!(
             "leotheca-test-binfile-overwrite-{}",
             std::process::id()
         ));
-        let path = tmp.to_string_lossy().to_string();
 
-        write_binary_file(path.clone(), vec![1, 2, 3, 4, 5]).unwrap();
-        write_binary_file(path.clone(), vec![9, 9]).unwrap();
+        write_unscoped_file(&tmp, &[1, 2, 3, 4, 5]).unwrap();
+        write_unscoped_file(&tmp, &[9, 9]).unwrap();
 
         assert_eq!(fs::read(&tmp).unwrap(), vec![9, 9]);
         fs::remove_file(&tmp).unwrap();
+    }
+
+    #[test]
+    fn check_unscoped_write_allowed_accepts_a_target_inside_the_active_workspace() {
+        let root = std::env::temp_dir().join(format!(
+            "leotheca-test-unscoped-workspace-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        let target = root.join("note.md");
+
+        let result = check_unscoped_write_allowed(&target, Some(&root), None);
+
+        assert!(result.is_ok(), "{result:?}");
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[test]
+    fn check_unscoped_write_allowed_accepts_a_target_inside_the_app_config_dir() {
+        let config_dir = std::env::temp_dir().join(format!(
+            "leotheca-test-unscoped-config-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&config_dir);
+        fs::create_dir_all(&config_dir).unwrap();
+        let target = config_dir.join("config.json");
+
+        let result = check_unscoped_write_allowed(&target, None, Some(&config_dir));
+
+        assert!(result.is_ok(), "{result:?}");
+        fs::remove_dir_all(&config_dir).unwrap();
+    }
+
+    #[test]
+    fn check_unscoped_write_allowed_accepts_a_target_inside_the_app_config_dir_before_it_exists() {
+        // `globalConfig.ts`'s own comment: "A first launch has no config
+        // file yet" -- and on a genuinely first launch, the config
+        // *directory* itself may not exist yet either.
+        let config_dir = std::env::temp_dir().join(format!(
+            "leotheca-test-unscoped-config-missing-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&config_dir);
+        let target = config_dir.join("config.json");
+
+        let result = check_unscoped_write_allowed(&target, None, Some(&config_dir));
+
+        assert!(result.is_ok(), "{result:?}");
+    }
+
+    #[test]
+    fn check_unscoped_write_allowed_rejects_a_target_outside_both_roots() {
+        let root = std::env::temp_dir().join(format!(
+            "leotheca-test-unscoped-workspace-reject-{}",
+            std::process::id()
+        ));
+        let config_dir = std::env::temp_dir().join(format!(
+            "leotheca-test-unscoped-config-reject-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&root).unwrap();
+        fs::create_dir_all(&config_dir).unwrap();
+        let outside = std::env::temp_dir().join(format!(
+            "leotheca-test-unscoped-outside-{}",
+            std::process::id()
+        ));
+
+        let result = check_unscoped_write_allowed(&outside, Some(&root), Some(&config_dir));
+
+        assert!(result.is_err());
+        fs::remove_dir_all(&root).unwrap();
+        fs::remove_dir_all(&config_dir).unwrap();
+    }
+
+    #[test]
+    fn check_unscoped_write_allowed_rejects_everything_when_no_root_is_known() {
+        let outside = std::env::temp_dir().join(format!(
+            "leotheca-test-unscoped-no-root-{}",
+            std::process::id()
+        ));
+
+        let result = check_unscoped_write_allowed(&outside, None, None);
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn check_unscoped_write_allowed_rejects_a_sibling_directory_sharing_a_name_prefix() {
+        // Mirrors `resolve_within_workspace_rejects_a_sibling_directory_...`
+        // above: a raw string-prefix check would wrongly accept
+        // "/vault-evil" as being inside "/vault".
+        let root = std::env::temp_dir().join(format!(
+            "leotheca-test-unscoped-prefix-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        let sibling = std::env::temp_dir().join(format!(
+            "{}-evil",
+            root.file_name().unwrap().to_string_lossy()
+        ));
+        fs::create_dir_all(&sibling).unwrap();
+        let target = sibling.join("note.md");
+
+        let result = check_unscoped_write_allowed(&target, Some(&root), None);
+
+        assert!(result.is_err());
+        fs::remove_dir_all(&root).unwrap();
+        fs::remove_dir_all(&sibling).unwrap();
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn check_unscoped_write_allowed_rejects_a_symlink_escaping_the_active_workspace() {
+        let root = std::env::temp_dir().join(format!(
+            "leotheca-test-unscoped-symlink-workspace-{}",
+            std::process::id()
+        ));
+        let outside = std::env::temp_dir().join(format!(
+            "leotheca-test-unscoped-symlink-outside-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        let _ = fs::remove_dir_all(&outside);
+        fs::create_dir_all(&root).unwrap();
+        fs::create_dir_all(&outside).unwrap();
+        let evil_target = outside.join("evil.txt");
+        let link = root.join("escape.txt");
+        std::os::unix::fs::symlink(&evil_target, &link).unwrap();
+
+        let result = check_unscoped_write_allowed(&link, Some(&root), None);
+
+        assert!(result.is_err());
+        assert!(!evil_target.exists());
+        fs::remove_dir_all(&root).unwrap();
+        fs::remove_dir_all(&outside).unwrap();
     }
 
     #[test]

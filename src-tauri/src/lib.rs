@@ -56,6 +56,12 @@ pub fn run() {
     // Initialize whisper model state for speech recognition
     builder = builder.manage(speech_commands::WhisperState::default());
 
+    // Server-side mirror of the frontend's own active workspace root (see
+    // `commands::ActiveWorkspaceRoot`), the containment gate
+    // `write_text_file`/`write_binary_file` now check themselves against
+    // (2026-09-22 security review).
+    builder = builder.manage(commands::ActiveWorkspaceRoot::default());
+
     // Cold start's own counterpart of the single-instance callback above:
     // when the OS launches a *fresh* Leotheca process directly via its
     // "Open with" registration, this process's own argv carries the file
@@ -85,6 +91,8 @@ pub fn run() {
             commands::read_text_files_batch,
             commands::write_text_file,
             commands::write_binary_file,
+            commands::set_active_workspace_root,
+            commands::export_text_file_via_dialog,
             commands::create_dir,
             commands::rename_path,
             commands::trash_path,

@@ -106,10 +106,30 @@ export const pickWorkspaceFolder = impl.pickWorkspaceFolder;
 // superseded grant activation.
 let activeWorkspaceRoot: string | null = null;
 
+// Mirrors `activeWorkspaceRoot` above onto the desktop's native
+// `ActiveWorkspaceRoot` Tauri state, which `write_text_file`/
+// `write_binary_file`'s containment gate checks (2026-09-22 security
+// review). Called directly on `desktop` rather than through `impl`:
+// Android has no Tauri backend at all for `setActiveWorkspaceRoot`'s
+// `invoke` call to reach, and no equivalent need for it (its own writes
+// never go through those two commands), so this stays a plain desktop-only
+// side effect instead of a third cross-platform interface method every
+// `capacitorBridgeImpl.ts` change would otherwise need to keep matching.
+async function syncNativeActiveWorkspaceRoot(path: string | null): Promise<void> {
+  if (Capacitor.isNativePlatform()) return;
+  await desktop.setActiveWorkspaceRoot(path);
+}
+
 export async function restoreWorkspaceAccess(path: string, token?: string): Promise<void> {
   activeWorkspaceRoot = null;
+  // Same clear-before-attempt/publish-only-after-success sequencing this
+  // function already applies to its own `activeWorkspaceRoot` above: the
+  // native mirror must never trust a root from a failed or superseded
+  // activation either.
+  await syncNativeActiveWorkspaceRoot(null);
   await impl.restoreWorkspaceAccess(path, token);
   activeWorkspaceRoot = path;
+  await syncNativeActiveWorkspaceRoot(path);
 }
 
 export const listDir: typeof impl.listDir = (workspaceRoot: string, path: string) =>

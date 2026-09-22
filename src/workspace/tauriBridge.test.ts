@@ -11,11 +11,13 @@ const {
   writeTextFileImpl,
   restoreWorkspaceAccessImpl,
   writeWorkspaceTextFileImpl,
+  setActiveWorkspaceRootImpl,
 } = vi.hoisted(() => ({
   listDirImpl: vi.fn(),
   writeTextFileImpl: vi.fn(),
   restoreWorkspaceAccessImpl: vi.fn(),
   writeWorkspaceTextFileImpl: vi.fn(),
+  setActiveWorkspaceRootImpl: vi.fn(),
 }));
 
 vi.mock("@capacitor/core", () => ({
@@ -52,6 +54,7 @@ vi.mock("./tauriBridgeImpl", () => ({
   updateFavoritesWidget: vi.fn(),
   takePendingExternalFile: vi.fn(),
   onExternalFileOpen: vi.fn(),
+  setActiveWorkspaceRoot: setActiveWorkspaceRootImpl,
 }));
 vi.mock("./capacitorBridgeImpl", () => ({}));
 
@@ -68,6 +71,8 @@ beforeEach(() => {
   restoreWorkspaceAccessImpl.mockResolvedValue(undefined);
   writeWorkspaceTextFileImpl.mockReset();
   writeWorkspaceTextFileImpl.mockResolvedValue(undefined);
+  setActiveWorkspaceRootImpl.mockReset();
+  setActiveWorkspaceRootImpl.mockResolvedValue(undefined);
 });
 
 describe("workspace bridge operation drain", () => {
@@ -132,5 +137,29 @@ describe("active workspace write capability", () => {
       writeActiveWorkspaceTextFile("/workspace/note.md", "content"),
     ).rejects.toThrow("No active workspace");
     expect(writeWorkspaceTextFileImpl).not.toHaveBeenCalled();
+  });
+});
+
+describe("native active workspace root mirror", () => {
+  it("clears the native mirror before activating, then publishes the new root only after activation succeeds", async () => {
+    await restoreWorkspaceAccess("/workspace", "token-A");
+
+    expect(setActiveWorkspaceRootImpl).toHaveBeenNthCalledWith(1, null);
+    expect(setActiveWorkspaceRootImpl).toHaveBeenNthCalledWith(2, "/workspace");
+    const clearedBeforeRestore =
+      setActiveWorkspaceRootImpl.mock.invocationCallOrder[0] <
+      restoreWorkspaceAccessImpl.mock.invocationCallOrder[0];
+    expect(clearedBeforeRestore).toBe(true);
+  });
+
+  it("never republishes the native mirror when activation itself fails", async () => {
+    restoreWorkspaceAccessImpl.mockRejectedValueOnce(new Error("grant expired"));
+
+    await expect(restoreWorkspaceAccess("/workspace", "bad-token")).rejects.toThrow(
+      "grant expired",
+    );
+
+    expect(setActiveWorkspaceRootImpl).toHaveBeenCalledTimes(1);
+    expect(setActiveWorkspaceRootImpl).toHaveBeenCalledWith(null);
   });
 });

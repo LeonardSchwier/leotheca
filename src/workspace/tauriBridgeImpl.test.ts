@@ -14,7 +14,10 @@ vi.mock("@tauri-apps/api/path", () => ({ appConfigDir: vi.fn(), join: vi.fn() })
 vi.mock("@tauri-apps/api/app", () => ({ getVersion: vi.fn() }));
 vi.mock("@tauri-apps/api/event", () => ({ listen: vi.fn() }));
 
-import { pickHtmlExportPath } from "./tauriBridgeImpl";
+import { invoke } from "@tauri-apps/api/core";
+import { exportTextFileViaDialog, pickHtmlExportPath, setActiveWorkspaceRoot } from "./tauriBridgeImpl";
+
+const invokeMock = vi.mocked(invoke);
 
 describe("pickHtmlExportPath", () => {
   it("opens a Save dialog defaulting to the given file name, filtered to .html", async () => {
@@ -35,5 +38,47 @@ describe("pickHtmlExportPath", () => {
     const result = await pickHtmlExportPath("My Note.html");
 
     expect(result).toBeNull();
+  });
+});
+
+describe("exportTextFileViaDialog", () => {
+  it("invokes the combined native dialog-and-write command with the default name and contents", async () => {
+    invokeMock.mockResolvedValueOnce(true);
+
+    const result = await exportTextFileViaDialog("My Note.html", "<html></html>");
+
+    expect(invokeMock).toHaveBeenCalledWith("export_text_file_via_dialog", {
+      defaultFileName: "My Note.html",
+      contents: "<html></html>",
+    });
+    expect(result).toBe(true);
+  });
+
+  it("resolves false when the native command reports the user cancelled", async () => {
+    invokeMock.mockResolvedValueOnce(false);
+
+    const result = await exportTextFileViaDialog("My Note.html", "<html></html>");
+
+    expect(result).toBe(false);
+  });
+});
+
+describe("setActiveWorkspaceRoot", () => {
+  it("invokes the native command with the given path", async () => {
+    invokeMock.mockResolvedValueOnce(undefined);
+
+    await setActiveWorkspaceRoot("/home/user/vault");
+
+    expect(invokeMock).toHaveBeenCalledWith("set_active_workspace_root", {
+      path: "/home/user/vault",
+    });
+  });
+
+  it("invokes the native command with null to clear it", async () => {
+    invokeMock.mockResolvedValueOnce(undefined);
+
+    await setActiveWorkspaceRoot(null);
+
+    expect(invokeMock).toHaveBeenCalledWith("set_active_workspace_root", { path: null });
   });
 });

@@ -16,7 +16,7 @@ import { ImageViewerOverlay } from "../editor/ImageViewerOverlay";
 import { PdfViewer } from "../pdf/PdfViewer";
 import { printNoteHtml } from "../export/printNote";
 import { inlineLocalImages, buildExportDocument } from "../export/exportNoteHtml";
-import { pickHtmlExportPath } from "../workspace/tauriBridgeImpl";
+import { exportTextFileViaDialog } from "../workspace/tauriBridgeImpl";
 import { printNote as printNoteAndroid, exportNoteHtml as exportNoteHtmlAndroid } from "../workspace/capacitorBridgeImpl";
 import { CaptureSheet, captureSheetOpen, openCaptureSheet } from "./CaptureSheet";
 import { PendingCapturesPanel, initPendingCaptures, processAndroidPendingShareData } from "../capture";
@@ -63,7 +63,7 @@ import { SplitSeparator } from "../editorGroups/SplitSeparator";
 import { SecondaryEditorPane } from "../editorGroups/SecondaryEditorPane";
 import { StatusIndicator } from "../ui/StatusIndicator";
 import { CompactGroupSwitcher } from "../editorGroups/CompactGroupSwitcher";
-import { onExternalFileOpen, readTextFile, takePendingExternalFile, writeTextFile } from "../workspace/tauriBridge";
+import { onExternalFileOpen, readTextFile, takePendingExternalFile } from "../workspace/tauriBridge";
 import { isPathWithinWorkspace } from "../workspace/paths";
 import { beginFileOpenAuthority, isCurrentFileOpen } from "../workspace/fileOpenAuthority";
 import {
@@ -1050,10 +1050,11 @@ export function App() {
                   const bodyHtml = container.innerHTML;
                   void (async () => {
                     try {
-                      const path = await pickHtmlExportPath(`${current.name}.html`);
-                      if (!path) return;
                       const inlined = await inlineLocalImages(bodyHtml);
-                      await writeTextFile(path, buildExportDocument(current.name, inlined));
+                      await exportTextFileViaDialog(
+                        `${current.name}.html`,
+                        buildExportDocument(current.name, inlined),
+                      );
                     } catch (e) {
                       window.alert(`Couldn't export note: ${e instanceof Error ? e.message : String(e)}`);
                     }

@@ -20,7 +20,9 @@
 
   </details>
 
-- ⬜ **Desktop speech-to-text still fabricates a confidence score on every successful transcription**: `speechController.ts`'s `processAudio()` hardcodes `confidence: 0.95` on every `notifyResult` success, so a future real backend's actual per-utterance confidence would be silently overwritten, and the test fixtures carry the same literal 0.95, freezing it into expected behavior. Remove the hardcoded value so `SpeechRecognitionResult.confidence` is only set when a real backend provides one.
+- ✅ **Desktop speech-to-text still fabricates a confidence score on every successful transcription**: `speechController.ts`'s `processAudio()` hardcodes `confidence: 0.95` on every `notifyResult` success, so a future real backend's actual per-utterance confidence would be silently overwritten, and the test fixtures carry the same literal 0.95, freezing it into expected behavior. Remove the hardcoded value so `SpeechRecognitionResult.confidence` is only set when a real backend provides one.
+  <!-- agent-state: {"schema":1,"id":"rm-bd34857557634eea","state":"done","touch":["ROADMAP.md#desktop-speech-confidence-fabricated","src/speech/speechController.test.ts","src/speech/speechController.ts","src/speech/speechNavigation.test.ts"],"resources":["speech-confidence-fix"],"branch":"agent/rm-bd34857557634eea/a356fe6673dd","completed_at":"2026-09-22T22:42:00Z","completed_by":"hermes-local-20260922T223140Z-ed474d03"} -->
+  Agent: hermes-local-20260922T223140Z-ed474d03 | item: rm-bd34857557634eea | completed: 2026-09-22T22:42:00Z
   <details>
   <summary>Evidence and acceptance criteria</summary>
 

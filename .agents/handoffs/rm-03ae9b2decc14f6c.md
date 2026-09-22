@@ -43,3 +43,36 @@ Next steps (not done this session):
   (no Android device available on this host). This blocks moving to ✅.
 - The entry's note field still references the old CI-breakage context;
   a future session touching this entry should update the note.
+
+---
+
+## Session 2026-09-22 (hermes-local-20260922T215205Z-1cacb298)
+
+What this session did:
+1. Claimed rm-03ae9b2decc14f6c (token f7638bea64032f8b5ac669f3d9b30d8f)
+   from a clean control worktree and pushed the claim to origin/main.
+2. Verified the format-compliance fix from the previous session is in
+   origin/main (visible summary 247 chars, CI gate passes).
+3. Attempted to release the claim with `agent_ledger.py finish` — this was
+   the WRONG command. The item's on-device OOM verification is still
+   pending (no Android device on this host), so `finish` (state=done)
+   was inaccurate. The correct command was `release` (state=open).
+4. Corrected the state: moved the entry from Implemented (✅ done) back
+   to Open (⬜ open) in ROADMAP.md with accurate release metadata
+   (released_at=2026-09-22T21:53:00Z). Committed as 0564636 and pushed
+   to origin/main.
+
+Landed SHA: 0564636 (on origin/main)
+CI state: format check passes locally; GitHub CI not verified from this host.
+
+Acceptance criteria (corrected):
+- [x] Claim acquired and released honestly
+- [x] Format-compliance fix verified in origin/main
+- [x] Entry state corrected from done to open (accurate)
+- [x] On-device verification still pending (no Android device)
+- [x] Handoff updated with accurate state and next steps
+
+Next steps:
+- A session with an Android device should re-run the maintainer's
+  ~500-note vault search to confirm the OOM is gone end-to-end.
+- Once verified, the entry can be moved to ✅ with `agent_ledger.py finish`.

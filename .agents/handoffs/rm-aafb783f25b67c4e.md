@@ -217,3 +217,46 @@ Claim released (not `finish`ed) because the item is still blocked; this
 session adds the KVM-present + clean-APK-build + green-suite evidence and
 a sharper retry condition so the next session does not re-bootstrap the
 SDK or re-diagnose the emulator crash.
+
+---
+
+## Session: hermes-local-20260922T212622Z-17a3d753 (2026-09-22)
+Status: **Merged existing bug fix to main, CI green. Claim released (not completed — on-device verification still pending).**
+
+### What this session did
+1. **Released dead session's claim**: The previous session (hermes-local-20260922T210623Z-80e7fcea) claimed this item but crashed before creating its branch. The only branch that existed was from an earlier session (agent/rm-aafb783f25b67c4e/20e7a2f231e8, SHA 5bd9830) with a real bug fix and CI green. Released the dead session's claim to allow the fix to be merged.
+
+2. **Reclaimed the item**: Claimed the item with my own token (8068ba4de65e2d2814558f5cac6adddb).
+
+3. **Merged the existing bug fix**: Merged branch `agent/rm-aafb783f25b67c4e/20e7a2f231e8` (SHA 5bd9830) to main. The fix addresses a real bug in `inlineLocalImages` where `<img src>` inlining targets the wrong attribute when an earlier attribute value contains `src="`.
+
+### The bug fix
+The `inlineLocalImages` function in `src/export/exportNoteHtml.ts` was replacing the first `src="..."` occurrence it found in an `<img>` tag. This meant a tag like:
+
+```html
+<img alt='see src="example" docs' src="asset://…">
+```
+
+was never inlined — the fake `src=example` from the `alt` value was picked, fetched/looked up, failed, and the tag was left byte-for-byte.
+
+The fix scans every `src=` occurrence in the tag and uses the LAST one, which is the real attribute in HTML produced by the Preview pane.
+
+### Verification
+- **Landed SHA:** d7bd5b8
+- **CI Status:** All checks passed (green)
+  - validation / frontend: success
+  - validation / android: success
+  - validation / backend: success
+  - android: success
+  - windows: success
+  - flatpak: success
+  - linux: success
+  - macos: success
+  - version-guard: success
+  - validation / appimage-smoke: success
+
+### What's still open
+Real on-device/emulator confirmation that: the system print dialog actually opens and offers "Save as PDF" for a printed note; the `ACTION_CREATE_DOCUMENT` picker actually opens, and the file it produces after picking a location is a valid, openable `.html` file with images intact. None of this can be verified without either a physical Android device or a KVM-backed emulator, neither available in this sandbox.
+
+### Release
+Claim released (not `finish`ed) because the item is still blocked on on-device verification. This session adds the merged bug fix and CI green evidence.

@@ -152,6 +152,61 @@
   <!-- agent-state: {"schema":1,"id":"rm-538f80e80c2c4985","state":"done","touch":["ROADMAP.md#rm-538f80e80c2c4985","src/capture/captureCommit.test.ts","src/capture/captureCommit.ts"],"resources":["capture-attachment-filename"],"completed_by":"hermes-local-20260921T164700Z-b11f7cec","completed_at":"2026-09-21T18:58:00Z","branch":"agent/rm-538f80e80c2c4985/fe8bdeec5b16"} -->
   Agent: hermes-local-20260921T164700Z-b11f7cec | item: rm-538f80e80c2c4985 | done: 2026-09-21T18:58:00Z | branch: agent/rm-538f80e80c2c4985/fe8bdeec5b16 | commit: 009ef0b
 
+### Security and privacy review (2026-09-22)
+
+- ⬜ **Unscoped `write_text_file` commands accept arbitrary paths**: `commands.rs` exposes `write_text_file` and `write_binary_file` as Tauri commands with no workspace containment. A compromised webview could overwrite any file the process user can write to.
+
+  <details>
+  <summary>Details</summary>
+
+  Found during the 2026-09-22 weekly security review at `f4d4691d18c9`. Affected: `write_text_file` (`src-tauri/src/commands.rs:819`), `write_binary_file` (line 836). Frontend callers outside workspace scope: `globalConfig.ts:274`, `captureCommit.ts:88`, `taskMutation.ts:172`. The workspace-scoped equivalent performs `resolve_workspace_path` containment; the unscoped version does not. Risk: moderate — requires webview compromise (XSS) to exploit, but impact is full filesystem write. Mitigation: add path allowlist in the Rust handler or migrate callers to workspace-scoped commands.
+
+  </details>
+
+- ⬜ **Deep-link `open-note` does not validate `path` against workspace**: `automationCommands.ts` passes the `path` query parameter to `openNote` without workspace containment check. A malicious deep link could target arbitrary files.
+
+  <details>
+  <summary>Details</summary>
+
+  Found during the 2026-09-22 weekly security review at `f4d4691d18c9`. `automationCommands.ts` parses `leotheca://open-note?path=...` and calls `openNote(path, ...)` without checking workspace containment. The Android `CaptureIntentHandler` and `FileProvider` paths are scoped to the workspace, but the deep-link URL is not. Risk: low-to-moderate — requires user interaction (clicking a malicious link).
+
+  </details>
+
+- ⬜ **Asset protocol `scope: null` allows loading any local file**: `lib.rs` configures `assetProtocol` with `scope: null`, meaning the webview can fetch any file the process user can read via `asset://`.
+
+  <details>
+  <summary>Details</summary>
+
+  Found during the 2026-09-22 weekly security review at `f4d4691d18c9`. `src-tauri/src/lib.rs:478-479`: `AssetProtocolConfig::default().with_scope(null)`. In Tauri v2, `null` scope disables all path filtering. Combined with the strict CSP, this is a defense-in-depth gap: a successful XSS could exfiltrate arbitrary local files via `asset://`. Risk: low (requires XSS first) but high impact (arbitrary file read). Mitigation: restrict scope to the active workspace.
+
+  </details>
+
+- ⬜ **`saveCoordinator` state not cleaned up on workspace switch**: `stop()` clears the interval but does not reset `lastSavedHashes` or `activeTabs`, potentially causing stale-dirty detection on the new workspace.
+
+  <details>
+  <summary>Details</summary>
+
+  Found during the 2026-09-22 weekly security review at `f4d4691d18c9`. `saveCoordinator.ts:63-99`: the `start()` method captures `workspacePath` in the closure and sets up a 20-second interval. The `stop()` method clears the interval but does not reset `lastSavedHashes`, `lastSavedContents`, `lastSavedTimes`, or `activeTabs`. The `isDirty` check in `commitSave` provides some protection, but stale state could cause a spurious dirty flag. Risk: low — worst case is one unnecessary file write.
+
+  </details>
+
+- ⬜ **Add `foreignObject` injection regression test for Mermaid sanitizer**: DOMPurify's default profile blocks `foreignObject`, but no test explicitly verifies this against malicious Mermaid source.
+
+  <details>
+  <summary>Details</summary>
+
+  Found during the 2026-09-22 weekly security review at `f4d4691d18c9`. `mermaid.ts:89-108`: `sanitizeMermaidSvg` uses `DOMPurify.sanitize(svg, { FORBID_TAGS: ["script"], FORBID_ATTR: ["onerror", "onload", "onclick", "onfocus"] })`. DOMPurify's default profile does not allow `foreignObject`, so this is likely already safe. However, `mermaid.smoke.test.ts` does not include a test for `foreignObject` injection. Adding one would provide regression coverage. Risk: very low.
+
+  </details>
+
+- ⬜ **Android `WRITE_EXTERNAL_STORAGE` permission is broader than needed**: The app uses SAF for file access, so `WRITE_EXTERNAL_STORAGE` (maxSdk 29) is unnecessary.
+
+  <details>
+  <summary>Details</summary>
+
+  Found during the 2026-09-22 weekly security review at `f4d4691d18c9`. `AndroidManifest.xml:11`: `<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />`. The app uses SAF (`FolderAccessPlugin.java`) for all file access, so this broad permission is unnecessary. `READ_MEDIA_IMAGES` (line 10) is reasonable for the image picker. Risk: very low (excessive permissions, no functional security impact).
+
+  </details>
 
 ## Implemented
 

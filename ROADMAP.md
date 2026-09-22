@@ -38,7 +38,9 @@
 
 ### Bugs
 
-- ⬜ **Unscoped native fs commands: siblings of the write_text_file fix still accept arbitrary paths**: `commands.rs`'s `read_text_file`, `read_binary_file`, `read_text_files_batch`, `find_markdown_files`, `find_all_files`, `find_all_entries`, `workspace_stats`, `create_dir`, `rename_path`, and `delete_path_permanent` call the filesystem directly on a caller-supplied path with zero containment, the gap `write_text_file`/`write_binary_file` had before the 2026-09-22 fix (`rm-dfd60513a2eb352c`).
+- 🚧 **Unscoped native fs commands: siblings of the write_text_file fix still accept arbitrary paths**: `commands.rs`'s `read_text_file`, `read_binary_file`, `read_text_files_batch`, `find_markdown_files`, `find_all_files`, `find_all_entries`, `workspace_stats`, `create_dir`, `rename_path`, and `delete_path_permanent` call the filesystem directly on a caller-supplied path with zero containment, the gap `write_text_file`/`write_binary_file` had before the 2026-09-22 fix (`rm-dfd60513a2eb352c`).
+  <!-- agent-state: {"schema":1,"id":"rm-60f748cb1a58be89","state":"claimed","touch":["src-tauri/src/commands.rs","src-tauri/src/lib.rs","src/workspace/tauriBridge.test.ts","src/workspace/tauriBridge.ts","src/workspace/tauriBridgeImpl.test.ts","src/workspace/tauriBridgeImpl.ts"],"resources":["workspace-write-path"],"owner":"claude-20260922T134632Z-9c6feffb","token":"325fe828bd896a3aeed50e193e3f1382","branch":"agent/rm-60f748cb1a58be89/325fe828bd89","claimed_at":"2026-09-22T13:46:38Z","heartbeat_at":"2026-09-22T13:46:38Z","lease_until":"2026-09-22T15:16:38Z"} -->
+  Agent: claude-20260922T134632Z-9c6feffb | item: rm-60f748cb1a58be89 | lease until: 2026-09-22T15:16:38Z
 
   <details>
   <summary>Impact, repro, and suggested fix</summary>

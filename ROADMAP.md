@@ -35,9 +35,9 @@
 
 ### Bugs and CI
 
-- 🚧 **F-Droid submission-verify workflow: stale pre-F015 version/commit pins**: `.github/workflows/fdroid-submission-verify.yml` and `packaging/f-droid/README.md` still hardcode the pre-F015 `v1.0.0` commit/`versionCode 1`/`versionName 1.0`/`..._1.apk`, but the metadata was correctly updated by F-015 to `v0.1.0`/`100`/`"0.1.0"`. The workflow's metadata-pin `grep` can never match, and its APK version/filename assertions are wrong.
-  <!-- agent-state: {"schema":1,"id":"rm-13e66b74ddc6290d","state":"claimed","touch":[".github/workflows/fdroid-submission-verify.yml","packaging/f-droid/README.md"],"resources":["fdroid-submission-verify-pins"],"owner":"Claude-Code-cloud-scheduled-20260922T182725Z-7f0f9f04","token":"87fb313517d46f9f5f288b3800e68d2c","branch":"agent/rm-13e66b74ddc6290d/87fb313517d4","claimed_at":"2026-09-22T18:28:09Z","heartbeat_at":"2026-09-22T18:28:09Z","lease_until":"2026-09-22T19:58:09Z"} -->
-  Agent: Claude-Code-cloud-scheduled-20260922T182725Z-7f0f9f04 | item: rm-13e66b74ddc6290d | lease until: 2026-09-22T19:58:09Z
+- ⬜ **F-Droid submission-verify workflow: stale pre-F015 version/commit pins**: `.github/workflows/fdroid-submission-verify.yml` and `packaging/f-droid/README.md` still hardcode the pre-F015 `v1.0.0` commit/`versionCode 1`/`versionName 1.0`/`..._1.apk`, but the metadata was correctly updated by F-015 to `v0.1.0`/`100`/`"0.1.0"`. The workflow's metadata-pin `grep` can never match, and its APK version/filename assertions are wrong.
+  <!-- agent-state: {"schema":1,"id":"rm-13e66b74ddc6290d","state":"open","touch":[".github/workflows/fdroid-submission-verify.yml","packaging/f-droid/README.md"],"resources":["fdroid-submission-verify-pins"],"note":"Checkpoint on agent/rm-13e66b74ddc6290d/87fb313517d4; reclaiming with expanded touch scope to include the new scripts/read-fdroid-recipe-pin.sh helper and its test, both needed for the fix.","released_at":"2026-09-22T18:34:58Z"} -->
+  Agent: unclaimed | item: rm-13e66b74ddc6290d
 
   <details>
   <summary>Root cause and acceptance criteria</summary>

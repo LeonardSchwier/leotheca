@@ -4,6 +4,20 @@
 
 ### Bugs
 
+- ⬜ **`open-note` automation command (Android favorites-list widget cold start) silently drops the request when it races ahead of settings restoration**: `App.tsx`'s `runAutomationUrl` `open-note` branch checks `workspacePath.value` without first awaiting `waitForSettingsLoaded()`, so a widget cold start that resolves before `initSettings()` finishes restoring the workspace silently no-ops and never opens the note. The identical `new-note` branch already awaits; `open-note` was missed.
+  <details>
+  <summary>Root cause, fix, tests, and verification</summary>
+
+  Root cause: `runAutomationUrl`'s `open-note` branch is dispatched from the same mount effect as `initSettings`, so it can race ahead of it. `workspacePath` is restored asynchronously by `initSettings`; if the `open-note` command checks `workspacePath.value` before that completes, the value is still null and the branch silently returns, dropping the command with no error. The `new-note` branch fixed this exact race on 2026-09-13 (`rm-91677bc8cb535eca`) by awaiting `waitForSettingsLoaded()` — `open-note` was overlooked.
+
+  Fix: add `await waitForSettingsLoaded();` as the first statement of the `open-note` branch in `src/app/App.tsx`, before the `workspacePath.value` check, mirroring the `new-note` branch. A genuinely-no-workspace cold start (settings loaded, `workspacePath` still null) remains a silent no-op, unchanged.
+
+  Tests: two new regression tests in a dedicated describe block in `src/app/App.test.tsx` — (1) a command held while settings load, then opened once they finish (revert-confirmed to fail on unfixed code); (2) a genuine no-workspace cold start once settings finish, which remains a silent no-op.
+
+  Verification (candidate commit `d189b26`): `vitest run src/app/App.test.tsx` 1208/1208 pass; `tsc --noEmit` clean; `eslint src/app/App.tsx src/app/App.test.tsx` 0 errors; `npm run check-version` pass; `npm run build` pass; new test (1) revert-confirmed to fail without the fix line.
+
+  </details>
+
 - ✅ **exportNoteHtml: src replacement targets wrong attribute when alt (or other attr) shares the same value as src**: `inlineLocalImages` in `src/export/exportNoteHtml.ts` uses `tag.replace(quotedValue, ...)` which replaces the *first* occurrence of the `src` value in the entire `<img>` tag. If another attribute (e.g. `alt`) contains the same string *before* `src` in the tag, the data URI is written into `alt` instead of `src`, leaving `src` unchanged. Reproduced: `<img alt="asset://x" src="asset://x" />` → `alt` gets the data URI, `src` keeps the original.
   <!-- agent-state: {"schema":1,"id":"rm-e1dadbf4155a53b8","state":"done","touch":["ROADMAP.md#exportNoteHtml-src-replacement","src/export/exportNoteHtml.test.ts","src/export/exportNoteHtml.ts"],"resources":["exportnotehtml-src-fix"],"branch":"agent/rm-e1dadbf4155a53b8/9b0b1106c7fc","completed_at":"2026-09-22T05:48:00Z","completed_by":"hermes-local-20260922T033440Z-ec233176"} -->
   Agent: hermes-local-20260922T033440Z-ec233176 | item: rm-e1dadbf4155a53b8 | lease until: 2026-09-22T05:09:19Z

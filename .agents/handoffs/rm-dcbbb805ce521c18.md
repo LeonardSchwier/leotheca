@@ -105,6 +105,8 @@ Checks (this exact tree, 2026-09-22):
 Landed: YES. Cherry-picked from orphaned branch agent/rm-dcbbb805ce521c18/c1d54a9e4fd4
 into agent/rm-dcbbb805ce521c18/75f93c1e6118. Landing session: hermes-local-20260922T160917Z-571fcf54.
 Landed commits: 2b0f57b, 5097fe2, 87c2d45 (plus this handoff update).
+Post-landing fix: 29e31a9 fixed the fail-fast guard bug (all-empty secrets was
+treated as partial config; now correctly treated as "unsigned baseline").
 
 Missing evidence:
 - No real notarization run (no Apple Developer ID certificate or App Store

@@ -89,7 +89,7 @@ const mermaidExtension = {
   },
 };
 
-function sanitizeMermaidSvg(svg: string): string {
+export function sanitizeMermaidSvg(svg: string): string {
   return svg
     .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, "")
     .replace(/(href|src|xlink:href)\s*=\s*"(?:javascript:|data:text\/html)[^"]*"/gi, "$1=\"#\"")

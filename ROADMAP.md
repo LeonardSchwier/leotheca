@@ -36,8 +36,8 @@
 ### Bugs and CI
 
 - 🚧 **macOS Gatekeeper: Sign, notarize, and staple release DMGs**: Current macOS artifacts are deliberately unsigned and unnotarized, so Gatekeeper warns that the app cannot be verified. The maintainer must provide an Apple Developer Program membership, a Developer ID Application certificate, and an App Store Connect API key as repository secrets. Update the macOS release job to sign the universal `.app`, submit it with `notarytool`, wait for acceptance, staple the ticket to both `.app` and DMG, and fail publication if any step fails. Verify `codesign`, `spctl`, and a fresh download/open on both Apple Silicon and Intel macOS; only then remove the unsigned-install workaround from user documentation and complete the Homebrew Cask.
-  <!-- agent-state: {"schema":1,"id":"rm-dcbbb805ce521c18","state":"claimed","touch":[".github/workflows/release.yml","src-tauri"],"resources":["macos-release-signing"],"owner":"hermes-local-20260922T153932Z-dfafcb5a","token":"c1d54a9e4fd43f9fd54124697f3418af","branch":"agent/rm-dcbbb805ce521c18/c1d54a9e4fd4","claimed_at":"2026-09-22T15:47:41Z","heartbeat_at":"2026-09-22T15:47:41Z","lease_until":"2026-09-22T17:17:41Z"} -->
-  Agent: hermes-local-20260922T153932Z-dfafcb5a | item: rm-dcbbb805ce521c18 | lease until: 2026-09-22T17:17:41Z
+  <!-- agent-state: {"schema":1,"id":"rm-dcbbb805ce521c18","state":"claimed","touch":[".github/workflows/release.yml","src-tauri"],"resources":["macos-release-signing"],"owner":"hermes-local-20260922T153932Z-dfafcb5a","token":"c1d54a9e4fd43f9fd54124697f3418af","branch":"agent/rm-dcbbb805ce521c18/c1d54a9e4fd4","claimed_at":"2026-09-22T15:47:41Z","heartbeat_at":"2026-09-22T15:48:51Z","lease_until":"2026-09-22T17:18:51Z"} -->
+  Agent: hermes-local-20260922T153932Z-dfafcb5a | item: rm-dcbbb805ce521c18 | lease until: 2026-09-22T17:18:51Z
 
 ### Bugs
 

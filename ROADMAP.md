@@ -4,9 +4,9 @@
 
 ### Bugs
 
-- 🚧 **`open-note` automation command (Android favorites-list widget cold start) silently drops the request when it races ahead of settings restoration**: `App.tsx`'s `runAutomationUrl` `open-note` branch checks `workspacePath.value` without first awaiting `waitForSettingsLoaded()`, so a widget cold start that resolves before `initSettings()` finishes restoring the workspace silently no-ops and never opens the note. The identical `new-note` branch already awaits; `open-note` was missed.
-  <!-- agent-state: {"schema":1,"id":"rm-b414cd251f8e7c06","state":"claimed","touch":["src/app/App.test.tsx","src/app/App.tsx"],"resources":["open-note-routing"],"owner":"hermes-local-20260922T140607Z-22bfa236","token":"789a38eb606f3208f81f1a11c319a741","branch":"agent/rm-b414cd251f8e7c06/789a38eb606f","claimed_at":"2026-09-22T14:27:02Z","heartbeat_at":"2026-09-22T14:27:02Z","lease_until":"2026-09-22T15:57:02Z"} -->
-  Agent: hermes-local-20260922T140607Z-22bfa236 | item: rm-b414cd251f8e7c06 | lease until: 2026-09-22T15:57:02Z
+- ⬜ **`open-note` automation command (Android favorites-list widget cold start) silently drops the request when it races ahead of settings restoration**: `App.tsx`'s `runAutomationUrl` `open-note` branch checks `workspacePath.value` without first awaiting `waitForSettingsLoaded()`, so a widget cold start that resolves before `initSettings()` finishes restoring the workspace silently no-ops and never opens the note. The identical `new-note` branch already awaits; `open-note` was missed.
+  <!-- agent-state: {"schema":1,"id":"rm-b414cd251f8e7c06","state":"open","touch":["src/app/App.test.tsx","src/app/App.tsx"],"resources":["open-note-routing"],"note":"Recovering a crashed session's (hermes-local-20260922T140607Z-22bfa236) unfinished claim. Full implementation + tests preserved in dangling commit d189b26 (not yet on main). Handoff: .agents/handoffs/rm-b414cd251f8e7c06.md (new). Next step: verify d189b26's tests pass on fresh main, re-claim, merge onto work branch, publish, finish.","released_at":"2026-09-22T15:17:42Z"} -->
+  Agent: unclaimed | item: rm-b414cd251f8e7c06
   <details>
   <summary>Root cause, fix, tests, and verification</summary>
 

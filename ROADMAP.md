@@ -4,7 +4,9 @@
 
 ### Bugs
 
-- ⬜ **exportNoteHtml: src replacement targets wrong attribute when alt (or other attr) shares the same value as src**: `inlineLocalImages` in `src/export/exportNoteHtml.ts` uses `tag.replace(quotedValue, ...)` which replaces the *first* occurrence of the `src` value in the entire `<img>` tag. If another attribute (e.g. `alt`) contains the same string *before* `src` in the tag, the data URI is written into `alt` instead of `src`, leaving `src` unchanged. Reproduced: `<img alt="asset://x" src="asset://x" />` → `alt` gets the data URI, `src` keeps the original.
+- 🚧 **exportNoteHtml: src replacement targets wrong attribute when alt (or other attr) shares the same value as src**: `inlineLocalImages` in `src/export/exportNoteHtml.ts` uses `tag.replace(quotedValue, ...)` which replaces the *first* occurrence of the `src` value in the entire `<img>` tag. If another attribute (e.g. `alt`) contains the same string *before* `src` in the tag, the data URI is written into `alt` instead of `src`, leaving `src` unchanged. Reproduced: `<img alt="asset://x" src="asset://x" />` → `alt` gets the data URI, `src` keeps the original.
+  <!-- agent-state: {"schema":1,"id":"rm-e1dadbf4155a53b8","state":"claimed","touch":["ROADMAP.md#exportNoteHtml-src-replacement","src/export/exportNoteHtml.test.ts","src/export/exportNoteHtml.ts"],"resources":["exportnotehtml-src-fix"],"owner":"hermes-local-20260922T033440Z-ec233176","token":"9b0b1106c7fc1b5b7e00b3757fe6947b","branch":"agent/rm-e1dadbf4155a53b8/9b0b1106c7fc","claimed_at":"2026-09-22T03:39:19Z","heartbeat_at":"2026-09-22T03:39:19Z","lease_until":"2026-09-22T05:09:19Z"} -->
+  Agent: hermes-local-20260922T033440Z-ec233176 | item: rm-e1dadbf4155a53b8 | lease until: 2026-09-22T05:09:19Z
 
   <details>
   <summary>Root cause and acceptance criteria</summary>

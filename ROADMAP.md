@@ -200,13 +200,15 @@
 
   </details>
 
-- 🚧 **Whiteboard: double-click empty canvas to create a new note card**: The existing Whiteboard/Canvas (implemented) supports movable cards and file-reference cards, but has no documented or tested double-click-to-add-note gesture. Adding it is a standard canvas interaction pattern (the "shoulders of giants" principle) that lets a user create a new note card on the canvas without first navigating to a menu or toolbar action. Purely local JSON-canvas mutation, no new file format, no network call. (Competitor scan, Joplin Desktop v3.7.18, 2026-09-11).
-  <!-- agent-state: {"schema":1,"id":"rm-5823000526ba6f08","state":"claimed","touch":["src/canvas"],"resources":["whiteboard-canvas"],"owner":"hermes-local-20260922T083912Z-4f2063d1","token":"6e10c208612d202e4e4b28128fadaf37","branch":"agent/rm-5823000526ba6f08/6e10c208612d","claimed_at":"2026-09-22T08:43:24Z","heartbeat_at":"2026-09-22T08:43:24Z","lease_until":"2026-09-22T10:13:24Z"} -->
-  Agent: hermes-local-20260922T083912Z-4f2063d1 | item: rm-5823000526ba6f08 | lease until: 2026-09-22T10:13:24Z
 
 - ⬜ **Smart Collections board view: folder-grouped kanban with card move and note creation**: The existing read-only Smart Collections board view (grouped by a single frontmatter property) could be extended to support grouping by `file.folder` (the note's containing directory), with two additional capabilities from the Obsidian 1.14.2 Bases Kanban precedent: (1) dragging a card into a different folder column moves the note file to that folder, and (2) creating a new note in a folder column places the new file in that directory. Both are plain-filesystem operations on the user's own plain-text notes, no new format or network call. Prerequisite: the board view must first support folder-based grouping; the current board view groups only by frontmatter properties and is read-only by design. (Competitor scan, Obsidian Desktop v1.14.2, 2026-09-15).
 
 ## Implemented
+
+- ✅ **Whiteboard: double-click empty canvas to create a new note card**: The existing Whiteboard/Canvas (implemented) supports movable cards and file-reference cards, but has no documented or tested double-click-to-add-note gesture. Adding it is a standard canvas interaction pattern (the "shoulders of giants" principle) that lets a user create a new note card on the canvas without first navigating to a menu or toolbar action. Purely local JSON-canvas mutation, no new file format, no network call. (Competitor scan, Joplin Desktop v3.7.18, 2026-09-11).
+  <!-- agent-state: {"schema":1,"id":"rm-5823000526ba6f08","state":"done","touch":["src/canvas"],"resources":["whiteboard-canvas"],"note":"Double-click empty canvas to create a note card; 3 regression tests; all 27,803 tests pass; CI green (CI x2 + Release all success)","completed_at":"2026-09-22T09:16:27Z","completed_by":"hermes-local-20260922T083912Z-4f2063d1","branch":"agent/rm-5823000526ba6f08/6e10c208612d"} -->
+  Agent: completed by hermes-local-20260922T083912Z-4f2063d1 | item: rm-5823000526ba6f08
+
 
 - ✅ **Add `foreignObject` injection regression test for Mermaid sanitizer**: DOMPurify's default profile blocks `foreignObject`, but no test explicitly verifies this against malicious Mermaid source.
   <!-- agent-state: {"schema":1,"id":"rm-628e21cede0ca61d","state":"done","touch":["mermaid.smoke.test.ts"],"resources":["mermaid-sanitization"],"note":"Added foreignObject injection regression test covering the two-layer Mermaid SVG sanitizer contract. 3 new tests, all 17 pass. Work branch: agent/rm-628e21cede0ca61d/c96c415feb01 (commit 4aa1d7e).","completed_at":"2026-09-22T08:04:07Z","completed_by":"hermes-local-20260922T074730Z-404844bb","branch":"agent/rm-628e21cede0ca61d/c96c415feb01"} -->

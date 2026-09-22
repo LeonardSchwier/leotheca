@@ -3,6 +3,7 @@
 // Full async rendering is exercised by the browser/electron runtime via
 // renderMermaidToSvg; this test only checks the sync parse path.
 import { describe, expect, it, vi } from "vitest";
+import DOMPurify from "dompurify";
 import { marked } from "marked";
 import {
   setMermaidRenderingEnabled,
@@ -46,6 +47,84 @@ describe("sanitizeMermaidSvg", () => {
     const output = sanitizeMermaidSvg(input);
     expect(output).toContain('href="https://example.com"');
     expect(output).toContain('src="data:image/png;base64,AA=="');
+  });
+});
+
+describe("foreignObject injection (security regression)", () => {
+  // A hostile Mermaid source can produce SVG containing <foreignObject>,
+  // which can carry live HTML (script, onerror handlers) that executes in
+  // the document context when inserted. Two layers must block it:
+  //   1. sanitizeMermaidSvg -- the helper's own defense in depth (regex
+  //      layer, strips on* handlers and javascript:/data:text/html refs).
+  //   2. DOMPurify -- MarkdownPreview's final sanitize pass, which drops
+  //      <foreignObject> wholesale (it is not in the default allowlist).
+  //
+  // The layer split matters and is tested precisely:
+  //   - sanitizeMermaidSvg is a regex pass. It removes inline event
+  //     handlers (onerror/onclick/on*) and rewrites dangerous URL schemes
+  //     on href/src attributes, but it does NOT remove <script> tags
+  //     themselves. That is DOMPurify's job.
+  //   - DOMPurify's default profile removes <foreignObject> and <script>
+  //     entirely, so no live HTML survives to execute.
+  // This is a security invariant test: it records the responsibility split
+  // so a future change that moves <script> stripping out of DOMPurify (or
+  // adds foreignObject to the allowlist) fails loudly here.
+
+  const maliciousSvg =
+    '<svg xmlns="http://www.w3.org/2000/svg" onclick="pwn()">' +
+    "<foreignObject width=\"100%\" height=\"100%\">" +
+    '<div xmlns="http://www.w3.org/1999/xhtml">' +
+    '<script>window.pwned = true</script>' +
+    '<img src="x" onerror="window.pwned = true" />' +
+    '<a href="javascript:alert(1)">x</a>' +
+    "</div>" +
+    "</foreignObject>" +
+    "</svg>";
+
+  it("sanitizeMermaidSvg strips inline event handlers and rewrites javascript: URLs (its regex-layer contract)", () => {
+    const output = sanitizeMermaidSvg(maliciousSvg);
+    // Regex layer: no inline event handlers anywhere in the SVG.
+    expect(output).not.toMatch(/\son\w+\s*=/i);
+    // Regex layer: javascript: URLs are neutralized to "#".
+    expect(output).not.toContain("javascript:");
+    // The <script> tag itself is NOT removed by the regex layer (DOMPurify
+    // handles that); assert this explicitly so the responsibility split is
+    // documented and a future change that moves <script> removal into the
+    // regex layer (or vice versa) is a deliberate, visible change.
+    expect(output).toContain("<script>");
+    expect(output).toContain("foreignObject");
+  });
+
+  it("DOMPurify (MarkdownPreview's final pass) removes foreignObject and script entirely", () => {
+    const sanitized = DOMPurify.sanitize(sanitizeMermaidSvg(maliciousSvg));
+    // DOMPurify removes foreignObject wholesale.
+    expect(sanitized).not.toContain("foreignObject");
+    // No live script survives.
+    expect(sanitized).not.toContain("<script");
+    // No inline event handlers anywhere.
+    expect(sanitized).not.toMatch(/\son\w+\s*=/i);
+    // No dangerous URL schemes.
+    expect(sanitized).not.toContain("javascript:");
+    // The payload body is gone (it lived inside the removed foreignObject).
+    expect(sanitized).not.toContain("window.pwned");
+  });
+
+  it("full renderMermaidToSvg pipeline: hostile SVG output is fully neutralized after both layers", async () => {
+    vi.mocked(mermaid.render).mockResolvedValueOnce({ svg: maliciousSvg } as never);
+    const html = await renderMermaidToSvg("graph TD\n  A-->B");
+    // The regex layer ran (event handlers and javascript: URLs scrubbed).
+    expect(html).not.toMatch(/\son\w+\s*=/i);
+    expect(html).not.toContain("javascript:");
+    // The DOMPurify layer (MarkdownPreview's final pass) removes the rest.
+    const final = DOMPurify.sanitize(html);
+    expect(final).not.toContain("foreignObject");
+    expect(final).not.toContain("<script");
+    expect(final).not.toMatch(/\son\w+\s*=/i);
+    expect(final).not.toContain("javascript:");
+    expect(final).not.toContain("window.pwned");
+    // The fallback code block must not be triggered: the SVG rendered
+    // successfully, it was just hostile content.
+    expect(html).not.toContain('<pre><code class="language-mermaid">');
   });
 });
 

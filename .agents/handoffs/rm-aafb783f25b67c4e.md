@@ -151,3 +151,69 @@ confirmed, mark `rm-aafb783f25b67c4e` `✅` with that evidence.
 Available whenever a session with physical Android device or KVM-backed
 emulator access picks this up; no other condition gates it. Everything
 else (code, unit tests, real SDK build) is already done.
+
+---
+
+## Session: hermes-local-20260922T040501Z-690511f8 (2026-09-22)
+Status: **attempted on-device verification; blocked by an environmental
+emulator crash, not a code defect. Claim released (not completed).**
+
+### What this session verified (genuinely new for the sandbox)
+- `/dev/kvm` **is present and opens** here (`/dev/kvm` fd opens OK;
+  `emulator -accel-check` → "KVM (version 12) is installed and usable"),
+  and the CPU exposes `vmx`. So the KVM gate this item was blocked on is
+  satisfied in this host — this is the first session where the
+  precondition is met.
+- Bootstrapped a full Android SDK (`/var/lib/leohub/code/android-sdk`,
+  ~1.5G): cmdline-tools, platform-tools 37.0.1, platforms;android-35,
+  build-tools;35.0.0, emulator 37.1.11, system-images;android-35;default;
+  x86_64 — all via `sdkmanager` through the proxy, licenses accepted.
+- **Built the debug APK on current `main` with the JVM proxy set**
+  (`JAVA_TOOL_OPTIONS -Dhttps.proxyHost/-Dhttps.proxyPort=127.0.0.1:18181`):
+  `./gradlew assembleDebug` → **BUILD SUCCESSFUL** (exit 0).
+  `aapt2 dump badging` → `com.leonardschwier.leotheca` v0.1.0,
+  compileSdk 35; `dexdump` confirms `PrintExportPlugin` is compiled into
+  `classes.dex` — i.e. the landed feature is genuinely in the buildable
+  artifact. (The first two `assembleDebug` attempts failed only on Maven
+  POM read-timeouts — a slow-proxy artifact, not a build defect — and
+  cleared on retry.)
+- Re-confirmed the full local suite still green on current `main`:
+  `npx tsc --noEmit` clean; `npx eslint src/export src/workspace` clean;
+  `npm run check-version` pass; `npx vitest run src/export
+  src/workspace/capacitorBridgeImpl.test.ts src/app` → **2617/2617 pass**.
+
+### Where it got blocked (specific, diagnosed)
+- Launching the emulator (`avdmanager`-created `pixel_2` API 35 x86_64
+  AVD, headless) **SIGSEGVs (exit 139) at the emulator process's own
+  init**, consistently and reproducibly, right after the log line
+  `WARNING | Downloaded protobuf file is corrupt.` — independent of GPU
+  mode (tried both `-gpu swiftshader_indirect` and `-gpu off`) and
+  independent of KVM (which opens fine). The host runs under a seccomp
+  filter (`Seccomp: 2`, `Seccomp_filters: 13`), and the crash is in the
+  emulator's gRPC/protobuf server thread, not in the QEMU guest.
+- This is a genuine environmental blocker for *running* the emulator in
+  this sandbox (not available to fix without elevated privileges). It is
+  therefore **not** evidence about the app: the two UI flows (system
+  print dialog → "Save as PDF" → valid PDF; `ACTION_CREATE_DOCUMENT`
+  picker → valid `.html`, cancel-no-error) remain unconfirmed on a live
+  emulator in *this* host.
+- Per the skill's blocked-task rule, this session did **not** complete or
+  claim-complete the item and did **not** retry the same failing launch
+  beyond the two distinct GPU-mode diagnoses above.
+
+### Retry condition (more specific than prior entries)
+Any host where the Android emulator **process** boots to
+`sys.boot_completed=1` — i.e. either (a) a real device, or (b) a
+KVM-capable host where the emulator 37.1.11 gRPC/protobuf init does not
+SIGSEGV under the active seccomp profile (the crash here is at protobuf
+init, so a newer/different emulator build or a seccomp profile without the
+filter that kills the gRPC thread would both qualify). Concretely: on such
+a host, `adb install app-debug.apk` (already known-good from this build),
+then drive "Print note" and "Export note to HTML…" as described in
+"Next action" above, then mark `rm-aafb783f25b67c4e` `✅`.
+
+### Release
+Claim released (not `finish`ed) because the item is still blocked; this
+session adds the KVM-present + clean-APK-build + green-suite evidence and
+a sharper retry condition so the next session does not re-bootstrap the
+SDK or re-diagnose the emulator crash.

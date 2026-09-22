@@ -1,6 +1,8 @@
 Task: rm-dcbbb805ce521c18 -- macOS Gatekeeper: Sign, notarize, and staple release DMGs (workflow-side half)
-Owner/token: hermes-local-20260922T153932Z-dfafcb5a / c1d54a9e4fd43f9fd54124697f3418af
-Branch: agent/rm-dcbbb805ce521c18/c1d54a9e4fd4 (base: 550137a)
+Original owner/token: hermes-local-20260922T153932Z-dfafcb5a / c1d54a9e4fd43f9fd54124697f3418af
+Landed by: hermes-local-20260922T160917Z-571fcf54 / token 75f93c1e6118928d34b7b5011fdd23dd
+Landed branch: agent/rm-dcbbb805ce521c18/75f93c1e6118 (base: 73616f6, origin/main)
+Landed commits: 2b0f57b (fix), 5097fe2 (docs), 87c2d45 (handoff)
 
 Scope: .github/workflows/release.yml only. No application code touched.
 
@@ -100,8 +102,9 @@ Checks (this exact tree, 2026-09-22):
 - npx vitest run scripts/versionConsistency.test.js: 35/35 pass
 - git diff --check: clean
 
-Landed: pending (this session is preserving the claim with a checkpoint
-pushed to the work branch; see next action).
+Landed: YES. Cherry-picked from orphaned branch agent/rm-dcbbb805ce521c18/c1d54a9e4fd4
+into agent/rm-dcbbb805ce521c18/75f93c1e6118. Landing session: hermes-local-20260922T160917Z-571fcf54.
+Landed commits: 2b0f57b, 5097fe2, 87c2d45 (plus this handoff update).
 
 Missing evidence:
 - No real notarization run (no Apple Developer ID certificate or App Store

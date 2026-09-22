@@ -199,7 +199,9 @@
   </details>
 
 
-- ⬜ **Android `WRITE_EXTERNAL_STORAGE` permission is broader than needed**: The app uses SAF for file access, so `WRITE_EXTERNAL_STORAGE` (maxSdk 29) is unnecessary.
+- 🚧 **Android `WRITE_EXTERNAL_STORAGE` permission is broader than needed**: The app uses SAF for file access, so `WRITE_EXTERNAL_STORAGE` (maxSdk 29) is unnecessary.
+  <!-- agent-state: {"schema":1,"id":"rm-36020f3699a6e28e","state":"claimed","touch":["android/app/src/main/AndroidManifest.xml"],"resources":[],"owner":"hermes-local-20260922T122548Z-980ce946","token":"48f2bbc4fa0dfa8d4ccfb3ab5a95c490","branch":"agent/rm-36020f3699a6e28e/48f2bbc4fa0d","claimed_at":"2026-09-22T12:34:46Z","heartbeat_at":"2026-09-22T12:34:46Z","lease_until":"2026-09-22T14:04:46Z"} -->
+  Agent: hermes-local-20260922T122548Z-980ce946 | item: rm-36020f3699a6e28e | lease until: 2026-09-22T14:04:46Z
 
   <details>
   <summary>Details</summary>

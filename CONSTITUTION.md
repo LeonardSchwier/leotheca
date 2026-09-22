@@ -84,6 +84,8 @@ Test meaningful outcomes at the boundary where behavior occurs. For bug fixes, d
 
 For a changed native, IPC, platform, or persistence contract, test the real contract shape at both sides or a faithful typed fake at the boundary. Update every affected bridge mock in the same change, and run the project static/type gate before publishing. A bridge feature is incomplete when tests exercise only a wrapper while the provider contract, payload fields, failure behavior, or platform no-op path remains untested.
 
+A command or plugin method that accepts a path, URI, or file handle from the frontend is untrusted input by default, not trusted because of who currently calls it: verify it is checked against an explicit allow-list per `skills/change-quality-gates.md` before landing, and check that command's siblings with the same argument shape for the same gap in the same change.
+
 When a requirement prohibits logging or persistence of sensitive input, review success and failure paths for raw values, error objects, exception messages, URIs, tokens, paths, and serialized status fields. Add a focused sentinel-value regression where practical. Completion evidence must name the exact commands and observed results; phrases such as “comprehensive tests” or “CI fixed” are not evidence by themselves.
 
 Review the complete candidate as a separate activity after implementation. Trace a real success path and failure path through callers and persistence/platform boundaries. Use an independent agent review when available and useful, with a bounded response time; otherwise record the same review yourself. Fix findings before completion. No reviewer becomes a human or agent bottleneck.

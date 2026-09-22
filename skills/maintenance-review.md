@@ -21,7 +21,7 @@ Use when Open items are all implemented, live-claimed, or externally blocked. Co
 
 Trace public entrypoint through validation, state/storage/native calls, and observable output. Look for:
 
-- Wrong boundaries, traversal/symlink escapes, unvalidated IPC, unsafe rendering.
+- Wrong boundaries, traversal/symlink escapes, unvalidated IPC, unsafe rendering. When this scope is filesystem/IPC commands and a command takes a path, URI, or file handle from the frontend, do not stop at the one command that prompted the review: enumerate every other exported native command or plugin method in the same file/module with a similarly-shaped argument (`grep` the command-registration attribute/annotation) and check each against `skills/change-quality-gates.md`'s trust-boundary requirement. A fix for one unscoped command is the cheapest moment to catch its siblings — see `rm-dfd60513a2eb352c`'s write-command fix and the sibling read/create/rename/delete commands it left open as a concrete example of the cost of not doing this the first time.
 - Corrupt/future data overwritten, partial writes, failed saves, schema migration loss.
 - Stale async results, workspace switches, cancellation, timers/listeners never cleaned up.
 - Search negation, cache/skip decisions, Unicode/UTF-16 ranges, empty and large inputs.

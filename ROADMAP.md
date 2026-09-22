@@ -8,7 +8,6 @@
 - ✅ **exportNoteHtml: src replacement targets wrong attribute when alt (or other attr) shares the same value as src**: `inlineLocalImages` in `src/export/exportNoteHtml.ts` uses `tag.replace(quotedValue, ...)` which replaces the *first* occurrence of the `src` value in the entire `<img>` tag. If another attribute (e.g. `alt`) contains the same string *before* `src` in the tag, the data URI is written into `alt` instead of `src`, leaving `src` unchanged. Reproduced: `<img alt="asset://x" src="asset://x" />` → `alt` gets the data URI, `src` keeps the original.
   <!-- agent-state: {"schema":1,"id":"rm-e1dadbf4155a53b8","state":"done","touch":["ROADMAP.md#exportNoteHtml-src-replacement","src/export/exportNoteHtml.test.ts","src/export/exportNoteHtml.ts"],"resources":["exportnotehtml-src-fix"],"branch":"agent/rm-e1dadbf4155a53b8/9b0b1106c7fc","completed_at":"2026-09-22T05:48:00Z","completed_by":"hermes-local-20260922T033440Z-ec233176"} -->
   Agent: hermes-local-20260922T033440Z-ec233176 | item: rm-e1dadbf4155a53b8 | lease until: 2026-09-22T05:09:19Z
-
   <details>
   <summary>Root cause and acceptance criteria</summary>
 
@@ -18,6 +17,19 @@
   - New regression test: `<img alt="X" src="X" />` where fetch succeeds for `X` → `alt` unchanged, `src` replaced with data URI
   - Existing `exportNoteHtml` tests still pass
   - Full verification suite green (tsc, eslint, check-version, vitest, vite build, cargo fmt/clippy/test/check)
+
+  </details>
+
+- ⬜ **Desktop speech-to-text still fabricates a confidence score on every successful transcription**: `speechController.ts`'s `processAudio()` hardcodes `confidence: 0.95` on every `notifyResult` success, so a future real backend's actual per-utterance confidence would be silently overwritten, and the test fixtures carry the same literal 0.95, freezing it into expected behavior. Remove the hardcoded value so `SpeechRecognitionResult.confidence` is only set when a real backend provides one.
+  <details>
+  <summary>Evidence and acceptance criteria</summary>
+
+  Evidence (current main, verified 2026-09-23): the done item "Desktop speech-to-text fabricates transcription instead of running whisper.cpp" (rm-23780de5da6d9091) removed the placeholder transcribe and simulated availability, and its handoff confirms those paths are gone; but the hardcoded `confidence: 0.95` in `processAudio()` (speechController.ts) survives, and `speechController.test.ts` / `speechNavigation.test.ts` fixtures repeat the same literal 0.95. `SpeechRecognitionResult.confidence` is already optional (types.ts), so removing the fake value breaks no consumers (speechNavigation.ts reads it only when present).
+
+  Acceptance criteria:
+  - `processAudio()` no longer injects a confidence value; `notifyResult` success carries confidence only if a real backend provides one
+  - Test fixtures' confidence values are plainly test data (not the 0.95 that reads as a measured signal); behavior assertions unchanged
+  - `npx tsc --noEmit`, `npx vitest run src/speech` (or full suite), `npm run lint`, `npm run build` all green
 
   </details>
 

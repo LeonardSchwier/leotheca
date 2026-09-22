@@ -335,8 +335,7 @@ export class SpeechController implements SpeechRecognitionController {
       
       this.notifyResult({ 
         text: transcription, 
-        isFinal: true,
-        confidence: 0.95
+        isFinal: true
       });
     } catch (error) {
       const speechError = this.mapError(error);

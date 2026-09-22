@@ -122,6 +122,83 @@ describe("CanvasView", () => {
     expect(onOpenFile).not.toHaveBeenCalled();
   });
 
+  it("creates a new card when the empty canvas area is double-clicked", () => {
+    workspacePath.value = "/workspace";
+    const onChange = vi.fn();
+    const { container } = render(
+      <CanvasView
+        path={CANVAS_PATH}
+        source={JSON.stringify({ nodes: [{ id: "a", text: "A", x: 10, y: 10 }], edges: [] })}
+        onChange={onChange}
+        onOpenFile={vi.fn()}
+      />
+    );
+    const viewport = container.querySelector(".canvas-viewport") as HTMLElement;
+    viewport.getBoundingClientRect = () => new DOMRect(0, 0, 800, 600);
+
+    // Double-click on an empty part of the viewport (not over a card).
+    fireEvent(viewport, new MouseEvent("dblclick", { clientX: 300, clientY: 200, detail: 2, bubbles: true, cancelable: true }));
+
+    expect(onChange).toHaveBeenCalledTimes(1);
+    const saved = JSON.parse(onChange.mock.calls[0][0] as string) as {
+      nodes: Array<{ id: string; text: string; x: number; y: number; filePath?: string }>;
+    };
+    expect(saved.nodes).toHaveLength(2);
+    const created = saved.nodes.find((node) => node.id !== "a")!;
+    expect(created.text).toBe("Untitled card");
+    expect(created.filePath).toBeUndefined();
+    // The new card is at the double-click position, not the cascade position.
+    expect(created.x).toBe(300);
+    expect(created.y).toBe(200);
+  });
+
+  it("creates a card when double-clicking an empty (zero-card) canvas", () => {
+    workspacePath.value = "/workspace";
+    const onChange = vi.fn();
+    const { container } = render(
+      <CanvasView
+        path={CANVAS_PATH}
+        source={JSON.stringify({ nodes: [], edges: [] })}
+        onChange={onChange}
+        onOpenFile={vi.fn()}
+      />
+    );
+    const viewport = container.querySelector(".canvas-viewport") as HTMLElement;
+    viewport.getBoundingClientRect = () => new DOMRect(0, 0, 800, 600);
+
+    fireEvent(viewport, new MouseEvent("dblclick", { clientX: 50, clientY: 40, detail: 2, bubbles: true, cancelable: true }));
+
+    expect(onChange).toHaveBeenCalledTimes(1);
+    const saved = JSON.parse(onChange.mock.calls[0][0] as string) as {
+      nodes: Array<{ text: string; x: number; y: number }>;
+    };
+    expect(saved.nodes).toHaveLength(1);
+    expect(saved.nodes[0].text).toBe("Untitled card");
+    expect(saved.nodes[0].x).toBe(50);
+    expect(saved.nodes[0].y).toBe(40);
+  });
+
+  it("does not create a card when a card itself is double-clicked", () => {
+    workspacePath.value = "/workspace";
+    const onChange = vi.fn();
+    const { container } = render(
+      <CanvasView
+        path={CANVAS_PATH}
+        source={JSON.stringify({ nodes: [{ id: "a", text: "A", x: 10, y: 10 }], edges: [] })}
+        onChange={onChange}
+        onOpenFile={vi.fn()}
+      />
+    );
+    const card = container.querySelector(".canvas-card") as HTMLElement;
+
+    // Double-clicking the card body (selecting its text) must not add a card.
+    fireEvent.doubleClick(card, { clientX: 60, clientY: 60, detail: 2 });
+
+    expect(onChange).not.toHaveBeenCalled();
+    const textareas = container.querySelectorAll("textarea");
+    expect(textareas).toHaveLength(1);
+  });
+
   it("adds a new card via the toolbar", () => {
     workspacePath.value = "/workspace";
     const onChange = vi.fn();

@@ -47,12 +47,22 @@ export function CanvasView({ path, source, onChange, onOpenFile }: CanvasViewPro
 
   const save = (next: CanvasDocument) => onChange(serializeCanvas({ ...decoded, document: next }));
   const updateNodes = (nodes: CanvasNode[]) => save({ ...document, nodes });
-  const addCard = (filePath?: string) =>
+  const addCard = (x?: number, y?: number) =>
     updateNodes([
       ...document.nodes,
       {
         id: crypto.randomUUID(),
-        text: filePath !== undefined ? "Linked file" : "Untitled card",
+        text: "Untitled card",
+        x: x !== undefined ? Math.max(0, x) : 80 + document.nodes.length * 24,
+        y: y !== undefined ? Math.max(0, y) : 80 + document.nodes.length * 24,
+      },
+    ]);
+  const addFileCard = (filePath: string) =>
+    updateNodes([
+      ...document.nodes,
+      {
+        id: crypto.randomUUID(),
+        text: "Linked file",
         filePath,
         x: 80 + document.nodes.length * 24,
         y: 80 + document.nodes.length * 24,
@@ -86,11 +96,23 @@ export function CanvasView({ path, source, onChange, onOpenFile }: CanvasViewPro
     <div class="canvas-view">
       <div class="canvas-toolbar">
         <button onClick={() => addCard()}>New card</button>
-        <button onClick={() => addCard("")}>Link file</button>
+        <button onClick={() => addFileCard("")}>Link file</button>
         {connectionStart && <span class="canvas-connect-hint">Choose another card to connect</span>}
       </div>
       <div
         class="canvas-viewport"
+        onDblClick={(event: import("preact").TargetedMouseEvent<HTMLDivElement>) => {
+          // Double-click on the canvas background creates a new note card
+          // at the click position (the standard canvas interaction
+          // pattern). Double-clicking a card, its inputs, or any other
+          // element does not: the handler only fires when the event's
+          // target is the viewport itself, so text selection inside a
+          // card's textarea (the browser's default double-click behavior)
+          // is preserved and no card is created from it.
+          if (event.target !== event.currentTarget) return;
+          const rect = event.currentTarget.getBoundingClientRect();
+          addCard(event.clientX - rect.left, event.clientY - rect.top);
+        }}
         onPointerMove={(event) => {
           if (!drag || event.pointerId !== drag.pointerId) return;
           const rect = event.currentTarget.getBoundingClientRect();

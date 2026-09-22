@@ -44,6 +44,106 @@ Next steps (not done this session):
 - The entry's note field still references the old CI-breakage context;
   a future session touching this entry should update the note.
 
+# Session 2026-09-23 (hermes-local-20260922T224208Z-fd5c0d9e)
+
+Claim: rm-03ae9b2decc14f6c, token 8a251f3a883821b2c63a2b86219f37a5
+Work branch: agent/rm-03ae9b2decc14f6c/8a251f3a8838
+Landed: merge commit 9159fb4 on origin/main (2026-09-23T01:07Z, post-CI)
+
+## What this session did
+
+1. **Closed a real F-005 residual gap: extension-less text files were
+   silently excluded from content search.** `isTextFile` (types.ts)
+   classified any file whose basename has no dot-extension — README, a
+   plain "notes", an extension-less export dump — as binary, so the app
+   never read their content for full-text matching. The OOM caps that
+   already bound the native read cost (`SEARCH_BATCH_MAX_BYTES`,
+   `MAX_SEARCHABLE_FILE_BYTES`, `CONSERVATIVE_UNKNOWN_SIZE` in
+   fileTreeStore.ts) bound cost by *size*, not by a type guess; the
+   extension whitelist exists only to keep binary payloads out of
+   string serialization on Android, not to decide whether a file is
+   searchable. `isTextFile` now takes an `isDir` flag and returns true
+   for unknown-extension files (except a small set of known directory-
+   style basenames); directory entries are still excluded.
+2. **Fixed the vitest suite to exclude `.agents/control-*` worktrees.**
+   These contain a full copy of the repo's tests and were being
+   collected on every `vitest run`, producing spurious unhandled errors
+   (a preact hook timer outliving its test, `cancelAnimationFrame is
+   not defined`) that made a fully green run impossible even when the
+   actual change was correct. Excluding them makes the suite match the
+   real tree.
+3. **Added 4 focused tests** in fileTreeStore.test.ts covering the new
+   behavior: extension-less files read for content, name-matched when
+   content has no match, a directory named without an extension
+   excluded, and a binary extension still skipped. Verified the new
+   tests fail on the previous `isTextFile` (2 of 4 fail, confirming
+   the regression) and pass on the new one.
+
+## Acceptance criteria
+
+- [x] Extension-less text files (README, plain notes, extension-less
+      export dumps) are read for content matching
+- [x] Directory entries are still excluded from content matching
+- [x] Binary extensions (zip, mp4, pdf, exe) are still excluded from
+      content matching (no OOM regression introduced)
+- [x] Focused tests verified to fail on the previous code and pass on
+      the new code (regression evidence, not just a green run)
+- [x] Full suite green: 2384 files, 45035 tests, 0 errors
+- [x] tsc --noEmit clean; eslint clean
+- [x] Work branch CI: success (verified via gh before merge)
+- [x] Merged to main via --no-ff merge, post-CI, after fresh-main check
+- [x] Ledger finished with accurate state and note
+
+## Regression evidence
+
+- Focused tests on old `isTextFile`: 2 of 4 fail (extension-less file
+  content not read; nested README under a directory named without an
+  extension not found). Confirms the regression was real.
+- Focused tests on new `isTextFile`: 4 of 4 pass.
+- Full suite (2384 files, 45035 tests): 0 errors, 0 failures.
+- No OOM regression: the size-based caps in fileTreeStore.ts are
+  unchanged; this change only widens *which* files are eligible for
+  the existing size-bounded read path, not the read cost itself.
+
+## Self-review findings
+
+- The extension whitelist now only filters binary payloads (the original
+  intent per the F-005 audit comment), not "is this searchable" — a
+  cleaner separation of concerns.
+- The `KNOWN_DIRECTORY_BASENAMES` set is small and conservative; a
+  directory named "notes" or "Makefile" inside a vault is correctly
+  excluded via the `isDir` flag, not via this set.
+- The vitest exclusion pattern is specific to the known worktree
+  naming convention (`.agents/control-*/**`); it does not affect the
+  real test tree or any other agent's worktree.
+
+## Actual test commands and results
+
+- `npx vitest run src/workspace/fileTreeStore.test.ts -t "extension-less"`
+  → 4 passed (new code); 2 failed / 2 passed (old code, regression confirmed)
+- `npx vitest run` (full suite) → 2384 files, 45035 tests, 0 errors
+- `npx tsc --noEmit` → clean
+- `npx eslint .` → clean
+
+## Landed SHA and CI state
+
+- Work branch head: 88574a4 (pushed to origin)
+- Merge commit: 9159fb4 (on origin/main, landed 2026-09-23T01:07Z)
+- CI on work branch: success (verified via `gh run list` before merge)
+- CI on main after merge: not yet observed at handoff time; expected
+  to run on the merge commit.
+
+## Next steps
+
+- On-device OOM verification on the maintainer's ~500-note vault is
+  still pending (no Android device on this host). The entry was moved
+  to ✅ in ROADMAP.md via `agent_ledger.py finish` because the code
+  fix (the scope of this claim) is complete and verified at the unit
+  and integration level; the on-device verification is a separate,
+  explicitly-scoped task that was already listed as pending in the
+  entry's note before this session.
+
+
 ---
 
 ## Session 2026-09-22 (hermes-local-20260922T215205Z-1cacb298)

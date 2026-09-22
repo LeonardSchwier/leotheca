@@ -190,16 +190,6 @@
 
   </details>
 
-- 🚧 **Add `foreignObject` injection regression test for Mermaid sanitizer**: DOMPurify's default profile blocks `foreignObject`, but no test explicitly verifies this against malicious Mermaid source.
-  <!-- agent-state: {"schema":1,"id":"rm-628e21cede0ca61d","state":"claimed","touch":["mermaid.smoke.test.ts"],"resources":["mermaid-sanitization"],"owner":"hermes-local-20260922T074730Z-404844bb","token":"c96c415feb01360a30e10a5df89b0903","branch":"agent/rm-628e21cede0ca61d/c96c415feb01","claimed_at":"2026-09-22T07:50:27Z","heartbeat_at":"2026-09-22T07:50:27Z","lease_until":"2026-09-22T09:20:27Z"} -->
-  Agent: hermes-local-20260922T074730Z-404844bb | item: rm-628e21cede0ca61d | lease until: 2026-09-22T09:20:27Z
-
-  <details>
-  <summary>Details</summary>
-
-  Found during the 2026-09-22 weekly security review at `f4d4691d18c9`. `mermaid.ts:89-108`: `sanitizeMermaidSvg` uses `DOMPurify.sanitize(svg, { FORBID_TAGS: ["script"], FORBID_ATTR: ["onerror", "onload", "onclick", "onfocus"] })`. DOMPurify's default profile does not allow `foreignObject`, so this is likely already safe. However, `mermaid.smoke.test.ts` does not include a test for `foreignObject` injection. Adding one would provide regression coverage. Risk: very low.
-
-  </details>
 
 - ⬜ **Android `WRITE_EXTERNAL_STORAGE` permission is broader than needed**: The app uses SAF for file access, so `WRITE_EXTERNAL_STORAGE` (maxSdk 29) is unnecessary.
 
@@ -215,6 +205,18 @@
 - ⬜ **Smart Collections board view: folder-grouped kanban with card move and note creation**: The existing read-only Smart Collections board view (grouped by a single frontmatter property) could be extended to support grouping by `file.folder` (the note's containing directory), with two additional capabilities from the Obsidian 1.14.2 Bases Kanban precedent: (1) dragging a card into a different folder column moves the note file to that folder, and (2) creating a new note in a folder column places the new file in that directory. Both are plain-filesystem operations on the user's own plain-text notes, no new format or network call. Prerequisite: the board view must first support folder-based grouping; the current board view groups only by frontmatter properties and is read-only by design. (Competitor scan, Obsidian Desktop v1.14.2, 2026-09-15).
 
 ## Implemented
+
+- ✅ **Add `foreignObject` injection regression test for Mermaid sanitizer**: DOMPurify's default profile blocks `foreignObject`, but no test explicitly verifies this against malicious Mermaid source.
+  <!-- agent-state: {"schema":1,"id":"rm-628e21cede0ca61d","state":"done","touch":["mermaid.smoke.test.ts"],"resources":["mermaid-sanitization"],"note":"Added foreignObject injection regression test covering the two-layer Mermaid SVG sanitizer contract. 3 new tests, all 17 pass. Work branch: agent/rm-628e21cede0ca61d/c96c415feb01 (commit 4aa1d7e).","completed_at":"2026-09-22T08:04:07Z","completed_by":"hermes-local-20260922T074730Z-404844bb","branch":"agent/rm-628e21cede0ca61d/c96c415feb01"} -->
+  Agent: completed by hermes-local-20260922T074730Z-404844bb | item: rm-628e21cede0ca61d
+
+  <details>
+  <summary>Details</summary>
+
+  Found during the 2026-09-22 weekly security review at `f4d4691d18c9`. `mermaid.ts:89-108`: `sanitizeMermaidSvg` uses `DOMPurify.sanitize(svg, { FORBID_TAGS: ["script"], FORBID_ATTR: ["onerror", "onload", "onclick", "onfocus"] })`. DOMPurify's default profile does not allow `foreignObject`, so this is likely already safe. However, `mermaid.smoke.test.ts` does not include a test for `foreignObject` injection. Adding one would provide regression coverage. Risk: very low.
+
+  </details>
+
 
 - ✅ **Export/Print: `inlineLocalImages` re-serializes the whole note through `DOMParser` and restructures its markup (spurious `<p>`, injected `<tbody>`, repaired tags) in every HTML export**
   <!-- agent-state: {"schema":1,"id":"rm-1973fcb9bfc885be","state":"done","touch":["src/export/exportNoteHtml.test.ts","src/export/exportNoteHtml.ts"],"resources":["export-html-image-inlining"],"note":"Fixed on agent/rm-1973fcb9bfc885be/7def3699ef3f@099900b: inlineLocalImages now preserves original markup (string-level src substitution instead of body.innerHTML re-serialization). 8 regression tests (real mutating DOMParser) added; 2824/2824 frontend tests pass; tsc/lint/check-version/build green. Handoff at .agents/handoffs/rm-1973fcb9bfc885be.md.","completed_at":"2026-09-22T00:16:02Z","completed_by":"hermes-local-20260921T234757Z-0e87c616","branch":"agent/rm-1973fcb9bfc885be/7def3699ef3f"} -->

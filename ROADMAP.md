@@ -35,18 +35,6 @@
 
 ### Bugs and CI
 
-- 🚧 **F-Droid submission-verify workflow: stale pre-F015 version/commit pins**: `.github/workflows/fdroid-submission-verify.yml` and `packaging/f-droid/README.md` still hardcode the pre-F015 `v1.0.0` commit/`versionCode 1`/`versionName 1.0`/`..._1.apk`, but the metadata was correctly updated by F-015 to `v0.1.0`/`100`/`"0.1.0"`. The workflow's metadata-pin `grep` can never match, and its APK version/filename assertions are wrong.
-  <!-- agent-state: {"schema":1,"id":"rm-13e66b74ddc6290d","state":"claimed","touch":[".github/workflows/fdroid-submission-verify.yml","packaging/f-droid/README.md","scripts/read-fdroid-recipe-pin.sh","scripts/read-fdroid-recipe-pin.test.js"],"resources":["fdroid-submission-verify-pins"],"note":"Checkpoint on agent/rm-13e66b74ddc6290d/87fb313517d4; reclaiming with expanded touch scope to include the new scripts/read-fdroid-recipe-pin.sh helper and its test, both needed for the fix.","owner":"Claude-Code-cloud-scheduled-20260922T182725Z-7f0f9f04","token":"7ddfae778e289cef505cf88926972e0a","branch":"agent/rm-13e66b74ddc6290d/7ddfae778e28","claimed_at":"2026-09-22T18:35:08Z","heartbeat_at":"2026-09-22T18:35:08Z","lease_until":"2026-09-22T20:05:08Z"} -->
-  Agent: Claude-Code-cloud-scheduled-20260922T182725Z-7f0f9f04 | item: rm-13e66b74ddc6290d | lease until: 2026-09-22T20:05:08Z
-
-  <details>
-  <summary>Root cause and acceptance criteria</summary>
-
-  Root cause: audit follow-up F-015 repointed the F-Droid recipe's `Builds:` entry from the `v1.0.0` tag's commit to the not-yet-cut `v0.1.0` tag (and `versionCode`/`versionName` to match `VERSION`), but `fdroid-submission-verify.yml` (triggered on push to `agent/f-droid-submission`) and `packaging/f-droid/README.md`'s "Verified repository-side checks" list were never updated to match, so they still assert the old `v1.0.0`-era values.
-
-  Acceptance criteria: the workflow derives its release-source checkout ref and APK version/filename assertions from the metadata file itself (or otherwise stays byte-for-byte in sync with it) instead of hardcoding now-incorrect literals, so this can't silently drift again; `packaging/f-droid/README.md`'s claims match what the workflow actually checks; no change to `packaging/f-droid/com.leonardschwier.leotheca.yml` itself (already correct). The workflow still cannot fully succeed end-to-end until a real `v0.1.0` tag exists — that's an accurate, pre-existing, disclosed limitation (README item 4), not something this item fixes.
-
-  </details>
 
 - ⬜ **macOS Gatekeeper: Sign, notarize, and staple release DMGs**: Current macOS artifacts are deliberately unsigned and unnotarized, so Gatekeeper warns that the app cannot be verified. The maintainer must provide an Apple Developer Program membership, a Developer ID Application certificate, and an App Store Connect API key as repository secrets. Update the macOS release job to sign the universal `.app`, submit it with `notarytool`, wait for acceptance, staple the ticket to both `.app` and DMG, and fail publication if any step fails. Verify `codesign`, `spctl`, and a fresh download/open on both Apple Silicon and Intel macOS; only then remove the unsigned-install workaround from user documentation and complete the Homebrew Cask.
   <!-- agent-state: {"schema":1,"id":"rm-dcbbb805ce521c18","state":"open","touch":[".agents/handoffs",".github/workflows/release.yml"],"resources":["macos-release-signing"],"note":"Code work complete (2b0f57b on main). Remaining steps (notarization run, Gatekeeper test on real macOS, Homebrew Cask) blocked on maintainer Apple Developer Program credentials. Released so the lease does not block other agents.","released_at":"2026-09-22T18:21:29Z"} -->
@@ -227,6 +215,20 @@
 
 
 ## Implemented
+
+- ✅ **F-Droid submission-verify workflow: stale pre-F015 version/commit pins**: `.github/workflows/fdroid-submission-verify.yml` and `packaging/f-droid/README.md` still hardcode the pre-F015 `v1.0.0` commit/`versionCode 1`/`versionName 1.0`/`..._1.apk`, but the metadata was correctly updated by F-015 to `v0.1.0`/`100`/`"0.1.0"`. The workflow's metadata-pin `grep` can never match, and its APK version/filename assertions are wrong.
+  <!-- agent-state: {"schema":1,"id":"rm-13e66b74ddc6290d","state":"done","touch":[".github/workflows/fdroid-submission-verify.yml","packaging/f-droid/README.md","scripts/read-fdroid-recipe-pin.sh","scripts/read-fdroid-recipe-pin.test.js"],"resources":["fdroid-submission-verify-pins"],"note":"Landed 4a8b537c0ba7306e85d82dd4399939cc5fcec6fc. Both jobs now read commit/versionName/versionCode from the recipe via new scripts/read-fdroid-recipe-pin.sh instead of stale hardcoded v1.0.0/1/1.0/SHA copies; README updated to match. Tests: read-fdroid-recipe-pin.test.js (8/8, new). Full suite: tsc clean, 152 files/2864 vitest pass, eslint clean, checkVersion pass, vite build OK, workflow YAML parses. Packaging/workflow-only change, no Rust/Android touched (verification-suite.md scoping). Workflow still can't complete end-to-end until v0.1.0 tag exists (pre-existing, disclosed, unrelated to this fix).","completed_at":"2026-09-22T18:36:15Z","completed_by":"Claude-Code-cloud-scheduled-20260922T182725Z-7f0f9f04","branch":"agent/rm-13e66b74ddc6290d/7ddfae778e28"} -->
+  Agent: completed by Claude-Code-cloud-scheduled-20260922T182725Z-7f0f9f04 | item: rm-13e66b74ddc6290d
+
+  <details>
+  <summary>Root cause and acceptance criteria</summary>
+
+  Root cause: audit follow-up F-015 repointed the F-Droid recipe's `Builds:` entry from the `v1.0.0` tag's commit to the not-yet-cut `v0.1.0` tag (and `versionCode`/`versionName` to match `VERSION`), but `fdroid-submission-verify.yml` (triggered on push to `agent/f-droid-submission`) and `packaging/f-droid/README.md`'s "Verified repository-side checks" list were never updated to match, so they still assert the old `v1.0.0`-era values.
+
+  Acceptance criteria: the workflow derives its release-source checkout ref and APK version/filename assertions from the metadata file itself (or otherwise stays byte-for-byte in sync with it) instead of hardcoding now-incorrect literals, so this can't silently drift again; `packaging/f-droid/README.md`'s claims match what the workflow actually checks; no change to `packaging/f-droid/com.leonardschwier.leotheca.yml` itself (already correct). The workflow still cannot fully succeed end-to-end until a real `v0.1.0` tag exists — that's an accurate, pre-existing, disclosed limitation (README item 4), not something this item fixes.
+
+  </details>
+
 
 - ✅ **`open-note` automation command (Android favorites-list widget cold start) silently drops the request when it races ahead of settings restoration**: `App.tsx`'s `runAutomationUrl` `open-note` branch checks `workspacePath.value` without first awaiting `waitForSettingsLoaded()`, so a widget cold start that resolves before `initSettings()` finishes restoring the workspace silently no-ops and never opens the note. The identical `new-note` branch already awaits; `open-note` was missed.
   <!-- agent-state: {"schema":1,"id":"rm-b414cd251f8e7c06","state":"done","touch":["src/app/App.test.tsx","src/app/App.tsx"],"resources":["open-note-routing"],"note":"Recovered from crashed session hermes-local-20260922T140607Z-22bfa236 (d189b26, never landed). Fix: await waitForSettingsLoaded() in open-note branch. Re-verified: tsc 0 errors; vitest without fix: new test FAILS (1207/1208); vitest with fix: 1208/1208 pass. Work branch: agent/rm-b414cd251f8e7c06/fc4e8c1010d3, commit ab27770.","completed_at":"2026-09-22T15:22:56Z","completed_by":"hermes-local-20260922T151147Z-506cb52e","branch":"agent/rm-b414cd251f8e7c06/fc4e8c1010d3"} -->

@@ -852,7 +852,12 @@ describe("runSearch: query operators", () => {
 //
 // 1. `isTextFile` — non-text extensions (pdf, mp4, zip, exe, ...) are never
 //    passed to readTextFilesBatch, preventing Android's invalid-UTF8-replacement
-//    and Rust's wasted-IPC on unreadable content.
+//    and Rust's wasted-IPC on unreadable content.  A file with *no* extension
+//    at all (README, a plain "notes", an extension-less export dump) is still
+//    read for content matching: the OOM caps in fileTreeStore.ts bound the
+//    native call's cost by *size*, not by a type guess, so the extension
+//    whitelist only exists to keep binary payloads out of string
+//    serialization, not to decide whether a file is searchable.
 //
 // 2. Batch size enforcement — `createBatchedContentReader` adds each file's
 //    size to the running total and flushes once the cap is reached.  The old
@@ -1012,6 +1017,68 @@ describe("F-005: non-text files are never content-read (isTextFile whitelist)", 
     expect(searchResults.value?.map((e) => e.name).sort()).toEqual(
       textEntries.map((e) => e.name).sort(),
     );
+  });
+});
+
+describe("F-005 follow-up: extension-less text files are content-searchable", async () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("reads an extension-less file's content for matching (README, plain notes)", async () => {
+    const entries = [
+      { name: "README", path: "/workspace/README", isDir: false, size: 1024 },
+      { name: "notes", path: "/workspace/notes", isDir: false, size: 2048 },
+      { name: "Makefile", path: "/workspace/Makefile", isDir: false, size: 512 },
+    ];
+    findAllFiles.mockResolvedValue(entries);
+    mockFileContents(
+      Object.fromEntries(entries.map((e) => [e.path, "needle text inside"])),
+    );
+    await runSearch("/workspace", "needle");
+    expect(searchResults.value?.map((e) => e.name).sort()).toEqual([
+      "Makefile",
+      "README",
+      "notes",
+    ]);
+    // All three files' content was actually read (not just name-matched).
+    expect(readTextFilesBatch).toHaveBeenCalled();
+    const allPaths = readTextFilesBatch.mock.calls.flatMap((c) => c[0]);
+    expect(allPaths).toContain("/workspace/README");
+    expect(allPaths).toContain("/workspace/notes");
+    expect(allPaths).toContain("/workspace/Makefile");
+  });
+
+  it("still matches an extension-less file by name when the content has no match", async () => {
+    findAllFiles.mockResolvedValue([
+      { name: "README", path: "/workspace/README", isDir: false, size: 1024 },
+    ]);
+    mockFileContents({ "/workspace/README": "no match here" });
+    await runSearch("/workspace", "README");
+    expect(searchResults.value?.map((e) => e.name)).toEqual(["README"]);
+  });
+
+  it("does not treat a directory named without an extension as a text file", async () => {
+    // A folder named "notes" or "Makefile" is not a note; directories are
+    // excluded from content matching entirely.
+    findAllFiles.mockResolvedValue([
+      { name: "notes", path: "/workspace/notes", isDir: true },
+      { name: "README", path: "/workspace/notes/README", isDir: false, size: 64 },
+    ]);
+    mockFileContents({ "/workspace/notes/README": "found in nested readme" });
+    await runSearch("/workspace", "nested readme");
+    expect(searchResults.value?.map((e) => e.name)).toEqual(["README"]);
+  });
+
+  it("still skips a known binary extension even when the name looks note-like", async () => {
+    findAllFiles.mockResolvedValue([
+      { name: "archive.zip", path: "/workspace/archive.zip", isDir: false, size: 1024 },
+    ]);
+    mockFileContents({ "/workspace/archive.zip": "zip bytes not text" });
+    await runSearch("/workspace", "zip");
+    // Name matches; content is never read because .zip is not a text extension.
+    expect(searchResults.value?.map((e) => e.name)).toEqual(["archive.zip"]);
+    expect(readTextFilesBatch).not.toHaveBeenCalled();
   });
 });
 

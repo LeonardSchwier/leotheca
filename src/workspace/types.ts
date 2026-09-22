@@ -115,26 +115,52 @@ const TEXT_EXTENSIONS = new Set([
   "ex", "exs",
 ]);
 
-/** Whitelist of file extensions that the app treats as text for full-text
- * search content reads. Non-whitelisted extensions are treated like images:
- * their name can match a search query, but their content is never read.
- *
- * This is F-005's main fix: without it, a vault containing PDFs, videos,
- * compressed archives, or any other binary file of a non-image extension
- * would get passed through Android string serialization in
- * readTextFilesBatch (FolderAccessPlugin.java's readOneFileOrNull replaces
- * invalid UTF-8 rather than rejecting it, per the audit) and Rust
- * read_to_string (which does reject invalid UTF-8 but still wastes native
- * work and IPC on an unreadable file), potentially producing garbage or
- * failing on a file that was never intended to be searched.
- *
- * The list is conservative: it includes everything the project actually
- * supports (markdown, code, config, data) and nothing else. If a user has
- * a custom text format not in this list, it won't be searched by content
- * but will still match by filename. */
-export function isTextFile(path: string): boolean {
-  const ext = path.split(".").pop()?.toLowerCase();
-  return !!ext && TEXT_EXTENSIONS.has(ext);
+// A file whose basename has no extension at all — README, LICENSE, Makefile,
+// a plain "notes", or an extension-less export dump from a migration tool.
+// It is not in TEXT_EXTENSIONS (which is keyed by a dot-extension), so a
+// whitelist-only predicate would classify it as binary and the app would
+// never read it for content matching: a real note, missed. The OOM layers
+// that cap this read (SEARCH_BATCH_MAX_BYTES, MAX_SEARCHABLE_FILE_BYTES,
+// CONSERVATIVE_UNKNOWN_SIZE in fileTreeStore.ts) bound the native call's
+// cost by *size*, not by a type guess, so reading an unknown-extension file
+// is bounded exactly like a .md file of the same size; the extension
+// whitelist above only exists to keep binary payloads (PDFs, video,
+// archives, executables) out of string serialization on platforms that
+// replace invalid UTF-8 instead of rejecting it.
+//
+// Directory-style basenames are not treated as "no extension" — a folder
+// named "notes" or "Makefile" inside a vault is not a note — so the
+// no-extension rule only applies to entries that are actually files.
+const KNOWN_DIRECTORY_BASENAMES = new Set([
+  "node_modules",
+  ".git",
+  ".github",
+  ".idea",
+  ".vscode",
+]);
+
+export function isTextFile(path: string, isDir: boolean): boolean {
+  if (isDir) return false;
+  const base = path.split("/").pop() ?? "";
+  // Extension is everything after the last dot *only if there is a dot
+  // that is not the leading dot of a hidden file*. A hidden file with no
+  // other dot (".gitignore", ".env") has no extension in the normal sense,
+  // and a file like "archive.tar.gz" has extension "gz" — both handled by
+  // the same last-dot rule as a regular file, so the no-extension case is
+  // really "no dot at all in the basename".
+  const lastDot = base.lastIndexOf(".");
+  const ext =
+    lastDot > 0
+      ? base.slice(lastDot + 1).toLowerCase()
+      : lastDot === 0
+        ? "" // leading dot only: hidden file, no extension
+        : null; // no dot at all: no-extension file
+  if (ext !== null) {
+    return !!ext && TEXT_EXTENSIONS.has(ext);
+  }
+  // No dot in the basename at all.
+  if (KNOWN_DIRECTORY_BASENAMES.has(base.toLowerCase())) return false;
+  return true;
 }
 
 export function isCanvasPath(path: string): boolean {

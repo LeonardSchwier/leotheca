@@ -738,7 +738,7 @@ export async function runSearch(rootPath: string, query: string) {
         // net: even a single-text-file batch could hit the native heap ceiling.
         const fileIsReadableForContent =
           !isImagePath(entry.path) &&
-          isTextFile(entry.path) &&
+          isTextFile(entry.path, entry.isDir) &&
           (entry.size ?? CONSERVATIVE_UNKNOWN_SIZE) <=
             MAX_SEARCHABLE_FILE_BYTES;
         // When the native walk doesn't report a size, assume CONSERVATIVE_UNKNOWN_SIZE

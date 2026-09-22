@@ -4,21 +4,6 @@
 
 ### Bugs
 
-- 🚧 **`open-note` automation command (Android favorites-list widget cold start) silently drops the request when it races ahead of settings restoration**: `App.tsx`'s `runAutomationUrl` `open-note` branch checks `workspacePath.value` without first awaiting `waitForSettingsLoaded()`, so a widget cold start that resolves before `initSettings()` finishes restoring the workspace silently no-ops and never opens the note. The identical `new-note` branch already awaits; `open-note` was missed.
-  <!-- agent-state: {"schema":1,"id":"rm-b414cd251f8e7c06","state":"claimed","touch":["src/app/App.test.tsx","src/app/App.tsx"],"resources":["open-note-routing"],"note":"Recovering a crashed session's (hermes-local-20260922T140607Z-22bfa236) unfinished claim. Full implementation + tests preserved in dangling commit d189b26 (not yet on main). Handoff: .agents/handoffs/rm-b414cd251f8e7c06.md (new). Next step: verify d189b26's tests pass on fresh main, re-claim, merge onto work branch, publish, finish.","owner":"hermes-local-20260922T151147Z-506cb52e","token":"fc4e8c1010d32c1850d9b04fd916becc","branch":"agent/rm-b414cd251f8e7c06/fc4e8c1010d3","claimed_at":"2026-09-22T15:18:12Z","heartbeat_at":"2026-09-22T15:22:16Z","lease_until":"2026-09-22T16:52:16Z"} -->
-  Agent: hermes-local-20260922T151147Z-506cb52e | item: rm-b414cd251f8e7c06 | lease until: 2026-09-22T16:52:16Z
-  <details>
-  <summary>Root cause, fix, tests, and verification</summary>
-
-  Root cause: `runAutomationUrl`'s `open-note` branch is dispatched from the same mount effect as `initSettings`, so it can race ahead of it. `workspacePath` is restored asynchronously by `initSettings`; if the `open-note` command checks `workspacePath.value` before that completes, the value is still null and the branch silently returns, dropping the command with no error. The `new-note` branch fixed this exact race on 2026-09-13 (`rm-91677bc8cb535eca`) by awaiting `waitForSettingsLoaded()` — `open-note` was overlooked.
-
-  Fix: add `await waitForSettingsLoaded();` as the first statement of the `open-note` branch in `src/app/App.tsx`, before the `workspacePath.value` check, mirroring the `new-note` branch. A genuinely-no-workspace cold start (settings loaded, `workspacePath` still null) remains a silent no-op, unchanged.
-
-  Tests: two new regression tests in a dedicated describe block in `src/app/App.test.tsx` — (1) a command held while settings load, then opened once they finish (revert-confirmed to fail on unfixed code); (2) a genuine no-workspace cold start once settings finish, which remains a silent no-op.
-
-  Verification (candidate commit `d189b26`): `vitest run src/app/App.test.tsx` 1208/1208 pass; `tsc --noEmit` clean; `eslint src/app/App.tsx src/app/App.test.tsx` 0 errors; `npm run check-version` pass; `npm run build` pass; new test (1) revert-confirmed to fail without the fix line.
-
-  </details>
 
 - ✅ **exportNoteHtml: src replacement targets wrong attribute when alt (or other attr) shares the same value as src**: `inlineLocalImages` in `src/export/exportNoteHtml.ts` uses `tag.replace(quotedValue, ...)` which replaces the *first* occurrence of the `src` value in the entire `<img>` tag. If another attribute (e.g. `alt`) contains the same string *before* `src` in the tag, the data URI is written into `alt` instead of `src`, leaving `src` unchanged. Reproduced: `<img alt="asset://x" src="asset://x" />` → `alt` gets the data URI, `src` keeps the original.
   <!-- agent-state: {"schema":1,"id":"rm-e1dadbf4155a53b8","state":"done","touch":["ROADMAP.md#exportNoteHtml-src-replacement","src/export/exportNoteHtml.test.ts","src/export/exportNoteHtml.ts"],"resources":["exportnotehtml-src-fix"],"branch":"agent/rm-e1dadbf4155a53b8/9b0b1106c7fc","completed_at":"2026-09-22T05:48:00Z","completed_by":"hermes-local-20260922T033440Z-ec233176"} -->
@@ -218,6 +203,23 @@
 
 
 ## Implemented
+
+- ✅ **`open-note` automation command (Android favorites-list widget cold start) silently drops the request when it races ahead of settings restoration**: `App.tsx`'s `runAutomationUrl` `open-note` branch checks `workspacePath.value` without first awaiting `waitForSettingsLoaded()`, so a widget cold start that resolves before `initSettings()` finishes restoring the workspace silently no-ops and never opens the note. The identical `new-note` branch already awaits; `open-note` was missed.
+  <!-- agent-state: {"schema":1,"id":"rm-b414cd251f8e7c06","state":"done","touch":["src/app/App.test.tsx","src/app/App.tsx"],"resources":["open-note-routing"],"note":"Recovered from crashed session hermes-local-20260922T140607Z-22bfa236 (d189b26, never landed). Fix: await waitForSettingsLoaded() in open-note branch. Re-verified: tsc 0 errors; vitest without fix: new test FAILS (1207/1208); vitest with fix: 1208/1208 pass. Work branch: agent/rm-b414cd251f8e7c06/fc4e8c1010d3, commit ab27770.","completed_at":"2026-09-22T15:22:56Z","completed_by":"hermes-local-20260922T151147Z-506cb52e","branch":"agent/rm-b414cd251f8e7c06/fc4e8c1010d3"} -->
+  Agent: completed by hermes-local-20260922T151147Z-506cb52e | item: rm-b414cd251f8e7c06
+  <details>
+  <summary>Root cause, fix, tests, and verification</summary>
+
+  Root cause: `runAutomationUrl`'s `open-note` branch is dispatched from the same mount effect as `initSettings`, so it can race ahead of it. `workspacePath` is restored asynchronously by `initSettings`; if the `open-note` command checks `workspacePath.value` before that completes, the value is still null and the branch silently returns, dropping the command with no error. The `new-note` branch fixed this exact race on 2026-09-13 (`rm-91677bc8cb535eca`) by awaiting `waitForSettingsLoaded()` — `open-note` was overlooked.
+
+  Fix: add `await waitForSettingsLoaded();` as the first statement of the `open-note` branch in `src/app/App.tsx`, before the `workspacePath.value` check, mirroring the `new-note` branch. A genuinely-no-workspace cold start (settings loaded, `workspacePath` still null) remains a silent no-op, unchanged.
+
+  Tests: two new regression tests in a dedicated describe block in `src/app/App.test.tsx` — (1) a command held while settings load, then opened once they finish (revert-confirmed to fail on unfixed code); (2) a genuine no-workspace cold start once settings finish, which remains a silent no-op.
+
+  Verification (candidate commit `d189b26`): `vitest run src/app/App.test.tsx` 1208/1208 pass; `tsc --noEmit` clean; `eslint src/app/App.tsx src/app/App.test.tsx` 0 errors; `npm run check-version` pass; `npm run build` pass; new test (1) revert-confirmed to fail without the fix line.
+
+  </details>
+
 
 - ✅ **Smart Collections board view: folder-grouped kanban with card move and note creation**: The existing read-only Smart Collections board view (grouped by a single frontmatter property) could be extended to support grouping by `file.folder` (the note's containing directory), with two additional capabilities from the Obsidian 1.14.2 Bases Kanban precedent: (1) dragging a card into a different folder column moves the note file to that folder, and (2) creating a new note in a folder column places the new file in that directory. Both are plain-filesystem operations on the user's own plain-text notes, no new format or network call. Prerequisite: the board view must first support folder-based grouping; the current board view groups only by frontmatter properties and is read-only by design. (Competitor scan, Obsidian Desktop v1.14.2, 2026-09-15).
   <!-- agent-state: {"schema":1,"id":"rm-7c907dcf60459f1c","state":"done","touch":["ROADMAP.md","src/collections/CollectionResults.tsx","src/collections/collectionDecode.test.ts","src/collections/collectionDecode.ts","src/collections/collectionPhase2.test.tsx","src/collections/collectionTypes.ts","src/collections/collections.css"],"resources":["smart-collections-board-folder"],"note":"Landed 16d0061: folder-based board grouping (FOLDER_GROUP_BY sentinel) as the prerequisite for the full folder-grouped kanban. Board button enabled when notes have distinct folders (not just indexed properties); Folder option in grouping selector; groupKanbanColumns groups by note.folder with Unassigned fallback. 7 new tests (4 in collectionDecode.test.ts, 3 in collectionPhase2.test.tsx). 33507 tests pass, tsc/eslint/check-version/build clean. Full card-move and create-in-folder capabilities remain on the roadmap for a future session.","completed_at":"2026-09-22T14:58:37Z","completed_by":"hermes-local-20260922T143254Z-35561a21","branch":"agent/rm-7c907dcf60459f1c/8ea7e49d10d9"} -->

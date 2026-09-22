@@ -973,6 +973,7 @@ describe("App: a failed autosave shows a visible error and lets the user retry (
 
 describe("App: open-note automation command (Android favorites-list widget)", () => {
   it("opens the note at the given path when it is inside the workspace", async () => {
+    settingsLoaded.value = true;
     workspacePath.value = "/vault";
     readTextFile.mockResolvedValueOnce("note content");
     render(<App />);
@@ -988,6 +989,7 @@ describe("App: open-note automation command (Android favorites-list widget)", ()
   });
 
   it("ignores a path outside the current workspace", async () => {
+    settingsLoaded.value = true;
     workspacePath.value = "/vault";
     render(<App />);
 
@@ -1001,6 +1003,7 @@ describe("App: open-note automation command (Android favorites-list widget)", ()
   });
 
   it("ignores an open-note command with no path param", async () => {
+    settingsLoaded.value = true;
     workspacePath.value = "/vault";
     render(<App />);
 
@@ -1014,6 +1017,12 @@ describe("App: open-note automation command (Android favorites-list widget)", ()
   });
 
   it("is a silent no-op when no workspace is open", async () => {
+    // settingsLoaded must be true here so the new cold-start guard in the
+    // open-note branch (waitForSettingsLoaded) resolves immediately rather
+    // than holding the command; this test exercises the genuine
+    // "settings loaded, but no workspace was ever opened" case, which is
+    // still a silent no-op.
+    settingsLoaded.value = true;
     workspacePath.value = null;
     render(<App />);
 
@@ -1026,6 +1035,7 @@ describe("App: open-note automation command (Android favorites-list widget)", ()
   });
 
   it("ignores a path that escapes the workspace via a `..` segment", async () => {
+    settingsLoaded.value = true;
     workspacePath.value = "/vault";
     render(<App />);
 
@@ -1038,6 +1048,7 @@ describe("App: open-note automation command (Android favorites-list widget)", ()
   });
 
   it("ignores a path that escapes the workspace via a backslash traversal", async () => {
+    settingsLoaded.value = true;
     workspacePath.value = "/vault";
     render(<App />);
 
@@ -1050,11 +1061,65 @@ describe("App: open-note automation command (Android favorites-list widget)", ()
   });
 
   it("ignores a path that is a sibling of the workspace (prefix trick)", async () => {
+    settingsLoaded.value = true;
     workspacePath.value = "/vault";
     render(<App />);
 
     await act(async () => {
       openUrlListeners.at(-1)?.(["leotheca://open-note?path=%2Fvault-backdoor%2Fnote.md"]);
+      await Promise.resolve();
+    });
+
+    expect(readTextFile).not.toHaveBeenCalled();
+  });
+});
+
+describe("App: open-note automation command (Android favorites-list widget cold start)", () => {
+  it("opens the note once settings finish loading, instead of silently dropping a command that raced ahead of them", async () => {
+    // Simulates the real cold-start race: CapacitorApp.getLaunchUrl()
+    // resolves and dispatches this command before initSettings's own
+    // async chain (file reads, SAF access) has restored workspacePath.
+    // Before the fix, the open-note branch checked workspacePath.value
+    // immediately and silently no-opped, even though the workspace was
+    // about to become available a moment later. The fix awaits
+    // waitForSettingsLoaded() first (mirroring the new-note branch),
+    // holding the command until the workspace is actually restored.
+    initSettings.mockReturnValueOnce(new Promise<void>(() => {}));
+    readTextFile.mockResolvedValueOnce("note content");
+    render(<App />);
+
+    await act(async () => {
+      openUrlListeners.at(-1)?.(["leotheca://open-note?path=%2Fvault%2Fnote.md"]);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    // Settings are still "loading" (initSettings's promise never
+    // resolved): the command must be held, not dropped.
+    expect(readTextFile).not.toHaveBeenCalled();
+
+    await act(async () => {
+      workspacePath.value = "/vault";
+      settingsLoaded.value = true;
+      for (let i = 0; i < 6; i++) await Promise.resolve();
+    });
+
+    // The held command now resolves: the note is read and opened.
+    expect(readTextFile).toHaveBeenCalledWith("/vault/note.md");
+  });
+
+  it("is a silent no-op once settings finish loading with no workspace ever opened", async () => {
+    initSettings.mockReturnValueOnce(new Promise<void>(() => {}));
+    render(<App />);
+
+    await act(async () => {
+      openUrlListeners.at(-1)?.(["leotheca://open-note?path=%2Fvault%2Fnote.md"]);
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      settingsLoaded.value = true;
+      await Promise.resolve();
       await Promise.resolve();
     });
 

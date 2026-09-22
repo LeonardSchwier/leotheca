@@ -2,9 +2,71 @@
 // and the renderer emits a placeholder div (not [object Promise]).
 // Full async rendering is exercised by the browser/electron runtime via
 // renderMermaidToSvg; this test only checks the sync parse path.
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { marked } from "marked";
-import { setMermaidRenderingEnabled } from "./src/markdown/mermaid";
+import {
+  setMermaidRenderingEnabled,
+  sanitizeMermaidSvg,
+  renderMermaidToSvg,
+} from "./src/markdown/mermaid";
+
+// Mock the mermaid module so renderMermaidToSvg can be tested without a
+// real DOM or browser runtime.
+vi.mock("mermaid", () => ({
+  default: {
+    initialize: vi.fn(),
+    render: vi.fn(),
+  },
+}));
+
+import mermaid from "mermaid";
+
+describe("sanitizeMermaidSvg", () => {
+  it("strips onerror and onclick event-handler attributes", () => {
+    const input = '<svg onerror="alert(1)" onclick="steal()"><circle onmouseover="x"/></svg>';
+    const output = sanitizeMermaidSvg(input);
+    expect(output).not.toContain("onerror");
+    expect(output).not.toContain("onclick");
+    expect(output).not.toContain("onmouseover");
+    expect(output).not.toContain("alert");
+  });
+
+  it("rewrites javascript: and data:text/html hrefs to #", () => {
+    const input =
+      '<a href="javascript:alert(1)">x</a><img src="data:text/html,<script>alert(1)</script>" />';
+    const output = sanitizeMermaidSvg(input);
+    expect(output).not.toContain("javascript:");
+    expect(output).not.toContain("data:text/html");
+    expect(output).toContain('href="#"');
+    expect(output).toContain('src="#"');
+  });
+
+  it("leaves safe href and src values untouched", () => {
+    const input = '<a href="https://example.com">link</a><img src="data:image/png;base64,AA==" />';
+    const output = sanitizeMermaidSvg(input);
+    expect(output).toContain('href="https://example.com"');
+    expect(output).toContain('src="data:image/png;base64,AA=="');
+  });
+});
+
+describe("renderMermaidToSvg fallback path", () => {
+  it("returns a <pre><code class=language-mermaid> block with the original source when mermaid.render rejects", async () => {
+    vi.mocked(mermaid.render).mockRejectedValueOnce(new Error("parse error"));
+    const source = "not a valid diagram";
+    const html = await renderMermaidToSvg(source);
+    expect(html).toContain("<pre><code class=\"language-mermaid\">");
+    expect(html).toContain("not a valid diagram");
+    expect(html).not.toContain("<svg");
+  });
+
+  it("returns the code-block fallback when mermaid.render produces no SVG", async () => {
+    vi.mocked(mermaid.render).mockResolvedValueOnce({ svg: "" } as never);
+    const source = "graph TD\n  A-->B";
+    const html = await renderMermaidToSvg(source);
+    expect(html).toContain("<pre><code class=\"language-mermaid\">");
+    expect(html).toContain("graph TD");
+  });
+});
 
 describe("mermaid extension (sync parse path)", () => {
   it("renders a ```mermaid fence to a placeholder div", () => {

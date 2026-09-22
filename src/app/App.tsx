@@ -533,6 +533,19 @@ export function App() {
         // the note was moved/deleted since the widget last synced), is a
         // silent no-op, matching handleOpenFile's own "target that turns
         // out missing is a silent no-op" convention documented above.
+        //
+        // waitForSettingsLoaded() closes the same cold-start race the
+        // "new-note" branch above guards against: a favorites-widget tap
+        // from a cold start fires this command through
+        // CapacitorApp.getLaunchUrl() before initSettings's async chain
+        // has restored workspacePath, which would otherwise make this an
+        // unconditional silent no-op even though a workspace is about to
+        // become available a moment later. It resolves immediately once
+        // settings have already loaded, so the steady-state path is
+        // unchanged; the "no workspace is open" test below still
+        // exercises the genuine no-workspace case (settings loaded, but
+        // workspacePath still null).
+        await waitForSettingsLoaded();
         if (!workspacePath.value || !isPathWithinWorkspace(workspacePath.value, command.path)) {
           return;
         }

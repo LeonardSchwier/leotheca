@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { decodeCollectionsFile } from "./collectionDecode";
 import { MAX_QUERY_CLAUSES, type QueryGroupV1, type SmartCollectionV1 } from "./collectionTypes";
+import { FOLDER_GROUP_BY, groupKanbanColumns } from "./CollectionResults";
+import type { NoteRecord } from "./collectionQuery";
+import type { FrontmatterProperty } from "../editor/frontmatterEdits";
 
 function validCollection(overrides: Partial<SmartCollectionV1> = {}): SmartCollectionV1 {
   return {
@@ -274,5 +277,80 @@ describe("decodeCollectionsFile: malformed input", () => {
     const { file, corrupt } = decodeCollectionsFile(fileWith([null, 42, "x"], []));
     expect(corrupt).toBe(true);
     expect(file.collections).toEqual([]);
+  });
+});
+
+describe("groupKanbanColumns — folder-based grouping", () => {
+  function noteWithFolder(folder: string, title: string): NoteRecord {
+    return {
+      path: folder ? `${folder}/${title}.md` : `${title}.md`,
+      noteName: title,
+      folder,
+      tags: [],
+      hasFrontmatter: false,
+      properties: new Map<string, FrontmatterProperty>(),
+    };
+  }
+
+  it("groups notes by their folder into named columns", () => {
+    const columns = groupKanbanColumns(
+      [
+        noteWithFolder("Projects", "alpha"),
+        noteWithFolder("Projects", "beta"),
+        noteWithFolder("Inbox", "gamma"),
+      ],
+      FOLDER_GROUP_BY,
+    );
+    expect(columns.map((c) => c.label)).toEqual(["Inbox", "Projects"]);
+    const projects = columns.find((c) => c.label === "Projects")!;
+    expect(projects.notes.map((n) => n.noteName)).toEqual(["alpha", "beta"]);
+    const inbox = columns.find((c) => c.label === "Inbox")!;
+    expect(inbox.notes.map((n) => n.noteName)).toEqual(["gamma"]);
+  });
+
+  it("places root-level notes (empty folder) in Unassigned", () => {
+    const columns = groupKanbanColumns(
+      [
+        noteWithFolder("", "root-note"),
+        noteWithFolder("Projects", "deep"),
+      ],
+      FOLDER_GROUP_BY,
+    );
+    expect(columns.map((c) => c.label)).toEqual(["Projects", "Unassigned"]);
+    const unassigned = columns.find((c) => c.label === "Unassigned")!;
+    expect(unassigned.notes.map((n) => n.noteName)).toEqual(["root-note"]);
+  });
+
+  it("trims whitespace in folder paths before grouping", () => {
+    const columns = groupKanbanColumns(
+      [
+        noteWithFolder("  Projects  ", "a"),
+        noteWithFolder("Projects", "b"),
+      ],
+      FOLDER_GROUP_BY,
+    );
+    // Both should land in the same "Projects" column.
+    expect(columns).toHaveLength(1);
+    expect(columns[0].label).toBe("Projects");
+    expect(columns[0].notes).toHaveLength(2);
+  });
+
+  it("keeps folder grouping separate from property grouping", () => {
+    const withProp = noteWithFolder("Projects", "p1");
+    // Set a scalar property so property-based grouping can find it.
+    withProp.properties.set("status", {
+      kind: "scalar",
+      key: "status",
+      value: "done",
+      editable: true,
+      style: "plain",
+      replaceRange: { start: 0, end: 0 },
+      removeRange: { start: 0, end: 0 },
+    });
+    const columns = groupKanbanColumns([withProp], FOLDER_GROUP_BY);
+    expect(columns.map((c) => c.label)).toEqual(["Projects"]);
+    // Property-based grouping would give a different result.
+    const byProp = groupKanbanColumns([withProp], "status");
+    expect(byProp.map((c) => c.label)).toEqual(["done"]);
   });
 });

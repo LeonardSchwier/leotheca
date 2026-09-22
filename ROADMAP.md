@@ -2,6 +2,13 @@
 
 ## Open
 
+### Bugs
+
+- ⬜ **Mermaid: untested async render path and unexported sanitizer**: `src/markdown/mermaid.ts` (added 2026-09-22, commit c3a8b27) wires `renderMermaidToSvg()` into `MarkdownPreview`'s placeholder-resolution effect, but only the synchronous marked tokenizer/renderer path is covered by `mermaid.smoke.test.ts`.
+  - **Context:** The async path — the `mermaid.render()` call, the empty-SVG throw, the `.catch(() => codeBlockFallback(...))` fallback, and the unexported `sanitizeMermaidSvg()` defense-in-depth helper (which strips `on*=` attributes and neutralizes `javascript:`/`data:text/html` hrefs) — has zero test coverage. `sanitizeMermaidSvg` is not exported, so it cannot be unit-tested without a test-only export.
+  - **Acceptance criteria:** (1) `sanitizeMermaidSvg` is exported from `src/markdown/mermaid.ts` (or an equivalent public seam) with at least two unit tests: one asserting a malicious `onerror`/`onclick` attribute is stripped, and one asserting a `javascript:` or `data:text/html` href is rewritten to `#`. (2) A test exercises `renderMermaidToSvg`'s fallback path — either by mocking `mermaid.render` to reject/throw or by feeding it syntactically invalid mermaid source — and asserts the returned HTML is a `<pre><code class="language-mermaid">` block containing the original source, not an empty string or an unhandled rejection. (3) `npx vitest run` (full FRONTEND_CHECK suite) passes. (4) No change to `MarkdownPreview.tsx`'s effect or to the smoke test's existing assertions.
+  - **Affected paths:** `src/markdown/mermaid.ts`, `mermaid.smoke.test.ts` (or a new `src/markdown/mermaid.test.ts`).
+
 ### Bugs and CI
 
 - ⬜ **macOS Gatekeeper: Sign, notarize, and staple release DMGs**: Current macOS artifacts are deliberately unsigned and unnotarized, so Gatekeeper warns that the app cannot be verified. The maintainer must provide an Apple Developer Program membership, a Developer ID Application certificate, and an App Store Connect API key as repository secrets. Update the macOS release job to sign the universal `.app`, submit it with `notarytool`, wait for acceptance, staple the ticket to both `.app` and DMG, and fail publication if any step fails. Verify `codesign`, `spctl`, and a fresh download/open on both Apple Silicon and Intel macOS; only then remove the unsigned-install workaround from user documentation and complete the Homebrew Cask.

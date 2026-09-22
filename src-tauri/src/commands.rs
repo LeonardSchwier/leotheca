@@ -181,8 +181,7 @@ const MAX_WALK_DEPTH: usize = 40;
 /// Computes workspace-wide counts in one filesystem traversal. Hidden
 /// directories are deliberately skipped so internal application data and the
 /// workspace trash do not appear in the user's note statistics.
-#[tauri::command]
-pub fn workspace_stats(path: String) -> Result<WorkspaceStats, String> {
+fn workspace_stats_core(path: &Path) -> Result<WorkspaceStats, String> {
     #[derive(Default)]
     struct Accumulator {
         folder_count: usize,
@@ -249,7 +248,7 @@ pub fn workspace_stats(path: String) -> Result<WorkspaceStats, String> {
     }
 
     let mut stats = Accumulator::default();
-    let canonical_root = fs::canonicalize(&path).map_err(|e| e.to_string())?;
+    let canonical_root = fs::canonicalize(path).map_err(|e| e.to_string())?;
     walk(&canonical_root, 0, &canonical_root, &mut stats)?;
 
     Ok(WorkspaceStats {
@@ -266,6 +265,28 @@ pub fn workspace_stats(path: String) -> Result<WorkspaceStats, String> {
     })
 }
 
+/// `path` is a single caller-supplied absolute path with no separate root
+/// argument -- every legitimate caller passes the workspace root itself
+/// (see `list_dir`'s own doc comment) -- gated the same unscoped-path way
+/// `create_dir` is (`rm-60f748cb1a58be89`, the sibling-commands follow-up
+/// to `rm-dfd60513a2eb352c`): without this, a compromised webview could
+/// enumerate note counts/dates for any directory the desktop process can
+/// read, not just the active workspace.
+#[tauri::command]
+pub fn workspace_stats(
+    path: String,
+    app: tauri::AppHandle,
+    workspace_root: tauri::State<'_, ActiveWorkspaceRoot>,
+) -> Result<WorkspaceStats, String> {
+    let target = Path::new(&path);
+    check_unscoped_path_allowed(
+        target,
+        active_workspace_root_snapshot(&workspace_root).as_deref(),
+        app.path().app_config_dir().ok().as_deref(),
+    )?;
+    workspace_stats_core(target)
+}
+
 /// Recursively finds every markdown (`.md`) file under `path` in one native
 /// traversal, instead of one `list_dir` IPC round trip per directory the way
 /// `linking/store.ts`'s `findMarkdownFiles` used to walk it from the
@@ -279,8 +300,7 @@ pub fn workspace_stats(path: String) -> Result<WorkspaceStats, String> {
 /// directory). Shares `workspace_stats`'s `MAX_WALK_DEPTH` symlink-cycle
 /// guard and its hidden-entry skip. Returned in filesystem discovery order,
 /// not sorted; the caller (`rebuildLinkIndex`) already sorts by path itself.
-#[tauri::command]
-pub fn find_markdown_files(path: String) -> Result<Vec<FsEntry>, String> {
+fn find_markdown_files_core(path: &Path) -> Result<Vec<FsEntry>, String> {
     fn walk(
         path: &Path,
         depth: usize,
@@ -330,9 +350,29 @@ pub fn find_markdown_files(path: String) -> Result<Vec<FsEntry>, String> {
     }
 
     let mut files = Vec::new();
-    let canonical_root = fs::canonicalize(&path).map_err(|e| e.to_string())?;
+    let canonical_root = fs::canonicalize(path).map_err(|e| e.to_string())?;
     walk(&canonical_root, 0, &canonical_root, &mut files)?;
     Ok(files)
+}
+
+/// `path` is a single caller-supplied absolute path with no separate root
+/// argument -- every legitimate caller passes the workspace root itself
+/// (see `list_dir`'s own doc comment) -- gated the same unscoped-path way
+/// `create_dir` is (`rm-60f748cb1a58be89`, the sibling-commands follow-up
+/// to `rm-dfd60513a2eb352c`).
+#[tauri::command]
+pub fn find_markdown_files(
+    path: String,
+    app: tauri::AppHandle,
+    workspace_root: tauri::State<'_, ActiveWorkspaceRoot>,
+) -> Result<Vec<FsEntry>, String> {
+    let target = Path::new(&path);
+    check_unscoped_path_allowed(
+        target,
+        active_workspace_root_snapshot(&workspace_root).as_deref(),
+        app.path().app_config_dir().ok().as_deref(),
+    )?;
+    find_markdown_files_core(target)
 }
 
 /// Same one-native-call traversal as `find_markdown_files` above, but with
@@ -348,8 +388,7 @@ pub fn find_markdown_files(path: String) -> Result<Vec<FsEntry>, String> {
 /// signing fix). Splitting this into its own command rather than reusing
 /// `find_markdown_files` for search keeps the "notes only" contract that
 /// name promises intact for its other callers (`rebuildLinkIndex`).
-#[tauri::command]
-pub fn find_all_files(path: String) -> Result<Vec<FsEntry>, String> {
+fn find_all_files_core(path: &Path) -> Result<Vec<FsEntry>, String> {
     fn walk(
         path: &Path,
         depth: usize,
@@ -387,9 +426,29 @@ pub fn find_all_files(path: String) -> Result<Vec<FsEntry>, String> {
     }
 
     let mut files = Vec::new();
-    let canonical_root = fs::canonicalize(&path).map_err(|e| e.to_string())?;
+    let canonical_root = fs::canonicalize(path).map_err(|e| e.to_string())?;
     walk(&canonical_root, 0, &canonical_root, &mut files)?;
     Ok(files)
+}
+
+/// `path` is a single caller-supplied absolute path with no separate root
+/// argument -- every legitimate caller passes the workspace root itself
+/// (see `list_dir`'s own doc comment) -- gated the same unscoped-path way
+/// `create_dir` is (`rm-60f748cb1a58be89`, the sibling-commands follow-up
+/// to `rm-dfd60513a2eb352c`).
+#[tauri::command]
+pub fn find_all_files(
+    path: String,
+    app: tauri::AppHandle,
+    workspace_root: tauri::State<'_, ActiveWorkspaceRoot>,
+) -> Result<Vec<FsEntry>, String> {
+    let target = Path::new(&path);
+    check_unscoped_path_allowed(
+        target,
+        active_workspace_root_snapshot(&workspace_root).as_deref(),
+        app.path().app_config_dir().ok().as_deref(),
+    )?;
+    find_all_files_core(target)
 }
 
 /// Same one-native-call recursive walk as `find_all_files` above, but also
@@ -408,8 +467,7 @@ pub fn find_all_files(path: String) -> Result<Vec<FsEntry>, String> {
 /// own command rather than adding an "include directories" flag to
 /// `find_all_files`, so that command's existing "files only" contract
 /// stays exactly what `runSearch` already relies on.
-#[tauri::command]
-pub fn find_all_entries(path: String) -> Result<Vec<FsEntry>, String> {
+fn find_all_entries_core(path: &Path) -> Result<Vec<FsEntry>, String> {
     fn walk(
         path: &Path,
         depth: usize,
@@ -450,9 +508,29 @@ pub fn find_all_entries(path: String) -> Result<Vec<FsEntry>, String> {
     }
 
     let mut entries = Vec::new();
-    let canonical_root = fs::canonicalize(&path).map_err(|e| e.to_string())?;
+    let canonical_root = fs::canonicalize(path).map_err(|e| e.to_string())?;
     walk(&canonical_root, 0, &canonical_root, &mut entries)?;
     Ok(entries)
+}
+
+/// `path` is a single caller-supplied absolute path with no separate root
+/// argument -- every legitimate caller passes the workspace root itself
+/// (see `list_dir`'s own doc comment) -- gated the same unscoped-path way
+/// `create_dir` is (`rm-60f748cb1a58be89`, the sibling-commands follow-up
+/// to `rm-dfd60513a2eb352c`).
+#[tauri::command]
+pub fn find_all_entries(
+    path: String,
+    app: tauri::AppHandle,
+    workspace_root: tauri::State<'_, ActiveWorkspaceRoot>,
+) -> Result<Vec<FsEntry>, String> {
+    let target = Path::new(&path);
+    check_unscoped_path_allowed(
+        target,
+        active_workspace_root_snapshot(&workspace_root).as_deref(),
+        app.path().app_config_dir().ok().as_deref(),
+    )?;
+    find_all_entries_core(target)
 }
 
 /// Lists the immediate children of `path`, directories first, both sorted
@@ -524,9 +602,25 @@ pub fn list_dir(path: String, workspace_root: String) -> Result<Vec<FsEntry>, St
     Ok(dirs)
 }
 
+/// `path` is a single caller-supplied absolute path with no separate root
+/// argument, the same unscoped shape `write_text_file` had before its own
+/// fix, so it is gated the same way (`rm-60f748cb1a58be89`, the
+/// sibling-commands follow-up to `rm-dfd60513a2eb352c`): unlike an
+/// overwrite, an unscoped read is arbitrary file *disclosure* to the
+/// webview, not just corruption.
 #[tauri::command]
-pub fn read_text_file(path: String) -> Result<String, String> {
-    fs::read_to_string(&path).map_err(|e| e.to_string())
+pub fn read_text_file(
+    path: String,
+    app: tauri::AppHandle,
+    workspace_root: tauri::State<'_, ActiveWorkspaceRoot>,
+) -> Result<String, String> {
+    let target = Path::new(&path);
+    check_unscoped_path_allowed(
+        target,
+        active_workspace_root_snapshot(&workspace_root).as_deref(),
+        app.path().app_config_dir().ok().as_deref(),
+    )?;
+    fs::read_to_string(target).map_err(|e| e.to_string())
 }
 
 /// Reads `path`'s raw bytes, the read-side counterpart of `write_binary_file`
@@ -535,10 +629,20 @@ pub fn read_text_file(path: String) -> Result<String, String> {
 /// U+FFFD (the Android bridge's own text read) on binary content such as an
 /// image attachment -- `capture/captureCommit.ts`'s attachment copy used to
 /// go through the text path and silently corrupt or drop non-text
-/// attachments as a result.
+/// attachments as a result. Gated the same way `read_text_file` above is.
 #[tauri::command]
-pub fn read_binary_file(path: String) -> Result<Vec<u8>, String> {
-    fs::read(&path).map_err(|e| e.to_string())
+pub fn read_binary_file(
+    path: String,
+    app: tauri::AppHandle,
+    workspace_root: tauri::State<'_, ActiveWorkspaceRoot>,
+) -> Result<Vec<u8>, String> {
+    let target = Path::new(&path);
+    check_unscoped_path_allowed(
+        target,
+        active_workspace_root_snapshot(&workspace_root).as_deref(),
+        app.path().app_config_dir().ok().as_deref(),
+    )?;
+    fs::read(target).map_err(|e| e.to_string())
 }
 
 /// Reads multiple files' contents in one native call, for full-text
@@ -555,13 +659,39 @@ pub fn read_binary_file(path: String) -> Result<Vec<u8>, String> {
 /// position rather than failing the whole batch, since a batch of many
 /// files can't reasonably fail all-or-nothing over one bad one; the same
 /// tolerance `read_text_file`'s own callers already apply per-file is
-/// just centralized here.
-#[tauri::command]
-pub fn read_text_files_batch(paths: Vec<String>) -> Vec<Option<String>> {
+/// just centralized here. A path outside the allowed roots (see
+/// `check_unscoped_path_allowed`, `rm-60f748cb1a58be89`) is treated the
+/// same as an unreadable file -- `None` in its own position, not an error
+/// for the whole batch -- so one attacker-supplied path mixed into an
+/// otherwise legitimate batch can't even be distinguished from a missing
+/// file by its result shape.
+fn read_text_files_batch_core(
+    paths: &[String],
+    active_workspace_root: Option<&Path>,
+    app_config_dir: Option<&Path>,
+) -> Vec<Option<String>> {
     paths
         .iter()
-        .map(|path| fs::read_to_string(path).ok())
+        .map(|path| {
+            let target = Path::new(path);
+            check_unscoped_path_allowed(target, active_workspace_root, app_config_dir)
+                .ok()
+                .and_then(|_| fs::read_to_string(target).ok())
+        })
         .collect()
+}
+
+#[tauri::command]
+pub fn read_text_files_batch(
+    paths: Vec<String>,
+    app: tauri::AppHandle,
+    workspace_root: tauri::State<'_, ActiveWorkspaceRoot>,
+) -> Vec<Option<String>> {
+    read_text_files_batch_core(
+        &paths,
+        active_workspace_root_snapshot(&workspace_root).as_deref(),
+        app.path().app_config_dir().ok().as_deref(),
+    )
 }
 
 /// Walks upward from `path` until it finds a real, existing ancestor,
@@ -700,7 +830,7 @@ fn resolve_within_workspace(workspace_root: &str, relative_path: &str) -> Result
 /// kept in sync by `set_active_workspace_root` below every time the
 /// frontend activates or clears one. This is the server-side half of the
 /// containment gate `write_text_file`/`write_binary_file` apply to
-/// themselves (see `check_unscoped_write_allowed`): unlike every
+/// themselves (see `check_unscoped_path_allowed`): unlike every
 /// `*_workspace_*` command, whose whole call contract is a trusted,
 /// explicit `workspace_root` argument checked by `resolve_within_workspace`
 /// on every call, those two commands' contract is a single caller-supplied
@@ -765,21 +895,33 @@ fn is_within_canonical_root(target: &Path, canonical_root: &Path) -> bool {
         .unwrap_or(false)
 }
 
-/// The actual containment decision for `write_text_file`/`write_binary_file`
-/// (2026-09-22 security review, this item's own `ROADMAP.md` entry): these
-/// two commands are exposed over ordinary Tauri IPC with no containment of
-/// any kind, so a compromised webview could invoke them directly --
-/// bypassing every frontend wrapper, including the JS-side check
-/// `tauriBridge.ts`'s own `writeActiveWorkspaceTextFile` already applies to
-/// itself -- to overwrite any file the desktop process user can write to.
-/// Allowed exactly like every other write surface this app already ships:
-/// inside the currently active workspace (`active_workspace_root`, `None`
-/// when no workspace is open) or inside this app's own config directory
-/// (`app_config_dir`; `globalConfig.ts`'s single `config.json` is the one
-/// legitimate caller with no workspace to contain against at all, called
-/// even before any workspace is ever opened). A target satisfying neither
-/// is refused before any filesystem access happens, matching
-/// `resolve_within_workspace`'s own "reject before touching disk" contract.
+/// The actual containment decision for every "unscoped" command whose
+/// contract is a single caller-supplied absolute path with no separate
+/// root argument at all: originally `write_text_file`/`write_binary_file`
+/// alone (2026-09-22 security review, `rm-dfd60513a2eb352c`), now also
+/// their read/create/rename/delete siblings (`rm-60f748cb1a58be89`,
+/// `CONSTITUTION.md`'s "a command that accepts a path... is untrusted
+/// input by default" rule) -- `read_text_file`, `read_binary_file`,
+/// `read_text_files_batch`, `find_markdown_files`, `find_all_files`,
+/// `find_all_entries`, `workspace_stats`, `create_dir`, `rename_path`, and
+/// `delete_path_permanent`. Every one of these is exposed over ordinary
+/// Tauri IPC with no containment of its own, so a compromised webview
+/// could invoke any of them directly -- bypassing every frontend wrapper --
+/// to read, enumerate, create, move, or permanently delete anything the
+/// desktop process user can touch. Allowed exactly like every other
+/// unscoped surface this app ships: inside the currently active workspace
+/// (`active_workspace_root`, `None` when no workspace is open) or inside
+/// this app's own config directory (`app_config_dir`; `globalConfig.ts`'s
+/// single `config.json` is the one legitimate caller with no workspace to
+/// contain against at all, called even before any workspace is ever
+/// opened). A target satisfying neither is refused before any filesystem
+/// access happens, matching `resolve_within_workspace`'s own "reject
+/// before touching disk" contract. The four whole-workspace walk commands
+/// (`find_markdown_files`, `find_all_files`, `find_all_entries`,
+/// `workspace_stats`) always call this with their own `path` argument
+/// itself as `target` -- every legitimate caller passes the workspace root
+/// there, per `list_dir`'s own doc comment -- and this accepts that
+/// because the root itself trivially resolves inside the active workspace.
 ///
 /// Exporting a note to an arbitrary user-chosen location outside the
 /// workspace (`App.tsx`'s "Export note to HTML...") is legitimate but is
@@ -790,7 +932,7 @@ fn is_within_canonical_root(target: &Path, canonical_root: &Path) -> bool {
 /// and the write together in one Rust call, so the destination there is
 /// never a value a webview can supply in the first place, a strictly
 /// stronger guarantee than any allowlist entry could give it.
-fn check_unscoped_write_allowed(
+fn check_unscoped_path_allowed(
     target: &Path,
     active_workspace_root: Option<&Path>,
     app_config_dir: Option<&Path>,
@@ -860,7 +1002,7 @@ fn write_file_atomically(target: &Path, bytes: &[u8]) -> Result<(), String> {
 /// still exists for callers with an already-open workspace file's absolute
 /// path in hand or with genuinely no workspace to contain against (the
 /// global app config file, written before any workspace is ever opened);
-/// see `check_unscoped_write_allowed` for the containment those callers now
+/// see `check_unscoped_path_allowed` for the containment those callers now
 /// get instead of the historical none-at-all (2026-09-22 security review).
 #[tauri::command]
 pub fn write_workspace_text_file(
@@ -917,6 +1059,18 @@ pub fn rename_workspace_path(
     fs::rename(&from_target, &to_target).map_err(|e| e.to_string())
 }
 
+/// Removes `target` outright: recursively if it is a directory, as a
+/// single file otherwise. Shared by `delete_workspace_path_permanent` and
+/// `delete_path_permanent` below, once each has independently verified
+/// containment its own way.
+fn delete_path(target: &Path) -> Result<(), String> {
+    if target.is_dir() {
+        fs::remove_dir_all(target).map_err(|e| e.to_string())
+    } else {
+        fs::remove_file(target).map_err(|e| e.to_string())
+    }
+}
+
 /// Permanently deletes a workspace-relative path, after verifying
 /// containment. Counterpart to `delete_path_permanent` below.
 #[tauri::command]
@@ -925,15 +1079,11 @@ pub fn delete_workspace_path_permanent(
     relative_path: String,
 ) -> Result<(), String> {
     let target = resolve_within_workspace(&workspace_root, &relative_path)?;
-    if target.is_dir() {
-        fs::remove_dir_all(&target).map_err(|e| e.to_string())
-    } else {
-        fs::remove_file(&target).map_err(|e| e.to_string())
-    }
+    delete_path(&target)
 }
 
 /// Shared body for `write_text_file`/`write_binary_file` below, once
-/// `check_unscoped_write_allowed` has already cleared `target`: creates any
+/// `check_unscoped_path_allowed` has already cleared `target`: creates any
 /// missing parent directories first (needed for first-run writes like the
 /// settings file, whose config directory may not exist yet), then writes
 /// crash-safely via `write_file_atomically`. Kept separate from its own
@@ -949,7 +1099,7 @@ fn write_unscoped_file(target: &Path, bytes: &[u8]) -> Result<(), String> {
 
 /// Writes `contents` to `path`. `path` is a single caller-supplied absolute
 /// path with no separate root argument, unlike every `*_workspace_*`
-/// command above, so `check_unscoped_write_allowed` gates it against the
+/// command above, so `check_unscoped_path_allowed` gates it against the
 /// active workspace (if any) and this app's own config directory before any
 /// filesystem access happens -- closing the arbitrary-path write a
 /// compromised webview could otherwise reach directly through this
@@ -967,7 +1117,7 @@ pub fn write_text_file(
     workspace_root: tauri::State<'_, ActiveWorkspaceRoot>,
 ) -> Result<(), String> {
     let target = Path::new(&path);
-    check_unscoped_write_allowed(
+    check_unscoped_path_allowed(
         target,
         active_workspace_root_snapshot(&workspace_root).as_deref(),
         app.path().app_config_dir().ok().as_deref(),
@@ -976,7 +1126,7 @@ pub fn write_text_file(
 }
 
 /// Writes raw bytes to `path`, gated the same way `write_text_file` above
-/// is (see `check_unscoped_write_allowed`). Used for saving a pasted or
+/// is (see `check_unscoped_path_allowed`). Used for saving a pasted or
 /// dropped image attachment (see the frontend's paste/drop handling in
 /// `editor/MarkdownEditor.tsx`); text notes never go through this
 /// command. `data` arrives as a plain array of bytes rather than
@@ -992,7 +1142,7 @@ pub fn write_binary_file(
     workspace_root: tauri::State<'_, ActiveWorkspaceRoot>,
 ) -> Result<(), String> {
     let target = Path::new(&path);
-    check_unscoped_write_allowed(
+    check_unscoped_path_allowed(
         target,
         active_workspace_root_snapshot(&workspace_root).as_deref(),
         app.path().app_config_dir().ok().as_deref(),
@@ -1006,7 +1156,7 @@ pub fn write_binary_file(
 /// `write_text_file` directly never exists as a JS-controlled value at all
 /// for this flow. This is the desktop-only "Export a note to standalone
 /// HTML" command (`App.tsx`'s "Export note to HTML..." menu item; see
-/// `check_unscoped_write_allowed`'s own doc comment for why the generic
+/// `check_unscoped_path_allowed`'s own doc comment for why the generic
 /// unscoped writers cannot safely serve an intentionally-outside-the-
 /// workspace destination like this one). `default_file_name` only seeds the
 /// dialog's own suggested name; it is never itself part of the resulting
@@ -1037,15 +1187,45 @@ pub fn export_text_file_via_dialog(
 
 /// Creates `path` and any missing parent directories. Does not error if the
 /// directory already exists, matching `write_text_file`'s create-on-demand
-/// behavior.
+/// behavior. `path` is a single caller-supplied absolute path with no
+/// separate root argument, the same unscoped shape `write_text_file` had
+/// before its own fix, so it is gated the same way (`rm-60f748cb1a58be89`,
+/// the sibling-commands follow-up to `rm-dfd60513a2eb352c`).
 #[tauri::command]
-pub fn create_dir(path: String) -> Result<(), String> {
-    fs::create_dir_all(&path).map_err(|e| e.to_string())
+pub fn create_dir(
+    path: String,
+    app: tauri::AppHandle,
+    workspace_root: tauri::State<'_, ActiveWorkspaceRoot>,
+) -> Result<(), String> {
+    let target = Path::new(&path);
+    check_unscoped_path_allowed(
+        target,
+        active_workspace_root_snapshot(&workspace_root).as_deref(),
+        app.path().app_config_dir().ok().as_deref(),
+    )?;
+    fs::create_dir_all(target).map_err(|e| e.to_string())
 }
 
+/// Renames/moves `from` to `to`, both single caller-supplied absolute paths
+/// with no separate root argument, gated the same way `create_dir` above is
+/// (`rm-60f748cb1a58be89`): both ends must independently resolve inside the
+/// active workspace or the app config directory, since either end alone
+/// being unchecked would let a compromised webview move an arbitrary file
+/// into (or out of) an allowed location.
 #[tauri::command]
-pub fn rename_path(from: String, to: String) -> Result<(), String> {
-    fs::rename(&from, &to).map_err(|e| e.to_string())
+pub fn rename_path(
+    from: String,
+    to: String,
+    app: tauri::AppHandle,
+    workspace_root: tauri::State<'_, ActiveWorkspaceRoot>,
+) -> Result<(), String> {
+    let from_target = Path::new(&from);
+    let to_target = Path::new(&to);
+    let active_root = active_workspace_root_snapshot(&workspace_root);
+    let config_dir = app.path().app_config_dir().ok();
+    check_unscoped_path_allowed(from_target, active_root.as_deref(), config_dir.as_deref())?;
+    check_unscoped_path_allowed(to_target, active_root.as_deref(), config_dir.as_deref())?;
+    fs::rename(from_target, to_target).map_err(|e| e.to_string())
 }
 
 /// Moves `path` into `<workspace_root>/.trash`, preserving its position
@@ -1090,15 +1270,24 @@ pub fn trash_path(workspace_root: String, path: String) -> Result<(), String> {
 
 /// Deletes `path` outright, no `.trash` involved. Used when the workspace's
 /// delete-behavior setting is "permanent" rather than the default "project
-/// trash" (see `trash_path`).
+/// trash" (see `trash_path`). `path` is a single caller-supplied absolute
+/// path with no separate root argument, gated the same way `create_dir`
+/// above is (`rm-60f748cb1a58be89`) -- irreversible deletion is exactly the
+/// class of operation this containment gate exists to stop a compromised
+/// webview from reaching directly.
 #[tauri::command]
-pub fn delete_path_permanent(path: String) -> Result<(), String> {
+pub fn delete_path_permanent(
+    path: String,
+    app: tauri::AppHandle,
+    workspace_root: tauri::State<'_, ActiveWorkspaceRoot>,
+) -> Result<(), String> {
     let target = Path::new(&path);
-    if target.is_dir() {
-        fs::remove_dir_all(target).map_err(|e| e.to_string())
-    } else {
-        fs::remove_file(target).map_err(|e| e.to_string())
-    }
+    check_unscoped_path_allowed(
+        target,
+        active_workspace_root_snapshot(&workspace_root).as_deref(),
+        app.path().app_config_dir().ok().as_deref(),
+    )?;
+    delete_path(target)
 }
 
 #[cfg(test)]
@@ -1131,8 +1320,8 @@ mod tests {
     fn list_dir_sorts_directories_before_files_and_skips_dotfiles() {
         let tmp = std::env::temp_dir().join(format!("leotheca-test-{}", std::process::id()));
         let _ = fs::remove_dir_all(&tmp);
-        create_dir(tmp.to_string_lossy().to_string()).unwrap();
-        create_dir(tmp.join("zzz-folder").to_string_lossy().to_string()).unwrap();
+        fs::create_dir_all(&tmp).unwrap();
+        fs::create_dir_all(tmp.join("zzz-folder")).unwrap();
         File::create(tmp.join("aaa-file.md")).unwrap();
         File::create(tmp.join(".hidden")).unwrap();
 
@@ -1155,8 +1344,8 @@ mod tests {
     fn list_dir_reports_mtime_for_files_but_not_directories() {
         let tmp = std::env::temp_dir().join(format!("leotheca-test-mtime-{}", std::process::id()));
         let _ = fs::remove_dir_all(&tmp);
-        create_dir(tmp.to_string_lossy().to_string()).unwrap();
-        create_dir(tmp.join("a-folder").to_string_lossy().to_string()).unwrap();
+        fs::create_dir_all(&tmp).unwrap();
+        fs::create_dir_all(tmp.join("a-folder")).unwrap();
         File::create(tmp.join("a-file.md")).unwrap();
 
         let entries = list_dir(
@@ -1183,13 +1372,19 @@ mod tests {
         fs::remove_dir_all(&tmp).unwrap();
     }
 
+    // `read_text_file`/`read_binary_file` themselves now take a
+    // `tauri::AppHandle`/`tauri::State<ActiveWorkspaceRoot>` (containment
+    // gate, `rm-60f748cb1a58be89`), so these exercise the plain `fs` reads
+    // their bodies delegate to once `check_unscoped_path_allowed` (its own
+    // dedicated tests further down) has already cleared the target -- the
+    // same split `write_unscoped_file`'s own tests above already use.
+
     #[test]
     fn write_then_read_round_trips_contents() {
         let tmp = std::env::temp_dir().join(format!("leotheca-test-file-{}", std::process::id()));
-        let path = tmp.to_string_lossy().to_string();
 
         write_unscoped_file(&tmp, "# Hello\n\nBody text.".as_bytes()).unwrap();
-        let contents = read_text_file(path.clone()).unwrap();
+        let contents = fs::read_to_string(&tmp).unwrap();
 
         assert_eq!(contents, "# Hello\n\nBody text.");
         fs::remove_file(&tmp).unwrap();
@@ -1199,14 +1394,13 @@ mod tests {
     fn read_binary_file_round_trips_bytes_write_binary_file_wrote() {
         let tmp =
             std::env::temp_dir().join(format!("leotheca-test-readbinfile-{}", std::process::id()));
-        let path = tmp.to_string_lossy().to_string();
         // Includes an invalid-UTF-8 byte sequence (a lone 0xFF continuation
         // byte) to prove this reads raw bytes rather than the lossy/erroring
         // UTF-8 decode read_text_file would apply to the same bytes.
         let bytes: Vec<u8> = vec![0, 1, 2, 0xff, 0xfe, 0xfd, 137, 80, 78, 71];
 
         write_unscoped_file(&tmp, &bytes).unwrap();
-        let read_back = read_binary_file(path.clone()).unwrap();
+        let read_back = fs::read(&tmp).unwrap();
 
         assert_eq!(read_back, bytes);
         fs::remove_file(&tmp).unwrap();
@@ -1220,7 +1414,7 @@ mod tests {
         ));
         let _ = fs::remove_file(&tmp);
 
-        assert!(read_binary_file(tmp.to_string_lossy().to_string()).is_err());
+        assert!(fs::read(&tmp).is_err());
     }
 
     #[test]
@@ -1228,16 +1422,20 @@ mod tests {
         let root =
             std::env::temp_dir().join(format!("leotheca-test-batchread-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
-        create_dir(root.to_string_lossy().to_string()).unwrap();
+        fs::create_dir_all(&root).unwrap();
         fs::write(root.join("a.md"), "content a").unwrap();
         fs::write(root.join("b.md"), "content b").unwrap();
         let missing = root.join("does-not-exist.md");
 
-        let results = read_text_files_batch(vec![
-            root.join("a.md").to_string_lossy().to_string(),
-            missing.to_string_lossy().to_string(),
-            root.join("b.md").to_string_lossy().to_string(),
-        ]);
+        let results = read_text_files_batch_core(
+            &[
+                root.join("a.md").to_string_lossy().to_string(),
+                missing.to_string_lossy().to_string(),
+                root.join("b.md").to_string_lossy().to_string(),
+            ],
+            Some(&root),
+            None,
+        );
 
         assert_eq!(
             results,
@@ -1251,12 +1449,48 @@ mod tests {
         fs::remove_dir_all(&root).unwrap();
     }
 
+    #[test]
+    fn read_text_files_batch_maps_a_path_outside_the_allowed_roots_to_none_not_an_error() {
+        let root = std::env::temp_dir().join(format!(
+            "leotheca-test-batchread-outside-{}",
+            std::process::id()
+        ));
+        let outside = std::env::temp_dir().join(format!(
+            "leotheca-test-batchread-outside-secret-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        let _ = fs::remove_dir_all(&outside);
+        fs::create_dir_all(&root).unwrap();
+        fs::create_dir_all(&outside).unwrap();
+        fs::write(root.join("a.md"), "content a").unwrap();
+        fs::write(outside.join("secret.md"), "top secret").unwrap();
+
+        let results = read_text_files_batch_core(
+            &[
+                root.join("a.md").to_string_lossy().to_string(),
+                outside.join("secret.md").to_string_lossy().to_string(),
+            ],
+            Some(&root),
+            None,
+        );
+
+        assert_eq!(
+            results,
+            vec![Some("content a".to_string()), None],
+            "a path outside the active workspace/config dir must not leak its contents, \
+             and must fail the same way a missing file does -- not distinguishably"
+        );
+        fs::remove_dir_all(&root).unwrap();
+        fs::remove_dir_all(&outside).unwrap();
+    }
+
     // `write_text_file`/`write_binary_file` themselves now take a
     // `tauri::AppHandle`/`tauri::State<ActiveWorkspaceRoot>` (2026-09-22
     // security review's containment gate below), so these exercise their
     // shared `write_unscoped_file` body directly instead -- the same
     // create-parent-directories/atomic-write/overwrite behavior those
-    // commands still delegate to once `check_unscoped_write_allowed` (its
+    // commands still delegate to once `check_unscoped_path_allowed` (its
     // own dedicated tests further down) has already cleared the target.
 
     #[test]
@@ -1299,7 +1533,7 @@ mod tests {
     }
 
     #[test]
-    fn check_unscoped_write_allowed_accepts_a_target_inside_the_active_workspace() {
+    fn check_unscoped_path_allowed_accepts_a_target_inside_the_active_workspace() {
         let root = std::env::temp_dir().join(format!(
             "leotheca-test-unscoped-workspace-{}",
             std::process::id()
@@ -1308,14 +1542,14 @@ mod tests {
         fs::create_dir_all(&root).unwrap();
         let target = root.join("note.md");
 
-        let result = check_unscoped_write_allowed(&target, Some(&root), None);
+        let result = check_unscoped_path_allowed(&target, Some(&root), None);
 
         assert!(result.is_ok(), "{result:?}");
         fs::remove_dir_all(&root).unwrap();
     }
 
     #[test]
-    fn check_unscoped_write_allowed_accepts_a_target_inside_the_app_config_dir() {
+    fn check_unscoped_path_allowed_accepts_a_target_inside_the_app_config_dir() {
         let config_dir = std::env::temp_dir().join(format!(
             "leotheca-test-unscoped-config-{}",
             std::process::id()
@@ -1324,14 +1558,14 @@ mod tests {
         fs::create_dir_all(&config_dir).unwrap();
         let target = config_dir.join("config.json");
 
-        let result = check_unscoped_write_allowed(&target, None, Some(&config_dir));
+        let result = check_unscoped_path_allowed(&target, None, Some(&config_dir));
 
         assert!(result.is_ok(), "{result:?}");
         fs::remove_dir_all(&config_dir).unwrap();
     }
 
     #[test]
-    fn check_unscoped_write_allowed_accepts_a_target_inside_the_app_config_dir_before_it_exists() {
+    fn check_unscoped_path_allowed_accepts_a_target_inside_the_app_config_dir_before_it_exists() {
         // `globalConfig.ts`'s own comment: "A first launch has no config
         // file yet" -- and on a genuinely first launch, the config
         // *directory* itself may not exist yet either.
@@ -1342,13 +1576,13 @@ mod tests {
         let _ = fs::remove_dir_all(&config_dir);
         let target = config_dir.join("config.json");
 
-        let result = check_unscoped_write_allowed(&target, None, Some(&config_dir));
+        let result = check_unscoped_path_allowed(&target, None, Some(&config_dir));
 
         assert!(result.is_ok(), "{result:?}");
     }
 
     #[test]
-    fn check_unscoped_write_allowed_rejects_a_target_outside_both_roots() {
+    fn check_unscoped_path_allowed_rejects_a_target_outside_both_roots() {
         let root = std::env::temp_dir().join(format!(
             "leotheca-test-unscoped-workspace-reject-{}",
             std::process::id()
@@ -1364,7 +1598,7 @@ mod tests {
             std::process::id()
         ));
 
-        let result = check_unscoped_write_allowed(&outside, Some(&root), Some(&config_dir));
+        let result = check_unscoped_path_allowed(&outside, Some(&root), Some(&config_dir));
 
         assert!(result.is_err());
         fs::remove_dir_all(&root).unwrap();
@@ -1372,19 +1606,19 @@ mod tests {
     }
 
     #[test]
-    fn check_unscoped_write_allowed_rejects_everything_when_no_root_is_known() {
+    fn check_unscoped_path_allowed_rejects_everything_when_no_root_is_known() {
         let outside = std::env::temp_dir().join(format!(
             "leotheca-test-unscoped-no-root-{}",
             std::process::id()
         ));
 
-        let result = check_unscoped_write_allowed(&outside, None, None);
+        let result = check_unscoped_path_allowed(&outside, None, None);
 
         assert!(result.is_err());
     }
 
     #[test]
-    fn check_unscoped_write_allowed_rejects_a_sibling_directory_sharing_a_name_prefix() {
+    fn check_unscoped_path_allowed_rejects_a_sibling_directory_sharing_a_name_prefix() {
         // Mirrors `resolve_within_workspace_rejects_a_sibling_directory_...`
         // above: a raw string-prefix check would wrongly accept
         // "/vault-evil" as being inside "/vault".
@@ -1401,7 +1635,7 @@ mod tests {
         fs::create_dir_all(&sibling).unwrap();
         let target = sibling.join("note.md");
 
-        let result = check_unscoped_write_allowed(&target, Some(&root), None);
+        let result = check_unscoped_path_allowed(&target, Some(&root), None);
 
         assert!(result.is_err());
         fs::remove_dir_all(&root).unwrap();
@@ -1410,7 +1644,7 @@ mod tests {
 
     #[test]
     #[cfg(unix)]
-    fn check_unscoped_write_allowed_rejects_a_symlink_escaping_the_active_workspace() {
+    fn check_unscoped_path_allowed_rejects_a_symlink_escaping_the_active_workspace() {
         let root = std::env::temp_dir().join(format!(
             "leotheca-test-unscoped-symlink-workspace-{}",
             std::process::id()
@@ -1427,7 +1661,7 @@ mod tests {
         let link = root.join("escape.txt");
         std::os::unix::fs::symlink(&evil_target, &link).unwrap();
 
-        let result = check_unscoped_write_allowed(&link, Some(&root), None);
+        let result = check_unscoped_path_allowed(&link, Some(&root), None);
 
         assert!(result.is_err());
         assert!(!evil_target.exists());
@@ -1518,11 +1752,11 @@ mod tests {
         let _ = fs::remove_dir_all(&base);
         let nested = base.join("a").join("b");
 
-        create_dir(nested.to_string_lossy().to_string()).unwrap();
+        fs::create_dir_all(&nested).unwrap();
         assert!(nested.is_dir());
 
         // Calling again on an existing directory must not error.
-        create_dir(nested.to_string_lossy().to_string()).unwrap();
+        fs::create_dir_all(&nested).unwrap();
 
         fs::remove_dir_all(&base).unwrap();
     }
@@ -1532,16 +1766,12 @@ mod tests {
         let base =
             std::env::temp_dir().join(format!("leotheca-test-rename-{}", std::process::id()));
         let _ = fs::remove_dir_all(&base);
-        create_dir(base.to_string_lossy().to_string()).unwrap();
+        fs::create_dir_all(&base).unwrap();
         let from = base.join("old.md");
         let to = base.join("new.md");
         File::create(&from).unwrap();
 
-        rename_path(
-            from.to_string_lossy().to_string(),
-            to.to_string_lossy().to_string(),
-        )
-        .unwrap();
+        fs::rename(&from, &to).unwrap();
 
         assert!(!from.exists());
         assert!(to.exists());
@@ -1552,7 +1782,7 @@ mod tests {
     fn trash_path_moves_entry_under_dot_trash_preserving_relative_position() {
         let root = std::env::temp_dir().join(format!("leotheca-test-trash-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
-        create_dir(root.join("notes").to_string_lossy().to_string()).unwrap();
+        fs::create_dir_all(root.join("notes")).unwrap();
         let target = root.join("notes").join("draft.md");
         File::create(&target).unwrap();
 
@@ -1574,15 +1804,15 @@ mod tests {
             std::process::id()
         ));
         let _ = fs::remove_dir_all(&root);
-        create_dir(root.join("notes").to_string_lossy().to_string()).unwrap();
+        fs::create_dir_all(root.join("notes")).unwrap();
         let file = root.join("notes").join("draft.md");
         File::create(&file).unwrap();
 
-        delete_path_permanent(file.to_string_lossy().to_string()).unwrap();
+        delete_path(&file).unwrap();
         assert!(!file.exists());
         assert!(!root.join(".trash").exists());
 
-        delete_path_permanent(root.join("notes").to_string_lossy().to_string()).unwrap();
+        delete_path(&root.join("notes")).unwrap();
         assert!(!root.join("notes").exists());
 
         fs::remove_dir_all(&root).unwrap();
@@ -1595,8 +1825,8 @@ mod tests {
             std::process::id()
         ));
         let _ = fs::remove_dir_all(&root);
-        create_dir(root.to_string_lossy().to_string()).unwrap();
-        create_dir(root.join(".trash").to_string_lossy().to_string()).unwrap();
+        fs::create_dir_all(&root).unwrap();
+        fs::create_dir_all(root.join(".trash")).unwrap();
         File::create(root.join(".trash").join("dup.md")).unwrap();
         File::create(root.join("dup.md")).unwrap();
 
@@ -1620,14 +1850,14 @@ mod tests {
     fn workspace_stats_counts_notes_images_and_visible_folders() {
         let root = std::env::temp_dir().join(format!("leotheca-test-stats-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
-        create_dir(root.join("notes").to_string_lossy().to_string()).unwrap();
-        create_dir(root.join(".leotheca").to_string_lossy().to_string()).unwrap();
+        fs::create_dir_all(root.join("notes")).unwrap();
+        fs::create_dir_all(root.join(".leotheca")).unwrap();
         fs::write(root.join("first.md"), "one\ntwo\n").unwrap();
         fs::write(root.join("notes").join("second.MD"), "three").unwrap();
         File::create(root.join("notes").join("image.PNG")).unwrap();
         File::create(root.join(".leotheca").join("ignored.md")).unwrap();
 
-        let stats = workspace_stats(root.to_string_lossy().to_string()).unwrap();
+        let stats = workspace_stats_core(&root).unwrap();
 
         assert_eq!(stats.folder_count, 1);
         assert_eq!(stats.note_count, 2);
@@ -1651,11 +1881,11 @@ mod tests {
             std::process::id()
         ));
         let _ = fs::remove_dir_all(&root);
-        create_dir(root.to_string_lossy().to_string()).unwrap();
+        fs::create_dir_all(&root).unwrap();
         fs::write(root.join("good.md"), "one\ntwo\nthree\n").unwrap();
         fs::write(root.join("bad.md"), [0xff, 0xfe, 0xfd]).unwrap();
 
-        let stats = workspace_stats(root.to_string_lossy().to_string()).unwrap();
+        let stats = workspace_stats_core(&root).unwrap();
 
         assert_eq!(
             stats.note_count, 2,
@@ -1673,15 +1903,15 @@ mod tests {
         let root =
             std::env::temp_dir().join(format!("leotheca-test-findmd-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
-        create_dir(root.join("notes").to_string_lossy().to_string()).unwrap();
-        create_dir(root.join(".leotheca").to_string_lossy().to_string()).unwrap();
+        fs::create_dir_all(root.join("notes")).unwrap();
+        fs::create_dir_all(root.join(".leotheca")).unwrap();
         fs::write(root.join("a.md"), "a").unwrap();
         fs::write(root.join("notes").join("b.MD"), "b").unwrap();
         fs::write(root.join("notes").join("c.txt"), "not markdown").unwrap();
         File::create(root.join(".leotheca").join("ignored.md")).unwrap();
         File::create(root.join(".hidden.md")).unwrap();
 
-        let files = find_markdown_files(root.to_string_lossy().to_string()).unwrap();
+        let files = find_markdown_files_core(&root).unwrap();
         let mut names: Vec<_> = files.iter().map(|f| f.name.clone()).collect();
         names.sort();
 
@@ -1699,7 +1929,7 @@ mod tests {
         let root =
             std::env::temp_dir().join(format!("leotheca-test-findmd-size-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
-        create_dir(root.to_string_lossy().to_string()).unwrap();
+        fs::create_dir_all(&root).unwrap();
         fs::write(root.join("a.md"), "hello").unwrap();
         fs::write(
             root.join("b.md"),
@@ -1707,7 +1937,7 @@ mod tests {
         )
         .unwrap();
 
-        let files = find_markdown_files(root.to_string_lossy().to_string()).unwrap();
+        let files = find_markdown_files_core(&root).unwrap();
         let a = files.iter().find(|f| f.name == "a.md").unwrap();
         let b = files.iter().find(|f| f.name == "b.md").unwrap();
 
@@ -1729,15 +1959,15 @@ mod tests {
         let root =
             std::env::temp_dir().join(format!("leotheca-test-findall-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
-        create_dir(root.join("notes").to_string_lossy().to_string()).unwrap();
-        create_dir(root.join(".leotheca").to_string_lossy().to_string()).unwrap();
+        fs::create_dir_all(root.join("notes")).unwrap();
+        fs::create_dir_all(root.join(".leotheca")).unwrap();
         fs::write(root.join("a.md"), "a").unwrap();
         fs::write(root.join("notes").join("photo.png"), "not really a png").unwrap();
         fs::write(root.join("notes").join("c.txt"), "plain text").unwrap();
         File::create(root.join(".leotheca").join("ignored.md")).unwrap();
         File::create(root.join(".hidden.md")).unwrap();
 
-        let files = find_all_files(root.to_string_lossy().to_string()).unwrap();
+        let files = find_all_files_core(&root).unwrap();
         let mut names: Vec<_> = files.iter().map(|f| f.name.clone()).collect();
         names.sort();
 
@@ -1772,11 +2002,11 @@ mod tests {
             std::process::id()
         ));
         let _ = fs::remove_dir_all(&root);
-        create_dir(root.to_string_lossy().to_string()).unwrap();
+        fs::create_dir_all(&root).unwrap();
         fs::write(root.join("a.md"), "a").unwrap();
         std::os::unix::fs::symlink(&root, root.join("loop")).unwrap();
 
-        let files = find_all_files(root.to_string_lossy().to_string()).unwrap();
+        let files = find_all_files_core(&root).unwrap();
 
         assert!(
             !files.is_empty(),
@@ -1804,15 +2034,15 @@ mod tests {
             std::process::id()
         ));
         let _ = fs::remove_dir_all(&root);
-        create_dir(root.join("notes").to_string_lossy().to_string()).unwrap();
-        create_dir(root.join("empty").to_string_lossy().to_string()).unwrap();
-        create_dir(root.join(".leotheca").to_string_lossy().to_string()).unwrap();
+        fs::create_dir_all(root.join("notes")).unwrap();
+        fs::create_dir_all(root.join("empty")).unwrap();
+        fs::create_dir_all(root.join(".leotheca")).unwrap();
         fs::write(root.join("a.md"), "a").unwrap();
         fs::write(root.join("notes").join("b.md"), "b").unwrap();
         File::create(root.join(".leotheca").join("ignored.md")).unwrap();
         File::create(root.join(".hidden.md")).unwrap();
 
-        let entries = find_all_entries(root.to_string_lossy().to_string()).unwrap();
+        let entries = find_all_entries_core(&root).unwrap();
         let mut names: Vec<_> = entries.iter().map(|f| f.name.clone()).collect();
         names.sort();
 
@@ -1847,11 +2077,11 @@ mod tests {
             std::process::id()
         ));
         let _ = fs::remove_dir_all(&root);
-        create_dir(root.to_string_lossy().to_string()).unwrap();
+        fs::create_dir_all(&root).unwrap();
         fs::write(root.join("a.md"), "a").unwrap();
         std::os::unix::fs::symlink(&root, root.join("loop")).unwrap();
 
-        let entries = find_all_entries(root.to_string_lossy().to_string()).unwrap();
+        let entries = find_all_entries_core(&root).unwrap();
 
         assert!(
             !entries.is_empty(),
@@ -1873,10 +2103,10 @@ mod tests {
         let root =
             std::env::temp_dir().join(format!("leotheca-test-findmd-mtime-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
-        create_dir(root.to_string_lossy().to_string()).unwrap();
+        fs::create_dir_all(&root).unwrap();
         fs::write(root.join("a.md"), "a").unwrap();
 
-        let files = find_markdown_files(root.to_string_lossy().to_string()).unwrap();
+        let files = find_markdown_files_core(&root).unwrap();
 
         assert_eq!(files.len(), 1);
         assert!(files[0].mtime.is_some());
@@ -1888,10 +2118,10 @@ mod tests {
         let root =
             std::env::temp_dir().join(format!("leotheca-test-findall-size-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
-        create_dir(root.to_string_lossy().to_string()).unwrap();
+        fs::create_dir_all(&root).unwrap();
         fs::write(root.join("a.md"), "twelve bytes").unwrap();
 
-        let files = find_all_files(root.to_string_lossy().to_string()).unwrap();
+        let files = find_all_files_core(&root).unwrap();
 
         assert_eq!(files.len(), 1);
         assert_eq!(
@@ -1911,10 +2141,10 @@ mod tests {
         let root =
             std::env::temp_dir().join(format!("leotheca-test-findmd-empty-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
-        create_dir(root.to_string_lossy().to_string()).unwrap();
+        fs::create_dir_all(&root).unwrap();
         fs::write(root.join("not-a-note.txt"), "x").unwrap();
 
-        let files = find_markdown_files(root.to_string_lossy().to_string()).unwrap();
+        let files = find_markdown_files_core(&root).unwrap();
 
         assert!(files.is_empty());
         fs::remove_dir_all(&root).unwrap();
@@ -1933,11 +2163,11 @@ mod tests {
         let root =
             std::env::temp_dir().join(format!("leotheca-test-findmd-cycle-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
-        create_dir(root.to_string_lossy().to_string()).unwrap();
+        fs::create_dir_all(&root).unwrap();
         fs::write(root.join("a.md"), "a").unwrap();
         std::os::unix::fs::symlink(&root, root.join("loop")).unwrap();
 
-        let files = find_markdown_files(root.to_string_lossy().to_string()).unwrap();
+        let files = find_markdown_files_core(&root).unwrap();
 
         // "a.md" is rediscovered once per depth level the cycle revisits
         // (root's own content, seen again through each nested "loop"), so a
@@ -1987,10 +2217,10 @@ mod tests {
         let root =
             std::env::temp_dir().join(format!("leotheca-test-stats-cycle-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
-        create_dir(root.to_string_lossy().to_string()).unwrap();
+        fs::create_dir_all(&root).unwrap();
         std::os::unix::fs::symlink(&root, root.join("loop")).unwrap();
 
-        let stats = workspace_stats(root.to_string_lossy().to_string()).unwrap();
+        let stats = workspace_stats_core(&root).unwrap();
 
         assert!(
             stats.folder_count > 0,
@@ -2032,25 +2262,25 @@ mod tests {
         ));
         let _ = fs::remove_dir_all(&root);
         let _ = fs::remove_dir_all(&outside);
-        create_dir(root.to_string_lossy().to_string()).unwrap();
-        create_dir(outside.to_string_lossy().to_string()).unwrap();
+        fs::create_dir_all(&root).unwrap();
+        fs::create_dir_all(&outside).unwrap();
         fs::write(root.join("a.md"), "a").unwrap();
         fs::write(outside.join("secret.md"), "TOP SECRET").unwrap();
         std::os::unix::fs::symlink(&outside, root.join("escape")).unwrap();
 
-        let markdown_files = find_markdown_files(root.to_string_lossy().to_string()).unwrap();
+        let markdown_files = find_markdown_files_core(&root).unwrap();
         assert!(
             markdown_files.iter().all(|f| f.name != "secret.md"),
             "find_markdown_files must not walk through a symlink escaping the workspace"
         );
 
-        let all_files = find_all_files(root.to_string_lossy().to_string()).unwrap();
+        let all_files = find_all_files_core(&root).unwrap();
         assert!(
             all_files.iter().all(|f| f.name != "secret.md"),
             "find_all_files must not walk through a symlink escaping the workspace"
         );
 
-        let all_entries = find_all_entries(root.to_string_lossy().to_string()).unwrap();
+        let all_entries = find_all_entries_core(&root).unwrap();
         assert!(
             all_entries.iter().all(|e| e.name != "secret.md"),
             "find_all_entries must not walk through a symlink escaping the workspace"
@@ -2060,7 +2290,7 @@ mod tests {
             "the escaping symlink itself must not be surfaced as a browsable entry"
         );
 
-        let stats = workspace_stats(root.to_string_lossy().to_string()).unwrap();
+        let stats = workspace_stats_core(&root).unwrap();
         assert_eq!(
             stats.note_count, 1,
             "workspace_stats must not count the note reachable only through the escaping symlink"
@@ -2097,8 +2327,8 @@ mod tests {
         ));
         let _ = fs::remove_dir_all(&root);
         let _ = fs::remove_dir_all(&outside);
-        create_dir(root.to_string_lossy().to_string()).unwrap();
-        create_dir(outside.to_string_lossy().to_string()).unwrap();
+        fs::create_dir_all(&root).unwrap();
+        fs::create_dir_all(&outside).unwrap();
         fs::write(root.join("a.md"), "a").unwrap();
         fs::write(outside.join("secret.md"), "TOP SECRET").unwrap();
         std::os::unix::fs::symlink(&outside, root.join("escape-dir")).unwrap();
@@ -2141,8 +2371,8 @@ mod tests {
         ));
         let _ = fs::remove_dir_all(&root);
         let _ = fs::remove_dir_all(&outside);
-        create_dir(root.to_string_lossy().to_string()).unwrap();
-        create_dir(outside.to_string_lossy().to_string()).unwrap();
+        fs::create_dir_all(&root).unwrap();
+        fs::create_dir_all(&outside).unwrap();
         fs::write(outside.join("secret.md"), "TOP SECRET").unwrap();
         std::os::unix::fs::symlink(&outside, root.join("escape-dir")).unwrap();
 

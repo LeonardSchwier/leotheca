@@ -57,9 +57,11 @@ pub fn run() {
     builder = builder.manage(speech_commands::WhisperState::default());
 
     // Server-side mirror of the frontend's own active workspace root (see
-    // `commands::ActiveWorkspaceRoot`), the containment gate
-    // `write_text_file`/`write_binary_file` now check themselves against
-    // (2026-09-22 security review).
+    // `commands::ActiveWorkspaceRoot`), the containment gate every unscoped
+    // path-accepting command checks itself against: originally
+    // `write_text_file`/`write_binary_file` alone (2026-09-22 security
+    // review, rm-dfd60513a2eb352c), now also their read/create/rename/
+    // delete siblings (rm-60f748cb1a58be89).
     builder = builder.manage(commands::ActiveWorkspaceRoot::default());
 
     // Cold start's own counterpart of the single-instance callback above:

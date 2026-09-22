@@ -208,6 +208,10 @@
 
   </details>
 
+- ⬜ **Whiteboard: double-click empty canvas to create a new note card**: The existing Whiteboard/Canvas (implemented) supports movable cards and file-reference cards, but has no documented or tested double-click-to-add-note gesture. Adding it is a standard canvas interaction pattern (the "shoulders of giants" principle) that lets a user create a new note card on the canvas without first navigating to a menu or toolbar action. Purely local JSON-canvas mutation, no new file format, no network call. (Competitor scan, Joplin Desktop v3.7.18, 2026-09-11).
+
+- ⬜ **Smart Collections board view: folder-grouped kanban with card move and note creation**: The existing read-only Smart Collections board view (grouped by a single frontmatter property) could be extended to support grouping by `file.folder` (the note's containing directory), with two additional capabilities from the Obsidian 1.14.2 Bases Kanban precedent: (1) dragging a card into a different folder column moves the note file to that folder, and (2) creating a new note in a folder column places the new file in that directory. Both are plain-filesystem operations on the user's own plain-text notes, no new format or network call. Prerequisite: the board view must first support folder-based grouping; the current board view groups only by frontmatter properties and is read-only by design. (Competitor scan, Obsidian Desktop v1.14.2, 2026-09-15).
+
 ## Implemented
 
 - ✅ **Export/Print: `inlineLocalImages` re-serializes the whole note through `DOMParser` and restructures its markup (spurious `<p>`, injected `<tbody>`, repaired tags) in every HTML export**

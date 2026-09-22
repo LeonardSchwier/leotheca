@@ -35,6 +35,17 @@
 
 ### Bugs and CI
 
+- ⬜ **F-Droid submission-verify workflow: stale pre-F015 version/commit pins**: `.github/workflows/fdroid-submission-verify.yml` and `packaging/f-droid/README.md` still hardcode the pre-F015 `v1.0.0` commit/`versionCode 1`/`versionName 1.0`/`..._1.apk`, but the metadata was correctly updated by F-015 to `v0.1.0`/`100`/`"0.1.0"`. The workflow's metadata-pin `grep` can never match, and its APK version/filename assertions are wrong.
+
+  <details>
+  <summary>Root cause and acceptance criteria</summary>
+
+  Root cause: audit follow-up F-015 repointed the F-Droid recipe's `Builds:` entry from the `v1.0.0` tag's commit to the not-yet-cut `v0.1.0` tag (and `versionCode`/`versionName` to match `VERSION`), but `fdroid-submission-verify.yml` (triggered on push to `agent/f-droid-submission`) and `packaging/f-droid/README.md`'s "Verified repository-side checks" list were never updated to match, so they still assert the old `v1.0.0`-era values.
+
+  Acceptance criteria: the workflow derives its release-source checkout ref and APK version/filename assertions from the metadata file itself (or otherwise stays byte-for-byte in sync with it) instead of hardcoding now-incorrect literals, so this can't silently drift again; `packaging/f-droid/README.md`'s claims match what the workflow actually checks; no change to `packaging/f-droid/com.leonardschwier.leotheca.yml` itself (already correct). The workflow still cannot fully succeed end-to-end until a real `v0.1.0` tag exists — that's an accurate, pre-existing, disclosed limitation (README item 4), not something this item fixes.
+
+  </details>
+
 - ⬜ **macOS Gatekeeper: Sign, notarize, and staple release DMGs**: Current macOS artifacts are deliberately unsigned and unnotarized, so Gatekeeper warns that the app cannot be verified. The maintainer must provide an Apple Developer Program membership, a Developer ID Application certificate, and an App Store Connect API key as repository secrets. Update the macOS release job to sign the universal `.app`, submit it with `notarytool`, wait for acceptance, staple the ticket to both `.app` and DMG, and fail publication if any step fails. Verify `codesign`, `spctl`, and a fresh download/open on both Apple Silicon and Intel macOS; only then remove the unsigned-install workaround from user documentation and complete the Homebrew Cask.
   <!-- agent-state: {"schema":1,"id":"rm-dcbbb805ce521c18","state":"open","touch":[".agents/handoffs",".github/workflows/release.yml"],"resources":["macos-release-signing"],"note":"Code work complete (2b0f57b on main). Remaining steps (notarization run, Gatekeeper test on real macOS, Homebrew Cask) blocked on maintainer Apple Developer Program credentials. Released so the lease does not block other agents.","released_at":"2026-09-22T18:21:29Z"} -->
   Agent: unclaimed | item: rm-dcbbb805ce521c18

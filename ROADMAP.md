@@ -166,8 +166,8 @@
   </details>
 
 - 🚧 **Deep-link `open-note` does not validate `path` against workspace**: `automationCommands.ts` passes the `path` query parameter to `openNote` without workspace containment check. A malicious deep link could target arbitrary files.
-  <!-- agent-state: {"schema":1,"id":"rm-27a20e12b237274f","state":"claimed","touch":["src/app/App.tsx","src/app/automationCommands.ts"],"resources":[],"owner":"hermes-local-20260922T092224Z-b0dc8d97","token":"04515368f52091933c36d25d718e5b4a","branch":"agent/rm-27a20e12b237274f/04515368f520","claimed_at":"2026-09-22T09:33:24Z","heartbeat_at":"2026-09-22T09:33:24Z","lease_until":"2026-09-22T11:03:24Z"} -->
-  Agent: hermes-local-20260922T092224Z-b0dc8d97 | item: rm-27a20e12b237274f | lease until: 2026-09-22T11:03:24Z
+  <!-- agent-state: {"schema":1,"id":"rm-27a20e12b237274f","state":"claimed","touch":["src/app/App.tsx","src/app/automationCommands.test.ts","src/app/automationCommands.ts"],"resources":["deep-link-validation"],"owner":"hermes-local-20260922T114823Z-2b4cc6c7","token":"dd7fa8685c158836d972903a4996bf99","branch":"agent/rm-27a20e12b237274f/dd7fa8685c15","claimed_at":"2026-09-22T11:50:41Z","heartbeat_at":"2026-09-22T11:50:41Z","lease_until":"2026-09-22T13:20:41Z"} -->
+  Agent: hermes-local-20260922T114823Z-2b4cc6c7 | item: rm-27a20e12b237274f | lease until: 2026-09-22T13:20:41Z
 
   <details>
   <summary>Details</summary>

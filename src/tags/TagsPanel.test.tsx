@@ -96,6 +96,36 @@ describe("TagsPanel", () => {
     expect(getByText("project")).toBeTruthy();
   });
 
+  it("shows an inline error when onOpenFile rejects", async () => {
+    setPathsByTag(new Map([["work", ["/vault/a.md"]]]));
+    const onOpenFile = vi.fn().mockRejectedValue(new Error("ENOENT"));
+    const { getByText, getByRole } = render(<TagsPanel onOpenFile={onOpenFile} />);
+    fireEvent.click(getByText("work"));
+    fireEvent.click(getByText("a.md"));
+    // Let the promise rejection propagate
+    await new Promise((r) => setTimeout(r, 0));
+    const error = getByRole("alert");
+    expect(error.textContent).toContain("a.md");
+  });
+
+  it("clicking a note again after a failed open resets the error state", async () => {
+    setPathsByTag(new Map([["work", ["/vault/a.md"]]]));
+    const onOpenFile = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("ENOENT"))
+      .mockResolvedValueOnce(undefined);
+    const { getByText, queryByRole } = render(<TagsPanel onOpenFile={onOpenFile} />);
+    fireEvent.click(getByText("work"));
+    // First click fails
+    fireEvent.click(getByText("a.md"));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(queryByRole("alert")).not.toBeNull();
+    // Second click succeeds — error should clear
+    fireEvent.click(getByText("a.md"));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(queryByRole("alert")).toBeNull();
+  });
+
   it("a note tagged with both a parent and its child tag is not shown twice under the parent", () => {
     setPathsByTag(
       new Map([

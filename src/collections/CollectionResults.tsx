@@ -57,19 +57,32 @@ interface KanbanColumn {
 }
 
 const UNASSIGNED_KANBAN_COLUMN = "__leotheca_unassigned__";
+/** Sentinel groupBy value for folder-based board grouping (competitor scan,
+ * Obsidian 1.14.2 Bases Kanban precedent). The schema already stores
+ * groupBy as a free-form string, so no decode or type change is needed. */
+export const FOLDER_GROUP_BY = "file.folder";
 
-/** Builds a stable read-only board from already-indexed scalar properties.
- * Lists and unsupported YAML deliberately join Unassigned: assigning one card
- * to several columns would make the board's membership ambiguous, while
- * mutating the note to resolve that ambiguity is outside this first phase. */
+function folderColumnKey(note: NoteRecord): string {
+  return note.folder.trim() !== "" ? note.folder.trim() : UNASSIGNED_KANBAN_COLUMN;
+}
+
+/** Builds a stable read-only board. Group by a frontmatter property (lists
+ * and unsupported YAML join Unassigned) or by the note's containing folder
+ * (`FOLDER_GROUP_BY`). Notes in the workspace root (empty folder) join
+ * Unassigned for folder grouping. */
 export function groupKanbanColumns(results: NoteRecord[], groupBy: string): KanbanColumn[] {
   const columns = new Map<string, KanbanColumn>();
-  const normalizedKey = groupBy.toLocaleLowerCase();
+  const byFolder = groupBy === FOLDER_GROUP_BY;
+  const normalizedKey = byFolder ? "" : groupBy.toLocaleLowerCase();
   for (const note of results) {
-    const property = note.properties.get(normalizedKey);
-    const value = property?.kind === "scalar" && property.value.trim() !== ""
-      ? property.value.trim()
-      : UNASSIGNED_KANBAN_COLUMN;
+    const value = byFolder
+      ? folderColumnKey(note)
+      : (() => {
+          const property = note.properties.get(normalizedKey);
+          return property?.kind === "scalar" && property.value.trim() !== ""
+            ? property.value.trim()
+            : UNASSIGNED_KANBAN_COLUMN;
+        })();
     const existing = columns.get(value);
     if (existing) existing.notes.push(note);
     else columns.set(value, {
@@ -340,6 +353,8 @@ export function CollectionResults({
   onEditProperty,
 }: CollectionResultsProps) {
   const availableKanbanKeys = visiblePropertyKeys(results, undefined);
+  const hasFolderBoard = results.some((n) => n.folder.trim() !== "");
+  const boardAvailable = availableKanbanKeys.length > 0 || hasFolderBoard;
   const selectedKanbanKey = collection.view.mode === "kanban" ? collection.view.groupBy : "";
   const [openErrorPath, setOpenErrorPath] = useState<string | null>(null);
 
@@ -372,10 +387,11 @@ export function CollectionResults({
           role="radio"
           aria-checked={collection.view.mode === "kanban"}
           class={collection.view.mode === "kanban" ? "active" : ""}
-          disabled={availableKanbanKeys.length === 0}
-          title={availableKanbanKeys.length === 0 ? "A board needs an indexed frontmatter property" : undefined}
+          disabled={!boardAvailable}
+          title={!boardAvailable ? "A board needs an indexed frontmatter property or notes in folders" : undefined}
           onClick={() => {
-            const groupBy = selectedKanbanKey || availableKanbanKeys[0];
+            const groupBy =
+              selectedKanbanKey || (availableKanbanKeys[0] ?? (hasFolderBoard ? FOLDER_GROUP_BY : ""));
             if (groupBy) void onViewChange({ mode: "kanban", groupBy });
           }}
         >
@@ -394,9 +410,13 @@ export function CollectionResults({
               if (groupBy) void onViewChange({ mode: "kanban", groupBy });
             }}
           >
-            {availableKanbanKeys.includes(collection.view.groupBy) || (
-              <option value={collection.view.groupBy}>{collection.view.groupBy}</option>
+            {collection.view.groupBy === FOLDER_GROUP_BY && (
+              <option value={FOLDER_GROUP_BY}>Folder</option>
             )}
+            {collection.view.groupBy !== FOLDER_GROUP_BY &&
+              (!availableKanbanKeys.includes(collection.view.groupBy) && (
+                <option value={collection.view.groupBy}>{collection.view.groupBy}</option>
+              ))}
             {availableKanbanKeys.map((key) => <option key={key} value={key}>{key}</option>)}
           </select>
         </label>

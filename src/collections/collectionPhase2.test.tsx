@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, waitFor } from "@testing-library/preact";
 import { parseFrontmatterProperties } from "../editor/frontmatterEdits";
-import { CollectionResults, groupKanbanColumns, type CollectionResultsProps } from "./CollectionResults";
+import { CollectionResults, FOLDER_GROUP_BY, groupKanbanColumns, type CollectionResultsProps } from "./CollectionResults";
 import { sortCollectionResults, type NoteRecord } from "./collectionQuery";
 import type { SmartCollectionV1 } from "./collectionTypes";
 
@@ -306,5 +306,74 @@ describe("F09 Phase 2 result views: stale note handling (maintenance review)", (
     fireEvent.click(getByRole("button", { name: /Alpha/ }));
     await waitFor(() => expect(onOpenFile).toHaveBeenCalledTimes(2));
     expect(queryByRole("alert")).toBeNull();
+  });
+
+  it("enables the Board button when notes have folders (even without indexed properties)", () => {
+    // A note in a folder but with no frontmatter at all.
+    const folderNote = note("Projects/Alpha.md", "");
+    // Strip the frontmatter flag so it looks like a plain note.
+    folderNote.hasFrontmatter = false;
+
+    const { getByRole } = render(
+      <CollectionResults
+        collection={collection({ mode: "list" })}
+        results={[folderNote]}
+        onOpenFile={vi.fn()}
+        onViewChange={vi.fn()}
+        onEditProperty={successfulEdit()}
+      />,
+    );
+
+    const boardButton = getByRole("radio", { name: /Board/ });
+    expect(boardButton).not.toHaveProperty("disabled", true);
+  });
+
+  it("shows a 'Folder' option in the board grouping selector when groupBy is FOLDER_GROUP_BY", () => {
+    const folderNote = note("Projects/Alpha.md", "");
+    const { getByLabelText } = render(
+      <CollectionResults
+        collection={collection({ mode: "kanban", groupBy: FOLDER_GROUP_BY })}
+        results={[folderNote]}
+        onOpenFile={vi.fn()}
+        onViewChange={vi.fn()}
+        onEditProperty={successfulEdit()}
+      />,
+    );
+
+    const select = getByLabelText("Board grouping property");
+    const options = Array.from(select.querySelectorAll("option")).map(
+      (o) => o.textContent,
+    );
+    expect(options).toContain("Folder");
+  });
+
+  it("renders folder-grouped board columns from notes with distinct folders", () => {
+    const inbox = note("Inbox/First.md", "");
+    const projects = note("Projects/Second.md", "");
+    const { getByRole } = render(
+      <CollectionResults
+        collection={collection({ mode: "kanban", groupBy: FOLDER_GROUP_BY })}
+        results={[inbox, projects]}
+        onOpenFile={vi.fn()}
+        onViewChange={vi.fn()}
+        onEditProperty={successfulEdit()}
+      />,
+    );
+
+    // KanbanView renders columns as sections with aria-label.
+    const sections = Array.from(
+      getByRole("region", { name: /board grouped by/i }).querySelectorAll("section"),
+    );
+    const labels = sections.map((s) => s.getAttribute("aria-label"));
+    expect(labels).toEqual(
+      expect.arrayContaining([
+        "Inbox, 1 notes",
+        "Projects, 1 notes",
+      ]),
+    );
+    // No Unassigned column because both notes have folders.
+    expect(labels).not.toEqual(
+      expect.arrayContaining([expect.stringContaining("Unassigned")]),
+    );
   });
 });

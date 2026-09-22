@@ -43,6 +43,19 @@ export function parseAutomationUrl(url: string): AutomationCommand | null {
       // rather than resolved to some default note.
       const path = parsed.searchParams.get("path");
       if (!path) return null;
+      // The path is untrusted OS-level input; a real workspace-absolute
+      // path is short, so cap it to prevent a pathologically long deep
+      // link (e.g. from a hand-crafted Shortcuts action) from doing
+      // anything more than being rejected. The cap is generous enough for
+      // any plausible vault depth on every platform, and far below any
+      // realistic URL-length limit.
+      const MAX_OPEN_NOTE_PATH_LENGTH = 4096;
+      if (path.length > MAX_OPEN_NOTE_PATH_LENGTH) {
+        console.warn(
+          `open-note: path length ${path.length} exceeds ${MAX_OPEN_NOTE_PATH_LENGTH}, rejecting`,
+        );
+        return null;
+      }
       return { kind: "open-note", path };
     }
     case "capture": {

@@ -165,14 +165,18 @@
 
   </details>
 
-- 🚧 **Deep-link `open-note` does not validate `path` against workspace**: `automationCommands.ts` passes the `path` query parameter to `openNote` without workspace containment check. A malicious deep link could target arbitrary files.
-  <!-- agent-state: {"schema":1,"id":"rm-27a20e12b237274f","state":"claimed","touch":["src/app/App.tsx","src/app/automationCommands.test.ts","src/app/automationCommands.ts"],"resources":["deep-link-validation"],"owner":"hermes-local-20260922T114823Z-2b4cc6c7","token":"dd7fa8685c158836d972903a4996bf99","branch":"agent/rm-27a20e12b237274f/dd7fa8685c15","claimed_at":"2026-09-22T11:50:41Z","heartbeat_at":"2026-09-22T11:50:41Z","lease_until":"2026-09-22T13:20:41Z"} -->
-  Agent: hermes-local-20260922T114823Z-2b4cc6c7 | item: rm-27a20e12b237274f | lease until: 2026-09-22T13:20:41Z
+- ✅ **Deep-link `open-note` does not validate `path` against workspace**: `automationCommands.ts` passes the `path` query parameter to `openNote` without workspace containment check. A malicious deep link could target arbitrary files.
+  <!-- agent-state: {"schema":1,"id":"rm-27a20e12b237274f","state":"done","touch":["src/app/App.test.tsx","src/app/automationCommands.test.ts","src/app/automationCommands.ts"],"resources":["deep-link-validation"],"completed_by":"hermes-local-20260922T114823Z-2b4cc6c7","completed_at":"2026-09-22T14:10:00Z","branch":"agent/rm-27a20e12b237274f/dd7fa8685c15","note":"Added 4096-char cap at parse time in parseAutomationUrl and regression tests for .. traversal, backslash traversal, sibling-prefix attack, and path length boundary. App.tsx already contains path via isPathWithinWorkspace; new tests pin that behavior. CI: passed (run 35724571359). Tests: 30647 passed."} -->
+  Agent: hermes-local-20260922T114823Z-2b4cc6c7 | item: rm-27a20e12b237274f | done: 2026-09-22
 
   <details>
   <summary>Details</summary>
 
-  Found during the 2026-09-22 weekly security review at `f4d4691d18c9`. `automationCommands.ts` parses `leotheca://open-note?path=...` and calls `openNote(path, ...)` without checking workspace containment. The Android `CaptureIntentHandler` and `FileProvider` paths are scoped to the workspace, but the deep-link URL is not. Risk: low-to-moderate — requires user interaction (clicking a malicious link).
+  Found during the 2026-09-22 weekly security review at `f4d4691d18c9`. The deep-link URL path is untrusted OS-level input. Added a 4096-char cap at parse time in `parseAutomationUrl` and regression tests for `..` traversal, backslash traversal, sibling-prefix attack, and path length boundary. App.tsx's `runAutomationUrl` already contains the path via `isPathWithinWorkspace`; the new tests pin that behavior.
+
+  **SHA:** `4611b072fa531173c0d00f1ad9b09453c5839bee`
+  **CI:** passed (run 35724571359)
+  **Tests:** 30647 passed, 0 failed
 
   </details>
 

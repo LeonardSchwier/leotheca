@@ -1024,6 +1024,42 @@ describe("App: open-note automation command (Android favorites-list widget)", ()
 
     expect(readTextFile).not.toHaveBeenCalled();
   });
+
+  it("ignores a path that escapes the workspace via a `..` segment", async () => {
+    workspacePath.value = "/vault";
+    render(<App />);
+
+    await act(async () => {
+      openUrlListeners.at(-1)?.(["leotheca://open-note?path=%2Fvault%2F..%2Fsecret.md"]);
+      await Promise.resolve();
+    });
+
+    expect(readTextFile).not.toHaveBeenCalled();
+  });
+
+  it("ignores a path that escapes the workspace via a backslash traversal", async () => {
+    workspacePath.value = "/vault";
+    render(<App />);
+
+    await act(async () => {
+      openUrlListeners.at(-1)?.(["leotheca://open-note?path=%2Fvault%5C..%5Csecret.md"]);
+      await Promise.resolve();
+    });
+
+    expect(readTextFile).not.toHaveBeenCalled();
+  });
+
+  it("ignores a path that is a sibling of the workspace (prefix trick)", async () => {
+    workspacePath.value = "/vault";
+    render(<App />);
+
+    await act(async () => {
+      openUrlListeners.at(-1)?.(["leotheca://open-note?path=%2Fvault-backdoor%2Fnote.md"]);
+      await Promise.resolve();
+    });
+
+    expect(readTextFile).not.toHaveBeenCalled();
+  });
 });
 
 describe("App: new-note automation command (Android home-screen widget cold start)", () => {

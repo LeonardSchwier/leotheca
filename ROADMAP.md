@@ -190,7 +190,9 @@
 
   </details>
 
-- ⬜ **Add `foreignObject` injection regression test for Mermaid sanitizer**: DOMPurify's default profile blocks `foreignObject`, but no test explicitly verifies this against malicious Mermaid source.
+- 🚧 **Add `foreignObject` injection regression test for Mermaid sanitizer**: DOMPurify's default profile blocks `foreignObject`, but no test explicitly verifies this against malicious Mermaid source.
+  <!-- agent-state: {"schema":1,"id":"rm-628e21cede0ca61d","state":"claimed","touch":["mermaid.smoke.test.ts"],"resources":["mermaid-sanitization"],"owner":"hermes-local-20260922T074730Z-404844bb","token":"c96c415feb01360a30e10a5df89b0903","branch":"agent/rm-628e21cede0ca61d/c96c415feb01","claimed_at":"2026-09-22T07:50:27Z","heartbeat_at":"2026-09-22T07:50:27Z","lease_until":"2026-09-22T09:20:27Z"} -->
+  Agent: hermes-local-20260922T074730Z-404844bb | item: rm-628e21cede0ca61d | lease until: 2026-09-22T09:20:27Z
 
   <details>
   <summary>Details</summary>

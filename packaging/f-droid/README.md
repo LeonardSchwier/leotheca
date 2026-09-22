@@ -1,6 +1,6 @@
 # F-Droid packaging
 
-Status: the metadata is pinned to the v1.0.0 release source and has a reproducible build recipe that is exercised by `.github/workflows/fdroid-submission-verify.yml`. The repository-side verification runs the official metadata tools and build-server image, and independently rebuilds and inspects the unsigned APK. A real submission to the separate metadata repository is still required before this roadmap item can be called complete.
+Status: the metadata declares an immutable source commit, version name, and version code under `Builds:`, and has a reproducible build recipe that is exercised by `.github/workflows/fdroid-submission-verify.yml`, which reads that same commit/version pin from the metadata itself rather than hardcoding a copy, so the two cannot silently drift apart. The repository-side verification runs the official metadata tools and build-server image, and independently rebuilds and inspects the unsigned APK. The workflow's rebuild cannot complete until the metadata's currently-declared `v0.1.0` tag actually exists (see the outstanding-work item below about cutting that tag). A real submission to the separate metadata repository is still required before this roadmap item can be called complete.
 
 ## What's here
 
@@ -17,13 +17,13 @@ The recipe pins the Node.js archive and verifies its SHA-256 before installation
 The submission verification workflow checks all of the following against the release recipe:
 
 1. The metadata parses, lints, and passes update checks with the official server tools.
-2. The metadata is pinned to the exact v1.0.0 source commit and pinned Node.js archive checksum.
+2. The workflow reads the exact source commit, version name, and version code straight from the metadata's `Builds:` entry (so the two cannot silently drift apart), plus confirms the pinned Node.js archive checksum.
 3. The historical release source has its obsolete unused network permission and services build-plugin entries removed before building.
 4. The shared frontend builds and synchronizes into the Android project.
 5. Frontend-only files rejected by the source scanner are removed before the native build.
 6. The unsigned release APK is rebuilt after that cleanup.
-7. The APK reports version name `1.0`, version code `1`, and no `android.permission.INTERNET` permission.
-8. The official build-server flow must produce `com.leonardschwier.leotheca_1.apk`; a failed or missing build is a hard workflow failure.
+7. The APK reports the version name and version code declared in the metadata's `Builds:` entry (currently `0.1.0` / `100`), and no `android.permission.INTERNET` permission.
+8. The official build-server flow must produce `com.leonardschwier.leotheca_<versionCode>.apk` (currently `com.leonardschwier.leotheca_100.apk`, matching the metadata's declared `versionCode`); a failed or missing build is a hard workflow failure.
 
 A green workflow proves the repository-side recipe is buildable under that independent cloud environment. It is not a substitute for the separate repository's own review and submission CI.
 

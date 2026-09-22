@@ -154,7 +154,9 @@
 
 ### Security and privacy review (2026-09-22)
 
-- ⬜ **Unscoped `write_text_file` commands accept arbitrary paths**: `commands.rs` exposes `write_text_file` and `write_binary_file` as Tauri commands with no workspace containment. A compromised webview could overwrite any file the process user can write to.
+- 🚧 **Unscoped `write_text_file` commands accept arbitrary paths**: `commands.rs` exposes `write_text_file` and `write_binary_file` as Tauri commands with no workspace containment. A compromised webview could overwrite any file the process user can write to.
+  <!-- agent-state: {"schema":1,"id":"rm-dfd60513a2eb352c","state":"claimed","touch":["src-tauri","src/capture","src/editor","src/refactor","src/workspace"],"resources":["workspace-write-path"],"owner":"hermes-local-20260922T101719Z-1e30a773","token":"2bd3643ea0a444a061ea8a6626370deb","branch":"agent/rm-dfd60513a2eb352c/2bd3643ea0a4","claimed_at":"2026-09-22T10:30:03Z","heartbeat_at":"2026-09-22T10:30:03Z","lease_until":"2026-09-22T12:00:03Z"} -->
+  Agent: hermes-local-20260922T101719Z-1e30a773 | item: rm-dfd60513a2eb352c | lease until: 2026-09-22T12:00:03Z
 
   <details>
   <summary>Details</summary>

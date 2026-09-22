@@ -4,6 +4,22 @@
 
 ### Bugs
 
+- 🚧 **exportNoteHtml: src replacement targets wrong attribute when alt (or other attr) shares the same value as src**: `inlineLocalImages` in `src/export/exportNoteHtml.ts` uses `tag.replace(quotedValue, ...)` which replaces the *first* occurrence of the `src` value in the entire `<img>` tag. If another attribute (e.g. `alt`) contains the same string *before* `src` in the tag, the data URI is written into `alt` instead of `src`, leaving `src` unchanged. Reproduced: `<img alt="asset://x" src="asset://x" />` → `alt` gets the data URI, `src` keeps the original.
+  <!-- agent-state: {"schema":1,"id":"rm-e1dadbf4155a53b8","state":"claimed","touch":["ROADMAP.md#exportNoteHtml-src-replacement","src/export/exportNoteHtml.test.ts","src/export/exportNoteHtml.ts"],"resources":["exportnotehtml-src-fix"],"owner":"hermes-local-20260922T033440Z-ec233176","token":"9b0b1106c7fc1b5b7e00b3757fe6947b","branch":"agent/rm-e1dadbf4155a53b8/9b0b1106c7fc","claimed_at":"2026-09-22T03:39:19Z","heartbeat_at":"2026-09-22T03:39:19Z","lease_until":"2026-09-22T05:09:19Z"} -->
+  Agent: hermes-local-20260922T033440Z-ec233176 | item: rm-e1dadbf4155a53b8 | lease until: 2026-09-22T05:09:19Z
+
+  <details>
+  <summary>Root cause and acceptance criteria</summary>
+
+  Root cause: `tag.replace(quotedValue, replacement)` is a first-match substring replace, not an index-aware one. The fix is to compute the index of the `src` match within the tag and slice-replace at that position.
+
+  Acceptance criteria:
+  - New regression test: `<img alt="X" src="X" />` where fetch succeeds for `X` → `alt` unchanged, `src` replaced with data URI
+  - Existing `exportNoteHtml` tests still pass
+  - Full verification suite green (tsc, eslint, check-version, vitest, vite build, cargo fmt/clippy/test/check)
+
+  </details>
+
 - ✅ **Mermaid: untested async render path and unexported sanitizer**: `src/markdown/mermaid.ts` (added 2026-09-22, commit c3a8b27) wires `renderMermaidToSvg()` into `MarkdownPreview` placeholder-resolution effect, but only the synchronous marked tokenizer/renderer path is covered by `mermaid.smoke.test.ts`.
   <!-- agent-state: {"schema": 1, "id": "rm-41609b27a734907d", "state": "done", "touch": ["ROADMAP.md#rm-41609b27a734907d", "mermaid.smoke.test.ts", "src/markdown/mermaid.ts"], "resources": ["mermaid-rendering-tests"], "branch": "agent/rm-41609b27a734907d/5cdf7779450b", "note": "Landed: bb4a38b. CI: pending. Tests: 30,552 pass (1,621 files, +5 new). tsc/eslint/checkVersion clean.", "completed_at": "2026-09-22T02:24:19Z", "completed_by": "hermes-local-20260922T021329Z-438edb42"} -->
   Agent: hermes-local-20260922T021329Z-438edb42 | item: rm-41609b27a734907d | completed: 2026-09-22T02:24:19Z

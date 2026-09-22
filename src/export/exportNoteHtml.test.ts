@@ -156,6 +156,20 @@ describe("inlineLocalImages — faithful fragment pass-through (regression)", ()
     const out = await inlineLocalImages(html, deps);
     expect(out).toBe("<img src='data:image/png;base64,AQID' alt='x'>");
   });
+
+  it("replaces only the src attribute, not an earlier attribute that shares the same value as src", async () => {
+    const { deps } = realDeps();
+    // The alt value is identical to the src value and appears BEFORE src.
+    // The old `tag.replace(quotedValue, ...)` replaced the FIRST occurrence,
+    // which was the alt value, leaving src unchanged.
+    const html = '<img alt="asset://image/same" src="asset://image/same">';
+    const out = await inlineLocalImages(html, deps);
+    // alt must be unchanged; src must be replaced with the data URI.
+    expect(out).toContain('alt="asset://image/same"');
+    expect(out).toMatch(/src="data:image\/png;base64,/);
+    // The data URI must NOT have been written into the alt attribute.
+    expect(out).not.toContain('alt="data:image');
+  });
 });
 
 describe("buildExportDocument", () => {

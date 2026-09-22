@@ -96,7 +96,18 @@ export async function inlineLocalImages(html: string, deps: InlineLocalImagesDep
     const replacement = dataUriBySrc.get(original);
     if (!replacement) return tag; // fetch failed or data: src: keep byte-for-byte
     const quote = quotedValue.startsWith("'") ? "'" : '"';
-    return tag.replace(quotedValue, `${quote}${replacement}${quote}`);
+    // Index-aware replacement: `String.replace` with a string pattern
+    // searches from position 0, so when an earlier attribute (e.g. alt)
+    // has the same value as src, the wrong occurrence gets replaced.
+    // srcMatch.index points to the 's' in src; the quoted value starts
+    // further into the tag. Compute the exact offset of quotedValue.
+    const quotedIdx = srcMatch.index! + (srcMatch[0].indexOf(quotedValue));
+    const newAttr = `${quote}${dataUriBySrc.get(original)!}${quote}`;
+    return (
+      tag.slice(0, quotedIdx) +
+      newAttr +
+      tag.slice(quotedIdx + quotedValue.length)
+    );
   });
 }
 

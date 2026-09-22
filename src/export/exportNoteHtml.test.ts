@@ -170,6 +170,29 @@ describe("inlineLocalImages — faithful fragment pass-through (regression)", ()
     // The data URI must NOT have been written into the alt attribute.
     expect(out).not.toContain('alt="data:image');
   });
+
+  it("inlines even when an earlier attribute's value contains 'src' followed by a quote", async () => {
+    const { deps } = realDeps();
+    // alt's value literally contains the substring `src="` (a quote right
+    // after `src=`), which is the strongest form of the "src= inside another
+    // attribute's value" confusion. The real src attribute must still be
+    // found and replaced; alt must be preserved verbatim.
+    const html = '<img alt=\'see src="example" docs\' src="asset://image/11">';
+    const out = await inlineLocalImages(html, deps);
+    expect(out).toBe("<img alt='see src=\"example\" docs' src=\"data:image/png;base64,AQID\">");
+  });
+
+  it("does not replace a src whose value is a data: URI that was never fetched", async () => {
+    // A `data:` src is already inlined: the replacement pass must leave it
+    // byte-for-byte identical even when, hypothetically, another image
+    // fetched fine in the same document (defensive: the fetch list never
+    // includes data: URIs, so there is no replacement to write anyway).
+    const { deps, calls } = realDeps();
+    const html = '<img src="data:image/png;base64,AAAA"><img src="asset://image/12">';
+    const out = await inlineLocalImages(html, deps);
+    expect(out).toBe('<img src="data:image/png;base64,AAAA"><img src="data:image/png;base64,AQID">');
+    expect(calls).toEqual(["asset://image/12"]);
+  });
 });
 
 describe("buildExportDocument", () => {

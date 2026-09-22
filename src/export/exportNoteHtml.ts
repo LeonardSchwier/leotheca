@@ -87,26 +87,45 @@ export async function inlineLocalImages(html: string, deps: InlineLocalImagesDep
   // `src=` followed by an unquoted token, which is how the substring `src=`
   // inside another attribute's *value* (e.g. alt="use src= for details") would
   // otherwise be mistaken for the image source.
-  const SRC_ATTR = /src\s*=\s*("([^"]*)"|'([^']*)')/i;
+  //
+  // `[^>]*` for the tag body is deliberate: an attribute *value* may legally
+  // contain `>` (e.g. alt="a > b"), and `[^>]*` keeps scanning inside that
+  // value so the real `src=` later in the tag is still found. The only HTML
+  // the Preview pane can produce where a bare `>` inside a value would cut
+  // the tag short is malformed markup that never renders in the pane either.
+  const SRC_ATTR = /src\s*=\s*("([^"]*)"|'([^']*)')/gi;
   return html.replace(/<img\b[^>]*>/gi, (tag) => {
-    const srcMatch = tag.match(SRC_ATTR);
+    // Find the LAST `src=` in the tag: a genuine `src` attribute always wins
+    // over the substring `src=` inside an earlier attribute's *value* (e.g.
+    // alt="use src= for details"), and a duplicate `src` attribute never
+    // exists in HTML produced by the Preview pane (it comes from a single
+    // well-formed `<img>` element's serialization).
+    let srcMatch: RegExpExecArray | null = null;
+    SRC_ATTR.lastIndex = 0;
+    let candidate: RegExpExecArray | null;
+    while ((candidate = SRC_ATTR.exec(tag)) !== null) srcMatch = candidate;
     if (!srcMatch) return tag;
-    const quotedValue = srcMatch[1]; // e.g. "asset://x"  or  'asset://y'
-    const original = srcMatch[2] ?? srcMatch[3];
+    const quote = srcMatch[1].startsWith("'") ? "'" : '"';
+    const original = srcMatch[2] ?? srcMatch[3] ?? "";
+    if (!original || original.startsWith("data:")) return tag; // already inlined
     const replacement = dataUriBySrc.get(original);
-    if (!replacement) return tag; // fetch failed or data: src: keep byte-for-byte
-    const quote = quotedValue.startsWith("'") ? "'" : '"';
-    // Index-aware replacement: `String.replace` with a string pattern
-    // searches from position 0, so when an earlier attribute (e.g. alt)
-    // has the same value as src, the wrong occurrence gets replaced.
-    // srcMatch.index points to the 's' in src; the quoted value starts
-    // further into the tag. Compute the exact offset of quotedValue.
-    const quotedIdx = srcMatch.index! + (srcMatch[0].indexOf(quotedValue));
-    const newAttr = `${quote}${dataUriBySrc.get(original)!}${quote}`;
+    if (!replacement) return tag; // fetch failed: keep byte-for-byte
+    const valueWithQuotes = srcMatch[1];
+    // srcMatch.index points at the 's' in `src`; srcMatch[0] is the whole
+    // `src\s*=\s*"..."` match and BEGINS at that same index, so the quoted
+    // value's absolute position in the tag is exactly srcMatch.index + the
+    // length of everything before the value inside srcMatch[0] (the
+    // `src`, `=`, and any whitespace). Computing that offset as
+    // `srcMatch[0].length - valueWithQuotes.length` works for both quote
+    // styles and is immune to the value (or any prefix of it) appearing
+    // earlier inside another attribute's value, which is exactly the
+    // class of bug `String.prototype.replace`'s from-position-0 search
+    // would suffer.
+    const valueOffset = (srcMatch.index as number) + (srcMatch[0].length - valueWithQuotes.length);
     return (
-      tag.slice(0, quotedIdx) +
-      newAttr +
-      tag.slice(quotedIdx + quotedValue.length)
+      tag.slice(0, valueOffset) +
+      `${quote}${replacement}${quote}` +
+      tag.slice(valueOffset + valueWithQuotes.length)
     );
   });
 }

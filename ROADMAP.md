@@ -154,16 +154,6 @@
 
 ### Security and privacy review (2026-09-22)
 
-- 🚧 **Unscoped `write_text_file` commands accept arbitrary paths**: `commands.rs` exposes `write_text_file` and `write_binary_file` as Tauri commands with no workspace containment. A compromised webview could overwrite any file the process user can write to.
-  <!-- agent-state: {"schema":1,"id":"rm-dfd60513a2eb352c","state":"claimed","touch":["src-tauri/src/commands.rs","src-tauri/src/lib.rs","src/app/App.tsx","src/workspace/tauriBridge.ts","src/workspace/tauriBridgeImpl.ts"],"resources":["html-export","workspace-write-path"],"owner":"claude-20260922T122235Z-9d54ddd1","token":"b8d60ea2bbb05696030c5347d69ae166","branch":"agent/rm-dfd60513a2eb352c/b8d60ea2bbb0","claimed_at":"2026-09-22T12:27:36Z","heartbeat_at":"2026-09-22T12:55:45Z","lease_until":"2026-09-22T14:25:45Z"} -->
-  Agent: claude-20260922T122235Z-9d54ddd1 | item: rm-dfd60513a2eb352c | lease until: 2026-09-22T14:25:45Z
-
-  <details>
-  <summary>Details</summary>
-
-  Found during the 2026-09-22 weekly security review at `f4d4691d18c9`. Affected: `write_text_file` (`src-tauri/src/commands.rs:819`), `write_binary_file` (line 836). Frontend callers outside workspace scope: `globalConfig.ts:274`, `captureCommit.ts:88`, `taskMutation.ts:172`. The workspace-scoped equivalent performs `resolve_workspace_path` containment; the unscoped version does not. Risk: moderate — requires webview compromise (XSS) to exploit, but impact is full filesystem write. Mitigation: add path allowlist in the Rust handler or migrate callers to workspace-scoped commands.
-
-  </details>
 
 - ✅ **Deep-link `open-note` does not validate `path` against workspace**: `automationCommands.ts` passes the `path` query parameter to `openNote` without workspace containment check. A malicious deep link could target arbitrary files.
   <!-- agent-state: {"schema":1,"id":"rm-27a20e12b237274f","state":"done","touch":["src/app/App.test.tsx","src/app/automationCommands.test.ts","src/app/automationCommands.ts"],"resources":["deep-link-validation"],"completed_by":"hermes-local-20260922T114823Z-2b4cc6c7","completed_at":"2026-09-22T14:10:00Z","branch":"agent/rm-27a20e12b237274f/dd7fa8685c15","note":"Added 4096-char cap at parse time in parseAutomationUrl and regression tests for .. traversal, backslash traversal, sibling-prefix attack, and path length boundary. App.tsx already contains path via isPathWithinWorkspace; new tests pin that behavior. CI: passed (run 35724571359). Tests: 30647 passed."} -->
@@ -211,6 +201,18 @@
 - ⬜ **Smart Collections board view: folder-grouped kanban with card move and note creation**: The existing read-only Smart Collections board view (grouped by a single frontmatter property) could be extended to support grouping by `file.folder` (the note's containing directory), with two additional capabilities from the Obsidian 1.14.2 Bases Kanban precedent: (1) dragging a card into a different folder column moves the note file to that folder, and (2) creating a new note in a folder column places the new file in that directory. Both are plain-filesystem operations on the user's own plain-text notes, no new format or network call. Prerequisite: the board view must first support folder-based grouping; the current board view groups only by frontmatter properties and is read-only by design. (Competitor scan, Obsidian Desktop v1.14.2, 2026-09-15).
 
 ## Implemented
+
+- ✅ **Unscoped `write_text_file` commands accept arbitrary paths**: `commands.rs` exposes `write_text_file` and `write_binary_file` as Tauri commands with no workspace containment. A compromised webview could overwrite any file the process user can write to.
+  <!-- agent-state: {"schema":1,"id":"rm-dfd60513a2eb352c","state":"done","touch":["src-tauri/src/commands.rs","src-tauri/src/lib.rs","src/app/App.tsx","src/workspace/tauriBridge.ts","src/workspace/tauriBridgeImpl.ts"],"resources":["html-export","workspace-write-path"],"note":"Landed e2753ca on main. Rust: check_unscoped_write_allowed gates write_text_file/write_binary_file to active-workspace-or-config-dir; new export_text_file_via_dialog closes the HTML export path atomically. Tests: 7 new Rust unit tests (revert-confirmed), 4 new frontend tests. Verification: cargo fmt/clippy(-D warnings)/test(83)/check clean; tsc/eslint/check-version/vitest(151 files,2847 tests)/vite build clean. CI not inspected (no hosted workflow tool available this session).","completed_at":"2026-09-22T12:57:28Z","completed_by":"claude-20260922T122235Z-9d54ddd1","branch":"agent/rm-dfd60513a2eb352c/b8d60ea2bbb0"} -->
+  Agent: completed by claude-20260922T122235Z-9d54ddd1 | item: rm-dfd60513a2eb352c
+
+  <details>
+  <summary>Details</summary>
+
+  Found during the 2026-09-22 weekly security review at `f4d4691d18c9`. Affected: `write_text_file` (`src-tauri/src/commands.rs:819`), `write_binary_file` (line 836). Frontend callers outside workspace scope: `globalConfig.ts:274`, `captureCommit.ts:88`, `taskMutation.ts:172`. The workspace-scoped equivalent performs `resolve_workspace_path` containment; the unscoped version does not. Risk: moderate — requires webview compromise (XSS) to exploit, but impact is full filesystem write. Mitigation: add path allowlist in the Rust handler or migrate callers to workspace-scoped commands.
+
+  </details>
+
 
 - ✅ **Whiteboard: double-click empty canvas to create a new note card**: The existing Whiteboard/Canvas (implemented) supports movable cards and file-reference cards, but has no documented or tested double-click-to-add-note gesture. Adding it is a standard canvas interaction pattern (the "shoulders of giants" principle) that lets a user create a new note card on the canvas without first navigating to a menu or toolbar action. Purely local JSON-canvas mutation, no new file format, no network call. (Competitor scan, Joplin Desktop v3.7.18, 2026-09-11).
   <!-- agent-state: {"schema":1,"id":"rm-5823000526ba6f08","state":"done","touch":["src/canvas"],"resources":["whiteboard-canvas"],"note":"Double-click empty canvas to create a note card; 3 regression tests; all 27,803 tests pass; CI green (CI x2 + Release all success)","completed_at":"2026-09-22T09:16:27Z","completed_by":"hermes-local-20260922T083912Z-4f2063d1","branch":"agent/rm-5823000526ba6f08/6e10c208612d"} -->

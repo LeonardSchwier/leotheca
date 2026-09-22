@@ -136,6 +136,66 @@ class RoadmapFormatTests(unittest.TestCase):
         self.assertEqual(code, 0, err)
         self.assertIn("Checked 0 new entries", out)
 
+    def test_legacy_entry_gaining_metadata_is_not_flagged(self):
+        """A 🚧 legacy entry that receives observe/claim metadata keeps the same
+        title; its id is new but the title is not, so the linter must skip it."""
+        # Simulate what agent_ledger.py observe does: add agent-state metadata
+        # to the pre-existing long-winded entry, keeping its title identical.
+        agent_state = (
+            '  <!-- agent-state: {"schema":1,"id":"rm-0a1b2c3d4e5f6789",'
+            '"state":"legacy","touch":["ROADMAP.md#test-legacy"],'
+            '"resources":["legacy-entry"],'
+            '"observed_at":"2026-09-22T00:00:00Z",'
+            '"lease_until":"2026-09-22T02:00:00Z",'
+            '"note":"test legacy observation"} -->\n'
+            "  Agent: test-agent | item: rm-0a1b2c3d4e5f6789 | lease until: 2026-09-22T02:00:00Z\n"
+        )
+        # Insert the metadata line right after the title line of the long entry.
+        text = BASE_ROADMAP.replace(
+            "- ⬜ **Existing long-winded feature**:",
+            "- 🚧 **Existing long-winded feature**:",
+        )
+        # Insert agent-state metadata after the title line (immediately after the first newline
+        # following the long title line).
+        lines = text.splitlines(keepends=True)
+        insert_at: int | None = None
+        for i, line in enumerate(lines):
+            if "Existing long-winded feature" in line:
+                insert_at = i + 1
+                break
+        self.assertIsNotNone(insert_at)
+        lines.insert(insert_at, agent_state)
+        text = "".join(lines)
+        self.write_and_commit(text)
+        code, out, err = self.run_checker(self.base_sha)
+        # The entry's title is in base_titles, so it must NOT be flagged as new.
+        self.assertEqual(code, 0, err)
+        self.assertIn("Checked 0 new entries", out)
+
+    def test_new_entry_with_new_id_and_new_title_is_flagged(self):
+        """Sanity check: a genuinely new entry (new id AND new title) is still
+        subject to the budget, even when it has metadata."""
+        long_summary = "Brand new entry with a brand new id and a brand new title, written as one long unbroken paragraph that deliberately exceeds the summary budget so the linter must reject it even though it carries agent-state metadata. " * 3
+        entry = (
+            "- 🚧 **Completely new titled bug**: "
+            f"{long_summary}\n"
+            '  <!-- agent-state: {"schema":1,"id":"rm-aabbccddeeff0011",'
+            '"state":"claimed","touch":["ROADMAP.md#brand-new"],'
+            '"resources":["brand-new-fix"],'
+            '"branch":"agent/rm-aabbccddeeff0011/001122334455",'
+            '"claimed_at":"2026-09-22T00:00:00Z",'
+            '"heartbeat_at":"2026-09-22T00:00:00Z",'
+            '"lease_until":"2026-09-22T01:30:00Z",'
+            '"owner":"test-agent","token":"00112233445566778899aabbccddeeff"} -->\n'
+            "  Agent: test-agent | item: rm-aabbccddeeff0011 | lease until: 2026-09-22T01:30:00Z\n\n"
+        )
+        text = BASE_ROADMAP.replace("### Bugs\n\n", f"### Bugs\n\n{entry}")
+        self.write_and_commit(text)
+        code, out, err = self.run_checker(self.base_sha)
+        self.assertEqual(code, 1)
+        self.assertIn("Completely new titled bug", err)
+        self.assertIn("budget", err)
+
     def test_open_after_implemented_fails(self):
         text = """# Roadmap
 

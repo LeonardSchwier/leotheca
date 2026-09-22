@@ -58,3 +58,10 @@
   color: var(--text-faint);
   font-size: 11px;
 }
+
+.tags-error-message {
+  margin: 0;
+  padding: 2px var(--space-1) var(--space-1);
+  font-size: 12px;
+  color: var(--color-danger);
+}

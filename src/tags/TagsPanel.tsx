@@ -5,7 +5,7 @@ import { EmptyState } from "../ui/EmptyState";
 import "./tags.css";
 
 interface TagsPanelProps {
-  onOpenFile: (path: string, name: string) => void;
+  onOpenFile: (path: string, name: string) => void | Promise<void>;
 }
 
 function toggle(set: Set<string>, key: string): Set<string> {
@@ -22,7 +22,9 @@ interface TagNodeRowProps {
   onToggleExpanded: (fullTag: string) => void;
   openNoteLists: Set<string>;
   onToggleNotes: (fullTag: string) => void;
-  onOpenFile: (path: string, name: string) => void;
+  openErrorPath: string | null;
+  onOpenFile: (path: string, name: string) => void | Promise<void>;
+  onSetOpenError: (path: string | null) => void;
 }
 
 function TagNodeRow({
@@ -32,7 +34,9 @@ function TagNodeRow({
   onToggleExpanded,
   openNoteLists,
   onToggleNotes,
+  openErrorPath,
   onOpenFile,
+  onSetOpenError,
 }: TagNodeRowProps) {
   const hasChildren = node.children.length > 0;
   const isExpanded = expandedTags.has(node.fullTag);
@@ -67,9 +71,24 @@ function TagNodeRow({
         <ul class="tags-notes" style={{ paddingLeft: `${(depth + 1) * 16}px` }}>
           {node.paths.map((path) => (
             <li key={path}>
-              <button class="file-tree-item" onClick={() => onOpenFile(path, fileNameFromPath(path))}>
+              <button
+                class="file-tree-item"
+                onClick={async () => {
+                  onSetOpenError(null);
+                  try {
+                    await onOpenFile(path, fileNameFromPath(path));
+                  } catch {
+                    onSetOpenError(path);
+                  }
+                }}
+              >
                 {fileNameFromPath(path)}
               </button>
+              {openErrorPath === path && (
+                <p class="tags-error-message" role="alert">
+                  Couldn't open "{fileNameFromPath(path)}" — it may have been moved, renamed, or deleted.
+                </p>
+              )}
             </li>
           ))}
         </ul>
@@ -85,7 +104,9 @@ function TagNodeRow({
               onToggleExpanded={onToggleExpanded}
               openNoteLists={openNoteLists}
               onToggleNotes={onToggleNotes}
+              openErrorPath={openErrorPath}
               onOpenFile={onOpenFile}
+              onSetOpenError={onSetOpenError}
             />
           ))}
         </ul>
@@ -108,6 +129,7 @@ function TagNodeRow({
 export function TagsPanel({ onOpenFile }: TagsPanelProps) {
   const [expandedTags, setExpandedTags] = useState<Set<string>>(new Set());
   const [openNoteLists, setOpenNoteLists] = useState<Set<string>>(new Set());
+  const [openErrorPath, setOpenErrorPath] = useState<string | null>(null);
 
   const tree = buildTagTree(linkIndex.value.pathsByTag);
 
@@ -132,7 +154,9 @@ export function TagsPanel({ onOpenFile }: TagsPanelProps) {
           onToggleExpanded={(fullTag) => setExpandedTags((current) => toggle(current, fullTag))}
           openNoteLists={openNoteLists}
           onToggleNotes={(fullTag) => setOpenNoteLists((current) => toggle(current, fullTag))}
+          openErrorPath={openErrorPath}
           onOpenFile={onOpenFile}
+          onSetOpenError={setOpenErrorPath}
         />
       ))}
     </ul>

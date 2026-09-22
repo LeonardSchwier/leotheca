@@ -38,6 +38,20 @@ describe("parseAutomationUrl", () => {
     expect(parseAutomationUrl("leotheca://open-note?path=")).toBeNull();
   });
 
+  it("returns null for open-note with a path exceeding the 4096 char limit", () => {
+    const longPath = "/" + "a".repeat(4097);
+    expect(parseAutomationUrl("leotheca://open-note?path=" + encodeURIComponent(longPath))).toBeNull();
+  });
+
+  it("accepts an open-note path within the 4096 char limit", () => {
+    const okPath = "/" + "a".repeat(4095);
+    expect(okPath.length).toBe(4096);
+    expect(parseAutomationUrl("leotheca://open-note?path=" + encodeURIComponent(okPath))).toEqual({
+      kind: "open-note",
+      path: okPath,
+    });
+  });
+
   it("recognizes capture with text", () => {
     expect(parseAutomationUrl("leotheca://capture?text=Quick%20note")).toEqual({
       kind: "capture",

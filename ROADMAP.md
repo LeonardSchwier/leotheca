@@ -4,9 +4,9 @@
 
 ### Bugs
 
-- 🚧 **Mermaid: untested async render path and unexported sanitizer**: `src/markdown/mermaid.ts` (added 2026-09-22, commit c3a8b27) wires `renderMermaidToSvg()` into `MarkdownPreview`'s placeholder-resolution effect, but only the synchronous marked tokenizer/renderer path is covered by `mermaid.smoke.test.ts`.
-  <!-- agent-state: {"schema":1,"id":"rm-41609b27a734907d","state":"claimed","touch":["mermaid.smoke.test.ts","src/markdown/mermaid.ts"],"resources":["mermaid-rendering-tests"],"owner":"hermes-local-20260922T003311Z-a1afdc95","token":"c883b9723e2997c8502e3bfa819db966","branch":"agent/rm-41609b27a734907d/c883b9723e29","claimed_at":"2026-09-22T00:43:15Z","heartbeat_at":"2026-09-22T00:43:15Z","lease_until":"2026-09-22T02:13:15Z"} -->
-  Agent: hermes-local-20260922T003311Z-a1afdc95 | item: rm-41609b27a734907d | lease until: 2026-09-22T02:13:15Z
+- ✅ **Mermaid: untested async render path and unexported sanitizer**: `src/markdown/mermaid.ts` (added 2026-09-22, commit c3a8b27) wires `renderMermaidToSvg()` into `MarkdownPreview`'s placeholder-resolution effect, but only the synchronous marked tokenizer/renderer path is covered by `mermaid.smoke.test.ts`.
+  <!-- agent-state: {"schema": 1, "id": "rm-41609b27a734907d", "state": "done", "touch": ["ROADMAP.md#rm-41609b27a734907d", "mermaid.smoke.test.ts", "src/markdown/mermaid.ts"], "resources": ["mermaid-rendering-tests"], "owner": "hermes-local-20260922T021329Z-438edb42", "token": "5cdf7779450bac0d2f8be78b66f4d406", "branch": "agent/rm-41609b27a734907d/5cdf7779450b", "note": "Landed: bb4a38b. CI: pending. Tests: 30,552 pass (1,621 files, +5 new). tsc/eslint/checkVersion clean.", "completed_at": "2026-09-22T02:24:19Z", "completed_by": "hermes-local-20260922T021329Z-438edb42"} -->
+  Agent: hermes-local-20260922T021329Z-438edb42 | item: rm-41609b27a734907d | completed: 2026-09-22T02:24:19Z
   <details>
   <summary>Details</summary>
 

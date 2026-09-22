@@ -224,10 +224,9 @@ jobs:
             echo "MACOS_SIGNING_ENABLED=false" >> "$GITHUB_ENV"
           fi
       - name: Fail release publication if notarization secrets are incomplete
-        # Tauri's bundler (tauri-bundler, vendored in src-tauri/Cargo.lock)
-        # signs a macOS .app with a Developer ID certificate and submits
-        # it to Apple's notarization service only when ALL of the
-        # APPLE_CERTIFICATE, APPLE_CERTIFICATE_PASSWORD, APPLE_TEAM_ID,
+        # Tauri's bundler signs a macOS .app with a Developer ID certificate
+        # and submits it to Apple's notarization service only when ALL of
+        # the APPLE_CERTIFICATE, APPLE_CERTIFICATE_PASSWORD, APPLE_TEAM_ID,
         # APPLE_API_ISSUER, APPLE_API_KEY, and APPLE_API_KEY_ID
         # environment variables are set. Providing only some of them
         # silently produces an unsigned bundle. Failing fast here makes

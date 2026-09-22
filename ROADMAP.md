@@ -116,9 +116,12 @@
   <!-- agent-state: {"schema":1,"id":"rm-538f80e80c2c4985","state":"done","touch":["ROADMAP.md#rm-538f80e80c2c4985","src/capture/captureCommit.test.ts","src/capture/captureCommit.ts"],"resources":["capture-attachment-filename"],"completed_by":"hermes-local-20260921T164700Z-b11f7cec","completed_at":"2026-09-21T18:58:00Z","branch":"agent/rm-538f80e80c2c4985/fe8bdeec5b16"} -->
   Agent: hermes-local-20260921T164700Z-b11f7cec | item: rm-538f80e80c2c4985 | done: 2026-09-21T18:58:00Z | branch: agent/rm-538f80e80c2c4985/fe8bdeec5b16 | commit: 009ef0b
 
-- 🚧 **Export/Print: `inlineLocalImages` re-serializes the whole note through `DOMParser` and restructures its markup (spurious `<p>`, injected `<tbody>`, repaired tags) in every HTML export**
-  <!-- agent-state: {"schema":1,"id":"rm-1973fcb9bfc885be","state":"claimed","touch":["src/export/exportNoteHtml.test.ts","src/export/exportNoteHtml.ts"],"resources":["export-html-image-inlining"],"owner":"hermes-local-20260921T234757Z-0e87c616","token":"7def3699ef3f67922616c748f627c395","branch":"agent/rm-1973fcb9bfc885be/7def3699ef3f","claimed_at":"2026-09-22T00:10:58Z","heartbeat_at":"2026-09-22T00:10:58Z","lease_until":"2026-09-22T01:40:58Z"} -->
-  Agent: hermes-local-20260921T234757Z-0e87c616 | item: rm-1973fcb9bfc885be | lease until: 2026-09-22T01:40:58Z
+
+## Implemented
+
+- ✅ **Export/Print: `inlineLocalImages` re-serializes the whole note through `DOMParser` and restructures its markup (spurious `<p>`, injected `<tbody>`, repaired tags) in every HTML export**
+  <!-- agent-state: {"schema":1,"id":"rm-1973fcb9bfc885be","state":"done","touch":["src/export/exportNoteHtml.test.ts","src/export/exportNoteHtml.ts"],"resources":["export-html-image-inlining"],"note":"Fixed on agent/rm-1973fcb9bfc885be/7def3699ef3f@099900b: inlineLocalImages now preserves original markup (string-level src substitution instead of body.innerHTML re-serialization). 8 regression tests (real mutating DOMParser) added; 2824/2824 frontend tests pass; tsc/lint/check-version/build green. Handoff at .agents/handoffs/rm-1973fcb9bfc885be.md.","completed_at":"2026-09-22T00:16:02Z","completed_by":"hermes-local-20260921T234757Z-0e87c616","branch":"agent/rm-1973fcb9bfc885be/7def3699ef3f"} -->
+  Agent: completed by hermes-local-20260921T234757Z-0e87c616 | item: rm-1973fcb9bfc885be
   Root cause: `src/export/exportNoteHtml.ts` builds the export by round-tripping the Preview-pane HTML fragment through `new DOMParser()` and returning `parsed.body.innerHTML`. That is a faithful *parse* but an unfaithful *output*: the HTML parser normalizes any "imperfect" markup the Preview pane emits, so exported HTML is silently restructured — `<p>hello<div>world</div></p>` becomes `<p>hello</p><div>world</div><p></p>` (a spurious empty `<p>` is introduced), `<table><tr>` gains an injected `<tbody>`, an unclosed `<div><p>` gets a closing `</div>`, and unclosed inline tags like `<p><strong>bold</p>` get a `</strong>` inserted. Both the desktop and Android export paths go through `inlineLocalImages`, so every note that is exported or printed with this behavior is affected, and the corruption is invisible in the common case (fully-valid HTML round-trips) which is why it was not caught. The existing tests pass a non-mutating `fakeParser`, so they cannot observe the restructure.
 
   Acceptance criteria:
@@ -144,7 +147,6 @@
 
   Handoff: `.agents/handoffs/<item-id>.md`
 
-## Implemented
 
 - ✅ **Spellcheck: do not flag words inside URLs embedded in prose**: `lintSource` only skipped lines that are entirely a URL, so URLs inside prose got their words flagged as misspellings.
   <!-- agent-state: {"schema":1,"id":"rm-bf44db1dc944dc35","state":"done","touch":["ROADMAP.md#rm-bf44db1dc944dc35"],"resources":[],"note":"Fixed: lintSource now masks URL tokens with spaces of the same length before calling checkSpelling, preserving character offsets. Landed SHA: 689a97d. CI: success (all 12 jobs green). Tests: 30 spellcheck tests pass, full suite 24,912 tests pass.","completed_at":"2026-09-21T21:55:37Z","completed_by":"hermes-local-20260921T213023Z-7116b0eb","branch":"agent/rm-bf44db1dc944dc35/3c78ed4e825e"} -->

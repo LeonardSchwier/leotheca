@@ -5,7 +5,7 @@
 ### Bugs
 
 - 🚧 **Mermaid: untested async render path and unexported sanitizer**: `src/markdown/mermaid.ts` (added 2026-09-22, commit c3a8b27) wires `renderMermaidToSvg()` into `MarkdownPreview`'s placeholder-resolution effect, but only the synchronous marked tokenizer/renderer path is covered by `mermaid.smoke.test.ts`.
-  <!-- agent-state: {"schema":1,"id":"rm-41609b27a734907d","state":"claimed","touch":["mermaid.smoke.test.ts","src/markdown/mermaid.ts"],"resources":["mermaid-rendering-tests"],"owner":"hermes-local-20260922T003311Z-a1afdc95","token":"c883b9723e2997c8502e3bfa819db966","branch":"agent/rm-41609b27a734907d/c883b9723e29","claimed_at":"2026-09-22T00:43:15Z","heartbeat_at":"2026-09-22T00:43:15Z","lease_until":"2026-09-22T02:13:15Z"} -->
+  <!-- agent-state: {"schema": 1, "id": "rm-41609b27a734907d", "state": "claimed", "touch": ["mermaid.smoke.test.ts", "src/markdown/mermaid.ts"], "resources": ["mermaid-rendering-tests"], "branch": "agent/rm-41609b27a734907d/c883b9723e29", "claimed_at": "2026-09-22T00:43:15Z", "heartbeat_at": "2026-09-22T00:43:15Z", "lease_until": "2026-09-22T02:13:15Z"} -->
   Agent: hermes-local-20260922T003311Z-a1afdc95 | item: rm-41609b27a734907d | lease until: 2026-09-22T02:13:15Z
   <details>
   <summary>Details</summary>

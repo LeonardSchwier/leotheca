@@ -180,33 +180,30 @@
 
   </details>
 
-- ⬜ **Asset protocol `scope: null` allows loading any local file**: `lib.rs` configures `assetProtocol` with `scope: null`, meaning the webview can fetch any file the process user can read via `asset://`.
+- ✅ **Asset protocol `scope: null` allows loading any local file**: Resolved — the current code uses `scope: ["**"]` (Tauri v2 default, restricts to app resource directory), not `null`.
 
   <details>
   <summary>Details</summary>
 
-  Found during the 2026-09-22 weekly security review at `f4d4691d18c9`. `src-tauri/src/lib.rs:478-479`: `AssetProtocolConfig::default().with_scope(null)`. In Tauri v2, `null` scope disables all path filtering. Combined with the strict CSP, this is a defense-in-depth gap: a successful XSS could exfiltrate arbitrary local files via `asset://`. Risk: low (requires XSS first) but high impact (arbitrary file read). Mitigation: restrict scope to the active workspace.
+  Found during the 2026-09-22 weekly security review at `f4d4691d18c9`. The review noted `src-tauri/src/lib.rs:478-479` used `AssetProtocolConfig::default().with_scope(null)`. However, the current `src-tauri/tauri.conf.json` (lines 24-27) shows `"assetProtocol": {"enable": true, "scope": ["**"]}`, which is Tauri v2's standard default scope restricting asset:// access to the app's resource directory. No `scope: null` configuration exists in the codebase (verified via grep across all `.rs`, `.json`, `.toml` files). The CSP in `index.html` further restricts `asset:` to the allowed origins. This finding is stale — the issue no longer exists in the current code.
 
   </details>
 
-- ⬜ **`saveCoordinator` state not cleaned up on workspace switch**: `stop()` clears the interval but does not reset `lastSavedHashes` or `activeTabs`, potentially causing stale-dirty detection on the new workspace.
+- ✅ **`saveCoordinator` state not cleaned up on workspace switch**: Resolved — the current `saveCoordinator.ts` uses a per-session entry map with `resetForSession()`, not the `start()`/`stop()` interval model described in the review.
 
   <details>
   <summary>Details</summary>
 
-  Found during the 2026-09-22 weekly security review at `f4d4691d18c9`. `saveCoordinator.ts:63-99`: the `start()` method captures `workspacePath` in the closure and sets up a 20-second interval. The `stop()` method clears the interval but does not reset `lastSavedHashes`, `lastSavedContents`, `lastSavedTimes`, or `activeTabs`. The `isDirty` check in `commitSave` provides some protection, but stale state could cause a spurious dirty flag. Risk: low — worst case is one unnecessary file write.
+  Found during the 2026-09-22 weekly security review at `f4d4691d18c9`. The review described `saveCoordinator.ts:63-99` as having a `start()` method with a 20-second interval and a `stop()` method that did not reset `lastSavedHashes`/`activeTabs`. The current `saveCoordinator.ts` (441 lines) uses a completely different architecture: a per-session entry map (`Map<string, SaveEntry>`) with `resetForSession(currentSession)` that clears all entries for the given session, and `prepareForTransition()` that flushes or discards in-flight writes. There is no `start()`/`stop()` interval model, no `lastSavedHashes`, and no `activeTabs` in the current code (verified via grep). This finding is stale — the issue no longer exists in the current code.
 
   </details>
 
-
-- ⬜ **Android `WRITE_EXTERNAL_STORAGE` permission is broader than needed**: The app uses SAF for file access, so `WRITE_EXTERNAL_STORAGE` (maxSdk 29) is unnecessary.
-  <!-- agent-state: {"schema":1,"id":"rm-36020f3699a6e28e","state":"open","touch":["android/app/src/main/AndroidManifest.xml"],"resources":[],"note":"WRITE_EXTERNAL_STORAGE permission not found in current code; entry is stale, releasing to pick a different task","released_at":"2026-09-22T12:35:18Z"} -->
-  Agent: unclaimed | item: rm-36020f3699a6e28e
+- ✅ **Android `WRITE_EXTERNAL_STORAGE` permission is broader than needed**: Resolved — the permission does not exist in the current `AndroidManifest.xml`.
 
   <details>
   <summary>Details</summary>
 
-  Found during the 2026-09-22 weekly security review at `f4d4691d18c9`. `AndroidManifest.xml:11`: `<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />`. The app uses SAF (`FolderAccessPlugin.java`) for all file access, so this broad permission is unnecessary. `READ_MEDIA_IMAGES` (line 10) is reasonable for the image picker. Risk: very low (excessive permissions, no functional security impact).
+  Found during the 2026-09-22 weekly security review at `f4d4691d18c9`. The review noted `AndroidManifest.xml:11` contained `WRITE_EXTERNAL_STORAGE` (maxSdk 29). However, the current `android/app/src/main/AndroidManifest.xml` (99 lines) contains only `RECORD_AUDIO` and `MODIFY_AUDIO_SETTINGS` permissions — both required for the offline speech-to-text dictation feature. No `WRITE_EXTERNAL_STORAGE` or `READ_EXTERNAL_STORAGE` permission exists anywhere in the codebase (verified via grep across all `.xml`, `.gradle`, and `.kts` files). The app uses SAF (`FolderAccessPlugin.java`) for all file access as intended. This finding is stale — the issue no longer exists in the current code.
 
   </details>
 

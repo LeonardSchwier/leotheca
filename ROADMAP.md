@@ -116,6 +116,32 @@
   <!-- agent-state: {"schema":1,"id":"rm-538f80e80c2c4985","state":"done","touch":["ROADMAP.md#rm-538f80e80c2c4985","src/capture/captureCommit.test.ts","src/capture/captureCommit.ts"],"resources":["capture-attachment-filename"],"completed_by":"hermes-local-20260921T164700Z-b11f7cec","completed_at":"2026-09-21T18:58:00Z","branch":"agent/rm-538f80e80c2c4985/fe8bdeec5b16"} -->
   Agent: hermes-local-20260921T164700Z-b11f7cec | item: rm-538f80e80c2c4985 | done: 2026-09-21T18:58:00Z | branch: agent/rm-538f80e80c2c4985/fe8bdeec5b16 | commit: 009ef0b
 
+- ⬜ **Export/Print: `inlineLocalImages` re-serializes the whole note through `DOMParser` and restructures its markup (spurious `<p>`, injected `<tbody>`, repaired tags) in every HTML export**
+  Root cause: `src/export/exportNoteHtml.ts` builds the export by round-tripping the Preview-pane HTML fragment through `new DOMParser()` and returning `parsed.body.innerHTML`. That is a faithful *parse* but an unfaithful *output*: the HTML parser normalizes any "imperfect" markup the Preview pane emits, so exported HTML is silently restructured — `<p>hello<div>world</div></p>` becomes `<p>hello</p><div>world</div><p></p>` (a spurious empty `<p>` is introduced), `<table><tr>` gains an injected `<tbody>`, an unclosed `<div><p>` gets a closing `</div>`, and unclosed inline tags like `<p><strong>bold</p>` get a `</strong>` inserted. Both the desktop and Android export paths go through `inlineLocalImages`, so every note that is exported or printed with this behavior is affected, and the corruption is invisible in the common case (fully-valid HTML round-trips) which is why it was not caught. The existing tests pass a non-mutating `fakeParser`, so they cannot observe the restructure.
+
+  Acceptance criteria:
+  - `inlineLocalImages` returns HTML that is byte-for-byte identical to the input except for inlined `<img>` `src` values; it must not restructure, repair, or reorder any other markup.
+  - Images with non-`data:` `src` are still inlined to data URIs (unchanged feature), `data:` srcs are left untouched, and an unreachable src leaves the original value intact.
+  - A regression test using a real (mutating) `DOMParser` demonstrates the old behavior corrupts a `<table>`, a `<p><div>` fragment, and an unclosed-tag fragment, and the new behavior preserves them.
+  - Revert-confirmed: with the implementation reverted to the old `parsed.body.innerHTML` return, the new regression tests fail (showing `<tbody>` injection and a spurious `<p>`); with the fix, they pass.
+
+  Proposed approach: parse the fragment only to enumerate which `<img>` `src` values exist and need inlining (deduping shared sources), fetch/inline those into a `src → dataURI` map, then substitute only the `src="..."` value inside each `<img ...>` tag in the **original** string (preserving the original quote style) — never returning the re-serialized `body.innerHTML`. Match `src=` only when immediately followed by a quote so a `src=` substring inside another attribute's value is not mistaken for the image source.
+
+  Evidence:
+  - jsdom reproduction (old implementation) — all four cases restructured:
+    - `<p>hello<div>world</div></p>` → `<p>hello</p><div>world</div><p></p>`
+    - `<table><tr><td>a</td><td>b</td></tr></table>` → `<table><tbody><tr>…</tbody></table>`
+    - `<div><p>unclosed` → `<div><p>unclosed</p></div>`
+    - `<p><strong>bold</p>` → `<p><strong>bold</strong></p>`
+  - Regression test `preserves a table fragment without injecting a <tbody>` fails on the old code with `Received: "<table><tbody>…"` and passes on the fix.
+  - Verification: `npx tsc -p tsconfig.json --noEmit` (exit 0), `npm run lint` (clean), `npm run check-version` (pass), `npm test` (151 files, 2824 tests, all pass), `npm run build` (built successfully). Frontend-only change; Rust and Android checks not applicable.
+
+  Files:
+  - `src/export/exportNoteHtml.ts` — fix (no longer returns `parsed.body.innerHTML`).
+  - `src/export/exportNoteHtml.test.ts` — 8 new regression tests (table preservation, `<p><div>` preservation, unclosed-tag preservation, data:-src preservation, `src=`-in-alt guard, single-quoted src, no-image no-op).
+
+  Handoff: `.agents/handoffs/<item-id>.md`
+
 ## Implemented
 
 - ✅ **Spellcheck: do not flag words inside URLs embedded in prose**: `lintSource` only skipped lines that are entirely a URL, so URLs inside prose got their words flagged as misspellings.

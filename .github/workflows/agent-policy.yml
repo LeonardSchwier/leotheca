@@ -70,3 +70,4 @@ jobs:
             echo "No usable base commit for this event (new branch or history rewrite); running the structural check only."
             python3 scripts/check_roadmap_format.py --root .
           fi
+# ​

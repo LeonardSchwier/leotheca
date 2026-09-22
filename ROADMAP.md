@@ -155,8 +155,8 @@
 ### Security and privacy review (2026-09-22)
 
 - 🚧 **Unscoped `write_text_file` commands accept arbitrary paths**: `commands.rs` exposes `write_text_file` and `write_binary_file` as Tauri commands with no workspace containment. A compromised webview could overwrite any file the process user can write to.
-  <!-- agent-state: {"schema":1,"id":"rm-dfd60513a2eb352c","state":"claimed","touch":["src-tauri","src/capture","src/editor","src/refactor","src/workspace"],"resources":["workspace-write-path"],"owner":"hermes-local-20260922T101719Z-1e30a773","token":"2bd3643ea0a444a061ea8a6626370deb","branch":"agent/rm-dfd60513a2eb352c/2bd3643ea0a4","claimed_at":"2026-09-22T10:30:03Z","heartbeat_at":"2026-09-22T10:30:03Z","lease_until":"2026-09-22T12:00:03Z"} -->
-  Agent: hermes-local-20260922T101719Z-1e30a773 | item: rm-dfd60513a2eb352c | lease until: 2026-09-22T12:00:03Z
+  <!-- agent-state: {"schema":1,"id":"rm-dfd60513a2eb352c","state":"claimed","touch":["src-tauri/src/commands.rs","src-tauri/src/lib.rs","src/app/App.tsx","src/workspace/tauriBridge.ts","src/workspace/tauriBridgeImpl.ts"],"resources":["html-export","workspace-write-path"],"owner":"claude-20260922T122235Z-9d54ddd1","token":"b8d60ea2bbb05696030c5347d69ae166","branch":"agent/rm-dfd60513a2eb352c/b8d60ea2bbb0","claimed_at":"2026-09-22T12:27:36Z","heartbeat_at":"2026-09-22T12:27:36Z","lease_until":"2026-09-22T13:57:36Z"} -->
+  Agent: claude-20260922T122235Z-9d54ddd1 | item: rm-dfd60513a2eb352c | lease until: 2026-09-22T13:57:36Z
 
   <details>
   <summary>Details</summary>

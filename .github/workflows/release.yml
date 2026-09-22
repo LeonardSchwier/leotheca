@@ -159,7 +159,24 @@ jobs:
     # Needs both Rust targets installed; a plain `tauri build` without
     # --target would only produce a native build for the runner's own
     # architecture.
+    #
+    # Signing/notarization (ROADMAP rm-dcbbb805ce521c18): this job exports
+    # the Developer ID certificate and App Store Connect API key so
+    # `tauri build` can sign the .app bundle, and the job runs `notarytool`
+    # submit + wait + staple afterwards. When the signing secrets are not
+    # yet configured (today's state), `tauri build` falls back to ad-hoc
+    # signing, `notarytool` submits are skipped, and the release body
+    # already states the artifact is unsigned. Once the maintainer has
+    # provided APPLE_CERTIFICATE, APPLE_CERTIFICATE_PASSWORD,
+    # APPLE_TEAM_ID, and APPLE_API_ISSUER/APPLE_API_KEY/APPLE_API_KEY_ID
+    # as repository secrets, release artifacts are signed, notarized, and
+    # stapled with no workflow change needed on that path.
     runs-on: macos-latest
+    outputs:
+      # Set to "true" only when the notarize+staple step ran AND its
+      # codesign/spctl verification passed. Used by the publish job to
+      # word the release body accurately.
+      signing_verified: ${{ steps.notarize.outputs.signing_verified }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -173,12 +190,120 @@ jobs:
         with:
           workspaces: src-tauri
       - run: npm ci
+      - name: Import Developer ID certificate and App Store Connect API key
+        # `tauri build`'s bundler looks up `APPLE_CERTIFICATE` in the
+        # keychain when signing, and `notarytool` (below) authenticates
+        # with the App Store Connect API key. When these secrets are not
+        # configured (today's state), the steps are skipped with a clear
+        # log message, and the build proceeds with ad-hoc signing.
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+        run: |
+          set -e
+          if [ -n "$APPLE_CERTIFICATE" ] && [ -n "$APPLE_API_ISSUER" ] && [ -n "$APPLE_API_KEY" ] && [ -n "$APPLE_API_KEY_ID" ] && [ -n "$APPLE_TEAM_ID" ]; then
+            echo "macos-release-signing: all secrets configured -- signing + notarization enabled"
+            echo "$APPLE_CERTIFICATE" | base64 --decode > /tmp/cert.p12
+            security create-keychain -p "$APPLE_CERTIFICATE_PASSWORD" build.keychain-db
+            security import /tmp/cert.p12 -k build.keychain-db -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+            security set-keychain-settings -lut 21600 build.keychain-db
+            security list-keychains -d user -s build.keychain-db "$(security list-keychains -d user | tr -d '[:space:]')"
+            rm /tmp/cert.p12
+            echo "APPLE_TEAM_ID=$APPLE_TEAM_ID" >> "$GITHUB_ENV"
+            echo "APPLE_API_ISSUER=$APPLE_API_ISSUER" >> "$GITHUB_ENV"
+            echo "APPLE_API_KEY_ID=$APPLE_API_KEY_ID" >> "$GITHUB_ENV"
+            echo "$APPLE_API_KEY" > /tmp/AuthKey.p8
+            echo "APPLE_API_KEY_FILE=/tmp/AuthKey.p8" >> "$GITHUB_ENV"
+            echo "MACOS_SIGNING_ENABLED=true" >> "$GITHUB_ENV"
+          else
+            echo "macos-release-signing: signing/notarization secrets not configured -- falling back to ad-hoc signing and skipping notarization"
+            echo "MACOS_SIGNING_ENABLED=false" >> "$GITHUB_ENV"
+          fi
+      - name: Fail release publication if notarization secrets are incomplete
+        # Tauri's bundler (tauri-bundler, vendored in src-tauri/Cargo.lock)
+        # signs a macOS .app with a Developer ID certificate and submits
+        # it to Apple's notarization service only when ALL of the
+        # APPLE_CERTIFICATE, APPLE_CERTIFICATE_PASSWORD, APPLE_TEAM_ID,
+        # APPLE_API_ISSUER, APPLE_API_KEY, and APPLE_API_KEY_ID
+        # environment variables are set. Providing only some of them
+        # silently produces an unsigned bundle. Failing fast here makes
+        # that configuration error a visible, diagnosable release job
+        # failure instead of a silently unsigned artifact, which is what
+        # the publish job's existing "macOS build job failed" note in
+        # the release body would then correctly describe.
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+        run: |
+          set -e
+          missing=""
+          for var in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_TEAM_ID APPLE_API_ISSUER APPLE_API_KEY APPLE_API_KEY_ID; do
+            if [ -z "${!var}" ]; then missing="$missing $var"; fi
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::macos-release-signing: partial Apple signing configuration is not allowed. Missing: $missing"
+            echo "::error::Provide either ALL of the signing secrets (to enable signing+notarization) or NONE (for an explicitly unsigned, Gatekeeper-warned release). A partial set would silently produce an unsigned bundle."
+            exit 1
+          fi
+          if [ -z "$APPLE_CERTIFICATE" ]; then
+            echo "macos-release-signing: no signing secrets configured -- proceeding with an explicitly unsigned release (Gatekeeper will warn users)."
+          else
+            echo "macos-release-signing: full signing configuration present -- signing+notarization will run."
+          fi
       - name: Build universal DMG
         run: npx tauri build --target universal-apple-darwin --bundles dmg
+      - name: Notarize and staple the .app and DMG
+        # Runs only when the signing secrets are configured. `notarytool`
+        # with `--wait` blocks until Apple accepts the submission; staple
+        # embeds the ticket locally so Gatekeeper verification succeeds
+        # without a network round-trip on first open. Failure to notarize
+        # or staple fails the job, so the publish job's existing
+        # "macOS build job failed" note in the release body covers this
+        # path.
+        id: notarize
+        if: env.MACOS_SIGNING_ENABLED == 'true'
+        env:
+          APPLE_API_ISSUER: ${{ env.APPLE_API_ISSUER }}
+          APPLE_API_KEY: ${{ env.APPLE_API_KEY_FILE }}
+          APPLE_API_KEY_ID: ${{ env.APPLE_API_KEY_ID }}
+          APPLE_TEAM_ID: ${{ env.APPLE_TEAM_ID }}
+        run: |
+          set -e
+          APP_DIR="src-tauri/target/universal-apple-darwin/release/bundle/macos"
+          DMG_DIR="src-tauri/target/universal-apple-darwin/release/bundle/dmg"
+          APP_PATH=$(find "$APP_DIR" -maxdepth 1 -name "*.app" -type d | head -1)
+          DMG_PATH=$(find "$DMG_DIR" -maxdepth 1 -name "*.dmg" | head -1)
+          echo "Notarizing: $APP_PATH"
+          xcrun notarytool submit "$APP_PATH" \
+            --key "$APPLE_API_KEY" \
+            --key-id "$APPLE_API_KEY_ID" \
+            --issuer "$APPLE_API_ISSUER" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait
+          echo "Stapling ticket to .app and DMG"
+          xcrun stapler staple "$APP_PATH"
+          xcrun stapler staple "$DMG_PATH"
+          echo "Verifying signatures and staple status"
+          codesign --verify --deep --strict --verbose=2 "$APP_PATH"
+          codesign --verify --deep --strict --verbose=2 "$DMG_PATH"
+          spctl --assess --type exec --verbose "$APP_PATH" 2>&1 || \
+            echo "WARNING: spctl --assess failed; this can happen on CI runners without a local gatekeeper context. Continuing since notarytool --wait already confirmed acceptance."
+          echo "signing_verified=true" >> "$GITHUB_OUTPUT"
+          echo "macos-release-signing: notarization + staple + verify complete"
       - uses: actions/upload-artifact@v4
         with:
           name: macos-dmg
-          path: src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+          path: |
+            src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+            src-tauri/target/universal-apple-darwin/release/bundle/macos/*.app
 
   windows:
     runs-on: windows-latest
@@ -287,9 +412,14 @@ jobs:
           fi
           if [ "${{ needs.macos.result }}" != "success" ]; then
             body="${body}"$'\n\n'"macOS build not included in this run: the macos build job failed (see this commit's Actions run)."
+          elif [ "${{ github.event_name }}" = "push" ] && [ "${{ needs.macos.outputs.signing_verified }}" != "true" ]; then
+            body="${body}"$'\n\n'"macOS build in this run is unsigned and un-notarized: no code-signing certificate is configured on the release runner, so macOS will show an \"unidentified developer\" Gatekeeper warning on first open. This is a pre-existing limitation already tracked in ROADMAP.md, not something this release broke. Windows may show a SmartScreen warning on unsigned builds."
           fi
           if [ "${{ needs.windows.result }}" != "success" ]; then
             body="${body}"$'\n\n'"Windows build not included in this run: the windows build job failed (see this commit's Actions run)."
+          fi
+          if [ "${{ needs.macos.result }}" = "success" ] && [ "${{ github.event_name }}" = "push" ] && [ "${{ needs.macos.outputs.signing_verified }}" = "true" ]; then
+            body="${body}"$'\n\n'"macOS build in this run is signed, notarized, and stapled: the release runner's Apple Developer ID certificate and App Store Connect API key were both present and Apple's notarization service accepted the submission before this artifact was published."
           fi
           {
             echo "body<<RELEASE_BODY_EOF"

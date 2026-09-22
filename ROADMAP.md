@@ -4,15 +4,15 @@
 
 ### Bugs
 
-- 🚧 **Mermaid: untested async render path and unexported sanitizer**: `src/markdown/mermaid.ts` (added 2026-09-22, commit c3a8b27) wires `renderMermaidToSvg()` into `MarkdownPreview`'s placeholder-resolution effect, but only the synchronous marked tokenizer/renderer path is covered by `mermaid.smoke.test.ts`.
-  <!-- agent-state: {"schema": 1, "id": "rm-41609b27a734907d", "state": "claimed", "touch": ["mermaid.smoke.test.ts", "src/markdown/mermaid.ts"], "resources": ["mermaid-rendering-tests"], "branch": "agent/rm-41609b27a734907d/c883b9723e29", "claimed_at": "2026-09-22T00:43:15Z", "heartbeat_at": "2026-09-22T00:43:15Z", "lease_until": "2026-09-22T02:13:15Z"} -->
-  Agent: hermes-local-20260922T003311Z-a1afdc95 | item: rm-41609b27a734907d | lease until: 2026-09-22T02:13:15Z
+- ✅ **Mermaid: untested async render path and unexported sanitizer**: `src/markdown/mermaid.ts` (added 2026-09-22, commit c3a8b27) wires `renderMermaidToSvg()` into `MarkdownPreview` placeholder-resolution effect, but only the synchronous marked tokenizer/renderer path is covered by `mermaid.smoke.test.ts`.
+  <!-- agent-state: {"schema": 1, "id": "rm-41609b27a734907d", "state": "done", "touch": ["ROADMAP.md#rm-41609b27a734907d", "mermaid.smoke.test.ts", "src/markdown/mermaid.ts"], "resources": ["mermaid-rendering-tests"], "branch": "agent/rm-41609b27a734907d/5cdf7779450b", "note": "Landed: bb4a38b. CI: pending. Tests: 30,552 pass (1,621 files, +5 new). tsc/eslint/checkVersion clean.", "completed_at": "2026-09-22T02:24:19Z", "completed_by": "hermes-local-20260922T021329Z-438edb42"} -->
+  Agent: hermes-local-20260922T021329Z-438edb42 | item: rm-41609b27a734907d | completed: 2026-09-22T02:24:19Z
   <details>
   <summary>Details</summary>
 
-  - **Context:** The async path — the `mermaid.render()` call, the empty-SVG throw, the `.catch(() => codeBlockFallback(...))` fallback, and the unexported `sanitizeMermaidSvg()` defense-in-depth helper (which strips `on*=` attributes and neutralizes `javascript:`/`data:text/html` hrefs) — has zero test coverage. `sanitizeMermaidSvg` is not exported, so it cannot be unit-tested without a test-only export.
-  - **Acceptance criteria:** (1) `sanitizeMermaidSvg` is exported from `src/markdown/mermaid.ts` (or an equivalent public seam) with at least two unit tests: one asserting a malicious `onerror`/`onclick` attribute is stripped, and one asserting a `javascript:` or `data:text/html` href is rewritten to `#`. (2) A test exercises `renderMermaidToSvg`'s fallback path — either by mocking `mermaid.render` to reject/throw or by feeding it syntactically invalid mermaid source — and asserts the returned HTML is a `<pre><code class="language-mermaid">` block containing the original source, not an empty string or an unhandled rejection. (3) `npx vitest run` (full FRONTEND_CHECK suite) passes. (4) No change to `MarkdownPreview.tsx`'s effect or to the smoke test's existing assertions.
-  - **Affected paths:** `src/markdown/mermaid.ts`, `mermaid.smoke.test.ts` (or a new `src/markdown/mermaid.test.ts`).
+  - **Context:** The async path and the unexported sanitizeMermaidSvg() helper had zero test coverage.
+  - **Result:** All 4 acceptance criteria met. sanitizeMermaidSvg exported and tested (3 tests). renderMermaidToSvg fallback tested (2 tests). Full suite: 30,552 tests pass (1,621 files, +5 new). No MarkdownPreview.tsx change.
+  - **Landed:** commit bb4a38b, merged to main as 080805a.
 
   </details>
 

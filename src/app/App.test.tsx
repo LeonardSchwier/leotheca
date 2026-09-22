@@ -120,6 +120,10 @@ const { openUrlListeners } = vi.hoisted(() => ({
   openUrlListeners: [] as ((urls: string[]) => void)[],
 }));
 
+const { writeClipboardText } = vi.hoisted(() => ({
+  writeClipboardText: vi.fn(async () => {}),
+}));
+
 vi.mock("@tauri-apps/plugin-deep-link", () => ({
   getCurrent: vi.fn(async () => null),
   onOpenUrl: vi.fn((listener: (urls: string[]) => void) => {
@@ -129,7 +133,7 @@ vi.mock("@tauri-apps/plugin-deep-link", () => ({
 }));
 
 vi.mock("@tauri-apps/plugin-clipboard-manager", () => ({
-  writeText: vi.fn(async () => {}),
+  writeText: writeClipboardText,
 }));
 
 vi.mock("../workspace/Sidebar", () => ({
@@ -245,6 +249,7 @@ afterEach(() => {
   });
   writeTextFile.mockClear();
   readTextFile.mockClear();
+  writeClipboardText.mockClear();
   renameEntry.mockReset();
   createNoteQuick.mockReset();
   initSettings.mockReset();
@@ -2240,5 +2245,47 @@ describe("App: UX-01 Inspector (Medium+ layout, spec 13.7)", () => {
     fireEvent.click(getByLabelText("Files"));
     expect(container.querySelector(".sidebar")).toBeTruthy();
     expect(container.querySelector(".inspector")).toBeNull();
+  });
+});
+
+describe("App: read-current-note automation command (leotheca://read-current-note)", () => {
+  it("copies the active text note's content to the clipboard", async () => {
+    workspacePath.value = "/vault";
+    openOrFocusTab("/vault/note.md", "note.md", "hello world", "text");
+    render(<App />);
+
+    await act(async () => {
+      openUrlListeners.at(-1)?.(["leotheca://read-current-note"]);
+      await Promise.resolve();
+    });
+
+    expect(writeClipboardText).toHaveBeenCalledTimes(1);
+    expect(writeClipboardText).toHaveBeenCalledWith("hello world");
+  });
+
+  it("does not touch the clipboard when the active tab is not a text note", async () => {
+    workspacePath.value = "/vault";
+    // A PDF tab is open and active — read-current-note must not copy it.
+    openOrFocusTab("/vault/doc.pdf", "doc.pdf", "", "pdf");
+    render(<App />);
+
+    await act(async () => {
+      openUrlListeners.at(-1)?.(["leotheca://read-current-note"]);
+      await Promise.resolve();
+    });
+
+    expect(writeClipboardText).not.toHaveBeenCalled();
+  });
+
+  it("is a silent no-op when no note is open at all", async () => {
+    workspacePath.value = "/vault";
+    render(<App />);
+
+    await act(async () => {
+      openUrlListeners.at(-1)?.(["leotheca://read-current-note"]);
+      await Promise.resolve();
+    });
+
+    expect(writeClipboardText).not.toHaveBeenCalled();
   });
 });

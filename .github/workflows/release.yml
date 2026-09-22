@@ -244,15 +244,16 @@ jobs:
         run: |
           set -e
           missing=""
+          present=""
           for var in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_TEAM_ID APPLE_API_ISSUER APPLE_API_KEY APPLE_API_KEY_ID; do
-            if [ -z "${!var}" ]; then missing="$missing $var"; fi
+            if [ -z "${!var}" ]; then missing="$missing $var"; else present="$present $var"; fi
           done
-          if [ -n "$missing" ]; then
+          if [ -n "$missing" ] && [ -n "$present" ]; then
             echo "::error::macos-release-signing: partial Apple signing configuration is not allowed. Missing: $missing"
             echo "::error::Provide either ALL of the signing secrets (to enable signing+notarization) or NONE (for an explicitly unsigned, Gatekeeper-warned release). A partial set would silently produce an unsigned bundle."
             exit 1
           fi
-          if [ -z "$APPLE_CERTIFICATE" ]; then
+          if [ -n "$missing" ]; then
             echo "macos-release-signing: no signing secrets configured -- proceeding with an explicitly unsigned release (Gatekeeper will warn users)."
           else
             echo "macos-release-signing: full signing configuration present -- signing+notarization will run."

@@ -42,22 +42,6 @@
 
 ### Bugs
 
-- 🚧 **TagsPanel: unhandled promise rejection when `onOpenFile` fails**: The last panel still missing the `onOpenFile` error-handling pattern added to all other note-opening panels. `TagsPanel.tsx:112` calls `onOpenFile(...)` without `await`/`try-catch`, so a read failure in `openNote` produces an unhandled promise rejection with no user-visible feedback — inconsistent with `BacklinksPanel`, `TaskHubPanel`, `BookmarksPanel`, `FileTree`, `Inspector`, `SecondaryEditorPane`, `GraphView`, `MarkdownPreview`, and `CanvasView`.
-  <!-- agent-state: {"schema":1,"id":"rm-24a86de7e4fcac3b","state":"claimed","touch":["CHANGELOG.md","ROADMAP.md","src/app/App.css","src/tags/TagsPanel.test.tsx","src/tags/TagsPanel.tsx"],"resources":[],"owner":"hermes-local-20260922T201147Z-91102aea","token":"10b85180dd613178ea62787e7e3c07de","branch":"agent/rm-24a86de7e4fcac3b/10b85180dd61","claimed_at":"2026-09-22T20:22:15Z","heartbeat_at":"2026-09-22T20:22:15Z","lease_until":"2026-09-22T21:52:15Z"} -->
-  Agent: hermes-local-20260922T201147Z-91102aea | item: rm-24a86de7e4fcac3b | lease until: 2026-09-22T21:52:15Z
-  <details>
-  <summary>Root cause, fix, and verification</summary>
-
-  Root cause: `TagsPanel.tsx:112` — `onOpenFile(tab.contentRef.path, { sourceType: "note" })` with no error guard. `openNote` in `App.tsx` is async and can reject (e.g. `readFile` fails for a deleted file). Every other call site guards this.
-
-  Fix: wrap the call in `try/catch` and call `setOpenNoteError(...)`, matching the pattern in `TaskHubPanel.tsx:108-112` and `BookmarksPanel.tsx:42-45`.
-
-  Acceptance criteria:
-  - `TagsPanel` shows an error message when `onOpenFile` rejects
-  - `TagsPanel` shows no error when `onOpenFile` succeeds
-  - Full verification suite green (tsc, eslint, vitest, vite build, cargo fmt/clippy/test/check)
-
-  </details>
 - ⬜ **Fedora Wayland AppImage WebKit/EGL startup crash**: The current development AppImage reproducibly leaves a blank window on Fedora because `WebKitWebProcess` aborts with `Could not create default EGL display: EGL_BAD_PARAMETER`; `WEBKIT_DISABLE_DMABUF_RENDERER=1`, `WEBKIT_DISABLE_COMPOSITING_MODE=1`, and `GDK_BACKEND=x11` all fail. Reproduce on a clean Fedora session and compare the bundled versus host WebKit, Wayland, EGL, GBM, and Mesa libraries. Correct the AppImage dependency/runtime composition so the WebKit process starts with the host graphics stack it requires, then add a Wayland-capable release smoke test that proves the welcome screen renders and no WebKit process core-dumps. Do not declare the AppImage supported on Fedora until that test passes.
 - ⬜ **Flatpak sandbox: verify the desktop-portal dialog backend by testing folder selection**: `src-tauri/Cargo.toml`'s `tauri-plugin-dialog` dependency already uses `default-features = false, features = ["xdg-portal"]` (commit `efd4969`, "fix(desktop): use portal file dialog"), so the code-level fix this item originally described is already on `main`, and the Flatpak manifest's `finish-args` correctly does not add a redundant D-Bus permission for it. What's still genuinely open, and could not be verified from this sandbox (no interactive desktop/Wayland or X11 session available): rebuilding and installing a real Flatpak bundle, then smoke-testing open/cancel/select-folder flows under both Wayland and X11 fallback, confirming the original `GDBus.Error:org.freedesktop.portal.Error.NotAllowed` is actually gone end-to-end, and confirming dialog failures surface in the UI rather than as a raw GDBus error. Needs a real Linux desktop with a Flatpak install, the same class of gap as the Fedora Wayland AppImage item directly above.
 - 🚧 **Search Content-Read Crash**: Search on a large vault crashed with an `OutOfMemoryError`; the code fix (batched file reads, size-aware flushing, binary-file exclusion) landed in main, but the fix is still unverified on a real ~500-note vault.
@@ -220,6 +204,24 @@
 
 
 ## Implemented
+
+- ✅ **TagsPanel: unhandled promise rejection when `onOpenFile` fails**: Last panel missing the `onOpenFile` error-handling pattern. A read failure in `openNote` produced an unhandled rejection with no user-visible feedback — inconsistent with all other note-opening panels.
+  <!-- agent-state: {"schema":1,"id":"rm-24a86de7e4fcac3b","state":"done","touch":["CHANGELOG.md","ROADMAP.md","src/app/App.css","src/tags/TagsPanel.test.tsx","src/tags/TagsPanel.tsx"],"resources":[],"note":"TagsPanel onOpenFile error handling added: try/catch + inline role=alert error, matching BookmarksPanel/TaskHubPanel pattern. 2 new tests. All 47802 tests + tsc + lint + build pass. Branch: agent/rm-24a86de7e4fcac3b/10b85180dd61","completed_at":"2026-09-22T20:37:56Z","completed_by":"hermes-local-20260922T201147Z-91102aea","branch":"agent/rm-24a86de7e4fcac3b/10b85180dd61"} -->
+  Agent: completed by hermes-local-20260922T201147Z-91102aea | item: rm-24a86de7e4fcac3b
+  <details>
+  <summary>Root cause, fix, and verification</summary>
+
+  Root cause: `TagsPanel.tsx:112` — `onOpenFile(tab.contentRef.path, { sourceType: "note" })` with no error guard. `openNote` in `App.tsx` is async and can reject (e.g. `readFile` fails for a deleted file). Every other call site guards this.
+
+  Fix: wrap the call in `try/catch` and call `setOpenNoteError(...)`, matching the pattern in `TaskHubPanel.tsx:108-112` and `BookmarksPanel.tsx:42-45`.
+
+  Acceptance criteria:
+  - `TagsPanel` shows an error message when `onOpenFile` rejects
+  - `TagsPanel` shows no error when `onOpenFile` succeeds
+  - Full verification suite green (tsc, eslint, vitest, vite build, cargo fmt/clippy/test/check)
+
+  </details>
+
 
 - ✅ **Local Automation Commands** (implementation already merged into `main`; the `agent/local-automation-commands` branch was deleted after that merge, so there is no active branch to resume and nothing here for another agent to claim or steal): Add operating-system URL commands for reading the current note and creating a note through local inter-application automation. Status, so a follow-up session can resume without re-deriving any of this:
   <!-- agent-state: {"schema":1,"id":"rm-d357b01746bcb5e3","state":"done","touch":["src/app/App.test.tsx","src/app/App.tsx","src/app/automationCommands.ts"],"resources":["local-automation-verification"],"note":"Added 3 regression tests for leotheca://read-current-note handler (App.tsx:516-518): clipboard write for text note, no-op for non-text tab, no-op for no note open. Full suite 2867 pass, tsc/lint/build/check-version all green. CI: Agent policy + CI + Release all success on 8e9654a.","completed_at":"2026-09-22T19:16:36Z","completed_by":"hermes-local-20260922T184956Z-dad137b0","branch":"agent/rm-d357b01746bcb5e3/cacbbe2b441f"} -->

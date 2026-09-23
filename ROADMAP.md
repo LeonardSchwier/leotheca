@@ -194,12 +194,12 @@
 
   </details>
 
-- ✅ **Asset protocol `scope: null` allows loading any local file**: Resolved — the current code uses `scope: ["**"]` (Tauri v2 default, restricts to app resource directory), not `null`.
+- ⬜ **Asset protocol scope allows reading any local file via `asset://`**: `tauri.conf.json`'s `assetProtocol.scope` is `["**"]`, and a bare `**` glob matches any absolute path, not just the app resource directory. Combined with any future XSS, `asset://`/`convertFileSrc` could read any file the desktop process can read. A 2026-09-22 maintenance pass mismarked this `done`, incorrectly assuming `["**"]` was Tauri's resource-directory default; it is not.
 
   <details>
-  <summary>Details</summary>
+  <summary>Correction and re-open rationale</summary>
 
-  Found during the 2026-09-22 weekly security review at `f4d4691d18c9`. The review noted `src-tauri/src/lib.rs:478-479` used `AssetProtocolConfig::default().with_scope(null)`. However, the current `src-tauri/tauri.conf.json` (lines 24-27) shows `"assetProtocol": {"enable": true, "scope": ["**"]}`, which is Tauri v2's standard default scope restricting asset:// access to the app's resource directory. No `scope: null` configuration exists in the codebase (verified via grep across all `.rs`, `.json`, `.toml` files). The CSP in `index.html` further restricts `asset:` to the allowed origins. This finding is stale — the issue no longer exists in the current code.
+  Originally found during the 2026-09-22 weekly security review at `f4d4691d18c9` as `scope: null`. A later pass (commit `30577c3`) marked it `done`, reasoning that the actual code used `scope: ["**"]` instead of `null` and that this was "Tauri v2's standard default scope restricting asset:// access to the app's resource directory". That reasoning was never verified against the real pattern-matching behavior and is wrong: empirically, `glob::Pattern::new("**").matches("/etc/passwd")` and `.matches("/root/.bashrc")` both return `true` (checked directly against this crate's own `glob 0.3.4` dependency, not assumed from documentation) — a bare `**` has no directory anchor at all, so it matches every absolute path on the filesystem, functionally identical to `scope: null`. There is no Tauri "default scope" that restricts to the resource directory; scope is either explicit patterns or (when omitted) enable-without-restriction. Re-opening with the corrected understanding; this file's own rule against claiming unverified completion applies here too — a "done" claim needs the same evidence bar as any other.
 
   </details>
 

@@ -212,6 +212,8 @@
 
 
 
+- ⬜ **Colored text highlights via `==` syntax with emoji color codes**: Leotheca currently renders `==highlight==` as literal text; it does not support the `==...==` inline highlight syntax at all. Adding base `==text==` → `<mark>` rendering (editor + preview) is the prerequisite, and the Obsidian v1.14.0 emoji-color convention (prefix a color emoji like 🔴🟠🟢🔵🟣 inside the highlight to change its color, with a formatting submenu to pick) is the "shoulders of giants" pattern to follow rather than inventing a competing convention. Purely local Markdown-to-CSS rendering, no new file format, no network call. (Competitor scan, Obsidian Desktop v1.14.0, 2026-09-02).
+
 ## Implemented
 
 - ✅ **`resetForSession` leaves a permanent zombie entry when an in-flight write is in progress**: When `resetForSession` is called while a session has an in-flight write, the entry is deliberately kept in the `entries` map (`if (!entry.inFlight) entries.delete(key)`). But once that in-flight write's `finally` block runs, it sets `inFlight = false` and calls `resolveWaiters(entry)` — it never deletes the entry. The entry is now a permanent zombie: it stays in the map, `entryCount()` grows forever, and because the session is blocked, the write's `onSaved`/`onError` callbacks are suppressed, so a *failed* write during reset produces no visible error. Root cause: `writeRevision`'s `finally` block assumes the caller owns the entry's lifecycle and never deletes it; `resetForSession` is the one caller that intentionally defers deletion until the write settles, but nothing actually performs that deferred deletion. Fix: after the in-flight write's `finally` block clears `inFlight`, check whether the session is blocked and delete the entry if so.

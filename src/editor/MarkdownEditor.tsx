@@ -17,7 +17,7 @@ import { escapeWikiLinkText } from "../linking/wikiSyntax";
 import { scanHeadings, type HeadingRecord } from "../markdown/headings";
 import { scanBlockIds, type BlockRecord } from "../markdown/blocks";
 import { readTextFile } from "../workspace/tauriBridge";
-import { livePreviewExtension } from "./livePreview";
+import { livePreviewExtension, highlightMarkdownExtension } from "./livePreview";
 import { textDirectionExtension } from "./textDirection";
 import { attachmentsInsertText, type PastedOrDroppedFile } from "./attachments";
 import { minimalChange } from "./textDiff";
@@ -461,7 +461,7 @@ function buildExtensions(
     history(),
     autocompletion({ override: [slashCommandCompletions, wikilinkCompletions, headingLinkCompletions(path), blockLinkCompletions(path)] }),
     keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap, ...completionKeymap]),
-    markdown({ codeLanguages: languages }),
+    markdown({ codeLanguages: languages, extensions: [highlightMarkdownExtension] }),
     syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
     livePreviewExtension,
     textDirectionExtension,

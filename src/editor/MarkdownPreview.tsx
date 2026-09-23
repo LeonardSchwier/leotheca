@@ -15,6 +15,7 @@ import {
 } from "../linking/wikiResolver";
 import { scanHeadings, type HeadingRecord } from "../markdown/headings";
 import { scanBlockIds, type BlockRecord } from "../markdown/blocks";
+import { detectHighlightColor, highlightClassName } from "../markdown/highlight";
 import { frontmatterBodyStart } from "./frontmatterEdits";
 import { requestOutlineReveal } from "../outline/outlineNavigation";
 import { workspacePath } from "../settings/store";
@@ -169,6 +170,33 @@ function slugifyFootnoteId(id: string): string {
 }
 
 const FOOTNOTE_DEFINITION_START = /^\[\^([^\]\s]+)\]:[ \t]?(.*)$/;
+
+/**
+ * `==highlight==` inline syntax (ROADMAP.md rm-c2a2c2d840b60a2e), Obsidian's
+ * own "shoulders of giants" convention rather than an invented one: text
+ * wrapped in double equals renders as a `<mark>`. Registered as a marked
+ * inline extension (level "inline", same pattern as inlineMath/footnoteRef
+ * above), not a raw text pre-processing pass, so the marked lexer's own
+ * position-by-position scanning keeps it from ever matching inside a code
+ * span/block (already-consumed ranges are never re-examined, exactly the
+ * reasoning inlineMath's own doc comment above gives for `$`).
+ *
+ * The opening `==` must not be followed by a third `=` or by whitespace,
+ * and the closing `==` must not be preceded by whitespace or followed by a
+ * third `=`. The no-adjacent-whitespace rule is deliberate, not merely a
+ * simplification: without it, ordinary prose like "if x == y and a == b"
+ * (a plausible sentence in a technical note) would be misread as one giant
+ * highlight spanning "y and a", since `==` legitimately appears in text
+ * unrelated to this syntax. Requiring immediate adjacency on both sides
+ * (the same convention `**bold**`/`*italic*` already use for their own
+ * delimiters) means a highlight is only recognized when both `==` are
+ * actually hugging real content, matching how a user who *intends* a
+ * highlight naturally types it. An unterminated `==text` (no closing pair)
+ * simply fails to match and falls through to marked's own text tokenizer,
+ * rendering as the literal characters it always has, this feature's whole
+ * "no support at all today" baseline is what ROADMAP.md's entry describes.
+ */
+const HIGHLIGHT_INLINE = /^==(?!=)(?!\s)([\s\S]+?)(?<!\s)==(?!=)/;
 
 // Same fenced-code-block detection markdown/blocks.ts's own FENCE_RE uses
 // (a line, indented at most 3 spaces, of 3+ backticks or 3+ tildes): a
@@ -355,6 +383,38 @@ marked.use({
         }
         const slug = slugifyFootnoteId(id);
         return `<sup class="footnote-ref"><a href="#fn-${slug}" id="fnref-${slug}">${number}</a></sup>`;
+      },
+    },
+    {
+      name: "highlight",
+      level: "inline",
+      start: (src: string) => src.indexOf("=="),
+      tokenizer(src: string) {
+        const match = HIGHLIGHT_INLINE.exec(src);
+        if (!match) return undefined;
+        // Detected against the raw captured text, before any further
+        // inline parsing, so a color emoji is recognized only when it is
+        // truly the highlight's own leading character, never something
+        // `**bold**`/a link/etc. inside the content could shift into that
+        // position (see highlight.ts's own doc comment for why this
+        // detection is centralized rather than duplicated per-surface).
+        const { color, text } = detectHighlightColor(match[1]);
+        return {
+          type: "highlight",
+          raw: match[0],
+          color,
+          // Inline-tokenized (not left as a raw string) so ordinary inline
+          // syntax nests correctly inside a highlight, e.g.
+          // "==**bold** and a [[wikilink]]==" renders real bold and a
+          // real, clickable wikilink inside the <mark>, not literal
+          // markup text.
+          tokens: this.lexer.inlineTokens(text),
+        };
+      },
+      renderer(token: Tokens.Generic) {
+        const inner = this.parser.parseInline((token.tokens as Tokens.Generic[]) ?? []);
+        const className = highlightClassName("lt-highlight", token.color as string | undefined);
+        return `<mark class="${className}">${inner}</mark>`;
       },
     },
   ],

@@ -741,6 +741,30 @@ button.icon-button.active {
   border-radius: var(--radius-sm);
   padding: 0 4px;
 }
+/* ROADMAP.md rm-c2a2c2d840b60a2e: editor-side live decoration for
+   `==text==`, the source-mode analog of .markdown-preview mark.lt-highlight
+   above (same color tokens, same class-naming scheme, see
+   editor/livePreview.ts's Highlight branch in buildLiveDecorations). */
+.cm-live-highlight {
+  background-color: var(--color-mark-default);
+  color: var(--color-mark-text);
+  border-radius: 2px;
+}
+.cm-live-highlight-red {
+  background-color: var(--color-mark-red);
+}
+.cm-live-highlight-orange {
+  background-color: var(--color-mark-orange);
+}
+.cm-live-highlight-green {
+  background-color: var(--color-mark-green);
+}
+.cm-live-highlight-blue {
+  background-color: var(--color-mark-blue);
+}
+.cm-live-highlight-purple {
+  background-color: var(--color-mark-purple);
+}
 .cm-live-wikilink-resolved {
   color: var(--accent);
   text-decoration: underline;
@@ -855,6 +879,33 @@ button.icon-button.active {
   padding-left: var(--space-3);
   border-left: 3px solid var(--border);
   color: var(--text-secondary);
+}
+
+/* ROADMAP.md rm-c2a2c2d840b60a2e: `==text==` -> <mark>, rendered by
+   MarkdownPreview.tsx's "highlight" marked extension. .lt-highlight-<color>
+   backs the Obsidian v1.14.0 emoji-color prefix convention
+   (markdown/highlight.ts); with no recognized color emoji, only the base
+   class applies and the highlight uses --color-mark-default. */
+.markdown-preview mark.lt-highlight {
+  background-color: var(--color-mark-default);
+  color: var(--color-mark-text);
+  padding: 0 2px;
+  border-radius: 2px;
+}
+.markdown-preview mark.lt-highlight-red {
+  background-color: var(--color-mark-red);
+}
+.markdown-preview mark.lt-highlight-orange {
+  background-color: var(--color-mark-orange);
+}
+.markdown-preview mark.lt-highlight-green {
+  background-color: var(--color-mark-green);
+}
+.markdown-preview mark.lt-highlight-blue {
+  background-color: var(--color-mark-blue);
+}
+.markdown-preview mark.lt-highlight-purple {
+  background-color: var(--color-mark-purple);
 }
 
 .markdown-preview img {

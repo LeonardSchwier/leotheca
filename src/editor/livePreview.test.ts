@@ -12,12 +12,15 @@ import { scanBlockIds } from "../markdown/blocks";
 const allowMultipleSelections = EditorState.allowMultipleSelections.of(true);
 import { markdown } from "@codemirror/lang-markdown";
 import { ensureSyntaxTree } from "@codemirror/language";
-import { buildLiveDecorations, overlapsSelectedLines } from "./livePreview";
+import { buildLiveDecorations, highlightMarkdownExtension, overlapsSelectedLines } from "./livePreview";
 
 function stateFor(doc: string, selection?: { anchor: number; head?: number }): EditorState {
   const state = EditorState.create({
     doc,
-    extensions: [markdown()],
+    // highlightMarkdownExtension registered the same way MarkdownEditor.tsx
+    // registers it for real (`markdown({ extensions: [...] })`), so these
+    // tests parse `==text==` exactly as the live app does.
+    extensions: [markdown({ extensions: [highlightMarkdownExtension] })],
     selection: selection && { anchor: selection.anchor, head: selection.head ?? selection.anchor },
   });
   // Force full synchronous parsing so the syntax tree actually has the
@@ -103,6 +106,48 @@ describe("buildLiveDecorations: emphasis", () => {
     const state = stateFor("Some **bold** text.", { anchor: 8 });
     const { hidden } = summarize(state);
     expect(hidden).not.toContain("**");
+  });
+});
+
+// ROADMAP.md rm-c2a2c2d840b60a2e: `==text==` live decoration, the editor
+// half of the same feature MarkdownPreview.tsx renders.
+describe("buildLiveDecorations: highlight (== syntax)", () => {
+  it("hides == markers and styles the highlighted text when not on that line", () => {
+    const state = stateFor("Some ==marked== text.\n\nOther line.", { anchor: 30 });
+    const { hidden, marked } = summarize(state);
+    expect(hidden).toContain("==");
+    expect(marked).toContainEqual({ text: "==marked==", class: "cm-live-highlight" });
+  });
+
+  it("keeps == markers visible while actively editing that line", () => {
+    const state = stateFor("Some ==marked== text.", { anchor: 8 });
+    const { hidden } = summarize(state);
+    expect(hidden).not.toContain("==");
+  });
+
+  it("adds a color class for a recognized color-emoji prefix and still hides both == markers", () => {
+    const state = stateFor("Some ==\u{1F534}marked== text.\n\nOther line.", { anchor: 34 });
+    const { hidden, marked } = summarize(state);
+    expect(hidden).toContain("==");
+    expect(marked).toContainEqual({ text: "==\u{1F534}marked==", class: "cm-live-highlight cm-live-highlight-red" });
+  });
+
+  it("does not add a color class for an unrecognized emoji prefix", () => {
+    const state = stateFor("Some ==\u{1F600}marked== text.\n\nOther line.", { anchor: 34 });
+    const { marked } = summarize(state);
+    expect(marked).toContainEqual({ text: "==\u{1F600}marked==", class: "cm-live-highlight" });
+  });
+
+  it("does not decorate a comparison-like == with surrounding spaces", () => {
+    const state = stateFor("if x == y and a == b", { anchor: 0 });
+    const { marked } = summarize(state);
+    expect(marked.some((m) => m.class.startsWith("cm-live-highlight"))).toBe(false);
+  });
+
+  it("leaves an unterminated == undecorated", () => {
+    const state = stateFor("this has == but never closes", { anchor: 0 });
+    const { marked } = summarize(state);
+    expect(marked.some((m) => m.class.startsWith("cm-live-highlight"))).toBe(false);
   });
 });
 

@@ -123,6 +123,24 @@
   --color-highlight: #f5d678;
   --color-highlight-text: #25231f;
 
+  /* ROADMAP.md rm-c2a2c2d840b60a2e: `==text==` -> <mark> color tokens.
+     --color-mark-default is the uncolored case (plain `==text==`, no
+     emoji prefix); the five named ones back the Obsidian v1.14.0
+     emoji-color convention (see markdown/highlight.ts). Deliberately
+     separate from --color-highlight/--color-highlight-text above: those
+     back the unrelated search-match highlight (.search-highlight), a
+     different feature that happens to share the word "highlight" but
+     must stay independently themeable from user-authored ==marks==. Each
+     background is chosen to keep --color-mark-text (near-black, same
+     token for every color) comfortably readable on top of it. */
+  --color-mark-default: #f5e08a;
+  --color-mark-red: #f3a6a0;
+  --color-mark-orange: #f5c08a;
+  --color-mark-green: #a8d9ae;
+  --color-mark-blue: #a3cdf0;
+  --color-mark-purple: #d0b3ea;
+  --color-mark-text: #25231f;
+
   /* Back-compat aliases: every existing component still reads these
      names across ~16 feature stylesheets, so the whole app picks up the
      palette above without a mechanical rename pass through all of them. */
@@ -164,6 +182,17 @@
        the dark surface; text stays dark since the highlight bg is light. */
     --color-highlight: #e8c96a;
     --color-highlight-text: #25231f;
+    /* ==text== mark tokens: same "stay light enough for dark text" idea as
+       --color-highlight above, one step darker/more saturated per color
+       than the light-mode values so each stays distinguishable against the
+       dark canvas without turning into an eye-straining neon block. */
+    --color-mark-default: #d9b84f;
+    --color-mark-red: #d9776f;
+    --color-mark-orange: #d99a54;
+    --color-mark-green: #6fb87c;
+    --color-mark-blue: #6fa8d9;
+    --color-mark-purple: #a97fd9;
+    --color-mark-text: #171815;
   }
 }
 
@@ -189,6 +218,13 @@
   --color-focus: #70b6cf;
   --color-highlight: #e8c96a;
   --color-highlight-text: #25231f;
+  --color-mark-default: #d9b84f;
+  --color-mark-red: #d9776f;
+  --color-mark-orange: #d99a54;
+  --color-mark-green: #6fb87c;
+  --color-mark-blue: #6fa8d9;
+  --color-mark-purple: #a97fd9;
+  --color-mark-text: #171815;
 }
 
 /* UX-01 spec section 9.6/19.2/VIS-003: Ocean, Forest, and Plum each define

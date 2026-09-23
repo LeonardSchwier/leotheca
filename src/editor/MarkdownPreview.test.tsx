@@ -1828,3 +1828,112 @@ describe("MarkdownPreview: F07 Phase 5 -- Ctrl/Cmd-click opens a link in the oth
     });
   });
 });
+
+// ROADMAP.md rm-c2a2c2d840b60a2e: `==highlight==` -> <mark>, plus the
+// Obsidian v1.14.0 emoji-color prefix convention.
+describe("MarkdownPreview highlight (== syntax)", () => {
+  it("renders ==text== as a <mark> with the base highlight class", () => {
+    const { container } = render(<MarkdownPreview source={"==highlighted=="} />);
+    const mark = container.querySelector("mark");
+    expect(mark).not.toBeNull();
+    expect(mark?.textContent).toBe("highlighted");
+    expect(mark?.className).toBe("lt-highlight");
+  });
+
+  it("renders inline markdown inside a highlight (bold nests correctly)", () => {
+    const { container } = render(<MarkdownPreview source={"==**bold** inside=="} />);
+    const mark = container.querySelector("mark");
+    expect(mark).not.toBeNull();
+    expect(mark?.querySelector("strong")?.textContent).toBe("bold");
+    expect(mark?.textContent).toBe("bold inside");
+  });
+
+  it("renders a highlight in the middle of a sentence, leaving surrounding text untouched", () => {
+    const { container } = render(<MarkdownPreview source={"before ==mid== after"} />);
+    expect(container.querySelector("p")?.textContent).toBe("before mid after");
+    expect(container.querySelector("mark")?.textContent).toBe("mid");
+  });
+
+  it("supports multiple, independent highlights in one line", () => {
+    const { container } = render(<MarkdownPreview source={"==one== and ==two=="} />);
+    const marks = container.querySelectorAll("mark");
+    expect(marks.length).toBe(2);
+    expect(marks[0].textContent).toBe("one");
+    expect(marks[1].textContent).toBe("two");
+  });
+
+  it.each([
+    ["\u{1F534}", "red"], // 🔴
+    ["\u{1F7E0}", "orange"], // 🟠
+    ["\u{1F7E2}", "green"], // 🟢
+    ["\u{1F535}", "blue"], // 🔵
+    ["\u{1F7E3}", "purple"], // 🟣
+  ])("maps the %s emoji prefix to the %s color class and strips it from the text", (emoji, color) => {
+    const { container } = render(<MarkdownPreview source={`==${emoji}colored==`} />);
+    const mark = container.querySelector("mark");
+    expect(mark).not.toBeNull();
+    expect(mark?.textContent).toBe("colored");
+    expect(mark?.className).toBe(`lt-highlight lt-highlight-${color}`);
+  });
+
+  it("keeps a following space after a stripped color emoji prefix", () => {
+    const { container } = render(<MarkdownPreview source={"==\u{1F534} colored=="} />);
+    const mark = container.querySelector("mark");
+    expect(mark?.textContent).toBe(" colored");
+    expect(mark?.className).toBe("lt-highlight lt-highlight-red");
+  });
+
+  it("does not treat an unrecognized emoji prefix as a color", () => {
+    const { container } = render(<MarkdownPreview source={"==\u{1F600}text=="} />);
+    const mark = container.querySelector("mark");
+    expect(mark).not.toBeNull();
+    expect(mark?.className).toBe("lt-highlight");
+    expect(mark?.textContent).toBe("\u{1F600}text");
+  });
+
+  it("does not strip a color emoji that is the highlight's only content", () => {
+    const { container } = render(<MarkdownPreview source={"==\u{1F534}=="} />);
+    const mark = container.querySelector("mark");
+    expect(mark).not.toBeNull();
+    expect(mark?.className).toBe("lt-highlight");
+    expect(mark?.textContent).toBe("\u{1F534}");
+  });
+
+  it("leaves an unterminated == as literal text (no <mark> at all)", () => {
+    const { container } = render(<MarkdownPreview source={"this has == but never closes"} />);
+    expect(container.querySelector("mark")).toBeNull();
+    expect(container.querySelector("p")?.textContent).toBe("this has == but never closes");
+  });
+
+  it("does not treat a comparison-like == with surrounding spaces as a highlight", () => {
+    const { container } = render(<MarkdownPreview source={"if x == y and a == b"} />);
+    expect(container.querySelector("mark")).toBeNull();
+    expect(container.querySelector("p")?.textContent).toBe("if x == y and a == b");
+  });
+
+  it("resolves adjacent highlights on the same line independently, not as one nested span", () => {
+    const { container } = render(<MarkdownPreview source={"==a== ==b=="} />);
+    const marks = container.querySelectorAll("mark");
+    expect(marks.length).toBe(2);
+    expect(marks[0].textContent).toBe("a");
+    expect(marks[1].textContent).toBe("b");
+  });
+
+  it("never renders == literally inside a code span", () => {
+    const { container } = render(<MarkdownPreview source={"`==not a highlight==`"} />);
+    expect(container.querySelector("mark")).toBeNull();
+    expect(container.querySelector("code")?.textContent).toBe("==not a highlight==");
+  });
+
+  it("renders a highlight containing a wikilink", () => {
+    const { container } = render(<MarkdownPreview source={"==see [[Some Note]]=="} />);
+    const mark = container.querySelector("mark");
+    expect(mark).not.toBeNull();
+    expect(mark?.querySelector("a")).not.toBeNull();
+  });
+
+  it("sanitizes highlight content the same way as the rest of the document", () => {
+    const { container } = render(<MarkdownPreview source={"==<script>window.pwned = true</script>=="} />);
+    expect(container.querySelector("script")).toBeNull();
+  });
+});

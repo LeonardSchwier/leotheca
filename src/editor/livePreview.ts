@@ -8,6 +8,8 @@ import {
   type ViewUpdate,
   WidgetType,
 } from "@codemirror/view";
+import { tags } from "@lezer/highlight";
+import type { DelimiterType, InlineContext, MarkdownConfig } from "@lezer/markdown";
 import { resolveWikilink } from "../linking/store";
 import { parseWikiLinks, type WikiLinkRecord } from "../linking/wikiSyntax";
 import {
@@ -19,6 +21,7 @@ import {
 } from "../linking/wikiResolver";
 import { scanHeadings, type HeadingRecord } from "../markdown/headings";
 import { scanBlockIds, type BlockRecord } from "../markdown/blocks";
+import { detectHighlightColor, highlightClassName } from "../markdown/highlight";
 
 /**
  * Inline live-preview decorations for the editor's normal (source) mode:
@@ -87,6 +90,55 @@ const WIKILINK_PATTERN = /\[\[([^[\]\n]+)\]\]/g;
 /** Node types whose content should never be reinterpreted as a wikilink,
  * so `` `[[not a link]]` `` inside a code span or block stays plain text. */
 const CODE_NODE_TYPES = new Set(["InlineCode", "FencedCode", "CodeBlock"]);
+
+/**
+ * `==highlight==` (ROADMAP.md rm-c2a2c2d840b60a2e), the editor-side half of
+ * the same feature MarkdownPreview.tsx's `highlight` marked extension
+ * renders: a `@lezer/markdown` inline extension so the live-preview pass
+ * below can decorate it exactly like `StrongEmphasis`/`Emphasis` above
+ * (`Highlight`/`HighlightMark` node types, the same "content node wrapping
+ * a delimiter-pair mark node" shape `@lezer/markdown`'s own bundled
+ * `Strikethrough` extension uses for `~~text~~` -- copied from that exact
+ * upstream implementation and adapted from `~~`/tilde to `==`/equals,
+ * rather than inventing a new parsing approach for one more delimiter
+ * pair).
+ *
+ * Deliberately simpler than upstream `Strikethrough`'s full CommonMark
+ * punctuation-flanking rule: a delimiter opens only when not immediately
+ * followed by whitespace and closes only when not immediately preceded by
+ * whitespace, nothing else. This is the exact same adjacency rule
+ * `MarkdownPreview.tsx`'s `HIGHLIGHT_INLINE` regex already enforces (see
+ * its own doc comment for why: so "if x == y and a == b" is never
+ * misparsed as a highlight spanning "y and a"); keeping both surfaces on
+ * one identical, simple rule -- rather than the source editor
+ * additionally accepting punctuation-flanked cases Preview would then
+ * render differently -- means what a user sees highlighted while typing
+ * is always exactly what Preview will render, with no surface-specific
+ * edge case to keep in sync by hand.
+ */
+const HighlightDelim: DelimiterType = { resolve: "Highlight", mark: "HighlightMark" };
+
+export const highlightMarkdownExtension: MarkdownConfig = {
+  defineNodes: [
+    { name: "Highlight", style: { "Highlight/...": tags.special(tags.content) } },
+    { name: "HighlightMark", style: tags.processingInstruction },
+  ],
+  parseInline: [
+    {
+      name: "Highlight",
+      parse(cx: InlineContext, next: number, pos: number): number {
+        // 61 === '='.charCodeAt(0)
+        if (next !== 61 || cx.char(pos + 1) !== 61 || cx.char(pos + 2) === 61) return -1;
+        const before = cx.slice(pos - 1, pos);
+        const after = cx.slice(pos + 2, pos + 3);
+        const spaceBefore = before === "" || /\s/.test(before);
+        const spaceAfter = after === "" || /\s/.test(after);
+        return cx.addDelimiter(HighlightDelim, pos, pos + 2, !spaceAfter, !spaceBefore);
+      },
+      after: "Emphasis",
+    },
+  ],
+};
 
 /** Renders in place of a hidden bullet list marker ("-", "*", or "+"), so
  * the line still visually reads as a list item instead of losing its
@@ -356,6 +408,25 @@ export function buildLiveDecorations(
           });
           if (!active) {
             for (const mark of node.node.getChildren("EmphasisMark")) hide(hidden, mark.from, mark.to);
+          }
+          return;
+        }
+
+        if (type === "Highlight") {
+          const active = overlapsSelectedLines(state.doc, selectionRanges, node.from, node.to);
+          const marksInNode = node.node.getChildren("HighlightMark");
+          const openMark = marksInNode[0];
+          const closeMark = marksInNode[marksInNode.length - 1];
+          // Same detection function Preview's marked extension uses
+          // (markdown/highlight.ts), run against the exact same "raw text
+          // between the delimiters" input, so a color emoji is recognized
+          // identically on both surfaces.
+          const contentFrom = openMark ? openMark.to : node.from;
+          const contentTo = closeMark && closeMark !== openMark ? closeMark.from : node.to;
+          const { color } = detectHighlightColor(state.doc.sliceString(contentFrom, contentTo));
+          marks.push({ from: node.from, to: node.to, class: highlightClassName("cm-live-highlight", color) });
+          if (!active) {
+            for (const mark of marksInNode) hide(hidden, mark.from, mark.to);
           }
           return;
         }

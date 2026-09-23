@@ -415,3 +415,82 @@ describe("hasUnsavedWork", () => {
     expect(saves.hasUnsavedWork(1)).toBe(false);
   });
 });
+
+describe("resetForSession zombie-entry cleanup", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    writeTextFile.mockReset();
+  });
+
+  afterEach(() => vi.useRealTimers());
+
+  it("deletes the entry when an in-flight write is pending at reset time", async () => {
+    const d = deferred<void>();
+    writeTextFile.mockReturnValueOnce(d.promise);
+    const saves = createSaveCoordinator();
+    saves.change(100, "/workspace/note.md", "content");
+    await vi.advanceTimersByTimeAsync(400); // write starts, in-flight
+    expect(saves.entryCount()).toBe(1);
+
+    // A new session publishes; the old session has an in-flight write.
+    // The entry must be deleted immediately (not left as a zombie).
+    saves.resetForSession(200);
+    expect(saves.entryCount()).toBe(0);
+
+    // Let the in-flight write settle (no crash, no zombie re-creation).
+    d.resolve();
+    await Promise.resolve();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(saves.entryCount()).toBe(0);
+  });
+
+  it("deletes the entry even when the in-flight write fails after resetForSession", async () => {
+    const d = deferred<void>();
+    writeTextFile.mockReturnValueOnce(d.promise);
+    const saves = createSaveCoordinator();
+    saves.change(300, "/workspace/note.md", "content");
+    await vi.advanceTimersByTimeAsync(400); // write starts, in-flight
+    expect(saves.entryCount()).toBe(1);
+
+    saves.resetForSession(400);
+    expect(saves.entryCount()).toBe(0);
+
+    // Let the in-flight write fail.
+    d.reject(new Error("disk full"));
+    await Promise.resolve();
+    await vi.advanceTimersByTimeAsync(0);
+
+    // No zombie, no re-creation.
+    expect(saves.entryCount()).toBe(0);
+  });
+
+  it("deletes only the blocked session's entries, leaving other sessions' entries intact", async () => {
+    const dOld = deferred<void>();
+    writeTextFile.mockReturnValueOnce(dOld.promise); // session 100's write
+
+    const saves = createSaveCoordinator();
+    saves.change(100, "/workspace/old.md", "old content");
+    await vi.advanceTimersByTimeAsync(400); // session 100 write in-flight
+
+    // Start a write for the new session before resetting.
+    saves.change(200, "/workspace/new.md", "new content");
+    await vi.advanceTimersByTimeAsync(400); // session 200 write in-flight
+
+    expect(saves.entryCount()).toBe(2);
+
+    // Reset old session (100). Session 200's write is in-flight and must be
+    // unaffected.
+    saves.resetForSession(200);
+
+    // Session 100's entry must be gone.
+    expect(saves.entryCount()).toBe(1);
+    // Session 200's entry must still be present (it was not blocked).
+    expect(saves.getError(200, "/workspace/new.md")).toBeNull();
+
+    // Let session 100's write settle (no crash).
+    dOld.resolve();
+    await Promise.resolve();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(saves.entryCount()).toBe(1);
+  });
+});

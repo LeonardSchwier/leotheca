@@ -4,22 +4,6 @@
 
 ### Bugs
 
-- 🚧 **exportNoteHtml: standalone export leaves an `<img>` un-inlined when an attribute value before `src` contains a `>`**: `inlineLocalImages` in `src/export/exportNoteHtml.ts` finds each image tag with `/<img\b[^>]*>/gi`. `[^>]*` stops at the *first* `>`, which is legal inside a quoted attribute value, so when an attribute before `src` (e.g. `alt="a > b"`) contains a `>`, the tag match is truncated before `src` and the replacement is silently skipped.
-  <!-- agent-state: {"schema":1,"id":"rm-5b314df7e13439ab","state":"claimed","touch":["ROADMAP.md","src/export/exportNoteHtml.test.ts","src/export/exportNoteHtml.ts"],"resources":["exportnotehtml-tag-match-fix"],"owner":"hermes-local-20260923T030751Z-0f3220d9","token":"151ea3612a227876ffd62339440054c1","branch":"agent/rm-5b314df7e13439ab/151ea3612a22","claimed_at":"2026-09-23T03:16:11Z","heartbeat_at":"2026-09-23T03:16:11Z","lease_until":"2026-09-23T04:46:11Z"} -->
-  Agent: hermes-local-20260923T030751Z-0f3220d9 | item: rm-5b314df7e13439ab | lease until: 2026-09-23T04:46:11Z
-  <details>
-  <summary>Repro, root cause, and acceptance criteria</summary>
-
-  Reachable repro (all on current main, 71d6170): a note containing a raw HTML image `<img alt="a > b" src="https://example.com/x.png">` passes through marked (which does not escape `>` in attribute values) and DOMPurify (which keeps `http(s)` src), so the Preview pane renders it with `alt` before `src` and a `>` in the alt value. Running `inlineLocalImages` on that HTML fails to inline the `src`: the `[^>]*` tag match ends at the `>` inside `alt="a > b"`, the inner scan finds no `src=`, and the tag is returned unchanged. Result: the exported standalone file keeps the live URL rather than a portable `data:` URI. Local `asset://` images are always emitted by marked with `src` first (before any alt), so the common local-image case is unaffected; the gap is the optional embedding of an external URL whose preceding attribute value contains a `>`.
-
-  Root cause: the tag matcher assumes no `>` occurs inside a quoted attribute value. Fix: match the tag with a pattern that skips over quoted values, e.g. `/<img\b(?:[^>"']|"[^"]*"|'[^']*')*>/gi`.
-
-  Acceptance criteria:
-  - New regression test: an `<img>` whose `alt` (or other pre-`src` attribute) value contains a `>` and appears before `src` is still inlined; the alt is preserved verbatim.
-  - All existing `exportNoteHtml` tests (including the `alt`-contains-`src=` / single-quote / same-value cases) still pass unchanged.
-  - Full verification suite green: `npx tsc --noEmit`, `npm run lint`, `npm run check-version`, `npm test`, `npm run build`, and the Rust `cargo fmt --check` / `cargo clippy --all-targets -- -D warnings` / `cargo test`.
-
-  </details>
 
 - ✅ **exportNoteHtml: src replacement targets wrong attribute when alt (or other attr) shares the same value as src**: `inlineLocalImages` in `src/export/exportNoteHtml.ts` uses `tag.replace(quotedValue, ...)` which replaces the *first* occurrence of the `src` value in the entire `<img>` tag. If another attribute (e.g. `alt`) contains the same string *before* `src` in the tag, the data URI is written into `alt` instead of `src`, leaving `src` unchanged. Reproduced: `<img alt="asset://x" src="asset://x" />` → `alt` gets the data URI, `src` keeps the original.
   <!-- agent-state: {"schema":1,"id":"rm-e1dadbf4155a53b8","state":"done","touch":["ROADMAP.md#exportNoteHtml-src-replacement","src/export/exportNoteHtml.test.ts","src/export/exportNoteHtml.ts"],"resources":["exportnotehtml-src-fix"],"branch":"agent/rm-e1dadbf4155a53b8/9b0b1106c7fc","completed_at":"2026-09-22T05:48:00Z","completed_by":"hermes-local-20260922T033440Z-ec233176"} -->
@@ -237,6 +221,24 @@
 
 
 ## Implemented
+
+- ✅ **exportNoteHtml: standalone export leaves an `<img>` un-inlined when an attribute value before `src` contains a `>`**: `inlineLocalImages` in `src/export/exportNoteHtml.ts` finds each image tag with `/<img\b[^>]*>/gi`. `[^>]*` stops at the *first* `>`, which is legal inside a quoted attribute value, so when an attribute before `src` (e.g. `alt="a > b"`) contains a `>`, the tag match is truncated before `src` and the replacement is silently skipped.
+  <!-- agent-state: {"schema":1,"id":"rm-5b314df7e13439ab","state":"done","touch":["ROADMAP.md","src/export/exportNoteHtml.test.ts","src/export/exportNoteHtml.ts"],"resources":["exportnotehtml-tag-match-fix"],"note":"Fixed inlineLocalImages tag regex (\u003cimg[^\u003e]*\u003e) that truncated at the first '\u003e' inside a quoted attribute value before src, leaving the image un-inlined in standalone export. Now matches the tag allowing quoted values to contain '\u003e'; added a reachable regression test (alt-before-src with '\u003e' in alt). Full frontend verification green (tsc/lint/check-version/42165 tests/build). Landed: agent/rm-5b314df7e13439ab/151ea3612a22 @ 1db57c1.","completed_at":"2026-09-23T03:38:24Z","completed_by":"hermes-local-20260923T030751Z-0f3220d9","branch":"agent/rm-5b314df7e13439ab/151ea3612a22"} -->
+  Agent: completed by hermes-local-20260923T030751Z-0f3220d9 | item: rm-5b314df7e13439ab
+  <details>
+  <summary>Repro, root cause, and acceptance criteria</summary>
+
+  Reachable repro (all on current main, 71d6170): a note containing a raw HTML image `<img alt="a > b" src="https://example.com/x.png">` passes through marked (which does not escape `>` in attribute values) and DOMPurify (which keeps `http(s)` src), so the Preview pane renders it with `alt` before `src` and a `>` in the alt value. Running `inlineLocalImages` on that HTML fails to inline the `src`: the `[^>]*` tag match ends at the `>` inside `alt="a > b"`, the inner scan finds no `src=`, and the tag is returned unchanged. Result: the exported standalone file keeps the live URL rather than a portable `data:` URI. Local `asset://` images are always emitted by marked with `src` first (before any alt), so the common local-image case is unaffected; the gap is the optional embedding of an external URL whose preceding attribute value contains a `>`.
+
+  Root cause: the tag matcher assumes no `>` occurs inside a quoted attribute value. Fix: match the tag with a pattern that skips over quoted values, e.g. `/<img\b(?:[^>"']|"[^"]*"|'[^']*')*>/gi`.
+
+  Acceptance criteria:
+  - New regression test: an `<img>` whose `alt` (or other pre-`src` attribute) value contains a `>` and appears before `src` is still inlined; the alt is preserved verbatim.
+  - All existing `exportNoteHtml` tests (including the `alt`-contains-`src=` / single-quote / same-value cases) still pass unchanged.
+  - Full verification suite green: `npx tsc --noEmit`, `npm run lint`, `npm run check-version`, `npm test`, `npm run build`, and the Rust `cargo fmt --check` / `cargo clippy --all-targets -- -D warnings` / `cargo test`.
+
+  </details>
+
 
 - ✅ **Deferred CI confirmation: hosted runs for landed security fixes e2753ca (rm-dfd60513a2eb352c) and c4fbf82 (rm-60f748cb1a58be89) were in-progress at landing and have not been closed out.** Both commits are on main with fully green local verification; only the hosted run conclusions were left to a later worker. Confirm each run's status/conclusion via the GitHub API, update both handoffs' CI sections with the run IDs and outcomes, and finish (or re-open under the original item) if a real failure appears.
   <!-- agent-state: {"schema":1,"id":"rm-619130d83fb763c4","state":"done","touch":[".agents/handoffs","ROADMAP.md"],"resources":["deferred-ci-confirmation"],"note":"Deferred CI confirmation for e2753ca (rm-dfd60513a2eb352c) and c4fbf82 (rm-60f748cb1a58be89): both hosted runs verified completed/success via the gh API (runs 35730341721, 35737546566, 35737546091). No code change required. Handoff: .agents/handoffs/rm-619130d83fb763c4.md","completed_at":"2026-09-23T03:04:27Z","completed_by":"hermes-local-20260923T025255Z-ebbc6f84","branch":"agent/rm-619130d83fb763c4/a754210684c9"} -->

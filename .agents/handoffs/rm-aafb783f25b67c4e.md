@@ -30,6 +30,11 @@ Tauri/Desktop does.
     own package is auto-discovered by Capacitor at runtime (only
     `WorkspaceMutationPlugin` needs manual registration, because it
     *extends* another plugin, a documented limitation of that scanner).
+
+  **⚠️ Corrected 2026-09-23 (see the last session below): this claim is
+  wrong. There is no such scanner. This was the actual root cause the item
+  stayed open for two more days despite this session's otherwise-thorough
+  work.**
 - `src/workspace/capacitorBridgeImpl.ts`: new `printNote(title, bodyHtml)`
   and `exportNoteHtml(title, bodyHtml, defaultFileName)`, both reusing
   Phase 1/2's own `buildPrintDocument`/`buildExportDocument` builders so
@@ -100,6 +105,11 @@ Tauri/Desktop does.
     and the built APK's `classes.dex`, i.e. this is a real compile against
     the real Android SDK and real Capacitor/AndroidX classpath, not merely
     "the Java looks right."
+
+  **⚠️ Corrected 2026-09-23: a class being present in `classes.dex` only
+  proves it compiled and got packaged — javac/dex packaging does not care
+  whether anything calls `registerPlugin()` on it at runtime. This
+  verification, however real, could not and did not catch the actual bug.**
   - No emulator/instrumented run: `/dev/kvm` is not present in this
     sandbox (checked directly), so `reactivecircus/android-emulator-runner`
     (the real emulator smoke test CI's own `android` job already runs)
@@ -117,6 +127,12 @@ That step only runs `adb install` + `pm path`, not the app's UI, so it
 does not exercise "Print note"/"Export note to HTML…" themselves — the
 on-device UI gap below is unchanged — but it is one more genuine, hosted
 confirmation beyond this session's own local build.
+
+**⚠️ Corrected 2026-09-23: `adb install` + `pm path` succeeding is
+consistent with the plugin never being registered — Android happily
+installs and resolves a package whose Capacitor bridge is missing a
+plugin; nothing in this step touches the bridge at all. This CI evidence
+did not (and structurally could not) catch the bug either.**
 
 ## What's still genuinely open
 Real on-device/emulator confirmation that: the system print dialog
@@ -260,3 +276,114 @@ Real on-device/emulator confirmation that: the system print dialog actually open
 
 ### Release
 Claim released (not `finish`ed) because the item is still blocked on on-device verification. This session adds the merged bug fix and CI green evidence.
+
+---
+
+## Session: Claude-Code-cloud-scheduled-kindbardeen-20260923T122313Z-801d5087 (2026-09-23)
+Status: **Found and fixed the actual root cause every prior session missed: `PrintExportPlugin` was never registered with the Capacitor bridge. Landed. Item stays `⏸`/`🚧` — on-device UI confirmation is still the one remaining gap.**
+
+### What this session found
+
+The first session's claim above ("No manual registration needed... a
+`@CapacitorPlugin`-annotated class in the app's own package is
+auto-discovered by Capacitor at runtime... a documented limitation of
+that scanner") is **wrong**. There is no such scanner. Confirmed directly
+against the real Capacitor Android bridge source, installed at
+`node_modules/@capacitor/android/capacitor/src/main/java/com/getcapacitor/Bridge.java`
+after `npm ci`: `Bridge`'s plugin registration (`registerPlugins()`,
+called from its constructor) only ever iterates `this.initialPlugins` —
+the list `BridgeActivity.registerPlugin()`/`registerPlugins()` populate —
+plus three hardcoded built-in plugins (`CapacitorCookies`, `WebView`,
+`CapacitorHttp`). No `ServiceLoader`, no package/classpath scan, nothing
+reflection-based anywhere in that file. Independently confirmed via
+`npx cap sync android`'s own log: `Found 3 Capacitor plugins for android:
+@capacitor/app, @capacitor/filesystem, @capacitor/status-bar` — the
+in-app custom plugins (`FolderAccessPlugin`, `SpeechRecognitionPlugin`,
+`WorkspaceMutationPlugin`, `PrintExportPlugin`) are not on that list at
+all; only `cap sync`'s npm-package discovery feeds it.
+
+`MainActivity.onCreate()` (confirmed by reading the file) only ever
+called `registerPlugin(WorkspaceMutationPlugin.class)`. `PrintExportPlugin`
+had no `registerPlugin()` call anywhere in the codebase, despite existing
+since the first session above and being fully wired from the JS side.
+This means **every previous session's real, hosted-CI-confirmed build was
+compiling and packaging a plugin the bridge could never see at runtime**:
+a class present in `classes.dex` says nothing about whether
+`registerPlugin()` was ever called on it — `javac`/`d8` packaging and
+Capacitor bridge registration are two independent things, and nothing in
+the extensive verification chain above (JVM unit tests, a real SDK
+`assembleDebug`, `classes.dex` inspection, or hosted CI's `adb install` +
+`pm path` emulator check) could have caught this, because none of them
+call into the JS bridge or dispatch a plugin method. Every real
+`printNote()`/`exportNoteHtml()` call would have rejected with "plugin
+`PrintExport` is not implemented", surfaced to the user as "Couldn't
+print/export note: ..." (`App.tsx`'s command handlers) — this feature was
+completely non-functional on every build shipped so far, not merely
+"unverified."
+
+In the same pass, found (but did **not** fix — out of this claim's
+touch scope) that `SpeechRecognitionPlugin` has the identical gap; seeded
+as a fresh, separate, unclaimed Open Bug entry in `ROADMAP.md` rather than
+fixed under this claim.
+
+### The fix
+
+`android/app/src/main/java/com/leonardschwier/leotheca/MainActivity.java`:
+added `registerPlugin(PrintExportPlugin.class);` immediately after the
+existing `WorkspaceMutationPlugin` registration, same pattern.
+
+### Verification on this exact tree
+
+- `npx tsc -p tsconfig.json --noEmit`: clean
+- `npm run lint` (eslint .): clean
+- `npm run check-version`: pass
+- `npx vitest run` (full suite): **2881/2881 pass** (152 files) — unaffected
+  by this fix, since the existing `printNote`/`exportNoteHtml` tests mock
+  `registerPlugin` and cannot observe either the bug or the fix
+- `npx vite build`: succeeds
+- `cargo fmt --all -- --check` / `cargo clippy --all-targets -- -D
+  warnings` / `cargo test` (85/85) / `cargo check`, all from `src-tauri/`:
+  all pass (no Rust touched; run per policy)
+- `npx cap sync android`: reproduced the "3 npm plugins only" evidence
+  above
+- `./gradlew :app:compileDebugJavaWithJavac` (no Android SDK bootstrapped
+  this session — relied on source-level verification against the real
+  Capacitor source instead): progressed past Gradle
+  dependency/plugin-discovery configuration to "SDK location not found";
+  this sandbox has no Android SDK installed this session, the same
+  boundary most other Android-touching entries in this file disclose
+
+### Hosted CI
+
+Pushed to the work branch first (not `main`), specifically so the hosted
+`android` CI job (real SDK: `./gradlew testDebugUnitTest` +
+`assembleDebug` + real emulator install) supplies the real-SDK compile
+evidence this session's own sandbox could not. See CI run
+https://github.com/LeonardSchwier/leotheca/actions/runs/35861895605 for
+the result at SHA `4efcc7d7e3d2097d1d321ad3abb152f28bd8d321`. As
+established above, this CI job's emulator step (`adb install` + `pm
+path`) does **not** exercise the bridge or the print/export UI, so it
+cannot confirm the fix actually restores working behavior — only that the
+change doesn't break the build/install. On-device UI confirmation (does
+"Print note" open the real system dialog; does "Export note to HTML…"
+open the real SAF picker and write a correct file) remains the one
+outstanding gap, unchanged from every prior session's own conclusion,
+just for a now-corrected reason: the plugin will actually be reachable
+for the first time, so this confirmation now has something real to
+confirm.
+
+### Disposition
+
+Landed to `main`. Item stays blocked (`⏸`), not `✅`: a real, confirmed,
+previously-undiagnosed functional bug is fixed, but the item's own
+acceptance criteria calls for verifying UI behavior on a real device,
+still unavailable anywhere in this pipeline (no physical device, no
+KVM-capable emulator this session).
+
+### Retry condition
+
+Unchanged from prior sessions: any host with a physical Android device or
+a working KVM-backed emulator. When available: install the APK, run
+"Print note" and "Export note to HTML…" from a note with an image open in
+Preview/Split view, confirm both actually work end-to-end this time, then
+mark `rm-aafb783f25b67c4e` `✅`.

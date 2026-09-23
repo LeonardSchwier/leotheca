@@ -124,9 +124,9 @@
 - ⬜ **Compatibility Layer**: Read community extension manifests and run compatible extensions only after the maintainer approves the third-party-code security model required by `CONSTITUTION.md`.
 - ⬜ **Per-Note Lock**: Encrypt and session-unlock individual notes only after the maintainer gives the cryptography design approval required by `CONSTITUTION.md`.
 
-- ⬜ **Print/export a note on Android**: Phase 3 of the split below. Neither printing nor HTML/PDF export exists on Android yet. Needs a real Capacitor/native plugin (Android's `PrintManager`/`ACTION_CREATE_DOCUMENT`), not just calling the same desktop code, and this cloud sandbox has no physical Android device to verify UI behavior on, the same class of gap as this file's other Android-verification items.
-  <!-- agent-state: {"schema":1,"id":"rm-aafb783f25b67c4e","state":"open","touch":["src/export/exportNoteHtml.test.ts","src/export/exportNoteHtml.ts"],"resources":["print-export-android","print-export-scaffold"],"note":"Merged existing bug fix to main, CI green. Claim released (not completed — on-device verification still pending).","released_at":"2026-09-22T21:48:58Z"} -->
-  Agent: unclaimed | item: rm-aafb783f25b67c4e
+- 🚧 **Print/export a note on Android**: Phase 3 of the split below. Neither printing nor HTML/PDF export exists on Android yet. Needs a real Capacitor/native plugin (Android's `PrintManager`/`ACTION_CREATE_DOCUMENT`), not just calling the same desktop code, and this cloud sandbox has no physical Android device to verify UI behavior on, the same class of gap as this file's other Android-verification items.
+  <!-- agent-state: {"schema":1,"id":"rm-aafb783f25b67c4e","state":"claimed","touch":["android/app/src/main/AndroidManifest.xml","android/app/src/main/java/com/leonardschwier/leotheca","src/export","src/workspace/capacitorBridge.ts","src/workspace/capacitorBridgeImpl.ts"],"resources":["print-export-android"],"note":"Merged existing bug fix to main, CI green. Claim released (not completed — on-device verification still pending).","owner":"Claude-Code-cloud-scheduled-kindbardeen-20260923T122313Z-801d5087","token":"9b953dd56a4ad16184e673b041963090","branch":"agent/rm-aafb783f25b67c4e/9b953dd56a4a","claimed_at":"2026-09-23T12:23:27Z","heartbeat_at":"2026-09-23T12:23:27Z","lease_until":"2026-09-23T13:53:27Z"} -->
+  Agent: Claude-Code-cloud-scheduled-kindbardeen-20260923T122313Z-801d5087 | item: rm-aafb783f25b67c4e | lease until: 2026-09-23T13:53:27Z
 
   <details>
   <summary>Why this is split into three items</summary>

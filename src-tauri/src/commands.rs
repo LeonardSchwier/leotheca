@@ -840,22 +840,66 @@ fn resolve_within_workspace(workspace_root: &str, relative_path: &str) -> Result
 #[derive(Default)]
 pub struct ActiveWorkspaceRoot(pub Mutex<Option<PathBuf>>);
 
-/// Updates the server-side mirror of the active workspace root. Called by
-/// `tauriBridge.ts`'s `restoreWorkspaceAccess` wrapper immediately before
-/// (with `None`) and after (with the new root) every workspace
+/// Updates the server-side mirror of the active workspace root, and keeps
+/// the Tauri asset protocol's runtime scope (`app.asset_protocol_scope()`)
+/// in lock-step with it. `tauri.conf.json`'s static `assetProtocol.scope`
+/// denies everything (2026-09-23 correction: it previously read `["**"]`,
+/// which a glob library actually matches against *any* absolute path --
+/// confirmed empirically, `glob::Pattern::new("**").matches("/etc/passwd")`
+/// is `true` -- making it exactly as unrestricted as the `scope: null` the
+/// 2026-09-22 security review flagged, not the "app resource directory
+/// only" a later pass incorrectly assumed when it marked that finding
+/// `done`), so `asset://`/`convertFileSrc` (this app's only user of the
+/// asset protocol: rendering a note's local image/attachment references,
+/// `tauriBridgeImpl.ts`'s `fileSrc`) has no route to a real file except
+/// whatever this function has explicitly allowed.
+///
+/// Called by `tauriBridge.ts`'s `restoreWorkspaceAccess` wrapper immediately
+/// before (with `None`) and after (with the new root) every workspace
 /// activation/switch, the same "clear before attempting, publish only
 /// after the underlying activation succeeds" sequencing that function
-/// already applies to its own in-memory `activeWorkspaceRoot`.
+/// already applies to its own in-memory `activeWorkspaceRoot`. Diffing
+/// against the *previous* root on every call, rather than only ever
+/// granting the incoming one, means both halves of that two-call sequence
+/// -- the `None` call that must revoke the outgoing root's scope grant, and
+/// the later `Some(new)` call that must add the incoming one -- fall out of
+/// the same generic logic without the two calls needing to coordinate
+/// directly, and a direct `Some(a)` -> `Some(b)` transition (should one
+/// ever happen) is handled the same way in one call.
+// Generic over `R: tauri::Runtime` (rather than the concrete, Wry-backed
+// `tauri::AppHandle` alias every other command in this file uses) purely so
+// this function's own test below can call it directly against a
+// `tauri::test::MockRuntime` app; `#[tauri::command]` accepts a generic
+// runtime parameter the same way, and the real invoke_handler registration
+// in `lib.rs` still monomorphizes it to the app's actual Wry runtime same
+// as before.
 #[tauri::command]
-pub fn set_active_workspace_root(
+pub fn set_active_workspace_root<R: tauri::Runtime>(
     path: Option<String>,
+    app: tauri::AppHandle<R>,
     state: tauri::State<'_, ActiveWorkspaceRoot>,
 ) -> Result<(), String> {
     let mut guard = state
         .0
         .lock()
         .map_err(|_| "active workspace root state is poisoned".to_string())?;
-    *guard = path.map(PathBuf::from);
+    let previous_root = guard.clone();
+    *guard = path.clone().map(PathBuf::from);
+    drop(guard);
+
+    // Best-effort: a scope-update failure must never block a workspace
+    // switch, and every actual read/write command has its own independent
+    // containment check (`check_unscoped_path_allowed`) regardless of this
+    // scope, so the worst case of a failed call here is a temporarily
+    // stale asset-protocol grant, not a lost security boundary.
+    let scope = app.asset_protocol_scope();
+    if let Some(previous_root) = previous_root {
+        let _ = scope.forbid_directory(previous_root, true);
+    }
+    if let Some(new_root) = &path {
+        let _ = scope.allow_directory(new_root, true);
+    }
+
     Ok(())
 }
 
@@ -1370,6 +1414,92 @@ mod tests {
         assert!(file_mtime < now_ms + 60_000);
 
         fs::remove_dir_all(&tmp).unwrap();
+    }
+
+    // 2026-09-23 asset-protocol-scope fix. Before this fix,
+    // `tauri.conf.json`'s static `assetProtocol.scope` was `["**"]`, which
+    // `glob::Pattern::matches` actually treats as matching *any* absolute
+    // path (confirmed empirically against this exact crate's `glob`
+    // dependency, not assumed) -- functionally identical to the
+    // `scope: null` the 2026-09-22 security review flagged, even though a
+    // later pass mismarked that finding `done` on the incorrect assumption
+    // that `["**"]` restricts access to the app resource directory. This
+    // test uses the crate's real `tauri.conf.json` via `generate_context!`
+    // (not a fabricated mock context), so it genuinely exercises the
+    // shipped static scope: it would fail on the pre-fix config, because
+    // `outside_file`/`note_a`/`note_b` would all already be allowed before
+    // `set_active_workspace_root` is ever called.
+    #[test]
+    fn set_active_workspace_root_scopes_asset_protocol_to_the_active_workspace_only() {
+        let app = tauri::test::mock_builder()
+            .manage(ActiveWorkspaceRoot::default())
+            .build(tauri::generate_context!())
+            .expect("failed to build mock app");
+
+        let workspace_a = std::env::temp_dir().join(format!(
+            "leotheca-test-asset-scope-a-{}",
+            std::process::id()
+        ));
+        let workspace_b = std::env::temp_dir().join(format!(
+            "leotheca-test-asset-scope-b-{}",
+            std::process::id()
+        ));
+        let outside_file = std::env::temp_dir().join(format!(
+            "leotheca-test-asset-scope-outside-{}.png",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&workspace_a);
+        let _ = fs::remove_dir_all(&workspace_b);
+        fs::create_dir_all(&workspace_a).unwrap();
+        fs::create_dir_all(&workspace_b).unwrap();
+        let note_a = workspace_a.join("image.png");
+        let note_b = workspace_b.join("image.png");
+        File::create(&note_a).unwrap();
+        File::create(&note_b).unwrap();
+        File::create(&outside_file).unwrap();
+
+        let scope = app.asset_protocol_scope();
+
+        // Before any workspace is ever opened, the static scope denies
+        // everything -- including a file that happens to live outside any
+        // workspace, and one that happens to live inside a directory that
+        // is *about* to become a workspace but hasn't yet.
+        assert!(!scope.is_allowed(&outside_file));
+        assert!(!scope.is_allowed(&note_a));
+
+        set_active_workspace_root(
+            Some(workspace_a.to_string_lossy().to_string()),
+            app.handle().clone(),
+            app.state::<ActiveWorkspaceRoot>(),
+        )
+        .unwrap();
+        assert!(scope.is_allowed(&note_a));
+        assert!(!scope.is_allowed(&note_b));
+        assert!(!scope.is_allowed(&outside_file));
+
+        // Switching workspaces mirrors the real `restoreWorkspaceAccess`
+        // two-call sequence: clear first, then publish the new root. The
+        // outgoing root's grant must not survive the switch.
+        set_active_workspace_root(
+            None,
+            app.handle().clone(),
+            app.state::<ActiveWorkspaceRoot>(),
+        )
+        .unwrap();
+        assert!(!scope.is_allowed(&note_a));
+
+        set_active_workspace_root(
+            Some(workspace_b.to_string_lossy().to_string()),
+            app.handle().clone(),
+            app.state::<ActiveWorkspaceRoot>(),
+        )
+        .unwrap();
+        assert!(scope.is_allowed(&note_b));
+        assert!(!scope.is_allowed(&note_a));
+
+        fs::remove_dir_all(&workspace_a).unwrap();
+        fs::remove_dir_all(&workspace_b).unwrap();
+        fs::remove_file(&outside_file).unwrap();
     }
 
     // `read_text_file`/`read_binary_file` themselves now take a

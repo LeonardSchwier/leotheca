@@ -35,6 +35,14 @@ url = "2"
 # otherwise stub implementations are used
 whisper-ffi = { path = "native/whisper" }
 
+[dev-dependencies]
+# "test" feature only: enables tauri::test::mock_builder for
+# set_active_workspace_root's asset-protocol-scope test (commands.rs),
+# which needs a real App/AppHandle to call app.asset_protocol_scope() on.
+# Cargo unifies this with the plain `tauri` dependency above for test
+# builds, so it never reaches a release binary.
+tauri = { version = "2", features = ["test"] }
+
 [features]
 default = []
 

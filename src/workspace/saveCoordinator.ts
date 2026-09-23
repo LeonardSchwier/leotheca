@@ -364,7 +364,17 @@ export function createSaveCoordinator(cbs?: SaveCoordinatorCallbacks): SaveCoord
       blockedSessions.add(oldSession);
       if (entry.timer) clearTimeout(entry.timer);
       entry.timer = null;
-      if (!entry.inFlight) entries.delete(key);
+      // Delete the entry regardless of whether a write is in flight. For an
+      // in-flight write, the write's `finally` block will still run and
+      // mutate the entry object's fields (`inFlight`, `inFlightRevision`,
+      // `waiters`), but since the entry is already gone from the map it
+      // cannot become a permanent zombie. `writeRevision`'s `finally` does
+      // not re-fetch the entry from the map, so deleting it here is safe:
+      // the only other caller that holds a reference to the entry object
+      // across an `await` is `prepareForTransition`, and it keeps its own
+      // reference (captured before the `await`), so it is unaffected by
+      // the map deletion.
+      entries.delete(key);
     }
   }
 

@@ -194,7 +194,9 @@
 
   </details>
 
-- ⬜ **Asset protocol scope allows reading any local file via `asset://`**: `tauri.conf.json`'s `assetProtocol.scope` is `["**"]`, and a bare `**` glob matches any absolute path, not just the app resource directory. Combined with any future XSS, `asset://`/`convertFileSrc` could read any file the desktop process can read. A 2026-09-22 maintenance pass mismarked this `done`, incorrectly assuming `["**"]` was Tauri's resource-directory default; it is not.
+- 🚧 **Asset protocol scope allows reading any local file via `asset://`**: `tauri.conf.json`'s `assetProtocol.scope` is `["**"]`, and a bare `**` glob matches any absolute path, not just the app resource directory. Combined with any future XSS, `asset://`/`convertFileSrc` could read any file the desktop process can read. A 2026-09-22 maintenance pass mismarked this `done`, incorrectly assuming `["**"]` was Tauri's resource-directory default; it is not.
+  <!-- agent-state: {"schema":1,"id":"rm-e60482588a26330b","state":"claimed","touch":["src-tauri/Cargo.toml","src-tauri/src/commands.rs","src-tauri/tauri.conf.json"],"resources":["active-workspace-root-containment","asset-protocol-scope"],"owner":"Claude-Code-cloud-20260923T063334Z-50d3ffe0","token":"5bc187ef73e7b4e066fbb901206ed084","branch":"agent/rm-e60482588a26330b/5bc187ef73e7","claimed_at":"2026-09-23T06:34:16Z","heartbeat_at":"2026-09-23T06:34:16Z","lease_until":"2026-09-23T08:04:16Z"} -->
+  Agent: Claude-Code-cloud-20260923T063334Z-50d3ffe0 | item: rm-e60482588a26330b | lease until: 2026-09-23T08:04:16Z
 
   <details>
   <summary>Correction and re-open rationale</summary>

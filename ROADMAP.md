@@ -1,6 +1,6 @@
 # Roadmap
 
-## Open (13 items)
+## Open (14 items)
 
 - ⬜ **macOS Gatekeeper: Sign, notarize, and staple release DMGs**: Current macOS artifacts are deliberately unsigned and unnotarized, so Gatekeeper warns that the app cannot be verified. The maintainer must provide an Apple Developer Program membership, a Develope...
 - ⬜ **Fedora Wayland AppImage WebKit/EGL startup crash**: The current development AppImage reproducibly leaves a blank window on Fedora because `WebKitWebProcess` aborts with `Could not create default EGL display: EGL_BAD_PARAMETER`; `WEBKIT_DISABLE_DMABU...
@@ -15,6 +15,7 @@
 - ⬜ **Per-Note Lock**: Encrypt and session-unlock individual notes only after the maintainer gives the cryptography design approval required by `CONSTITUTION.md`.
 - ⏸ **Print/export a note on Android**: Phase 3 of the split below. Neither printing nor HTML/PDF export exists on Android yet. Needs a real Capacitor/native plugin (Android's `PrintManager`/`ACTION_CREATE_DOCUMENT`), not just calling th...
 - 🚧 **Colored text highlights via `==` syntax with emoji color codes**: Leotheca currently renders `==highlight==` as literal text; it does not support the `==...==` inline highlight syntax at all. Adding base `==text==` → `<mark>` rendering (editor + preview) is the p...
+- ⬜ **Verify Completed items against source code**: Before marking a roadmap item as ✅, the agent must verify the feature actually exists in the source code (grep for key functions/components, confirm tests pass). Items should only be marked ✅ when the code is present AND tested. When an item moves to Completed, it must be removed from the Open section — no duplicates allowed.
 
 ## Completed (269 items)
 

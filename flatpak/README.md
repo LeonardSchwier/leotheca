@@ -15,7 +15,7 @@ The submission set is:
 - `cargo-sources.json`, generated offline Cargo sources.
 - `cargo-config.toml`, the Cargo source replacement configuration used during the sandboxed build.
 
-The manifest fetches the stable upstream source from the literal repository URL and pins commit `eb98b1affd309207d7fb114f1e8d6e9acf45537b`. New stable releases must update the commit (ideally to a real tag once one exists), release metadata, and generated dependency source lists together, and any commit that changes `package-lock.json` or `src-tauri/Cargo.lock` must regenerate the dependency source lists below against that exact commit and update the pin to match, or a future build can silently regress into the same offline-cache mismatch documented in `com.leonardschwier.leotheca.yml`.
+The manifest fetches the stable upstream source from the literal repository URL and pins commit `516249983daf5fb3dc421f9a2ad436ed22a44ea8`. New stable releases must update the commit (ideally to a real tag once one exists), release metadata, and generated dependency source lists together, and any commit that changes `package-lock.json` or `src-tauri/Cargo.lock` must regenerate the dependency source lists below against that exact commit and update the pin to match, or a future build can silently regress into the same offline-cache mismatch documented in `com.leonardschwier.leotheca.yml`.
 
 ## Verification
 

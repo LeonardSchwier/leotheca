@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added `==highlighted text==` support, in both the Source editor and Preview: it now renders as a highlighted `<mark>` instead of literal `==` characters. Prefix the highlight with a color emoji (🔴 🟠 🟢 🔵 🟣) to color it, e.g. `==🔴important==`, following the same convention Obsidian uses. Picking a color from a menu isn't available yet — typing the emoji is the only way to set one for now.
+
 - Added an "Export note to HTML…" command on desktop: saves the current note as a standalone `.html` file via a native Save dialog, with local attachment images embedded directly in the file so it opens correctly with no Leotheca installed. Same Preview/Split-view availability as "Print note" below. Android support is tracked separately and not yet available.
 
 - Added a "Print note" command on desktop: prints the current note via the OS print dialog (which already offers "Save as PDF" on every desktop platform this app ships for), reusing the already-rendered Preview pane's own output rather than a second Markdown-to-HTML pipeline. Available whenever Preview or Split view is showing the note you want to print; switch to one of those views first if you're in Source view. Android support is tracked separately and not yet available.

@@ -88,13 +88,18 @@ export async function inlineLocalImages(html: string, deps: InlineLocalImagesDep
   // inside another attribute's *value* (e.g. alt="use src= for details") would
   // otherwise be mistaken for the image source.
   //
-  // `[^>]*` for the tag body is deliberate: an attribute *value* may legally
-  // contain `>` (e.g. alt="a > b"), and `[^>]*` keeps scanning inside that
-  // value so the real `src=` later in the tag is still found. The only HTML
-  // the Preview pane can produce where a bare `>` inside a value would cut
-  // the tag short is malformed markup that never renders in the pane either.
+  // `[^>]*` for the tag body is a bug, not a design: an attribute *value* may
+  // legally contain `>` (e.g. alt="a > b"), and `[^>]*` stops at the FIRST `>`,
+  // which can sit inside that value. When such a value precedes `src` (e.g. a
+  // raw-HTML `<img alt="a > b" src="...">` — marked does not escape `>` in
+  // attribute values, and DOMPurify keeps an `http(s)` src), the tag match is
+  // truncated before `src`, the inner scan finds no `src=`, and that image is
+  // silently left un-inlined. We therefore match the tag by allowing quoted
+  // attribute values (double- or single-quoted) to contain `>`: the scan jumps
+  // over each quoted value and only a bare, unquoted `>` terminates the tag.
   const SRC_ATTR = /src\s*=\s*("([^"]*)"|'([^']*)')/gi;
-  return html.replace(/<img\b[^>]*>/gi, (tag) => {
+  const IMG_TAG = /<img\b(?:[^>"']|"[^"]*"|'[^']*')*>/gi;
+  return html.replace(IMG_TAG, (tag) => {
     // Find the LAST `src=` in the tag: a genuine `src` attribute always wins
     // over the substring `src=` inside an earlier attribute's *value* (e.g.
     // alt="use src= for details"), and a duplicate `src` attribute never

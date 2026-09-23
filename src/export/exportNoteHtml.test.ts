@@ -150,6 +150,22 @@ describe("inlineLocalImages — faithful fragment pass-through (regression)", ()
     expect(out).toBe('<img alt="use src= for details" src="data:image/png;base64,AQID">');
   });
 
+  it("inlines an image even when a preceding attribute value contains a literal '>'", async () => {
+    const { deps } = realDeps();
+    // The `alt` value contains a bare `>` (e.g. `a > b`) and appears BEFORE
+    // `src`. A `/<img[^>]*>/` tag match stops at the first `>`, which is inside
+    // the alt value, truncating the tag before `src`; the inner scan then finds
+    // no `src=` and the image is silently left un-inlined. This is reachable:
+    // a note containing a raw-HTML `<img alt="a > b" src="...">` survives
+    // marked (which does not escape `>` in attribute values) and DOMPurify
+    // (which keeps an `http(s)` src) into the Preview pane.
+    const html = '<img alt="a > b" src="asset://image/20">';
+    const out = await inlineLocalImages(html, deps);
+    // src is inlined to the data URI and the alt value is preserved verbatim,
+    // including the `>` that previously truncated the tag match.
+    expect(out).toBe('<img alt="a > b" src="data:image/png;base64,AQID">');
+  });
+
   it("preserves single-quoted src values when inlining", async () => {
     const { deps } = realDeps();
     const html = "<img src='asset://image/10' alt='x'>";

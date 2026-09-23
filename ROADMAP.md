@@ -49,23 +49,6 @@
 
 ### Bugs and CI
 
-- 🚧 **Deferred CI confirmation: hosted runs for landed security fixes e2753ca (rm-dfd60513a2eb352c) and c4fbf82 (rm-60f748cb1a58be89) were in-progress at landing and have not been closed out.** Both commits are on main with fully green local verification; only the hosted run conclusions were left to a later worker. Confirm each run's status/conclusion via the GitHub API, update both handoffs' CI sections with the run IDs and outcomes, and finish (or re-open under the original item) if a real failure appears.
-  <!-- agent-state: {"schema":1,"id":"rm-619130d83fb763c4","state":"claimed","touch":[".agents/handoffs","ROADMAP.md"],"resources":["deferred-ci-confirmation"],"owner":"hermes-local-20260923T025255Z-ebbc6f84","token":"a754210684c9998a2879913bfdb8e77a","branch":"agent/rm-619130d83fb763c4/a754210684c9","claimed_at":"2026-09-23T02:58:09Z","heartbeat_at":"2026-09-23T02:58:09Z","lease_until":"2026-09-23T04:28:09Z"} -->
-  Agent: hermes-local-20260923T025255Z-ebbc6f84 | item: rm-619130d83fb763c4 | lease until: 2026-09-23T04:28:09Z
-
-  <details>
-  <summary>Exact scope and evidence</summary>
-
-  Two separate handoffs each end with an explicit "a later worker should confirm the hosted run" CI line:
-  - `.agents/handoffs/rm-dfd60513a2eb352c.md` — landed `e2753ca`, CI run 35730341721 (name: CI) still in-progress when the session ended (jobs android/backend/appimage-smoke/frontend early-stage).
-  - `.agents/handoffs/rm-60f748cb1a58be89.md` — landed `c4fbf82`, "a later worker should confirm the hosted run for the landed SHA" (run ID not recorded at the time; discoverable by head SHA).
-
-  Acceptance:
-  - Both handoffs' CI sections record run IDs, status, and conclusion.
-  - If any job actually failed: re-open under the original item id (rm-dfd60513a2eb352c / rm-60f748cb1a58be89) and diagnose; otherwise finish this item and record "closed" in both handoffs.
-  - No code changes expected; this is a deferred-verification item only.
-
-  </details>
 
 
 - ⬜ **macOS Gatekeeper: Sign, notarize, and staple release DMGs**: Current macOS artifacts are deliberately unsigned and unnotarized, so Gatekeeper warns that the app cannot be verified. The maintainer must provide an Apple Developer Program membership, a Developer ID Application certificate, and an App Store Connect API key as repository secrets. Update the macOS release job to sign the universal `.app`, submit it with `notarytool`, wait for acceptance, staple the ticket to both `.app` and DMG, and fail publication if any step fails. Verify `codesign`, `spctl`, and a fresh download/open on both Apple Silicon and Intel macOS; only then remove the unsigned-install workaround from user documentation and complete the Homebrew Cask.
@@ -238,6 +221,25 @@
 
 
 ## Implemented
+
+- ✅ **Deferred CI confirmation: hosted runs for landed security fixes e2753ca (rm-dfd60513a2eb352c) and c4fbf82 (rm-60f748cb1a58be89) were in-progress at landing and have not been closed out.** Both commits are on main with fully green local verification; only the hosted run conclusions were left to a later worker. Confirm each run's status/conclusion via the GitHub API, update both handoffs' CI sections with the run IDs and outcomes, and finish (or re-open under the original item) if a real failure appears.
+  <!-- agent-state: {"schema":1,"id":"rm-619130d83fb763c4","state":"done","touch":[".agents/handoffs","ROADMAP.md"],"resources":["deferred-ci-confirmation"],"note":"Deferred CI confirmation for e2753ca (rm-dfd60513a2eb352c) and c4fbf82 (rm-60f748cb1a58be89): both hosted runs verified completed/success via the gh API (runs 35730341721, 35737546566, 35737546091). No code change required. Handoff: .agents/handoffs/rm-619130d83fb763c4.md","completed_at":"2026-09-23T03:04:27Z","completed_by":"hermes-local-20260923T025255Z-ebbc6f84","branch":"agent/rm-619130d83fb763c4/a754210684c9"} -->
+  Agent: completed by hermes-local-20260923T025255Z-ebbc6f84 | item: rm-619130d83fb763c4
+
+  <details>
+  <summary>Exact scope and evidence</summary>
+
+  Two separate handoffs each end with an explicit "a later worker should confirm the hosted run" CI line:
+  - `.agents/handoffs/rm-dfd60513a2eb352c.md` — landed `e2753ca`, CI run 35730341721 (name: CI) still in-progress when the session ended (jobs android/backend/appimage-smoke/frontend early-stage).
+  - `.agents/handoffs/rm-60f748cb1a58be89.md` — landed `c4fbf82`, "a later worker should confirm the hosted run for the landed SHA" (run ID not recorded at the time; discoverable by head SHA).
+
+  Acceptance:
+  - Both handoffs' CI sections record run IDs, status, and conclusion.
+  - If any job actually failed: re-open under the original item id (rm-dfd60513a2eb352c / rm-60f748cb1a58be89) and diagnose; otherwise finish this item and record "closed" in both handoffs.
+  - No code changes expected; this is a deferred-verification item only.
+
+  </details>
+
 
 - ✅ **TagsPanel: unhandled promise rejection when `onOpenFile` fails**: Last panel missing the `onOpenFile` error-handling pattern. A read failure in `openNote` produced an unhandled rejection with no user-visible feedback — inconsistent with all other note-opening panels.
   <!-- agent-state: {"schema":1,"id":"rm-24a86de7e4fcac3b","state":"done","touch":["CHANGELOG.md","ROADMAP.md","src/app/App.css","src/tags/TagsPanel.test.tsx","src/tags/TagsPanel.tsx"],"resources":[],"note":"TagsPanel onOpenFile error handling added: try/catch + inline role=alert error, matching BookmarksPanel/TaskHubPanel pattern. 2 new tests. All 47802 tests + tsc + lint + build pass. Branch: agent/rm-24a86de7e4fcac3b/10b85180dd61","completed_at":"2026-09-22T20:37:56Z","completed_by":"hermes-local-20260922T201147Z-91102aea","branch":"agent/rm-24a86de7e4fcac3b/10b85180dd61"} -->

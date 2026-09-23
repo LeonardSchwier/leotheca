@@ -194,16 +194,6 @@
 
   </details>
 
-- 🚧 **Asset protocol scope allows reading any local file via `asset://`**: `tauri.conf.json`'s `assetProtocol.scope` is `["**"]`, and a bare `**` glob matches any absolute path, not just the app resource directory. Combined with any future XSS, `asset://`/`convertFileSrc` could read any file the desktop process can read. A 2026-09-22 maintenance pass mismarked this `done`, incorrectly assuming `["**"]` was Tauri's resource-directory default; it is not.
-  <!-- agent-state: {"schema":1,"id":"rm-e60482588a26330b","state":"claimed","touch":["src-tauri/Cargo.toml","src-tauri/src/commands.rs","src-tauri/tauri.conf.json"],"resources":["active-workspace-root-containment","asset-protocol-scope"],"owner":"Claude-Code-cloud-20260923T063334Z-50d3ffe0","token":"5bc187ef73e7b4e066fbb901206ed084","branch":"agent/rm-e60482588a26330b/5bc187ef73e7","claimed_at":"2026-09-23T06:34:16Z","heartbeat_at":"2026-09-23T06:34:16Z","lease_until":"2026-09-23T08:04:16Z"} -->
-  Agent: Claude-Code-cloud-20260923T063334Z-50d3ffe0 | item: rm-e60482588a26330b | lease until: 2026-09-23T08:04:16Z
-
-  <details>
-  <summary>Correction and re-open rationale</summary>
-
-  Originally found during the 2026-09-22 weekly security review at `f4d4691d18c9` as `scope: null`. A later pass (commit `30577c3`) marked it `done`, reasoning that the actual code used `scope: ["**"]` instead of `null` and that this was "Tauri v2's standard default scope restricting asset:// access to the app's resource directory". That reasoning was never verified against the real pattern-matching behavior and is wrong: empirically, `glob::Pattern::new("**").matches("/etc/passwd")` and `.matches("/root/.bashrc")` both return `true` (checked directly against this crate's own `glob 0.3.4` dependency, not assumed from documentation) — a bare `**` has no directory anchor at all, so it matches every absolute path on the filesystem, functionally identical to `scope: null`. There is no Tauri "default scope" that restricts to the resource directory; scope is either explicit patterns or (when omitted) enable-without-restriction. Re-opening with the corrected understanding; this file's own rule against claiming unverified completion applies here too — a "done" claim needs the same evidence bar as any other.
-
-  </details>
 
 - ✅ **`saveCoordinator` state not cleaned up on workspace switch**: Resolved — the current `saveCoordinator.ts` uses a per-session entry map with `resetForSession()`, not the `start()`/`stop()` interval model described in the review.
 
@@ -226,6 +216,18 @@
 
 
 ## Implemented
+
+- ✅ **Asset protocol scope allows reading any local file via `asset://`**: `tauri.conf.json`'s `assetProtocol.scope` is `["**"]`, and a bare `**` glob matches any absolute path, not just the app resource directory. Combined with any future XSS, `asset://`/`convertFileSrc` could read any file the desktop process can read. A 2026-09-22 maintenance pass mismarked this `done`, incorrectly assuming `["**"]` was Tauri's resource-directory default; it is not.
+  <!-- agent-state: {"schema":1,"id":"rm-e60482588a26330b","state":"done","touch":["src-tauri/Cargo.toml","src-tauri/src/commands.rs","src-tauri/tauri.conf.json"],"resources":["active-workspace-root-containment","asset-protocol-scope"],"note":"Fixed: tauri.conf.json assetProtocol.scope changed from [\"**\"] (matches any absolute path, confirmed empirically via glob::Pattern) to []; set_active_workspace_root (commands.rs) now grants/revokes app.asset_protocol_scope() for the workspace root on every open/switch/close. Landed 5a1eb12 on main. New Rust test set_active_workspace_root_scopes_asset_protocol_to_the_active_workspace_only (uses real tauri.conf.json via generate_context!, revert-confirmed to fail on the old [\"**\"] config). Full suite green: cargo test 85/85, cargo clippy -D warnings clean, cargo check clean, cargo fmt --check clean, npx tsc --noEmit clean, npx vitest run 2878/2878, npm run lint clean, npm run check-version clean, npx vite build succeeds. CI run 35827687250 queued for 5a1eb12 at finish time.","completed_at":"2026-09-23T06:38:31Z","completed_by":"Claude-Code-cloud-20260923T063334Z-50d3ffe0","branch":"agent/rm-e60482588a26330b/5bc187ef73e7"} -->
+  Agent: completed by Claude-Code-cloud-20260923T063334Z-50d3ffe0 | item: rm-e60482588a26330b
+
+  <details>
+  <summary>Correction and re-open rationale</summary>
+
+  Originally found during the 2026-09-22 weekly security review at `f4d4691d18c9` as `scope: null`. A later pass (commit `30577c3`) marked it `done`, reasoning that the actual code used `scope: ["**"]` instead of `null` and that this was "Tauri v2's standard default scope restricting asset:// access to the app's resource directory". That reasoning was never verified against the real pattern-matching behavior and is wrong: empirically, `glob::Pattern::new("**").matches("/etc/passwd")` and `.matches("/root/.bashrc")` both return `true` (checked directly against this crate's own `glob 0.3.4` dependency, not assumed from documentation) — a bare `**` has no directory anchor at all, so it matches every absolute path on the filesystem, functionally identical to `scope: null`. There is no Tauri "default scope" that restricts to the resource directory; scope is either explicit patterns or (when omitted) enable-without-restriction. Re-opening with the corrected understanding; this file's own rule against claiming unverified completion applies here too — a "done" claim needs the same evidence bar as any other.
+
+  </details>
+
 
 - ✅ **exportNoteHtml: standalone export leaves an `<img>` un-inlined when an attribute value before `src` contains a `>`**: `inlineLocalImages` in `src/export/exportNoteHtml.ts` finds each image tag with `/<img\b[^>]*>/gi`. `[^>]*` stops at the *first* `>`, which is legal inside a quoted attribute value, so when an attribute before `src` (e.g. `alt="a > b"`) contains a `>`, the tag match is truncated before `src` and the replacement is silently skipped.
   <!-- agent-state: {"schema": 1, "id": "rm-5b314df7e13439ab", "state": "done", "touch": ["ROADMAP.md", "src/export/exportNoteHtml.test.ts", "src/export/exportNoteHtml.ts"], "resources": ["exportnotehtml-tag-match-fix"], "note": "Fixed inlineLocalImages tag regex (<img[^>]*>) that truncated at the first '>' inside a quoted attribute value before src, leaving the image un-inlined in standalone export. Now matches the tag allowing quoted values to contain '>'; added a reachable regression test (alt-before-src with '>' in alt). This restores the fix from orphaned commit 1db57c1 (referenced by 495c439 on main but never actually merged). Full frontend verification green (tsc/lint/check-version/39309 tests). Landed: agent/rm-5b314df7e13439ab/restore-1db57c1 @ cbaebf4.", "completed_at": "2026-09-23T06:15:00Z", "completed_by": "hermes-local-20260923T040421Z-ba1286d2", "branch": "agent/rm-5b314df7e13439ab/restore-1db57c1"} -->

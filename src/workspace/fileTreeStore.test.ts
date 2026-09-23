@@ -845,6 +845,38 @@ describe("runSearch: query operators", () => {
     await runSearch("/workspace", '"exact phrase"');
     expect(searchResults.value?.map((e) => e.name)).toEqual(["Notes.md"]);
   });
+
+  it("never reads file content for a tag-only OR query, even with multiple branches", async () => {
+    // tag:work matches Project.md, tag:personal matches neither file —
+    // every clause in the query is metadata-only (tag or name), so no
+    // content read should occur regardless of how many OR branches there are.
+    findAllFiles.mockResolvedValue([
+      entry("Project.md"),
+      entry("Journal.md"),
+      entry("Misc.md"),
+    ]);
+    await runSearch("/workspace", "tag:work OR tag:personal");
+    expect(searchResults.value?.map((e) => e.name)).toEqual(["Project.md"]);
+    expect(readTextFilesBatch).not.toHaveBeenCalled();
+  });
+
+  it("does not crash when query is a bare tag: prefix with no value", async () => {
+    // "tag:" is parsed as a literal text clause (not a tag clause) because
+    // parseToken sees no value after the prefix.  It must not throw and must
+    // return an empty result set.  Content IS read for .md files (they are
+    // text files) as the content fallback for the text clause — that is
+    // correct behavior, not a bug.  The guard here is that the call does not
+    // crash or hang, and that a file whose content contains "tag:" matches
+    // (verifying the literal-term path works end-to-end).
+    findAllFiles.mockResolvedValue([entry("Project.md"), entry("Journal.md")]);
+    mockFileContents({
+      "/workspace/Project.md": "this line contains the literal text tag:",
+      "/workspace/Journal.md": "nothing relevant here",
+    });
+    await runSearch("/workspace", "tag:");
+    // Project.md's content contains "tag:" as a substring → matches.
+    expect(searchResults.value?.map((e) => e.name)).toEqual(["Project.md"]);
+  });
 });
 
 // F-005: Search's 8 MiB memory bound must be enforced and binary files must

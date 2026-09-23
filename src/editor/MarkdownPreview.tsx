@@ -4,6 +4,7 @@ import DOMPurify from "dompurify";
 import katex from "katex";
 import "katex/dist/katex.min.css";
 import { setMermaidRenderingEnabled, renderMermaidToSvg } from "../markdown/mermaid";
+import { highlightExtension } from "../markdown/highlights";
 import { fileNameFromPath, resolveWikilink } from "../linking/store";
 import { parseWikiLinks, type WikiLinkFragment, type WikiLinkRecord } from "../linking/wikiSyntax";
 import {
@@ -306,6 +307,7 @@ function renderFootnotesSection(): string {
 
 marked.use({
   extensions: [
+    highlightExtension,
     {
       name: "blockMath",
       level: "block",

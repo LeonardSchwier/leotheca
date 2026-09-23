@@ -1807,6 +1807,32 @@ button.icon-button.active {
     border-radius: 2px;
   }
 
+  mark {
+    background-color: #fff9ad;
+    padding: 0 2px;
+    border-radius: 2px;
+  }
+
+  .hl-red {
+    background-color: #ffb3b3 !important;
+  }
+
+  .hl-orange {
+    background-color: #ffd899 !important;
+  }
+
+  .hl-green {
+    background-color: #b3ffb3 !important;
+  }
+
+  .hl-blue {
+    background-color: #b3d9ff !important;
+  }
+
+  .hl-purple {
+    background-color: #d9b3ff !important;
+  }
+
   /* Fullscreen Image Viewer Overlay - Phase 1 */
   .image-overlay {
     position: fixed;

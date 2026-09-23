@@ -5,7 +5,9 @@
 ### Bugs
 
 
-- ⬜ **Maintenance review: `==highlight==` syntax (rm-c2a2c2d840b60a2e) dual-surface parity**: Bounded review of the just-landed `==highlight==` feature: confirm Preview and editor rendering stay in lockstep on boundary cases, sanitization holds, and theming is complete.
+- 🚧 **Maintenance review: `==highlight==` syntax (rm-c2a2c2d840b60a2e) dual-surface parity**: Bounded review of the just-landed `==highlight==` feature: confirm Preview and editor rendering stay in lockstep on boundary cases, sanitization holds, and theming is complete.
+  <!-- agent-state: {"schema":1,"id":"rm-03cb2773c42d207c","state":"claimed","touch":[".agents/handoffs","ROADMAP.md#rm-highlight-review"],"resources":["highlight-review"],"owner":"Claude-Code-cloud-scheduled-kindbardeen-20260923T190102Z-802eb1e1","token":"3874838d522ca0754cbac657cb272d40","branch":"agent/rm-03cb2773c42d207c/3874838d522c","claimed_at":"2026-09-23T19:01:48Z","heartbeat_at":"2026-09-23T19:01:48Z","lease_until":"2026-09-23T20:31:48Z"} -->
+  Agent: Claude-Code-cloud-scheduled-kindbardeen-20260923T190102Z-802eb1e1 | item: rm-03cb2773c42d207c | lease until: 2026-09-23T20:31:48Z
 
   <details>
   <summary>Scope</summary>

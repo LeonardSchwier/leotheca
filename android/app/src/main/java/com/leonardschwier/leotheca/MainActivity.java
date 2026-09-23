@@ -45,6 +45,19 @@ public class MainActivity extends BridgeActivity {
         // methods plus F-004's no-replace mutations from one capability.
         registerPlugin(WorkspaceMutationPlugin.class);
 
+        // ROADMAP.md "Print/export a note on Android": PrintExportPlugin.java
+        // (native print + Save-As HTML export) was implemented and already
+        // called from capacitorBridgeImpl.ts, but was never registered here.
+        // A Capacitor plugin bundled directly in the app (not distributed as
+        // a separate npm/native package) is invisible to the bridge until
+        // explicitly registered, the same reason WorkspaceMutationPlugin
+        // above needs its own call: without this, every printNote/
+        // exportNoteHtml call from JS rejected with "plugin is not
+        // implemented", surfaced to the user as "Couldn't print/export
+        // note: ..." (see App.tsx's print-note/export-note-html command
+        // handlers) instead of ever reaching PrintExportPlugin at all.
+        registerPlugin(PrintExportPlugin.class);
+
         // F05: Initialize capture intent handler
         captureIntentHandler = new CaptureIntentHandler(this);
 

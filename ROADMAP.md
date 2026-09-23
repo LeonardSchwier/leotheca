@@ -4,7 +4,9 @@
 
 ### Bugs
 
-- ⬜ **exportNoteHtml: standalone export leaves an `<img>` un-inlined when an attribute value before `src` contains a `>`**: `inlineLocalImages` in `src/export/exportNoteHtml.ts` finds each image tag with `/<img\b[^>]*>/gi`. `[^>]*` stops at the *first* `>`, which is legal inside a quoted attribute value, so when an attribute before `src` (e.g. `alt="a > b"`) contains a `>`, the tag match is truncated before `src` and the replacement is silently skipped.
+- 🚧 **exportNoteHtml: standalone export leaves an `<img>` un-inlined when an attribute value before `src` contains a `>`**: `inlineLocalImages` in `src/export/exportNoteHtml.ts` finds each image tag with `/<img\b[^>]*>/gi`. `[^>]*` stops at the *first* `>`, which is legal inside a quoted attribute value, so when an attribute before `src` (e.g. `alt="a > b"`) contains a `>`, the tag match is truncated before `src` and the replacement is silently skipped.
+  <!-- agent-state: {"schema":1,"id":"rm-5b314df7e13439ab","state":"claimed","touch":["ROADMAP.md","src/export/exportNoteHtml.test.ts","src/export/exportNoteHtml.ts"],"resources":["exportnotehtml-tag-match-fix"],"owner":"hermes-local-20260923T030751Z-0f3220d9","token":"151ea3612a227876ffd62339440054c1","branch":"agent/rm-5b314df7e13439ab/151ea3612a22","claimed_at":"2026-09-23T03:16:11Z","heartbeat_at":"2026-09-23T03:16:11Z","lease_until":"2026-09-23T04:46:11Z"} -->
+  Agent: hermes-local-20260923T030751Z-0f3220d9 | item: rm-5b314df7e13439ab | lease until: 2026-09-23T04:46:11Z
   <details>
   <summary>Repro, root cause, and acceptance criteria</summary>
 

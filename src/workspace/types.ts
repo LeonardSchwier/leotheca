@@ -142,23 +142,20 @@ const KNOWN_DIRECTORY_BASENAMES = new Set([
 export function isTextFile(path: string, isDir: boolean): boolean {
   if (isDir) return false;
   const base = path.split("/").pop() ?? "";
-  // Extension is everything after the last dot *only if there is a dot
-  // that is not the leading dot of a hidden file*. A hidden file with no
-  // other dot (".gitignore", ".env") has no extension in the normal sense,
-  // and a file like "archive.tar.gz" has extension "gz" — both handled by
-  // the same last-dot rule as a regular file, so the no-extension case is
-  // really "no dot at all in the basename".
+  // Extension is everything after the last dot, but only when that dot is
+  // not the leading character of the basename: a hidden file whose only
+  // dot is that leading one (".gitignore", ".env") has no extension in the
+  // normal sense, same as a plain no-dot basename ("README"), and both fall
+  // through to the same default-searchable path below. A file like
+  // "archive.tar.gz" still gets extension "gz" from this same last-dot rule.
   const lastDot = base.lastIndexOf(".");
-  const ext =
-    lastDot > 0
-      ? base.slice(lastDot + 1).toLowerCase()
-      : lastDot === 0
-        ? "" // leading dot only: hidden file, no extension
-        : null; // no dot at all: no-extension file
+  const ext = lastDot > 0 ? base.slice(lastDot + 1).toLowerCase() : null;
   if (ext !== null) {
     return !!ext && TEXT_EXTENSIONS.has(ext);
   }
-  // No dot in the basename at all.
+  // No real extension: no dot at all, or a hidden file whose only dot
+  // leads the basename. `KNOWN_DIRECTORY_BASENAMES` also matches a hidden
+  // basename like ".git", correctly excluding it here.
   if (KNOWN_DIRECTORY_BASENAMES.has(base.toLowerCase())) return false;
   return true;
 }

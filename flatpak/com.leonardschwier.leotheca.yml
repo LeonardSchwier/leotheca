@@ -35,22 +35,29 @@ modules:
       # own bundling step (Flatpak does the bundling here instead).
       #
       # `npm ci --offline`, deliberately not `npm install --offline` (session
-      # 57 briefly tried the latter and it was the wrong fix, see
-      # ROADMAP.md/agent-log/CHANGELOG.md for the full story): `npm ci`
-      # trusts package-lock.json's already-resolved versions/URLs completely
-      # and never queries the registry for semver-range resolution, so it
-      # only ever needs the tarball fetches flatpak-node-generator's
-      # node-sources.json actually provides cache entries for. `npm install`
-      # re-resolves from package.json's ranges, which (confirmed by reading
-      # flatpak_node_generator/providers/npm.py directly) needs a separate
-      # kind of cache entry, one per bare package-metadata registry lookup,
-      # e.g. registry.npmjs.org/eslint with no version, that the generator
-      # does not produce at all. This project's eslint peer-dependency
-      # conflicts (see the ERESOLVE warnings in any `npm install` output)
-      # are exactly the kind of situation that forces `npm install` to hit
-      # the registry for real, which is why `eslint` specifically was the
-      # one that failed first.
-      - npm ci --offline
+      # 57's reasoning here, see ROADMAP.md/agent-log/CHANGELOG.md). That
+      # reasoning turned out to be incomplete: `npm ci` alone still hit the
+      # registry and failed identically (confirmed directly in CI run
+      # 33727266020, on lockfiles regenerated against the manifest's own
+      # pinned commit, ruling out a stale/wrong-commit source list as the
+      # cause). The real trigger is this project's real eslint
+      # peer-dependency conflicts (eslint-plugin-compat's peer range is
+      # eslint ^4-7, the root project pins eslint ^10.9.1): npm's arborist
+      # logs "ERESOLVE overriding peer dependency" for these during `npm
+      # ci` too, not just `npm install`, and immediately after doing so it
+      # fetches bare package metadata (no version pinned, e.g.
+      # registry.npmjs.org/eslint) to actually perform that override
+      # decision -- a kind of request flatpak-node-generator's
+      # node-sources.json cache never contains entries for (confirmed by
+      # reading flatpak_node_generator/providers/npm.py directly), so it
+      # fails under `--offline` regardless of which install subcommand
+      # triggers it. `--legacy-peer-deps` restores npm's pre-v7 behavior of
+      # never validating or resolving peerDependencies conflicts at all,
+      # which skips this exact code path entirely, so it never fetches
+      # anything to decide an override that no longer happens; it changes
+      # nothing about which package versions get installed, since those are
+      # still taken as-is from package-lock.json either way.
+      - npm ci --offline --legacy-peer-deps
       - cargo --offline fetch --manifest-path src-tauri/Cargo.toml
       - npm run build
       - cargo build --release --manifest-path src-tauri/Cargo.toml --offline

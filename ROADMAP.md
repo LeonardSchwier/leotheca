@@ -223,8 +223,8 @@
 
 
 - 🚧 **Colored text highlights via `==` syntax with emoji color codes**: Leotheca currently renders `==highlight==` as literal text; it does not support the `==...==` inline highlight syntax at all. Adding base `==text==` → `<mark>` rendering (editor + preview) is the prerequisite, and the Obsidian v1.14.0 emoji-color convention (prefix a color emoji like 🔴🟠🟢🔵🟣 inside the highlight to change its color, with a formatting submenu to pick) is the "shoulders of giants" pattern to follow rather than inventing a competing convention. Purely local Markdown-to-CSS rendering, no new file format, no network call. (Competitor scan, Obsidian Desktop v1.14.0, 2026-09-02).
-  <!-- agent-state: {"schema":1,"id":"rm-c2a2c2d840b60a2e","state":"claimed","touch":["ROADMAP.md","src/markdown","src/markdown/markdownPreview.test.ts","src/markdown/markdownPreview.ts","src/styles"],"resources":["markdown-highlight-rendering"],"owner":"opencode-20260923T150110Z-a3aac36e","token":"afeb3d1f4c927fd20bed4c3931fdb94f","branch":"agent/rm-c2a2c2d840b60a2e/afeb3d1f4c92","claimed_at":"2026-09-23T15:01:59Z","heartbeat_at":"2026-09-23T15:01:59Z","lease_until":"2026-09-23T16:31:59Z"} -->
-  Agent: opencode-20260923T150110Z-a3aac36e | item: rm-c2a2c2d840b60a2e | lease until: 2026-09-23T16:31:59Z
+  <!-- agent-state: {"schema":1,"id":"rm-c2a2c2d840b60a2e","state":"claimed","touch":["ROADMAP.md","src/markdown","src/markdown/markdownPreview.test.ts","src/markdown/markdownPreview.ts","src/styles"],"resources":["markdown-highlight-rendering"],"owner":"Claude-Code-cloud-scheduled-kindbardeen-20260923T182456Z-9e194b7e","token":"bbec423fc4a4a70ccffd10f8481d30a4","branch":"agent/rm-c2a2c2d840b60a2e/bbec423fc4a4","claimed_at":"2026-09-23T18:25:03Z","heartbeat_at":"2026-09-23T18:25:03Z","lease_until":"2026-09-23T19:55:03Z"} -->
+  Agent: Claude-Code-cloud-scheduled-kindbardeen-20260923T182456Z-9e194b7e | item: rm-c2a2c2d840b60a2e | lease until: 2026-09-23T19:55:03Z
 
 ## Implemented
 

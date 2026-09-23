@@ -15,7 +15,7 @@ import type { EditorGroupId, EditorGroupState, EditorLayoutState, OpenDocument, 
 /** Canonical open-document store. Editor groups hold only references to
  * these records, ensuring one content and save authority per path. */
 export const openDocuments = signal<OpenDocument[]>([]);
-/** Compatibility selector for the present flat tab UI. It follows the
+/** Primary tab selector for the split-pane UI. F07 Phase 6 (GA cleanup) — the
  * primary group's placement references, not a second writable tab store. */
 export const openTabs = computed<OpenTab[]>(() => tabsForGroup("primary"));
 /** Compatibility selector for the primary group's active document. */

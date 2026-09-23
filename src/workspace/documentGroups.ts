@@ -1,7 +1,7 @@
 import type { EditorGroupId, EditorGroupState, EditorLayoutState, ViewMode } from "./types";
 
-/** Creates the one-group layout used while the legacy tab bar remains the
- * visible UI. Paths are de-duplicated here so a future second group starts
+/** Creates the one-group layout for the primary editor group (F07 Phase 6 GA)
+ * Paths are de-duplicated here so the secondary group starts
  * from the same unique-ownership invariant as the document store. */
 export function createPrimaryEditorLayout(
   tabPaths: readonly string[],

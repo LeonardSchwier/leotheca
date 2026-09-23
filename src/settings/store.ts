@@ -274,6 +274,8 @@ effect(() => {
   const key = JSON.stringify([paths, activeTabPath.value, pinnedPaths, groupViewMode]);
   if (isRestoringTabs || key === lastPersistedTabsKey) return;
   lastPersistedTabsKey = key;
+  // Legacy persisted mirror (spec f07 section 10.2): intentionally retained
+  // for downgrade compatibility. F07 Phase 6 GA cleanup.
   void updateWorkspaceSettings({
     lastOpenPaths: paths,
     lastActivePath: activeTabPath.value,

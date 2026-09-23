@@ -5,6 +5,16 @@
 ### Bugs
 
 
+- ⬜ **Maintenance review: `==highlight==` syntax (rm-c2a2c2d840b60a2e) dual-surface parity**: Bounded review of the just-landed `==highlight==` feature: confirm Preview and editor rendering stay in lockstep on boundary cases, sanitization holds, and theming is complete.
+
+  <details>
+  <summary>Scope</summary>
+
+  Commit 52f0d979c—`src/markdown/highlight.ts`, `src/editor/MarkdownPreview.tsx`, `src/editor/livePreview.ts`, `src/editor/MarkdownEditor.tsx`, `src/app/App.css`, `src/styles/theme.css`. Check the Preview (`marked` extension) and editor (`@lezer/markdown` extension) highlight renderers against each other on: content inside code spans, cross-paragraph and cross-list-item text, multi-line paragraphs, the emoji-color detection edge cases, `DOMPurify` sanitization of highlight content, and light/dark theming completeness.
+
+  </details>
+
+
 - ✅ **exportNoteHtml: src replacement targets wrong attribute when alt (or other attr) shares the same value as src**: `inlineLocalImages` in `src/export/exportNoteHtml.ts` uses `tag.replace(quotedValue, ...)` which replaces the *first* occurrence of the `src` value in the entire `<img>` tag. If another attribute (e.g. `alt`) contains the same string *before* `src` in the tag, the data URI is written into `alt` instead of `src`, leaving `src` unchanged. Reproduced: `<img alt="asset://x" src="asset://x" />` → `alt` gets the data URI, `src` keeps the original.
   <!-- agent-state: {"schema":1,"id":"rm-e1dadbf4155a53b8","state":"done","touch":["ROADMAP.md#exportNoteHtml-src-replacement","src/export/exportNoteHtml.test.ts","src/export/exportNoteHtml.ts"],"resources":["exportnotehtml-src-fix"],"branch":"agent/rm-e1dadbf4155a53b8/9b0b1106c7fc","completed_at":"2026-09-22T05:48:00Z","completed_by":"hermes-local-20260922T033440Z-ec233176"} -->
   Agent: hermes-local-20260922T033440Z-ec233176 | item: rm-e1dadbf4155a53b8 | lease until: 2026-09-22T05:09:19Z

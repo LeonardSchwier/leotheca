@@ -49,7 +49,9 @@
 
 ### Bugs and CI
 
-- ⬜ **Deferred CI confirmation: hosted runs for landed security fixes e2753ca (rm-dfd60513a2eb352c) and c4fbf82 (rm-60f748cb1a58be89) were in-progress at landing and have not been closed out.** Both commits are on main with fully green local verification; only the hosted run conclusions were left to a later worker. Confirm each run's status/conclusion via the GitHub API, update both handoffs' CI sections with the run IDs and outcomes, and finish (or re-open under the original item) if a real failure appears.
+- 🚧 **Deferred CI confirmation: hosted runs for landed security fixes e2753ca (rm-dfd60513a2eb352c) and c4fbf82 (rm-60f748cb1a58be89) were in-progress at landing and have not been closed out.** Both commits are on main with fully green local verification; only the hosted run conclusions were left to a later worker. Confirm each run's status/conclusion via the GitHub API, update both handoffs' CI sections with the run IDs and outcomes, and finish (or re-open under the original item) if a real failure appears.
+  <!-- agent-state: {"schema":1,"id":"rm-619130d83fb763c4","state":"claimed","touch":[".agents/handoffs","ROADMAP.md"],"resources":["deferred-ci-confirmation"],"owner":"hermes-local-20260923T025255Z-ebbc6f84","token":"a754210684c9998a2879913bfdb8e77a","branch":"agent/rm-619130d83fb763c4/a754210684c9","claimed_at":"2026-09-23T02:58:09Z","heartbeat_at":"2026-09-23T02:58:09Z","lease_until":"2026-09-23T04:28:09Z"} -->
+  Agent: hermes-local-20260923T025255Z-ebbc6f84 | item: rm-619130d83fb763c4 | lease until: 2026-09-23T04:28:09Z
 
   <details>
   <summary>Exact scope and evidence</summary>

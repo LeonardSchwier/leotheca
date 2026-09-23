@@ -5,16 +5,6 @@
 ### Bugs
 
 
-- 🚧 **Maintenance review: `==highlight==` syntax (rm-c2a2c2d840b60a2e) dual-surface parity**: Bounded review of the just-landed `==highlight==` feature: confirm Preview and editor rendering stay in lockstep on boundary cases, sanitization holds, and theming is complete.
-  <!-- agent-state: {"schema":1,"id":"rm-03cb2773c42d207c","state":"claimed","touch":[".agents/handoffs","ROADMAP.md#rm-highlight-review"],"resources":["highlight-review"],"owner":"Claude-Code-cloud-scheduled-kindbardeen-20260923T190102Z-802eb1e1","token":"3874838d522ca0754cbac657cb272d40","branch":"agent/rm-03cb2773c42d207c/3874838d522c","claimed_at":"2026-09-23T19:01:48Z","heartbeat_at":"2026-09-23T19:01:48Z","lease_until":"2026-09-23T20:31:48Z"} -->
-  Agent: Claude-Code-cloud-scheduled-kindbardeen-20260923T190102Z-802eb1e1 | item: rm-03cb2773c42d207c | lease until: 2026-09-23T20:31:48Z
-
-  <details>
-  <summary>Scope</summary>
-
-  Commit 52f0d979c—`src/markdown/highlight.ts`, `src/editor/MarkdownPreview.tsx`, `src/editor/livePreview.ts`, `src/editor/MarkdownEditor.tsx`, `src/app/App.css`, `src/styles/theme.css`. Check the Preview (`marked` extension) and editor (`@lezer/markdown` extension) highlight renderers against each other on: content inside code spans, cross-paragraph and cross-list-item text, multi-line paragraphs, the emoji-color detection edge cases, `DOMPurify` sanitization of highlight content, and light/dark theming completeness.
-
-  </details>
 
 
 - ✅ **exportNoteHtml: src replacement targets wrong attribute when alt (or other attr) shares the same value as src**: `inlineLocalImages` in `src/export/exportNoteHtml.ts` uses `tag.replace(quotedValue, ...)` which replaces the *first* occurrence of the `src` value in the entire `<img>` tag. If another attribute (e.g. `alt`) contains the same string *before* `src` in the tag, the data URI is written into `alt` instead of `src`, leaving `src` unchanged. Reproduced: `<img alt="asset://x" src="asset://x" />` → `alt` gets the data URI, `src` keeps the original.
@@ -236,6 +226,18 @@
 
 
 ## Implemented
+
+- ✅ **Maintenance review: `==highlight==` syntax (rm-c2a2c2d840b60a2e) dual-surface parity**: Bounded review of the just-landed `==highlight==` feature: confirm Preview and editor rendering stay in lockstep on boundary cases, sanitization holds, and theming is complete.
+  <!-- agent-state: {"schema":1,"id":"rm-03cb2773c42d207c","state":"done","touch":[".agents/handoffs","ROADMAP.md#rm-highlight-review"],"resources":["highlight-review"],"note":"Reviewed sole code commit 52f0d979c (rm-c2a2c2d840b60a2e). Traced marked-regex vs @lezer/markdown delimiter parity by hand and empirically (3 unpublished probe tests: cross-paragraph, multi-line-paragraph, cross-list-item, all matching between Preview and editor), code-span containment, DOMPurify sanitization (class values are fixed literals, no injection surface), and light/dark theming completeness. No defect found in this scope. Disclosed export/print color-class gap re-confirmed as already-known, not new. See .agents/handoffs/rm-03cb2773c42d207c.md.","completed_at":"2026-09-23T19:02:33Z","completed_by":"Claude-Code-cloud-scheduled-kindbardeen-20260923T190102Z-802eb1e1","branch":"agent/rm-03cb2773c42d207c/3874838d522c"} -->
+  Agent: completed by Claude-Code-cloud-scheduled-kindbardeen-20260923T190102Z-802eb1e1 | item: rm-03cb2773c42d207c
+
+  <details>
+  <summary>Scope</summary>
+
+  Commit 52f0d979c—`src/markdown/highlight.ts`, `src/editor/MarkdownPreview.tsx`, `src/editor/livePreview.ts`, `src/editor/MarkdownEditor.tsx`, `src/app/App.css`, `src/styles/theme.css`. Check the Preview (`marked` extension) and editor (`@lezer/markdown` extension) highlight renderers against each other on: content inside code spans, cross-paragraph and cross-list-item text, multi-line paragraphs, the emoji-color detection edge cases, `DOMPurify` sanitization of highlight content, and light/dark theming completeness.
+
+  </details>
+
 
 - ✅ **Colored text highlights via `==` syntax with emoji color codes**: `==text==` now renders as `<mark>` in both the CodeMirror editor (live-preview decoration) and the Preview pane, following Obsidian v1.14.0's own convention: a leading color emoji (🔴🟠🟢🔵🟣) inside the highlight sets its color via a CSS class. The interactive formatting-submenu UI for picking a color is out of scope for this slice; typing the emoji is the only way to set one for now.
   <!-- agent-state: {"schema":1,"id":"rm-c2a2c2d840b60a2e","state":"done","touch":["ROADMAP.md","src/app/App.css","src/editor/MarkdownEditor.tsx","src/editor/MarkdownPreview.test.tsx","src/editor/MarkdownPreview.tsx","src/editor/livePreview.test.ts","src/editor/livePreview.ts","src/markdown","src/markdown/highlight.test.ts","src/markdown/highlight.ts","src/styles","src/styles/theme.css"],"resources":["markdown-highlight-rendering"],"note":"Landed 52f0d97 on main. Full local verification: tsc --noEmit clean; eslint clean; check-version pass; vitest 2921/2921 passing (2881 baseline +40 new, 0 regressions); vite build succeeds. Hosted CI ci.yml run 35904174336 confirmed green across all 5 jobs (backend, frontend, android incl. real SDK build+emulator install, appimage-smoke, validation). Formatting-submenu color-picker UI and export/print stylesheet color classes explicitly out of scope for this slice, disclosed in ROADMAP.md and CHANGELOG.md. See .agents/handoffs/rm-c2a2c2d840b60a2e.md.","completed_at":"2026-09-23T18:49:41Z","completed_by":"Claude-Code-cloud-scheduled-kindbardeen-20260923T182456Z-9e194b7e","branch":"agent/rm-c2a2c2d840b60a2e/2ea9f41c588c"} -->

@@ -58,6 +58,18 @@ public class MainActivity extends BridgeActivity {
         // handlers) instead of ever reaching PrintExportPlugin at all.
         registerPlugin(PrintExportPlugin.class);
 
+        // ROADMAP.md "Android SpeechRecognitionPlugin is never registered
+        // with the Capacitor bridge": identical gap to PrintExportPlugin
+        // above, found while fixing that one. SpeechRecognitionPlugin is
+        // also an in-app custom plugin, invisible to the bridge without an
+        // explicit registerPlugin() call; without it, every
+        // SpeechRecognition.* call from capacitorSpeechBridge.ts rejected
+        // with "plugin is not implemented" on a real device, which likely
+        // explains rm-b79c5d31dd1506ca's prior report that the native
+        // recognizer "never actually starts" despite correct-looking JS
+        // call logic -- the call never reached the plugin at all.
+        registerPlugin(SpeechRecognitionPlugin.class);
+
         // F05: Initialize capture intent handler
         captureIntentHandler = new CaptureIntentHandler(this);
 

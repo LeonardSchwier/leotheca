@@ -344,6 +344,7 @@ describe("groupKanbanColumns — folder-based grouping", () => {
       value: "done",
       editable: true,
       style: "plain",
+      sourceWasEmpty: false,
       replaceRange: { start: 0, end: 0 },
       removeRange: { start: 0, end: 0 },
     });

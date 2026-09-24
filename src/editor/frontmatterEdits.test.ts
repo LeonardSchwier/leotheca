@@ -108,6 +108,34 @@ describe("source-preserving frontmatter property edits", () => {
     expect(updateFrontmatterProperty(source, single, "New")).toContain("single: 'New'");
   });
 
+  it("inserts a separating space when filling in a bare empty scalar (`key:` with nothing after)", () => {
+    // A template or hand-written note can leave a field entirely blank:
+    // just "key:" with no value and no trailing space. Filling it in must
+    // produce valid YAML ("key: value"), not "key:value".
+    const source = "---\ndescription:\ntitle: My Note\n---\nBody text.";
+    const description = parseFrontmatterProperties(source).properties.find(
+      (property) => property.key === "description",
+    );
+    if (!description || description.kind !== "scalar") throw new Error("expected editable scalar");
+    expect(updateFrontmatterProperty(source, description, "Hello world")).toBe(
+      "---\ndescription: Hello world\ntitle: My Note\n---\nBody text.",
+    );
+  });
+
+  it("replaces trailing whitespace, not just inserting before it, when filling in `key: ` (colon, space, nothing else)", () => {
+    // The same bare-key case, but with a stray trailing space already in
+    // the source. The written value must not leave that space stranded
+    // between the new value and the newline.
+    const source = "---\ndescription: \ntitle: My Note\n---\nBody text.";
+    const description = parseFrontmatterProperties(source).properties.find(
+      (property) => property.key === "description",
+    );
+    if (!description || description.kind !== "scalar") throw new Error("expected editable scalar");
+    expect(updateFrontmatterProperty(source, description, "Hello world")).toBe(
+      "---\ndescription: Hello world\ntitle: My Note\n---\nBody text.",
+    );
+  });
+
   it("removes only the selected field without moving neighboring raw content", () => {
     const source = "---\n# before\ntitle: Old\ncustom:\n  nested: value\n---\nBody";
     const title = parseFrontmatterProperties(source).properties.find(

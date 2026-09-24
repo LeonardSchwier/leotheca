@@ -16,6 +16,14 @@ export interface EditableScalarProperty extends EditableBase {
   kind: "scalar";
   value: string;
   style: ScalarStyle;
+  /** True when the source had no value at all after the colon (a bare
+   * `key:`, optionally followed only by whitespace and/or an inline
+   * comment). `replaceRange` then spans only that trailing whitespace, not
+   * a `": "` separator -- none exists in the source to reuse -- so
+   * `updateFrontmatterProperty` must prepend one itself, or the written
+   * value would land immediately after the colon with no space
+   * (`key:value`, not valid YAML block-mapping syntax). */
+  sourceWasEmpty: boolean;
 }
 
 export interface EditableListProperty extends EditableBase {
@@ -263,13 +271,20 @@ export function parseFrontmatterProperties(source: string): ParsedFrontmatterPro
         i = j;
         continue;
       }
+      // No real value survives trimming, but the raw source between the
+      // colon and any inline comment/line-end may still hold whitespace
+      // (`key: \n`, `key:   \n`): extend the range through it so a later
+      // update replaces that whitespace too, rather than leaving it behind
+      // as a stray trailing space once a value is written in its place.
+      const emptyValueEnd = line.start + colon + 1 + beforeComment.length;
       properties.push({
         kind: "scalar",
         key,
         value: "",
         style: "plain",
         editable: true,
-        replaceRange: { start: valueStart, end: valueEnd },
+        sourceWasEmpty: true,
+        replaceRange: { start: valueStart, end: emptyValueEnd },
         removeRange: { start: line.start, end: line.endWithNewline },
       });
       i++;
@@ -321,6 +336,7 @@ export function parseFrontmatterProperties(source: string): ParsedFrontmatterPro
       value: stripQuotes(rawValue),
       style: scalarStyle(rawValue),
       editable: true,
+      sourceWasEmpty: false,
       replaceRange: { start: valueStart, end: valueEnd },
       removeRange: { start: line.start, end: line.endWithNewline },
     });
@@ -337,7 +353,8 @@ export function updateFrontmatterProperty(
 ): string {
   if (property.kind === "scalar") {
     if (typeof value !== "string") return source;
-    return replaceRange(source, property.replaceRange, serializeScalar(value, property.style));
+    const serialized = serializeScalar(value, property.style);
+    return replaceRange(source, property.replaceRange, property.sourceWasEmpty ? ` ${serialized}` : serialized);
   }
   if (!Array.isArray(value)) return source;
   if (property.replaceRange.start === property.removeRange.start) {

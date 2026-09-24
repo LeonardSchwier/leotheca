@@ -60,7 +60,9 @@
 
 ### Bugs
 
-- ⬜ **`Open in other group` silently fails to move an already-open tab when `activeGroupId` is stale**: `moveTabToGroup` looks up the tab's source group via `layout.activeGroupId`, not via which group's `tabPaths` actually contains the path, so it silently no-ops when the two disagree -- a race `openInOtherGroup`'s own doc comment already discloses for its `sourceGroupId` resolution, but never fixed for the move itself.
+- 🚧 **`Open in other group` silently fails to move an already-open tab when `activeGroupId` is stale**: `moveTabToGroup` looks up the tab's source group via `layout.activeGroupId`, not via which group's `tabPaths` actually contains the path, so it silently no-ops when the two disagree -- a race `openInOtherGroup`'s own doc comment already discloses for its `sourceGroupId` resolution, but never fixed for the move itself.
+  <!-- agent-state: {"schema":1,"id":"rm-e5484cf619809ed9","state":"claimed","touch":["ROADMAP.md#stale-activegroupid-move-failure","src/workspace/documentGroups.test.ts","src/workspace/documentGroups.ts","src/workspace/store.test.ts"],"resources":["editor-group-tab-move"],"owner":"Claude-Sonnet-5-cloud-scheduled-kindbardeen-20260924T061854Z-aef64d89","token":"4da362f0f28fb1d06d31ff656d500032","branch":"agent/rm-e5484cf619809ed9/4da362f0f28f","claimed_at":"2026-09-24T06:53:53Z","heartbeat_at":"2026-09-24T06:53:53Z","lease_until":"2026-09-24T08:23:53Z"} -->
+  Agent: Claude-Sonnet-5-cloud-scheduled-kindbardeen-20260924T061854Z-aef64d89 | item: rm-e5484cf619809ed9 | lease until: 2026-09-24T08:23:53Z
 
   <details>
   <summary>Reproduction</summary>

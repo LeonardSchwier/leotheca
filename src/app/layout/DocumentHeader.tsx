@@ -84,7 +84,6 @@ const VIEW_MODES: ViewMode[] = ["source", "split", "preview"];
 const SAVED_PULSE_MS = 1500;
 
 export interface DocumentHeaderProps {
-  noteName: string;
   /** The path relative to the active workspace, for the visible breadcrumb. */
   workspaceRelativePath: string;
   /** The complete native path, kept available as a title for long paths. */
@@ -106,7 +105,6 @@ export interface DocumentHeaderProps {
 }
 
 export function DocumentHeader({
-  noteName: _noteName,
   workspaceRelativePath,
   notePath,
   viewMode,

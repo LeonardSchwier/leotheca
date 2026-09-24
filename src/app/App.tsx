@@ -1692,7 +1692,6 @@ export function App() {
           {showActivityRailNav && current?.kind === "text" && (
             <DocumentHeader
               key={current.path}
-              noteName={current.name}
               workspaceRelativePath={rootPath ? relativePath(rootPath, current.path) : current.name}
               notePath={current.path}
               viewMode={viewMode.value}

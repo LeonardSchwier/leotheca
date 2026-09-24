@@ -6,7 +6,6 @@ import { DocumentHeader } from "./DocumentHeader";
 afterEach(cleanup);
 
 const BASE_PROPS = {
-  noteName: "Meeting notes.md",
   workspaceRelativePath: "notes/Meetings/Meeting notes.md",
   notePath: "/workspace/notes/Meeting notes.md",
   viewMode: "source" as const,

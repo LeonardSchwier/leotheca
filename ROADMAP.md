@@ -60,7 +60,9 @@
 
 ### Bugs
 
-- ⬜ **Filling in a blank frontmatter property writes invalid YAML (`key:value`, no space)**: The Properties panel's scalar update writes a new value at the exact zero-width position right after the colon for a field that had no value at all (a bare `key:` line), so the result is `key:value` instead of `key: value` -- not valid YAML block-mapping syntax, and a real YAML parser would then read the whole line as one plain scalar instead of a key/value pair.
+- 🚧 **Filling in a blank frontmatter property writes invalid YAML (`key:value`, no space)**: The Properties panel's scalar update writes a new value at the exact zero-width position right after the colon for a field that had no value at all (a bare `key:` line), so the result is `key:value` instead of `key: value` -- not valid YAML block-mapping syntax, and a real YAML parser would then read the whole line as one plain scalar instead of a key/value pair.
+  <!-- agent-state: {"schema":1,"id":"rm-7a4be79decdb031a","state":"claimed","touch":["ROADMAP.md#blank-frontmatter-value-separator","src/collections/collectionDecode.test.ts","src/editor/frontmatterEdits.test.ts","src/editor/frontmatterEdits.ts"],"resources":["frontmatter-scalar-edits"],"owner":"Claude-Sonnet-5-cloud-scheduled-kindbardeen-20260924T061854Z-aef64d89","token":"20eceed144bf46f9fa21efc248b2402c","branch":"agent/rm-7a4be79decdb031a/20eceed144bf","claimed_at":"2026-09-24T06:36:06Z","heartbeat_at":"2026-09-24T06:36:06Z","lease_until":"2026-09-24T08:06:06Z"} -->
+  Agent: Claude-Sonnet-5-cloud-scheduled-kindbardeen-20260924T061854Z-aef64d89 | item: rm-7a4be79decdb031a | lease until: 2026-09-24T08:06:06Z
 
   <details>
   <summary>Root cause and reproduction</summary>

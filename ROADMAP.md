@@ -223,7 +223,7 @@
 
   </details>
 
-
+- ⬜ **Open files from outside the vault from within an open app**: Obsidian 1.14.2 Desktop ships two new entry points on top of the already-implemented OS file-association "Open with" default-app registration: an in-app command ("Open file from outside the vault...") to pick any file on the computer and view it in the current window, and first-class OS default-app status for Markdown via the standard installer. Leotheca already handles external-file launches when a workspace is open and when none is (ExternalFileView scratch workspace), but has no equivalent in-app command and no OS-level default-app registration path on desktop; both are local file operations on plain Markdown files with no proprietary surface, and following the standard OS file-association convention is the "shoulders of giants" route rather than inventing a competing open mechanism. (Competitor scan, Obsidian Desktop v1.14.2, 2026-09-15).
 
 
 ## Implemented

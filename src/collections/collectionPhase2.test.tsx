@@ -210,6 +210,40 @@ describe("F09 Phase 2 result views", () => {
     expect(columns.map((column) => column.label)).toEqual(["active", "done", "Unassigned"]);
     expect(columns[2].notes.map((entry) => entry.path)).toEqual(["b/Tags.md", "c/Missing.md"]);
   });
+
+  it("groups property values case-insensitively, matching how a filter query already treats them", () => {
+    // A `status is Work` filter (collectionQuery.ts's evaluateStringLike,
+    // via its own case-folding `fold`) would match all three notes below
+    // despite their frontmatter capitalizing the value differently -- the
+    // board must group them into the same column, not fragment them.
+    const columns = groupKanbanColumns([
+      note("a/Alpha.md", "---\nstatus: Work\n---\n"),
+      note("b/Beta.md", "---\nstatus: work\n---\n"),
+      note("c/Gamma.md", "---\nstatus: WORK\n---\n"),
+    ], "status");
+
+    expect(columns).toHaveLength(1);
+    expect(columns[0].notes.map((entry) => entry.path)).toEqual([
+      "a/Alpha.md",
+      "b/Beta.md",
+      "c/Gamma.md",
+    ]);
+    // The first-seen original casing is kept as the visible label.
+    expect(columns[0].label).toBe("Work");
+  });
+
+  it("keeps folder-based board columns case-sensitive, unlike property grouping", () => {
+    // Folders are real directories on a case-sensitive filesystem: two
+    // differently-cased folder names are two different folders, not the
+    // same value written inconsistently, so they must stay separate
+    // columns even though property grouping now folds case.
+    const columns = groupKanbanColumns(
+      [note("Projects/Alpha.md"), note("projects/Beta.md")],
+      FOLDER_GROUP_BY,
+    );
+
+    expect(columns.map((column) => column.label).sort()).toEqual(["Projects", "projects"]);
+  });
 });
 
 describe("F09 Phase 2 result views: stale note handling (maintenance review)", () => {

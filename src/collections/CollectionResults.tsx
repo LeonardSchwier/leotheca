@@ -83,10 +83,19 @@ export function groupKanbanColumns(results: NoteRecord[], groupBy: string): Kanb
             ? property.value.trim()
             : UNASSIGNED_KANBAN_COLUMN;
         })();
-    const existing = columns.get(value);
+    // Property values are grouped case-insensitively, matching how filter
+    // queries and sorting already treat them (collectionQuery.ts's `fold`/
+    // `sortValue`): otherwise notes whose frontmatter capitalizes the same
+    // value differently ("Work" vs "work") would silently fragment into
+    // separate columns instead of the one a `status is Work` filter would
+    // match them all under. Folder paths stay case-sensitive -- two
+    // differently-cased folders are genuinely different directories on a
+    // case-sensitive filesystem, not the same value written inconsistently.
+    const key = value === UNASSIGNED_KANBAN_COLUMN || byFolder ? value : value.toLocaleLowerCase();
+    const existing = columns.get(key);
     if (existing) existing.notes.push(note);
-    else columns.set(value, {
-      key: value,
+    else columns.set(key, {
+      key,
       label: value === UNASSIGNED_KANBAN_COLUMN ? "Unassigned" : value,
       notes: [note],
     });

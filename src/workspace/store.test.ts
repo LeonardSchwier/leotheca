@@ -445,6 +445,27 @@ describe("openInOtherGroup", () => {
     expect(openDocuments.value.find((d) => d.path === "/b.md")?.content).toBe("keep me");
     expect(editorLayout.value.compactVisibleGroupId).toBe("secondary");
   });
+
+  it("still moves an already-open note when activeGroupId is stale relative to where the link was clicked", () => {
+    // Both the clicked note and its already-open target tab live in
+    // secondary, but activeGroupId still names primary -- the exact race
+    // this function's own doc comment describes (a click's pane-focus side
+    // effect hasn't run yet). openInOtherGroup must resolve the move from
+    // sourceNotePath, not the stale activeGroupId, all the way through to
+    // moveTabToGroup actually finding and moving the tab.
+    openOrFocusTab("/a.md", "a.md", "", "text");
+    splitRight();
+    focusGroup("secondary");
+    openOrFocusTab("/clicked-in.md", "clicked-in.md", "", "text");
+    openOrFocusTab("/target.md", "target.md", "", "text");
+    // Simulate the stale-activeGroupId race directly.
+    editorLayout.value = { ...editorLayout.value, activeGroupId: "primary" };
+
+    openInOtherGroup("/target.md", "target.md", "ignored, already open", "text", "/clicked-in.md");
+
+    expect(secondaryOpenTabs.value.map((t) => t.path)).toEqual(["/clicked-in.md"]);
+    expect(openTabs.value.map((t) => t.path)).toEqual(["/a.md", "/target.md"]);
+  });
 });
 
 describe("closeSecondaryGroup (merge into primary)", () => {

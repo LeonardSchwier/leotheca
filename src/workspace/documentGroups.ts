@@ -185,23 +185,38 @@ export function createSplitLayout(
   };
 }
 
-/** Moves a tab from one group to another. */
+/** Which group's `tabPaths` actually contains `path`. Defaults to
+ * "primary" when `path` isn't open in either group (the caller's own
+ * `tabPaths.includes` guard then no-ops on the resulting mismatch). */
+function groupContaining(layout: EditorLayoutState, path: string): EditorGroupId {
+  return layout.groups.secondary?.tabPaths.includes(path) ? "secondary" : "primary";
+}
+
+/** Moves a tab from whichever group actually holds it to `targetGroupId`.
+ * Derives the source group from `path` itself, not `layout.activeGroupId`:
+ * a caller resolving "other group" from something other than the active
+ * group (`store.ts`'s `openInOtherGroup`, which deliberately resolves from
+ * the link's own source note because `activeGroupId` can still name the
+ * pane that was active *before* a click whose focus side effect hasn't run
+ * yet) would otherwise have this function look for `path` in the wrong
+ * group, find it missing, and silently no-op instead of moving it. */
 export function moveTabToGroup(
   layout: EditorLayoutState,
   path: string,
   targetGroupId: EditorGroupId,
 ): EditorLayoutState {
-  const sourceGroup = getGroup(layout, layout.activeGroupId);
+  const sourceGroupId = groupContaining(layout, path);
+  const sourceGroup = getGroup(layout, sourceGroupId);
   const targetGroup = getGroup(layout, targetGroupId);
-  
+
   if (!sourceGroup || !targetGroup || !sourceGroup.tabPaths.includes(path)) {
     return layout;
   }
-  
+
   if (targetGroup.tabPaths.includes(path)) {
     return layout;
   }
-  
+
   const newSource: EditorGroupState = {
     ...sourceGroup,
     tabPaths: sourceGroup.tabPaths.filter((p) => p !== path),
@@ -210,13 +225,13 @@ export function moveTabToGroup(
       ? sourceGroup.tabPaths.find((p) => p !== path) ?? null
       : sourceGroup.activePath,
   };
-  
+
   const newTarget: EditorGroupState = {
     ...targetGroup,
     tabPaths: [...targetGroup.tabPaths, path],
     activePath: targetGroup.activePath ?? path,
   };
-  
+
   return {
     ...layout,
     activeGroupId: targetGroupId,
@@ -225,8 +240,8 @@ export function moveTabToGroup(
     // narrow window/Android still pointed at the group it moved out of.
     compactVisibleGroupId: targetGroupId,
     groups: {
-      primary: layout.activeGroupId === "primary" ? newSource : (targetGroupId === "primary" ? newTarget : layout.groups.primary),
-      secondary: layout.activeGroupId === "secondary" ? newSource : (targetGroupId === "secondary" ? newTarget : layout.groups.secondary),
+      primary: sourceGroupId === "primary" ? newSource : (targetGroupId === "primary" ? newTarget : layout.groups.primary),
+      secondary: sourceGroupId === "secondary" ? newSource : (targetGroupId === "secondary" ? newTarget : layout.groups.secondary),
     },
   };
 }

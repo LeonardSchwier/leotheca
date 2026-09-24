@@ -179,6 +179,28 @@ describe("moveTabToGroup", () => {
 
     expect(layout).toBe(initial);
   });
+
+  it("moves a tab from the group that actually holds it, not activeGroupId, when the two disagree", () => {
+    // store.ts's openInOtherGroup deliberately resolves "which group is
+    // this link's target in" from the clicked note's own path, not
+    // activeGroupId -- because activeGroupId can still name whichever pane
+    // was active *before* a click whose own focus side effect hasn't run
+    // yet (see openInOtherGroup's doc comment). A stale activeGroupId here
+    // must not stop the move: the tab lives in "secondary", so it should
+    // move from there to "primary" regardless of what activeGroupId says.
+    let layout = createSplitLayout(createPrimaryEditorLayout(["/a.md"], "/a.md"));
+    layout = moveTabToGroup(layout, "/a.md", "secondary");
+    expect(layout.groups.secondary?.tabPaths).toEqual(["/a.md"]);
+    // Simulate the stale-activeGroupId race directly: activeGroupId still
+    // says "primary" even though the tab actually being moved lives in
+    // "secondary".
+    layout = { ...layout, activeGroupId: "primary" };
+
+    const result = moveTabToGroup(layout, "/a.md", "primary");
+
+    expect(result.groups.secondary?.tabPaths).toEqual([]);
+    expect(result.groups.primary.tabPaths).toContain("/a.md");
+  });
 });
 
 describe("mergeSecondaryIntoPrimary", () => {

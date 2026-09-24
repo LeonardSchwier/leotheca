@@ -60,7 +60,9 @@
 
 ### Bugs
 
-- ⬜ **Kanban board groups a property's values case-sensitively, fragmenting one category into several columns**: `groupKanbanColumns` keys a board column by the raw property value, so notes whose frontmatter capitalizes the same value differently (`Work` vs `work` vs `WORK`) land in separate columns instead of one, unlike this module's own filter/sort comparisons, which already fold case.
+- 🚧 **Kanban board groups a property's values case-sensitively, fragmenting one category into several columns**: `groupKanbanColumns` keys a board column by the raw property value, so notes whose frontmatter capitalizes the same value differently (`Work` vs `work` vs `WORK`) land in separate columns instead of one, unlike this module's own filter/sort comparisons, which already fold case.
+  <!-- agent-state: {"schema":1,"id":"rm-72179261a34bc546","state":"claimed","touch":["ROADMAP.md#kanban-case-sensitive-grouping","src/collections/CollectionResults.tsx","src/collections/collectionPhase2.test.tsx"],"resources":["kanban-column-grouping"],"owner":"Claude-Sonnet-5-cloud-scheduled-kindbardeen-20260924T061854Z-aef64d89","token":"258b11289e22807351a0fd8954b74375","branch":"agent/rm-72179261a34bc546/258b11289e22","claimed_at":"2026-09-24T06:43:06Z","heartbeat_at":"2026-09-24T06:43:06Z","lease_until":"2026-09-24T08:13:06Z"} -->
+  Agent: Claude-Sonnet-5-cloud-scheduled-kindbardeen-20260924T061854Z-aef64d89 | item: rm-72179261a34bc546 | lease until: 2026-09-24T08:13:06Z
 
   <details>
   <summary>Reproduction</summary>

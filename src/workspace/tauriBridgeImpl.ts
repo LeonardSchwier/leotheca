@@ -399,3 +399,33 @@ export function onExternalFileOpen(callback: (path: string) => void): () => void
     unlisten?.();
   };
 }
+
+/** In-app half of ROADMAP.md's "Open files from outside the vault from
+ * within an open app" (Obsidian Desktop v1.14.2 parity, 2026-09-15
+ * competitor scan). The OS-level half -- Markdown as a registered file
+ * type an installer offers as a default-app option -- already exists via
+ * this same `tauri.conf.json`'s `bundle.fileAssociations`, which the
+ * platform bundlers (macOS `Info.plist`, Linux `.desktop` `MimeType=`,
+ * the Windows installer) turn into real OS registration with no
+ * additional code; that only leaves the missing in-app command an
+ * already-running instance needs, a plain "Open File" dialog rather than
+ * a second OS-launch code path. Returns the picked absolute path, or
+ * `null` when the user cancels -- same convention as
+ * `pickWorkspaceFolder`/`pickHtmlExportPath` above. Deliberately not
+ * routed through `tauriBridge.ts`'s platform dispatcher: like
+ * `pickHtmlExportPath`, this is a desktop-only native file dialog with no
+ * Android/Capacitor counterpart, so `App.tsx`'s command imports it
+ * directly and gates itself to desktop the same way "Export note to
+ * HTML…" already does. The picked path is handed to the same
+ * `handleExternalFileOpen` App.tsx already uses for OS file-association
+ * launches, so a file inside the current workspace opens as an ordinary
+ * tab and one outside it opens the existing read-only `ExternalFileView`
+ * scratch view -- one open path, not a second one invented for this
+ * command. */
+export async function pickMarkdownFileToOpen(): Promise<string | null> {
+  const selected = await open({
+    multiple: false,
+    filters: [{ name: "Markdown", extensions: ["md"] }],
+  });
+  return Array.isArray(selected) ? (selected[0] ?? null) : selected;
+}

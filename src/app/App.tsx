@@ -16,7 +16,7 @@ import { ImageViewerOverlay } from "../editor/ImageViewerOverlay";
 import { PdfViewer } from "../pdf/PdfViewer";
 import { printNoteHtml } from "../export/printNote";
 import { inlineLocalImages, buildExportDocument } from "../export/exportNoteHtml";
-import { exportTextFileViaDialog } from "../workspace/tauriBridgeImpl";
+import { exportTextFileViaDialog, pickMarkdownFileToOpen } from "../workspace/tauriBridgeImpl";
 import { printNote as printNoteAndroid, exportNoteHtml as exportNoteHtmlAndroid } from "../workspace/capacitorBridgeImpl";
 import { CaptureSheet, captureSheetOpen, openCaptureSheet } from "./CaptureSheet";
 import { PendingCapturesPanel, initPendingCaptures, processAndroidPendingShareData } from "../capture";
@@ -673,6 +673,24 @@ export function App() {
     [handleOpenFile],
   );
 
+  /** ROADMAP.md's "Open files from outside the vault from within an open
+   * app": the in-app command counterpart to the OS file-association launch
+   * path `handleExternalFileOpen` above already serves. Reuses that same
+   * handler rather than a second open-and-display code path, so a picked
+   * file inside the current workspace opens as an ordinary tab and one
+   * outside it gets the same read-only `ExternalFileView` scratch view --
+   * one open path for "opened from outside the vault" regardless of how
+   * the path was obtained. A cancelled dialog (`pickMarkdownFileToOpen`
+   * resolving `null`) is a silent no-op, the same convention every other
+   * caller of `handleExternalFileOpen` already follows for a target that
+   * doesn't pan out. Desktop-only: gated at the call site the same way
+   * "Export note to HTML…" already gates itself, since this native file
+   * dialog has no Android/Capacitor counterpart yet. */
+  const handleOpenExternalFileViaPicker = useCallback(async () => {
+    const path = await pickMarkdownFileToOpen();
+    if (path) await handleExternalFileOpen(path);
+  }, [handleExternalFileOpen]);
+
   useEffect(() => {
     if (Capacitor.isNativePlatform()) return;
     let cancelled = false;
@@ -979,6 +997,15 @@ export function App() {
       },
       { id: "settings", label: "Open Settings", run: () => (settingsPanelOpen.value = true) },
       { id: "capture", label: "Quick Capture", run: () => openCaptureSheet() },
+      ...(!Capacitor.isNativePlatform()
+        ? [
+            {
+              id: "open-external-file",
+              label: "Open file from outside the vault...",
+              run: () => void handleOpenExternalFileViaPicker(),
+            },
+          ]
+        : []),
     ];
     if (rootPath) {
       if (workspaceSettings.value.templatesEnabled) {
@@ -1220,6 +1247,7 @@ export function App() {
     toggleCurrentNoteReadOnly,
     openTabs.value,
     handleOpenFile,
+    handleOpenExternalFileViaPicker,
     openCollectionsPanel,
     openTagsPanel,
     openTaskHubPanel,

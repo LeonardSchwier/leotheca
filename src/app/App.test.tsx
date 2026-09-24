@@ -136,6 +136,15 @@ vi.mock("@tauri-apps/plugin-clipboard-manager", () => ({
   writeText: writeClipboardText,
 }));
 
+const { pickMarkdownFileToOpen } = vi.hoisted(() => ({
+  pickMarkdownFileToOpen: vi.fn<() => Promise<string | null>>(async () => null),
+}));
+
+vi.mock("../workspace/tauriBridgeImpl", () => ({
+  exportTextFileViaDialog: vi.fn(),
+  pickMarkdownFileToOpen,
+}));
+
 vi.mock("../workspace/Sidebar", () => ({
   Sidebar: ({
     onOpenFile,
@@ -260,6 +269,8 @@ afterEach(() => {
   addWorkspaceFromPathSpy.mockClear();
   externalFileOpenEnabled.value = true;
   pendingCapturesStore.value = [];
+  pickMarkdownFileToOpen.mockReset();
+  pickMarkdownFileToOpen.mockResolvedValue(null);
 });
 
 describe("App: shared indexing status (UX-01 STATE-003)", () => {
@@ -1339,6 +1350,65 @@ describe("App: OS file-association external file open (ROADMAP.md desktop-only f
     });
     expect(queryByText("permission denied")).toBeNull();
     expect(queryByText("external content")).toBeNull();
+  });
+});
+
+describe("App: 'Open file from outside the vault...' in-app command (ROADMAP.md desktop-only feature)", () => {
+  const openCommandPalette = async () => {
+    fireEvent.click(document.querySelector('[aria-label="Command palette"]')!);
+    await Promise.resolve();
+  };
+
+  const runOpenFromOutsideVaultCommand = async (getByPlaceholderText: (t: string) => HTMLElement, getByText: (t: string) => HTMLElement) => {
+    await act(async () => {
+      await openCommandPalette();
+    });
+    fireEvent.input(getByPlaceholderText("Type a command..."), {
+      target: { value: "outside the vault" },
+    });
+    await act(async () => {
+      fireEvent.click(getByText("Open file from outside the vault..."));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+  };
+
+  it("reuses the ordinary tab machinery when the picked file is inside the current workspace", async () => {
+    workspacePath.value = "/vault";
+    readTextFile.mockResolvedValueOnce("note content");
+    pickMarkdownFileToOpen.mockResolvedValueOnce("/vault/note.md");
+    const { getByPlaceholderText, getByText } = render(<App />);
+
+    await runOpenFromOutsideVaultCommand(getByPlaceholderText, getByText);
+
+    expect(pickMarkdownFileToOpen).toHaveBeenCalledTimes(1);
+    expect(activeTabPath.value).toBe("/vault/note.md");
+    expect(readTextFile).toHaveBeenCalledWith("/vault/note.md");
+  });
+
+  it("shows the read-only scratch view when the picked file is outside the current workspace", async () => {
+    workspacePath.value = "/vault";
+    readTextFile.mockResolvedValueOnce("external content");
+    pickMarkdownFileToOpen.mockResolvedValueOnce("/elsewhere/other.md");
+    const { getByPlaceholderText, getByText, findByText } = render(<App />);
+
+    await runOpenFromOutsideVaultCommand(getByPlaceholderText, getByText);
+
+    await findByText("external content");
+    expect(getByText("/elsewhere/other.md")).toBeTruthy();
+    expect(activeTabPath.value).not.toBe("/elsewhere/other.md");
+  });
+
+  it("does nothing when the dialog is cancelled", async () => {
+    workspacePath.value = "/vault";
+    pickMarkdownFileToOpen.mockResolvedValueOnce(null);
+    const { getByPlaceholderText, getByText } = render(<App />);
+
+    await runOpenFromOutsideVaultCommand(getByPlaceholderText, getByText);
+
+    expect(pickMarkdownFileToOpen).toHaveBeenCalledTimes(1);
+    expect(readTextFile).not.toHaveBeenCalled();
+    expect(activeTabPath.value).toBeNull();
   });
 });
 

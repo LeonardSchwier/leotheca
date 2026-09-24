@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
-const { saveImpl } = vi.hoisted(() => ({ saveImpl: vi.fn() }));
+const { saveImpl, openImpl } = vi.hoisted(() => ({ saveImpl: vi.fn(), openImpl: vi.fn() }));
 
 vi.mock("@tauri-apps/plugin-dialog", () => ({
-  open: vi.fn(),
+  open: openImpl,
   save: saveImpl,
 }));
 vi.mock("@tauri-apps/api/core", () => ({
@@ -15,7 +15,12 @@ vi.mock("@tauri-apps/api/app", () => ({ getVersion: vi.fn() }));
 vi.mock("@tauri-apps/api/event", () => ({ listen: vi.fn() }));
 
 import { invoke } from "@tauri-apps/api/core";
-import { exportTextFileViaDialog, pickHtmlExportPath, setActiveWorkspaceRoot } from "./tauriBridgeImpl";
+import {
+  exportTextFileViaDialog,
+  pickHtmlExportPath,
+  pickMarkdownFileToOpen,
+  setActiveWorkspaceRoot,
+} from "./tauriBridgeImpl";
 
 const invokeMock = vi.mocked(invoke);
 
@@ -38,6 +43,36 @@ describe("pickHtmlExportPath", () => {
     const result = await pickHtmlExportPath("My Note.html");
 
     expect(result).toBeNull();
+  });
+});
+
+describe("pickMarkdownFileToOpen", () => {
+  it("opens a file dialog filtered to .md, single-select", async () => {
+    openImpl.mockResolvedValueOnce("/home/user/Documents/scratch-note.md");
+
+    const result = await pickMarkdownFileToOpen();
+
+    expect(openImpl).toHaveBeenCalledWith({
+      multiple: false,
+      filters: [{ name: "Markdown", extensions: ["md"] }],
+    });
+    expect(result).toBe("/home/user/Documents/scratch-note.md");
+  });
+
+  it("returns null when the user cancels the dialog", async () => {
+    openImpl.mockResolvedValueOnce(null);
+
+    const result = await pickMarkdownFileToOpen();
+
+    expect(result).toBeNull();
+  });
+
+  it("returns the first entry when the underlying dialog resolves an array", async () => {
+    openImpl.mockResolvedValueOnce(["/home/user/Documents/first.md", "/home/user/Documents/second.md"]);
+
+    const result = await pickMarkdownFileToOpen();
+
+    expect(result).toBe("/home/user/Documents/first.md");
   });
 });
 

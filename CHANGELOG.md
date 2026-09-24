@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added an "Open file from outside the vault..." command (desktop only, via the Command Palette): pick any Markdown file on your computer and view it right away, using the same behavior as opening one via your file manager's "Open with" — a file inside your current workspace opens as an editable tab, and one outside it opens in the existing read-only scratch view with a button to open its containing folder as a workspace.
+
 - Added `==highlighted text==` support, in both the Source editor and Preview: it now renders as a highlighted `<mark>` instead of literal `==` characters. Prefix the highlight with a color emoji (🔴 🟠 🟢 🔵 🟣) to color it, e.g. `==🔴important==`, following the same convention Obsidian uses. Picking a color from a menu isn't available yet — typing the emoji is the only way to set one for now.
 
 - Added an "Export note to HTML…" command on desktop: saves the current note as a standalone `.html` file via a native Save dialog, with local attachment images embedded directly in the file so it opens correctly with no Leotheca installed. Same Preview/Split-view availability as "Print note" below. Android support is tracked separately and not yet available.

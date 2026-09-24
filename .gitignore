@@ -36,3 +36,7 @@ Thumbs.db
 
 # Claude Code local session/tool state, not part of the project
 /.claude/
+
+# E2E test artifacts
+tests/ui/__pycache__/
+tests/ui/screenshots/

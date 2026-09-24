@@ -3,16 +3,20 @@ mod external_open;
 mod speech_commands;
 mod workspace_mutations;
 
-use external_open::PendingOpenFile;
+use external_open::{ExternalMarkdownFile, PendingOpenFile};
 use tauri::Emitter;
 
 /// Both the single-instance relaunch callback below and the macOS
 /// `RunEvent::Opened` handler in `run()` forward through this one
 /// function so the frontend has exactly one live event to listen for
 /// ("open-external-file"), regardless of which platform-specific
-/// mechanism actually delivered the path.
-fn emit_open_external_file(app: &tauri::AppHandle, path: String) {
-    let _ = app.emit("open-external-file", path);
+/// mechanism actually delivered the path. Takes the already-read file
+/// (see `ExternalMarkdownFile`'s doc comment), not a bare path: the
+/// frontend has no other way to fetch this content, since it is by
+/// definition outside both roots `read_text_file`/`read_binary_file`
+/// allow.
+fn emit_open_external_file(app: &tauri::AppHandle, file: ExternalMarkdownFile) {
+    let _ = app.emit("open-external-file", file);
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -47,8 +51,10 @@ pub fn run() {
     {
         builder = builder.plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
             let relaunch_args = argv.get(1..).unwrap_or(&[]);
-            if let Some(path) = external_open::extract_markdown_path(relaunch_args) {
-                emit_open_external_file(app, path);
+            if let Some(file) = external_open::extract_markdown_path(relaunch_args)
+                .and_then(external_open::read_markdown_file)
+            {
+                emit_open_external_file(app, file);
             }
         }));
     }
@@ -75,7 +81,8 @@ pub fn run() {
     // (live) split for the identical cold-start-vs-already-running
     // distinction.
     let cold_start_args: Vec<String> = std::env::args().skip(1).collect();
-    let initial_pending_open_file = external_open::extract_markdown_path(&cold_start_args);
+    let initial_pending_open_file = external_open::extract_markdown_path(&cold_start_args)
+        .and_then(external_open::read_markdown_file);
     builder = builder.manage(PendingOpenFile::new(initial_pending_open_file));
 
     builder
@@ -116,6 +123,7 @@ pub fn run() {
             speech_commands::get_whisper_models,
             speech_commands::check_whisper_models,
             external_open::take_pending_open_file,
+            external_open::pick_and_read_external_markdown_file,
         ])
         .build(tauri::generate_context!())
         .expect("error while building the Leotheca application")
@@ -127,8 +135,10 @@ pub fn run() {
             // this live event on the already-running process instead.
             #[cfg(target_os = "macos")]
             if let tauri::RunEvent::Opened { urls } = &_event {
-                if let Some(path) = external_open::markdown_path_from_urls(urls) {
-                    emit_open_external_file(_app_handle, path);
+                if let Some(file) = external_open::markdown_path_from_urls(urls)
+                    .and_then(external_open::read_markdown_file)
+                {
+                    emit_open_external_file(_app_handle, file);
                 }
             }
         });

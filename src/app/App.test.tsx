@@ -63,8 +63,10 @@ const { readTextFile, writeTextFile, takePendingExternalFile, externalFileOpenLi
     writeTextFile: vi.fn<(path: string, content: string) => Promise<void>>(() =>
       Promise.resolve(),
     ),
-    takePendingExternalFile: vi.fn<() => Promise<string | null>>(async () => null),
-    externalFileOpenListeners: [] as ((path: string) => void)[],
+    takePendingExternalFile: vi.fn<() => Promise<{ path: string; content: string } | null>>(
+      async () => null,
+    ),
+    externalFileOpenListeners: [] as ((file: { path: string; content: string }) => void)[],
   }));
 
 vi.mock("../workspace/tauriBridge", () => ({
@@ -85,7 +87,7 @@ vi.mock("../workspace/tauriBridge", () => ({
   setStatusBarAppearance: vi.fn(),
   updateFavoritesWidget: vi.fn(async () => {}),
   takePendingExternalFile,
-  onExternalFileOpen: vi.fn((listener: (path: string) => void) => {
+  onExternalFileOpen: vi.fn((listener: (file: { path: string; content: string }) => void) => {
     externalFileOpenListeners.push(listener);
     return () => {};
   }),
@@ -137,7 +139,9 @@ vi.mock("@tauri-apps/plugin-clipboard-manager", () => ({
 }));
 
 const { pickMarkdownFileToOpen } = vi.hoisted(() => ({
-  pickMarkdownFileToOpen: vi.fn<() => Promise<string | null>>(async () => null),
+  pickMarkdownFileToOpen: vi.fn<() => Promise<{ path: string; content: string } | null>>(
+    async () => null,
+  ),
 }));
 
 vi.mock("../workspace/tauriBridgeImpl", () => ({
@@ -1207,22 +1211,23 @@ describe("App: OS file-association external file open (ROADMAP.md desktop-only f
     render(<App />);
 
     await act(async () => {
-      externalFileOpenListeners.at(-1)?.("/vault/note.md");
+      externalFileOpenListeners.at(-1)?.({ path: "/vault/note.md", content: "unused" });
       await Promise.resolve();
       await Promise.resolve();
     });
 
     expect(activeTabPath.value).toBe("/vault/note.md");
+    // An in-workspace target goes through the ordinary contained read, not
+    // the already-delivered event payload's own content.
     expect(readTextFile).toHaveBeenCalledWith("/vault/note.md");
   });
 
-  it("shows a read-only scratch view, not an editable tab, when the path is outside the current workspace", async () => {
+  it("shows a read-only scratch view, not an editable tab, using the content delivered with the event, when the path is outside the current workspace", async () => {
     workspacePath.value = "/vault";
-    readTextFile.mockResolvedValueOnce("external content");
     const { findByText, getByText } = render(<App />);
 
     await act(async () => {
-      externalFileOpenListeners.at(-1)?.("/elsewhere/other.md");
+      externalFileOpenListeners.at(-1)?.({ path: "/elsewhere/other.md", content: "external content" });
       await Promise.resolve();
       await Promise.resolve();
     });
@@ -1232,20 +1237,28 @@ describe("App: OS file-association external file open (ROADMAP.md desktop-only f
     expect(getByText(/Opened from outside your workspace/)).toBeTruthy();
     // Never routed through the workspace tab machinery: no tab opens for it.
     expect(activeTabPath.value).not.toBe("/elsewhere/other.md");
+    // Regression proof for the fix this test file documents: `readTextFile`
+    // maps to the Rust `read_text_file` command, which is scoped to the
+    // active workspace root and the app config directory only (2026-09-22
+    // security review) and rejects everything else -- so a real path
+    // outside every known root, exactly this scenario, could never be
+    // fetched through it. The event now carries the content Rust already
+    // read directly, so this path never calls `readTextFile` at all.
+    expect(readTextFile).not.toHaveBeenCalled();
   });
 
   it("shows the scratch view when no workspace is open at all", async () => {
     workspacePath.value = null;
-    readTextFile.mockResolvedValueOnce("orphan content");
     const { findByText } = render(<App />);
 
     await act(async () => {
-      externalFileOpenListeners.at(-1)?.("/notes/orphan.md");
+      externalFileOpenListeners.at(-1)?.({ path: "/notes/orphan.md", content: "orphan content" });
       await Promise.resolve();
       await Promise.resolve();
     });
 
     await findByText("orphan content");
+    expect(readTextFile).not.toHaveBeenCalled();
   });
 
   it("does nothing when externalFileOpenEnabled is off", async () => {
@@ -1254,7 +1267,7 @@ describe("App: OS file-association external file open (ROADMAP.md desktop-only f
     render(<App />);
 
     await act(async () => {
-      externalFileOpenListeners.at(-1)?.("/vault/note.md");
+      externalFileOpenListeners.at(-1)?.({ path: "/vault/note.md", content: "note content" });
       await Promise.resolve();
       await Promise.resolve();
     });
@@ -1268,7 +1281,7 @@ describe("App: OS file-association external file open (ROADMAP.md desktop-only f
     render(<App />);
 
     await act(async () => {
-      externalFileOpenListeners.at(-1)?.("/vault/image.png");
+      externalFileOpenListeners.at(-1)?.({ path: "/vault/image.png", content: "not markdown" });
       await Promise.resolve();
     });
 
@@ -1278,7 +1291,7 @@ describe("App: OS file-association external file open (ROADMAP.md desktop-only f
   it("opens a cold-start pending file (fresh launch via OS file association) once settings finish loading", async () => {
     workspacePath.value = "/vault";
     readTextFile.mockResolvedValueOnce("note content");
-    takePendingExternalFile.mockResolvedValueOnce("/vault/note.md");
+    takePendingExternalFile.mockResolvedValueOnce({ path: "/vault/note.md", content: "unused" });
     render(<App />);
 
     await act(async () => {
@@ -1289,13 +1302,29 @@ describe("App: OS file-association external file open (ROADMAP.md desktop-only f
     expect(activeTabPath.value).toBe("/vault/note.md");
   });
 
+  it("shows a cold-start pending file's own delivered content when it resolves outside the workspace", async () => {
+    workspacePath.value = "/vault";
+    takePendingExternalFile.mockResolvedValueOnce({
+      path: "/elsewhere/cold-start.md",
+      content: "cold start content",
+    });
+    const { findByText } = render(<App />);
+
+    await act(async () => {
+      settingsLoaded.value = true;
+      for (let i = 0; i < 6; i++) await Promise.resolve();
+    });
+
+    await findByText("cold start content");
+    expect(readTextFile).not.toHaveBeenCalled();
+  });
+
   it("'Open containing folder as a workspace' activates that folder and closes the scratch view", async () => {
     workspacePath.value = "/vault";
-    readTextFile.mockResolvedValueOnce("external content");
     const { findByText, getByText, queryByText } = render(<App />);
 
     await act(async () => {
-      externalFileOpenListeners.at(-1)?.("/elsewhere/notes/other.md");
+      externalFileOpenListeners.at(-1)?.({ path: "/elsewhere/notes/other.md", content: "external content" });
       await Promise.resolve();
       await Promise.resolve();
     });
@@ -1313,12 +1342,11 @@ describe("App: OS file-association external file open (ROADMAP.md desktop-only f
 
   it("shows an error and keeps the scratch view open when 'Open containing folder as a workspace' fails", async () => {
     workspacePath.value = "/vault";
-    readTextFile.mockResolvedValueOnce("external content");
     addWorkspaceFromPathSpy.mockRejectedValueOnce(new Error("permission denied"));
     const { findByText, getByText, queryByText } = render(<App />);
 
     await act(async () => {
-      externalFileOpenListeners.at(-1)?.("/elsewhere/notes/other.md");
+      externalFileOpenListeners.at(-1)?.({ path: "/elsewhere/notes/other.md", content: "external content" });
       await Promise.resolve();
       await Promise.resolve();
     });
@@ -1376,20 +1404,24 @@ describe("App: 'Open file from outside the vault...' in-app command (ROADMAP.md 
   it("reuses the ordinary tab machinery when the picked file is inside the current workspace", async () => {
     workspacePath.value = "/vault";
     readTextFile.mockResolvedValueOnce("note content");
-    pickMarkdownFileToOpen.mockResolvedValueOnce("/vault/note.md");
+    pickMarkdownFileToOpen.mockResolvedValueOnce({ path: "/vault/note.md", content: "unused" });
     const { getByPlaceholderText, getByText } = render(<App />);
 
     await runOpenFromOutsideVaultCommand(getByPlaceholderText, getByText);
 
     expect(pickMarkdownFileToOpen).toHaveBeenCalledTimes(1);
     expect(activeTabPath.value).toBe("/vault/note.md");
+    // An in-workspace target goes through the ordinary contained read, not
+    // the picker's own delivered content.
     expect(readTextFile).toHaveBeenCalledWith("/vault/note.md");
   });
 
-  it("shows the read-only scratch view when the picked file is outside the current workspace", async () => {
+  it("shows the read-only scratch view, using the content the picker already read, when the picked file is outside the current workspace", async () => {
     workspacePath.value = "/vault";
-    readTextFile.mockResolvedValueOnce("external content");
-    pickMarkdownFileToOpen.mockResolvedValueOnce("/elsewhere/other.md");
+    pickMarkdownFileToOpen.mockResolvedValueOnce({
+      path: "/elsewhere/other.md",
+      content: "external content",
+    });
     const { getByPlaceholderText, getByText, findByText } = render(<App />);
 
     await runOpenFromOutsideVaultCommand(getByPlaceholderText, getByText);
@@ -1397,6 +1429,13 @@ describe("App: 'Open file from outside the vault...' in-app command (ROADMAP.md 
     await findByText("external content");
     expect(getByText("/elsewhere/other.md")).toBeTruthy();
     expect(activeTabPath.value).not.toBe("/elsewhere/other.md");
+    // Regression proof: `pickMarkdownFileToOpen` now reads through the
+    // native `pick_and_read_external_markdown_file` Rust command in the
+    // same call that shows the dialog, rather than returning a bare path
+    // for a second call to `readTextFile` -- which maps to the
+    // workspace/config-dir-scoped `read_text_file` command and would
+    // reject a real path outside the workspace like this one.
+    expect(readTextFile).not.toHaveBeenCalled();
   });
 
   it("does nothing when the dialog is cancelled", async () => {

@@ -815,8 +815,13 @@ export async function exportNoteHtml(
 
 /** No-op on Android: OS file-association opens (ROADMAP.md's "Open a
  * Markdown file from outside the workspace via OS file association") are
- * Desktop (Tauri) only, per that feature's own acceptance sketch. */
-export async function takePendingExternalFile(): Promise<string | null> {
+ * Desktop (Tauri) only, per that feature's own acceptance sketch. Return
+ * type matches `tauriBridgeImpl.ts`'s real implementation
+ * (`ExternalMarkdownFile | null`, path and content together) purely for
+ * contract parity -- `tauriBridge.ts` re-exports the Desktop function
+ * directly rather than dispatching to this one, so this stub is never
+ * actually called. */
+export async function takePendingExternalFile(): Promise<{ path: string; content: string } | null> {
   return null;
 }
 

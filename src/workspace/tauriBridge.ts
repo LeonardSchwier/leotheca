@@ -273,5 +273,6 @@ export const updateFavoritesWidget = impl.updateFavoritesWidget;
 // OS file-association "Open with Leotheca" opens; a no-op on Android (see
 // ROADMAP.md's "Open a Markdown file from outside the workspace via OS
 // file association", Desktop only per its own acceptance sketch).
+export type { ExternalMarkdownFile } from "./tauriBridgeImpl";
 export const takePendingExternalFile = impl.takePendingExternalFile;
 export const onExternalFileOpen = impl.onExternalFileOpen;

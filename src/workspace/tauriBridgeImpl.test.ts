@@ -47,32 +47,44 @@ describe("pickHtmlExportPath", () => {
 });
 
 describe("pickMarkdownFileToOpen", () => {
-  it("opens a file dialog filtered to .md, single-select", async () => {
-    openImpl.mockResolvedValueOnce("/home/user/Documents/scratch-note.md");
+  // Reads through the native `pick_and_read_external_markdown_file`
+  // command -- which shows the dialog and reads the picked file in the
+  // same trusted Rust call -- rather than the dialog plugin directly:
+  // `read_text_file`/`read_binary_file` are scoped to the active
+  // workspace root and app config directory only (2026-09-22 security
+  // review), so a bare path returned here for a second, separately gated
+  // call to fetch content through could never work for a real file
+  // outside the workspace, exactly this feature's whole purpose. See
+  // `external_open.rs`'s `ExternalMarkdownFile` doc comment.
+  it("invokes the native pick-and-read command and returns its path and content", async () => {
+    invokeMock.mockResolvedValueOnce({
+      path: "/home/user/Documents/scratch-note.md",
+      content: "# scratch",
+    });
 
     const result = await pickMarkdownFileToOpen();
 
-    expect(openImpl).toHaveBeenCalledWith({
-      multiple: false,
-      filters: [{ name: "Markdown", extensions: ["md"] }],
+    expect(invokeMock).toHaveBeenCalledWith("pick_and_read_external_markdown_file");
+    expect(result).toEqual({
+      path: "/home/user/Documents/scratch-note.md",
+      content: "# scratch",
     });
-    expect(result).toBe("/home/user/Documents/scratch-note.md");
   });
 
   it("returns null when the user cancels the dialog", async () => {
-    openImpl.mockResolvedValueOnce(null);
+    invokeMock.mockResolvedValueOnce(null);
 
     const result = await pickMarkdownFileToOpen();
 
     expect(result).toBeNull();
   });
 
-  it("returns the first entry when the underlying dialog resolves an array", async () => {
-    openImpl.mockResolvedValueOnce(["/home/user/Documents/first.md", "/home/user/Documents/second.md"]);
+  it("returns null, rather than rejecting, when the native command errors (e.g. a real read failure after a genuine pick)", async () => {
+    invokeMock.mockRejectedValueOnce(new Error("permission denied"));
 
     const result = await pickMarkdownFileToOpen();
 
-    expect(result).toBe("/home/user/Documents/first.md");
+    expect(result).toBeNull();
   });
 });
 

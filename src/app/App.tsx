@@ -64,6 +64,7 @@ import { SecondaryEditorPane } from "../editorGroups/SecondaryEditorPane";
 import { StatusIndicator } from "../ui/StatusIndicator";
 import { CompactGroupSwitcher } from "../editorGroups/CompactGroupSwitcher";
 import { onExternalFileOpen, readTextFile, takePendingExternalFile } from "../workspace/tauriBridge";
+import type { ExternalMarkdownFile } from "../workspace/tauriBridge";
 import { isPathWithinWorkspace } from "../workspace/paths";
 import { beginFileOpenAuthority, isCurrentFileOpen } from "../workspace/fileOpenAuthority";
 import {
@@ -637,21 +638,33 @@ export function App() {
    * against: `workspacePath` may not have finished hydrating from disk yet
    * when this fires at mount. A target outside every `.md` extension (the
    * only thing `tauri.conf.json`'s `bundle.fileAssociations` registers
-   * this app to be launched with) or that fails to read is a silent
-   * no-op, the same convention `handleOpenFile`'s other callers already
-   * use for a target that turns out missing. Disabling the feature
-   * (`externalFileOpenEnabled`) makes the request a no-op entirely rather
-   * than un-registering the static OS association itself, per that
-   * setting's own doc comment in globalConfig.ts. */
+   * this app to be launched with) is a silent no-op, the same convention
+   * `handleOpenFile`'s other callers already use for a target that turns
+   * out missing. Disabling the feature (`externalFileOpenEnabled`) makes
+   * the request a no-op entirely rather than un-registering the static OS
+   * association itself, per that setting's own doc comment in
+   * globalConfig.ts.
+   *
+   * `file.content` (read Rust-side -- see `ExternalMarkdownFile`'s own doc
+   * comment for why) is only used for the outside-workspace branch below.
+   * An in-workspace target still goes through the ordinary `handleOpenFile`
+   * read rather than reusing `file.content`: that keeps this path
+   * identical to any other in-workspace open (an already-open tab's own,
+   * possibly dirty, content wins; a genuine read failure -- e.g. deleted
+   * since the OS launched Leotheca with it -- is the same silent no-op
+   * `handleOpenFile`'s other callers already document) instead of growing
+   * a second, divergent way to populate a workspace tab's content. */
   const handleExternalFileOpen = useCallback(
-    async (path: string) => {
-      if (!/\.md$/i.test(path)) return;
+    async (file: ExternalMarkdownFile) => {
+      if (!/\.md$/i.test(file.path)) return;
       await waitForSettingsLoaded();
       if (!externalFileOpenEnabled.value) return;
-      const name = path.slice(Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\")) + 1);
-      if (workspacePath.value && isPathWithinWorkspace(workspacePath.value, path)) {
+      const name = file.path.slice(
+        Math.max(file.path.lastIndexOf("/"), file.path.lastIndexOf("\\")) + 1,
+      );
+      if (workspacePath.value && isPathWithinWorkspace(workspacePath.value, file.path)) {
         try {
-          await handleOpenFile(path, name);
+          await handleOpenFile(file.path, name);
           // A second external open landing inside the workspace supersedes
           // any scratch view still open from an earlier one.
           setExternalFile(null);
@@ -662,13 +675,7 @@ export function App() {
         }
         return;
       }
-      let content: string;
-      try {
-        content = await readTextFile(path);
-      } catch {
-        return;
-      }
-      setExternalFile({ path, name, content });
+      setExternalFile({ path: file.path, name, content: file.content });
     },
     [handleOpenFile],
   );
@@ -687,17 +694,17 @@ export function App() {
    * "Export note to HTML…" already gates itself, since this native file
    * dialog has no Android/Capacitor counterpart yet. */
   const handleOpenExternalFileViaPicker = useCallback(async () => {
-    const path = await pickMarkdownFileToOpen();
-    if (path) await handleExternalFileOpen(path);
+    const file = await pickMarkdownFileToOpen();
+    if (file) await handleExternalFileOpen(file);
   }, [handleExternalFileOpen]);
 
   useEffect(() => {
     if (Capacitor.isNativePlatform()) return;
     let cancelled = false;
-    void takePendingExternalFile().then((path) => {
-      if (!cancelled && path) void handleExternalFileOpen(path);
+    void takePendingExternalFile().then((file) => {
+      if (!cancelled && file) void handleExternalFileOpen(file);
     });
-    const unlisten = onExternalFileOpen((path) => void handleExternalFileOpen(path));
+    const unlisten = onExternalFileOpen((file) => void handleExternalFileOpen(file));
     return () => {
       cancelled = true;
       unlisten();

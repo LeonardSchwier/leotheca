@@ -369,31 +369,51 @@ export interface FavoritesWidgetEntry {
  * unused-parameter exemption. */
 export async function updateFavoritesWidget(): Promise<void> {}
 
+/** A markdown file opened from outside the active workspace, path and
+ * content together. `external_open.rs`'s `ExternalMarkdownFile` (Rust
+ * side) always reads the content itself, in the same trusted call that
+ * establishes the path (a real OS launch argument, or the native file
+ * dialog's own result): `read_text_file`/`read_binary_file` are scoped to
+ * the active workspace root and the app config directory only
+ * (2026-09-22 security review) and reject everything else, so a bare path
+ * handed to the frontend for a second, separately gated call to fetch
+ * content through could never work for a genuinely external file -- this
+ * feature's entire premise. */
+export interface ExternalMarkdownFile {
+  path: string;
+  content: string;
+}
+
 /** Cold-start half of ROADMAP.md's "Open a Markdown file from outside the
  * workspace via OS file association": `lib.rs`'s own `run()` buffers the
- * path from this process's own launch arguments (when the OS spawned a
- * *fresh* Leotheca process via its "Open with" registration) into managed
- * state, since no window/listener exists yet to receive a live event at
- * that point. Consumed at most once per launch -- the Rust side `take`s
- * rather than merely reads it -- so this only ever returns a real path on
- * the very first call after a genuine file-association cold start. */
-export async function takePendingExternalFile(): Promise<string | null> {
+ * path and content from this process's own launch arguments (when the OS
+ * spawned a *fresh* Leotheca process via its "Open with" registration)
+ * into managed state, since no window/listener exists yet to receive a
+ * live event at that point. Consumed at most once per launch -- the Rust
+ * side `take`s rather than merely reads it -- so this only ever returns a
+ * real file on the very first call after a genuine file-association cold
+ * start. `null` covers both "no such launch" and "the launch argument's
+ * file could no longer be read," the same silent-no-op convention this
+ * feature's every other failure path already follows. */
+export async function takePendingExternalFile(): Promise<ExternalMarkdownFile | null> {
   return invoke("take_pending_open_file");
 }
 
 /** Live half of the same feature: an already-running instance's relaunch
  * is intercepted by the single-instance plugin (Windows/Linux) or
  * delivered as `RunEvent::Opened` (macOS) in `lib.rs`, both of which emit
- * this one event so the frontend has a single live path to listen on
- * regardless of which platform mechanism actually delivered it. Returns
- * an unlisten function, mirroring `onOpenUrl`'s own shape. */
-export function onExternalFileOpen(callback: (path: string) => void): () => void {
+ * this one event so the frontend has a single live path+content pair to
+ * listen on regardless of which platform mechanism actually delivered it.
+ * Returns an unlisten function, mirroring `onOpenUrl`'s own shape. */
+export function onExternalFileOpen(callback: (file: ExternalMarkdownFile) => void): () => void {
   let unlisten: (() => void) | null = null;
   let cancelled = false;
-  void listen<string>("open-external-file", (event) => callback(event.payload)).then((fn) => {
-    if (cancelled) fn();
-    else unlisten = fn;
-  });
+  void listen<ExternalMarkdownFile>("open-external-file", (event) => callback(event.payload)).then(
+    (fn) => {
+      if (cancelled) fn();
+      else unlisten = fn;
+    },
+  );
   return () => {
     cancelled = true;
     unlisten?.();
@@ -409,23 +429,39 @@ export function onExternalFileOpen(callback: (path: string) => void): () => void
  * the Windows installer) turn into real OS registration with no
  * additional code; that only leaves the missing in-app command an
  * already-running instance needs, a plain "Open File" dialog rather than
- * a second OS-launch code path. Returns the picked absolute path, or
- * `null` when the user cancels -- same convention as
- * `pickWorkspaceFolder`/`pickHtmlExportPath` above. Deliberately not
- * routed through `tauriBridge.ts`'s platform dispatcher: like
- * `pickHtmlExportPath`, this is a desktop-only native file dialog with no
- * Android/Capacitor counterpart, so `App.tsx`'s command imports it
- * directly and gates itself to desktop the same way "Export note to
- * HTML…" already does. The picked path is handed to the same
+ * a second OS-launch code path. Resolves to the picked file's path and
+ * content together, or `null` when the user cancels -- same null-on-
+ * cancel convention as `pickWorkspaceFolder`/`pickHtmlExportPath` above.
+ * Deliberately not routed through `tauriBridge.ts`'s platform dispatcher:
+ * like `pickHtmlExportPath`, this is a desktop-only native file dialog
+ * with no Android/Capacitor counterpart, so `App.tsx`'s command imports
+ * it directly and gates itself to desktop the same way "Export note to
+ * HTML…" already does. The result is handed to the same
  * `handleExternalFileOpen` App.tsx already uses for OS file-association
  * launches, so a file inside the current workspace opens as an ordinary
  * tab and one outside it opens the existing read-only `ExternalFileView`
  * scratch view -- one open path, not a second one invented for this
- * command. */
-export async function pickMarkdownFileToOpen(): Promise<string | null> {
-  const selected = await open({
-    multiple: false,
-    filters: [{ name: "Markdown", extensions: ["md"] }],
-  });
-  return Array.isArray(selected) ? (selected[0] ?? null) : selected;
+ * command.
+ *
+ * Reads through the native `pick_and_read_external_markdown_file` Rust
+ * command (`external_open.rs`) rather than showing the dialog here and
+ * separately calling `readTextFile` on the result: `read_text_file`/
+ * `read_binary_file` are deliberately scoped to the active workspace root
+ * and the app config directory only (2026-09-22 security review), so a
+ * path from outside both -- by definition, every real target this
+ * feature exists for -- always failed that check. The native command
+ * reads the file in the same trusted call that shows the dialog, the
+ * same guarantee `pickHtmlExportPath`'s save-side counterpart already
+ * relies on, so this bridge function never receives a bare path it would
+ * need a second, gated call to fetch content for. A picked-but-unreadable
+ * file (deleted or permission-denied between the dialog closing and the
+ * native read) rejects; caught here and turned into the same silent
+ * no-op every other caller of `handleExternalFileOpen` already follows
+ * for a target that doesn't pan out. */
+export async function pickMarkdownFileToOpen(): Promise<ExternalMarkdownFile | null> {
+  try {
+    return await invoke<ExternalMarkdownFile | null>("pick_and_read_external_markdown_file");
+  } catch {
+    return null;
+  }
 }

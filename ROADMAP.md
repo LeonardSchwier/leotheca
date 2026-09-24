@@ -7,7 +7,9 @@
 
 
 
-- ⬜ **Desktop "Open file from outside the vault" can never actually read an external file**: `read_text_file`/`read_binary_file` reject any path outside the active workspace root and app config directory (2026-09-22 security review). Both triggers of the external-open feature -- the OS file-association launch and the in-app picker -- fetched content through exactly that gated command, which always rejects a real external path, so the feature's whole purpose silently failed to load any content.
+- 🚧 **Desktop "Open file from outside the vault" can never actually read an external file**: `read_text_file`/`read_binary_file` reject any path outside the active workspace root and app config directory (2026-09-22 security review). Both triggers of the external-open feature -- the OS file-association launch and the in-app picker -- fetched content through exactly that gated command, which always rejects a real external path, so the feature's whole purpose silently failed to load any content.
+  <!-- agent-state: {"schema":1,"id":"rm-cf476530a5b68bfa","state":"claimed","touch":["src-tauri/src/external_open.rs","src-tauri/src/lib.rs","src/app/App.test.tsx","src/app/App.tsx","src/workspace/capacitorBridgeImpl.ts","src/workspace/tauriBridge.ts","src/workspace/tauriBridgeImpl.test.ts","src/workspace/tauriBridgeImpl.ts"],"resources":["external-file-open","workspace-read-path"],"owner":"Claude-Code-cloud-scheduled-kindbardeen-20260924T181349Z","token":"59537ff44d2826afd51c6730e9426b25","branch":"agent/rm-cf476530a5b68bfa/59537ff44d28","claimed_at":"2026-09-24T18:33:43Z","heartbeat_at":"2026-09-24T18:33:43Z","lease_until":"2026-09-24T20:03:43Z"} -->
+  Agent: Claude-Code-cloud-scheduled-kindbardeen-20260924T181349Z | item: rm-cf476530a5b68bfa | lease until: 2026-09-24T20:03:43Z
 
   <details>
   <summary>Root cause, fix, and verification</summary>

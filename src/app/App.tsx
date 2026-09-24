@@ -9,7 +9,6 @@ import { TabBar } from "../workspace/TabBar";
 import { MarkdownEditor } from "../editor/MarkdownEditor";
 import { MarkdownPreview } from "../editor/MarkdownPreview";
 import { FrontmatterPropertiesPanel } from "../editor/FrontmatterPropertiesPanel";
-import { isNoteReadOnlyActive, setNoteReadOnly } from "../editor/noteReadOnly";
 import { SpeechRecognitionButton } from "../editor/SpeechRecognitionButton";
 import { ImageViewer } from "../editor/ImageViewer";
 import { ImageViewerOverlay } from "../editor/ImageViewerOverlay";
@@ -752,8 +751,6 @@ export function App() {
       // openDocuments, not openTabs: the canonical document list is
       // group-agnostic, so this also works for a path open only in the
       // secondary group (F07 Phase 3), not just primary.
-      const document = openDocuments.value.find((candidate) => candidate.path === path);
-      if (document && isNoteReadOnlyActive(document.content, workspaceSettings.value.noteReadOnlyLockEnabled)) return;
       updateTabContent(path, content);
       save.change(session, path, content);
     },
@@ -846,9 +843,6 @@ export function App() {
   }, []);
 
   const current = activeTab();
-  const currentNoteReadOnly =
-    current?.kind === "text" &&
-    isNoteReadOnlyActive(current.content, workspaceSettings.value.noteReadOnlyLockEnabled);
   const currentBookmark =
     current && bookmarks.value.find((b) => b.kind === "file" && b.path === current.path);
   const currentIsPinned = current && editorLayout.value.groups.primary.pinnedPaths.includes(current.path);
@@ -876,13 +870,6 @@ export function App() {
       void addFileBookmark(current.path, current.name);
     }
   };
-
-  const toggleCurrentNoteReadOnly = useCallback(() => {
-    if (!current || current.kind !== "text") return;
-    const content = setNoteReadOnly(current.content, !currentNoteReadOnly);
-    updateTabContent(current.path, content);
-    save.change(session, current.path, content);
-  }, [current, currentNoteReadOnly, save, session]);
 
   // UX-01 spec section 13.2: the Activity Rail's Files destination, the
   // one member of the sidebar's existing mutually-exclusive panel group
@@ -1150,14 +1137,7 @@ export function App() {
           label: currentBookmark ? "Remove bookmark from this note" : "Bookmark this note",
           run: toggleCurrentNoteBookmark,
         },
-        ...(workspaceSettings.value.noteReadOnlyLockEnabled
-          ? [{
-              id: "toggle-note-read-only",
-              label: currentNoteReadOnly ? "Unlock current note" : "Lock current note",
-              run: toggleCurrentNoteReadOnly,
-            }]
-          : []),
-        ...(!currentNoteReadOnly && workspaceSettings.value.headingLinksEnabled && viewMode.value !== "preview"
+        ...(workspaceSettings.value.headingLinksEnabled && viewMode.value !== "preview"
           ? [
               {
                 id: "copy-block-link",
@@ -1171,7 +1151,7 @@ export function App() {
               },
             ]
           : []),
-        ...(!currentNoteReadOnly && viewMode.value !== "preview"
+        ...(viewMode.value !== "preview"
           ? [
               { id: "table-add-row", label: "Table: add row below", run: () => requestTableCommand("add-row-below") },
               { id: "table-delete-row", label: "Table: delete row", run: () => requestTableCommand("delete-row") },
@@ -1249,9 +1229,6 @@ export function App() {
     workspaceSettings.value.templatesEnabled,
     workspaceSettings.value.canvasEnabled,
     workspaceSettings.value.collectionsEnabled,
-    workspaceSettings.value.noteReadOnlyLockEnabled,
-    currentNoteReadOnly,
-    toggleCurrentNoteReadOnly,
     openTabs.value,
     handleOpenFile,
     handleOpenExternalFileViaPicker,
@@ -1417,7 +1394,6 @@ export function App() {
         )}
         {current?.kind === "text" && workspaceSettings.value.speechToTextEnabled && (
           <SpeechRecognitionButton
-            readOnly={isNoteReadOnlyActive(current.path, workspaceSettings.value.noteReadOnlyLockEnabled)}
             onResult={(text) => {
               if (text && current) {
                 // Use the existing outline insert mechanism to insert speech text
@@ -1717,14 +1693,6 @@ export function App() {
               onShowHelp={() => (markdownHelpOpen.value = true)}
             />
           )}
-          {current?.kind === "text" && workspaceSettings.value.noteReadOnlyLockEnabled && (
-            <div class="note-lock-bar" role="status">
-              <span>{currentNoteReadOnly ? "This note is locked." : "This note is editable."}</span>
-              <button type="button" onClick={toggleCurrentNoteReadOnly}>
-                {currentNoteReadOnly ? "Unlock note" : "Lock note"}
-              </button>
-            </div>
-          )}
           {!(showActivityRailNav && current?.kind === "text") && current?.saveError && (
             <div class="save-error-bar" role="alert">
               <span>
@@ -1793,7 +1761,6 @@ export function App() {
                     source={current.content}
                     onChange={(value) => handleChange(current.path, value)}
                     enabled={workspaceSettings.value.frontmatterPropertiesEnabled}
-                    readOnly={currentNoteReadOnly}
                   />
                 )}
                 <div id="primary-editor-panes" class={`editor-panes mode-${viewMode.value}`}>
@@ -1805,7 +1772,6 @@ export function App() {
                       workspaceRoot={rootPath ?? ""}
                       attachmentsFolder={workspaceSettings.value.attachmentsFolder}
                       pasteImagesEnabled={workspaceSettings.value.pasteImagesEnabled}
-                      readOnly={currentNoteReadOnly}
                       snippetsEnabled={workspaceSettings.value.snippetsEnabled}
                       snippets={workspaceSettings.value.snippets}
                       spellcheckEnabled={workspaceSettings.value.spellcheckEnabled}
@@ -1876,7 +1842,6 @@ export function App() {
                 mermaidRenderingEnabled={workspaceSettings.value.mermaidRenderingEnabled}
                 snippetsEnabled={workspaceSettings.value.snippetsEnabled}
                 snippets={workspaceSettings.value.snippets}
-                noteReadOnlyLockEnabled={workspaceSettings.value.noteReadOnlyLockEnabled}
                 onSelect={(path) => {
                   focusTab(path);
                   refresh();
@@ -1942,7 +1907,6 @@ export function App() {
                 source: current.content,
                 onChange: (value) => handleChange(current.path, value),
                 enabled: workspaceSettings.value.frontmatterPropertiesEnabled,
-                readOnly: currentNoteReadOnly,
               }}
               path={current.path}
               onOpenFile={handleOpenFile}

@@ -63,7 +63,6 @@ function baseProps(overrides: Partial<Parameters<typeof SecondaryEditorPane>[0]>
     pasteImagesEnabled: true,
     snippetsEnabled: false,
     snippets: "",
-    noteReadOnlyLockEnabled: false,
     onSelect: noop,
     onClose: noop,
     onCloseOthers: noop,
@@ -171,17 +170,4 @@ describe("SecondaryEditorPane", () => {
     expect(retry).toHaveBeenCalledTimes(1);
   });
 
-  it("the note-lock bar toggles read-only via onChange", () => {
-    const t = tab({ content: "---\nleotheca-read-only: true\n---\nhello" });
-    const onChange = vi.fn();
-    const { getByText } = render(
-      <SecondaryEditorPane
-        {...baseProps({ tabs: [t], activePath: t.path, current: t, noteReadOnlyLockEnabled: true, onChange })}
-      />,
-    );
-    expect(getByText("This note is locked.")).toBeTruthy();
-    fireEvent.click(getByText("Unlock note"));
-    expect(onChange).toHaveBeenCalledTimes(1);
-    expect(onChange.mock.calls[0][0]).toBe(t.path);
-  });
 });

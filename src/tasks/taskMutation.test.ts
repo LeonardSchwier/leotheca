@@ -42,7 +42,7 @@ const { toggleTaskCompletion } = await import("./taskMutation");
 const { createSaveCoordinator } = await import("../workspace/saveCoordinator");
 const { closeAllTabs, openOrFocusTab, openTabs, updateTabContent } = await import("../workspace/store");
 const { linkIndex } = await import("../linking/store");
-const { workspaceSession, workspaceSettings } = await import("../settings/store");
+const { workspaceSession } = await import("../settings/store");
 const { scanTasks } = await import("../markdown/tasks");
 
 function emptyLinkIndex() {
@@ -69,14 +69,12 @@ beforeEach(() => {
   closeAllTabs();
   linkIndex.value = emptyLinkIndex();
   workspaceSession.value = 0;
-  workspaceSettings.value = { ...workspaceSettings.value, noteReadOnlyLockEnabled: true };
 });
 
 afterEach(() => {
   closeAllTabs();
   linkIndex.value = emptyLinkIndex();
   workspaceSession.value = 0;
-  workspaceSettings.value = { ...workspaceSettings.value, noteReadOnlyLockEnabled: true };
 });
 
 describe("toggleTaskCompletion: open (in-tab) note", () => {
@@ -262,27 +260,4 @@ describe("toggleTaskCompletion: closed note", () => {
     expect(writeTextFile).not.toHaveBeenCalled();
   });
 
-  it("fails closed for a locked closed note before writing", async () => {
-    const content = "---\nleotheca-read-only: true\n---\n- [ ] Task\n";
-    readTextFile.mockResolvedValue(content);
-    const save = createSaveCoordinator();
-    const result = await toggleTaskCompletion("/vault/a.md", scanTasks(content)[0], { save });
-    expect(result).toEqual({ status: "locked" });
-    expect(writeTextFile).not.toHaveBeenCalled();
-  });
-
-  it("allows a marked closed note to mutate when the workspace lock feature is disabled", async () => {
-    const content = "---\nleotheca-read-only: true\n---\n- [ ] Task\n";
-    readTextFile.mockResolvedValue(content);
-    workspaceSettings.value = { ...workspaceSettings.value, noteReadOnlyLockEnabled: false };
-    const save = createSaveCoordinator();
-
-    const result = await toggleTaskCompletion("/vault/a.md", scanTasks(content)[0], { save });
-
-    expect(result).toEqual({ status: "ok" });
-    expect(writeTextFile).toHaveBeenCalledWith(
-      "/vault/a.md",
-      "---\nleotheca-read-only: true\n---\n- [x] Task\n",
-    );
-  });
 });

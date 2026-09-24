@@ -86,10 +86,6 @@ describe("DEFAULT_WORKSPACE_SETTINGS", () => {
     expect(DEFAULT_WORKSPACE_SETTINGS.readingFont).toBe("sans");
   });
 
-  it("defaults the accidental-edit note lock to on", () => {
-    expect(DEFAULT_WORKSPACE_SETTINGS.noteReadOnlyLockEnabled).toBe(true);
-  });
-
   it("defaults speech-to-text dictation to off, so no native speech API is touched until the user opts in", () => {
     expect(DEFAULT_WORKSPACE_SETTINGS.speechToTextEnabled).toBe(false);
   });
@@ -1698,7 +1694,6 @@ describe("decodeWorkspaceSettings with legacy migration", () => {
         snippets: "todo\t- [ ] ",
         headingLinksEnabled: true,
         collectionsEnabled: false,
-        noteReadOnlyLockEnabled: true,
       };
       
       const { settings, corrupt } = decodeWorkspaceSettings(
@@ -1988,7 +1983,6 @@ describe("full lifecycle: write -> read -> use -> save -> reload", () => {
         snippets: "todo\t- [ ] ",
         headingLinksEnabled: true,
         collectionsEnabled: false,
-        noteReadOnlyLockEnabled: true,
       };
       
       const v1Content = JSON.stringify(v1Settings, null, 2);
@@ -2351,7 +2345,6 @@ describe("decodeWorkspaceSettings legacy integration", () => {
       snippets: "todo\t- [ ] ",
       headingLinksEnabled: true,
       collectionsEnabled: false,
-      noteReadOnlyLockEnabled: true,
     };
     
     const { settings, corrupt } = decodeWorkspaceSettings(

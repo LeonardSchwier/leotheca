@@ -192,8 +192,6 @@ export interface WorkspaceSettings {
    * entry, and sidebar panel are all hidden, the same as before this
    * feature existed. */
   collectionsEnabled: boolean;
-  /** Whether the per-note frontmatter lock UI and its edit guards are active. */
-  noteReadOnlyLockEnabled: boolean;
   /** RTL Phase 2: Whether the workspace chrome (sidebar, toolbar) is mirrored for RTL languages. */
   rtlWorkspaceEnabled: boolean;
   /** Whether the toolbar's speech-to-text dictation button (see
@@ -273,7 +271,6 @@ export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   snippets: "todo\t- [ ] ",
   headingLinksEnabled: true,
   collectionsEnabled: false,
-  noteReadOnlyLockEnabled: true,
   rtlWorkspaceEnabled: false,
   speechToTextEnabled: false,
   spellcheckEnabled: false,
@@ -727,10 +724,6 @@ export function decodeWorkspaceSettings(
     record.collectionsEnabled,
     DEFAULT_WORKSPACE_SETTINGS.collectionsEnabled,
   );
-  const noteReadOnlyLockEnabled = decodeBoolean(
-    record.noteReadOnlyLockEnabled,
-    DEFAULT_WORKSPACE_SETTINGS.noteReadOnlyLockEnabled,
-  );
   const rtlWorkspaceEnabled = decodeBoolean(
     record.rtlWorkspaceEnabled,
     DEFAULT_WORKSPACE_SETTINGS.rtlWorkspaceEnabled,
@@ -809,7 +802,6 @@ export function decodeWorkspaceSettings(
     snippets: snippets.value,
     headingLinksEnabled: headingLinksEnabled.value,
     collectionsEnabled: collectionsEnabled.value,
-    noteReadOnlyLockEnabled: noteReadOnlyLockEnabled.value,
     rtlWorkspaceEnabled: rtlWorkspaceEnabled.value,
     speechToTextEnabled: speechToTextEnabled.value,
     spellcheckEnabled: spellcheckEnabled.value,
@@ -854,7 +846,6 @@ export function decodeWorkspaceSettings(
       snippets,
       headingLinksEnabled,
       collectionsEnabled,
-      noteReadOnlyLockEnabled,
       rtlWorkspaceEnabled,
       speechToTextEnabled,
       spellcheckEnabled,

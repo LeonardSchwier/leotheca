@@ -3,7 +3,6 @@ import { TabBar } from "../workspace/TabBar";
 import { MarkdownEditor } from "../editor/MarkdownEditor";
 import { MarkdownPreview } from "../editor/MarkdownPreview";
 import { ImageViewer } from "../editor/ImageViewer";
-import { isNoteReadOnlyActive, setNoteReadOnly } from "../editor/noteReadOnly";
 import type { OpenTab } from "../workspace/types";
 import type { SaveCoordinator } from "../workspace/saveCoordinator";
 
@@ -25,7 +24,6 @@ interface SecondaryEditorPaneProps {
   mermaidRenderingEnabled: boolean;
   snippetsEnabled: boolean;
   snippets: string;
-  noteReadOnlyLockEnabled: boolean;
   onSelect: (path: string) => void;
   onClose: (path: string) => void;
   onCloseOthers: (path: string) => void;
@@ -68,7 +66,6 @@ export function SecondaryEditorPane({
   mermaidRenderingEnabled,
   snippetsEnabled,
   snippets,
-  noteReadOnlyLockEnabled,
   onSelect,
   onClose,
   onCloseOthers,
@@ -86,9 +83,6 @@ export function SecondaryEditorPane({
   onMoveLeft,
   onMoveRight,
 }: SecondaryEditorPaneProps) {
-  const currentReadOnly =
-    current?.kind === "text" && isNoteReadOnlyActive(current.content, noteReadOnlyLockEnabled);
-
   return (
     <main class="editor-area secondary-group" aria-label="Reference group">
       <TabBar
@@ -107,20 +101,6 @@ export function SecondaryEditorPane({
         onMoveLeft={onMoveLeft}
         onMoveRight={onMoveRight}
       />
-      {current?.kind === "text" && noteReadOnlyLockEnabled && (
-        <div class="note-lock-bar" role="status">
-          <span>{currentReadOnly ? "This note is locked." : "This note is editable."}</span>
-          <button
-            type="button"
-            onClick={() => {
-              const content = setNoteReadOnly(current.content, !currentReadOnly);
-              onChange(current.path, content);
-            }}
-          >
-            {currentReadOnly ? "Unlock note" : "Lock note"}
-          </button>
-        </div>
-      )}
       {current?.saveError && (
         <div class="save-error-bar" role="alert">
           <span>
@@ -173,7 +153,6 @@ export function SecondaryEditorPane({
                   workspaceRoot={workspaceRoot}
                   attachmentsFolder={attachmentsFolder}
                   pasteImagesEnabled={pasteImagesEnabled}
-                  readOnly={currentReadOnly}
                   snippetsEnabled={snippetsEnabled}
                   snippets={snippets}
                   searchQuery={current.searchQuery}

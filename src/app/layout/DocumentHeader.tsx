@@ -18,10 +18,7 @@ import { StatusIndicator } from "../../ui/StatusIndicator";
  *   details", 13.5), not a separate clickable segmented row.
  *
  * Title carries a note icon and a full-path tooltip; a real save-state
- * message (13.6) sits in the header's center, replacing the note-lock-bar
- * area's `.save-error-bar` duplicate for text notes at this width (the
- * bar stays for canvas/ink notes and narrower widths, where this header
- * doesn't render at all). `dirty`/`saving`/`saveError` are read straight
+ * message (13.6) sits in the header's center for text notes. `dirty`/`saving`/`saveError` are read straight
  * from the active tab's own OpenDocument fields (App.tsx), the exact same
  * single source of truth TabBar's dirty dot and the save-error-bar
  * already use -- this never recomputes save state independently, only

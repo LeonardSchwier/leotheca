@@ -578,22 +578,6 @@ button.icon-button.active {
   column-gap: var(--space-1-5);
 }
 
-.note-lock-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  padding: var(--space-2) var(--space-4);
-  color: var(--text-secondary);
-  background: var(--bg-sunken);
-  border-bottom: 1px solid var(--border);
-  font-size: 0.875rem;
-}
-
-.note-lock-bar button {
-  flex: none;
-}
-
 .save-error-bar {
   display: flex;
   align-items: center;

@@ -43,8 +43,6 @@ export interface MarkdownEditorProps {
   /** Whether pasting/dropping an image saves it as an attachment at all;
    * see WorkspaceSettings.pasteImagesEnabled. */
   pasteImagesEnabled: boolean;
-  /** Disables every CodeMirror-originated mutation for a locked note. */
-  readOnly?: boolean;
   snippetsEnabled: boolean;
   snippets: string;
   /** Offline spellchecking toggle; see WorkspaceSettings.spellcheckEnabled. */
@@ -331,7 +329,6 @@ interface AttachmentSettings {
   workspaceRoot: string;
   attachmentsFolder: string;
   pasteImagesEnabled: boolean;
-  readOnly: boolean;
 }
 
 interface SnippetSettings {
@@ -393,7 +390,7 @@ function imageAttachmentExtension(path: string, settingsRef: { current: Attachme
 
   return EditorView.domEventHandlers({
     paste(event, view) {
-      if (settingsRef.current.readOnly || !settingsRef.current.pasteImagesEnabled || !event.clipboardData) return false;
+      if (!settingsRef.current.pasteImagesEnabled || !event.clipboardData) return false;
       const files = pasteImageFiles(event.clipboardData);
       if (files.length === 0) return false;
 
@@ -402,7 +399,7 @@ function imageAttachmentExtension(path: string, settingsRef: { current: Attachme
       return true;
     },
     drop(event, view) {
-      if (settingsRef.current.readOnly || !settingsRef.current.pasteImagesEnabled || !event.dataTransfer) return false;
+      if (!settingsRef.current.pasteImagesEnabled || !event.dataTransfer) return false;
       const files = droppedImageFiles(event.dataTransfer);
       if (files.length === 0) return false;
 
@@ -429,14 +426,13 @@ function buildExtensions(
   snippetSettingsRef: { current: SnippetSettings },
   onCursorChangeRef: { current: ((pos: number) => void) | undefined },
   readOnlyCompartment: Compartment,
-  readOnly: boolean,
   searchCompartment: Compartment,
   spellcheckEnabled: boolean,
   spellcheckAffRef: { current: string },
   spellcheckDicRef: { current: string },
 ) {
   return [
-    readOnlyCompartment.of([EditorState.readOnly.of(readOnly), EditorView.editable.of(!readOnly)]),
+    readOnlyCompartment.of([EditorState.readOnly.of(false), EditorView.editable.of(true)]),
     searchCompartment.of([search()]),
     EditorState.transactionFilter.of((transaction) => {
       if (
@@ -569,7 +565,6 @@ export function MarkdownEditor({
   workspaceRoot,
   attachmentsFolder,
   pasteImagesEnabled,
-  readOnly = false,
   snippetsEnabled,
   snippets,
   spellcheckEnabled = false,
@@ -602,9 +597,8 @@ export function MarkdownEditor({
     workspaceRoot,
     attachmentsFolder,
     pasteImagesEnabled,
-    readOnly,
   });
-  attachmentSettingsRef.current = { workspaceRoot, attachmentsFolder, pasteImagesEnabled, readOnly };
+  attachmentSettingsRef.current = { workspaceRoot, attachmentsFolder, pasteImagesEnabled };
   const readOnlyCompartmentRef = useRef(new Compartment());
   const searchCompartmentRef = useRef(new Compartment());
   const snippetSettingsRef = useRef<SnippetSettings>({ enabled: snippetsEnabled, source: snippets });
@@ -654,7 +648,6 @@ export function MarkdownEditor({
         snippetSettingsRef,
         onCursorChangeRef,
         readOnlyCompartmentRef.current,
-        readOnly,
         searchCompartmentRef.current,
         spellcheckEnabled,
         spellcheckAffRef,
@@ -739,7 +732,6 @@ export function MarkdownEditor({
           snippetSettingsRef,
           onCursorChangeRef,
           readOnlyCompartmentRef.current,
-          readOnly,
           searchCompartmentRef.current,
           spellcheckEnabled,
           spellcheckAffRef,
@@ -768,10 +760,10 @@ export function MarkdownEditor({
     const view = viewRef.current;
     if (!view) return;
     view.dispatch({ effects: readOnlyCompartmentRef.current.reconfigure([
-      EditorState.readOnly.of(readOnly),
-      EditorView.editable.of(!readOnly),
+      EditorState.readOnly.of(false),
+      EditorView.editable.of(true),
     ]) });
-  }, [readOnly]);
+  }, []);
 
   // Syncs an external content change (currently only the Properties panel
   // editing frontmatter, see FrontmatterPropertiesPanel.tsx) into the live
@@ -824,7 +816,7 @@ export function MarkdownEditor({
   const lastInsertIdRef = useRef<number | null>(null);
   useEffect(() => {
     const view = viewRef.current;
-    if (!view || readOnly || !insertRequest || insertRequest.requestId === lastInsertIdRef.current) return;
+    if (!view || !insertRequest || insertRequest.requestId === lastInsertIdRef.current) return;
     lastInsertIdRef.current = insertRequest.requestId;
     const { from, to } = view.state.selection.main;
     view.dispatch({
@@ -832,7 +824,7 @@ export function MarkdownEditor({
       selection: { anchor: from + insertRequest.text.length },
       scrollIntoView: true,
     });
-  }, [insertRequest, readOnly]);
+  }, [insertRequest]);
 
   // Applies a "Copy block link" request (spec section 7.4): reads the
   // live document and cursor position (never the stale `value` prop,
@@ -852,7 +844,7 @@ export function MarkdownEditor({
     const view = viewRef.current;
     if (
       !view ||
-      readOnly || !blockLinkCopyRequest ||
+      !blockLinkCopyRequest ||
       blockLinkCopyRequest.requestId === lastBlockLinkRequestIdRef.current
     ) {
       return;
@@ -865,7 +857,7 @@ export function MarkdownEditor({
       view.dispatch({ changes: { from: resolution.insertion.from, insert: resolution.insertion.text } });
     }
     void navigator.clipboard.writeText(resolution.linkText);
-  }, [blockLinkCopyRequest, readOnly]);
+  }, [blockLinkCopyRequest]);
 
   // Applies a "Create block link" request (spec section 21 Phase 5): the
   // identical block-lookup/id-generation steps as "Copy block link"
@@ -880,7 +872,7 @@ export function MarkdownEditor({
     const view = viewRef.current;
     if (
       !view ||
-      readOnly || !blockLinkCreateRequest ||
+      !blockLinkCreateRequest ||
       blockLinkCreateRequest.requestId === lastBlockLinkCreateRequestIdRef.current
     ) {
       return;
@@ -890,14 +882,14 @@ export function MarkdownEditor({
     const resolution = resolveBlockLinkAtCursor(view.state.doc.toString(), cursor);
     if (!resolution?.insertion) return;
     view.dispatch({ changes: { from: resolution.insertion.from, insert: resolution.insertion.text } });
-  }, [blockLinkCreateRequest, readOnly]);
+  }, [blockLinkCreateRequest]);
 
   const lastTableCommandRequestIdRef = useRef<number | null>(null);
   useEffect(() => {
     const view = viewRef.current;
     if (
       !view ||
-      readOnly || !tableCommandRequest ||
+      !tableCommandRequest ||
       tableCommandRequest.requestId === lastTableCommandRequestIdRef.current
     ) {
       return;
@@ -909,7 +901,7 @@ export function MarkdownEditor({
       tableCommandRequest.command as MarkdownTableCommand,
     );
     if (edit) view.dispatch({ changes: edit, scrollIntoView: true });
-  }, [tableCommandRequest, readOnly]);
+  }, [tableCommandRequest]);
 
   return <div class="markdown-editor" ref={hostRef} />;
 }

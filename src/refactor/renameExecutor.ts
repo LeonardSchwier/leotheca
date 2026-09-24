@@ -356,6 +356,53 @@ async function applyRangeReplacementsGroupedByPath(
 }
 
 /**
+ * Build the `RangeReplacement`s that roll back a set of forward wikilink/
+ * markdown-link edits, correcting each edit's `from` for the cumulative
+ * length shift that *earlier* (lower original-offset) edits in the same
+ * file introduced.
+ *
+ * `applyRangeReplacementsGroupedByPath` requires `from` to be a valid
+ * offset into the *current* (already-edited) content. Replaying each
+ * edit's pre-edit `from` unchanged is only correct for a file's single
+ * edit, or its first (lowest-offset) edit: once any earlier edit's
+ * `newText` is a different length than its `oldText` (the common case for
+ * a real rename), every later edit's actual text has shifted by that
+ * delta and no longer sits at its original `from`. Without this
+ * correction, `verify` (correctly) refuses to overwrite the wrong span
+ * and the edit is silently left un-rolled-back, permanently mixing new
+ * and old link text in one note.
+ */
+function computeRollbackReplacements(
+  wikilinks: { path: string; from: number; oldText: string; newText: string }[],
+): (RangeReplacement & { verify: string })[] {
+  const byPath = new Map<string, { path: string; from: number; oldText: string; newText: string }[]>();
+  for (const wikilink of wikilinks) {
+    const existing = byPath.get(wikilink.path);
+    if (existing) existing.push(wikilink);
+    else byPath.set(wikilink.path, [wikilink]);
+  }
+
+  const result: (RangeReplacement & { verify: string })[] = [];
+  for (const pathWikilinks of byPath.values()) {
+    // Left-to-right so the cumulative shift is applied to each edit in the
+    // same order the forward edits actually landed in the string.
+    const orderedLeftToRight = [...pathWikilinks].sort((a, b) => a.from - b.from);
+    let shift = 0;
+    for (const wikilink of orderedLeftToRight) {
+      result.push({
+        path: wikilink.path,
+        from: wikilink.from + shift,
+        length: wikilink.newText.length,
+        text: wikilink.oldText,
+        verify: wikilink.newText,
+      });
+      shift += wikilink.newText.length - wikilink.oldText.length;
+    }
+  }
+  return result;
+}
+
+/**
  * Preflight validation before executing a rename
  * @returns {Promise<boolean>} true if preflight passes, false otherwise
  */
@@ -555,23 +602,15 @@ async function rollbackOperation(entry: RenameJournalEntry, options: {
       console.error("Failed to rollback file rename:", renameError);
     }
     
-    // 2. Rollback wikilink updates. Restore each replacement by the
-    // *actual* length of the `newText` it wrote (`wikilink.newText.length`),
-    // not the pre-edit `wikilink.to`: once the forward edit changed the
-    // text's length (the common case for a real rename), `to` no longer
-    // marks where the written text actually ends in this already-edited
-    // file, and using it would splice at the wrong end-point. `verify`
-    // guards a file whose edit never actually landed (the forward loop can
-    // fail partway through a multi-file batch): only overwrite the span if
+    // 2. Rollback wikilink updates. `computeRollbackReplacements` restores
+    // each replacement at its *actual* current position (the `newText` it
+    // wrote may be a different length than the pre-edit `oldText`, which
+    // shifts every later edit in the same file), guarded by `verify` for a
+    // file whose edit never actually landed (the forward loop can fail
+    // partway through a multi-file batch): only overwrite a span if
     // `newText` is genuinely sitting there, never assume it is.
     await applyRangeReplacementsGroupedByPath(
-      entry.originalWikilinks.map((wikilink) => ({
-        path: wikilink.path,
-        from: wikilink.from,
-        length: wikilink.newText.length,
-        text: wikilink.oldText,
-        verify: wikilink.newText,
-      })),
+      computeRollbackReplacements(entry.originalWikilinks),
       options,
       {
         continueOnError: true,
@@ -744,16 +783,12 @@ export async function applyRenamePlan(
     journalEntry.step = "completed";
     return { success: true };
   } catch (error) {
-    // Rollback: restore original text using the same right-to-left strategy
+    // Rollback: restore original text, correcting each edit's position for
+    // any earlier same-file edit's length change (see
+    // `computeRollbackReplacements`).
     try {
       await applyRangeReplacementsGroupedByPath(
-        [...originalWikilinks, ...originalMarkdown].map((e) => ({
-          path: e.path,
-          from: e.from,
-          length: e.newText.length,
-          text: e.oldText,
-          verify: e.newText,
-        })),
+        computeRollbackReplacements([...originalWikilinks, ...originalMarkdown]),
         options,
         {
           continueOnError: true,

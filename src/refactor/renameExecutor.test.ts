@@ -19,6 +19,7 @@ import {
   hasIncompleteOperations,
   getIncompleteOperation,
   recoverFromIncompleteOperations,
+  applyRenamePlan,
 } from "./renameExecutor";
 import type { EditorLayoutState } from "../workspace/types";
 import type { WorkspaceSettings } from "../settings/workspaceSettings";
@@ -587,6 +588,53 @@ describe("renameExecutor - Error Handling", () => {
     expect(bWriteAttempts).toBe(1);
   });
 
+  it("rolls back both occurrences when a note has two length-changing wikilink edits", async () => {
+    // Mirrors "applies two wikilink edits in the same note without
+    // corrupting the second edit's position" (forward apply), but for
+    // rollback: both edits' offsets are computed against the *original*
+    // content, and the forward apply already landed successfully (making
+    // both replacement texts a different length than the originals) before
+    // the file rename step fails and triggers rollback. Restoring the
+    // second (higher-offset) occurrence by its stale original offset would
+    // land inside the first occurrence's already-longer replacement text,
+    // fail its `verify` guard, and silently leave the corrupted text in
+    // place.
+    const originalContent = "[[old]] and again [[old]] end";
+    const firstFrom = originalContent.indexOf("[[old]]");
+    const firstTo = firstFrom + "[[old]]".length;
+    const secondFrom = originalContent.indexOf("[[old]]", firstTo);
+    const secondTo = secondFrom + "[[old]]".length;
+    const newText = "[[much-longer-new-name]]";
+    const edits: PlannedWikiLinkEdit[] = [
+      { path: "note.md", from: firstFrom, to: firstTo, oldText: "[[old]]", newText },
+      { path: "note.md", from: secondFrom, to: secondTo, oldText: "[[old]]", newText },
+    ];
+
+    let stored = originalContent;
+    const mockOptions = createMockOptions({
+      readNote: vi.fn(async () => stored),
+      writeNote: vi.fn(async (_path: string, content: string) => {
+        stored = content;
+      }),
+      // Forward apply (both edits) succeeds; the file rename step then
+      // fails, triggering rollback of the already-landed edits.
+      renameFile: vi.fn().mockRejectedValue(new Error("disk full")),
+    });
+
+    const result = await executeRenameOperation(
+      "old.md",
+      "new.md",
+      createMockRenamePlan("old.md", "new.md", edits, []),
+      createEditorLayout(),
+      [],
+      createWorkspaceSettings(),
+      mockOptions
+    );
+
+    expect(result.success).toBe(false);
+    expect(stored).toBe(originalContent);
+  });
+
   it("should handle metadata migration failure with rollback", async () => {
     const mockOptions = createMockOptions({
       saveEditorLayout: vi.fn().mockRejectedValue(new Error("Metadata error")),
@@ -762,5 +810,54 @@ describe("renameExecutor - Error Handling", () => {
     // state from the failed first attempt.
     expect(secondResult.success).toBe(true);
     expect(retryOptions.renameFile).toHaveBeenCalledWith("old.md", "new.md");
+  });
+});
+
+describe("applyRenamePlan - Rollback", () => {
+  beforeEach(() => {
+    resetRenameExecutor();
+  });
+
+  it("rolls back both occurrences in one note when a later file's write fails", async () => {
+    // Same underlying bug as executeRenameOperation's rollback, but through
+    // applyRenamePlan's own independent rollback code path (used by the
+    // lighter useRenamePreview "Apply" flow, not the full transactional
+    // executeRenameOperation). a.md gets two length-changing edits that
+    // both land; b.md's write then fails, triggering rollback of a.md's
+    // already-landed edits. Restoring the second occurrence by its stale
+    // pre-edit offset would fail `verify` and leave it corrupted.
+    const contentA = "[[old]] and again [[old]] end";
+    const firstFrom = contentA.indexOf("[[old]]");
+    const firstTo = firstFrom + "[[old]]".length;
+    const secondFrom = contentA.indexOf("[[old]]", firstTo);
+    const secondTo = secondFrom + "[[old]]".length;
+    const newText = "[[much-longer-new-name]]";
+
+    const contentB = "before [[old]] after";
+    const fromB = contentB.indexOf("[[old]]");
+    const toB = fromB + "[[old]]".length;
+
+    const edits: PlannedWikiLinkEdit[] = [
+      { path: "a.md", from: firstFrom, to: firstTo, oldText: "[[old]]", newText },
+      { path: "a.md", from: secondFrom, to: secondTo, oldText: "[[old]]", newText },
+      { path: "b.md", from: fromB, to: toB, oldText: "[[old]]", newText },
+    ];
+
+    const store: Record<string, string> = { "a.md": contentA, "b.md": contentB };
+    const mockOptions = {
+      readNote: vi.fn(async (path: string) => store[path]),
+      writeNote: vi.fn(async (path: string, content: string) => {
+        if (path === "b.md") throw new Error("disk full");
+        store[path] = content;
+      }),
+    };
+
+    const result = await applyRenamePlan(
+      createMockRenamePlan("old.md", "new.md", edits, []),
+      mockOptions
+    );
+
+    expect(result.success).toBe(false);
+    expect(store["a.md"]).toBe(contentA);
   });
 });

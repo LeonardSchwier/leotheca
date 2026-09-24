@@ -223,9 +223,13 @@
 
   </details>
 
-- 🚧 **Open files from outside the vault from within an open app**: Obsidian 1.14.2 Desktop ships two new entry points on top of the already-implemented OS file-association "Open with" default-app registration: an in-app command ("Open file from outside the vault...") to pick any file on the computer and view it in the current window, and first-class OS default-app status for Markdown via the standard installer. Leotheca already handles external-file launches when a workspace is open and when none is (ExternalFileView scratch workspace); the in-app command was the one genuinely missing piece.
-  <!-- agent-state: {"schema":1,"id":"rm-d6f2b8cf42c7ad0e","state":"claimed","touch":["src/app/App.tsx","src/app/CommandPalette.tsx","src/workspace/tauriBridgeImpl.test.ts","src/workspace/tauriBridgeImpl.ts"],"resources":["external-file-open"],"owner":"Claude-Sonnet-5-cloud-scheduled-kindbardeen-20260924T121319Z-90e0304f","token":"5d1c0f4a6eaed6b34b87f7dd29ba4b92","branch":"agent/rm-d6f2b8cf42c7ad0e/5d1c0f4a6eae","claimed_at":"2026-09-24T12:13:23Z","heartbeat_at":"2026-09-24T12:13:23Z","lease_until":"2026-09-24T13:43:23Z"} -->
-  Agent: Claude-Sonnet-5-cloud-scheduled-kindbardeen-20260924T121319Z-90e0304f | item: rm-d6f2b8cf42c7ad0e | lease until: 2026-09-24T13:43:23Z
+
+
+## Implemented
+
+- ✅ **Open files from outside the vault from within an open app**: Obsidian 1.14.2 Desktop ships two new entry points on top of the already-implemented OS file-association "Open with" default-app registration: an in-app command ("Open file from outside the vault...") to pick any file on the computer and view it in the current window, and first-class OS default-app status for Markdown via the standard installer. Leotheca already handles external-file launches when a workspace is open and when none is (ExternalFileView scratch workspace); the in-app command was the one genuinely missing piece.
+  <!-- agent-state: {"schema":1,"id":"rm-d6f2b8cf42c7ad0e","state":"done","touch":["src/app/App.tsx","src/app/CommandPalette.tsx","src/workspace/tauriBridgeImpl.test.ts","src/workspace/tauriBridgeImpl.ts"],"resources":["external-file-open"],"note":"Implemented in-app 'Open file from outside the vault...' desktop command palette entry, reusing existing handleExternalFileOpen. OS-level default-app registration found already done via tauri.conf.json fileAssociations. Landed aede363 on main (fast-forward from claim commit 18745df). Verification: tsc/eslint(touched files)/check-version/vitest 2942-2942(+12)/vite build all green; cargo fmt/check/clippy/test(85/85) green as health check (no Rust touched). Pre-existing unrelated lint failure in tests/ui/tauriMock.js confirmed present on main before this change, tracked as a separate item.","completed_at":"2026-09-24T12:27:16Z","completed_by":"Claude-Sonnet-5-cloud-scheduled-kindbardeen-20260924T121319Z-90e0304f","branch":"agent/rm-d6f2b8cf42c7ad0e/5d1c0f4a6eae"} -->
+  Agent: completed by Claude-Sonnet-5-cloud-scheduled-kindbardeen-20260924T121319Z-90e0304f | item: rm-d6f2b8cf42c7ad0e
 
   <details>
   <summary>What was found, what was implemented, and verification</summary>
@@ -238,8 +242,6 @@
 
   </details>
 
-
-## Implemented
 
 - ✅ **`Open in other group` silently fails to move an already-open tab when `activeGroupId` is stale**: `moveTabToGroup` looks up the tab's source group via `layout.activeGroupId`, not via which group's `tabPaths` actually contains the path, so it silently no-ops when the two disagree -- a race `openInOtherGroup`'s own doc comment already discloses for its `sourceGroupId` resolution, but never fixed for the move itself.
   <!-- agent-state: {"schema":1,"id":"rm-e5484cf619809ed9","state":"done","touch":["ROADMAP.md#stale-activegroupid-move-failure","src/workspace/documentGroups.test.ts","src/workspace/documentGroups.ts","src/workspace/store.test.ts"],"resources":["editor-group-tab-move"],"note":"Landed 1d7f545 on main (fast-forward from claim c8944a1). Added groupContaining helper so moveTabToGroup resolves its source group from wherever the tab actually is, not the potentially-stale layout.activeGroupId; moveActiveTabToOtherGroup (the other caller) unaffected since it already derives path from activeGroupId's own active tab. 2 new regression tests (documentGroups.test.ts unit-level, store.test.ts end-to-end through openInOtherGroup), revert-confirmed to fail without the fix. Full local verification green on this exact tree: tsc --noEmit clean, eslint clean, check-version pass, vitest 2936/2936 (153 files, +2 new, 0 regressions), vite build succeeds; from src-tauri (no Rust touched, health check): cargo fmt --check/clippy -D warnings/test (85/85)/check all green. Hosted CI run 35966890123 triggered on push, queued at finish time -- check it directly on main if this note doesn't yet record its conclusion. CI runs for this session's prior three fixes (47a77df, 222ec8c, a9c1a6d) all confirmed conclusion success.","completed_at":"2026-09-24T06:55:41Z","completed_by":"Claude-Sonnet-5-cloud-scheduled-kindbardeen-20260924T061854Z-aef64d89","branch":"agent/rm-e5484cf619809ed9/4da362f0f28f"} -->

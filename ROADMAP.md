@@ -60,7 +60,9 @@
 
 ### Bugs
 
-- ⬜ **Rename rollback silently corrupts a note with two edits to the same renamed target**: A failed rename's rollback restores each wikilink/markdown-link edit at its *original* pre-rename offset in `renameExecutor.ts`. When a note references the renamed note more than once, an earlier edit's length-changing replacement text shifts every later edit's real position, so rollback silently skips restoring it and leaves the note with a mix of old and new link text.
+- 🚧 **Rename rollback silently corrupts a note with two edits to the same renamed target**: A failed rename's rollback restores each wikilink/markdown-link edit at its *original* pre-rename offset in `renameExecutor.ts`. When a note references the renamed note more than once, an earlier edit's length-changing replacement text shifts every later edit's real position, so rollback silently skips restoring it and leaves the note with a mix of old and new link text.
+  <!-- agent-state: {"schema":1,"id":"rm-d1a8c60ea2d9a3f3","state":"claimed","touch":["ROADMAP.md#rename-rollback-multi-edit-corruption","src/refactor/renameExecutor.test.ts","src/refactor/renameExecutor.ts"],"resources":["rename-rollback-multi-edit"],"owner":"Claude-Sonnet-5-cloud-scheduled-kindbardeen-20260924T061854Z-aef64d89","token":"bc841fec2d7c1cdce929ae3509485d34","branch":"agent/rm-d1a8c60ea2d9a3f3/bc841fec2d7c","claimed_at":"2026-09-24T06:19:38Z","heartbeat_at":"2026-09-24T06:19:38Z","lease_until":"2026-09-24T07:49:38Z"} -->
+  Agent: Claude-Sonnet-5-cloud-scheduled-kindbardeen-20260924T061854Z-aef64d89 | item: rm-d1a8c60ea2d9a3f3 | lease until: 2026-09-24T07:49:38Z
 
   <details>
   <summary>Root cause and reproduction</summary>

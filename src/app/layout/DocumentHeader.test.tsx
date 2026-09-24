@@ -26,9 +26,9 @@ const BASE_PROPS = {
 };
 
 describe("DocumentHeader", () => {
-  it("shows the note name", () => {
+  it("shows the workspace-relative path in the header", () => {
     const { getByText } = render(<DocumentHeader {...BASE_PROPS} />);
-    expect(getByText("Meeting notes.md")).toBeTruthy();
+    expect(getByText("notes/Meetings/Meeting notes.md")).toBeTruthy();
   });
 
   it("marks exactly the current view mode active", () => {
@@ -88,10 +88,9 @@ describe("DocumentHeader", () => {
     expect(getByTitle("/workspace/notes/Meeting notes.md")).toBeTruthy();
   });
 
-  it("shows parent folders as a concise workspace-relative breadcrumb", () => {
-    const { getByLabelText, getByText } = render(<DocumentHeader {...BASE_PROPS} />);
-    expect(getByText("notes / Meetings")).toBeTruthy();
-    expect(getByLabelText("Path: notes/Meetings/Meeting notes.md")).toBeTruthy();
+  it("shows the full workspace-relative path (name + parent folders)", () => {
+    const { getByText } = render(<DocumentHeader {...BASE_PROPS} />);
+    expect(getByText("notes/Meetings/Meeting notes.md")).toBeTruthy();
   });
 
   it("omits the breadcrumb for a note at the workspace root", () => {

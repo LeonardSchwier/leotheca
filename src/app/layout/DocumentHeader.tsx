@@ -106,7 +106,7 @@ export interface DocumentHeaderProps {
 }
 
 export function DocumentHeader({
-  noteName,
+  noteName: _noteName,
   workspaceRelativePath,
   notePath,
   viewMode,
@@ -149,26 +149,19 @@ export function DocumentHeader({
           ? "dirty"
           : "clean";
 
-  const breadcrumbSegments = workspaceRelativePath
-    .split("/")
-    .filter(Boolean)
-    .slice(0, -1);
-
   return (
     <div class="document-header">
-      <span class="document-header-title" title={notePath}>
-        <RegistryIcon
-          name="fileText"
-          size={16}
-          className="document-header-icon"
-        />
-        <span class="document-header-title-text">{noteName}</span>
-        {breadcrumbSegments.length > 0 && (
-          <span class="document-header-breadcrumb" aria-label={`Path: ${workspaceRelativePath}`}>
-            {breadcrumbSegments.join(" / ")}
+      <div class="document-header-title">
+        {workspaceRelativePath && (
+          <span class="document-header-path" title={notePath}>
+            <RegistryIcon name="folder" size={16} className="document-header-icon" />
+            <span class="document-header-path-text">{workspaceRelativePath}</span>
           </span>
         )}
-      </span>
+        <span class="document-header-savestate-wrapper" aria-hidden="true">
+          {saveState === "dirty" && <span class="document-header-dirty-dot" title="Unsaved changes" />}
+        </span>
+      </div>
       <div
         class={`document-header-savestate document-header-savestate-${saveState}`}
       >

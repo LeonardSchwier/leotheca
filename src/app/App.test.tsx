@@ -2011,7 +2011,7 @@ describe("App: UX-01 Document Header (Medium+ layout)", () => {
     openOrFocusTab("/vault/notes/a.md", "a.md", "hello", "text");
     const { container } = render(<App />);
 
-    expect(container.querySelector(".document-header-title")?.getAttribute("title")).toBe(
+    expect(container.querySelector(".document-header-path")?.getAttribute("title")).toBe(
       "/vault/notes/a.md",
     );
   });

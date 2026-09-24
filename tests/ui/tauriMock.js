@@ -10,7 +10,7 @@ const TAURI_MOCK_JS = `
   const MOCK_FILES = {
     'notes/welcome.md': '# Welcome to Leotheca\n\nThis is a **bold** and *italic* test workspace.\n\n## Features\n- ==Highlight== testing\n- [inline code] blocks\n\n> A blockquote for testing.\n\n### Subheading\nContent here.\n\n- [x] Done task\n- [ ] Open task\n\n$\\frac{a}{b} + c$\n\n| Col1 | Col2 |\n|------|------|\n| a    | b    |',
     'notes/todos.md': '# Todo List\n\n- [x] Build E2E test harness\n- [ ] Verify highlight rendering\n- [ ] Test file tree\n\n#tag:test #tag:todo\n\n> Deadline: 2026-10-01',
-    'projects/leotheca.md': '# Leotheca Project\n\nA local-first note-taking app.\n\n## Tech Stack\n- Preact\n- Tauri\n- Capacitor\n\n==Local-first by design==\n\n$E = mc^2$\n\n```js\nconst x = 42;\n```',
+    'projects/leotheca.md': '# Leotheca Project\n\nA local-first note-taking app.\n\n## Tech Stack\n- Preact\n- Tauri\n- Capacitor\n\n==Local-first by design==\n\n$E = mc^2$\n\n\`\`\`js\nconst x = 42;\n\`\`\`',
     'research/ai.md': '# AI Research\n\nNotes about AI and machine learning.\n\n## Key Concepts\n- Neural networks\n- Transformers\n- **Attention mechanism**\n\n> The future is local-first.\n\n#tag:ai #tag:research\n\n$$\\int_0^\\infty e^{-x^2} dx = \\frac{\\sqrt{\\pi}}{2}$$',
     'inbox/ideas.md': '# Ideas\n\n- Build a ==dashboard== for token tracking\n- Add dark mode\n- Mobile app\n\n#tag:ideas'
   };

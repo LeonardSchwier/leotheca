@@ -37,11 +37,16 @@ export default tseslint.config(
     // so they need Node's own globals rather than the browser ones the rest
     // of this config never had to declare because tseslint's TS-aware rules
     // cover src/**/*.{ts,tsx} instead of relying on eslint's no-undef there.
-    files: ["scripts/**/*.js"],
+    // tests/ui/*.js (Playwright/headless-browser E2E harness support, e.g.
+    // tauriMock.js) is the same kind of plain CommonJS Node script, loaded
+    // by the E2E Python driver rather than bundled with the app.
+    files: ["scripts/**/*.js", "tests/ui/**/*.js"],
     languageOptions: {
       globals: {
         console: "readonly",
         process: "readonly",
+        module: "readonly",
+        require: "readonly",
       },
     },
   },

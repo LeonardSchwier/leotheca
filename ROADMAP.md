@@ -58,7 +58,22 @@
   <!-- agent-state: {"schema":1,"id":"rm-dcbbb805ce521c18","state":"open","touch":[".agents/handoffs",".github/workflows/release.yml"],"resources":["macos-release-signing"],"note":"Code work complete (2b0f57b on main). Remaining steps (notarization run, Gatekeeper test on real macOS, Homebrew Cask) blocked on maintainer Apple Developer Program credentials. Released so the lease does not block other agents.","released_at":"2026-09-22T18:21:29Z"} -->
   Agent: unclaimed | item: rm-dcbbb805ce521c18
 
-- ⬜ **Main CI red: `tests/ui/tauriMock.js` parse error (regression from `fe2ff2f`)**: Commit `fe2ff2f` ("test(e2e): add Playwright E2E test suite (27 tests)") added `tests/ui/tauriMock.js`, whose outer `` const TAURI_MOCK_JS = `...`; `` template literal contains unescaped literal backticks inside its embedded Markdown fixture content (a ` ```js ` code fence), prematurely terminating the outer template literal. `eslint` (and any real JS parser) fails on the file with a parse error, breaking the `frontend` CI job's `Lint` step (and therefore the `validation` gate) on every push to `main` since that commit.
+- 🚧 **Main CI red: `tests/ui/tauriMock.js` parse error (regression from `fe2ff2f`)**: Commit `fe2ff2f` ("test(e2e): add Playwright E2E test suite (27 tests)") added `tests/ui/tauriMock.js`, whose outer `` const TAURI_MOCK_JS = `...`; `` template literal contains unescaped literal backticks inside its embedded Markdown fixture content (a ` ```js ` code fence), prematurely terminating the outer template literal. `eslint` (and any real JS parser) fails on the file with a parse error, breaking the `frontend` CI job's `Lint` step (and therefore the `validation` gate) on every push to `main` since that commit.
+  <!-- agent-state: {"schema":1,"id":"rm-0373b91a1c9fdc10","state":"claimed","touch":["eslint.config.js","tests/ui/tauriMock.js"],"resources":["e2e-mock-lint"],"owner":"Claude-Sonnet-5-cloud-scheduled-kindbardeen-20260924T121319Z-90e0304f","token":"9dc8b36b99829df369fa918ac2656c80","branch":"agent/rm-0373b91a1c9fdc10/9dc8b36b9982","claimed_at":"2026-09-24T12:33:09Z","heartbeat_at":"2026-09-24T12:33:09Z","lease_until":"2026-09-24T14:03:09Z"} -->
+  Agent: Claude-Sonnet-5-cloud-scheduled-kindbardeen-20260924T121319Z-90e0304f | item: rm-0373b91a1c9fdc10 | lease until: 2026-09-24T14:03:09Z
+
+  <details>
+  <summary>Root cause, fix, and verification</summary>
+
+  Root cause: `tauriMock.js`'s `MOCK_FILES['projects/leotheca.md']` fixture embeds a literal ` ```js\nconst x = 42;\n``` ` Markdown code fence as plain unescaped backtick characters, inside the file's own single outer `` `...` `` template literal (the whole IIFE body is one big template-literal string, later regex-extracted by `tests/ui/leotheca_e2e_test.py` and injected into the headless browser as raw JS source). A raw backtick inside a template literal always closes it, wherever it appears, regardless of any inner quoting; the first of those three fence backticks silently ended the outer literal three lines after it opened, turning everything from that point on into invalid top-level JS.
+
+  Fix: escaped each fence backtick as `` \` `` (six occurrences: two triple-backtick fences) so they stay literal characters within the outer template literal instead of terminating it. Verified this doesn't change the mock's actual runtime behavior: extracted the file's content exactly the way the Python E2E driver's own regex does, `eval()`'d it in a Node sandbox stubbing `window`/`localStorage`/`btoa`, and confirmed `read_text_file` for `projects/leotheca.md` still returns the code fence with real (unescaped) backticks, byte-for-byte the same Markdown as before.
+
+  `eslint.config.js` needed a second, independent fix once the parse error was gone: `tests/ui/tauriMock.js` is a plain CommonJS Node script (`module.exports` at the bottom, loaded by the Python E2E driver, not bundled with the app), the same category as `scripts/**/*.js`, but that existing override's `files` glob didn't cover `tests/ui/`, so `module`/`require` weren't declared globals and `no-undef` fired on `module.exports`. Widened that override's `files` to also match `tests/ui/**/*.js` and added `module`/`require` to its globals (`console`/`process` already existed for `scripts/**/*.js`).
+
+  Verification on this exact tree: `npx tsc --noEmit` clean; `npm run lint` (`eslint .`) clean, 0 errors across the whole repo (previously failed on this exact file); `npm run check-version` pass; `npx vitest run` 2942/2942 passing (no test touches this file); `npx vite build` succeeds. No Rust source touched.
+
+  </details>
 
 ### Bugs
 

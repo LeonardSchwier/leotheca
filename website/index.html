@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Leotheca — Your notes, in a folder you own</title>
+  <meta name="description" content="A free, open-source markdown editor that runs fully offline. No account. No telemetry. No network calls.">
+  <meta property="og:title" content="Leotheca">
+  <meta property="og:description" content="A free, open-source markdown editor that runs fully offline. No account. No telemetry.">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="/icons/leotheca.svg">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Leotheca">
+  <meta name="twitter:description" content="A free, open-source markdown editor that runs fully offline. No account. No telemetry.">
+  <meta name="twitter:image" content="/icons/leotheca.svg">
+  <link rel="icon" type="image/svg+xml" href="/icons/leotheca.svg">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <noscript>
+    <p style="padding:1rem;background:#BF9B5E;color:#152229;text-align:center">This page works best with JavaScript enabled. The content below is fully readable without it.</p>
+  </noscript>
+  <header class="site-header">
+    <div class="container">
+      <a href="/" class="logo" aria-label="Leotheca home">
+        <img src="/icons/leotheca.svg" alt="" width="32" height="32">
+        <span>Leotheca</span>
+      </a>
+      <nav class="site-nav" aria-label="Main">
+        <a href="#features">Features</a>
+        <a href="#principles">Principles</a>
+        <a href="#install">Install</a>
+        <a href="https://github.com/LeonardSchwier/leotheca" class="gh-link">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <!-- HERO -->
+    <section class="hero" id="top">
+      <div class="container hero-grid">
+        <div class="hero-copy">
+          <h1>Your notes, in a folder you own.</h1>
+          <p class="hero-sub">A free, open-source markdown editor that runs fully offline. No account. No telemetry. No network calls.</p>
+          <div class="hero-actions">
+            <a href="https://github.com/LeonardSchwier/leotheca/releases" class="btn btn-primary">Download</a>
+            <a href="https://github.com/LeonardSchwier/leotheca" class="btn btn-secondary">View on GitHub</a>
+          </div>
+          <p class="hero-meta">Linux · macOS · Windows · Android &nbsp;·&nbsp; MIT License</p>
+        </div>
+        <div class="hero-visual">
+          <div class="browser-frame">
+            <div class="browser-bar">
+              <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+            </div>
+            <img src="/screenshots/split-view.png" alt="Leotheca's split view, showing the markdown source next to its live-rendered preview" class="hero-shot">
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PRINCIPLES -->
+    <section class="principles" id="principles">
+      <div class="container">
+        <div class="section-head">
+          <h2>Three principles, nothing else</h2>
+          <p>Every decision in this project, from architecture to a single line of UI copy, resolves to one of these.</p>
+        </div>
+        <ol class="principle-list">
+          <li>
+            <span class="num">01</span>
+            <div>
+              <h3>Free and open source, without compromise</h3>
+              <p>The full source is open under MIT, forever. No feature is held back for a paid tier, no network calls of any kind, no account required. Being open source isn't a marketing label — it's the reason the other two principles are possible.</p>
+            </div>
+          </li>
+          <li>
+            <span class="num">02</span>
+            <div>
+              <h3>Standing on the shoulders of giants</h3>
+              <p>Wikilinks, YAML frontmatter, a folder of plain files. Where a good convention already exists, this project adopts it instead of inventing a competing one, so your existing notes and habits carry over with as little friction as possible.</p>
+            </div>
+          </li>
+          <li>
+            <span class="num">03</span>
+            <div>
+              <h3>A user's notes belong to the user</h3>
+              <p>Notes are plain markdown files in a folder you control, not a database or a proprietary format. Nothing about how a note is stored depends on this application continuing to exist, being installed, or being online.</p>
+            </div>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- FEATURES -->
+    <section class="features" id="features">
+      <div class="container features-grid">
+        <div class="features-left">
+          <h2>Built for how you already take notes</h2>
+          <p>Point it at any local folder of markdown files. No import step, no proprietary format, no setup wizard. Your notes are the app, not the other way around.</p>
+        </div>
+        <ul class="feature-list">
+          <li><span class="fdot"></span><div><strong>Wikilinks and backlinks</strong> — <code>[[links]]</code> resolved by filename, autocomplete while typing, backlinks panel.</div></li>
+          <li><span class="fdot"></span><div><strong>Graph view</strong> — a pannable, zoomable map of how every note connects.</div></li>
+          <li><span class="fdot"></span><div><strong>CodeMirror 6 editor</strong> — source mode, rendered preview, or split view. Your call, per note.</div></li>
+          <li><span class="fdot"></span><div><strong>Fully offline, no account</strong> — no telemetry, no network calls, no sign-in. Ever.</div></li>
+          <li><span class="fdot"></span><div><strong>Frontmatter and kanban</strong> — YAML properties, case-insensitive boards, smart collections.</div></li>
+          <li><span class="fdot"></span><div><strong>Task Hub</strong> — every GFM task-list item across your vault in one place.</div></li>
+          <li><span class="fdot"></span><div><strong>Local speech-to-text</strong> — whisper.cpp on desktop, SpeechRecognizer on Android. Nothing leaves your device.</div></li>
+          <li><span class="fdot"></span><div><strong>Full-text search</strong> — across the entire vault, including hidden dotfiles.</div></li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- SCREENSHOTS -->
+    <section class="screenshots">
+      <div class="container">
+        <h2 class="section-title">See it in use</h2>
+        <div class="shot-grid">
+          <figure>
+            <img src="/screenshots/split-view.png" alt="Leotheca's split view, showing the markdown source next to its live-rendered preview, with wikilinks and a backlinks panel">
+            <figcaption>Split view: source and rendered preview side by side, with a backlinks panel.</figcaption>
+          </figure>
+          <figure>
+            <img src="/screenshots/graph-view.png" alt="Leotheca's graph view, showing notes as nodes connected by their wikilinks">
+            <figcaption>Graph view: how your notes connect to each other via wikilinks.</figcaption>
+          </figure>
+          <figure>
+            <img src="/screenshots/settings.png" alt="Leotheca's settings panel, showing theme, font size, zoom, workspace statistics, and keyboard shortcuts">
+            <figcaption>Settings: theme, font size, UI zoom, and every keyboard shortcut in one place.</figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <!-- DEMO -->
+    <section class="demo">
+      <div class="container">
+        <h2 class="section-title">Quick tour</h2>
+        <p class="demo-desc">File tree, opening a note, switching to preview mode, searching, and theme toggle.</p>
+        <div class="demo-media">
+          <img src="/screenshots/demo.gif" alt="Leotheca demo: file tree, preview mode, search, and theme toggle">
+        </div>
+        <p class="demo-video"><a href="/screenshots/demo.mp4">Watch the full video</a> (159 KB, H.264)</p>
+      </div>
+    </section>
+
+    <!-- INSTALL -->
+    <section class="install" id="install">
+      <div class="container">
+        <div class="section-head">
+          <h2>Install</h2>
+          <p>Download the latest release, or grab the always-fresh dev build.</p>
+        </div>
+        <div class="install-grid">
+          <div class="install-card">
+            <h3>Linux</h3>
+            <p>AppImage or Flatpak. Works across Arch, Debian/Ubuntu, Fedora, and all major distributions.</p>
+            <a href="https://github.com/LeonardSchwier/leotheca/releases" class="btn btn-small">Download</a>
+          </div>
+          <div class="install-card">
+            <h3>Android</h3>
+            <p>Obtainium, F-Droid, or direct APK. Minimum Android 10 (API 29).</p>
+            <a href="https://github.com/LeonardSchwier/leotheca/releases" class="btn btn-small">Download</a>
+          </div>
+          <div class="install-card">
+            <h3>macOS &amp; Windows</h3>
+            <p>Universal DMG (Apple Silicon + Intel) or MSI installer. Unsigned for now — see the release notes.</p>
+            <a href="https://github.com/LeonardSchwier/leotheca/releases" class="btn btn-small">Download</a>
+          </div>
+        </div>
+        <p class="dev-build"><strong>Latest build:</strong> every push to <code>main</code> publishes to the <a href="https://github.com/LeonardSchwier/leotheca/releases/tag/dev-build">dev-build release</a> — unreviewed, prerelease, freshest code.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p class="footer-badges">MIT License &middot; Open Source &middot; No Telemetry &middot; No Account</p>
+      <nav class="footer-nav" aria-label="Footer">
+        <a href="https://github.com/LeonardSchwier/leotheca">GitHub</a>
+        <a href="https://github.com/LeonardSchwier/leotheca/blob/main/ROADMAP.md">Roadmap</a>
+        <a href="https://github.com/LeonardSchwier/leotheca/blob/main/PHILOSOPHY.md">Philosophy</a>
+        <a href="https://github.com/LeonardSchwier/leotheca/blob/main/CONTRIBUTING.md">Contributing</a>
+      </nav>
+      <p class="footer-tag">Built with love and plain files.</p>
+    </div>
+  </footer>
+</body>
+</html>

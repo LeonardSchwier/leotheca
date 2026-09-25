@@ -503,7 +503,7 @@
 
 </details>
 
-- ⬜ **Audit follow-up F-004: Enforce workspace containment and mutation semantics at the native boundary**
+- ✅ **Audit follow-up F-004: Enforce workspace containment and mutation semantics at the native boundary**
 
 <details>
     <summary>Details</summary>
@@ -512,7 +512,7 @@
 
 </details>
 
-- ⬜ **Audit follow-up N-002: Prevent stale file-open completions**
+- ✅ **Audit follow-up N-002: Prevent stale file-open completions**
 
 <details>
     <summary>Details</summary>
@@ -622,7 +622,7 @@
 
 </details>
 
-- ⬜ **Audit follow-up F-008: Runtime-decode persisted workspace data without destructive recovery**
+- ✅ **Audit follow-up F-008: Runtime-decode persisted workspace data without destructive recovery**
 
 <details>
     <summary>Details</summary>
@@ -703,7 +703,7 @@
 
 </details>
 
-- ⬜ **Audit follow-up F-010: Define a lossless canvas document and reference contract**
+- ✅ **Audit follow-up F-010: Define a lossless canvas document and reference contract**
 
 <details>
     <summary>Details</summary>
@@ -712,7 +712,7 @@
 
 </details>
 
-- ⬜ **Audit follow-up F-015: Establish one release-version source of truth**
+- ✅ **Audit follow-up F-015: Establish one release-version source of truth**
 
 <details>
     <summary>Details</summary>
@@ -721,7 +721,7 @@
 
 </details>
 
-- ⬜ **Audit follow-up F-014: Make one same-commit validation gate authoritative**
+- ✅ **Audit follow-up F-014: Make one same-commit validation gate authoritative**
 
 <details>
     <summary>Details</summary>
@@ -748,7 +748,7 @@
 
 </details>
 
-- ⬜ **Audit follow-up N-004: Contain local Markdown attachment reads**
+- ✅ **Audit follow-up N-004: Contain local Markdown attachment reads**
 
 <details>
     <summary>Details</summary>
@@ -757,7 +757,7 @@
 
 </details>
 
-- ⬜ **Audit follow-up N-005: Bound Markdown attachment resolution concurrency**
+- ✅ **Audit follow-up N-005: Bound Markdown attachment resolution concurrency**
 
 <details>
     <summary>Details</summary>
@@ -766,7 +766,7 @@
 
 </details>
 
-- ⬜ **Audit follow-up F-009: Preserve frontmatter semantics during property edits**
+- ✅ **Audit follow-up F-009: Preserve frontmatter semantics during property edits**
 
 <details>
     <summary>Details</summary>
@@ -775,7 +775,7 @@
 
 </details>
 
-- ⬜ **Audit follow-up F-006: Give search requests explicit ownership**
+- ✅ **Audit follow-up F-006: Give search requests explicit ownership**
 
 <details>
     <summary>Details</summary>
@@ -784,7 +784,7 @@
 
 </details>
 
-- ⬜ **Audit follow-up F-013: Measure and bound graph layout work**
+- ✅ **Audit follow-up F-013: Measure and bound graph layout work**
 
 <details>
     <summary>Details</summary>
@@ -793,7 +793,7 @@
 
 </details>
 
-- ⬜ **Audit follow-up N-001/N-003: Make workspace transitions authoritative**
+- ✅ **Audit follow-up N-001/N-003: Make workspace transitions authoritative**
 
 <details>
     <summary>Details</summary>
@@ -811,7 +811,7 @@
 
 </details>
 
-- ⬜ **Codebase Audit Recommendations: Android URI Cache Invalidation (F-007)**
+- ✅ **Codebase Audit Recommendations: Android URI Cache Invalidation (F-007)**
 
 <details>
     <summary>Details</summary>
@@ -820,7 +820,7 @@
 
 </details>
 
-- ⬜ **Codebase Audit Recommendations: Settings Hydration and Write Ordering (F-002)**
+- ✅ **Codebase Audit Recommendations: Settings Hydration and Write Ordering (F-002)**
 
 <details>
     <summary>Details</summary>
@@ -829,7 +829,7 @@
 
 </details>
 
-- ⬜ **Codebase Audit Recommendations: Workspace Session Identity (F-001)**
+- ✅ **Codebase Audit Recommendations: Workspace Session Identity (F-001)**
 
 <details>
     <summary>Details</summary>
@@ -838,7 +838,7 @@
 
 </details>
 
-- ⬜ **Audit follow-up F-012: Make link-index cache freshness and failures explicit**
+- ✅ **Audit follow-up F-012: Make link-index cache freshness and failures explicit**
 
 <details>
     <summary>Details</summary>

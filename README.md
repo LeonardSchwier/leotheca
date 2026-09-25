@@ -45,9 +45,9 @@ Settings: theme, font size, whole-UI zoom, workspace statistics, and every keybo
 
 ## 🎬 Demo
 
-<video src="assets/screenshots/demo.mp4" controls width="100%"></video>
+<p align="center"><a href="assets/screenshots/demo.mp4"><img src="assets/screenshots/demo-poster.png" alt="Leotheca demo video: file tree, preview mode, search, and theme toggle" width="100%"></a></p>
 
-A quick tour: file tree, opening a note, switching to preview mode, searching, and theme toggle. Recorded with Playwright, converted with ffmpeg.
+Click to play — a quick tour: file tree, opening a note, switching to preview mode, searching, and theme toggle. [Download the video](assets/screenshots/demo.mp4) (159 KB, H.264).
 
 ## 📥 Install
 

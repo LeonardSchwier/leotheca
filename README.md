@@ -25,7 +25,16 @@ Three principles govern every decision here, in order. Full detail in [`PHILOSOP
 - 🕸️ A pannable, zoomable graph view of your whole workspace.
 - ⭐ Bookmarks for files and saved searches.
 - 🎨 A premium, deliberate light and dark theme, following your OS by default.
-- 📱 On Android, real folder access via the Storage Access Framework, point it at a folder your existing sync tool already manages.
+- 🔍 Full-text search across your entire vault, including hidden dotfiles.
+- 🏷️ Frontmatter properties with a Properties panel, case-insensitive kanban boards, and smart collections.
+- 📋 Command palette (Ctrl+K) for quick navigation and actions.
+- 📤 Export a note to standalone HTML or print/PDF via the OS dialog.
+- ⌨️ `==highlighted text==` with color emoji (🔴🟠🟢🔵🟣), following the Obsidian convention.
+- 📊 Task Hub: read-only view of all GFM task-list items across your vault.
+- 🎤 Local speech-to-text dictation (whisper.cpp on desktop, SpeechRecognizer on Android).
+- 📁 Open files from outside your vault, or from the OS file manager, into a read-only scratch view.
+- 📱 On Android, real folder access via the Storage Access Framework.
+- 🚀 No account, no telemetry, no network calls, fully offline.
 
 See [`ROADMAP.md`](ROADMAP.md) for what's shipped so far in detail and what's still open.
 

@@ -98,6 +98,17 @@ Beyond automated tests, visual verification is a standing practice:
 - **Video capture:** For animation or interaction sequences that a still image can't convey, Playwright records the browser session to `.webm`, converted to `.mp4` (H.264, 720p) via `ffmpeg`. This is used for PR evidence and user demos.
 - **Dev server workflow:** The Vite dev server is restarted before every screenshot session to avoid stale HMR state. The port (5173) is verified free before starting.
 
+### Demo video
+
+A recorded demo of the key interactions (file tree, preview, search, theme toggle) lives in [`../assets/screenshots/demo.mp4`](../assets/screenshots/demo.mp4) and is embedded in the [README](../README.md#-demo). Regenerate it any time with:
+
+```bash
+python3 tests/ui/record_demo.py
+# → .webm in /tmp/leotheca_demo_video/, convert with:
+ffmpeg -i /tmp/leotheca_demo_video/*.webm -c:v libx264 -crf 23 -preset fast \
+  -pix_fmt yuv420p -vf "scale=1280:720" -an assets/screenshots/demo.mp4
+```
+
 ## Adding Tests
 
 ### New unit test

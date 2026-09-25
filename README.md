@@ -43,6 +43,12 @@ The graph view, showing how notes connect to each other via wikilinks.
 
 Settings: theme, font size, whole-UI zoom, workspace statistics, and every keyboard shortcut in one place.
 
+## 🎬 Demo
+
+<video src="assets/screenshots/demo.mp4" controls width="100%"></video>
+
+A quick tour: file tree, opening a note, switching to preview mode, searching, and theme toggle. Recorded with Playwright, converted with ffmpeg.
+
 ## 📥 Install
 
 ### Linux

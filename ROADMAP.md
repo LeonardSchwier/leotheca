@@ -121,7 +121,7 @@
 
 
 
-- ⬜ **F07 Phase 6: General-availability cleanup** (spec: `spec/f07-split-panes-pinned-tabs.md` section 10.2, section 23 "Phase 6", section 26; depends on F07 Phases 3-5 all landing **and** shipping in a real release first -- this is a product-timing gate, not only a code dependency): Remove the flat-tab compatibility UI after one release of migration confidence, keeping the legacy persisted mirror for the documented downgrade-compatibility window.
+- ✅ **F07 Phase 6: General-availability cleanup** (spec: `spec/f07-split-panes-pinned-tabs.md` section 10.2, section 23 "Phase 6", section 26; depends on F07 Phases 3-5 all landing **and** shipping in a real release first -- this is a product-timing gate, not only a code dependency): Remove the flat-tab compatibility UI after one release of migration confidence, keeping the legacy persisted mirror for the documented downgrade-compatibility window.
 
   <details>
   <summary>Why this phase is not immediately claimable</summary>

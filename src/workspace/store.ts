@@ -13,19 +13,23 @@ import {
 import type { EditorGroupId, EditorGroupState, EditorLayoutState, OpenDocument, OpenTab, TabKind, ViewMode } from "./types";
 
 /** Canonical open-document store. Editor groups hold only references to
- * these records, ensuring one content and save authority per path. */
+ * these records, ensuring one content and save authority per path.
+ * F07 Phase 6: the flat-tab compatibility layer is removed; the primary
+ * group's accessors (openTabs, activeTabPath) are the canonical API. */
 export const openDocuments = signal<OpenDocument[]>([]);
-/** Compatibility selector for the present flat tab UI. It follows the
+/** Primary group's tab list (F07 Phase 6: the flat-tab compatibility
+ * selectors are now the canonical primary-group accessors). Follows the
  * primary group's placement references, not a second writable tab store. */
 export const openTabs = computed<OpenTab[]>(() => tabsForGroup("primary"));
-/** Compatibility selector for the primary group's active document. */
+/** Primary group's active document path (F07 Phase 6: canonical
+ * primary-group accessor). */
 export const activeTabPath = computed(() => editorLayout.value.groups.primary.activePath);
 /** The secondary group's own tab list (empty, not error, when no secondary
  * group exists), for the split-pane UI (F07 Phase 3). */
 export const secondaryOpenTabs = computed<OpenTab[]>(() => tabsForGroup("secondary"));
 export const secondaryActiveTabPath = computed(() => editorLayout.value.groups.secondary?.activePath ?? null);
-/** F07 Phase 1's logical group state. The UI remains a single primary group
- * until later phases add pins and a secondary editor group. */
+/** Logical editor group state (F07 Phase 1-5). The primary group's
+ * accessors (openTabs, activeTabPath) are the canonical API per F07 Phase 6. */
 export const editorLayout = signal<EditorLayoutState>(createPrimaryEditorLayout([], null));
 
 function tabsForGroup(groupId: EditorGroupId): OpenTab[] {

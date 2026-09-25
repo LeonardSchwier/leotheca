@@ -49,9 +49,8 @@ export interface OpenDocument {
   searchQuery?: string;
 }
 
-/** Compatibility name for the current one-group tab UI. F07 Phase 1 keeps
- * this alias so callers can migrate to `OpenDocument` without changing the
- * visible tab behavior. */
+/** Primary group's tab type (F07 Phase 6: canonical alias for the
+ * primary group's OpenDocument). */
 export type OpenTab = OpenDocument;
 
 export type EditorGroupId = "primary" | "secondary";

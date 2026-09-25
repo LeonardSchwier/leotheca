@@ -85,20 +85,6 @@
     - **Layer 3, a single batch's serialized JSON payload can itself be huge: code done, unit/integration-tested, still NOT confirmed on-device.** On-device crash confirmed via `adb shell dumpsys dropbox --print`: `OutOfMemoryError: Failed to allocate a 301989896 byte allocation` (~288MB) inside `org.json.JSONStringer`/`PluginResult.toString()`, called from `FolderAccessPlugin.readTextFilesBatch`'s `call.resolve(ret)`. Root cause: batching bounded a batch by file *count* (up to 40), not combined *byte size*. Fixed in commit `35552cf` (authored directly after this entry's "next step" note below, but never folded back into this entry until now): a `size` field was added to `FsEntry`/`find_all_files`/`findAllFiles` (both platforms), `createBatchedContentReader` (`fileTreeStore.ts`) now flushes a batch immediately once its accumulated size crosses `SEARCH_BATCH_MAX_BYTES` (8MB) instead of waiting for a full concurrency-sized group, and a single file above `MAX_SEARCHABLE_FILE_BYTES` (50MB) is now treated like an image: matchable by name, never read for content. New Rust/TypeScript tests cover a real reported size, a 3-file/15MB batch splitting on size alone despite being well under the concurrency count cap, and an oversized single file never being read; full verification suite was green at the time (tsc, vitest 534/534, eslint, vite build, cargo test 23/23, cargo clippy, cargo check). **F-005 residual gaps closed**: a later audit (F-005) found three additional risks the layer-3 fix didn't address — non-text binary files (PDFs, videos, archives, executables) passed through native string serialization; batch size check allowed one file to overshoot; unknown file sizes defaulted to 0, letting oversized unknowns blend into zero-size batches. All three closed with `isTextFile` whitelist, pre-add batch size flush, and `CONSERVATIVE_UNKNOWN_SIZE = 4 MB` default (10 new tests, 597 total, all green). **What's still open**: nobody has re-run the maintainer's real ~500-note vault to confirm the OOM is gone end-to-end. **Additional regression tests added (this session):** `tag:work OR tag:personal` multi-branch tag-only query never calls `readTextFilesBatch` (proving content-read skip works for compound tag queries, not just single `tag:` clauses), and bare `tag:` (empty value) parses as a literal text term without crashing, correctly matching files whose content contains the string. Full suite green: 85/85 tests in `fileTreeStore.test.ts`, tsc --noEmit clean. On-device OOM re-run on a real ~500-note vault remains the outstanding verification step; requires an Android device, which this host does not have.
   </details>
 
-- 🚧 **E2E Playwright harness hardcodes `/usr/bin/chromium`, absent on this project's own Claude Code cloud sandboxes**: `tests/ui/leotheca_e2e_test.py` launches Chromium with a hardcoded `executable_path="/usr/bin/chromium"`, which does not exist in this repository's own Claude Code cloud sandbox, so the suite fails before any test runs.
-  <!-- agent-state: {"schema":1,"id":"rm-5ee862a899daf8c5","state":"claimed","touch":["tests/ui/leotheca_e2e_test.py"],"resources":["e2e-chromium-path"],"owner":"Claude-Sonnet-5-cloud-scheduled-kindbardeen-20260925T061001Z-02d16a7f","token":"5fafd42627318d9d3321d8ab94e31be7","branch":"agent/rm-5ee862a899daf8c5/5fafd4262731","claimed_at":"2026-09-25T06:14:36Z","heartbeat_at":"2026-09-25T06:14:36Z","lease_until":"2026-09-25T07:44:36Z"} -->
-  Agent: Claude-Sonnet-5-cloud-scheduled-kindbardeen-20260925T061001Z-02d16a7f | item: rm-5ee862a899daf8c5 | lease until: 2026-09-25T07:44:36Z
-
-  <details>
-  <summary>Root cause, repro, and fix plan</summary>
-
-  Root cause: the script (added `fe2ff2f`, from a "LeoHub local Hermes" session) hardcodes one specific machine's Debian/Ubuntu `apt`-installed Chromium path. This repository's own Claude Code cloud sandboxes ship Chromium at `/opt/pw-browsers/chromium` instead (a symlink into a pinned Playwright browser revision) and have no `/usr/bin/chromium` at all.
-
-  Reproduced directly: `playwright.sync_api.sync_playwright().chromium.launch(executable_path="/usr/bin/chromium", ...)` raises `Error: BrowserType.launch: Failed to launch chromium because executable doesn't exist at /usr/bin/chromium` in this exact sandbox; the same call with `executable_path="/opt/pw-browsers/chromium"` launches successfully and can load a page.
-
-  Fix: resolve the Chromium executable at runtime instead of hardcoding one path -- honor an override env var, then probe known install locations (`/usr/bin/chromium`, `/usr/bin/chromium-browser`, `/opt/pw-browsers/chromium`), then `shutil.which`, then fall back to Playwright's own managed browser with no `executable_path` at all. Raise a clear error naming every path tried only if all options fail.
-
-  </details>
 
 ### Features
 
@@ -241,6 +227,22 @@
 
 
 ## Implemented
+
+- ✅ **E2E Playwright harness hardcodes `/usr/bin/chromium`, absent on this project's own Claude Code cloud sandboxes**: `tests/ui/leotheca_e2e_test.py` launches Chromium with a hardcoded `executable_path="/usr/bin/chromium"`, which does not exist in this repository's own Claude Code cloud sandbox, so the suite fails before any test runs.
+  <!-- agent-state: {"schema":1,"id":"rm-5ee862a899daf8c5","state":"done","touch":["tests/ui/leotheca_e2e_test.py"],"resources":["e2e-chromium-path"],"note":"Fixed find_chromium_executable() resolves an override env var, known install paths (incl. this sandbox's /opt/pw-browsers/chromium), PATH, then Playwright's own managed browser, instead of hardcoding /usr/bin/chromium. Landed 0de730d on main. Verified in this exact sandbox: reproduced the original ENOENT with the old hardcoded path, confirmed the fix resolves and launches successfully, exercised override valid/invalid paths. Standalone Python E2E harness outside npm/cargo; tsc/vitest/cargo unaffected.","completed_at":"2026-09-25T06:15:56Z","completed_by":"Claude-Sonnet-5-cloud-scheduled-kindbardeen-20260925T061001Z-02d16a7f","branch":"agent/rm-5ee862a899daf8c5/5fafd4262731"} -->
+  Agent: completed by Claude-Sonnet-5-cloud-scheduled-kindbardeen-20260925T061001Z-02d16a7f | item: rm-5ee862a899daf8c5
+
+  <details>
+  <summary>Root cause, repro, and fix plan</summary>
+
+  Root cause: the script (added `fe2ff2f`, from a "LeoHub local Hermes" session) hardcodes one specific machine's Debian/Ubuntu `apt`-installed Chromium path. This repository's own Claude Code cloud sandboxes ship Chromium at `/opt/pw-browsers/chromium` instead (a symlink into a pinned Playwright browser revision) and have no `/usr/bin/chromium` at all.
+
+  Reproduced directly: `playwright.sync_api.sync_playwright().chromium.launch(executable_path="/usr/bin/chromium", ...)` raises `Error: BrowserType.launch: Failed to launch chromium because executable doesn't exist at /usr/bin/chromium` in this exact sandbox; the same call with `executable_path="/opt/pw-browsers/chromium"` launches successfully and can load a page.
+
+  Fix: resolve the Chromium executable at runtime instead of hardcoding one path -- honor an override env var, then probe known install locations (`/usr/bin/chromium`, `/usr/bin/chromium-browser`, `/opt/pw-browsers/chromium`), then `shutil.which`, then fall back to Playwright's own managed browser with no `executable_path` at all. Raise a clear error naming every path tried only if all options fail.
+
+  </details>
+
 
 - ✅ **documentation/ARCHITECTURE.md still describes the deleted note read-only lock feature**: Commit `c5e0710` ("Remove note read-only lock feature") deleted `src/editor/noteReadOnly.ts` and every `readOnly`/lock-bar wiring, but `documentation/ARCHITECTURE.md`'s `editor/` module-map section still has a standalone paragraph describing that file's (nonexistent) lock helper and its (removed) `App.tsx`/`MarkdownEditor` wiring as current architecture.
   <!-- agent-state: {"schema":1,"id":"rm-950e127ba68a6105","state":"done","touch":["documentation/ARCHITECTURE.md"],"resources":["architecture-doc-note-readonly-stale"],"note":"Landed 8ba6d46 on main. Removed documentation/ARCHITECTURE.md's stale paragraph describing the deleted editor/noteReadOnly.ts lock helper (feature removed in c5e0710). Docs-only change per verification-suite.md's Markdown-docs row: confirmed via grep across src/ and documentation/ that no noteReadOnly/leotheca-read-only reference remains anywhere in the tree; git diff --check clean; full diff inspected.","completed_at":"2026-09-24T23:13:33Z","completed_by":"Claude-Sonnet-5-cloud-scheduled-kindbardeen-20260924T231141Z-e421c01d","branch":"agent/rm-950e127ba68a6105/961b73e7d997"} -->

@@ -5,6 +5,7 @@ This directory is the canonical home for technical documentation. It is organize
 ## Start here
 
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) explains the system boundaries, platform bridge, module ownership, data model, build paths, and testing strategy. Read the relevant section before changing a subsystem or crossing a platform boundary.
+- [`TESTING.md`](TESTING.md) documents the full testing strategy: unit tests (Vitest), E2E tests (Playwright + Tauri mock), CI smoke tests, and UI verification with screenshots and video capture.
 - [`../CONSTITUTION.md`](../CONSTITUTION.md) is the binding source for product rules, engineering practices, and architectural decisions. It is not duplicated here.
 - [`../ROADMAP.md`](../ROADMAP.md) records what is planned and shipped. It is not a design specification.
 

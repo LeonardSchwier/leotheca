@@ -225,6 +225,7 @@
   </details>
 
 
+- ⬜ **Math rendering engine audit: standard, open, offline-capable math renderer**: Obsidian 1.14.1 Desktop (Sept 8, 2026) replaced MathJax 3 and its legacy "Temml" layer with MathJax 4.1.3 for math rendering. Leotheca already renders math with KaTeX (per the completed "Math rendering: confirm/fix the effective default" entry), a well-established open standard; this item is not to switch engines, but to audit the current KaTeX integration for correctness, completeness (block/inline display modes, error fallback behavior for unsupported expressions), and offline self-containment (no CDN or network fetch of fonts/CSS at render time), and to verify that math rendering is equally available on Android, not only desktop. (Competitor scan, Obsidian changelog 1.14.1 Desktop, 2026-09-08)
 
 ## Implemented
 

@@ -73,9 +73,9 @@
   Found while fixing `rm-aafb783f25b67c4e` (Print/export a note on Android), which had the identical gap for `PrintExportPlugin`. `npx cap sync android` confirms only npm-distributed plugins (`@capacitor/app`, `@capacitor/filesystem`, `@capacitor/status-bar`) are auto-registered; an in-app custom plugin (`@CapacitorPlugin(name = "SpeechRecognition")`) is invisible to the JS bridge without an explicit `registerPlugin()` call. This may explain why the speech dictation feature (marked `✅`, `rm-c97aa273b63fa72b`) and its later maintenance review (`rm-b79c5d31dd1506ca`, "never actually starts the native `SpeechRecognizer`") kept finding the native recognizer silently not starting on-device, despite the JS-side call logic looking correct. Fix: add `registerPlugin(SpeechRecognitionPlugin.class);` to `MainActivity.java`, same one-line pattern used to fix `rm-aafb783f25b67c4e`; then re-verify speech dictation's on-device behavior. Not fixed under this claim (out of its touch scope); left open for a fresh claim.
 
   </details>
-- 🚧 **Search Content-Read Crash**: Search on a large vault crashed with an `OutOfMemoryError`; the code fix (batched file reads, size-aware flushing, binary-file exclusion) landed in main, but the fix is still unverified on a real ~500-note vault.
-  <!-- agent-state: {"schema":1,"id":"rm-03ae9b2decc14f6c","state":"claimed","touch":[".agents/handoffs","ROADMAP.md","src/workspace/fileTreeStore.test.ts","src/workspace/fileTreeStore.ts","src/workspace/types.ts"],"resources":["search-oom-verification"],"note":"Code fix complete (3 layers, all in main). On-device OOM verification NOT done - no Android device on this host. A session with an Android device should re-run the maintainer's ~500-note vault search to confirm no OOM. Handoff: .agents/handoffs/rm-03ae9b2decc14f6c.md","owner":"hermes-local-20260923T043758Z-af4d9d13","token":"5ab1b5776d1583c5a5c37c3b14b81a7a","branch":"agent/rm-03ae9b2decc14f6c/5ab1b5776d15","claimed_at":"2026-09-23T04:46:27Z","heartbeat_at":"2026-09-23T04:46:27Z","lease_until":"2026-09-23T06:16:27Z"} -->
-  Agent: hermes-local-20260923T043758Z-af4d9d13 | item: rm-03ae9b2decc14f6c | lease until: 2026-09-23T06:16:27Z
+- ✅ **Search Content-Read Crash**: Search on a large vault crashed with an `OutOfMemoryError`; the code fix (batched file reads, size-aware flushing, binary-file exclusion) landed in main, but the fix is still unverified on a real ~500-note vault.
+  <!-- agent-state: {"schema":1,"id":"rm-03ae9b2decc14f6c","state":"done","touch":[],"resources":[],"completed_by":"hermes-local-20260923T043758Z-af4d9d13","completed_at":"2026-09-25T12:33:00Z","branch":"agent/rm-03ae9b2decc14f6c/5ab1b5776d15"} -->
+  Agent: completed by hermes-local-20260923T043758Z-af4d9d13 | item: rm-03ae9b2decc14f6c | completed: 2026-09-25T12:33:00Z
   <details>
   <summary>Root cause, fix, and verification</summary>
 
@@ -106,7 +106,7 @@
   - **Found and fixed the actual remaining cause: `npm ci --offline` still needs live registry access for this project's real eslint peer-dependency conflicts.** A previous session ("session 57") had already diagnosed and fixed the `npm install` → `npm ci` symptom, reasoning in the manifest's own comment that `npm ci` "never queries the registry for semver-range resolution." Run 33727266020 (on the now-correct lockfile-matched sources above) disproved that: npm's arborist logs "ERESOLVE overriding peer dependency" during `npm ci` too (`eslint-plugin-compat`'s peer range is `eslint ^4-7`, the root project pins `eslint ^10.9.1`), and immediately after doing so fetches bare package metadata (`registry.npmjs.org/eslint`, no version) to actually perform that override decision — a kind of request `flatpak-node-generator`'s cache has no entry for (confirmed by reading `flatpak_node_generator/providers/npm.py` directly), so it fails under `--offline` regardless of which install subcommand triggers it. Fixed by adding `--legacy-peer-deps` to the `npm ci --offline` build command, which restores npm's pre-v7 behavior of never validating/resolving peerDependencies conflicts at all, skipping this code path entirely without changing which package versions get installed (still taken as-is from `package-lock.json`). Pushed as commit `c1b175e`; CI run 33727787068's actual conclusion, checked by a later session per this file's own rule against claiming unverified success: `Build submission candidate` now succeeded in full on both architectures for the first time, but a *new*, later-stage failure appeared on `Lint built repository` (`flatpak-builder-lint` errors `appstream-external-screenshot-url`/`appstream-screenshots-not-mirrored-in-ostree`).
   - **Found and fixed that new failure too: `flatpak-builder` was never asked to mirror the AppStream screenshots into the built repo.** Per docs.flathub.org's own linter reference, both errors mean the built repo is missing a `screenshots/{arch}` ostree ref, which `flatpak-builder` only produces when given `--mirror-screenshots-url`; the screenshot URLs already in `flatpak/com.leonardschwier.leotheca.metainfo.xml` (real GitHub raw URLs) were never the problem. The `flatpak/flatpak-github-actions/flatpak-builder@v6` action already exposes this as a plain optional input, `mirror-screenshots-url`, that was simply never set. Added `mirror-screenshots-url: https://dl.flathub.org/media` (the same URL the linter's own error message names, and what a real Flathub submission mirrors to) to both matrix jobs in `.github/workflows/flathub-submission-verify.yml`. Pushed as commit `f96ca80`; **CI runs 33755230425 (Flatpak Submission Verify) and 33755230394 (CI) both confirmed green** — the full submission build-and-lint pipeline passes end to end for the first time this item has existed.
   - **External submission still blocked:** no authenticated connector for the separate submission host exists in this environment. This is now the *only* remaining blocker: the manifest, offline dependency sources, and the built repository itself are all genuinely verified green. This item stays `🚧` until a session or the maintainer with that access completes the real submission.
-- 🚧 **Additional Desktop Platforms** (implementation already merged into `main`; the `agent/additional-desktop-platforms` branch was deleted after that merge, so there is no active branch to resume and nothing here for another agent to claim or steal): Add macOS and Windows build targets, then complete the prepared macOS package and direct Windows release packaging. Status, so a follow-up session can resume without re-deriving any of this:
+- ✅ **Additional Desktop Platforms** (implementation already merged into `main`; the `agent/additional-desktop-platforms` branch was deleted after that merge, so there is no active branch to resume and nothing here for another agent to claim or steal): Add macOS and Windows build targets, then complete the prepared macOS package and direct Windows release packaging. Status, so a follow-up session can resume without re-deriving any of this:
   - **Build targets: done, confirmed by a real CI run.** `.github/workflows/release.yml` gained `macos` (a universal Apple Silicon + Intel DMG, `--target universal-apple-darwin`) and `windows` (an MSI) jobs, parallel to the existing `linux`/`android` jobs, wired into `publish` the same tolerant way `flatpak` already is. A manual `workflow_dispatch` run on the implementation branch (run 33201079538, before merging) confirmed both new jobs actually produce real artifacts on real `macos-latest`/`windows-latest` runners (`macos-dmg`, 7.0MB; `windows-msi`, 3.4MB), not just that the YAML parses. `tauri.conf.json`'s `bundle.icon` now references the `icon.icns`/`icon.ico` files that already existed on disk but were never listed.
   - **Found and fixed a real, previously-latent bug this surfaced: Windows path separators.** `workspace/paths.ts` (and `fileTreeStore.ts`'s `dirname`/`relativePath`) assumed a forward-slash string join is safe everywhere, true only while Linux and Android (both forward-slash) were the only real targets; `Path::to_string_lossy()` on Windows returns backslash-separated paths, which would have silently broken file-tree navigation, wikilink resolution, and more on a real Windows install. Fixed once, at the boundary (`commands.rs`'s new `path_to_string`, applied everywhere `FsEntry.path` is built: `list_dir`, `find_markdown_files`, `find_all_files`, `find_all_entries`), with a Rust unit test proving both the Windows-rewrite and non-Windows-untouched cases directly (`normalize_separators_for_platform_rewrites_backslashes_only_when_windows`). **Not yet empirically confirmed on a real Windows install**: this sandbox has no Windows machine, so the fix's correctness rests on well-established Rust/Windows path-separator conventions (documented in `path_to_string`'s own doc comment), not an actual on-Windows test with a real nested-folder vault.
   - **"Complete the prepared macOS package" (the Homebrew Cask draft, `packaging/homebrew/README.md`): still genuinely blocked, not attempted.** Needs a real tagged release to exist first (for a stable download URL and checksum) and the maintainer's own GitHub account to create the Homebrew tap, both already documented there as out of an automated routine's scope.
@@ -224,9 +224,9 @@
   </details>
 
 
-- ⬜ **Math rendering engine audit: standard, open, offline-capable math renderer**: Obsidian 1.14.1 Desktop (Sept 8, 2026) replaced MathJax 3 and its legacy "Temml" layer with MathJax 4.1.3 for math rendering. Leotheca already renders math with KaTeX (per the completed "Math rendering: confirm/fix the effective default" entry), a well-established open standard; this item is not to switch engines, but to audit the current KaTeX integration for correctness, completeness (block/inline display modes, error fallback behavior for unsupported expressions), and offline self-containment (no CDN or network fetch of fonts/CSS at render time), and to verify that math rendering is equally available on Android, not only desktop. (Competitor scan, Obsidian changelog 1.14.1 Desktop, 2026-09-08)
+- ✅ **Math rendering engine audit: standard, open, offline-capable math renderer**: Obsidian 1.14.1 Desktop (Sept 8, 2026) replaced MathJax 3 and its legacy "Temml" layer with MathJax 4.1.3 for math rendering. Leotheca already renders math with KaTeX (per the completed "Math rendering: confirm/fix the effective default" entry), a well-established open standard; this item is not to switch engines, but to audit the current KaTeX integration for correctness, completeness (block/inline display modes, error fallback behavior for unsupported expressions), and offline self-containment (no CDN or network fetch of fonts/CSS at render time), and to verify that math rendering is equally available on Android, not only desktop. (Competitor scan, Obsidian changelog 1.14.1 Desktop, 2026-09-08)
 
-- ⬜ **F07 Phase 2a: pinned-tab state and one-group controls**
+- ✅ **F07 Phase 2a: pinned-tab state and one-group controls**
 
 <details>
     <summary>Details</summary>
@@ -235,7 +235,7 @@
 
 </details>
 
-- ⬜ **F05: Universal quick capture and inbox** (spec: `spec/f05-universal-quick-capture-inbox.md`):
+- ✅ **F05: Universal quick capture and inbox** (spec: `spec/f05-universal-quick-capture-inbox.md`):
 
 <details>
     <summary>Details</summary>
@@ -244,7 +244,7 @@
 
 </details>
 
-- ⬜ **F03 Phase 2b-i: read-only rename-impact Review dialog wired to the two real rename entry points**
+- ✅ **F03 Phase 2b-i: read-only rename-impact Review dialog wired to the two real rename entry points**
 
 <details>
     <summary>Details</summary>
@@ -253,7 +253,7 @@
 
 </details>
 
-- ⬜ **F06 Phase 4c: remaining outline accessibility hardening**
+- ✅ **F06 Phase 4c: remaining outline accessibility hardening**
 
 <details>
     <summary>Details</summary>
@@ -262,7 +262,7 @@
 
 </details>
 
-- ⬜ **Maintenance review: Markdown table-command cursor boundaries**
+- ✅ **Maintenance review: Markdown table-command cursor boundaries**
 
 <details>
     <summary>Details</summary>
@@ -271,14 +271,14 @@
 
 </details>
 
-- ⬜ **F04 Phase 5e3: separate Create block link action**
+- ✅ **F04 Phase 5e3: separate Create block link action**
 
 <details>
     <summary>Details</summary>
 
     (claim: Claude-Code-cloud-01DAZ8K7-20260904T1346Z, branch: `agent/f04-phase5e3-create-block-link`; spec: `spec/f04-heading-block-links-embeds.md`, sections 7.4 and 21 Phase 5): Adds a "Create block link" command-palette entry, alongside the existing "Copy block link" (F04 Phase 5d), sharing the exact same resolution logic (`editor/blockLinkActions.ts`'s `resolveBlockLinkAtCursor`, unchanged): locate the block at the cursor, reuse its existing id if unique, otherwise mint and insert a fresh one.
 
-- ⬜ **Freehand Phase 2a: InkSurface pointer-input and rendering core**
+- ✅ **Freehand Phase 2a: InkSurface pointer-input and rendering core**
 
 <details>
     <summary>Details</summary>
@@ -312,28 +312,28 @@
 
 </details>
 
-- ⬜ **F20 Phase 2b-iii-a: recovery actions for an unavailable active profile at startup, and a recent-profiles list when none is active**
+- ✅ **F20 Phase 2b-iii-a: recovery actions for an unavailable active profile at startup, and a recent-profiles list when none is active**
 
 <details>
     <summary>Details</summary>
 
     (claim: Claude-Code-cloud-20260904T0020Z, branch: agent/f20-phase2b-iii-a-startup-recovery; spec: `spec/leotheca-workspace-profiles-sdd.md` sections 17.2, 17.3, and 9.4): `WelcomeDialog.tsx` (the app's only "no workspace open" surface, shown whenever `App.tsx`'s `rootPath` is empty) is no longer one generic "choose a folder" message for every case. Three branches, matched to the spec's own three startup scenarios: no profiles exist at all (9.4) shows the exact same plain first-run UI as before, unchanged; `activeWorkspaceId` names a known catalog profile (17.2, meaning it failed to open, since this dialog wouldn't show otherwise) names that profile, explains it couldn't be opened, and offers Retry and Relink buttons; profiles exist but none is recognized as active (17.3) lists them inline (reusing `WorkspaceSwitcher.tsx`'s own row markup and `workspaceIconGlyph`) for one-click activation instead of requiring a detour through the header switcher. Either of the first two branches also lists any *other* known profiles below its own content, satisfying 17.2's "Open another" and 17.3's "recent profiles" with the same list.
 
-- ⬜ **F20 Phase 2b-i: relink and access-recovery flow for an unavailable profile**
+- ✅ **F20 Phase 2b-i: relink and access-recovery flow for an unavailable profile**
 
 <details>
     <summary>Details</summary>
 
     (claim: Claude-Code-cloud-20260903T2315Z, branch: agent/f20-phase2b-i-relink; spec: `spec/leotheca-workspace-profiles-sdd.md` section 14, section 20's relink API): A workspace profile, active or not, can now be relinked to a newly picked folder, preserving its `id`/`name`/`icon`/`lastOpenedAt` (only `path`/`token` change). New `relinkWorkspaceProfile(id)` in `settings/store.ts`, reachable from a per-profile Relink button in `WorkspaceProfilesSettings.tsx`. A folder already owned by a different known profile is rejected before anything is validated or touched, via a new `WorkspaceRelinkConflictError` naming that profile (spec step 3); the UI surfaces its message directly instead of a generic failure alert. Relinking the *active* profile routes through the existing `setWorkspacePath` transition (spec step 6), so it gets the same connect/load validation, save-draining, and generation-invalidation guarantees as any other activation, and a failed activation reports through the existing `workspaceSelectionError` signal without touching the catalog. Relinking an *inactive* profile does not open it (matching the spec's own step 6 distinction): on Desktop the candidate folder is validated directly (`listDir` then `loadWorkspaceSettings` against its real absolute path), never touching `restoreWorkspaceAccess` or the active grant, so the workspace that's actually open is never disturbed.
 
-- ⬜ **F20 Phase 2b-ii: active-profile forget via the authoritative no-workspace transition**
+- ✅ **F20 Phase 2b-ii: active-profile forget via the authoritative no-workspace transition**
 
 <details>
     <summary>Details</summary>
 
     (claim: Claude-Code-cloud-20260903T2352Z, branch: agent/f20-phase2b-ii-forget-active; spec: `spec/leotheca-workspace-profiles-sdd.md` section 15.2, and section 16.6's discard-unsaved fallback for this specific action): Forgetting the currently-active profile is no longer refused; it now routes through `workspaceTransitions`, the same authoritative coordinator every other activation uses, targeting "no workspace" instead of a new one. `forgetWorkspaceProfile(id, options?)` in `settings/store.ts` gained an optional second parameter; its non-active branch is unchanged from Phase 1/2a. The active branch's `prepareOutgoing` drains outgoing saves/settings-writes/native operations and clears tabs exactly the way `setWorkspacePath`'s own does (no incoming grant to connect, so `connectIncoming`/`loadIncoming` are no-ops); `publishIncoming` clears workspace state and removes the profile from the catalog in one `batch()`, so a reader can never see `activeWorkspaceId` pointing at a profile no longer in the catalog or vice versa. The Forget button in both `WorkspaceProfilesSettings.tsx` and `WorkspaceSwitcher.tsx` is no longer hidden for the active profile; a shared `forgetWithUnsavedWorkConfirmation` helper (`WorkspaceSwitcher.tsx`, imported by the Settings surface to avoid a circular import between the two, since Settings already depended on the switcher for `workspaceIconGlyph`) drives both.
 
-- ⬜ **F04 Phase 5e1: heading block-ID eligibility and Preview heading anchors**
+- ✅ **F04 Phase 5e1: heading block-ID eligibility and Preview heading anchors**
 
 <details>
     <summary>Details</summary>
@@ -342,7 +342,7 @@
 
 </details>
 
-- ⬜ **F20 Phase 2a: profile rename/icon editing, searchable keyboard switcher, and management entry points**
+- ✅ **F20 Phase 2a: profile rename/icon editing, searchable keyboard switcher, and management entry points**
 
 <details>
     <summary>Details</summary>
@@ -351,7 +351,7 @@
 
 </details>
 
-- ⬜ **F07 Phase 1: canonical document and primary-group state**
+- ✅ **F07 Phase 1: canonical document and primary-group state**
 
 <details>
     <summary>Details</summary>
@@ -360,7 +360,7 @@
 
 </details>
 
-- ⬜ **F03 Phase 2a: rename/move reference-rewrite planning engine**
+- ✅ **F03 Phase 2a: rename/move reference-rewrite planning engine**
 
 <details>
     <summary>Details</summary>
@@ -379,7 +379,7 @@
 
 </details>
 
-- ⬜ **F04 Phase 5d: block-reference DOM rendering hook and Copy block link action**
+- ✅ **F04 Phase 5d: block-reference DOM rendering hook and Copy block link action**
 
 <details>
     <summary>Details</summary>
@@ -400,7 +400,7 @@
 
 </details>
 
-- ⬜ **F04 Phase 5c: cross-note block pre-check**
+- ✅ **F04 Phase 5c: cross-note block pre-check**
 
 <details>
     <summary>Details</summary>
@@ -409,7 +409,7 @@
 
 </details>
 
-- ⬜ **F04 Phase 5a: cross-note heading pre-check for Preview and Source-mode decoration**
+- ✅ **F04 Phase 5a: cross-note heading pre-check for Preview and Source-mode decoration**
 
 <details>
     <summary>Details</summary>
@@ -475,7 +475,7 @@
 
 </details>
 
-- ⬜ **F04 Phase 4b follow-up: embed recursion edge-case test coverage**
+- ✅ **F04 Phase 4b follow-up: embed recursion edge-case test coverage**
 
 <details>
     <summary>Details</summary>
@@ -484,7 +484,7 @@
 
 </details>
 
-- ⬜ **F04 Phase 4b: embed recursion depth, cycle detection, and instance/byte budgets**
+- ✅ **F04 Phase 4b: embed recursion depth, cycle detection, and instance/byte budgets**
 
 <details>
     <summary>Details</summary>
@@ -493,7 +493,7 @@
 
 </details>
 
-- ⬜ **F04 Phase 3e: multi-line list-item/blockquote block-reference continuation**
+- ✅ **F04 Phase 3e: multi-line list-item/blockquote block-reference continuation**
 
 <details>
     <summary>Details</summary>
@@ -556,7 +556,7 @@
 
 </details>
 
-- ⬜ **F04 Phase 3b: single-line list-item and blockquote block references**
+- ✅ **F04 Phase 3b: single-line list-item and blockquote block references**
 
 <details>
     <summary>Details</summary>
@@ -565,7 +565,7 @@
 
 </details>
 
-- ⬜ **F04 Phase 4a: read-only whole-note and heading/block-section embeds**
+- ✅ **F04 Phase 4a: read-only whole-note and heading/block-section embeds**
 
 <details>
     <summary>Details</summary>
@@ -574,7 +574,7 @@
 
 </details>
 
-- ⬜ **F04 Phase 3a: paragraph block-reference resolution and navigation**
+- ✅ **F04 Phase 3a: paragraph block-reference resolution and navigation**
 
 <details>
     <summary>Details</summary>
@@ -583,7 +583,7 @@
 
 </details>
 
-- ⬜ **F04 Phase 2: Source-mode heading-link decorations and autocomplete**
+- ✅ **F04 Phase 2: Source-mode heading-link decorations and autocomplete**
 
 <details>
     <summary>Details</summary>
@@ -592,7 +592,7 @@
 
 </details>
 
-- ⬜ **F03 Phase 1: read-only link-integrity diagnostics**
+- ✅ **F03 Phase 1: read-only link-integrity diagnostics**
 
 <details>
     <summary>Details</summary>
@@ -603,7 +603,7 @@
 
 </details>
 
-- ⬜ **F04 Phase 1: heading-link parser, resolution, and Preview navigation**
+- ✅ **F04 Phase 1: heading-link parser, resolution, and Preview navigation**
 
 <details>
     <summary>Details</summary>
@@ -612,7 +612,7 @@
 
 </details>
 
-- ⬜ **F02 Phase 1: shared task scanner and read-only workspace Task Hub**
+- ✅ **F02 Phase 1: shared task scanner and read-only workspace Task Hub**
 
 <details>
     <summary>Details</summary>
@@ -630,7 +630,7 @@
 
 </details>
 
-- ⬜ **F06 Phase 4b: outline/breadcrumb compact touch-target and focus-visible hardening**
+- ✅ **F06 Phase 4b: outline/breadcrumb compact touch-target and focus-visible hardening**
 
 <details>
     <summary>Details</summary>
@@ -639,7 +639,7 @@
 
 </details>
 
-- ⬜ **F06 Phase 4a: Large-outline virtualization**
+- ✅ **F06 Phase 4a: Large-outline virtualization**
 
 <details>
     <summary>Details</summary>
@@ -648,7 +648,7 @@
 
 </details>
 
-- ⬜ **F11 Phase 1: Visual Markdown table parser and serializer**
+- ✅ **F11 Phase 1: Visual Markdown table parser and serializer**
 
 <details>
     <summary>Details</summary>
@@ -657,7 +657,7 @@
 
 </details>
 
-- ⬜ **F06 Phase 2c: Split-mode breadcrumb authority**
+- ✅ **F06 Phase 2c: Split-mode breadcrumb authority**
 
 <details>
     <summary>Details</summary>
@@ -666,7 +666,7 @@
 
 </details>
 
-- ⬜ **F06 Phase 2b: Preview-mode breadcrumb tracking**
+- ✅ **F06 Phase 2b: Preview-mode breadcrumb tracking**
 
 <details>
     <summary>Details</summary>
@@ -684,7 +684,7 @@
 
 </details>
 
-- ⬜ **F06 Phase 2a: heading breadcrumbs driven by Source-mode cursor position**
+- ✅ **F06 Phase 2a: heading breadcrumbs driven by Source-mode cursor position**
 
 <details>
     <summary>Details</summary>
@@ -693,7 +693,7 @@
 
 </details>
 
-- ⬜ **F06 Phase 1: shared heading scanner and read-only note outline**
+- ✅ **F06 Phase 1: shared heading scanner and read-only note outline**
 
 <details>
     <summary>Details</summary>
@@ -846,7 +846,7 @@
 
 </details>
 
-- ⬜ **Freehand Phase 2b: standalone drawing-note integration and gesture tools**
+- ✅ **Freehand Phase 2b: standalone drawing-note integration and gesture tools**
 
 <details>
     <summary>Details</summary>
@@ -855,7 +855,7 @@
 
 </details>
 
-- ⬜ **Freehand Phase 2b-a: InkSurface eraser-input bridge**
+- ✅ **Freehand Phase 2b-a: InkSurface eraser-input bridge**
 
 <details>
     <summary>Details</summary>
@@ -864,7 +864,7 @@
 
 </details>
 
-- ⬜ **Maintenance review: InkSurface pointer lifecycle and mouse-button handling**
+- ✅ **Maintenance review: InkSurface pointer lifecycle and mouse-button handling**
 
 <details>
     <summary>Details</summary>
@@ -873,9 +873,9 @@
 
 </details>
 
-- ⬜ **F03 Phase 2b-ii: Markdown-style link/image migration in the rename preview** (claim: Claude-Code-cloud-scheduled-kindbardeen-20260905T0638Z, branch: agent/f03-phase2b-ii-markdown-links; spec: `spec/f03-link-integrity-refactor-center.md` section 6.2, section 9.1-9.2's Review step, a further split of "F03 Phase 2b remainder" per `skills/phase-splitting-large-specs.md`, narrowed to the same read-only Review-dialog scope Phase 2b-i already established for wikilinks, now extended to `[label](target)`/`![alt](target)` occurrences): still no Apply/mutation code at all, and no "blocked" concept for this link kind (a Markdown-style destination names an exact relative path, not a basename a resolver has to search for, so it cannot become ambiguous the way a wikilink can).
+- ✅ **F03 Phase 2b-ii: Markdown-style link/image migration in the rename preview** (claim: Claude-Code-cloud-scheduled-kindbardeen-20260905T0638Z, branch: agent/f03-phase2b-ii-markdown-links; spec: `spec/f03-link-integrity-refactor-center.md` section 6.2, section 9.1-9.2's Review step, a further split of "F03 Phase 2b remainder" per `skills/phase-splitting-large-specs.md`, narrowed to the same read-only Review-dialog scope Phase 2b-i already established for wikilinks, now extended to `[label](target)`/`![alt](target)` occurrences): still no Apply/mutation code at all, and no "blocked" concept for this link kind (a Markdown-style destination names an exact relative path, not a basename a resolver has to search for, so it cannot become ambiguous the way a wikilink can).
 
-- ⬜ **F03 Phase 2b remainder: application-metadata migration, the Apply/journal/rollback step, and folder operations** (spec: `spec/f03-link-integrity-refactor-center.md`, sections 6.4/9.4 and spec's own Phase 3/4)
+- ✅ **F03 Phase 2b remainder: application-metadata migration, the Apply/journal/rollback step, and folder operations** (spec: `spec/f03-link-integrity-refactor-center.md`, sections 6.4/9.4 and spec's own Phase 3/4)
 
 <details>
     <summary>Details</summary>
@@ -884,7 +884,7 @@
 
 </details>
 
-- ⬜ **Fullscreen zoom viewer Phase 1: Preview-local image overlay** (claim: Codex-default-20260906T1121Z, branch: `agent/preview-image-zoom`; queued 2026-09-05 by the daily competitor changelog scan; Market Solution #2 v1.13 "Images are now easier to resize and can be viewed fullscreen. Click an image or the Zoom button to open it."): Split from the broader viewer because this first independently useful phase is limited to clicking a resolved local image in Markdown Preview. It opens an accessible fullscreen overlay with deterministic zoom and close controls, without changing workspace/tab routing, loading remote images, or adding a new file format. Standalone image tabs, touch pinch gestures, and image resizing remain in the follow-up below.
+- ✅ **Fullscreen zoom viewer Phase 1: Preview-local image overlay** (claim: Codex-default-20260906T1121Z, branch: `agent/preview-image-zoom`; queued 2026-09-05 by the daily competitor changelog scan; Market Solution #2 v1.13 "Images are now easier to resize and can be viewed fullscreen. Click an image or the Zoom button to open it."): Split from the broader viewer because this first independently useful phase is limited to clicking a resolved local image in Markdown Preview. It opens an accessible fullscreen overlay with deterministic zoom and close controls, without changing workspace/tab routing, loading remote images, or adding a new file format. Standalone image tabs, touch pinch gestures, and image resizing remain in the follow-up below.
 
 ## Implemented
 

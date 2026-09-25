@@ -12,8 +12,8 @@ android {
         // as major*10000 + minor*100 + patch (see scripts/versionConsistency.js),
         // which stays monotonically increasing across ordinary releases without
         // a separately hand-maintained counter. Validated by `npm run check-version`.
-        versionCode 100
-        versionName "0.1.0"
+        versionCode 10000
+        versionName "1.0.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

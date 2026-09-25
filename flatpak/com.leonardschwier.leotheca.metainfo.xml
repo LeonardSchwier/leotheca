@@ -58,7 +58,7 @@
     yet; no v* tag exists in this repository as of this entry.
   -->
   <releases>
-    <release version="0.1.0" date="2026-08-27">
+    <release version="1.0.0" date="2026-09-25">
       <description>
         <p>Initial release: local folder workspace, wikilinks with backlinks and a graph view, bookmarks, command palette, full-text search, and a light/dark theme.</p>
       </description>

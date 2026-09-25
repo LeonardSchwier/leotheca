@@ -45,9 +45,9 @@ Settings: theme, font size, whole-UI zoom, workspace statistics, and every keybo
 
 ## 🎬 Demo
 
-<p align="center"><a href="assets/screenshots/demo.mp4"><img src="assets/screenshots/demo-poster.png" alt="Leotheca demo video: file tree, preview mode, search, and theme toggle" width="100%"></a></p>
+<p align="center"><img src="assets/screenshots/demo.gif" alt="Leotheca demo: file tree, preview mode, search, and theme toggle" width="100%"></p>
 
-Click to play — a quick tour: file tree, opening a note, switching to preview mode, searching, and theme toggle. [Download the video](assets/screenshots/demo.mp4) (159 KB, H.264).
+A quick tour: file tree, opening a note, switching to preview mode, searching, and theme toggle. [Download the video](assets/screenshots/demo.mp4) (159 KB, H.264).
 
 ## 📥 Install
 

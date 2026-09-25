@@ -288,7 +288,7 @@
 
 </details>
 
-- ⬜ **F04 Phase 5e2: Preview on-block copy-link affordance**
+- ✅ **F04 Phase 5e2: Preview on-block copy-link affordance**
 
 <details>
     <summary>Details</summary>
@@ -297,14 +297,14 @@
 
 </details>
 
-- ⬜ **F20 Phase 2b-iii-b: typed transition-state/error model and in-session Retry/Discard UI**
+- ✅ **F20 Phase 2b-iii-b: typed transition-state/error model and in-session Retry/Discard UI**
 
 <details>
     <summary>Details</summary>
 
     (claim: Claude-Code-cloud-20260904T0656Z, 2026-09-04T06:56Z, direct-to-main, no branch, per this repository's current no-PR coordination policy; spec: `spec/leotheca-workspace-profiles-sdd.md` sections 16.1, 16.4-16.6, and 23): Closes out F20 Phase 2b-iii, split from Phase 2b-iii-a (the startup recovery launcher). `src/workspace/workspaceTransition.ts`'s coordinator now exposes a real, section-16.1-shaped `state` signal (`idle`/`saving`/`opening`/`error{targetProfileId, phase, message}`), tracked internally by `run()` itself rather than duplicated by every caller: `saving` fires before `prepareOutgoing`, `opening` before `connectIncoming` (skipped entirely for a transition with no real target, e.g. active-profile forget, which only ever targets "no workspace"), and `idle` right after a successful publish; a failure records which of the four named phases (`save`/`access`/`settings`/`global-config`) it happened in. `run()` gained an optional second `targetProfileId` parameter and `publishFailure` now receives `(error, phase, isCurrent)` instead of just `error`, both purely additive to the existing generation-authority mechanics, which are untouched.
 
-- ⬜ **Freehand Phase 1: ink document, stroke-processing math, and edit-history foundation**
+- ✅ **Freehand Phase 1: ink document, stroke-processing math, and edit-history foundation**
 
 <details>
     <summary>Details</summary>
@@ -419,7 +419,7 @@
 
 </details>
 
-- ⬜ **F09 Phase 2: table/card views and in-view frontmatter editing**
+- ✅ **F09 Phase 2: table/card views and in-view frontmatter editing**
 
 <details>
     <summary>Details</summary>
@@ -428,7 +428,7 @@
 
 </details>
 
-- ⬜ **F04 Phase 3f: embed Source-mode decoration**
+- ✅ **F04 Phase 3f: embed Source-mode decoration**
 
 <details>
     <summary>Details</summary>
@@ -437,7 +437,7 @@
 
 </details>
 
-- ⬜ **F02 Phase 2: task hub filtering, grouping, and toggle-complete edits**
+- ✅ **F02 Phase 2: task hub filtering, grouping, and toggle-complete edits**
 
 <details>
     <summary>Details</summary>
@@ -446,7 +446,7 @@
 
 </details>
 
-- ⬜ **F20 Phase 1: workspace profile catalog, add/switch/forget, and a minimal switcher**
+- ✅ **F20 Phase 1: workspace profile catalog, add/switch/forget, and a minimal switcher**
 
 <details>
     <summary>Details</summary>
@@ -467,7 +467,7 @@
 
 </details>
 
-- ⬜ **F04 Phase 4b follow-up 2: per-note embed load timeout**
+- ✅ **F04 Phase 4b follow-up 2: per-note embed load timeout**
 
 <details>
     <summary>Details</summary>
@@ -521,7 +521,7 @@
 
 </details>
 
-- ⬜ **F04 Phase 3d: fenced code block references**
+- ✅ **F04 Phase 3d: fenced code block references**
 
 <details>
     <summary>Details</summary>
@@ -530,7 +530,7 @@
 
 </details>
 
-- ⬜ **F04 Phase 3c: Source-mode block-link decoration and autocomplete**
+- ✅ **F04 Phase 3c: Source-mode block-link decoration and autocomplete**
 
 <details>
     <summary>Details</summary>
@@ -539,7 +539,7 @@
 
 </details>
 
-- ⬜ **F06 Phase 3: F04-dependent copy/insert heading-link actions**
+- ✅ **F06 Phase 3: F04-dependent copy/insert heading-link actions**
 
 <details>
     <summary>Details</summary>
@@ -548,7 +548,7 @@
 
 </details>
 
-- ⬜ **F09 Phase 1: read-only smart collections list view**
+- ✅ **F09 Phase 1: read-only smart collections list view**
 
 <details>
     <summary>Details</summary>

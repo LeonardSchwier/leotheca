@@ -6,15 +6,47 @@ inline code, code fence), view mode toggle (source/split/preview), theme (dark/l
 workspace stats, and settings persistence.
 Usage: python3 leotheca_e2e_test.py [--url http://127.0.0.1:5173]
 """
-import sys, os, re, time, json, argparse
+import sys, os, re, shutil, time, json, argparse
 from pathlib import Path
 HERE = os.path.dirname(os.path.abspath(__file__))
 MOCK_JS_PATH = os.path.join(HERE, "tauriMock.js")
 SCREENSHOT_DIR = os.path.join(HERE, "screenshots")
 os.makedirs(SCREENSHOT_DIR, exist_ok=True)
 
+# Known Chromium install locations across the machines this suite actually
+# runs on: a local `apt`-installed Debian/Ubuntu host (/usr/bin/chromium or
+# the chromium-browser alias) and this project's own Claude Code cloud
+# sandboxes, which ship a pinned Playwright browser revision at
+# /opt/pw-browsers/chromium instead and have no /usr/bin/chromium at all.
+KNOWN_CHROMIUM_PATHS = [
+    "/usr/bin/chromium",
+    "/usr/bin/chromium-browser",
+    "/opt/pw-browsers/chromium",
+]
+
 def log(msg):
     print(f"[E2E] {msg}", flush=True)
+
+def find_chromium_executable():
+    """Resolve a real Chromium executable for this machine rather than
+    assuming one fixed path. Order: an explicit override, then known
+    install locations, then PATH, then None (letting Playwright launch its
+    own managed browser build)."""
+    override = os.environ.get("LEOTHECA_E2E_CHROMIUM")
+    if override:
+        if os.path.isfile(override):
+            return override
+        raise FileNotFoundError(
+            f"LEOTHECA_E2E_CHROMIUM={override!r} does not exist"
+        )
+    for candidate in KNOWN_CHROMIUM_PATHS:
+        if os.path.isfile(candidate):
+            return candidate
+    for name in ("chromium", "chromium-browser", "google-chrome"):
+        found = shutil.which(name)
+        if found:
+            return found
+    return None
 
 def extract_mock_js(path):
     raw = Path(path).read_text()
@@ -53,11 +85,17 @@ def main():
         return run_test(page, name, fn, results)
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(
-            executable_path="/usr/bin/chromium",
-            headless=True,
-            args=["--no-sandbox", "--disable-dev-shm-usage"],
-        )
+        chromium_path = find_chromium_executable()
+        launch_kwargs = {
+            "headless": True,
+            "args": ["--no-sandbox", "--disable-dev-shm-usage"],
+        }
+        if chromium_path:
+            log(f"Using Chromium executable: {chromium_path}")
+            launch_kwargs["executable_path"] = chromium_path
+        else:
+            log("No known Chromium executable found; using Playwright's managed browser")
+        browser = p.chromium.launch(**launch_kwargs)
         context = browser.new_context(viewport={"width": 1440, "height": 900})
         page = context.new_page()
         console_logs = []

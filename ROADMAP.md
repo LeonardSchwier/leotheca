@@ -801,7 +801,9 @@
 
 </details>
 
-- ⬜ **Android Widget "favorites" hamburger bug**
+- 🚧 **Android Widget "favorites" hamburger bug**
+  <!-- agent-state: {"schema":1,"id":"rm-10faad583e2118d9","state":"claimed","touch":["ROADMAP.md"],"resources":["android-widget-favorites-hamburger"],"owner":"hermes-20260927T070609Z-f9bc27e6","token":"e2e2abb364574f48ce79202e93126666","branch":"agent/rm-10faad583e2118d9/e2e2abb36457","claimed_at":"2026-09-27T07:06:33Z","heartbeat_at":"2026-09-27T07:06:33Z","lease_until":"2026-09-27T08:36:33Z"} -->
+  Agent: hermes-20260927T070609Z-f9bc27e6 | item: rm-10faad583e2118d9 | lease until: 2026-09-27T08:36:33Z
 
 <details>
     <summary>Details</summary>

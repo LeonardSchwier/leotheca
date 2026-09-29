@@ -722,16 +722,6 @@
 </details>
 
 
-- 🚧 **Android Widget Split**
-  <!-- agent-state: {"schema":1,"id":"rm-9b299cb6a1dde5b5","state":"claimed","touch":["ROADMAP.md"],"resources":["android-widgets"],"owner":"hermes-20260929T152658Z-2465818875","token":"9bc0879bd96a2fd414624b8615f2b0a7","branch":"agent/rm-9b299cb6a1dde5b5/9bc0879bd96a","claimed_at":"2026-09-29T15:26:58Z","heartbeat_at":"2026-09-29T15:26:58Z","lease_until":"2026-09-29T16:56:58Z"} -->
-  Agent: hermes-20260929T152658Z-2465818875 | item: rm-9b299cb6a1dde5b5 | lease until: 2026-09-29T16:56:58Z
-
-<details>
-    <summary>Details</summary>
-
-    : Exposes New note and Favorites as independent Android home-screen widgets with dedicated receivers, layouts, and provider metadata while retaining the existing offline deep-link actions. Implementation CI run `33376454090` passed frontend typechecking/tests/build, Rust check/tests, Capacitor sync, and the Android debug APK build. The checked-in JVM resource contract test covers manifest, metadata, and action wiring, but current `main` CI does not execute Android JVM unit tests; F-014 already owns that validation-workflow change. No Android on-device verification is claimed.
-
-</details>
 
 - ✅ **Audit follow-up N-004: Contain local Markdown attachment reads**
 
@@ -880,6 +870,18 @@
   - **Completed**: Toolbar color picker (`src/app/HighlightColorPicker.tsx`), `==` typing-suggestion (`highlightColorCompletions` in `MarkdownEditor.tsx`), shared insertion logic (`src/editor/highlightColors.ts`), tests for picker + insertion + completions.
 
 ## Implemented
+
+- ✅ **Android Widget Split**
+  <!-- agent-state: {"schema":1,"id":"rm-9b299cb6a1dde5b5","state":"done","touch":["ROADMAP.md"],"resources":["android-widgets"],"note":"Code already landed on main (LeothecaFavoritesWidgetProvider, LeothecaFavoritesListWidgetProvider, LeothecaQuickCaptureWidgetProvider + manifest + layouts + tests). Verified: all 3 provider files exist, manifest registers all receivers, WidgetResourcesUnitTest covers them. Marking done to close unclaimed entry.","completed_at":"2026-09-29T15:27:08Z","completed_by":"hermes-20260929T152658Z-2465818875","branch":"agent/rm-9b299cb6a1dde5b5/9bc0879bd96a"} -->
+  Agent: completed by hermes-20260929T152658Z-2465818875 | item: rm-9b299cb6a1dde5b5
+
+<details>
+    <summary>Details</summary>
+
+    : Exposes New note and Favorites as independent Android home-screen widgets with dedicated receivers, layouts, and provider metadata while retaining the existing offline deep-link actions. Implementation CI run `33376454090` passed frontend typechecking/tests/build, Rust check/tests, Capacitor sync, and the Android debug APK build. The checked-in JVM resource contract test covers manifest, metadata, and action wiring, but current `main` CI does not execute Android JVM unit tests; F-014 already owns that validation-workflow change. No Android on-device verification is claimed.
+
+</details>
+
 
 - ✅ **Android Widget "new note" cold-start delay**
   <!-- agent-state: {"schema":1,"id":"rm-ca1f0879ac92148e","state":"done","touch":["ROADMAP.md"],"resources":["android-widgets"],"note":"Code already landed on main (NewNoteColdStartTracker.java, MainActivity, NewNoteColdStartTrackerTest, ANDROID_WIDGETS.md). Verified: all files exist, MainActivity references ColdStartTracker. Marking done to close unclaimed entry.","completed_at":"2026-09-29T15:26:47Z","completed_by":"hermes-20260929T152626Z-11424437","branch":"agent/rm-ca1f0879ac92148e/05511f30a4ad"} -->

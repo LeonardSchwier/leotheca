@@ -22,6 +22,7 @@ import { textDirectionExtension } from "./textDirection";
 import { attachmentsInsertText, type PastedOrDroppedFile } from "./attachments";
 import { minimalChange } from "./textDiff";
 import { parseSnippets, snippetExpansion } from "./snippets";
+import { HIGHLIGHT_COLOR_CHOICES, highlightColorEmoji } from "./highlightColors";
 import { resolveBlockLinkAtCursor } from "./blockLinkActions";
 import type { BlockLinkCopyRequest, BlockLinkCreateRequest } from "./blockLinkRequest";
 import { tableEditAtCursor, type MarkdownTableCommand } from "../markdown/tableCommands";
@@ -310,10 +311,54 @@ export function blockLinkCompletions(path: string) {
   };
 }
 
+/**
+ * Suggests a highlight color while typing `==` (ROADMAP.md's "Highlight
+ * colors in the editor and preview", rm-7e6b338cfafec8d3). The marker
+ * itself (`==…==`) is the author's own typing — the suggestion only
+ * re-colors it: selecting an entry rewrites the `==` the author already
+ * typed into `==<emoji> ` (or plain `==` for "Highlight (plain)"),
+ * leaving any text already typed after the second `=` intact, so
+ * `==im` + "Highlight (Red)" becomes `==🔴 im==` rather than
+ * `==im==🔴 im==`. The emoji/color pairing comes from the shared single
+ * source of truth in ../markdown/highlight.ts (rm-c2a2c2d840b60a2e), the
+ * same "one parser/scanner per consumer" rule the wikilink/heading/block
+ * completions above already follow.
+ *
+ * Triggers on exactly `==` (not `===`/`====`, which are not a highlight
+ * start) at or right after the cursor, not mid-word, and only when the
+ * character before the `==` is not a word character — the same guard
+ * `matchBefore`'s caller in wikilinkCompletions et al. get for free
+ * from their own trigger regexes, replicated here because `==` is a
+ * bare, non-anchored two-character trigger.
+ */
+export function highlightColorCompletions() {
+  return function (context: CompletionContext): CompletionResult | null {
+    const m = context.state.sliceDoc(Math.max(0, context.pos - 40), context.pos);
+    // The `==` must be a standalone two-char token: `==` preceded by
+    // start-of-line/whitespace (not `===`, not mid-word like `abc==`),
+    // followed by zero or more chars that are neither `=` nor whitespace
+    // (once the author moves on to the next word, the suggestion is no
+    // longer about this `==`), and right at the cursor.
+    const match = /(^|\s)==([^=\s]*)$/u.exec(m);
+    if (!match) return null;
+    const typed = match[2];
+    const from = context.pos - (2 + typed.length); // replaces the `==` portion onward
+
+    const options: CompletionResult["options"] = [
+      { label: "Highlight (plain)", apply: `${typed}==`, type: "text" },
+      ...HIGHLIGHT_COLOR_CHOICES.map((choice) => {
+        const emoji = highlightColorEmoji(choice.color);
+        return { label: `Highlight (${choice.label})`, apply: `${emoji} ${typed}==`, type: "text" };
+      }),
+    ];
+
+    return { from, options, filter: false };
+  };
+}
+
 async function fileToBytes(file: File): Promise<Uint8Array> {
   return new Uint8Array(await file.arrayBuffer());
 }
-
 function pasteImageFiles(clipboardData: DataTransfer): File[] {
   return Array.from(clipboardData.items)
     .filter((item) => item.type.startsWith("image/"))
@@ -455,7 +500,7 @@ function buildExtensions(
     // native find-in-page, screen readers) is unaffected.
     drawSelection(),
     history(),
-    autocompletion({ override: [slashCommandCompletions, wikilinkCompletions, headingLinkCompletions(path), blockLinkCompletions(path)] }),
+    autocompletion({ override: [slashCommandCompletions, wikilinkCompletions, headingLinkCompletions(path), blockLinkCompletions(path), highlightColorCompletions()] }),
     keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap, ...completionKeymap]),
     markdown({ codeLanguages: languages, extensions: [highlightMarkdownExtension] }),
     syntaxHighlighting(defaultHighlightStyle, { fallback: true }),

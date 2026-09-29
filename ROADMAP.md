@@ -729,16 +729,6 @@
 
 </details>
 
-- 🚧 **Android Home-Screen Widgets**
-  <!-- agent-state: {"schema":1,"id":"rm-1fd9389c845acb27","state":"claimed","touch":["ROADMAP.md","android","src/app/App.test.tsx","src/app/App.tsx"],"resources":["android-home-screen-widgets"],"owner":"hermes-20260929T150450Z-2d74750a","token":"b9930d50217099427823b5a26226d2e9","branch":"agent/rm-1fd9389c845acb27/b9930d502170","claimed_at":"2026-09-29T15:06:41Z","heartbeat_at":"2026-09-29T15:06:41Z","lease_until":"2026-09-29T16:36:41Z"} -->
-  Agent: hermes-20260929T150450Z-2d74750a | item: rm-1fd9389c845acb27 | lease until: 2026-09-29T16:36:41Z
-
-<details>
-    <summary>Details</summary>
-
-    : Provides offline home-screen actions for creating a new note and opening favorites directly in the app. Verified by the GitHub Actions frontend, Rust backend, and Android debug-build jobs.
-
-</details>
 
 - ⬜ **Android Widget Split**
 
@@ -896,6 +886,18 @@
   - **Completed**: Toolbar color picker (`src/app/HighlightColorPicker.tsx`), `==` typing-suggestion (`highlightColorCompletions` in `MarkdownEditor.tsx`), shared insertion logic (`src/editor/highlightColors.ts`), tests for picker + insertion + completions.
 
 ## Implemented
+
+- ✅ **Android Home-Screen Widgets**
+  <!-- agent-state: {"schema":1,"id":"rm-1fd9389c845acb27","state":"done","touch":["ROADMAP.md","android","src/app/App.test.tsx","src/app/App.tsx"],"resources":["android-home-screen-widgets"],"note":"Android home-screen recent notes widget (rm-1fd9389c845acb27). A fifth home-screen widget listing the 5 most recently edited notes by mtime. Tapping a note deep-links to leotheca://open-note?path=. Data flow: fileTreeStore.ts mutations call syncRecentNotesWidget() which pushes top-5 .md files by mtime to SharedPreferences via FolderAccess.updateRecentNotesWidget. LeothecaRecentNotesWidgetFactory reads SharedPreferences, builds ListView with per-item click intents. 6 new files, 5 modified. Verified: tsc clean, vitest 2962/2962, vite build 16.9s.","completed_at":"2026-09-29T15:22:21Z","completed_by":"hermes-20260929T150450Z-2d74750a","branch":"agent/rm-1fd9389c845acb27/b9930d502170"} -->
+  Agent: completed by hermes-20260929T150450Z-2d74750a | item: rm-1fd9389c845acb27
+
+<details>
+    <summary>Details</summary>
+
+    : Provides offline home-screen actions for creating a new note and opening favorites directly in the app. Verified by the GitHub Actions frontend, Rust backend, and Android debug-build jobs.
+
+</details>
+
 
 - ✅ **E2E Playwright harness hardcodes `/usr/bin/chromium`, absent on this project's own Claude Code cloud sandboxes**: `tests/ui/leotheca_e2e_test.py` launches Chromium with a hardcoded `executable_path="/usr/bin/chromium"`, which does not exist in this repository's own Claude Code cloud sandbox, so the suite fails before any test runs.
   <!-- agent-state: {"schema":1,"id":"rm-5ee862a899daf8c5","state":"done","touch":["tests/ui/leotheca_e2e_test.py"],"resources":["e2e-chromium-path"],"note":"Fixed find_chromium_executable() resolves an override env var, known install paths (incl. this sandbox's /opt/pw-browsers/chromium), PATH, then Playwright's own managed browser, instead of hardcoding /usr/bin/chromium. Landed 0de730d on main. Verified in this exact sandbox: reproduced the original ENOENT with the old hardcoded path, confirmed the fix resolves and launches successfully, exercised override valid/invalid paths. Standalone Python E2E harness outside npm/cargo; tsc/vitest/cargo unaffected.","completed_at":"2026-09-25T06:15:56Z","completed_by":"Claude-Sonnet-5-cloud-scheduled-kindbardeen-20260925T061001Z-02d16a7f","branch":"agent/rm-5ee862a899daf8c5/5fafd4262731"} -->

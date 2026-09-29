@@ -675,7 +675,9 @@
 
 </details>
 
-- ⬜ **Android Widget "new note" cold-start delay**
+- 🚧 **Android Widget "new note" cold-start delay**
+  <!-- agent-state: {"schema":1,"id":"rm-ca1f0879ac92148e","state":"claimed","touch":["ROADMAP.md"],"resources":["android-widgets"],"owner":"hermes-20260929T152626Z-11424437","token":"05511f30a4adb41aedb8a6de35527945","branch":"agent/rm-ca1f0879ac92148e/05511f30a4ad","claimed_at":"2026-09-29T15:26:26Z","heartbeat_at":"2026-09-29T15:26:26Z","lease_until":"2026-09-29T16:56:26Z"} -->
+  Agent: hermes-20260929T152626Z-11424437 | item: rm-ca1f0879ac92148e | lease until: 2026-09-29T16:56:26Z
 
 <details>
     <summary>Details</summary>

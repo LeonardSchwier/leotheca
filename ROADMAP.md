@@ -729,7 +729,9 @@
 
 </details>
 
-- ⬜ **Android Home-Screen Widgets**
+- 🚧 **Android Home-Screen Widgets**
+  <!-- agent-state: {"schema":1,"id":"rm-1fd9389c845acb27","state":"claimed","touch":["ROADMAP.md","android","src/app/App.test.tsx","src/app/App.tsx"],"resources":["android-home-screen-widgets"],"owner":"hermes-20260929T150450Z-2d74750a","token":"b9930d50217099427823b5a26226d2e9","branch":"agent/rm-1fd9389c845acb27/b9930d502170","claimed_at":"2026-09-29T15:06:41Z","heartbeat_at":"2026-09-29T15:06:41Z","lease_until":"2026-09-29T16:36:41Z"} -->
+  Agent: hermes-20260929T150450Z-2d74750a | item: rm-1fd9389c845acb27 | lease until: 2026-09-29T16:36:41Z
 
 <details>
     <summary>Details</summary>

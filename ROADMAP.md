@@ -675,16 +675,6 @@
 
 </details>
 
-- 🚧 **Android Widget "new note" cold-start delay**
-  <!-- agent-state: {"schema":1,"id":"rm-ca1f0879ac92148e","state":"claimed","touch":["ROADMAP.md"],"resources":["android-widgets"],"owner":"hermes-20260929T152626Z-11424437","token":"05511f30a4adb41aedb8a6de35527945","branch":"agent/rm-ca1f0879ac92148e/05511f30a4ad","claimed_at":"2026-09-29T15:26:26Z","heartbeat_at":"2026-09-29T15:26:26Z","lease_until":"2026-09-29T16:56:26Z"} -->
-  Agent: hermes-20260929T152626Z-11424437 | item: rm-ca1f0879ac92148e | lease until: 2026-09-29T16:56:26Z
-
-<details>
-    <summary>Details</summary>
-
-    (claim: ChatGPT-GPT-5.6-Sol-manual-20260901T1849Z, branch: agent/android-widget-cold-start): Cold-start New note launches now show a native "Creating note" overlay while the existing web quick-note flow remains the sole writer and opener. `MainActivity` restores only a valid persisted `/workspace` SAF grant, predicts the same collision-free root quick-note name that `createNoteQuick()` will use, and observes for that file with a bounded 12-second timeout; it never creates or edits note content natively. `NewNoteColdStartTrackerTest` covers automation URL recognition and root quick-note naming, and `documentation/ANDROID_WIDGETS.md` records the ownership boundary and timeout behavior. Same-commit CI run `33558831084` passed frontend typechecking/lint/version checks/tests/build, Rust formatting/Clippy/tests/check, Android JVM tests/debug APK build/emulator installation, and AppImage build/extract/headless launch. Emulator installation is not physical Android-device verification, and no physical-device confirmation is claimed.
-
-</details>
 
 - ✅ **F06 Phase 2a: heading breadcrumbs driven by Source-mode cursor position**
 
@@ -888,6 +878,18 @@
   - **Completed**: Toolbar color picker (`src/app/HighlightColorPicker.tsx`), `==` typing-suggestion (`highlightColorCompletions` in `MarkdownEditor.tsx`), shared insertion logic (`src/editor/highlightColors.ts`), tests for picker + insertion + completions.
 
 ## Implemented
+
+- ✅ **Android Widget "new note" cold-start delay**
+  <!-- agent-state: {"schema":1,"id":"rm-ca1f0879ac92148e","state":"done","touch":["ROADMAP.md"],"resources":["android-widgets"],"note":"Code already landed on main (NewNoteColdStartTracker.java, MainActivity, NewNoteColdStartTrackerTest, ANDROID_WIDGETS.md). Verified: all files exist, MainActivity references ColdStartTracker. Marking done to close unclaimed entry.","completed_at":"2026-09-29T15:26:47Z","completed_by":"hermes-20260929T152626Z-11424437","branch":"agent/rm-ca1f0879ac92148e/05511f30a4ad"} -->
+  Agent: completed by hermes-20260929T152626Z-11424437 | item: rm-ca1f0879ac92148e
+
+<details>
+    <summary>Details</summary>
+
+    (claim: ChatGPT-GPT-5.6-Sol-manual-20260901T1849Z, branch: agent/android-widget-cold-start): Cold-start New note launches now show a native "Creating note" overlay while the existing web quick-note flow remains the sole writer and opener. `MainActivity` restores only a valid persisted `/workspace` SAF grant, predicts the same collision-free root quick-note name that `createNoteQuick()` will use, and observes for that file with a bounded 12-second timeout; it never creates or edits note content natively. `NewNoteColdStartTrackerTest` covers automation URL recognition and root quick-note naming, and `documentation/ANDROID_WIDGETS.md` records the ownership boundary and timeout behavior. Same-commit CI run `33558831084` passed frontend typechecking/lint/version checks/tests/build, Rust formatting/Clippy/tests/check, Android JVM tests/debug APK build/emulator installation, and AppImage build/extract/headless launch. Emulator installation is not physical Android-device verification, and no physical-device confirmation is claimed.
+
+</details>
+
 
 - ✅ **Android Home-Screen Widgets**
   <!-- agent-state: {"schema":1,"id":"rm-1fd9389c845acb27","state":"done","touch":["ROADMAP.md","android","src/app/App.test.tsx","src/app/App.tsx"],"resources":["android-home-screen-widgets"],"note":"Android home-screen recent notes widget (rm-1fd9389c845acb27). A fifth home-screen widget listing the 5 most recently edited notes by mtime. Tapping a note deep-links to leotheca://open-note?path=. Data flow: fileTreeStore.ts mutations call syncRecentNotesWidget() which pushes top-5 .md files by mtime to SharedPreferences via FolderAccess.updateRecentNotesWidget. LeothecaRecentNotesWidgetFactory reads SharedPreferences, builds ListView with per-item click intents. 6 new files, 5 modified. Verified: tsc clean, vitest 2962/2962, vite build 16.9s.","completed_at":"2026-09-29T15:22:21Z","completed_by":"hermes-20260929T150450Z-2d74750a","branch":"agent/rm-1fd9389c845acb27/b9930d502170"} -->

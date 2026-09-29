@@ -722,7 +722,9 @@
 </details>
 
 
-- ⬜ **Android Widget Split**
+- 🚧 **Android Widget Split**
+  <!-- agent-state: {"schema":1,"id":"rm-9b299cb6a1dde5b5","state":"claimed","touch":["ROADMAP.md"],"resources":["android-widgets"],"owner":"hermes-20260929T152658Z-2465818875","token":"9bc0879bd96a2fd414624b8615f2b0a7","branch":"agent/rm-9b299cb6a1dde5b5/9bc0879bd96a","claimed_at":"2026-09-29T15:26:58Z","heartbeat_at":"2026-09-29T15:26:58Z","lease_until":"2026-09-29T16:56:58Z"} -->
+  Agent: hermes-20260929T152658Z-2465818875 | item: rm-9b299cb6a1dde5b5 | lease until: 2026-09-29T16:56:58Z
 
 <details>
     <summary>Details</summary>

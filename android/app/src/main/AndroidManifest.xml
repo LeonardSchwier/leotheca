@@ -77,8 +77,18 @@
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/leotheca_widget_quick_capture_info" />
         </receiver>
 
+        <receiver android:name=".LeothecaRecentNotesWidgetProvider" android:exported="false">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/leotheca_widget_recent_notes_info" />
+        </receiver>
+
         <service
             android:name=".LeothecaFavoritesListWidgetService"
+            android:exported="false"
+            android:permission="android.permission.BIND_REMOTEVIEWS" />
+
+        <service
+            android:name=".LeothecaRecentNotesWidgetService"
             android:exported="false"
             android:permission="android.permission.BIND_REMOTEVIEWS" />
 

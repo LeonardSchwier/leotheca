@@ -24,6 +24,11 @@ import type { SortOrder } from "../settings/workspaceSettings";
 import { linkIndex } from "../linking/store";
 import { matchesSearchQuery, parseSearchQuery } from "./searchQuery";
 import { mapWithConcurrency } from "./concurrency";
+import {
+  updateRecentNotesWidget,
+  type RecentNotesWidgetEntry,
+} from "./capacitorBridgeImpl";
+import { isAndroid } from "../lib/platform";
 
 export const expandedDirs = signal<Set<string>>(new Set());
 export const dirChildren = signal<Map<string, FsEntry[]>>(new Map());
@@ -346,6 +351,7 @@ export async function createNote(
     rethrowCreateCollision(error, name);
   }
   await loadChildren(dirPath);
+  await syncRecentNotesWidget(root);
   return path;
 }
 
@@ -469,6 +475,7 @@ export async function createNoteQuick(
     content,
   );
   await loadChildren(dirPath);
+  await syncRecentNotesWidget(root);
   return created;
 }
 
@@ -803,6 +810,7 @@ export async function renameEntry(
   }
   forgetPath(oldPath);
   await loadChildren(parent);
+  await syncRecentNotesWidget(root);
   return newPath;
 }
 
@@ -817,4 +825,31 @@ export async function deleteEntry(
   }
   forgetPath(path);
   await loadChildren(dirname(path));
+  await syncRecentNotesWidget(rootPath);
+}
+
+/**
+ * Pushes the 5 most recently edited notes (by mtime) to the Android
+ * home-screen recent-notes widget. Best-effort: a failure here must never
+ * surface to a file-tree caller. Only runs on Android; desktop has no
+ * equivalent widget. The workspace root's own mtime-based enumeration is
+ * reused from findAllFiles, which already returns sorted-by-mtime entries
+ * for the same walk the link index uses.
+ */
+async function syncRecentNotesWidget(rootPath: string): Promise<void> {
+  if (!isAndroid()) return;
+  try {
+    const files = await findAllFiles(rootPath);
+    const notes = files
+      .filter((f) => !f.isDir && f.name.toLowerCase().endsWith(".md"))
+      .sort((a, b) => (b.mtime ?? 0) - (a.mtime ?? 0))
+      .slice(0, 5)
+      .map<RecentNotesWidgetEntry>((f) => ({
+        label: f.name.replace(/\.md$/i, ""),
+        path: f.path,
+      }));
+    await updateRecentNotesWidget(notes);
+  } catch {
+    // Best-effort widget sync; the in-app file tree is unaffected.
+  }
 }

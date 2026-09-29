@@ -801,4 +801,59 @@ public class FolderAccessPlugin extends Plugin {
             manager.notifyAppWidgetViewDataChanged(ids, R.id.widget_favorites_list);
         }
     }
+
+    /**
+     * Android home-screen recent-notes widget: stores the already-resolved
+     * list of most-recently-edited notes (label + workspace-absolute path,
+     * computed on the TypeScript side by fileTreeStore.ts) for
+     * LeothecaRecentNotesWidgetFactory's RemoteViewsService to render,
+     * then nudges every placed instance of that widget to re-read it.
+     * Same "TypeScript side maps onto plain values, this file is a thin
+     * native boundary" division as updateFavoritesWidget above.
+     */
+    @PluginMethod
+    public void updateRecentNotesWidget(PluginCall call) {
+        JSArray entries = call.getArray("entries");
+        if (entries == null) {
+            call.reject("entries is required");
+            return;
+        }
+        try {
+            JSONArray stored = new JSONArray();
+            int max = Math.min(entries.length(), 10);
+            for (int i = 0; i < max; i++) {
+                JSONObject entry = entries.getJSONObject(i);
+                String path = entry.optString("path", "");
+                if (path.isEmpty()) continue;
+                String label = entry.optString("label", "");
+                JSONObject storedEntry = new JSONObject();
+                storedEntry.put("label", label.isEmpty() ? path : label);
+                storedEntry.put("path", path);
+                stored.put(storedEntry);
+            }
+            getContext()
+                .getSharedPreferences(
+                    LeothecaRecentNotesWidgetFactory.PREFS_NAME,
+                    android.content.Context.MODE_PRIVATE
+                )
+                .edit()
+                .putString(LeothecaRecentNotesWidgetFactory.RECENT_KEY, stored.toString())
+                .apply();
+            refreshRecentNotesWidgets();
+            call.resolve();
+        } catch (Exception e) {
+            call.reject(e.getMessage(), e);
+        }
+    }
+
+    private void refreshRecentNotesWidgets() {
+        android.content.Context context = getContext();
+        android.appwidget.AppWidgetManager manager = android.appwidget.AppWidgetManager.getInstance(context);
+        int[] ids = manager.getAppWidgetIds(
+            new android.content.ComponentName(context, LeothecaRecentNotesWidgetProvider.class)
+        );
+        if (ids.length > 0) {
+            manager.notifyAppWidgetViewDataChanged(ids, R.id.widget_recent_notes_list);
+        }
+    }
 }

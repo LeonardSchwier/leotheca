@@ -165,4 +165,60 @@ public class WidgetResourcesUnitTest {
         assertFalse(provider.contains("leotheca://new-note"));
         assertFalse(provider.contains("open-favorites"));
     }
+
+    // Android home-screen widget listing the 5 most recently edited notes
+    // by name: a fifth, separate widget from the four single-button ones
+    // above, showing notes by mtime order. See ROADMAP.md's "Android
+    // Home-Screen Widgets" item.
+    @Test
+    public void manifestRegistersTheRecentNotesWidgetProviderAndService() throws IOException {
+        String manifest = source("AndroidManifest.xml");
+
+        assertTrue(manifest.contains(".LeothecaRecentNotesWidgetProvider"));
+        assertTrue(manifest.contains("@xml/leotheca_widget_recent_notes_info"));
+        assertTrue(manifest.contains(".LeothecaRecentNotesWidgetService"));
+    }
+
+    @Test
+    public void recentNotesWidgetMetadataPointsAtItsOwnLayout() throws IOException {
+        String info = source("res/xml/leotheca_widget_recent_notes_info.xml");
+
+        assertTrue(info.contains("@layout/leotheca_widget_recent_notes"));
+        assertFalse(info.contains("@layout/leotheca_widget_favorites\""));
+    }
+
+    @Test
+    public void recentNotesLayoutsDeclareTheIdsTheJavaCodeReferences() throws IOException {
+        String container = source("res/layout/leotheca_widget_recent_notes.xml");
+        String item = source("res/layout/leotheca_widget_recent_notes_item.xml");
+
+        assertTrue(container.contains("@+id/widget_recent_notes_list"));
+        assertTrue(container.contains("@+id/widget_recent_notes_empty"));
+        assertTrue(item.contains("@+id/widget_recent_notes_item_label"));
+    }
+
+    @Test
+    public void recentNotesProviderWiresTheRemoteAdapterEmptyViewAndClickTemplate() throws IOException {
+        String provider = source("java/com/leonardschwier/leotheca/LeothecaRecentNotesWidgetProvider.java");
+
+        assertTrue(provider.contains("setRemoteAdapter"));
+        assertTrue(provider.contains("R.id.widget_recent_notes_list"));
+        assertTrue(provider.contains("setEmptyView"));
+        assertTrue(provider.contains("R.id.widget_recent_notes_empty"));
+        assertTrue(provider.contains("setPendingIntentTemplate"));
+        assertTrue(provider.contains("PendingIntent.FLAG_MUTABLE"));
+    }
+
+    @Test
+    public void recentNotesFactoryReadsTheSameSharedPreferencesKeysThePluginWrites() throws IOException {
+        String plugin = source("java/com/leonardschwier/leotheca/FolderAccessPlugin.java");
+        String factory = source("java/com/leonardschwier/leotheca/LeothecaRecentNotesWidgetFactory.java");
+
+        assertTrue(plugin.contains("updateRecentNotesWidget"));
+        assertTrue(plugin.contains("LeothecaRecentNotesWidgetFactory.PREFS_NAME"));
+        assertTrue(plugin.contains("LeothecaRecentNotesWidgetFactory.RECENT_KEY"));
+        assertTrue(factory.contains("PREFS_NAME = \"LeothecaWidgetData\""));
+        assertTrue(factory.contains("RECENT_KEY = \"recentNotesJson\""));
+        assertTrue(factory.contains("leotheca://open-note?path="));
+    }
 }

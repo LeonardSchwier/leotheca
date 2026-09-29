@@ -93,6 +93,11 @@ export interface FavoritesWidgetEntry {
   path: string;
 }
 
+export interface RecentNotesWidgetEntry {
+  label: string;
+  path: string;
+}
+
 interface FolderAccessPlugin {
   pickFolder(): Promise<{ uri: string | null; name?: string | null }>;
   listDir(options: { uri: string }): Promise<{ entries: NativeEntry[] }>;
@@ -145,6 +150,9 @@ interface FolderAccessPlugin {
   // favorited notes for the RemoteViewsService to render, so the native
   // widget never needs to parse bookmarks.json or resolve SAF paths itself.
   updateFavoritesWidget(options: { entries: FavoritesWidgetEntry[] }): Promise<void>;
+  // Android home-screen recent-notes widget: pushes the resolved list of
+  // most-recently-edited notes for the RemoteViewsService to render.
+  updateRecentNotesWidget(options: { entries: RecentNotesWidgetEntry[] }): Promise<void>;
 }
 
 const FolderAccess = registerPlugin<FolderAccessPlugin>("FolderAccess");
@@ -776,6 +784,21 @@ export async function updateFavoritesWidget(entries: FavoritesWidgetEntry[]): Pr
     await FolderAccess.updateFavoritesWidget({ entries });
   } catch {
     // Best-effort widget sync; the in-app bookmark list is unaffected.
+  }
+}
+
+/**
+ * Pushes the resolved list of most-recently-edited notes to the
+ * recent-notes home-screen widget (LeothecaRecentNotesWidgetProvider).
+ * Same best-effort, fire-and-forget pattern as updateFavoritesWidget:
+ * called from a reactive signal effect (fileTreeStore.ts), so a failure
+ * here must never surface to a file-tree caller.
+ */
+export async function updateRecentNotesWidget(entries: RecentNotesWidgetEntry[]): Promise<void> {
+  try {
+    await FolderAccess.updateRecentNotesWidget({ entries });
+  } catch {
+    // Best-effort widget sync; the in-app file tree is unaffected.
   }
 }
 

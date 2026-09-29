@@ -802,8 +802,8 @@
 </details>
 
 - 🚧 **Android Widget "favorites" hamburger bug**
-  <!-- agent-state: {"schema":1,"id":"rm-10faad583e2118d9","state":"claimed","touch":["ROADMAP.md","src/app/App.test.tsx","src/app/App.tsx"],"resources":["android-widget-favorites-hamburger"],"owner":"hermes-20260928T150522Z-a4288bbf","token":"9779522af12adeba1bde84cbbc61949b","branch":"agent/rm-10faad583e2118d9/9779522af12a","claimed_at":"2026-09-28T15:06:30Z","heartbeat_at":"2026-09-28T15:06:30Z","lease_until":"2026-09-28T16:36:30Z"} -->
-  Agent: hermes-20260928T150522Z-a4288bbf | item: rm-10faad583e2118d9 | lease until: 2026-09-28T16:36:30Z
+  <!-- agent-state: {"schema":1,"id":"rm-10faad583e2118d9","state":"claimed","touch":["ROADMAP.md","src/app/App.test.tsx","src/app/App.tsx"],"resources":["android-widget-favorites-hamburger"],"owner":"hermes-20260929T070829Z-80bac758","token":"e906746a2972c2dd8ecacdab5488dec9","branch":"agent/rm-10faad583e2118d9/e906746a2972","claimed_at":"2026-09-29T07:09:10Z","heartbeat_at":"2026-09-29T07:09:10Z","lease_until":"2026-09-29T08:39:10Z"} -->
+  Agent: hermes-20260929T070829Z-80bac758 | item: rm-10faad583e2118d9 | lease until: 2026-09-29T08:39:10Z
 
 <details>
     <summary>Details</summary>

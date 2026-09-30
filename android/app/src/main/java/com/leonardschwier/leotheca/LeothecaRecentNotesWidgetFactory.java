@@ -1,5 +1,6 @@
 package com.leonardschwier.leotheca;
 
+import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -116,5 +117,10 @@ public class LeothecaRecentNotesWidgetFactory implements RemoteViewsService.Remo
     @Override
     public boolean hasStableIds() {
         return true;
+    }
+
+    @Override
+    public void onDestroy() {
+        entries.clear();
     }
 }

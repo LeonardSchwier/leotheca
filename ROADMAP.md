@@ -1,6 +1,6 @@
 # Roadmap
 
-## Open (85 items)
+## Open (87 items)
 
 ### Bugs
 
@@ -868,6 +868,9 @@
 
 - ✅ **Highlight colors in the editor and preview**: Market Solution #2 1.14.0 Desktop (Aug 2, 2026) added color highlights: a color emoji (🔴, 🟠, 🟢, 🔵, 🟣) at the start of an existing `==highlight==` changes its color, a formatting submenu offers a picker, typing `==` suggests colors, and Live Preview shows a clickable inline swatch when the cursor overlaps the highlight. Leotheca already renders the standard CommonMark highlight extension (`==...==`) in one fixed color in editor and preview; this extends it with the emoji-color convention — plain-text marker in the note itself, nothing proprietary — so a highlight's color is a property of the note text, viewable and editable anywhere the note is open. Purely local rendering/typing-suggestion work, no new file format, no network call, switchable off like the other formatting niceties. (Competitor scan, Market Solution #2 changelog 1.14.0 Desktop, 2026-08-02)
   - **Completed**: Toolbar color picker (`src/app/HighlightColorPicker.tsx`), `==` typing-suggestion (`highlightColorCompletions` in `MarkdownEditor.tsx`), shared insertion logic (`src/editor/highlightColors.ts`), tests for picker + insertion + completions.
+
+- ⬜ **macOS Quick Look previews for Markdown files**: Obsidian 1.14.3 Desktop (Sept 29, 2026) added Quick Look (⌥-click) previews for Markdown files, so a `.md` file opens in the system's preview overlay directly from Finder — a desktop OS integration that stands on the existing macOS Quick Look mechanism (a proven convention, not a new one), works entirely on plain files with nothing proprietary, and complements the already-landed "Open with" OS file-association item (which covers in-app open + default-app registration, not this preview path). (Competitor scan, Obsidian changelog 1.14.3 Desktop, 2026-09-29)
+- ⬜ **Increase font size / Decrease font size commands**: Obsidian 1.14.3 Desktop (Sept 29, 2026) added "Increase font size" and "Decrease font size" commands that zoom the editor text, a switchable command-based text-size control that is pure local rendering state — plain files, nothing proprietary, standing on the existing command palette rather than a competing convention. Distinct from the already-completed Fullscreen image-zoom viewer (images only) and from the existing interface-zoom setting (whole UI, not editor text). (Competitor scan, Obsidian changelog 1.14.3 Desktop, 2026-09-29)
 
 ## Implemented
 

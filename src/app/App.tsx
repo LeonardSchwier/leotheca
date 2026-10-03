@@ -142,6 +142,7 @@ import { GraphView } from "../graph/GraphView";
 import { MarkdownHelpDialog } from "./MarkdownHelpDialog";
 import { CommandPalette, type Command } from "./CommandPalette";
 import { nextUiZoom, zoomActionForKey, zoomActionForWheel } from "./zoomControls";
+import { nextFontSize } from "./fontSizeControls";
 import { isNarrowViewport } from "./responsiveLayout";
 import { classifyLayout, navigationPanelOverlays, showsActivityRail } from "./layout/adaptiveLayout";
 import { ActivityRail } from "./layout/ActivityRail";
@@ -1031,6 +1032,22 @@ export function App() {
         id: "new-drawing",
         label: "New drawing",
         run: () => void createInkQuick(selectedDir.value ?? rootPath).then(({ path, name }) => handleOpenFile(path, name)),
+      });
+      list.push({
+        id: "increase-font-size",
+        label: "Increase font size",
+        run: () => {
+          const next = nextFontSize(workspaceSettings.value.fontSize, "in");
+          if (next !== workspaceSettings.value.fontSize) void updateWorkspaceSettings({ fontSize: next });
+        },
+      });
+      list.push({
+        id: "decrease-font-size",
+        label: "Decrease font size",
+        run: () => {
+          const next = nextFontSize(workspaceSettings.value.fontSize, "out");
+          if (next !== workspaceSettings.value.fontSize) void updateWorkspaceSettings({ fontSize: next });
+        },
       });
       list.push({
         id: "graph-view",

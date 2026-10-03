@@ -438,6 +438,46 @@ describe("App: keyboard shortcuts", () => {
     expect(ordinaryScroll.defaultPrevented).toBe(false);
     expect(updateWorkspaceSettingsSpy).toHaveBeenCalledTimes(callCount);
   });
+
+  it("command palette 'Increase font size' and 'Decrease font size' update the persisted font size", async () => {
+    workspacePath.value = "/vault";
+    workspaceSettings.value = { ...DEFAULT_WORKSPACE_SETTINGS, fontSize: 15 };
+    const { getByPlaceholderText, getAllByText } = render(<App />);
+
+    const openCommandPalette = async () => {
+      fireEvent.click(document.querySelector('[aria-label="Command palette"]')!);
+      await Promise.resolve();
+    };
+
+    await act(async () => {
+      await openCommandPalette();
+    });
+
+    fireEvent.input(getByPlaceholderText("Type a command..."), {
+      target: { value: "font size" },
+    });
+    await act(async () => {
+      const buttons = getAllByText("Increase font size");
+      fireEvent.click(buttons[0]);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(updateWorkspaceSettingsSpy).toHaveBeenLastCalledWith({ fontSize: 16 });
+
+    await act(async () => {
+      await openCommandPalette();
+    });
+    fireEvent.input(getByPlaceholderText("Type a command..."), {
+      target: { value: "decrease" },
+    });
+    await act(async () => {
+      const buttons = getAllByText("Decrease font size");
+      fireEvent.click(buttons[0]);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(updateWorkspaceSettingsSpy).toHaveBeenLastCalledWith({ fontSize: 15 });
+  });
 });
 
 describe("App: narrow-screen navigation", () => {

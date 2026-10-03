@@ -1,6 +1,5 @@
 package com.leonardschwier.leotheca;
 
-import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -86,16 +85,9 @@ public class LeothecaRecentNotesWidgetFactory implements RemoteViewsService.Remo
         RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.leotheca_widget_recent_notes_item);
         views.setTextViewText(R.id.widget_recent_notes_item_label, entry.label);
 
-        Intent fill = new Intent(Intent.ACTION_VIEW, Uri.parse("leotheca://open-note?path=" + Uri.encode(entry.path)));
-        fill.setPackage(context.getPackageName());
-        int requestCode = position;
-        PendingIntent pending = PendingIntent.getActivity(
-            context,
-            requestCode,
-            fill,
-            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
-        );
-        views.setOnClickFillInIntent(R.id.widget_recent_notes_item_label, pending);
+        Intent fill = new Intent();
+        fill.setData(Uri.parse("leotheca://open-note?path=" + Uri.encode(entry.path)));
+        views.setOnClickFillInIntent(R.id.widget_recent_notes_item_label, fill);
         return views;
     }
 

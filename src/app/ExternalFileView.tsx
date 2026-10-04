@@ -1,5 +1,7 @@
-import { useEffect, useRef } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import { MarkdownPreview } from "../editor/MarkdownPreview";
+import { OutlinePanel } from "../outline/OutlinePanel";
+import { BacklinksPanel } from "../linking/BacklinksPanel";
 
 interface ExternalFileViewProps {
   path: string;
@@ -38,6 +40,8 @@ export function ExternalFileView({
   onOpenAsWorkspace,
 }: ExternalFileViewProps) {
   const closeRef = useRef<HTMLButtonElement>(null);
+  const [outlineOpen, setOutlineOpen] = useState(false);
+  const [backlinksOpen, setBacklinksOpen] = useState(false);
 
   useEffect(() => {
     closeRef.current?.focus();
@@ -79,7 +83,45 @@ export function ExternalFileView({
           </p>
         )}
         <div class="external-file-view-body">
-          <MarkdownPreview source={content} headingLinksEnabled={false} />
+          <div class="external-file-view-toolbar">
+            <button
+              class={`icon-button ${outlineOpen ? "active" : ""}`}
+              aria-label={outlineOpen ? "Hide note outline" : "Show note outline"}
+              title={outlineOpen ? "Hide outline" : "Show outline"}
+              onClick={() => setOutlineOpen((v) => !v)}
+            >
+              <span aria-hidden="true">¶</span>
+            </button>
+            <button
+              class={`icon-button ${backlinksOpen ? "active" : ""}`}
+              aria-label={backlinksOpen ? "Hide backlinks" : "Show backlinks"}
+              title={backlinksOpen ? "Hide backlinks" : "Show backlinks"}
+              onClick={() => setBacklinksOpen((v) => !v)}
+            >
+              <span aria-hidden="true">↩</span>
+            </button>
+          </div>
+          <div class="external-file-view-panels">
+            <div class="external-file-view-preview">
+              <MarkdownPreview source={content} headingLinksEnabled={false} />
+            </div>
+            {outlineOpen && (
+              <OutlinePanel
+                key={path}
+                content={content}
+                noteTitle={name.replace(/\.md$/i, "")}
+                canInsertLink={false}
+              />
+            )}
+            {backlinksOpen && (
+              <BacklinksPanel
+                path={path}
+                onOpenFile={(_backlinkPath: string, _backlinkName: string) => {
+                  /* external file: no workspace context to open from */
+                }}
+              />
+            )}
+          </div>
         </div>
       </div>
     </div>

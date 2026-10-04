@@ -1392,6 +1392,44 @@ button.icon-button.active {
   width: min(720px, 92vw);
 }
 
+.external-file-view-toolbar {
+  display: flex;
+  gap: var(--space-1);
+  margin-bottom: var(--space-2);
+}
+
+.external-file-view-toolbar .icon-button {
+  padding: 4px 8px;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.external-file-view-toolbar .icon-button.active {
+  background: var(--bg-sunken);
+  color: var(--text-primary);
+}
+
+.external-file-view-panels {
+  display: flex;
+  gap: 0;
+}
+
+.external-file-view-preview {
+  flex: 1;
+  min-width: 0;
+}
+
+.external-file-view-panels .outline-panel,
+.external-file-view-panels .backlinks-panel {
+  width: 240px;
+  flex-shrink: 0;
+  border-left: 1px solid var(--border);
+  padding-left: var(--space-3);
+  margin-left: var(--space-3);
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
 .external-file-view-path {
   margin: 0 0 var(--space-3);
   color: var(--text-secondary);

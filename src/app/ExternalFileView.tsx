@@ -116,8 +116,8 @@ export function ExternalFileView({
             {backlinksOpen && (
               <BacklinksPanel
                 path={path}
-                onOpenFile={(_backlinkPath: string, _backlinkName: string) => {
-                  /* external file: no workspace context to open from */
+                onOpenFile={() => {
+                  /* external file: no workspace to open from */
                 }}
               />
             )}

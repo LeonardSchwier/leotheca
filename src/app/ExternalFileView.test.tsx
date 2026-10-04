@@ -53,7 +53,7 @@ function renderView(overrides: Record<string, unknown> = {}) {
       path={externalPath}
       name="my-note.md"
       content={content}
-      {...(overrides as any)}
+      {...(overrides as object)}
     />,
   );
 }

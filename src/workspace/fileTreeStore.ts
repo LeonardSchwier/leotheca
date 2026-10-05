@@ -283,6 +283,45 @@ export async function expandFirstLevel(rootPath: string): Promise<void> {
   await Promise.allSettled(dirs.map((dir) => loadChildren(dir.path)));
 }
 
+/**
+ * Walks from `rootPath` up to the parent of `targetPath` and expands
+ * every intermediate directory, loading each one's children so the
+ * FileTree renders the path visibly. Used by BookmarksPanel's
+ * "Open in sidebar" action: `onOpenFile` for a file bookmark opens the
+ * note's editor tab, but the sidebar tree stays wherever the user last
+ * left it, which is exactly the "file opened but not visible" gap the
+ * roadmap item describes. `targetPath` must live under `rootPath`
+ * (already checked by the caller); a path that is not a descendant — or
+ * equals `rootPath` itself — is a no-op because there is nothing between
+ * the two to expand.
+ */
+export async function revealPathInSidebar(
+  rootPath: string,
+  targetPath: string,
+): Promise<void> {
+  const prefix = `${rootPath}/`;
+  if (targetPath === rootPath || !targetPath.startsWith(prefix)) return;
+
+  // Split the relative path into its directory segments, skipping the
+  // final (file) segment — we only need the ancestor *directories*
+  // expanded.
+  const relative = targetPath.slice(prefix.length);
+  const segments = relative.split("/");
+  const dirSegments = segments.slice(0, -1);
+  if (dirSegments.length === 0) return;
+
+  let current = rootPath;
+  for (const segment of dirSegments) {
+    current = `${current}/${segment}`;
+    if (!expandedDirs.value.has(current)) {
+      expandedDirs.value = new Set(expandedDirs.value).add(current);
+    }
+    if (!dirChildren.value.has(current)) {
+      await loadChildren(current);
+    }
+  }
+}
+
 export function toggleSortOrder() {
   const current = workspaceSettings.value.sortOrder;
   const next: SortOrder =

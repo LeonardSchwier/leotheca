@@ -47,3 +47,18 @@
 .bookmarks-remove:hover {
   color: var(--text-primary);
 }
+
+.bookmarks-reveal {
+  flex: 0 0 auto;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 2px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.bookmarks-reveal:hover {
+  color: var(--text-primary);
+}

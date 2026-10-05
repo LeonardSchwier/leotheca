@@ -103,6 +103,7 @@ const {
   loadChildren,
   expandAll,
   expandFirstLevel,
+  revealPathInSidebar,
 } = await import("./fileTreeStore");
 
 function entry(name: string, isDir = false): FsEntry {
@@ -140,6 +141,76 @@ describe("relativePath", () => {
   it("returns the path unchanged when it isn't under the given root", () => {
     expect(relativePath("/workspace", "/elsewhere/note.md")).toBe(
       "/elsewhere/note.md",
+    );
+  });
+});
+
+describe("revealPathInSidebar", () => {
+  beforeEach(() => {
+    listDir.mockReset();
+    listDir.mockImplementation(async (_root, path) => {
+      // Return a single placeholder child so loadChildren's result is
+      // non-trivial, without asserting on its contents — this test only
+      // cares about which directories get expanded/loaded.
+      return [entry(`placeholder-in-${path.split("/").pop()}`, false)];
+    });
+    expandedDirs.value = new Set();
+    dirChildren.value = new Map();
+  });
+
+  it("expands and loads every ancestor directory of a deeply nested file", async () => {
+    await revealPathInSidebar("/workspace", "/workspace/a/b/c/note.md");
+
+    expect(expandedDirs.value).toEqual(
+      new Set(["/workspace/a", "/workspace/a/b", "/workspace/a/b/c"]),
+    );
+    expect(listDir).toHaveBeenCalledTimes(3);
+    expect(listDir).toHaveBeenNthCalledWith(1, "/workspace", "/workspace/a");
+    expect(listDir).toHaveBeenNthCalledWith(2, "/workspace", "/workspace/a/b");
+    expect(listDir).toHaveBeenNthCalledWith(3, "/workspace", "/workspace/a/b/c");
+  });
+
+  it("expands and loads the immediate parent of a top-level file", async () => {
+    await revealPathInSidebar("/workspace", "/workspace/folder/note.md");
+
+    expect(expandedDirs.value).toEqual(new Set(["/workspace/folder"]));
+    expect(listDir).toHaveBeenCalledTimes(1);
+  });
+
+  it("is a no-op for a file directly at the root (nothing to expand)", async () => {
+    await revealPathInSidebar("/workspace", "/workspace/note.md");
+
+    expect(expandedDirs.value).toEqual(new Set());
+    expect(listDir).not.toHaveBeenCalled();
+  });
+
+  it("is a no-op when targetPath equals rootPath", async () => {
+    await revealPathInSidebar("/workspace", "/workspace");
+
+    expect(expandedDirs.value).toEqual(new Set());
+    expect(listDir).not.toHaveBeenCalled();
+  });
+
+  it("is a no-op when targetPath is not under rootPath", async () => {
+    await revealPathInSidebar("/workspace", "/elsewhere/a/note.md");
+
+    expect(expandedDirs.value).toEqual(new Set());
+    expect(listDir).not.toHaveBeenCalled();
+  });
+
+  it("does not reload ancestors that already have cached children", async () => {
+    expandedDirs.value = new Set(["/workspace/a"]);
+    dirChildren.value = new Map([
+      ["/workspace/a", [entry("b", true)]],
+    ]);
+
+    await revealPathInSidebar("/workspace", "/workspace/a/b/note.md");
+
+    // Only /workspace/a/b needed loading; /workspace/a was already cached.
+    expect(listDir).toHaveBeenCalledTimes(1);
+    expect(listDir).toHaveBeenCalledWith("/workspace", "/workspace/a/b");
+    expect(expandedDirs.value).toEqual(
+      new Set(["/workspace/a", "/workspace/a/b"]),
     );
   });
 });

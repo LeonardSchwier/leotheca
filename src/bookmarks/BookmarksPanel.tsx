@@ -7,15 +7,44 @@ import "./bookmarks.css";
 interface BookmarksPanelProps {
   onOpenFile: (path: string, name: string) => void | Promise<void>;
   onRunSearch: (query: string) => void;
+  /** Reveals a file bookmark's folder in the sidebar tree (expanding
+   * every ancestor between the workspace root and the file). Optional so
+   * existing callers that only need "open in editor" keep working; when
+   * omitted, no "Open in sidebar" button is rendered for file
+   * bookmarks. */
+  onRevealInSidebar?: (path: string) => void | Promise<void>;
 }
 
 function fileName(path: string): string {
   return path.split(/[\\/]/).pop() ?? path;
 }
 
+/** Small folder icon, matching the inline-SVG convention used across the
+ * sidebar (see NewNoteIcon/NewFolderIcon in workspace/Sidebar.tsx): plain
+ * strokes, no emoji, so it renders the same on Android and desktop. */
+function RevealInSidebarIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.5"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M2.5 5.5a1 1 0 0 1 1-1h4l1.5 2h7a1 1 0 0 1 1 1v8.5a1 1 0 0 1-1 1H3.5a1 1 0 0 1-1-1V5.5z" />
+      <path d="M10 10.5v4M8 12.5h4" />
+    </svg>
+  );
+}
+
 export function BookmarksPanel({
   onOpenFile,
   onRunSearch,
+  onRevealInSidebar,
 }: BookmarksPanelProps) {
   // A bookmark's target can go stale (deleted, renamed outside a live
   // rename's own metadata migration, or moved/removed by an external
@@ -64,6 +93,16 @@ export function BookmarksPanel({
                 {bookmark.kind === "file" ? "File" : "Search"}
               </span>
             </button>
+            {bookmark.kind === "file" && onRevealInSidebar && (
+              <button
+                class="icon-button bookmarks-reveal"
+                title={`Show "${bookmark.label}" in the sidebar tree`}
+                aria-label={`Show "${bookmark.label}" in the sidebar tree`}
+                onClick={() => void onRevealInSidebar(bookmark.path)}
+              >
+                <RevealInSidebarIcon />
+              </button>
+            )}
             <button
               class="icon-button bookmarks-remove"
               title={`Remove ${bookmark.label}`}

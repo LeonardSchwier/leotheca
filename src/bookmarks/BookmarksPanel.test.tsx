@@ -131,4 +131,50 @@ describe("BookmarksPanel", () => {
     expect(queryByText("TODOs")).toBeTruthy();
     expect(bookmarks.value.map((b) => b.id)).toEqual(["2"]);
   });
+
+  it("renders an 'Open in sidebar' button for file bookmarks when onRevealInSidebar is provided", async () => {
+    bookmarks.value = [
+      { id: "1", kind: "file", label: "Deep Note", path: "/vault/a/b/deep.md" },
+      { id: "2", kind: "search", label: "TODOs", query: "TODO" },
+    ];
+    const onRevealInSidebar = vi.fn();
+    const { getByLabelText, queryByLabelText } = render(
+      <BookmarksPanel
+        onOpenFile={vi.fn()}
+        onRunSearch={vi.fn()}
+        onRevealInSidebar={onRevealInSidebar}
+      />,
+    );
+
+    expect(getByLabelText("Show \"Deep Note\" in the sidebar tree")).toBeTruthy();
+    // Search bookmarks get no reveal button — it has no folder to show.
+    expect(queryByLabelText("Show \"TODOs\" in the sidebar tree")).toBeNull();
+  });
+
+  it("does not render an 'Open in sidebar' button when onRevealInSidebar is omitted", async () => {
+    bookmarks.value = [
+      { id: "1", kind: "file", label: "Deep Note", path: "/vault/a/b/deep.md" },
+    ];
+    const { queryByLabelText } = render(
+      <BookmarksPanel onOpenFile={vi.fn()} onRunSearch={vi.fn()} />,
+    );
+    expect(queryByLabelText("Show \"Deep Note\" in the sidebar tree")).toBeNull();
+  });
+
+  it("calls onRevealInSidebar with the file's absolute path when its button is clicked", async () => {
+    bookmarks.value = [
+      { id: "1", kind: "file", label: "Deep Note", path: "/vault/a/b/deep.md" },
+    ];
+    const onRevealInSidebar = vi.fn();
+    const { getByLabelText } = render(
+      <BookmarksPanel
+        onOpenFile={vi.fn()}
+        onRunSearch={vi.fn()}
+        onRevealInSidebar={onRevealInSidebar}
+      />,
+    );
+    await fireEvent.click(getByLabelText("Show \"Deep Note\" in the sidebar tree"));
+    expect(onRevealInSidebar).toHaveBeenCalledTimes(1);
+    expect(onRevealInSidebar).toHaveBeenCalledWith("/vault/a/b/deep.md");
+  });
 });

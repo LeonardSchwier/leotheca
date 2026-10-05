@@ -126,6 +126,7 @@ import {
   listTemplates,
   relativePath,
   renameEntry,
+  revealPathInSidebar,
   runSearch,
   selectedDir,
   type NoteTemplate,
@@ -1578,6 +1579,7 @@ export function App() {
                       <BookmarksPanel
                         onOpenFile={handleOpenFile}
                         onRunSearch={(query) => runSearch(rootPath, query)}
+                        onRevealInSidebar={(path) => revealPathInSidebar(rootPath, path)}
                       />
                     ) : (
                       <Sidebar

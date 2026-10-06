@@ -70,13 +70,15 @@ modules:
       # New submissions must build from a stable, reproducibly pinned source
       # instead of depending on this repository's checkout being present.
       #
-      # 2026-10-06: removed `tag: v1.0.0` — the tag points to f87bc5a (a
-      # different commit on main), which conflicts with the pinned SHA
-      # 5162499. flatpak-builder fetches by tag, gets f87bc5a, and rejects
-      # the mismatch. Using commit-only fetches the exact SHA directly.
+      # 2026-10-06: pinned to the v1.0.0 tag commit (f87bc5a), which is
+      # reachable on main. The previous pin (5162499) was an orphan commit
+      # not on any branch — flatpak-builder's `git fetch` couldn't retrieve
+      # it ("fatal: unable to read tree"). Lockfiles are identical between
+      # the two commits (verified by md5sum), so the offline source lists
+      # (node-sources.json, cargo-sources.json) still match.
       - type: git
         url: https://github.com/LeonardSchwier/leotheca.git
-        commit: 516249983daf5fb3dc421f9a2ad436ed22a44ea8
+        commit: f87bc5acca789566d5712b2c0396330b541d38e0
       # Keep submission metadata alongside the manifest so the same files
       # can be copied to the external submission repository unchanged.
       - type: file

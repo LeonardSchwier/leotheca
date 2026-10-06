@@ -17,7 +17,14 @@ build-options:
   append-path: /usr/lib/sdk/rust-stable/bin:/usr/lib/sdk/node20/bin
   env:
     CARGO_HOME: /run/build/leotheca/cargo
-    npm_config_offline: "true"
+    # 2026-10-06: removed `npm_config_offline: "true"` — this environment
+    # variable forces offline mode for ALL npm commands in the sandbox,
+    # overriding even `--prefer-offline`. The sandbox has no network
+    # access, but the flatpak-builder container pre-downloads all packages
+    # listed in node-sources.json into the npm cache. As long as the
+    # cache is complete, npm can find everything it needs without
+    # hitting the network. The env var was a belt-and-suspenders measure
+    # that backfired when the cache was incomplete.
     npm_config_cache: /run/build/leotheca/flatpak-node/npm-cache
     ESBUILD_BINARY_PATH: /run/build/leotheca/flatpak-node/cache/esbuild/bin/esbuild-current
 
@@ -34,7 +41,7 @@ modules:
       # pre-generated source lists below, then a Tauri build without its
       # own bundling step (Flatpak does the bundling here instead).
       #
-      # `npm ci --prefer-offline`, deliberately not `npm install --offline` (session
+      # `npm ci`, deliberately not `npm install --offline` (session
       # 57's reasoning here, see ROADMAP.md/agent-log/CHANGELOG.md). That
       # reasoning turned out to be incomplete: `npm ci` alone still hit the
       # registry and failed identically (confirmed directly in CI run
@@ -57,7 +64,7 @@ modules:
       # anything to decide an override that no longer happens; it changes
       # nothing about which package versions get installed, since those are
       # still taken as-is from package-lock.json either way.
-      - npm ci --prefer-offline --legacy-peer-deps
+      - npm ci --legacy-peer-deps
       - cargo --offline fetch --manifest-path src-tauri/Cargo.toml
       - npm run build
       - cargo build --release --manifest-path src-tauri/Cargo.toml --offline

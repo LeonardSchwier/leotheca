@@ -54,6 +54,14 @@
 ### Bugs and CI
 
 
+- ⬜ **Recent-notes widget: TS/native list-length contract is untested and undocumented**: `fileTreeStore.syncRecentNotesWidget` sends exactly the 5 most recently edited notes, while `FolderAccessPlugin.updateRecentNotesWidget` independently caps the stored list at 10. Nothing documents that the two numbers may differ, nothing tests either cap, and the widget factory renders whatever it is given — so the two sides of the contract can drift apart silently with no signal anywhere.
+
+  <details>
+  <summary>How it was found</summary>
+
+  2026-10-06 weekly code review (see `## Code Review` below): "Recent-notes widget list length is an undocumented cross-file contract with no test on either side (src/workspace/fileTreeStore.ts, android/app/src/main/java/com/leonardschwier/leotheca/FolderAccessPlugin.java)".
+
+  </details>
 
 - ⬜ **macOS Gatekeeper: Sign, notarize, and staple release DMGs**: Current macOS artifacts are deliberately unsigned and unnotarized, so Gatekeeper warns that the app cannot be verified. The maintainer must provide an Apple Developer Program membership, a Developer ID Application certificate, and an App Store Connect API key as repository secrets. Update the macOS release job to sign the universal `.app`, submit it with `notarytool`, wait for acceptance, staple the ticket to both `.app` and DMG, and fail publication if any step fails. Verify `codesign`, `spctl`, and a fresh download/open on both Apple Silicon and Intel macOS; only then remove the unsigned-install workaround from user documentation and complete the Homebrew Cask.
   <!-- agent-state: {"schema":1,"id":"rm-dcbbb805ce521c18","state":"open","touch":[".agents/handoffs",".github/workflows/release.yml"],"resources":["macos-release-signing"],"note":"Code work complete (2b0f57b on main). Remaining steps (notarization run, Gatekeeper test on real macOS, Homebrew Cask) blocked on maintainer Apple Developer Program credentials. Released so the lease does not block other agents.","released_at":"2026-09-22T18:21:29Z"} -->

@@ -70,16 +70,12 @@ modules:
       # New submissions must build from a stable, reproducibly pinned source
       # instead of depending on this repository's checkout being present.
       #
-      # 2026-09-01: re-pinned off the old `v1.0.0` tag, which predates both
-      # the F-015 version-scheme correction (VERSION is now 0.1.0, no
-      # `v0.1.0` tag exists yet) and commit 6f58e52's removal of the unused
-      # `eslint-plugin-preact` dependency. That tag's package-lock.json still
-      # pulls in `eslint-plugin-preact`'s transitive `eslint-plugin-compat`,
-      # whose peer-dependency override forces `npm ci --offline` to hit the
-      # real registry for a bare `eslint` metadata lookup, one node-sources.json
+      # 2026-10-06: removed `tag: v1.0.0` — the tag points to f87bc5a (a
+      # different commit on main), which conflicts with the pinned SHA
+      # 5162499. flatpak-builder fetches by tag, gets f87bc5a, and rejects
+      # the mismatch. Using commit-only fetches the exact SHA directly.
       - type: git
         url: https://github.com/LeonardSchwier/leotheca.git
-        tag: v1.0.0
         commit: 516249983daf5fb3dc421f9a2ad436ed22a44ea8
       # Keep submission metadata alongside the manifest so the same files
       # can be copied to the external submission repository unchanged.

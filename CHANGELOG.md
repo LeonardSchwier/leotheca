@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- **macOS Quick Look preview for Markdown files**: ⌥-click `.md` files in Finder to preview them without opening the app. Implemented as a native `.qlgenerator` bundle (Objective-C, WebKit-based) at `packaging/macos/quicklook/`. Build: `scripts/build-quicklook.sh`, install: `scripts/install-quicklook.sh`.
+- **Hardened Mermaid SVG sanitization**: `sanitizeMermaidSvg()` now runs DOMPurify (default profile, `FORBID_TAGS: script, foreignObject, iframe, object, embed, form, input, textarea, button`) after the regex layer, closing the gap where the async SVG insertion bypassed the earlier DOMPurify pass in MarkdownPreview. The regex layer remains as defense-in-depth.
+- **Content Security Policy**: Restrictive CSP added to `tauri.conf.json` (`default-src 'self'; connect-src 'self' asset: blob:; object-src 'none'`), enforcing the "no network calls" promise at the browser level.
+- **Offline isolation test**: New `src/offline.test.ts` (7 tests) validates the CSP config and spies on `fetch`/`XMLHttpRequest`/`WebSocket`/`EventSource` to fail CI if any code path makes a network call.
+
 ## 1.0.0
 
 - Added an "Open file from outside the vault..." command (desktop only, via the Command Palette): pick any Markdown file on your computer and view it right away, using the same behavior as opening one via your file manager's "Open with" — a file inside your current workspace opens as an editable tab, and one outside it opens in the existing read-only scratch view with a button to open its containing folder as a workspace.

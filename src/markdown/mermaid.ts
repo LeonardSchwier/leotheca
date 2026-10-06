@@ -14,9 +14,11 @@
 //
 // Sanitization: mermaid's securityLevel:'strict' plus DOMPurify (the app's
 // final pipeline step) means diagram labels cannot inject script markup.
-// The sanitizeMermaidSvg helper below is a second, defense-in-depth layer.
+// The sanitizeMermaidSvg helper below is a second, defense-in-depth layer
+// that adds DOMPurify SVG-profile sanitization on top of the regex checks.
 import { marked, type Tokens } from "marked";
 import mermaid from "mermaid";
+import DOMPurify from "dompurify";
 
 let mermaidRenderingActive = true;
 
@@ -90,10 +92,19 @@ const mermaidExtension = {
 };
 
 export function sanitizeMermaidSvg(svg: string): string {
-  return svg
+  const regexSanitized = svg
     .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, "")
     .replace(/(href|src|xlink:href)\s*=\s*"(?:javascript:|data:text\/html)[^"]*"/gi, "$1=\"#\"")
     .replace(/(href|src|xlink:href)\s*=\s*(?:javascript:|data:text\/html)[^\s>]+/gi, "$1=#");
+  // DOMPurify (default profile) as a second, defense-in-depth layer.
+  // The default profile allows both SVG and HTML elements (mermaid emits
+  // <a>, <img>, <text>, <path>, etc.) and strips <script>, inline event
+  // handlers, and dangerous URL schemes. FORBID_TAGS explicitly removes
+  // <foreignObject> (can carry live HTML with scripts) and <use> (can
+  // reference external SVG resources).
+  return DOMPurify.sanitize(regexSanitized, {
+    FORBID_TAGS: ["foreignObject", "use", "script", "iframe", "object", "embed"],
+  });
 }
 
 function codeBlockFallback(source: string): string {

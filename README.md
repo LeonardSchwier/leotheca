@@ -12,7 +12,7 @@ A free and open source markdown viewer and editor for a local folder of plain te
 
 Three principles govern every decision here, in order. Full detail in [`PHILOSOPHY.md`](PHILOSOPHY.md).
 
-1. 🔓 **Free and open source, without compromise.** The full source is open under the MIT license, forever. No paid tier, no telemetry, no required account, no network calls at all, fully offline.
+1. 🔓 **Free and open source, without compromise.** The full source is open under the MIT license, forever. No paid tier, no telemetry, no required account, no network calls at all, fully offline. The CSP in [`src-tauri/tauri.conf.json`](src-tauri/tauri.conf.json) and the automated test in [`src/offline.test.ts`](src/offline.test.ts) enforce this — CI will fail if any code path makes a network call.
 2. 🤝 **Standing on the shoulders of giants.** Where the wider note-taking ecosystem already has a good convention (wikilinks, YAML frontmatter, a folder of plain files), this project adopts it instead of inventing a competing one.
 3. 📁 **Your notes belong to you.** Plain markdown files in a folder you control, not a database, not a proprietary format. Nothing about how a note is stored depends on this application continuing to exist.
 
@@ -100,6 +100,7 @@ Full setup instructions (system dependencies per platform, running tests, the An
 - [`PHILOSOPHY.md`](PHILOSOPHY.md), the three principles behind this project
 - [`documentation/ARCHITECTURE.md`](documentation/ARCHITECTURE.md), the solution architecture: how the two platform shells and the shared frontend fit together
 - [`documentation/TESTING.md`](documentation/TESTING.md), the testing strategy: unit tests, E2E tests, CI, and UI verification
+- [`src/offline.test.ts`](src/offline.test.ts), the automated offline-isolation test: CSP validation + network-API spies that fail CI if any code path makes a network call
 - [`ROADMAP.md`](ROADMAP.md), what's built, what's next
 - [`CONTRIBUTING.md`](CONTRIBUTING.md), how to set up a dev environment and submit a change
 - [`CHANGELOG.md`](CHANGELOG.md), released versions

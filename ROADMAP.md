@@ -4,9 +4,10 @@
 
 ### Bugs
 
+- ✅ **platform.ts: `isIOS`/`isMobile` re-evaluated on every call (no caching)**: `isAndroid` caches its result in `_cachedIsAndroid` (evaluates `Capacitor.isNativePlatform` + `getPlatform` + UA sniffing once per process), but `isIOS` and `isMobile` re-evaluate the same signals on every call. In long-running desktop sessions (Tauri) or Android WebView sessions where `syncRecentNotesWidget` fires on every create/rename/delete, this is redundant work. Fix: extract `cachedIsIOS()` mirroring the `cachedIsAndroid()` pattern, and have `isMobile()` compose the two cached values.
+  - **Completed** (2026-10-06): Extracted `cachedIsIOS()` mirroring the existing `cachedIsAndroid()` pattern; `isMobile()` now composes the two cached values. Added `src/lib/platform.test.ts` with 13 tests: value correctness for Android/iOS/iPad/iPod/desktop detection and caching invariants proving `isIOS` and `isMobile` do not re-evaluate `Capacitor.isNativePlatform` after the first call. Verification: `tsc --noEmit` clean; `vitest run` 2999/2999 (158 files); `vite build` succeeded.
 
-
-
+### Bugs and CI
 
 - ✅ **exportNoteHtml: src replacement targets wrong attribute when alt (or other attr) shares the same value as src**: `inlineLocalImages` in `src/export/exportNoteHtml.ts` uses `tag.replace(quotedValue, ...)` which replaces the *first* occurrence of the `src` value in the entire `<img>` tag. If another attribute (e.g. `alt`) contains the same string *before* `src` in the tag, the data URI is written into `alt` instead of `src`, leaving `src` unchanged. Reproduced: `<img alt="asset://x" src="asset://x" />` → `alt` gets the data URI, `src` keeps the original.
   <!-- agent-state: {"schema":1,"id":"rm-e1dadbf4155a53b8","state":"done","touch":["ROADMAP.md#exportNoteHtml-src-replacement","src/export/exportNoteHtml.test.ts","src/export/exportNoteHtml.ts"],"resources":["exportnotehtml-src-fix"],"branch":"agent/rm-e1dadbf4155a53b8/9b0b1106c7fc","completed_at":"2026-09-22T05:48:00Z","completed_by":"hermes-local-20260922T033440Z-ec233176"} -->

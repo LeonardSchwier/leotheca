@@ -8,8 +8,9 @@
 import { Capacitor } from "@capacitor/core";
 
 let _cachedIsAndroid: boolean | null = null;
+let _cachedIsIOS: boolean | null = null;
 
-export function isAndroid(): boolean {
+function cachedIsAndroid(): boolean {
   if (_cachedIsAndroid !== null) return _cachedIsAndroid;
 
   // Capacitor is the authoritative signal on native platforms.
@@ -24,14 +25,27 @@ export function isAndroid(): boolean {
   return _cachedIsAndroid!;
 }
 
-export function isIOS(): boolean {
+function cachedIsIOS(): boolean {
+  if (_cachedIsIOS !== null) return _cachedIsIOS;
+
   if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === "ios") {
+    _cachedIsIOS = true;
     return true;
   }
+
   const ua = typeof navigator !== "undefined" ? navigator.userAgent : "";
-  return /iPhone|iPad|iPod/i.test(ua);
+  _cachedIsIOS = /iPhone|iPad|iPod/i.test(ua);
+  return _cachedIsIOS!;
+}
+
+export function isAndroid(): boolean {
+  return cachedIsAndroid();
+}
+
+export function isIOS(): boolean {
+  return cachedIsIOS();
 }
 
 export function isMobile(): boolean {
-  return isAndroid() || isIOS();
+  return cachedIsAndroid() || cachedIsIOS();
 }

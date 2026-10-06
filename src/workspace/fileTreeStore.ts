@@ -868,26 +868,43 @@ export async function deleteEntry(
 }
 
 /**
- * Pushes the 5 most recently edited notes (by mtime) to the Android
+ * Pushes the most recently edited notes (by mtime) to the Android
  * home-screen recent-notes widget. Best-effort: a failure here must never
  * surface to a file-tree caller. Only runs on Android; desktop has no
- * equivalent widget. The workspace root's own mtime-based enumeration is
- * reused from findAllFiles, which already returns sorted-by-mtime entries
- * for the same walk the link index uses.
+ * equivalent widget.
+ *
+ * List length: `RECENT_NOTES_WIDGET_MAX` is the TypeScript-side cap.
+ * The native side (FolderAccessPlugin.updateRecentNotesWidget) has its
+ * own independent cap; both must stay in sync — see
+ * WidgetResourcesUnitTest.java's cross-file contract test.
  */
+export const RECENT_NOTES_WIDGET_MAX = 5;
+
+/**
+ * Pure selection logic for the recent-notes widget list: filter to
+ * non-directory markdown files, sort by mtime descending, take the
+ * first `RECENT_NOTES_WIDGET_MAX`. Exported so the selection logic can
+ * be unit-tested in isolation without mocking the platform or the
+ * Capacitor bridge.
+ */
+export function selectRecentNotes(
+  files: FsEntry[],
+): RecentNotesWidgetEntry[] {
+  return files
+    .filter((f) => !f.isDir && f.name.toLowerCase().endsWith(".md"))
+    .sort((a, b) => (b.mtime ?? 0) - (a.mtime ?? 0))
+    .slice(0, RECENT_NOTES_WIDGET_MAX)
+    .map<RecentNotesWidgetEntry>((f) => ({
+      label: f.name.replace(/\.md$/i, ""),
+      path: f.path,
+    }));
+}
+
 async function syncRecentNotesWidget(rootPath: string): Promise<void> {
   if (!isAndroid()) return;
   try {
     const files = await findAllFiles(rootPath);
-    const notes = files
-      .filter((f) => !f.isDir && f.name.toLowerCase().endsWith(".md"))
-      .sort((a, b) => (b.mtime ?? 0) - (a.mtime ?? 0))
-      .slice(0, 5)
-      .map<RecentNotesWidgetEntry>((f) => ({
-        label: f.name.replace(/\.md$/i, ""),
-        path: f.path,
-      }));
-    await updateRecentNotesWidget(notes);
+    await updateRecentNotesWidget(selectRecentNotes(files));
   } catch {
     // Best-effort widget sync; the in-app file tree is unaffected.
   }

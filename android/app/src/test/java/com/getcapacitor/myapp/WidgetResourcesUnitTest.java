@@ -221,4 +221,44 @@ public class WidgetResourcesUnitTest {
         assertTrue(factory.contains("RECENT_KEY = \"recentNotesJson\""));
         assertTrue(factory.contains("leotheca://open-note?path="));
     }
+
+    // Cross-language list-length contract: the TypeScript side
+    // (src/workspace/fileTreeStore.ts) and the native side
+    // (FolderAccessPlugin.java) must agree on RECENT_NOTES_WIDGET_MAX.
+    // Both files must declare the same named constant with the same value.
+    @Test
+    public void recentNotesWidgetListLengthIsConsistentAcrossLanguages() throws IOException {
+        String plugin = source("java/com/leonardschwier/leotheca/FolderAccessPlugin.java");
+        // Read the TS file from the repository root (not android/).
+        String tsRoot = System.getProperty("user.dir");
+        java.nio.file.Path tsPath = java.nio.file.Paths.get(tsRoot);
+        while (!tsPath.resolve("package.json").toFile().exists()) {
+            tsPath = tsPath.getParent();
+            if (tsPath == null) throw new IOException("Cannot find repo root");
+        }
+        String ts = new String(
+            java.nio.file.Files.readAllBytes(tsPath.resolve("src/workspace/fileTreeStore.ts")),
+            java.nio.charset.StandardCharsets.UTF_8
+        );
+
+        // Both files must use a named constant (not a bare literal)
+        assertTrue("FolderAccessPlugin must define RECENT_NOTES_WIDGET_MAX",
+            plugin.contains("RECENT_NOTES_WIDGET_MAX"));
+        assertTrue("fileTreeStore.ts must export RECENT_NOTES_WIDGET_MAX",
+            ts.contains("RECENT_NOTES_WIDGET_MAX"));
+
+        // Extract the integer value from each and assert they match.
+        java.util.regex.Matcher m1 = java.util.regex.Pattern
+            .compile("RECENT_NOTES_WIDGET_MAX\\s*=\\s*(\\d+)").matcher(plugin);
+        assertTrue("FolderAccessPlugin RECENT_NOTES_WIDGET_MAX must have a numeric value", m1.find());
+        int javaVal = Integer.parseInt(m1.group(1));
+
+        java.util.regex.Matcher m2 = java.util.regex.Pattern
+            .compile("RECENT_NOTES_WIDGET_MAX\\s*=\\s*(\\d+)").matcher(ts);
+        assertTrue("fileTreeStore.ts RECENT_NOTES_WIDGET_MAX must have a numeric value", m2.find());
+        int tsVal = Integer.parseInt(m2.group(1));
+
+        assertTrue("List-length mismatch: Java=" + javaVal + " TS=" + tsVal,
+            javaVal == tsVal);
+    }
 }

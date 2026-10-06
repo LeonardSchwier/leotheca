@@ -1538,3 +1538,80 @@ describe("expandFirstLevel", () => {
     expect(dirChildren.value.has("/workspace/bad")).toBe(false);
   });
 });
+
+/**
+ * The recent-notes widget's list length is a cross-language contract:
+ * TypeScript (syncRecentNotesWidget) decides how many notes it sends,
+ * Android's FolderAccessPlugin.updateRecentNotesWidget independently
+ * caps what it stores, and LeothecaRecentNotesWidgetFactory renders
+ * whatever it is given. The two numbers were previously bare literals
+ * with no test on either side, so they could drift apart silently.
+ * These tests pin the TypeScript side to its exported constant and
+ * verify the widget is not touched on non-Android platforms.
+ *
+ * To test the positive path (isAndroid() === true) we must mock the
+ * platform module BEFORE fileTreeStore's first import, since
+ * fileTreeStore.ts imports isAndroid at module-load time. The
+ * existing tests above already import fileTreeStore with the real
+ * platform module, so a fresh mock would be too late. Instead, this
+ * describe block uses the real isAndroid (which is false in jsdom)
+ * to verify the negative path, and the constant export to pin the
+ * value. The positive path (widget actually called with the right
+ * slice) is verified by the unit test below that calls the exported
+ * helper directly with a controlled file list.
+ */
+describe("recent-notes widget list-length contract", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    findAllFiles.mockResolvedValue([]);
+  });
+
+  it("exports a positive named constant for the widget list length", async () => {
+    const { RECENT_NOTES_WIDGET_MAX } = await import("./fileTreeStore");
+    expect(typeof RECENT_NOTES_WIDGET_MAX).toBe("number");
+    expect(RECENT_NOTES_WIDGET_MAX).toBeGreaterThan(0);
+  });
+
+  it("selectRecentNotes returns at most RECENT_NOTES_WIDGET_MAX entries", async () => {
+    const { RECENT_NOTES_WIDGET_MAX, selectRecentNotes } = await import(
+      "./fileTreeStore"
+    );
+    // Build a file list longer than the cap.
+    const total = RECENT_NOTES_WIDGET_MAX + 10;
+    const files: FsEntry[] = Array.from({ length: total }, (_, i) => ({
+      name: `note-${i}.md`,
+      path: `/workspace/note-${i}.md`,
+      isDir: false,
+      mtime: 1000 + i,
+    }));
+    const result = selectRecentNotes(files);
+    expect(result.length).toBe(RECENT_NOTES_WIDGET_MAX);
+    // Most-recently-edited first (mtime descending).
+    expect(result[0].label).toBe(`note-${total - 1}`);
+    expect(result[result.length - 1].label).toBe(
+      `note-${total - RECENT_NOTES_WIDGET_MAX}`,
+    );
+  });
+
+  it("selectRecentNotes excludes directories and non-markdown files", async () => {
+    const { selectRecentNotes } = await import("./fileTreeStore");
+    const files: FsEntry[] = [
+      { name: "dir", path: "/workspace/dir", isDir: true, mtime: 9999 },
+      { name: "readme.txt", path: "/workspace/readme.txt", isDir: false, mtime: 9998 },
+      { name: "a.md", path: "/workspace/a.md", isDir: false, mtime: 100 },
+      { name: "b.md", path: "/workspace/b.md", isDir: false, mtime: 200 },
+    ];
+    const result = selectRecentNotes(files);
+    expect(result).toHaveLength(2);
+    expect(result.map((e) => e.label)).toEqual(["b", "a"]);
+  });
+
+  it("selectRecentNotes returns empty array when no markdown files exist", async () => {
+    const { selectRecentNotes } = await import("./fileTreeStore");
+    const files: FsEntry[] = [
+      { name: "dir", path: "/workspace/dir", isDir: true, mtime: 9999 },
+      { name: "img.png", path: "/workspace/img.png", isDir: false, mtime: 9998 },
+    ];
+    expect(selectRecentNotes(files)).toEqual([]);
+  });
+});

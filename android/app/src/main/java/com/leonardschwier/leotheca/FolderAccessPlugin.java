@@ -802,6 +802,11 @@ public class FolderAccessPlugin extends Plugin {
         }
     }
 
+    // Cross-language contract: RECENT_NOTES_WIDGET_MAX must stay in sync
+    // with RECENT_NOTES_WIDGET_MAX in src/workspace/fileTreeStore.ts.
+    // Enforced by WidgetResourcesUnitTest.java.
+    static final int RECENT_NOTES_WIDGET_MAX = 5;
+
     /**
      * Android home-screen recent-notes widget: stores the already-resolved
      * list of most-recently-edited notes (label + workspace-absolute path,
@@ -820,7 +825,7 @@ public class FolderAccessPlugin extends Plugin {
         }
         try {
             JSONArray stored = new JSONArray();
-            int max = Math.min(entries.length(), 10);
+            int max = Math.min(entries.length(), RECENT_NOTES_WIDGET_MAX);
             for (int i = 0; i < max; i++) {
                 JSONObject entry = entries.getJSONObject(i);
                 String path = entry.optString("path", "");

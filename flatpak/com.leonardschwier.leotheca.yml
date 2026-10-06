@@ -34,7 +34,7 @@ modules:
       # pre-generated source lists below, then a Tauri build without its
       # own bundling step (Flatpak does the bundling here instead).
       #
-      # `npm ci --offline`, deliberately not `npm install --offline` (session
+      # `npm ci --prefer-offline`, deliberately not `npm install --offline` (session
       # 57's reasoning here, see ROADMAP.md/agent-log/CHANGELOG.md). That
       # reasoning turned out to be incomplete: `npm ci` alone still hit the
       # registry and failed identically (confirmed directly in CI run
@@ -57,7 +57,7 @@ modules:
       # anything to decide an override that no longer happens; it changes
       # nothing about which package versions get installed, since those are
       # still taken as-is from package-lock.json either way.
-      - npm ci --offline --legacy-peer-deps
+      - npm ci --prefer-offline --legacy-peer-deps
       - cargo --offline fetch --manifest-path src-tauri/Cargo.toml
       - npm run build
       - cargo build --release --manifest-path src-tauri/Cargo.toml --offline

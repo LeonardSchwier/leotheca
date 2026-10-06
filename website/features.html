@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Leotheca — Full Feature List</title>
+  <meta name="description" content="Complete list of every feature in Leotheca, with creation dates and keywords.">
+  <link rel="icon" type="image/svg+xml" href="/icons/leotheca.svg">
+  <link rel="stylesheet" href="/styles.css">
+  <style>
+    .fpage-hero {
+      background: var(--color-hero-bg);
+      color: var(--color-hero-cream);
+      padding: var(--space-10) 0;
+      text-align: left;
+    }
+    .fpage-hero .container { max-width: var(--max-width); }
+    .fpage-hero h1 {
+      font-size: clamp(1.8rem, 4vw, 2.6rem);
+      margin-bottom: var(--space-3);
+      color: var(--color-hero-cream);
+      font-weight: 600;
+    }
+    .fpage-hero p {
+      color: rgba(243,235,221,0.75);
+      max-width: 560px;
+      font-size: 1.05rem;
+    }
+    .fpage-hero .fcount {
+      display: inline-block;
+      margin-top: var(--space-4);
+      padding: var(--space-1) var(--space-4);
+      border-radius: var(--radius-full);
+      background: rgba(243,235,221,0.12);
+      font-size: 0.85rem;
+      color: rgba(243,235,221,0.8);
+    }
+    .fcat {
+      padding: var(--space-8) 0;
+    }
+    .fcat:nth-child(even) { background: var(--color-panel); }
+    .fcat-head {
+      font-size: 1.4rem;
+      margin-bottom: var(--space-5);
+      padding-bottom: var(--space-3);
+      border-bottom: 2px solid var(--color-border);
+      font-weight: 600;
+    }
+    .fcat-list { list-style: none; }
+    .fcat-list li {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: var(--space-2) var(--space-3);
+      padding: var(--space-3) 0;
+      border-bottom: 1px solid var(--color-border);
+    }
+    .fcat-list li:last-child { border-bottom: none; }
+    .fi { font-size: 1.1rem; }
+    .ft { font-weight: 500; flex: 1; min-width: 200px; }
+    .fkws {
+      font-size: 0.78rem;
+      color: var(--color-text-secondary);
+      background: var(--color-accent-soft);
+      padding: 1px 8px;
+      border-radius: var(--radius-full);
+      white-space: nowrap;
+    }
+    .fdate {
+      font-size: 0.78rem;
+      color: var(--color-text-secondary);
+      font-family: var(--font-mono);
+      white-space: nowrap;
+      margin-left: auto;
+    }
+    .fback {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-2);
+      font-size: 0.9rem;
+      color: var(--color-accent);
+      margin-bottom: var(--space-6);
+    }
+    .fback:hover { color: var(--color-accent-hover); }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <div class="container">
+      <a href="/" class="logo" aria-label="Leotheca home">
+        <img src="/icons/leotheca.svg" alt="" width="32" height="32">
+        <span>Leotheca</span>
+      </a>
+      <nav class="site-nav" aria-label="Main">
+        <a href="/">Home</a>
+        <a href="/#features">Features</a>
+        <a href="/#install">Install</a>
+        <a href="https://github.com/LeonardSchwier/leotheca" class="gh-link">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <div class="fpage-hero">
+      <div class="container">
+        <a href="/" class="fback">&larr; Back to home</a>
+        <h1>Every feature, fully documented</h1>
+        <p>Complete list of all 250 features shipped in Leotheca, grouped by category with creation dates and keywords. Sourced from the project roadmap and codebase.</p>
+        <span class="fcount">250 features &middot; 16 categories &middot; 2026-09-09&ndash;2026-10</span>
+      </div>
+    </div>
+    <section class="fcat" id="cat-local-files">
+      <h2 class="fcat-head">📂 Local Files</h2>
+      <ul class="fcat-list">
+      <li><span class="fi">📂</span><span class="ft">F07 Phase 2b-persistence: wire live editor-layout state (pinned tabs, view mode) into workspace-settings persistence and restore it on workspace open</span><span class="fkws">folder, local, offline</span><time class="fdate">2026-09-09</time></li>
+      <li><span class="fi">📂</span><span class="ft">Maintenance review: workspaceProfiles and globalConfig after workspace-named-&quot;workspace&quot; fix</span><span class="fkws">folder, local, offline</span><time class="fdate">2026-09-11</time></li>
+      <li><span class="fi">📂</span><span class="ft">Maintenance review: `src/workspace/markdownWorker.ts`/`public/markdownWorker.js` are fully orphaned dead code from the same commit series as the just-removed `memoryOptimizations.ts`, and the pool manager also has an inverted &quot;available worker&quot; check</span><span class="fkws">folder, local, offline</span><time class="fdate">2026-09-12</time></li>
+      <li><span class="fi">📂</span><span class="ft">External-file scratch view silently swallows a failed &quot;Open containing folder as a workspace&quot;</span><span class="fkws">folder, local, offline</span><time class="fdate">2026-09-16</time></li>
+      <li><span class="fi">📂</span><span class="ft">Open a Markdown file from outside the workspace via OS file association</span><span class="fkws">folder, local, offline</span><time class="fdate">2026-09-16</time></li>
+      <li><span class="fi">📂</span><span class="ft">Main CI red: `FileTree.test.tsx` uses `as any` casts on `mockWorkspaceSettings.sortOrder`</span><span class="fkws">folder, local, offline</span><time class="fdate">2026-09-20</time></li>
+      <li><span class="fi">📂</span><span class="ft">Audit follow-up F-004: Enforce workspace containment and mutation semantics at the native boundary</span><span class="fkws">folder, local, offline</span></li>
+      <li><span class="fi">📂</span><span class="ft">Audit follow-up F-008: Runtime-decode persisted workspace data without destructive recovery</span><span class="fkws">folder, local, offline</span></li>
+      <li><span class="fi">📂</span><span class="ft">Audit follow-up N-001/N-003: Make workspace transitions authoritative</span><span class="fkws">folder, local, offline</span></li>
+      <li><span class="fi">📂</span><span class="ft">Codebase Audit Recommendations: Workspace Session Identity (F-001)</span><span class="fkws">folder, local, offline</span></li>
+      <li><span class="fi">📂</span><span class="ft">F20 Phase 1: workspace profile catalog, add/switch/forget, and a minimal switcher</span><span class="fkws">folder, local, offline</span></li>
+      <li><span class="fi">📂</span><span class="ft">F20 Phase 2b-ii: active-profile forget via the authoritative no-workspace transition</span><span class="fkws">folder, local, offline</span></li>
+      <li><span class="fi">📂</span><span class="ft">Fast Workspace Indexing</span><span class="fkws">folder, local, offline</span></li>
+      <li><span class="fi">📂</span><span class="ft">Local Folder Workspace</span><span class="fkws">folder, local, offline</span></li>
+      <li><span class="fi">📂</span><span class="ft">Mobile Workspace Opening Responsiveness</span><span class="fkws">folder, local, offline</span></li>
+      <li><span class="fi">📂</span><span class="ft">Per-note read-only workspace opt-out enforcement</span><span class="fkws">folder, local, offline</span></li>
+      <li><span class="fi">📂</span><span class="ft">Settings and Workspace Statistics</span><span class="fkws">folder, local, offline</span></li>
+      <li><span class="fi">📂</span><span class="ft">Workspace Statistics Wording</span><span class="fkws">folder, local, offline</span></li>
+      <li><span class="fi">📂</span><span class="ft">`saveCoordinator` state not cleaned up on workspace switch</span><span class="fkws">folder, local, offline</span></li>
+      <li><span class="fi">📂</span><span class="ft">saveCoordinator.ts now actually flushes a pending save before a workspace transition drains it, and Switch without saving works</span><span class="fkws">folder, local, offline</span></li>
+      </ul>
+    </section>
+    <section class="fcat" id="cat-editor">
+      <h2 class="fcat-head">🖍️ Editor</h2>
+      <ul class="fcat-list">
+      <li><span class="fi">🖍️</span><span class="ft">Maintenance review: Preview search-highlighting drops repeat matches and corrupts HTML entities</span><span class="fkws">highlight, color</span><time class="fdate">2026-09-08</time></li>
+      <li><span class="fi">🖍️</span><span class="ft">RTL Phase 1: automatic per-note text direction in the Markdown editor and preview</span><span class="fkws">rtl, text-direction</span><time class="fdate">2026-09-09</time></li>
+      <li><span class="fi">🖍️</span><span class="ft">RTL Phase 2: workspace chrome mirroring</span><span class="fkws">rtl, text-direction</span><time class="fdate">2026-09-11</time></li>
+      <li><span class="fi">🖍️</span><span class="ft">Footnote support (`[^1]`) in Preview</span><span class="fkws">footnote</span><time class="fdate">2026-09-18</time></li>
+      <li><span class="fi">🖍️</span><span class="ft">Table editing helpers</span><span class="fkws">table, edit</span><time class="fdate">2026-09-20</time></li>
+      <li><span class="fi">🖍️</span><span class="ft">Maintenance review: `slashCommandCompletions` crashes the completion overlay with `RangeError` when `context.pos &gt; doc.length`</span><span class="fkws">slash, commands</span><time class="fdate">2026-09-21</time></li>
+      <li><span class="fi">🖍️</span><span class="ft">Offline spellchecking silently dead if first lint pass runs before dictionary loads</span><span class="fkws">spellcheck, offline</span><time class="fdate">2026-09-21</time></li>
+      <li><span class="fi">🖍️</span><span class="ft">Offline, multi-language spellchecking</span><span class="fkws">spellcheck, offline</span><time class="fdate">2026-09-21</time></li>
+      <li><span class="fi">🖍️</span><span class="ft">Render Mermaid diagrams in Preview</span><span class="fkws">mermaid, diagram</span><time class="fdate">2026-09-21</time></li>
+      <li><span class="fi">🖍️</span><span class="ft">Slash commands in the editor (`/table`, `/task`, `/heading`, …)</span><span class="fkws">slash, commands</span><time class="fdate">2026-09-21</time></li>
+      <li><span class="fi">🖍️</span><span class="ft">Spellcheck: do not flag words inside URLs embedded in prose</span><span class="fkws">spellcheck, offline</span><time class="fdate">2026-09-21</time></li>
+      <li><span class="fi">🖍️</span><span class="ft">Add `foreignObject` injection regression test for Mermaid sanitizer</span><span class="fkws">mermaid, diagram</span><time class="fdate">2026-09-22</time></li>
+      <li><span class="fi">🖍️</span><span class="ft">Colored text highlights via `==` syntax with emoji color codes</span><span class="fkws">highlight, color</span><time class="fdate">2026-09-23</time></li>
+      <li><span class="fi">🖍️</span><span class="ft">Maintenance review: `==highlight==` syntax (rm-c2a2c2d840b60a2e) dual-surface parity</span><span class="fkws">highlight, color</span><time class="fdate">2026-09-23</time></li>
+      <li><span class="fi">🖍️</span><span class="ft">Freehand Phase 1: ink document, stroke-processing math, and edit-history foundation</span><span class="fkws">math, katex</span></li>
+      <li><span class="fi">🖍️</span><span class="ft">Highlight colors in the editor and preview</span><span class="fkws">highlight, color</span></li>
+      <li><span class="fi">🖍️</span><span class="ft">Highlight search matches in the editor and preview</span><span class="fkws">highlight, color</span></li>
+      <li><span class="fi">🖍️</span><span class="ft">Markdown table editing commands</span><span class="fkws">table, edit</span></li>
+      <li><span class="fi">🖍️</span><span class="ft">Math Rendering</span><span class="fkws">math, katex</span></li>
+      <li><span class="fi">🖍️</span><span class="ft">Math rendering engine audit: standard, open, offline-capable math renderer</span><span class="fkws">math, katex</span></li>
+      <li><span class="fi">🖍️</span><span class="ft">Math rendering: confirm/fix the effective default</span><span class="fkws">math, katex</span></li>
+      <li><span class="fi">🖍️</span><span class="ft">Mermaid: untested async render path and unexported sanitizer</span><span class="fkws">mermaid, diagram</span></li>
+      </ul>
+    </section>
+    <section class="fcat" id="cat-linking-and-navigation">
+      <h2 class="fcat-head">🔍 Linking &amp; Navigation</h2>
+      <ul class="fcat-list">
+      <li><span class="fi">🔍</span><span class="ft">Maintenance review: search query parser splits a quoted phrase containing a literal &quot; OR &quot; on the operator</span><span class="fkws">search, fulltext</span><time class="fdate">2026-09-10</time></li>
+      <li><span class="fi">🔍</span><span class="ft">`FileTree`&#x27;s memoized `sortedEntries` never updates once a directory&#x27;s real listing arrives asynchronously, so the app&#x27;s actual sidebar file tree renders permanently empty</span><span class="fkws">file, tree, sort</span><time class="fdate">2026-09-11</time></li>
+      <li><span class="fi">🔍</span><span class="ft">`scanBlocks`&#x27;s setext-underline guard falls through to the paragraph accumulator when nothing precedes it, absorbing a bare `---`/`===` line into the next block&#x27;s content</span><span class="fkws">graph, visual</span><time class="fdate">2026-09-11</time></li>
+      <li><span class="fi">🔍</span><span class="ft">Maintenance review: `renameExecutor.ts`&#x27;s Apply and rollback steps corrupt note content whenever a rename&#x27;s wikilink edits share a file or the renamed basename changes length</span><span class="fkws">wikilink, backlink</span><time class="fdate">2026-09-12</time></li>
+      <li><span class="fi">🔍</span><span class="ft">Maintenance review: `src/workspace/searchIndex.ts` and `src/workspace/VirtualizedFileTree.tsx` are fully orphaned dead code from the same `4ed67ae`/`0a0d346` &quot;feat(performance)&quot; commit series as the already-removed `memoryOptimizations.ts` and `markdownWorker.ts`</span><span class="fkws">search, fulltext</span><time class="fdate">2026-09-13</time></li>
+      <li><span class="fi">🔍</span><span class="ft">Maintenance review: `GraphView`&#x27;s and `CanvasView`&#x27;s open-file clicks are fire-and-forget, so a stale node/card silently does nothing instead of showing an error</span><span class="fkws">graph, visual</span><time class="fdate">2026-09-14</time></li>
+      <li><span class="fi">🔍</span><span class="ft">Maintenance review: `src/editor/DebouncedMarkdownPreview.tsx` and `src/editor/hooks.ts` are orphaned dead code from the same `4ed67ae`/`0a0d346` &quot;feat(performance)&quot; commit series as the already-removed `memoryOptimizations.ts`, `markdownWorker.ts`, `searchIndex.ts`, and `VirtualizedFileTree.tsx`</span><span class="fkws">search, fulltext</span><time class="fdate">2026-09-14</time></li>
+      <li><span class="fi">🔍</span><span class="ft">Maintenance review: clicking a backlink whose source note can no longer be read fails completely silently (unhandled promise rejection, no user-visible error)</span><span class="fkws">wikilink, backlink</span><time class="fdate">2026-09-14</time></li>
+      <li><span class="fi">🔍</span><span class="ft">Maintenance review: clicking a file tree entry or a sidebar search result whose file can no longer be read fails completely silently (unhandled promise rejection, no user-visible error)</span><span class="fkws">search, fulltext</span><time class="fdate">2026-09-15</time></li>
+      <li><span class="fi">🔍</span><span class="ft">Configurable file tree sort order</span><span class="fkws">file, tree, sort</span><time class="fdate">2026-09-20</time></li>
+      <li><span class="fi">🔍</span><span class="ft">Keyboard-only navigation for the file tree</span><span class="fkws">file, tree, sort</span><time class="fdate">2026-09-20</time></li>
+      <li><span class="fi">🔍</span><span class="ft">Note Graph: a git-log-style, time-ordered graph view</span><span class="fkws">graph, visual</span><time class="fdate">2026-09-20</time></li>
+      <li><span class="fi">🔍</span><span class="ft">Automatically fix wikilinks when a note is renamed</span><span class="fkws">wikilink, backlink</span><time class="fdate">2026-09-21</time></li>
+      <li><span class="fi">🔍</span><span class="ft">Search: hidden dotfiles with no other extension are never content-searched</span><span class="fkws">search, fulltext</span><time class="fdate">2026-09-23</time></li>
+      <li><span class="fi">🔍</span><span class="ft">Search Content-Read Crash</span><span class="fkws">search, fulltext</span><time class="fdate">2026-09-25</time></li>
+      <li><span class="fi">🔍</span><span class="ft">Full-path search and folder exclusion in file-explorer, bookmarks, and outline views</span><span class="fkws">search, fulltext</span><time class="fdate">2026-10-05</time></li>
+      <li><span class="fi">🔍</span><span class="ft">Audit follow-up F-006: Give search requests explicit ownership</span><span class="fkws">search, fulltext</span></li>
+      <li><span class="fi">🔍</span><span class="ft">Audit follow-up F-013: Measure and bound graph layout work</span><span class="fkws">graph, visual</span></li>
+      <li><span class="fi">🔍</span><span class="ft">Command Palette and Keyboard Shortcuts</span><span class="fkws">command, palette</span></li>
+      <li><span class="fi">🔍</span><span class="ft">Expand-All Native Traversal</span><span class="fkws">file, tree, sort</span></li>
+      <li><span class="fi">🔍</span><span class="ft">F-005: Search memory guard — isTextFile whitelist, batch size pre-add flush, conservative unknown-size default</span><span class="fkws">search, fulltext</span></li>
+      <li><span class="fi">🔍</span><span class="ft">F04 Phase 3a: paragraph block-reference resolution and navigation</span><span class="fkws">graph, visual</span></li>
+      <li><span class="fi">🔍</span><span class="ft">F20 Phase 2a: profile rename/icon editing, searchable keyboard switcher, and management entry points</span><span class="fkws">search, fulltext</span></li>
+      <li><span class="fi">🔍</span><span class="ft">File explorer &quot;Expand All&quot; UX</span><span class="fkws">file, tree, sort</span></li>
+      <li><span class="fi">🔍</span><span class="ft">Full-Text Search</span><span class="fkws">search, fulltext</span></li>
+      <li><span class="fi">🔍</span><span class="ft">Graph View</span><span class="fkws">graph, visual</span></li>
+      <li><span class="fi">🔍</span><span class="ft">Outline and backlink views for externally opened files</span><span class="fkws">wikilink, backlink</span></li>
+      <li><span class="fi">🔍</span><span class="ft">Settings search</span><span class="fkws">search, fulltext</span></li>
+      <li><span class="fi">🔍</span><span class="ft">Wikilinks and Backlinks</span><span class="fkws">wikilink, backlink</span></li>
+      </ul>
+    </section>
+    <section class="fcat" id="cat-metadata-and-tags">
+      <h2 class="fcat-head">🏷️ Metadata &amp; Tags</h2>
+      <ul class="fcat-list">
+      <li><span class="fi">🏷️</span><span class="ft">F05 Android share bridge drops staged attachments and logs sensitive URIs</span><span class="fkws">tag</span><time class="fdate">2026-09-07</time></li>
+      <li><span class="fi">🏷️</span><span class="ft">`extractInlineTags`&#x27;s `INLINE_TAG_PATTERN`/`isTagBoundary` are ASCII-only, silently truncating or dropping non-ASCII `#tag` names and breaking `extractTags`&#x27;s own case-insensitive de-duplication promise</span><span class="fkws">tag</span><time class="fdate">2026-09-11</time></li>
+      <li><span class="fi">🏷️</span><span class="ft">Export/Print: `inlineLocalImages` re-serializes the whole note through `DOMParser` and restructures its markup (spurious `&lt;p&gt;`, injected `&lt;tbody&gt;`, repaired tags) in every HTML export</span><span class="fkws">tag</span><time class="fdate">2026-09-22</time></li>
+      <li><span class="fi">🏷️</span><span class="ft">TagsPanel: unhandled promise rejection when `onOpenFile` fails</span><span class="fkws">tag</span><time class="fdate">2026-09-22</time></li>
+      <li><span class="fi">🏷️</span><span class="ft">Filling in a blank frontmatter property writes invalid YAML (`key:value`, no space)</span><span class="fkws">frontmatter, yaml</span><time class="fdate">2026-09-24</time></li>
+      <li><span class="fi">🏷️</span><span class="ft">Audit follow-up F-009: Preserve frontmatter semantics during property edits</span><span class="fkws">frontmatter, yaml</span></li>
+      <li><span class="fi">🏷️</span><span class="ft">F09 Phase 2: table/card views and in-view frontmatter editing</span><span class="fkws">frontmatter, yaml</span></li>
+      <li><span class="fi">🏷️</span><span class="ft">Frontmatter Properties</span><span class="fkws">frontmatter, yaml</span></li>
+      <li><span class="fi">🏷️</span><span class="ft">Frontmatter regex allocation</span><span class="fkws">frontmatter, yaml</span></li>
+      <li><span class="fi">🏷️</span><span class="ft">Tags</span><span class="fkws">tag</span></li>
+      <li><span class="fi">🏷️</span><span class="ft">Tags toolbar button gating: verified already correct, not a live bug</span><span class="fkws">tag</span></li>
+      </ul>
+    </section>
+    <section class="fcat" id="cat-tasks-and-projects">
+      <h2 class="fcat-head">📋 Tasks &amp; Projects</h2>
+      <ul class="fcat-list">
+      <li><span class="fi">📋</span><span class="ft">Maintenance review: Smart Collections writes can race and silently drop a collection create/edit/delete from disk when two mutations overlap</span><span class="fkws">kanban, board, collection</span><time class="fdate">2026-09-13</time></li>
+      <li><span class="fi">📋</span><span class="ft">Maintenance review: Smart Collections&#x27; string/path negation operators (`is-not`, `does-not-contain`, `is-not-under-folder`) fail open (match everything) instead of fail closed when a clause&#x27;s comparison value is missing</span><span class="fkws">kanban, board, collection</span><time class="fdate">2026-09-13</time></li>
+      <li><span class="fi">📋</span><span class="ft">Maintenance review: clicking a Task Hub task whose source note can no longer be read fails completely silently (unhandled promise rejection, no user-visible error)</span><span class="fkws">task, gfm</span><time class="fdate">2026-09-15</time></li>
+      <li><span class="fi">📋</span><span class="ft">Maintenance review: opening a note from a Smart Collection result (List, Table, Card, or Board view) whose file can no longer be read fails completely silently (unhandled promise rejection, no user-visible error)</span><span class="fkws">kanban, board, collection</span><time class="fdate">2026-09-15</time></li>
+      <li><span class="fi">📋</span><span class="ft">Smart Collections board view: folder-grouped kanban with card move and note creation</span><span class="fkws">kanban, board, collection</span><time class="fdate">2026-09-22</time></li>
+      <li><span class="fi">📋</span><span class="ft">Whiteboard: double-click empty canvas to create a new note card</span><span class="fkws">kanban, board, collection</span><time class="fdate">2026-09-22</time></li>
+      <li><span class="fi">📋</span><span class="ft">Kanban board groups a property&#x27;s values case-sensitively, fragmenting one category into several columns</span><span class="fkws">kanban, board, collection</span><time class="fdate">2026-09-24</time></li>
+      <li><span class="fi">📋</span><span class="ft">F02 Phase 1: shared task scanner and read-only workspace Task Hub</span><span class="fkws">task, gfm</span></li>
+      <li><span class="fi">📋</span><span class="ft">F02 Phase 2: task hub filtering, grouping, and toggle-complete edits</span><span class="fkws">task, gfm</span></li>
+      <li><span class="fi">📋</span><span class="ft">F09 Phase 1: read-only smart collections list view</span><span class="fkws">kanban, board, collection</span></li>
+      <li><span class="fi">📋</span><span class="ft">Kanban column layout for Smart Collections</span><span class="fkws">kanban, board, collection</span></li>
+      <li><span class="fi">📋</span><span class="ft">Task Hub does not refresh after completing a task, fixed</span><span class="fkws">task, gfm</span></li>
+      <li><span class="fi">📋</span><span class="ft">Whiteboards and Canvas</span><span class="fkws">kanban, board, collection</span></li>
+      </ul>
+    </section>
+    <section class="fcat" id="cat-drawing-and-canvas">
+      <h2 class="fcat-head">🎨 Drawing &amp; Canvas</h2>
+      <ul class="fcat-list">
+      <li><span class="fi">🎨</span><span class="ft">Desktop `list_dir` has no workspace-containment check, letting a symlink inside the workspace expose arbitrary filesystem content through the file-tree sidebar</span><span class="fkws">whiteboard, freehand, ink</span><time class="fdate">2026-09-10</time></li>
+      <li><span class="fi">🎨</span><span class="ft">Maintenance review: whole-workspace read traversals follow a symlink escaping the workspace</span><span class="fkws">whiteboard, freehand, ink</span><time class="fdate">2026-09-10</time></li>
+      <li><span class="fi">🎨</span><span class="ft">`rebuildLinkIndex`&#x27;s request counter aliases across a workspace switch, letting a stale rebuild overwrite a newer workspace&#x27;s link index</span><span class="fkws">whiteboard, freehand, ink</span><time class="fdate">2026-09-11</time></li>
+      <li><span class="fi">🎨</span><span class="ft">Maintenance review: Canvas card dragging never recovers from a lost pointer capture (no `pointercancel` handling), so an unrelated later mouse move can silently reposition and persist a stale card&#x27;s coordinates</span><span class="fkws">whiteboard, freehand, ink</span><time class="fdate">2026-09-13</time></li>
+      <li><span class="fi">🎨</span><span class="ft">Maintenance review: `InkView`&#x27;s Undo/Redo toolbar buttons never persist the reverted document, so an undone/redone stroke silently reappears on reload</span><span class="fkws">whiteboard, freehand, ink</span><time class="fdate">2026-09-13</time></li>
+      <li><span class="fi">🎨</span><span class="ft">Maintenance review: clicking a Health/Link-Diagnostics finding whose source note can no longer be read fails completely silently (unhandled promise rejection, Settings modal stays open with no feedback)</span><span class="fkws">whiteboard, freehand, ink</span><time class="fdate">2026-09-14</time></li>
+      <li><span class="fi">🎨</span><span class="ft">Maintenance review: pending captures (external deep-links with no workspace open, and Android share-intent text/images) auto-commit to disk the instant any workspace becomes available, completely bypassing the mandatory review step</span><span class="fkws">whiteboard, freehand, ink</span><time class="fdate">2026-09-14</time></li>
+      <li><span class="fi">🎨</span><span class="ft">Maintenance review: Ctrl/Cmd-click &quot;open in other group&quot; on an image link opens it into the pane it was clicked in, when that pane isn&#x27;t yet active</span><span class="fkws">whiteboard, freehand, ink</span><time class="fdate">2026-09-15</time></li>
+      <li><span class="fi">🎨</span><span class="ft">Maintenance review: `InkView.tsx` uses its own dead-end, non-tolerant document decoder instead of the properly designed one in `inkDocument.ts`, silently discarding all strokes when a `.ink` file&#x27;s JSON shape deviates even slightly</span><span class="fkws">whiteboard, freehand, ink</span><time class="fdate">2026-09-15</time></li>
+      <li><span class="fi">🎨</span><span class="ft">Maintenance review: the Rename Preview dialog never opens for a rename whose only pending references are Markdown-style links</span><span class="fkws">whiteboard, freehand, ink</span><time class="fdate">2026-09-15</time></li>
+      <li><span class="fi">🎨</span><span class="ft">Maintenance review: the Rename Preview dialog&#x27;s suggested Markdown-link rewrite (F03 Phase 2b-ii) almost always drops the `.md` extension, and adds a wrong extra `../` when the referring note sits above the renamed note&#x27;s new folder</span><span class="fkws">whiteboard, freehand, ink</span><time class="fdate">2026-09-15</time></li>
+      <li><span class="fi">🎨</span><span class="ft">PDF Phase 2: Freehand ink, sticky notes, and shapes for scanned PDFs</span><span class="fkws">whiteboard, freehand, ink</span><time class="fdate">2026-09-15</time></li>
+      <li><span class="fi">🎨</span><span class="ft">Maintenance review: heading-link copy failure is silently swallowed</span><span class="fkws">whiteboard, freehand, ink</span><time class="fdate">2026-09-16</time></li>
+      <li><span class="fi">🎨</span><span class="ft">Workspace health check: broken links, duplicates, orphans — with one-click fixes</span><span class="fkws">whiteboard, freehand, ink</span><time class="fdate">2026-09-21</time></li>
+      <li><span class="fi">🎨</span><span class="ft">Deep-link `open-note` does not validate `path` against workspace</span><span class="fkws">whiteboard, freehand, ink</span><time class="fdate">2026-09-22</time></li>
+      <li><span class="fi">🎨</span><span class="ft">Audit follow-up F-010: Define a lossless canvas document and reference contract</span><span class="fkws">whiteboard, freehand, ink</span></li>
+      <li><span class="fi">🎨</span><span class="ft">Audit follow-up F-012: Make link-index cache freshness and failures explicit</span><span class="fkws">whiteboard, freehand, ink</span></li>
+      <li><span class="fi">🎨</span><span class="ft">CanvasView: do not render edges to retained unknown nodes</span><span class="fkws">whiteboard, freehand, ink</span></li>
+      <li><span class="fi">🎨</span><span class="ft">F03 Phase 1: read-only link-integrity diagnostics</span><span class="fkws">whiteboard, freehand, ink</span></li>
+      <li><span class="fi">🎨</span><span class="ft">F03 Phase 2b-ii: Markdown-style link/image migration in the rename preview</span><span class="fkws">whiteboard, freehand, ink</span></li>
+      <li><span class="fi">🎨</span><span class="ft">F04 Phase 1: heading-link parser, resolution, and Preview navigation</span><span class="fkws">whiteboard, freehand, ink</span></li>
+      <li><span class="fi">🎨</span><span class="ft">F04 Phase 2: Source-mode heading-link decorations and autocomplete</span><span class="fkws">whiteboard, freehand, ink</span></li>
+      <li><span class="fi">🎨</span><span class="ft">F04 Phase 3c: Source-mode block-link decoration and autocomplete</span><span class="fkws">whiteboard, freehand, ink</span></li>
+      <li><span class="fi">🎨</span><span class="ft">F04 Phase 5d: block-reference DOM rendering hook and Copy block link action</span><span class="fkws">whiteboard, freehand, ink</span></li>
+      <li><span class="fi">🎨</span><span class="ft">F04 Phase 5e2: Preview on-block copy-link affordance</span><span class="fkws">whiteboard, freehand, ink</span></li>
+      <li><span class="fi">🎨</span><span class="ft">F04 Phase 5e3: separate Create block link action</span><span class="fkws">whiteboard, freehand, ink</span></li>
+      <li><span class="fi">🎨</span><span class="ft">F06 Phase 3: F04-dependent copy/insert heading-link actions</span><span class="fkws">whiteboard, freehand, ink</span></li>
+      <li><span class="fi">🎨</span><span class="ft">F20 Phase 2b-i: relink and access-recovery flow for an unavailable profile</span><span class="fkws">whiteboard, freehand, ink</span></li>
+      <li><span class="fi">🎨</span><span class="ft">Freehand Phase 2a: InkSurface pointer-input and rendering core</span><span class="fkws">whiteboard, freehand, ink</span></li>
+      <li><span class="fi">🎨</span><span class="ft">Freehand Phase 2b-a: InkSurface eraser-input bridge</span><span class="fkws">whiteboard, freehand, ink</span></li>
+      <li><span class="fi">🎨</span><span class="ft">Freehand Phase 2b: standalone drawing-note integration and gesture tools</span><span class="fkws">whiteboard, freehand, ink</span></li>
+      <li><span class="fi">🎨</span><span class="ft">Maintenance review: InkSurface pointer lifecycle and mouse-button handling</span><span class="fkws">whiteboard, freehand, ink</span></li>
+      <li><span class="fi">🎨</span><span class="ft">Move Link Diagnostics into a Settings &quot;Health&quot; section, off the main screen</span><span class="fkws">whiteboard, freehand, ink</span></li>
+      <li><span class="fi">🎨</span><span class="ft">Runtime-decode the persisted link-index cache file</span><span class="fkws">whiteboard, freehand, ink</span></li>
+      </ul>
+    </section>
+    <section class="fcat" id="cat-pdf">
+      <h2 class="fcat-head">📄 PDF</h2>
+      <ul class="fcat-list">
+      <li><span class="fi">📄</span><span class="ft">Maintenance review: `PdfViewer.tsx`&#x27;s Save annotations silently discards any annotation drawn while a previous save is still in flight</span><span class="fkws">pdf, annotation</span><time class="fdate">2026-09-15</time></li>
+      <li><span class="fi">📄</span><span class="ft">Maintenance review: `PdfViewer.tsx`&#x27;s shape-drag draft never clears if the drag is interrupted (no `pointercancel` handling)</span><span class="fkws">pdf, annotation</span><time class="fdate">2026-09-15</time></li>
+      <li><span class="fi">📄</span><span class="ft">PDF Phase 1: View PDFs and annotate the real text layer</span><span class="fkws">pdf, annotation</span><time class="fdate">2026-09-15</time></li>
+      <li><span class="fi">📄</span><span class="ft">Fix 6 pre-existing test failures in App.test.tsx and PdfViewer.test.tsx</span><span class="fkws">pdf, annotation</span><time class="fdate">2026-09-20</time></li>
+      </ul>
+    </section>
+    <section class="fcat" id="cat-attachments">
+      <h2 class="fcat-head">📎 Attachments</h2>
+      <ul class="fcat-list">
+      <li><span class="fi">📎</span><span class="ft">Capture attachment filenames are never sanitized before being used to build a filesystem write path, and the write goes through the uncontained bridge function</span><span class="fkws">attachment, image</span><time class="fdate">2026-09-11</time></li>
+      <li><span class="fi">📎</span><span class="ft">Maintenance review: F05 capture attachment copy corrupts or silently drops binary attachments (images) because it copies them through a text-decode round trip</span><span class="fkws">attachment, image</span><time class="fdate">2026-09-11</time></li>
+      <li><span class="fi">📎</span><span class="ft">Capture attachment filename retains a colon and uses UTC instead of local time</span><span class="fkws">attachment, image</span><time class="fdate">2026-09-21</time></li>
+      <li><span class="fi">📎</span><span class="ft">Capture attachment filenames contain a literal colon and a 15-char (not 19-char) timestamp</span><span class="fkws">attachment, image</span><time class="fdate">2026-09-21</time></li>
+      <li><span class="fi">📎</span><span class="ft">Unify the standalone ImageViewer&#x27;s zoom buttons with the preview-local overlay&#x27;s</span><span class="fkws">attachment, image</span><time class="fdate">2026-09-21</time></li>
+      <li><span class="fi">📎</span><span class="ft">Attachments</span><span class="fkws">attachment, image</span></li>
+      <li><span class="fi">📎</span><span class="ft">Audit follow-up N-004: Contain local Markdown attachment reads</span><span class="fkws">attachment, image</span></li>
+      <li><span class="fi">📎</span><span class="ft">Audit follow-up N-005: Bound Markdown attachment resolution concurrency</span><span class="fkws">attachment, image</span></li>
+      <li><span class="fi">📎</span><span class="ft">Fullscreen zoom viewer Phase 1: Preview-local image overlay</span><span class="fkws">attachment, image</span></li>
+      <li><span class="fi">📎</span><span class="ft">Fullscreen zoom viewer follow-up: standalone image tabs, touch gestures, and resizing</span><span class="fkws">attachment, image</span></li>
+      <li><span class="fi">📎</span><span class="ft">Image resolution: dedupe repeated fileSrc() calls within one Preview render</span><span class="fkws">attachment, image</span></li>
+      <li><span class="fi">📎</span><span class="ft">MarkdownPreview image loading is sequential</span><span class="fkws">attachment, image</span></li>
+      </ul>
+    </section>
+    <section class="fcat" id="cat-export-and-print">
+      <h2 class="fcat-head">📤 Export &amp; Print</h2>
+      <ul class="fcat-list">
+      <li><span class="fi">📤</span><span class="ft">Maintenance review: a fingerprint-mismatched capture attachment is never deleted, leaving an orphaned file on disk</span><span class="fkws">export, html, print</span><time class="fdate">2026-09-16</time></li>
+      <li><span class="fi">📤</span><span class="ft">Export a note to standalone HTML (desktop)</span><span class="fkws">export, html, print</span><time class="fdate">2026-09-21</time></li>
+      <li><span class="fi">📤</span><span class="ft">Print the active note (desktop)</span><span class="fkws">export, html, print</span><time class="fdate">2026-09-21</time></li>
+      <li><span class="fi">📤</span><span class="ft">exportNoteHtml: src replacement targets wrong attribute when alt (or other attr) shares the same value as src</span><span class="fkws">export, html, print</span><time class="fdate">2026-09-22</time></li>
+      <li><span class="fi">📤</span><span class="ft">exportNoteHtml: standalone export leaves an `&lt;img&gt;` un-inlined when an attribute value before `src` contains a `&gt;`</span><span class="fkws">export, html, print</span></li>
+      </ul>
+    </section>
+    <section class="fcat" id="cat-themes-and-customization">
+      <h2 class="fcat-head">🎨 Themes &amp; Customization</h2>
+      <ul class="fcat-list">
+      <li><span class="fi">🎨</span><span class="ft">Custom CSS snippets / theme overrides</span><span class="fkws">theme, css, template</span><time class="fdate">2026-09-21</time></li>
+      <li><span class="fi">🎨</span><span class="ft">Themes, Snippets, and Templates</span><span class="fkws">theme, css, template</span></li>
+      </ul>
+    </section>
+    <section class="fcat" id="cat-speech-and-audio">
+      <h2 class="fcat-head">🎙️ Speech &amp; Audio</h2>
+      <ul class="fcat-list">
+      <li><span class="fi">🎙️</span><span class="ft">Desktop speech-to-text fabricates transcription instead of running whisper.cpp; marked `✅` incorrectly</span><span class="fkws">speech, whisper, dictation</span><time class="fdate">2026-09-11</time></li>
+      <li><span class="fi">🎙️</span><span class="ft">Local speech-to-text dictation</span><span class="fkws">speech, whisper, dictation</span><time class="fdate">2026-09-11</time></li>
+      <li><span class="fi">🎙️</span><span class="ft">`main` CI red: Android `compileDebugJavaWithJavac` fails on `SpeechRecognitionPlugin.java`&#x27;s `onDestroy`</span><span class="fkws">speech, whisper, dictation</span><time class="fdate">2026-09-11</time></li>
+      <li><span class="fi">🎙️</span><span class="ft">`whisper-ffi`&#x27;s `transcribe()` fabricates placeholder text on failure and `is_whisper_available()`/`get_speech_status`&#x27;s `model_available` are hardcoded `true`, reintroducing the just-fixed Desktop speech dishonesty bug</span><span class="fkws">speech, whisper, dictation</span><time class="fdate">2026-09-11</time></li>
+      <li><span class="fi">🎙️</span><span class="ft">Maintenance review: Android speech-to-text never actually starts the native `SpeechRecognizer`, so tapping the dictation button is a silent no-op on a real device</span><span class="fkws">speech, whisper, dictation</span><time class="fdate">2026-09-14</time></li>
+      <li><span class="fi">🎙️</span><span class="ft">Speech-to-text dictation should be opt-in, off by default, and never touch the microphone/speech APIs until enabled</span><span class="fkws">speech, whisper, dictation</span><time class="fdate">2026-09-15</time></li>
+      <li><span class="fi">🎙️</span><span class="ft">Desktop speech-to-text still fabricates a confidence score on every successful transcription</span><span class="fkws">speech, whisper, dictation</span><time class="fdate">2026-09-22</time></li>
+      </ul>
+    </section>
+    <section class="fcat" id="cat-android">
+      <h2 class="fcat-head">🤖 Android</h2>
+      <ul class="fcat-list">
+      <li><span class="fi">🤖</span><span class="ft">Android CI cannot compile: CaptureIntentHandler.java uses FileInputStream without importing it</span><span class="fkws">android, widget, fdroid</span><time class="fdate">2026-09-07</time></li>
+      <li><span class="fi">🤖</span><span class="ft">Android CI: WidgetResourcesUnitTest fails with NoSuchFileException in the real CI job</span><span class="fkws">android, widget, fdroid</span><time class="fdate">2026-09-07</time></li>
+      <li><span class="fi">🤖</span><span class="ft">Android share intent with an empty attachments array is stored as `[]` instead of `undefined`</span><span class="fkws">android, widget, fdroid</span><time class="fdate">2026-09-07</time></li>
+      <li><span class="fi">🤖</span><span class="ft">Android home-screen widget listing individual notes by name</span><span class="fkws">android, widget, fdroid</span><time class="fdate">2026-09-08</time></li>
+      <li><span class="fi">🤖</span><span class="ft">Android home-screen widget that opens directly into Quick Capture</span><span class="fkws">android, widget, fdroid</span><time class="fdate">2026-09-09</time></li>
+      <li><span class="fi">🤖</span><span class="ft">The &quot;new-note&quot; automation command (Android home-screen widget cold start) silently drops the request when it races ahead of workspace/settings restoration</span><span class="fkws">android, widget, fdroid</span><time class="fdate">2026-09-13</time></li>
+      <li><span class="fi">🤖</span><span class="ft">F07 Phase 4: Compact layout and Android group switching</span><span class="fkws">android, widget, fdroid</span><time class="fdate">2026-09-15</time></li>
+      <li><span class="fi">🤖</span><span class="ft">`open-note` automation command (Android favorites-list widget cold start) silently drops the request when it races ahead of settings restoration</span><span class="fkws">android, widget, fdroid</span><time class="fdate">2026-09-22</time></li>
+      <li><span class="fi">🤖</span><span class="ft">Android Home-Screen Widgets</span><span class="fkws">android, widget, fdroid</span><time class="fdate">2026-09-29</time></li>
+      <li><span class="fi">🤖</span><span class="ft">Android Widget &quot;new note&quot; cold-start delay</span><span class="fkws">android, widget, fdroid</span><time class="fdate">2026-09-29</time></li>
+      <li><span class="fi">🤖</span><span class="ft">Android Widget Split</span><span class="fkws">android, widget, fdroid</span><time class="fdate">2026-09-29</time></li>
+      <li><span class="fi">🤖</span><span class="ft">Android Folder Access</span><span class="fkws">android, widget, fdroid</span></li>
+      <li><span class="fi">🤖</span><span class="ft">Android Long-Press Conflict</span><span class="fkws">android, widget, fdroid</span></li>
+      <li><span class="fi">🤖</span><span class="ft">Android `WRITE_EXTERNAL_STORAGE` permission is broader than needed</span><span class="fkws">android, widget, fdroid</span></li>
+      <li><span class="fi">🤖</span><span class="ft">Android launcher icon regeneration</span><span class="fkws">android, widget, fdroid</span></li>
+      <li><span class="fi">🤖</span><span class="ft">Codebase Audit Recommendations: Android URI Cache Invalidation (F-007)</span><span class="fkws">android, widget, fdroid</span></li>
+      <li><span class="fi">🤖</span><span class="ft">Debug APK not signed — cannot install on Android</span><span class="fkws">android, widget, fdroid</span></li>
+      <li><span class="fi">🤖</span><span class="ft">Fix: Workspace switcher dropdown invisible on Android</span><span class="fkws">android, widget, fdroid</span></li>
+      <li><span class="fi">🤖</span><span class="ft">Fix: black fringe/ring on the Android app icon&#x27;s curved edges</span><span class="fkws">android, widget, fdroid</span></li>
+      </ul>
+    </section>
+    <section class="fcat" id="cat-desktop">
+      <h2 class="fcat-head">🖥️ Desktop</h2>
+      <ul class="fcat-list">
+      <li><span class="fi">🖥️</span><span class="ft">F07 Phase 3: Secondary group UI on desktop</span><span class="fkws">desktop, tauri, linux</span><time class="fdate">2026-09-15</time></li>
+      <li><span class="fi">🖥️</span><span class="ft">Desktop &quot;Open file from outside the vault&quot; can never actually read an external file</span><span class="fkws">desktop, tauri, linux</span><time class="fdate">2026-09-24</time></li>
+      <li><span class="fi">🖥️</span><span class="ft">Main CI red: `tests/ui/tauriMock.js` parse error (regression from `fe2ff2f`)</span><span class="fkws">desktop, tauri, linux</span><time class="fdate">2026-09-24</time></li>
+      <li><span class="fi">🖥️</span><span class="ft">Additional Desktop Platforms</span><span class="fkws">desktop, tauri, linux</span></li>
+      <li><span class="fi">🖥️</span><span class="ft">Desktop AppImage blank gray screen</span><span class="fkws">desktop, tauri, linux</span></li>
+      <li><span class="fi">🖥️</span><span class="ft">Desktop Tauri concurrency</span><span class="fkws">desktop, tauri, linux</span></li>
+      <li><span class="fi">🖥️</span><span class="ft">Flatpak CI Build</span><span class="fkws">desktop, tauri, linux</span></li>
+      <li><span class="fi">🖥️</span><span class="ft">Linux Desktop Application</span><span class="fkws">desktop, tauri, linux</span></li>
+      </ul>
+    </section>
+    <section class="fcat" id="cat-platform-and-runtime">
+      <h2 class="fcat-head">⚙️ Platform &amp; Runtime</h2>
+      <ul class="fcat-list">
+      <li><span class="fi">⚙️</span><span class="ft">platform.ts: `isIOS`/`isMobile` re-evaluated on every call (no caching)</span><span class="fkws">platform, caching, ios, android</span></li>
+      </ul>
+    </section>
+    <section class="fcat" id="cat-web">
+      <h2 class="fcat-head">🌐 Web</h2>
+      <ul class="fcat-list">
+      <li><span class="fi">🌐</span><span class="ft">Web Clipper</span><span class="fkws">clipper, web</span></li>
+      <li><span class="fi">🌐</span><span class="ft">Web Clipper Line Break Preservation</span><span class="fkws">clipper, web</span></li>
+      </ul>
+    </section>
+    <section class="fcat" id="cat-general">
+      <h2 class="fcat-head">✨ General</h2>
+      <ul class="fcat-list">
+      <li><span class="fi">✨</span><span class="ft">Main regression: F07 Phase 2b-6 viewMode requirement breaks settings validation and split-pane helpers</span><span class="fkws">general</span><time class="fdate">2026-09-09</time></li>
+      <li><span class="fi">✨</span><span class="ft">Renaming or creating a note/folder with a name containing &quot;/&quot; silently diverges by platform instead of erroring identically</span><span class="fkws">general</span><time class="fdate">2026-09-11</time></li>
+      <li><span class="fi">✨</span><span class="ft">`memoizedSortEntries`&#x27;s cache never evicts, growing unboundedly for the app&#x27;s entire lifetime</span><span class="fkws">general</span><time class="fdate">2026-09-11</time></li>
+      <li><span class="fi">✨</span><span class="ft">`headings.ts`/`tasks.ts`/`blocks.ts`&#x27;s shared HTML-comment guard treats any line merely *containing* `&lt;!--` as a block-level HTML comment, silently hiding real headings/tasks/blocks that have a trailing inline comment</span><span class="fkws">general</span><time class="fdate">2026-09-12</time></li>
+      <li><span class="fi">✨</span><span class="ft">F07 Phase 3 follow-up: cross-group tab reordering and view-state preservation</span><span class="fkws">general</span><time class="fdate">2026-09-15</time></li>
+      <li><span class="fi">✨</span><span class="ft">F07 Phase 5: Route feature opens and F03 rename through `OpenNoteRequest`</span><span class="fkws">general</span><time class="fdate">2026-09-15</time></li>
+      <li><span class="fi">✨</span><span class="ft">UX-01: Visual system and adaptive UX refresh</span><span class="fkws">general</span><time class="fdate">2026-09-21</time></li>
+      <li><span class="fi">✨</span><span class="ft">`saveCoordinator.flush()` bumps the revision before writing, creating a phantom unsaved-work state after every flush</span><span class="fkws">general</span><time class="fdate">2026-09-21</time></li>
+      <li><span class="fi">✨</span><span class="ft">F-Droid Submission</span><span class="fkws">general</span><time class="fdate">2026-09-22</time></li>
+      <li><span class="fi">✨</span><span class="ft">F-Droid submission-verify workflow: stale pre-F015 version/commit pins</span><span class="fkws">general</span><time class="fdate">2026-09-22</time></li>
+      <li><span class="fi">✨</span><span class="ft">Local Automation Commands</span><span class="fkws">general</span><time class="fdate">2026-09-22</time></li>
+      <li><span class="fi">✨</span><span class="ft">Unscoped `write_text_file` commands accept arbitrary paths</span><span class="fkws">general</span><time class="fdate">2026-09-22</time></li>
+      <li><span class="fi">✨</span><span class="ft">Unscoped native fs commands: siblings of the write_text_file fix still accept arbitrary paths</span><span class="fkws">general</span><time class="fdate">2026-09-22</time></li>
+      <li><span class="fi">✨</span><span class="ft">Asset protocol scope allows reading any local file via `asset://`</span><span class="fkws">general</span><time class="fdate">2026-09-23</time></li>
+      <li><span class="fi">✨</span><span class="ft">`resetForSession` leaves a permanent zombie entry when an in-flight write is in progress</span><span class="fkws">general</span><time class="fdate">2026-09-23</time></li>
+      <li><span class="fi">✨</span><span class="ft">Open files from outside the vault from within an open app</span><span class="fkws">general</span><time class="fdate">2026-09-24</time></li>
+      <li><span class="fi">✨</span><span class="ft">Rename rollback silently corrupts a note with two edits to the same renamed target</span><span class="fkws">general</span><time class="fdate">2026-09-24</time></li>
+      <li><span class="fi">✨</span><span class="ft">`Open in other group` silently fails to move an already-open tab when `activeGroupId` is stale</span><span class="fkws">general</span><time class="fdate">2026-09-24</time></li>
+      <li><span class="fi">✨</span><span class="ft">documentation/ARCHITECTURE.md still describes the deleted note read-only lock feature</span><span class="fkws">general</span><time class="fdate">2026-09-24</time></li>
+      <li><span class="fi">✨</span><span class="ft">E2E Playwright harness hardcodes `/usr/bin/chromium`, absent on this project&#x27;s own Claude Code cloud sandboxes</span><span class="fkws">general</span><time class="fdate">2026-09-25</time></li>
+      <li><span class="fi">✨</span><span class="ft">Increase font size / Decrease font size commands</span><span class="fkws">general</span><time class="fdate">2026-10-05</time></li>
+      <li><span class="fi">✨</span><span class="ft">Accent color live-apply: verified already correct, not a live bug</span><span class="fkws">general</span></li>
+      <li><span class="fi">✨</span><span class="ft">Bookmarks</span><span class="fkws">general</span></li>
+      <li><span class="fi">✨</span><span class="ft">Bounded Directory Traversal</span><span class="fkws">general</span></li>
+      <li><span class="fi">✨</span><span class="ft">CodeMirror full teardown on file switch</span><span class="fkws">general</span></li>
+      <li><span class="fi">✨</span><span class="ft">Continuous Integration and Development Builds</span><span class="fkws">general</span></li>
+      <li><span class="fi">✨</span><span class="ft">Direct Interface Zoom</span><span class="fkws">general</span></li>
+      <li><span class="fi">✨</span><span class="ft">F03 Phase 2a: rename/move reference-rewrite planning engine</span><span class="fkws">general</span></li>
+      <li><span class="fi">✨</span><span class="ft">F03 Phase 2b remainder: application-metadata migration, the Apply/journal/rollback step, and folder operations</span><span class="fkws">general</span></li>
+      <li><span class="fi">✨</span><span class="ft">F04 Phase 3b: single-line list-item and blockquote block references</span><span class="fkws">general</span></li>
+      <li><span class="fi">✨</span><span class="ft">F04 Phase 3d: fenced code block references</span><span class="fkws">general</span></li>
+      <li><span class="fi">✨</span><span class="ft">F04 Phase 3e: multi-line list-item/blockquote block-reference continuation</span><span class="fkws">general</span></li>
+      <li><span class="fi">✨</span><span class="ft">F04 Phase 3f: embed Source-mode decoration</span><span class="fkws">general</span></li>
+      <li><span class="fi">✨</span><span class="ft">F04 Phase 4a: read-only whole-note and heading/block-section embeds</span><span class="fkws">general</span></li>
+      <li><span class="fi">✨</span><span class="ft">F04 Phase 4b follow-up 2: per-note embed load timeout</span><span class="fkws">general</span></li>
+      <li><span class="fi">✨</span><span class="ft">F04 Phase 4b follow-up: embed recursion edge-case test coverage</span><span class="fkws">general</span></li>
+      <li><span class="fi">✨</span><span class="ft">F04 Phase 4b: embed recursion depth, cycle detection, and instance/byte budgets</span><span class="fkws">general</span></li>
+      <li><span class="fi">✨</span><span class="ft">F04 Phase 5c: cross-note block pre-check</span><span class="fkws">general</span></li>
+      <li><span class="fi">✨</span><span class="ft">F05: Universal quick capture and inbox</span><span class="fkws">general</span></li>
+      <li><span class="fi">✨</span><span class="ft">F06 Phase 1: shared heading scanner and read-only note outline</span><span class="fkws">general</span></li>
+      <li><span class="fi">✨</span><span class="ft">F06 Phase 2a: heading breadcrumbs driven by Source-mode cursor position</span><span class="fkws">general</span></li>
+      <li><span class="fi">✨</span><span class="ft">F06 Phase 2c: Split-mode breadcrumb authority</span><span class="fkws">general</span></li>
+      <li><span class="fi">✨</span><span class="ft">F06 Phase 4a: Large-outline virtualization</span><span class="fkws">general</span></li>
+      <li><span class="fi">✨</span><span class="ft">F06 Phase 4b: outline/breadcrumb compact touch-target and focus-visible hardening</span><span class="fkws">general</span></li>
+      <li><span class="fi">✨</span><span class="ft">F06 Phase 4c: remaining outline accessibility hardening</span><span class="fkws">general</span></li>
+      <li><span class="fi">✨</span><span class="ft">F07 Phase 1: canonical document and primary-group state</span><span class="fkws">general</span></li>
+      <li><span class="fi">✨</span><span class="ft">F07 Phase 2a: pinned-tab state and one-group controls</span><span class="fkws">general</span></li>
+      <li><span class="fi">✨</span><span class="ft">F07 Phase 6: General-availability cleanup</span><span class="fkws">general</span></li>
+      <li><span class="fi">✨</span><span class="ft">F11 Phase 1: Visual Markdown table parser and serializer</span><span class="fkws">general</span></li>
+      <li><span class="fi">✨</span><span class="ft">F20 Phase 2b-iii-a: recovery actions for an unavailable active profile at startup, and a recent-profiles list when none is active</span><span class="fkws">general</span></li>
+      <li><span class="fi">✨</span><span class="ft">F20 Phase 2b-iii-b: typed transition-state/error model and in-session Retry/Discard UI</span><span class="fkws">general</span></li>
+      <li><span class="fi">✨</span><span class="ft">Global configuration corruption recovery</span><span class="fkws">general</span></li>
+      <li><span class="fi">✨</span><span class="ft">Make Collections opt-in, off by default, and group optional features under their own Settings section</span><span class="fkws">general</span></li>
+      <li><span class="fi">✨</span><span class="ft">Markdown Help</span><span class="fkws">general</span></li>
+      <li><span class="fi">✨</span><span class="ft">Mobile Navigation and Touch Targets</span><span class="fkws">general</span></li>
+      <li><span class="fi">✨</span><span class="ft">No app-wide :focus-visible styling</span><span class="fkws">general</span></li>
+      <li><span class="fi">✨</span><span class="ft">Per-note read-only lock (not encryption)</span><span class="fkws">general</span></li>
+      <li><span class="fi">✨</span><span class="ft">Project Documentation and Screenshots</span><span class="fkws">general</span></li>
+      <li><span class="fi">✨</span><span class="ft">Redesign the app icon and logo</span><span class="fkws">general</span></li>
+      <li><span class="fi">✨</span><span class="ft">Settings toggle save feedback: &quot;Saving…&quot; indicator added, reactivity confirmed already correct</span><span class="fkws">general</span></li>
+      <li><span class="fi">✨</span><span class="ft">Show an inspirational quote instead of a bare &quot;No file open&quot; message</span><span class="fkws">general</span></li>
+      </ul>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p class="footer-badges">MIT License &middot; Open Source &middot; No Telemetry &middot; No Account</p>
+      <nav class="footer-nav" aria-label="Footer">
+        <a href="/">Home</a>
+        <a href="https://github.com/LeonardSchwier/leotheca">GitHub</a>
+        <a href="https://github.com/LeonardSchwier/leotheca/blob/main/ROADMAP.md">Roadmap</a>
+        <a href="https://github.com/LeonardSchwier/leotheca/blob/main/PHILOSOPHY.md">Philosophy</a>
+      </nav>
+      <p class="footer-tag">Built with love and plain files.</p>
+    </div>
+  </footer>
+</body>
+</html>

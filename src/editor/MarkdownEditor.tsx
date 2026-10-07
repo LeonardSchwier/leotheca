@@ -22,7 +22,7 @@ import { textDirectionExtension } from "./textDirection";
 import { attachmentsInsertText, type PastedOrDroppedFile } from "./attachments";
 import { minimalChange } from "./textDiff";
 import { parseSnippets, snippetExpansion } from "./snippets";
-import { HIGHLIGHT_COLOR_CHOICES, highlightColorEmoji } from "./highlightColors";
+import { HIGHLIGHT_COLOR_CHOICES, insertHighlightColor } from "./highlightColors";
 import { resolveBlockLinkAtCursor } from "./blockLinkActions";
 import type { BlockLinkCopyRequest, BlockLinkCreateRequest } from "./blockLinkRequest";
 import { tableEditAtCursor, type MarkdownTableCommand } from "../markdown/tableCommands";
@@ -345,11 +345,19 @@ export function highlightColorCompletions() {
     const from = context.pos - (2 + typed.length); // replaces the `==` portion onward
 
     const options: CompletionResult["options"] = [
-      { label: "Highlight (plain)", apply: `${typed}==`, type: "text" },
-      ...HIGHLIGHT_COLOR_CHOICES.map((choice) => {
-        const emoji = highlightColorEmoji(choice.color);
-        return { label: `Highlight (${choice.label})`, apply: `${emoji} ${typed}==`, type: "text" };
-      }),
+      // `insertHighlightColor(typed, …)` is the shared source of truth both
+      // affordances already rely on: it returns the full `==…==` replacement
+      // (the author has typed the opening `==`, so the apply string must
+      // include it — `from` points at the first `=`) and strips a
+      // previously-typed recognized color emoji when re-coloring to plain,
+      // so "Highlight (plain)" undoes an accidental color instead of
+      // re-emitting it on top.
+      { label: "Highlight (plain)", apply: insertHighlightColor(typed, undefined).text, type: "text" },
+      ...HIGHLIGHT_COLOR_CHOICES.map((choice) => ({
+        label: `Highlight (${choice.label})`,
+        apply: insertHighlightColor(typed, choice.color).text,
+        type: "text",
+      })),
     ];
 
     return { from, options, filter: false };

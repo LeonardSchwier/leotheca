@@ -38,7 +38,7 @@ describe("highlightColorCompletions (typing `==` suggests colors)", () => {
     // Selecting red re-colors the in-progress "im" in place:
     const redOption = r.options.find((o) => o.label === "Highlight (Red)")!;
     const redApply = typeof redOption.apply === "string" ? redOption.apply : "";
-    expect(redApply).toBe(`${RED} im==`);
+    expect(redApply).toBe(`==${RED} im==`);
   });
 
   it("does not trigger inside a longer run of equals (e.g. `===`)", async () => {
@@ -71,7 +71,7 @@ describe("highlightColorCompletions (typing `==` suggests colors)", () => {
     const r = (await run(contextAt(doc, doc.length)))!;
     const plain = r.options.find((o) => o.label === "Highlight (plain)")!;
     const plainApply = typeof plain.apply === "string" ? plain.apply : "";
-    expect(plainApply).toBe("hi==");
+    expect(plainApply).toBe("==hi==");
   });
 
   it("each colored option carries the color emoji plus the typed remainder", async () => {
@@ -83,5 +83,37 @@ describe("highlightColorCompletions (typing `==` suggests colors)", () => {
       expect(apply.endsWith("hi==")).toBe(true);
       expect(apply.length > "hi==".length).toBe(true);
     }
+  });
+
+  it('plain option strips a previously-typed color emoji back to plain', async () => {
+    // The author has already colored the in-progress `==` — the emoji is
+    // right after `==`, the suggestion is still open. Choosing "Highlight
+    // (plain)" must undo the color, not re-emit the emoji on top of it.
+    const doc = `note ==${RED}`;
+    const r = (await run(contextAt(doc, doc.length)))!;
+    const plain = r.options.find((o) => o.label === "Highlight (plain)")!;
+    const plainApply = typeof plain.apply === "string" ? plain.apply : "";
+    // The color emoji is stripped; an empty plain `==` pair is all that remains.
+    expect(plainApply).toBe("====");
+  });
+
+  it("plain option strips the emoji but keeps the typed remainder after it", async () => {
+    const doc = `note ==${RED}hi`;
+    const r = (await run(contextAt(doc, doc.length)))!;
+    const plain = r.options.find((o) => o.label === "Highlight (plain)")!;
+    const plainApply = typeof plain.apply === "string" ? plain.apply : "";
+    expect(plainApply).toBe("==hi==");
+  });
+
+  it("plain option does not strip a non-color leading codepoint", async () => {
+    // A leading codepoint the detector does not recognize (a heart, e.g.)
+    // is content, not a color marker — plain keeps it, consistent with
+    // insertHighlightColor's own "don't rewrite what the user typed" rule.
+    const HEART = "\u{2764}"; // ❤ (base heart, single codepoint)
+    const doc = `note ==${HEART}`;
+    const r = (await run(contextAt(doc, doc.length)))!;
+    const plain = r.options.find((o) => o.label === "Highlight (plain)")!;
+    const plainApply = typeof plain.apply === "string" ? plain.apply : "";
+    expect(plainApply).toBe(`==${HEART}==`);
   });
 });

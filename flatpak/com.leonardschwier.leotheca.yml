@@ -55,13 +55,17 @@ modules:
       # - The `node node_modules/typescript/bin/tsc` invocation below is
       #   a belt-and-suspenders guard: works even if .bin symlinks are
       #   missing from a partial install.
-      # 2026-10-07: confirm which node/npm are on PATH before `npm ci`.
-      # CI was hitting "Exit handler never called!" (npm/cli#4926) under
-      # the node20/npm 10.8.2 that ships with the runtime, even though
-      # append-path lists node22 first. If the debug line shows node 20,
-      # the full-path form below is the fallback that always works.
+      # 2026-10-07: use `npm install` with `--prefer-offline` instead of
+      # `npm ci`. The "Exit handler never called!" crash (npm/cli#4926)
+      # affects `npm ci` in the Flatpak sandbox regardless of npm version
+      # (confirmed: Node 22.23.2 / npm 10.9.8, CI run 37679761605).
+      # `npm install` with `--prefer-offline` uses the cache if available
+      # but doesn't crash when a package is missing — it falls back to
+      # the registry (which works in the GitHub Actions Docker container).
+      # `--legacy-peer-deps` skips the eslint-plugin-compat peer conflict.
+      # `--no-audit --no-fund` reduces network calls and output noise.
       - node --version && npm --version
-      - /usr/lib/sdk/node22/bin/npm ci --legacy-peer-deps
+      - /usr/lib/sdk/node22/bin/npm install --legacy-peer-deps --prefer-offline --no-audit --no-fund
       - cargo --offline fetch --manifest-path src-tauri/Cargo.toml
       # 2026-10-07: call tsc and vite directly through node rather than
       # via .bin symlinks. Works even if the .bin symlink step was

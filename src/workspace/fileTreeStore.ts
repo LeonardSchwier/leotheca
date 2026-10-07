@@ -899,7 +899,13 @@ export function selectRecentNotes(
       const label = rootPath
         ? relativePath(rootPath, f.path).replace(/\.md$/i, "")
         : f.name.replace(/\.md$/i, "");
-      return { label, path: f.path };
+      // Carry mtime and size alongside label/path so the native widget
+      // (FolderAccessPlugin.updateRecentNotesWidget) persists them and the
+      // factory can render a relative-time suffix or other metadata without
+      // a second sync pass over the workspace. Both are optional on FsEntry
+      // (a directory, or a platform that didn't expose them cheaply), so a
+      // note lacking them still ships as a plain label+path entry.
+      return { label, path: f.path, mtime: f.mtime, size: f.size };
     });
 }
 

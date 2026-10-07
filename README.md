@@ -38,6 +38,18 @@ Three principles govern every decision here, in order. Full detail in [`PHILOSOP
 
 See [`ROADMAP.md`](ROADMAP.md) for what's shipped so far in detail and what's still open.
 
+## 🤖 About this project
+
+Leotheca was built using agentic AI engineering approaches. The following agents and contributors are listed in the git history:
+
+- **Leonard Schwier** — maintainer, architect, human oversight
+- **LeoHub Hermes** (local agent) — most features, bug fixes, CI/CD, packaging
+- **Claude Code** (cloud agent) — specific roadmap items
+- **ChatGPT automation** (cloud agent) — specific roadmap items
+- **Leotheca CI** — automated verification and release pipeline
+
+All AI-generated code was reviewed, tested, and merged by the maintainer. Human oversight remained at every stage.
+
 ## 📸 Screenshots
 
 <p align="center"><img src="assets/screenshots/split-view.png" alt="Leotheca's split view, showing the markdown source next to its live-rendered preview, with wikilinks and a backlinks panel" width="100%"></p>

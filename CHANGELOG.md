@@ -2,459 +2,119 @@
 
 ## Unreleased
 
-- **macOS Quick Look preview for Markdown files**: ⌥-click `.md` files in Finder to preview them without opening the app. Implemented as a native `.qlgenerator` bundle (Objective-C, WebKit-based) at `packaging/macos/quicklook/`. Build: `scripts/build-quicklook.sh`, install: `scripts/install-quicklook.sh`.
-- **Hardened Mermaid SVG sanitization**: `sanitizeMermaidSvg()` now runs DOMPurify (default profile, `FORBID_TAGS: script, foreignObject, iframe, object, embed, form, input, textarea, button`) after the regex layer, closing the gap where the async SVG insertion bypassed the earlier DOMPurify pass in MarkdownPreview. The regex layer remains as defense-in-depth.
-- **Content Security Policy**: Restrictive CSP added to `tauri.conf.json` (`default-src 'self'; connect-src 'self' asset: blob:; object-src 'none'`), enforcing the "no network calls" promise at the browser level.
-- **Offline isolation test**: New `src/offline.test.ts` (7 tests) validates the CSP config and spies on `fetch`/`XMLHttpRequest`/`WebSocket`/`EventSource` to fail CI if any code path makes a network call.
-- **Flatpak CI fix**: Fixed the flatpak manifest's git source pin. Two issues: (1) the tag `v1.0.0` and the pinned commit `5162499` pointed to different commits, causing a SHA mismatch; (2) commit `5162499` was an orphan not on any branch, so `git fetch` couldn't retrieve it. Now pinned to the v1.0.0 tag commit (`f87bc5a`), which is reachable on main and has identical lockfiles. Resolves the persistent flatpak CI failure (failing since 2026-09-05).
+### New Features
 
-- **Recent-notes widget: TS/native list-length contract is untested and undocumented**: `fileTreeStore.syncRecentNotesWidget` sent exactly the 5 most recently edited notes while `FolderAccessPlugin.updateRecentNotesWidget` independently capped the stored list at 10. Nothing documented that the two numbers may differ, nothing tested either cap, and the widget factory renders whatever...
-- **platform.ts: `isIOS`/`isMobile` re-evaluated on every call (no caching)**: `isAndroid` caches its result in `_cachedIsAndroid` (evaluates `Capacitor.isNativePlatform` + `getPlatform` + UA sniffing once per process), but `isIOS` and `isMobile` re-evaluate the same signals on every call. In long-running desktop sessions (Tauri) or Android WebView sessions where `syncRecen...
-- **exportNoteHtml: src replacement targets wrong attribute when alt (or other attr) shares the same value as src**: `inlineLocalImages` in `src/export/exportNoteHtml.ts` uses `tag.replace(quotedValue, ...)` which replaces the *first* occurrence of the `src` value in the entire `<img>` tag. If another attribute (e.g. `alt`) contains the same string *before* `src` in the tag, the data URI is written into `alt` i...
-- **Desktop speech-to-text still fabricates a confidence score on every successful transcription**: `speechController.ts`'s `processAudio()` hardcodes `confidence: 0.95` on every `notifyResult` success, so a future real backend's actual per-utterance confidence would be silently overwritten, and the test fixtures carry the same literal 0.95, freezing it into expected behavior. Remove the hardco...
-- **Mermaid: untested async render path and unexported sanitizer**: `src/markdown/mermaid.ts` (added 2026-09-22, commit c3a8b27) wires `renderMermaidToSvg()` into `MarkdownPreview` placeholder-resolution effect, but only the synchronous marked tokenizer/renderer path is covered by `mermaid.smoke.test.ts`.
-- **Search Content-Read Crash**: Search on a large vault crashed with an `OutOfMemoryError`; the code fix (batched file reads, size-aware flushing, binary-file exclusion) landed in main, but the fix is still unverified on a real ~500-note vault.
-- **F-Droid Submission**: Complete a real F-Droid build and submission attempt using the existing draft metadata, and resolve any reproducibility or inclusion-policy findings. Repository-side work is done; the remaining blockers are external (see details).
-- **Additional Desktop Platforms**
-- **F07 Phase 6: General-availability cleanup**
-- **Local speech-to-text dictation**: Add a way to dictate note text by voice instead of typing. Must run entirely on-device: `CONSTITUTION.md`'s "Offline by design" section is an absolute, permanent prohibition on any network call this app makes, not a preference, so a cloud speech API is not an option regardless of accuracy, and im...
-- **Offline, multi-language spellchecking**: Flag misspelled words in the editor using local dictionaries only (e.g. `nspell`), no network call ever, matching the offline-by-design rule. Needs a way to pick a language from bundled or user-supplied dictionary files — never one fetched at runtime.
-- **Accessibility / screen-reader audit**: A focused pass auditing the shipped app against WCAG basics (screen-reader labeling, focus order, keyboard reachability, contrast) across the whole app, not just the `UX-01` visual-system spec's own new primitives. Easy to under-invest in for a small MIT-licensed tool, disproportionately valuable...
-- **Main CI red: `renameExecutor.test.ts` `as any` lint error (regression from `19e88ce`)**: Commit `19e88ce` ("test: pin slash command filter contract + rename integrity tests") introduced `@typescript-eslint/no-explicit-any` error at `src/refactor/renameExecutor.test.ts:705` — `[{ id: "1", kind: "file", label: "test", path: "old.md" } as any]`. CI frontend Lint step fails on this, brea...
-- **Maintenance review: `slashCommandCompletions` crashes the completion overlay with `RangeError` when `context.pos > doc.length`**: `lineAt(context.pos)` throws when position exceeds doc length. Because `slashCommandCompletions` is the first autocomplete source in `MarkdownEditor.tsx`, the throw takes down the entire overlay. Fix: clamp `pos` before `lineAt`.
-- **Capture attachment filenames contain a literal colon and a 15-char (not 19-char) timestamp**: `captureCommit.ts`'s `generateAttachmentFilename` builds the timestamp segment with two `String.replace` calls — each replacing only the first match — so the seconds colon and second decimal dot survive. The resulting filename has a literal colon and a 15-char (not 19-char) timestamp. Fixed by re...
-- **Deep-link `open-note` does not validate `path` against workspace**: `automationCommands.ts` passes the `path` query parameter to `openNote` without workspace containment check. A malicious deep link could target arbitrary files.
-- **`saveCoordinator` state not cleaned up on workspace switch**: Resolved — the current `saveCoordinator.ts` uses a per-session entry map with `resetForSession()`, not the `start()`/`stop()` interval model described in the review.
-- **Android `WRITE_EXTERNAL_STORAGE` permission is broader than needed**: Resolved — the permission does not exist in the current `AndroidManifest.xml`.
-- **Math rendering engine audit: standard, open, offline-capable math renderer**: Obsidian 1.14.1 Desktop (Sept 8, 2026) replaced MathJax 3 and its legacy "Temml" layer with MathJax 4.1.3 for math rendering. Leotheca already renders math with KaTeX (per the completed "Math rendering: confirm/fix the effective default" entry), a well-established open standard; this item is not ...
-- **F07 Phase 2a: pinned-tab state and one-group controls**
-- **F05: Universal quick capture and inbox**
-- **F03 Phase 2b-i: read-only rename-impact Review dialog wired to the two real rename entry points**
-- **F06 Phase 4c: remaining outline accessibility hardening**
-- **Maintenance review: Markdown table-command cursor boundaries**
-- **F04 Phase 5e3: separate Create block link action**
-- **Freehand Phase 2a: InkSurface pointer-input and rendering core**
-- **F04 Phase 5e2: Preview on-block copy-link affordance**
-- **F20 Phase 2b-iii-b: typed transition-state/error model and in-session Retry/Discard UI**
-- **Freehand Phase 1: ink document, stroke-processing math, and edit-history foundation**
-- **F20 Phase 2b-iii-a: recovery actions for an unavailable active profile at startup, and a recent-profiles list when none is active**
-- **F20 Phase 2b-i: relink and access-recovery flow for an unavailable profile**
-- **F20 Phase 2b-ii: active-profile forget via the authoritative no-workspace transition**
-- **F04 Phase 5e1: heading block-ID eligibility and Preview heading anchors**
-- **F20 Phase 2a: profile rename/icon editing, searchable keyboard switcher, and management entry points**
-- **F07 Phase 1: canonical document and primary-group state**
-- **F03 Phase 2a: rename/move reference-rewrite planning engine**
-- **F04 Phase 5d: block-reference DOM rendering hook and Copy block link action**
-- **F04 Phase 5c: cross-note block pre-check**
-- **F04 Phase 5a: cross-note heading pre-check for Preview and Source-mode decoration**
-- **F09 Phase 2: table/card views and in-view frontmatter editing**
-- **F04 Phase 3f: embed Source-mode decoration**
-- **F02 Phase 2: task hub filtering, grouping, and toggle-complete edits**
-- **F20 Phase 1: workspace profile catalog, add/switch/forget, and a minimal switcher**
-- **F04 Phase 4b follow-up 2: per-note embed load timeout**
-- **F04 Phase 4b follow-up: embed recursion edge-case test coverage**
-- **F04 Phase 4b: embed recursion depth, cycle detection, and instance/byte budgets**
-- **F04 Phase 3e: multi-line list-item/blockquote block-reference continuation**
-- **Audit follow-up F-004: Enforce workspace containment and mutation semantics at the native boundary**
-- **Audit follow-up N-002: Prevent stale file-open completions**
-- **F04 Phase 3d: fenced code block references**
-- **F04 Phase 3c: Source-mode block-link decoration and autocomplete**
-- **F06 Phase 3: F04-dependent copy/insert heading-link actions**
-- **F09 Phase 1: read-only smart collections list view**
-- **F04 Phase 3b: single-line list-item and blockquote block references**
-- **F04 Phase 4a: read-only whole-note and heading/block-section embeds**
-- **F04 Phase 3a: paragraph block-reference resolution and navigation**
-- **F04 Phase 2: Source-mode heading-link decorations and autocomplete**
-- **F03 Phase 1: read-only link-integrity diagnostics**
-- **F04 Phase 1: heading-link parser, resolution, and Preview navigation**
-- **F02 Phase 1: shared task scanner and read-only workspace Task Hub**
-- **Audit follow-up F-008: Runtime-decode persisted workspace data without destructive recovery**
-- **F06 Phase 4b: outline/breadcrumb compact touch-target and focus-visible hardening**
-- **F06 Phase 4a: Large-outline virtualization**
-- **F11 Phase 1: Visual Markdown table parser and serializer**
-- **F06 Phase 2c: Split-mode breadcrumb authority**
-- **F06 Phase 2b: Preview-mode breadcrumb tracking**
-- **F06 Phase 2a: heading breadcrumbs driven by Source-mode cursor position**
-- **F06 Phase 1: shared heading scanner and read-only note outline**
-- **Audit follow-up F-010: Define a lossless canvas document and reference contract**
-- **Audit follow-up F-015: Establish one release-version source of truth**
-- **Audit follow-up F-014: Make one same-commit validation gate authoritative**
-- **Audit follow-up N-004: Contain local Markdown attachment reads**
-- **Audit follow-up N-005: Bound Markdown attachment resolution concurrency**
-- **Audit follow-up F-009: Preserve frontmatter semantics during property edits**
-- **Audit follow-up F-006: Give search requests explicit ownership**
-- **Audit follow-up F-013: Measure and bound graph layout work**
-- **Audit follow-up N-001/N-003: Make workspace transitions authoritative**
-- **Codebase Audit Recommendations: Android URI Cache Invalidation (F-007)**
-- **Codebase Audit Recommendations: Settings Hydration and Write Ordering (F-002)**
-- **Codebase Audit Recommendations: Workspace Session Identity (F-001)**
-- **Audit follow-up F-012: Make link-index cache freshness and failures explicit**
-- **Freehand Phase 2b: standalone drawing-note integration and gesture tools**
-- **Freehand Phase 2b-a: InkSurface eraser-input bridge**
-- **Maintenance review: InkSurface pointer lifecycle and mouse-button handling**
-- **F03 Phase 2b-ii: Markdown-style link/image migration in the rename preview**
-- **F03 Phase 2b remainder: application-metadata migration, the Apply/journal/rollback step, and folder operations**
-- **Fullscreen zoom viewer Phase 1: Preview-local image overlay**
-- **Highlight colors in the editor and preview**: Market Solution #2 1.14.0 Desktop (Aug 2, 2026) added color highlights: a color emoji (🔴, 🟠, 🟢, 🔵, 🟣) at the start of an existing `==highlight==` changes its color, a formatting submenu offers a picker, typing `==` suggests colors, and Live Preview shows a clickable inline swatch when the cursor ...
-- **Outline and backlink views for externally opened files**: Obsidian 1.14.4 Desktop (Oct 1, 2026) made the Outline and Outgoing links views work for files opened from outside the vault, completing the "Open file from outside the vault" flow (already implemented) by giving externally opened notes the same structure and link analysis that vault-internal not...
-- **Full-path search and folder exclusion in file-explorer, bookmarks, and outline views**: Obsidian 1.14.4 Desktop (Oct 1, 2026) added path-level filtering to File Explorer, Bookmarks, and Outline search — `-Archive` hides a folder and everything inside it. Complements existing full-text note search. (Competitor scan, Obsidian changelog 1.14.4 Desktop, 2026-10-01)
-- **Increase font size / Decrease font size commands**: Obsidian 1.14.3 Desktop (Sept 29, 2026) added "Increase font size" and "Decrease font size" commands that zoom the editor text, a switchable command-based text-size control that is pure local rendering state — plain files, nothing proprietary, standing on the existing command palette rather than ...
-- **Android Widget Split**
-- **Android Widget "new note" cold-start delay**
-- **Android Home-Screen Widgets**
-- **E2E Playwright harness hardcodes `/usr/bin/chromium`, absent on this project's own Claude Code cloud sandboxes**: `tests/ui/leotheca_e2e_test.py` launches Chromium with a hardcoded `executable_path="/usr/bin/chromium"`, which does not exist in this repository's own Claude Code cloud sandbox, so the suite fails before any test runs.
-- **documentation/ARCHITECTURE.md still describes the deleted note read-only lock feature**: Commit `c5e0710` ("Remove note read-only lock feature") deleted `src/editor/noteReadOnly.ts` and every `readOnly`/lock-bar wiring, but `documentation/ARCHITECTURE.md`'s `editor/` module-map section still has a standalone paragraph describing that file's (nonexistent) lock helper and its (removed)...
-- **Desktop "Open file from outside the vault" can never actually read an external file**: `read_text_file`/`read_binary_file` reject any path outside the active workspace root and app config directory (2026-09-22 security review). Both triggers of the external-open feature -- the OS file-association launch and the in-app picker -- fetched content through exactly that gated command, wh...
-- **Main CI red: `tests/ui/tauriMock.js` parse error (regression from `fe2ff2f`)**: Commit `fe2ff2f` ("test(e2e): add Playwright E2E test suite (27 tests)") added `tests/ui/tauriMock.js`, whose outer `` const TAURI_MOCK_JS = `...`; `` template literal contains unescaped literal backticks inside its embedded Markdown fixture content (a ` ```js ` code fence), prematurely terminati...
-- **Open files from outside the vault from within an open app**: Obsidian 1.14.2 Desktop ships two new entry points on top of the already-implemented OS file-association "Open with" default-app registration: an in-app command ("Open file from outside the vault...") to pick any file on the computer and view it in the current window, and first-class OS default-a...
-- **`Open in other group` silently fails to move an already-open tab when `activeGroupId` is stale**: `moveTabToGroup` looks up the tab's source group via `layout.activeGroupId`, not via which group's `tabPaths` actually contains the path, so it silently no-ops when the two disagree -- a race `openInOtherGroup`'s own doc comment already discloses for its `sourceGroupId` resolution, but never fixe...
-- **Kanban board groups a property's values case-sensitively, fragmenting one category into several columns**: `groupKanbanColumns` keys a board column by the raw property value, so notes whose frontmatter capitalizes the same value differently (`Work` vs `work` vs `WORK`) land in separate columns instead of one, unlike this module's own filter/sort comparisons, which already fold case.
-- **Filling in a blank frontmatter property writes invalid YAML (`key:value`, no space)**: The Properties panel's scalar update writes a new value at the exact zero-width position right after the colon for a field that had no value at all (a bare `key:` line), so the result is `key:value` instead of `key: value` -- not valid YAML block-mapping syntax, and a real YAML parser would then ...
-- **Rename rollback silently corrupts a note with two edits to the same renamed target**: A failed rename's rollback restores each wikilink/markdown-link edit at its *original* pre-rename offset in `renameExecutor.ts`. When a note references the renamed note more than once, an earlier edit's length-changing replacement text shifts every later edit's real position, so rollback silently...
-- **Search: hidden dotfiles with no other extension are never content-searched**: `isTextFile` in `src/workspace/types.ts` treats a basename whose *only* dot is the leading one (`.gitignore`, `.env`, `.npmrc`, `.editorconfig`) as having extension `""`, then checks `!!ext && TEXT_EXTENSIONS.has(ext)`, which is always `false` for an empty string — so these files are classified a...
-- **Maintenance review: `==highlight==` syntax (rm-c2a2c2d840b60a2e) dual-surface parity**: Bounded review of the just-landed `==highlight==` feature: confirm Preview and editor rendering stay in lockstep on boundary cases, sanitization holds, and theming is complete.
-- **Colored text highlights via `==` syntax with emoji color codes**: `==text==` now renders as `<mark>` in both the CodeMirror editor (live-preview decoration) and the Preview pane, following Obsidian v1.14.0's own convention: a leading color emoji (🔴🟠🟢🔵🟣) inside the highlight sets its color via a CSS class. The interactive formatting-submenu UI for picking a colo...
-- **`resetForSession` leaves a permanent zombie entry when an in-flight write is in progress**: When `resetForSession` is called while a session has an in-flight write, the entry is deliberately kept in the `entries` map (`if (!entry.inFlight) entries.delete(key)`). But once that in-flight write's `finally` block runs, it sets `inFlight = false` and calls `resolveWaiters(entry)` — it never ...
-- **Asset protocol scope allows reading any local file via `asset://`**: `tauri.conf.json`'s `assetProtocol.scope` is `["**"]`, and a bare `**` glob matches any absolute path, not just the app resource directory. Combined with any future XSS, `asset://`/`convertFileSrc` could read any file the desktop process can read. A 2026-09-22 maintenance pass mismarked this `don...
-- **exportNoteHtml: standalone export leaves an `<img>` un-inlined when an attribute value before `src` contains a `>`**: `inlineLocalImages` in `src/export/exportNoteHtml.ts` finds each image tag with `/<img\b[^>]*>/gi`. `[^>]*` stops at the *first* `>`, which is legal inside a quoted attribute value, so when an attribute before `src` (e.g. `alt="a > b"`) contains a `>`, the tag match is truncated before `src` and ...
-- **Deferred CI confirmation: hosted runs for landed security fixes e2753ca (rm-dfd60513a2eb352c) and c4fbf82 (rm-60f748cb1a58be89) were in-progress at landing and have not been closed out.**
-- **TagsPanel: unhandled promise rejection when `onOpenFile` fails**: Last panel missing the `onOpenFile` error-handling pattern. A read failure in `openNote` produced an unhandled rejection with no user-visible feedback — inconsistent with all other note-opening panels.
-- **Local Automation Commands**
-- **F-Droid submission-verify workflow: stale pre-F015 version/commit pins**: `.github/workflows/fdroid-submission-verify.yml` and `packaging/f-droid/README.md` still hardcode the pre-F015 `v1.0.0` commit/`versionCode 1`/`versionName 1.0`/`..._1.apk`, but the metadata was correctly updated by F-015 to `v0.1.0`/`100`/`"0.1.0"`. The workflow's metadata-pin `grep` can never m...
-- **`open-note` automation command (Android favorites-list widget cold start) silently drops the request when it races ahead of settings restoration**: `App.tsx`'s `runAutomationUrl` `open-note` branch checks `workspacePath.value` without first awaiting `waitForSettingsLoaded()`, so a widget cold start that resolves before `initSettings()` finishes restoring the workspace silently no-ops and never opens the note. The identical `new-note` branch ...
-- **Smart Collections board view: folder-grouped kanban with card move and note creation**: The existing read-only Smart Collections board view (grouped by a single frontmatter property) could be extended to support grouping by `file.folder` (the note's containing directory), with two additional capabilities from the Obsidian 1.14.2 Bases Kanban precedent: (1) dragging a card into a dif...
-- **Unscoped native fs commands: siblings of the write_text_file fix still accept arbitrary paths**: `commands.rs`'s `read_text_file`, `read_binary_file`, `read_text_files_batch`, `find_markdown_files`, `find_all_files`, `find_all_entries`, `workspace_stats`, `create_dir`, `rename_path`, and `delete_path_permanent` call the filesystem directly on a caller-supplied path with zero containment, the...
-- **Maintenance review: proactive trust-boundary checks for path/URI-accepting native commands**: Following the `write_text_file`/`write_binary_file` containment fix (`rm-dfd60513a2eb352c`) and the sibling gap it left (seeded above), add guidance to `skills/change-quality-gates.md` and `skills/maintenance-review.md` so an unscoped path/URI-accepting command is caught proactively, not only by ...
-- **Unscoped `write_text_file` commands accept arbitrary paths**: `commands.rs` exposes `write_text_file` and `write_binary_file` as Tauri commands with no workspace containment. A compromised webview could overwrite any file the process user can write to.
-- **Whiteboard: double-click empty canvas to create a new note card**: The existing Whiteboard/Canvas (implemented) supports movable cards and file-reference cards, but has no documented or tested double-click-to-add-note gesture. Adding it is a standard canvas interaction pattern (the "shoulders of giants" principle) that lets a user create a new note card on the c...
-- **Add `foreignObject` injection regression test for Mermaid sanitizer**: DOMPurify's default profile blocks `foreignObject`, but no test explicitly verifies this against malicious Mermaid source.
-- **Export/Print: `inlineLocalImages` re-serializes the whole note through `DOMParser` and restructures its markup (spurious `<p>`, injected `<tbody>`, repaired tags) in every HTML export**
-- **Spellcheck: do not flag words inside URLs embedded in prose**: `lintSource` only skipped lines that are entirely a URL, so URLs inside prose got their words flagged as misspellings.
-- **Offline spellchecking silently dead if first lint pass runs before dictionary loads**: `spellCheckExtension` (in `src/spellcheck/spellCheck.ts`) caches its first `null` checker result permanently. If the linter's first pass fires before the dictionary-load effect resolves, spellchecking stays dead for the view's whole lifetime — no error shown.
-- **Export a note to standalone HTML (desktop)**: Phase 2 of the split below. No way currently exists to export a note as a standalone `.html` file for sharing with people who don't have Leotheca. Reuse Phase 1's print-document scaffold; unlike printing, attachment images need `data:` URIs instead of the app's internal `asset://` URLs, and the s...
-- **Print the active note (desktop)**: No way currently exists to print a note or save it as a PDF via the OS print dialog. Phase 1 of the "export/print" work (split below): add a "Print note" command on desktop that reuses the already-rendered Preview pane's HTML for the current note, rather than a second Markdown-to-HTML pipeline, a...
-- **Capture attachment filename retains a colon and uses UTC instead of local time**: `src/capture/captureCommit.ts`'s `generateAttachmentFilename` (line 122) and `createNoteWithTitle`'s timestamp (line 331) both use `new Date().toISOString().replace(":", "-")` which only replaces the **first** colon, leaving the second one intact. Result: filenames like `capture-2026-09-21-17-24:...
-- **UX-01: Visual system and adaptive UX refresh**
-- **`saveCoordinator.flush()` bumps the revision before writing, creating a phantom unsaved-work state after every flush**: `src/workspace/saveCoordinator.ts`'s `flush(session, path)` — the explicit "force-write the current content now" path used by `App.tsx` (flushPendingAutosave before close/rename/copy), `taskMutation.ts` (Task Hub toggle), and `CollectionsPanel.tsx` (collection add) — calls `const revision = ++ent...
-- **Unify the standalone ImageViewer's zoom buttons with the preview-local overlay's**: `ImageViewer.tsx` and `ImageViewerOverlay.tsx` are two independent components for the same zoom feature whose button styling drifted apart in `src/app/App.css`; the standalone viewer also lacks the close button its overlay counterpart has. Details, acceptance criteria, and scope in the drill-down.
-- **Render Mermaid diagrams in Preview**: Render fenced `mermaid` code blocks as flowcharts, sequence diagrams, etc. via `mermaid.js`, bundled and rendered fully client-side, no network call. A widely adopted Markdown convention (Obsidian, GitHub) worth adopting rather than inventing a competing diagram syntax.
-- **Automatically fix wikilinks when a note is renamed**: Today a rename only shows a read-only preview (F03) of which `[[wikilinks]]` would break; nothing ever applies the fix, so they go stale. `renameExecutor.ts`'s `executeRenameOperation`/rollback engine already exists, is tested, and is correct (`rm-b8b4267f997dc1e8`) but has zero callers — wire it...
-- **Slash commands in the editor (`/table`, `/task`, `/heading`, …)**: Typing `/` at the start of a line opens a quick-insert menu for common Markdown constructs, complementing the existing Command Palette rather than duplicating it — the palette is for app-wide actions, this is for inline content insertion while typing.
-- **Workspace health check: broken links, duplicates, orphans — with one-click fixes**: Extend the existing Settings > Health section (today: broken/missing-heading/ambiguous-heading wikilinks only) into a fuller workspace audit — duplicate/near-duplicate notes, orphaned notes with no links in or out, empty notes, broken image references — shown as a scannable dashboard (grouped cou...
-- **Custom CSS snippets / theme overrides**: Let a user drop their own CSS file into the workspace (e.g. under `.leotheca/`) and have Leotheca load it, so they can restyle the app without a full plugin/extension system. A smaller, safer step than the "Compatibility Layer" item above — user-authored CSS only, no third-party code execution.
-- **Main CI red: `FileTree.test.tsx` uses `as any` casts on `mockWorkspaceSettings.sortOrder`**
-- **Configurable file tree sort order**: Let a user choose how the file tree sorts entries — alphabetical, last modified, or manual drag-and-drop ordering — instead of one fixed order today.
-- **Fix 6 pre-existing test failures in App.test.tsx and PdfViewer.test.tsx**: `App.test.tsx` has 2 failures from a `getPendingShareData` mock setup issue, and `PdfViewer.test.tsx` has 4 failures because canvas overlay computation was tightly coupled to the canvas render effect, so overlays went stale/empty in test environments where `canvas.getContext("2d")` yields no usab...
-- **Keyboard-only navigation for the file tree**: Arrow keys to move between entries, Enter/Right to open or expand a folder, Left to collapse, without touching the mouse. A small, self-contained companion to the keyboard-driven Command Palette.
-- **Table editing helpers**: Raw Markdown tables are tedious to hand-edit. Add lightweight editor helpers — insert/delete row or column, auto-align `|` columns — without a full WYSIWYG table-block rewrite.
-- **Note Graph: a git-log-style, time-ordered graph view**: A second graph view, alongside the existing force-directed one, laying notes out chronologically (newest at top) in lanes by folder or tag — like `git log --graph` — with wikilinks drawn as curves between notes and a bigger dot for a note many others link to. Aimed at vaults where the existing fo...
-- **Footnote support (`[^1]`) in Preview**: Render Markdown footnote references and their definitions in Preview; currently unsupported. A standard Markdown extension that `marked` (already in use) supports via a plugin.
-- **Maintenance review: `folder is-under-folder` excludes notes directly inside the target folder**: `evaluatePathLike` in `src/collections/collectionQuery.ts` requires a note's folder to be a strict subfolder of the target for `is-under-folder` to match, so a note whose folder *is* the target folder exactly is wrongly excluded, and its negation `is-not-under-folder` then wrongly matches that sa...
-- **Maintenance review: heading-link copy failure is silently swallowed**: `HeadingLinkActions.tsx`'s `handleCopy` has no `try`/`catch` around its clipboard write, so a rejected `navigator.clipboard.writeText` becomes an unhandled promise rejection and the button silently stays "Copy link" with no screen-reader feedback.
-- **Maintenance review: a fingerprint-mismatched capture attachment is never deleted, leaving an orphaned file on disk**: `captureCommit.ts`'s `copyAttachmentsToWorkspace` re-verifies each copy's fingerprint; on a mismatch it skips referencing the attachment, but the cleanup `try` block meant to delete the corrupted destination file was empty (comments only), so the stray file was left permanently in the workspace.
-- **External-file scratch view silently swallows a failed "Open containing folder as a workspace"**: When an OS-file-association note resolves outside the workspace, its scratch view's "Open containing folder as a workspace" button called `addWorkspaceFromPath`, which rethrows on failure; the click handler had no `catch`, so the rejection went unhandled and the dialog silently reverted to normal...
-- **Open a Markdown file from outside the workspace via OS file association**: A user can now open any `.md` file directly from their file manager or another app -- Leotheca registers itself as a desktop OS "Open with"/default-app option for Markdown files and handles the launch whether or not the file's folder is a currently open workspace.
-- **Maintenance review: the Rename Preview dialog never opens for a rename whose only pending references are Markdown-style links**: `useRenamePreview.ts`'s gate for showing the Review dialog checks only wikilink fields, never `plan.markdownEdits`/`plan.markdownBlocked`, so a rename whose plan has only Markdown-link edits shows no dialog at all. Reproduced with a `renderHook` test.
-- **Maintenance review: `documentation/ARCHITECTURE.md`'s frontend module map has no `editorGroups/` row and a stale split-pane placeholder sentence**: The `editorGroups/` directory (landed via F07 Phases 3-5) has no row in the module-map table, and the `workspace/` row still carries a pre-implementation placeholder sentence about split panes that was never updated.
-- **Maintenance review: `PdfViewer.tsx`'s shape-drag draft never clears if the drag is interrupted (no `pointercancel` handling)**: only `onPointerUp` finishes a Square/Circle/Line drag, so an interrupted gesture leaves the in-progress shape preview stuck on screen. Same defect class already fixed twice elsewhere (`CanvasView.tsx`, `SplitSeparator.tsx`), not applied here.
-- **Maintenance review: `SplitSeparator`'s drag never recovers from a lost pointer (no `pointercancel` handling)**: only `pointerup` clears its dragging flag, so a drag interrupted by an OS/browser context switch, multi-touch conflict, or the tab losing focus leaves it stuck; the next unrelated pointer move anywhere on the page keeps silently resizing the split ratio. Same defect class already fixed in `Canvas...
-- **Maintenance review: Ctrl/Cmd-click "open in other group" on an image link opens it into the pane it was clicked in, when that pane isn't yet active**: `openInOtherGroup` resolves "other" from the global `activeGroupId`, read synchronously for an image target; a click's own focus-group side effect only runs later in the same bubble phase, so the image opens into the very pane it was clicked in instead of the other one.
-- **Maintenance review: opening or moving a note into the secondary editor group leaves the compact/narrow-viewport switcher pointed at primary, hiding the note just opened**: `createSplitLayout`, `moveTabToGroup`, and `openInOtherGroup`'s new-tab branch set `activeGroupId` to the group a note was just deliberately opened/moved into, but never update `compactVisibleGroupId` to match, so on a narrow window or Android (viewport <= 720px) the visible pane silently stays p...
-- **Maintenance review: `PdfViewer.tsx`'s Save annotations silently discards any annotation drawn while a previous save is still in flight**: `handleSave`'s success path unconditionally resets every pending-annotation array to empty instead of removing only what that save wrote; nothing disables drawing while `saving` is true, so a new highlight/stroke/note/shape added during an in-flight save is silently lost the instant it completes.
-- **Speech-to-text dictation should be opt-in, off by default, and never touch the microphone/speech APIs until enabled**: `SpeechRecognitionButton` renders unconditionally in the toolbar for every open text note, with no workspace setting gating it at all; its mount effect immediately calls the platform speech-availability check, which on Android reaches the native plugin regardless of whether the user has ever expr...
-- **PDF Phase 2: Freehand ink, sticky notes, and shapes for scanned PDFs**
-- **PDF Phase 1: View PDFs and annotate the real text layer**
-- **F07 Phase 4: Compact layout and Android group switching**
-- **F07 Phase 5: Route feature opens and F03 rename through `OpenNoteRequest`**
-- **F07 Phase 3 follow-up: cross-group tab reordering and view-state preservation**
-- **F07 Phase 3: Secondary group UI on desktop**
-- **Maintenance review: the Markdown table toolbar's column/row commands use a strict `<` boundary against each cell's exclusive `sourceTo`, so a cursor resting immediately after a cell's trimmed text — the ordinary position right after typing or clicking a word, before any trailing padding space and the delimiter pipe — falls outside every detected cell/row range**: `src/markdown/tableCommands.ts`'s `columnAt` and `bodyRowAt` both test `cursor < (cell.sourceTo ?? 0)` (an exclusive/half-open interval) against `tables.ts`'s `TableCell.sourceTo`, which is itself documented as the position right *after* the last trimmed character of a cell (i.e. before any trail...
-- **Maintenance review: a failed note autosave gives no visible indication at all — the error-tracking machinery exists but was never wired to any rendered UI**: `workspace/saveCoordinator.ts`'s `writeRevision` already records a failed write's error message (`entry.lastError`) and invokes an `onError` callback; `App.tsx` wires that callback to `markTabSaveError(path, error)`, which sets `OpenDocument.saveError` (`workspace/store.ts`/`types.ts`), whose own...
-- **Maintenance review: `automationCommands.ts`'s `leotheca://capture` payload size check measures JavaScript UTF-16 string length instead of the spec-mandated UTF-8 byte size, letting oversized multi-byte captures bypass the 32 KiB limit**: `parseAutomationUrl`'s `capture` case computed `payloadSize` as `text.length + (title?.length ?? 0) + (url?.length ?? 0)`, but `spec/f05-universal-quick-capture-inbox.md` section 5.2 documents `text` as a UTF-8 capture body and its 32 KiB limit in bytes, not UTF-16 code units. JS string `.length`...
-- **Maintenance review: `metadataMigrator.ts`'s `editorLayoutMigrator` never migrates a renamed/moved note's `pinnedPaths` on either editor group, nor anything at all in the F07 split-view `secondary` group, leaving stale path references behind after a rename**: `editorLayoutMigrator.migrate` (invoked live from `renameExecutor.ts`'s `executeRenameOperation` → `createMetadataMigrationPlan`) only rewrote `layout.groups.primary.tabPaths` and `.activePath`; it never touched `primary.pinnedPaths`, and never touched `layout.groups.secondary` (tabPaths, activeP...
-- **Maintenance review: clicking a file tree entry or a sidebar search result whose file can no longer be read fails completely silently (unhandled promise rejection, no user-visible error)**: Same defect class already fixed in `BacklinksPanel.tsx`, `DiagnosticsPanel.tsx`, `BookmarksPanel.tsx`, `GraphView.tsx`, `CanvasView.tsx`, `TaskHubPanel.tsx`, and every `CollectionResults.tsx` view mode, found in the two remaining unguarded call sites: `FileTree.tsx`'s `FileTreeNode.handleClick` (...
-- **Maintenance review: opening a note from a Smart Collection result (List, Table, Card, or Board view) whose file can no longer be read fails completely silently (unhandled promise rejection, no user-visible error)**: Same defect class already fixed in `BacklinksPanel.tsx`, `DiagnosticsPanel.tsx`, `BookmarksPanel.tsx`, `GraphView.tsx`, `CanvasView.tsx`, and `TaskHubPanel.tsx`, found in a component none of those entries' own scope notes covered (Collections was explicitly out of scope for the earlier ones). `Co...
-- **Maintenance review: clicking a Task Hub task whose source note can no longer be read fails completely silently (unhandled promise rejection, no user-visible error)**: Same defect class already fixed in `BacklinksPanel.tsx`, `DiagnosticsPanel.tsx`, `BookmarksPanel.tsx`, `GraphView.tsx`, and `CanvasView.tsx`, found in a component none of those entries' own scope notes covered. `TaskHubPanel.tsx`'s `handleSelect` did `await onOpenFile(entry.path, entry.noteTitle)...
-- **Maintenance review: the Rename Preview dialog's suggested Markdown-link rewrite (F03 Phase 2b-ii) almost always drops the `.md` extension, and adds a wrong extra `../` when the referring note sits above the renamed note's new folder**: `renamePlan.ts`'s `computeRelativePath(fromPath, toPath)` builds the suggested new relative target shown next to every `[label](target)`/`![alt](target)` entry in `plan.markdownEdits`. Its "same directory" branch (`if (fromDir === toDir) return toBasename;`) and its "common ancestor" fallback bra...
-- **Maintenance review: `InkView.tsx` uses its own dead-end, non-tolerant document decoder instead of the properly designed one in `inkDocument.ts`, silently discarding all strokes when a `.ink` file's JSON shape deviates even slightly**: `InkView.tsx` only imports *types* from `./inkDocument` and defines local `decodeInkDocument`/`encodeInkDocument` functions instead of using the real, tolerant `decodeInkDocument`/`serializeInkDocument`/`createEmptyInkDocument` already exported from `inkDocument.ts` (whose own doc comment says it...
-- **Maintenance review: pending captures (external deep-links with no workspace open, and Android share-intent text/images) auto-commit to disk the instant any workspace becomes available, completely bypassing the mandatory review step**: `spec/f05-universal-quick-capture-inbox.md` requires review before commit for exactly this class of data — **F05-FR-03** ("External deep-link captures shall require user review before writing"), acceptance criterion 7 ("A deep link cannot supply an absolute destination path or silently commit"), ...
-- **Maintenance review: Android speech-to-text never actually starts the native `SpeechRecognizer`, so tapping the dictation button is a silent no-op on a real device**: `SpeechController.start()` (`src/speech/speechController.ts`)'s Android branch does `this.setState('recording')` with a comment claiming "recognition is already started via the bridge", but nothing ever starts it: `initSpeechRecognition()` (`speechBridgeImpl.ts`) only calls `isAndroidOfflineSuppo...
-- **Maintenance review: `GraphView`'s and `CanvasView`'s open-file clicks are fire-and-forget, so a stale node/card silently does nothing instead of showing an error**: Same defect class already fixed in `BacklinksPanel.tsx` (`rm-55caa3027a3d3b57`), `DiagnosticsPanel.tsx` (`rm-bd33bc27fac212c4`), and `BookmarksPanel.tsx` (`rm-185aa9efc415b9eb`), found in two call sites those entries' own "out of scope" notes did not cover (only `TagsPanel.tsx`/`CollectionsPanel....
-- **Maintenance review: clicking a backlink whose source note can no longer be read fails completely silently (unhandled promise rejection, no user-visible error)**: `linking/BacklinksPanel.tsx`'s `onClick={() => onOpenFile(backlinkPath, fileNameFromPath(backlinkPath))}` calls its `onOpenFile` prop (typed `(path: string, name: string) => void`) directly, without awaiting or catching it, but `App.tsx` passes its own `handleOpenFile` straight through as this pr...
-- **Maintenance review: clicking a Health/Link-Diagnostics finding whose source note can no longer be read fails completely silently (unhandled promise rejection, Settings modal stays open with no feedback)**: `diagnostics/DiagnosticsPanel.tsx`'s `handleSelect` does `await onOpenFile(diagnostic.sourcePath, title)` with no `try`/`catch`, called from `onClick={() => void handleSelect(diagnostic)}`, which discards the returned promise. `settings/SettingsPanel.tsx` passes its own `handleSelectDiagnostic` (...
-- **Maintenance review: clicking a bookmark whose target file can no longer be read fails completely silently (unhandled promise rejection, no user-visible error)**: `BookmarksPanel.tsx`'s file-bookmark `onClick` calls `onOpenFile(bookmark.path, fileName(bookmark.path))` (typed `(path, name) => void`) without awaiting or catching it, but `App.tsx` passes `handleOpenFile` directly as that prop, and `handleOpenFile` is `async`: it `await readTextFile(path)`s an...
-- **Maintenance review: `src/editor/DebouncedMarkdownPreview.tsx` and `src/editor/hooks.ts` are orphaned dead code from the same `4ed67ae`/`0a0d346` "feat(performance)" commit series as the already-removed `memoryOptimizations.ts`, `markdownWorker.ts`, `searchIndex.ts`, and `VirtualizedFileTree.tsx`**: `DebouncedMarkdownPreview.tsx` exports a `DebouncedMarkdownPreview` component whose own doc comment says to "use instead of MarkdownPreview for live preview during typing," and `hooks.ts` exports `useDebounce`, `useThrottle`, `useMemoize`, `usePrevious`, and `usePerformanceTimer`. A repo-wide gre...
-- **Maintenance review: Smart Collections writes can race and silently drop a collection create/edit/delete from disk when two mutations overlap**: `src/collections/collectionStore.ts`'s `saveCollections` has the identical unserialized-write defect this session already fixed in `src/bookmarks/store.ts` -- unsurprising, since this file's own top-of-file comment says it follows "bookmarks/store.ts's established shape for a saved, persisted, wo...
-- **Maintenance review: Bookmarks/Favorites writes can race and silently drop a bookmark from disk when two mutations overlap**: `src/bookmarks/store.ts`'s `saveBookmarks` reads `bookmarks.value` and calls `writeWorkspaceTextFile` immediately and independently on every call, with no serialization at all between overlapping calls -- unlike this codebase's own established pattern for exactly this class of problem in `src/set...
-- **Maintenance review: `appendToInboxNote` silently discards a capture's existing inbox-note content when the append write fails but a later write attempt succeeds**: `src/capture/captureCommit.ts`'s `appendToInboxNote` wraps both the initial `readTextFile` (used to detect "file doesn't exist, create it fresh") and the actual append `writeTextFile` call in the same `try`; its single `catch` block treats *any* error from either call as "the file doesn't exist" ...
-- **The "new-note" automation command (Android home-screen widget cold start) silently drops the request when it races ahead of workspace/settings restoration**: Maintenance-review finding. `App.tsx`'s mount effect kicks off `initSettings()` (async: reads `config.json`, restores SAF/native workspace access, loads `workspaceSettings`, may `readTextFile` the last-active tab) and, independently in a second effect with its own async dispatch (`CapacitorApp.ge...
-- **Maintenance review: Canvas card dragging never recovers from a lost pointer capture (no `pointercancel` handling), so an unrelated later mouse move can silently reposition and persist a stale card's coordinates**: `src/canvas/CanvasView.tsx`'s drag implementation sets `drag` state on `pointerdown` (on `.canvas-card-actions`, via `setPointerCapture`) and only ever clears it on `.canvas-viewport`'s `onPointerUp`; there is no `onPointerCancel` handler anywhere in the file (confirmed by grep: zero matches for ...
-- **Maintenance review: Smart Collections' string/path negation operators (`is-not`, `does-not-contain`, `is-not-under-folder`) fail open (match everything) instead of fail closed when a clause's comparison value is missing**: `src/collections/collectionQuery.ts`'s `evaluateStringLike`/`evaluatePathLike` return `true` for these three operators whenever `target === undefined` (no `value` on the clause), e.g. `is-not`: `return target === undefined || folded !== fold(target);`. Confirmed by execution: a clause `{type:"cla...
-- **Maintenance review: `InkView`'s Undo/Redo toolbar buttons never persist the reverted document, so an undone/redone stroke silently reappears on reload**: `src/ink/InkView.tsx`'s `handleUndo`/`handleRedo` call `setHistory`/`setDocument` but, unlike this same component's `handleCommitStroke`/`handleEraseAt`, never call the `onChange` prop (the component's only path to `App.tsx`'s `handleChange`/save pipeline). Confirmed by execution: drawing one str...
-- **Maintenance review: `src/workspace/searchIndex.ts` and `src/workspace/VirtualizedFileTree.tsx` are fully orphaned dead code from the same `4ed67ae`/`0a0d346` "feat(performance)" commit series as the already-removed `memoryOptimizations.ts` and `markdownWorker.ts`**: `searchIndex.ts` (376 lines) exports `buildSearchIndex`, `updateFileInIndex`, `removeFileFromSearchIndex`, `clearSearchIndex`, `searchIndexed`, `hasValidSearchIndex`, `getSearchIndexStatus`, and the `searchIndex`/`indexBuilding`/`indexBuildProgress` signals; `VirtualizedFileTree.tsx` (317 lines) ...
-- **Maintenance review: `renameExecutor.ts`'s Apply and rollback steps corrupt note content whenever a rename's wikilink edits share a file or the renamed basename changes length**: `executeRenameOperation`'s wikilink-update step (F03 Phase 2b remainder, `rm-eab533a0187dc044`, marked `✅` "done" but never wired to any UI — confirmed by a repo-wide grep for `executeRenameOperation`/`renameExecutor` outside the module and its own test file: zero callers) has two distinct, prova...
-- **Maintenance review: `src/workspace/markdownWorker.ts`/`public/markdownWorker.js` are fully orphaned dead code from the same commit series as the just-removed `memoryOptimizations.ts`, and the pool manager also has an inverted "available worker" check**: `src/workspace/markdownWorker.ts` (added by the same `4ed67ae`/`0a0d346` "feat(performance)" commit series as `memoryOptimizations.ts`, fixed under `rm-44e5ff0e260a72e9`) exports `getMarkdownWorkerPool`, `parseMarkdownInWorker`, `extractHeadingsInWorker`, and the `useMarkdownWorker` hook, none of...
-- **Maintenance review: orphaned `memoryOptimizations.ts` self-starts a global interval and touches `window` unconditionally at import time, and is mis-classified as a worker file in ESLint config**: `src/workspace/memoryOptimizations.ts` (added by `4ed67ae`/`0a0d346`, "feat(performance)") exports `LRUCache`, `WeakRefCache`, `StringInterner`, `MemoryMonitor`, `BatchProcessor`, and `createWeakEventHandler`, but nothing in `src/`, `src-tauri/`, `android/`, `spec/`, or `documentation/` imports o...
-- **`headings.ts`/`tasks.ts`/`blocks.ts`'s shared HTML-comment guard treats any line merely *containing* `<!--` as a block-level HTML comment, silently hiding real headings/tasks/blocks that have a trailing inline comment**: Maintenance-review finding. All three structural scanners copy the same preamble (`headings.ts` is the documented origin; `tasks.ts`/`blocks.ts`'s own doc comments say they skip comments "the same way headings.ts already does"): `const commentStart = line.text.indexOf("<!--"); if (commentStart !=...
-- **`extractInlineTags`'s `INLINE_TAG_PATTERN`/`isTagBoundary` are ASCII-only, silently truncating or dropping non-ASCII `#tag` names and breaking `extractTags`'s own case-insensitive de-duplication promise**: Maintenance-review finding in `src/tags/tags.ts`. `INLINE_TAG_PATTERN` (`/#(\w[\w-]*(?:\/\w[\w-]*)*)/g`) and `isTagBoundary`'s `/[\w#/]/` check both use plain (non-`u`-flagged) `\w`, which in JavaScript only matches ASCII `[A-Za-z0-9_]`; any non-ASCII letter is invisible to it. Confirmed by execu...
-- **`scanBlocks`'s setext-underline guard falls through to the paragraph accumulator when nothing precedes it, absorbing a bare `---`/`===` line into the next block's content**: Maintenance-review finding in `src/markdown/blocks.ts`'s `scanBlocks` (the F04 block-ID/block-link scanner). The setext guard at the line matching `SETEXT_RE.test(line.text)` only fires `paragraphLines.pop(); flushParagraph(); continue;` when `paragraphLines.length > 0`; when it is `0` (right aft...
-- **`memoizedSortEntries`'s cache never evicts, growing unboundedly for the app's entire lifetime**: Maintenance-review finding on the same-day, non-claimed `feat(performance): Implement comprehensive performance optimizations` commit (`0a0d346`, the same commit as the `FileTree` stale-`useMemo` regression above), found while closing that item out. `src/workspace/fileTreeStore.ts`'s `memoizedSor...
-- **`FileTree`'s memoized `sortedEntries` never updates once a directory's real listing arrives asynchronously, so the app's actual sidebar file tree renders permanently empty**: Maintenance-review finding on the same-day, non-claimed `feat(performance): Implement comprehensive performance optimizations` commit (`0a0d346`, pushed directly by "Mistral Vibe" under the maintainer's own git identity with no roadmap claim). `src/workspace/FileTree.tsx`'s top-level `FileTree` c...
-- **`whisper-ffi`'s `transcribe()` fabricates placeholder text on failure and `is_whisper_available()`/`get_speech_status`'s `model_available` are hardcoded `true`, reintroducing the just-fixed Desktop speech dishonesty bug**: Maintenance-review finding on the same-day, non-claimed `feat(speech): Implement whisper.cpp FFI integration for desktop speech-to-text` commit (`be9d895`), pushed directly by "Mistral Vibe" under the maintainer's own git identity with no roadmap claim, right after `rm-23780de5da6d9091` had fixed...
-- **`main` CI red: Android `compileDebugJavaWithJavac` fails on `SpeechRecognitionPlugin.java`'s `onDestroy`**: A same-day concurrent commit (`38f3be1`, "fix(android): Fix Java compilation errors in SpeechRecognitionPlugin") removed `@Override` from `onDestroy()` while leaving its body calling `super.onDestroy();`, but `com.getcapacitor.Plugin` (confirmed by reading `node_modules/@capacitor/android/capacit...
-- **Desktop speech-to-text fabricates transcription instead of running whisper.cpp; marked `✅` incorrectly**: Maintenance-review finding. The "Local speech-to-text dictation" item (`rm-c97aa273b63fa72b`) was marked `✅` `done`, but its Desktop half does not perform any real speech recognition: `src-tauri/src/speech_commands.rs`'s `transcribe_audio` never calls whisper.cpp at all (real or stub) and instead...
-- **Maintenance review: workspaceProfiles and globalConfig after workspace-named-"workspace" fix**
-- **RTL Phase 2: workspace chrome mirroring**
-- **`rebuildLinkIndex`'s request counter aliases across a workspace switch, letting a stale rebuild overwrite a newer workspace's link index**: `linking/store.ts`'s `latestIndexRequest` is a plain module-level counter; `resetLinkIndexCache` (registered with `App.tsx`'s `workspaceTransitions.registerReset`, so it fires on every workspace switch) resets it back to `0`. The very next `rebuildLinkIndex` call after a reset increments it back ...
-- **Maintenance review: capture module after recent path-traversal and binary-corruption fixes**
-- **Renaming or creating a note/folder with a name containing "/" silently diverges by platform instead of erroring identically**: `NamePrompt.tsx`'s create/rename dialogs never reject a typed name containing a path separator, and `fileTreeStore.ts`'s `createNote`/`createFolder`/`renameEntry` pass it straight through to `${dirPath}/${name}` with no validation. On desktop, `resolve_within_workspace` + `fs::create_dir_all(pare...
-- **Capture attachment filenames are never sanitized before being used to build a filesystem write path, and the write goes through the uncontained bridge function**: `PendingAttachment.fileName` (`capture/pendingCaptures.ts`) is documented "(sanitized)" but never actually is: an Android share intent supplies it straight from another app's content-provider display name (`capture/androidShareBridge.ts`'s `mapAndroidAttachment`, fully untrusted), and `pendingCap...
-- **Maintenance review: F05 capture attachment copy corrupts or silently drops binary attachments (images) because it copies them through a text-decode round trip**: `capture/captureCommit.ts`'s `copyFile` (used by `copyAttachmentsToWorkspace`, the path every Quick Capture/share-intent attachment goes through) reads the source attachment with `readTextFile` and re-encodes the result with `new TextEncoder().encode(...)` before writing it back with `writeBinary...
-- **Maintenance review: a legacy v2 `editorLayout` without `viewMode` decodes with `viewMode: undefined`, violating `EditorLayoutState`'s required field**: `isValidEditorLayoutState` (`src/settings/workspaceSettings.ts`) deliberately accepts a `primary`/`secondary` group whose `viewMode` field is entirely absent (a real v2 `settings.json` written before that field existed), documented in its own comment as intentional so a legitimate file isn't flag...
-- **Maintenance review: search query parser splits a quoted phrase containing a literal " OR " on the operator**: `parseSearchQuery` (`src/workspace/searchQuery.ts`) splits an OR-group's raw text with `trimmed.split(/\s+OR\s+/)` *before* tokenizing, even though the function's own doc comment claims "an `OR` inside a quoted phrase isn't mistaken for the operator." The split regex has no quote awareness at all...
-- **Desktop `list_dir` has no workspace-containment check, letting a symlink inside the workspace expose arbitrary filesystem content through the file-tree sidebar**
-- **Maintenance review: whole-workspace read traversals follow a symlink escaping the workspace**: `workspace_stats`, `find_markdown_files`, `find_all_files`, and `find_all_entries` in `src-tauri/src/commands.rs` recurse via `Path::is_dir()`, which transparently follows symlinks, with no containment check on the read side. A symlink placed inside the workspace pointing outside it (e.g. at the ...
-- **Maintenance review: `addAutoTextDirection`'s dir="auto" injection can silently override an author's explicit `dir` attribute**: Found while independently reviewing RTL Phase 1 (`4e5f290`, landed 2026-09-09), the most recently changed area not yet covered by a separate review. `src/editor/textDirection.ts`'s `BLOCK_TAG_PATTERN` uses a negative lookahead plus `[^>]*` to detect whether a block-level tag (`p`/`li`/`h1-6`/`blo...
-- **RTL Phase 1: automatic per-note text direction in the Markdown editor and preview**
-- **Android home-screen widget that opens directly into Quick Capture**
-- **F07 Phase 2b-persistence: wire live editor-layout state (pinned tabs, view mode) into workspace-settings persistence and restore it on workspace open**
-- **Main regression: F07 Phase 2b-6 viewMode requirement breaks settings validation and split-pane helpers**
-- **Maintenance review: Preview search-highlighting drops repeat matches and corrupts HTML entities**: A bounded maintenance review of the untested `highlightSearchMatches` post-processing step `MarkdownPreview.tsx` added for "Highlight search matches in the editor and preview" (`fbcb22e`, 2026-09-06, no dedicated tests for the function itself). Found two real, reproducible defects: (1) the highli...
-- **Android home-screen widget listing individual notes by name**
-- **Windows/macOS release build fails: case-only filename collision between `PendingCaptures.tsx` and `pendingCaptures.ts`**: Found via this session's own integration pass, reading the real failing job logs for the `Release` workflow's `windows` and `macos` jobs on current `main` (`7f817eff`, run `34163212592`), rather than assuming CI was healthy from the green `CI` workflow alone (that workflow only runs on Linux runn...
-- **Maintenance review: recurring push-without-local-verification pattern breaking main CI**: A follow-up to "Maintenance review: Mistral-Vibe F05 delivery quality and guardrails" (`rm-00ace761a2711872`, Implemented) with new evidence gathered the same day, after that review's own guardrails landed. Three separate, unrelated incidents on 2026-09-07 share one root cause - a push made witho...
-- **Android CI: WidgetResourcesUnitTest fails with NoSuchFileException in the real CI job**: `WidgetResourcesUnitTest`'s `source(relativePath)` helper reads fixture files via `Files.readAllBytes(Paths.get("app/src/main", relativePath))`, commented as "Path is relative to the android/app directory where tests run", but the real Android CI job's `app:testDebugUnitTest` task fails all 3 of ...
-- **Android CI cannot compile: CaptureIntentHandler.java uses FileInputStream without importing it**: `generateFileFingerprint`'s `try (FileInputStream fis = new FileInputStream(file))` (line ~398) has never compiled since it was introduced in commit `d4a44f3` (2026-09-07T12:18:39+02:00): the file's imports list `java.io.File`, `java.io.FileOutputStream`, and `java.io.InputStream`, but not `java....
-- **Android share intent with an empty attachments array is stored as `[]` instead of `undefined`**: `androidShareBridge.ts`'s `processAndroidPendingShareData` computes `attachments` as `result.data.attachments ? result.data.attachments.map(mapAndroidAttachment).filter(...) : undefined`, but a JavaScript array is truthy even when empty, so a share intent with `attachments: []` (no attachments, p...
-- **Vitest's happy-dom environment silently breaks DOMPurify sanitization and most component tests**: Commits `0c77821`..`c22ca10` (2026-09-07) migrated every test file's environment from `jsdom` to `happy-dom` to get native `HTMLCanvasElement.getContext("2d")` support for `GraphView.tsx`, and every one of those commits landed on `main` while CI was red (confirmed via the GitHub Actions run histo...
-- **F05 Android share bridge drops staged attachments and logs sensitive URIs**: `CaptureIntentHandler.queueCaptureWithAttachments` stages attachments but calls `storePendingShareData(..., null, null)` and has a TODO instead of serializing `StagedAttachment` metadata, while `androidShareBridge.ts` has no attachment field to enqueue. The same native handler logs raw `content:/...
-- **Maintenance review: Mistral-Vibe F05 delivery quality and guardrails**: Review the Mistral-Vibe F05 delivery history culminating in the Android-share bridge `7e4f3728`, including its callers and follow-up CI fixes `2619097e` and `ffeedd49`. Record only reproducible defects or evidence-backed process gaps. Add concise, tool-neutral guidance to the constitution and/or ...
-- **Math rendering: confirm/fix the effective default**
-- **Per-note read-only workspace opt-out enforcement**
-- **Per-note read-only lock (not encryption)**
-- **Kanban column layout for Smart Collections**
-- **Markdown table editing commands**
-- **Global configuration corruption recovery**
-- **Settings toggle save feedback: "Saving…" indicator added, reactivity confirmed already correct**
-- **Accent color live-apply: verified already correct, not a live bug**
-- **Tags toolbar button gating: verified already correct, not a live bug**
-- **Task Hub does not refresh after completing a task, fixed**
-- **saveCoordinator.ts now actually flushes a pending save before a workspace transition drains it, and Switch without saving works**
-- **Tighten toolbar icon spacing and tab bar height**
-- **Move Link Diagnostics into a Settings "Health" section, off the main screen**
-- **Make Collections opt-in, off by default, and group optional features under their own Settings section**
-- **Fix: black fringe/ring on the Android app icon's curved edges**
-- **Fix: Workspace switcher dropdown invisible on Android**
-- **Settings search**
-- **Fix macOS/Windows release build failure: case-colliding file names**
-- **Redesign the app icon and logo**
-- **Agent-agnostic skills: CI failure triage, packaging pipeline gotchas, and claim-reassignment safety**
-- **Runtime-decode the persisted link-index cache file**
-- **No app-wide :focus-visible styling**
-- **Image resolution: dedupe repeated fileSrc() calls within one Preview render**
-- **Android launcher icon regeneration**
-- **Frontmatter regex allocation**
-- **Mobile Toolbar Spacing and Button Treatment**
-- **Mobile Workspace Opening Responsiveness**
-- **Themes, Snippets, and Templates**
-- **Whiteboards and Canvas**
-- **Local Folder Workspace**
-- **Editor and Preview**
-- **Wikilinks and Backlinks**
-- **Graph View**
-- **Full-Text Search**
-- **Tags**
-- **Frontmatter Properties**
-- **Attachments**
-- **Bookmarks**
-- **Command Palette and Keyboard Shortcuts**
-- **Settings and Workspace Statistics**
-- **Markdown Help**
-- **Math Rendering**
-- **Fast Workspace Indexing**
-- **Bounded Directory Traversal**
-- **Linux Desktop Application**
-- **Android Folder Access**
-- **Continuous Integration and Development Builds**
-- **Flatpak CI Build**
-- **Dependency Security Audit**
-- **Workspace Statistics Wording**
-- **Direct Interface Zoom**
-- **Mobile Navigation and Touch Targets**
-- **Web Clipper**
-- **Web Clipper Line Break Preservation**
-- **Project Documentation and Screenshots**
-- **Expand-All Native Traversal**
-- **F-005: Search memory guard — isTextFile whitelist, batch size pre-add flush, conservative unknown-size default**
-- **Desktop AppImage blank gray screen**
-- **File explorer "Expand All" UX**
-- **MarkdownPreview image loading is sequential**
-- **CodeMirror full teardown on file switch**
-- **Debug APK not signed — cannot install on Android**
-- **Show an inspirational quote instead of a bare "No file open" message**
-- **Desktop Tauri concurrency**
-- **CanvasView: do not render edges to retained unknown nodes**
-- **CI repair: preserve complete UTF-16 table-cell source ranges**
-- **Android Long-Press Conflict**: Confirm and extend the candidate `user-select: none` fix so the file-tree context menu does not compete with native text selection.
-- **Highlight search matches in the editor and preview**
-- **Fullscreen zoom viewer follow-up: standalone image tabs, touch gestures, and resizing**: Extend the Preview-local overlay only after Phase 1 with standalone image-tab access, touch pinch/pan interaction, and any inline image-resizing design. It must retain Phase 1's local-only behavior and never introduce remote-image loading. **Partial: Enhanced ImageViewer with zoom/pan, touch gest...
+- **macOS Quick Look preview** — ⌥-click `.md` files in Finder to preview without opening the app.
+- **Quick Capture target picker** — Choose the capture destination (specific note, daily note, or bookmark) with an optional template.
+- **Android camera capture** — Take a photo directly from the "Insert attachment" toolbar.
+- **Settings export** — Export the current settings bundle to a file.
+
+### Bug Fixes
+
+- **Android folder picker** — New workspaces are now named after the real folder instead of the literal "Workspace".
+- **Recent-notes widget** — Fixed label collisions for same-named notes in different folders.
+- **Recent-notes widget** — Eliminated full-workspace re-walk on every note mutation.
+
+### Security
+
+- **Hardened Mermaid SVG sanitization** — DOMPurify pass added after the regex layer to close the async SVG insertion gap.
+- **Content Security Policy** — Restrictive CSP enforces the "no network calls" promise at the browser level.
+
+### CI/Infra
+
+- **Flatpak CI fix** — Resolved persistent flatpak CI failure by pinning the correct commit with matching lockfiles.
+- **Offline isolation test** — New test suite validates the CSP config and fails CI if any code path makes a network call.
 
 ## 1.0.0
 
-- Added an "Open file from outside the vault..." command (desktop only, via the Command Palette): pick any Markdown file on your computer and view it right away, using the same behavior as opening one via your file manager's "Open with" — a file inside your current workspace opens as an editable tab, and one outside it opens in the existing read-only scratch view with a button to open its containing folder as a workspace.
+### New Features
 
-- Added `==highlighted text==` support, in both the Source editor and Preview: it now renders as a highlighted `<mark>` instead of literal `==` characters. Prefix the highlight with a color emoji (🔴 🟠 🟢 🔵 🟣) to color it, e.g. `==🔴important==`, following the same convention Obsidian uses. Picking a color from a menu isn't available yet — typing the emoji is the only way to set one for now.
+- **Split panes on desktop** — "Split right" toolbar button opens a second editor group with independent tabs and view modes.
+- **PDF viewing and annotation** — Open `.pdf` files with zoom, navigation, text search, and text/freehand annotation.
+- **Freehand ink drawing** — New drawing note type with pen strokes, shapes, and sticky notes.
+- **Canvas/whiteboard** — Movable cards, file-reference cards, and freeform drawing.
+- **Smart Collections** — List, table, card, and board views with frontmatter-based grouping.
+- **Task Hub** — Workspace-wide task list with toggle-complete, filter, search, and grouping.
+- **Wikilinks and heading links** — `[[Note#Heading]]` links to specific headings, with autocomplete and inline rendering.
+- **Block references** — `^id` anchors on paragraphs, headings, and code blocks with Copy/Insert link actions.
+- **Backlinks and Link Diagnostics** — See all incoming links and find broken or ambiguous links.
+- **Outline and breadcrumbs** — Live hierarchical heading list and breadcrumb trail with copy/insert-link actions.
+- **Workspace profiles** — Rename, assign icons, relink folders, and manage multiple workspaces from a searchable switcher.
+- **Android home-screen widgets** — New note, Favorites, Recent notes, and Quick Capture widgets.
+- **Local speech-to-text** — Opt-in voice dictation (Settings → General, off by default).
+- **Quick Capture** — Capture from deep links and Android share intents with review before commit.
+- **RTL text direction** — Automatic per-note direction detection for Hebrew, Arabic, and other RTL scripts.
+- **Offline spellchecking** — Local dictionary-based spellcheck, no network calls.
+- **Mermaid diagrams** — Render fenced `mermaid` code blocks as flowcharts and sequence diagrams.
+- **Footnotes** — `[^1]` references render as clickable superscripts with a Footnotes section.
+- **Colored highlights** — `==highlight==` with color emoji prefix (🔴🟠🟢🔵🟣).
+- **Open files from outside the vault** — Desktop "Open with" registration for `.md` files, with read-only scratch view for external files.
+- **Keyboard navigation** — Full arrow-key navigation for file tree, command palette, and menus.
+- **Keyboard shortcuts** — Comprehensive command palette and keyboard-first interaction.
+- **Themes and custom CSS** — Light/dark themes with accent colors, plus user-supplied CSS snippets.
+- **Markdown table editing** — Insert/delete rows and columns, auto-align columns.
+- **Fullscreen image viewer** — Zoom, pan, and touch gestures for images.
+- **Settings search** — Quickly find settings by keyword.
+- **Accessibility** — WCAG-compliant focus indicators, screen-reader announcements, and reduced-motion support.
 
-- Added an "Export note to HTML…" command on desktop: saves the current note as a standalone `.html` file via a native Save dialog, with local attachment images embedded directly in the file so it opens correctly with no Leotheca installed. Same Preview/Split-view availability as "Print note" below. Android support is tracked separately and not yet available.
+### Bug Fixes
 
-- Added a "Print note" command on desktop: prints the current note via the OS print dialog (which already offers "Save as PDF" on every desktop platform this app ships for), reusing the already-rendered Preview pane's own output rather than a second Markdown-to-HTML pipeline. Available whenever Preview or Split view is showing the note you want to print; switch to one of those views first if you're in Source view. Android support is tracked separately and not yet available.
-
-- Preview now renders Markdown footnotes: a `[^1]` reference shows as a numbered, clickable superscript, and its `[^1]: ...` definition (which can span several lines when indented) renders in a "Footnotes" section at the end of the note, with a back-link from the definition to where it was referenced. Only footnotes actually referenced in the note appear there, numbered in the order they're first used. Previously `[^1]` and its definition rendered as plain, unlinked text.
-
-- Quick Capture now traps focus properly while open, restores it to whatever you were doing when you close it, locks the page behind it from scrolling, and closes on the Android hardware back button as well as Escape, backdrop tap, or its own close button — all previously missing or only partially implemented. This is the first real use of the UX-01 refresh's new shared `Sheet` component (spec section 20), the touch-first, edge-anchored counterpart to the existing `Dialog` component; both now share one overlay stack so opening one above the other dismisses only the correct one.
-
-- Workspace indexing, note save state, and empty Bookmarks/Tags panels now use shared accessible status primitives. Progress is marked busy and announced politely, save failures remain assertive and retryable, warning/success states pair text with local icons, and empty panels provide concise next-step guidance.
-
-- Confirmation dialogs now use the UX-01 refresh's shared `Dialog` component, keeping the safe Cancel action focused first while consistently trapping and restoring focus, supporting Escape and backdrop cancellation, preventing the page behind the dialog from scrolling, and keeping the title and actions reachable when content is tall.
-
-- The Document Header's "More note actions" menu now supports Arrow Up/Down, Home, End, Escape, and reliable focus restoration, skips disabled actions, and stays inside the visible window at screen edges. This is the first real use of the UX-01 refresh's shared `Menu` component; the existing Rename, Copy Relative Path, Delete, and Markdown Help actions are unchanged.
-
-- The Activity Rail's Files/Bookmarks/Tags/Graph/Settings buttons now show a proper tooltip on hover and on keyboard focus (previously only a plain browser tooltip on hover, nothing on focus), as part of the ongoing UX-01 visual-system refresh's shared `Tooltip` component (spec section 20). It's dismissible with Escape and respects reduced-motion.
-
-- The note view-mode switch (Source/Split/Preview) in the Document Header now supports arrow-key navigation between options, as part of the ongoing UX-01 visual-system refresh's shared `SegmentedControl` component (spec section 20). Its look and click behavior are unchanged.
-
-- Started the UX-01 visual-system refresh (`spec/leotheca-visual-system-adaptive-ux-sdd.md`), Phase 1a: a full semantic design-token layer for light and dark ("Quiet Library" palette), contrast-checked accent mappings for Warm/Ocean/Forest/Plum that now differ correctly between themes, a new "Reading font" setting (Sans/Serif/Mono) for the rendered Markdown preview (previously always rendered in the monospaced editor font), and a local SVG icon registry ready for future migration. See ROADMAP.md for what's landed versus what's still open in this multi-phase refresh.
-
-- Fixed the "Choose Folder"/"Add workspace" button on the welcome screen appearing to do nothing when the native folder picker itself failed (most notably on Android: some storage providers reject persistable access, a case `FolderAccessPlugin` already caught and rejected on the native side). The rejection never reached `workspaceSelectionError`, so the button silently reset to its idle label with no feedback at all. It now shows an actionable inline error so a retry (or choosing a different folder) is obvious, matching the same silently-swallowed-rejection fix already applied elsewhere (bookmarks, backlinks, diagnostics, external-file opens).
-
-- Added support for opening a `.md` file directly from your file manager or another app, even when its folder isn't your currently open workspace (Desktop only). Leotheca now registers itself as an "Open with"/default-app option for Markdown files. A file inside your current workspace opens normally, as an editable tab; a file outside it opens in a new read-only view, with a button to open its containing folder as a workspace if you want to edit it. A new "Open Markdown files from outside your workspace" setting (Settings → General, on by default) lets you turn this off.
-
-- Fixed the Rename Preview dialog never appearing for a rename whose only pending references elsewhere were Markdown-style links (`[label](target)`/`![alt](target)`), rather than wikilinks: the dialog's "anything to review?" check only looked at wikilink edits, so a real, correctly-computed Markdown-link edit never triggered the Review step at all, and the user got no warning that a Markdown link would break.
-
-- Fixed a PDF shape tool (Square/Circle/Line) leaving its in-progress draft rectangle/line stuck on screen if the drag gesture was interrupted (an OS/browser context switch, a multi-touch conflict, the tab losing focus mid-drag) instead of ending normally.
-
-- Fixed the split-pane divider getting stuck in a drag if the gesture was interrupted (an OS/browser context switch, a multi-touch conflict, the tab losing focus mid-drag) without ever delivering a pointer-up: any later, unrelated pointer movement anywhere on the page would keep silently resizing the split.
-
-- Fixed Ctrl/Cmd-click "open in other group" on an image link opening the image into the same pane it was clicked in, instead of the other one, when that pane wasn't already the active group (e.g. reading the reference pane after last working in the primary one, then Ctrl/Cmd-clicking an image link there). Text-note links were unaffected in practice.
-
-- Fixed the split-pane compact switcher (narrow windows and Android) not following a note into the secondary pane: "Split right" on a note, "Move active tab to other group", and Ctrl/Cmd-click "open in other group" on a link all correctly opened the note in the secondary group, but on a narrow window or phone the visible pane silently stayed on primary — the note appeared to go nowhere until you manually tapped the "Reference:" switcher. The switcher now follows the note it was just asked to open.
-
-- Fixed a PDF annotation data-loss bug: drawing a new highlight, ink stroke, sticky note, or shape while a previous "Save annotations" click was still writing to disk (a real window — nothing disables drawing while a save is in progress) silently discarded that new annotation the moment the save finished, since the save's success handler reset every pending-annotation list to empty instead of only clearing what it had actually written. An annotation added mid-save now survives and is included in the next save.
-
-- Fixed speech-to-text dictation being on by default: the toolbar's microphone button rendered for every note regardless of whether you'd ever asked for it, and its mount effect immediately probed platform speech availability — on Android, reaching the native `SpeechRecognizer` before you had expressed any interest in dictation, and prompting for microphone permission the first time you opened a note rather than after you turned dictation on. A new "Speech-to-text dictation" setting (Settings → General), off by default like other net-new opt-in features, now gates the button entirely; nothing speech-related runs until you switch it on. Also removed a dead code path on Android that fabricated a fake transcript (`"[Transcribed from Android: <n>ms of audio]"`) instead of running real recognition — unreachable in practice since real dictation already goes through a different, working path, but removed outright per the same fabricated-success-text policy already applied elsewhere.
-
-- Added freehand ink, sticky notes, and simple shapes to PDF annotation, for scanned or image-only PDFs with no text layer to highlight: Draw for pen strokes, Note for a sticky note with your own text, and Square/Circle/Line/Polygon for simple shapes (drag to draw; Polygon is click-to-add-a-vertex, then Finish shape). All write back into the PDF using the same standard, reader-compatible annotation format as highlight/underline/strikethrough, in the same "Save annotations" action.
-
-- Added PDF viewing and text annotation: open a `.pdf` file to see it rendered page by page with zoom, page navigation, and full-document text search. Select text and click Highlight, Underline, or Strikethrough to mark it up; annotations are written back into the PDF itself as standard, reader-compatible objects (not a separate sidecar file — verified to round-trip through another PDF library independent of the one this app uses to render), via an explicit "Save annotations" action rather than the usual autosave. Thumbnails and Android accessibility verification are not included.
-
-- Added a compact-layout group switcher for split panes on narrow windows and Android: instead of squeezing both editor groups side by side, only one group's pane is shown at a time, with a "Working: <note> / Reference: <note>" switcher above it to swap which one is visible. Switching never closes, merges, or reorders anything — it only changes which pane is currently mounted. Rotating back to a wide window restores the normal side-by-side split automatically. Android's hardware Back button is not yet wired to this switcher, and the narrow/wide threshold is based on the whole window's width rather than the editor area's own width net of the sidebar and Inspector.
-
-- Added Ctrl/Cmd-click on a note link in the preview to open it in the other editor group (creating a split if there isn't one yet) instead of the current one.
-
-- Added tab reordering (drag to reorder, or right-click a tab for Move left/Move right) within either editor group, and restored cursor/scroll position when switching back to a note you'd already had open (previously every tab switch reset the cursor to the start of the note).
-
-- Added split panes on desktop: a "Split right" toolbar button opens a second editor group beside the first, each with its own tabs and its own Source/Split/Preview mode, resizable by a draggable (and keyboard-operable) divider. Move the active tab to the other group, or close the second group to merge its tabs back. Canvas and ink notes aren't supported in the second group yet (they still open normally in the first); compact/Android layouts, and routing every note-opening feature (backlinks, search, tasks, etc.) into a specific group, are still to come.
-
-- Fixed the Markdown table toolbar's "Add column right", "Delete column", and "Add row below" commands doing nothing, or inserting a new row in the wrong place, whenever the cursor sat immediately after a cell's text (the ordinary position right after typing or clicking a word) rather than inside its trailing padding. In particular, "Add row below" could silently insert the new blank row at the very top of the table instead of below the row you were actually in.
-
-- Fixed a silent autosave failure: if saving a note's changes to disk failed (for example a full disk, a revoked folder permission, or an external drive going offline), the editor gave no indication anything was wrong at all — the note just quietly stopped saving, with the failed edit only ever kept in memory. A visible error now appears with the failure reason and a Retry button, and it clears automatically once a save succeeds again.
-
-- Fixed Quick Capture's 32 KiB payload size limit being measured in JavaScript string length instead of real UTF-8 bytes, letting a capture containing CJK characters, emoji, accented Latin, Cyrillic, or other multi-byte text through at up to 2-3x the documented limit. The limit is now measured in actual UTF-8 bytes, matching the spec.
-
-- Fixed clicking a file in the sidebar's file tree or search results whose file could no longer be read: it now shows an inline error explaining the file may have been moved, renamed, or deleted, instead of silently doing nothing. Clicking it again retries.
-
-- Fixed opening a note from a Smart Collection (List, Table, Card, or Board view) whose file could no longer be read: it now shows an inline error explaining the note may have been moved, renamed, or deleted, instead of silently doing nothing. Clicking the note again retries.
-
-- Fixed clicking a task in the Task Hub whose source note could no longer be read: it now shows an inline error explaining the note may have been moved, renamed, or deleted, instead of silently doing nothing. Clicking the task again retries.
-
-- Fixed the Rename Preview dialog's suggested Markdown link updates: the suggested new path for a `[text](path)` or `![alt](path)` link almost always dropped the `.md` file extension (for example suggesting `notes` instead of `notes.md`), which would have produced a broken link if you copied it in by hand, and could additionally add a wrong extra `../` when the linking note sat above the renamed note's new folder. These suggestions are informational only (Leotheca does not rewrite Markdown-style links automatically yet), but they are now correct.
-
-- Fixed a data-loss bug in the drawing (ink) note editor: opening a `.ink` file that was missing its viewport information (for example, one created by an older version, hand-edited, or written by another tool) silently discarded every existing stroke instead of showing them, and drawing anything new then overwrote the file, permanently losing the original drawing. Ink files are now decoded tolerantly, matching how Canvas files already handle unrecognized or missing data.
-
-- Fixed a privacy/data-safety bug in Quick Capture: text or images captured externally (an automation deep link received while no workspace was open, or shared to Leotheca from another Android app) could be written straight into your inbox note the moment you next opened a workspace, without ever showing you the capture for review or letting you edit or discard it first. Opening a workspace no longer auto-commits anything; a pending capture now always waits in the Pending Captures list for your explicit Review, Retry, or Discard.
-
-- Fixed voice dictation on Android doing nothing when you tapped the microphone button: the on-device speech recognizer was never actually told to start listening, so no text was ever inserted and no error was shown. Dictation now starts the recognizer for real and reports its actual transcript or a real error.
-
-- Fixed clicking a graph node, or opening a Canvas card's linked file, whose target note had been renamed, deleted, or moved outside the app: both now show an inline error explaining the file may have been moved, renamed, or deleted, instead of silently doing nothing.
-
-- Fixed clicking a backlink whose source note had been renamed, deleted, or moved outside the app: it now shows an inline error explaining the file may have been moved, renamed, or deleted, instead of silently doing nothing.
-
-- Fixed clicking a Link Diagnostics finding (Settings → Health) whose source note had been renamed, deleted, or moved outside the app while Settings was still open: it now shows an inline error instead of silently doing nothing and leaving the Settings window stuck open.
-
-- Fixed clicking a bookmark whose note had been renamed, deleted, or moved outside the app: it now shows an inline error explaining the file may have been moved, renamed, or deleted, instead of silently doing nothing.
-
-- Fixed a rare data-loss bug where creating, editing, or deleting two Smart Collections in quick succession could silently drop one of those changes from what's actually saved to disk, even though it still appeared correctly until the app was restarted. Collection saves are now always written one at a time, in order.
-
-- Fixed a rare data-loss bug where adding or removing two bookmarks/favorites in quick succession could silently drop one of them from what's actually saved to disk, even though it still appeared in the list until the app was restarted. Bookmark saves are now always written one at a time, in order.
-
-- Fixed a Quick Capture data-loss bug: if appending a capture to your inbox note failed to save (for example, a transient disk or filesystem error) right after a later retry succeeded, the inbox note could end up containing only the new captured text, with your existing note content silently gone. A failed save now surfaces as an error instead of being mistaken for "the note doesn't exist yet" and overwriting it.
-
-- Fixed the Android "New note" home-screen widget occasionally doing nothing right after a cold app start: if the note-creation request arrived while the app was still finishing loading your workspace, it was silently dropped instead of creating (and opening) the note once loading finished.
-
-- Fixed an issue where dragging a card on a Canvas board could get "stuck" if the drag was interrupted (for example, by switching apps or windows mid-drag): the card could then jump to an unrelated position the next time you moved your mouse over the board, and that unwanted move was saved. Dragging is now always cleanly cancelled when interrupted.
-
-- Fixed Undo and Redo in the drawing (ink) note editor: undoing or redoing a stroke now actually saves that change, instead of only updating what you see on screen. Previously an "undone" stroke could silently reappear the next time the file was reopened, and a redo was never actually saved either.
-
-- Notes written in a right-to-left script (Hebrew, Arabic, and others) now display and edit with correct text direction, detected automatically per line/paragraph in both the editor and preview. Mirroring the surrounding app UI (sidebar position, tab order) for RTL is not part of this change.
-
-- Added a fourth Android home-screen widget that opens straight into Quick Capture's review flow, instead of only being able to create a blank note or jump to Favorites from the home screen.
-
-- Pinned tabs now survive restarting the app: reopening a workspace reopens your pinned notes alongside the last active one, instead of forgetting which tabs were pinned.
-
-- Added a new Android home-screen widget that lists your favorited notes by name, so you can open one directly from the home screen without opening the app first.
-
-- Turning off per-note read-only locking in workspace Settings now fully disables lock enforcement, including editor read-only state and Task Hub checkbox mutations, while keeping the portable frontmatter marker intact for when the feature is enabled again.
-
-- You can now pin an open note to keep it at the front of the tab bar. Pinned notes stay open when you close other tabs or close all unpinned tabs, and can be removed only through the explicit Unpin and close action.
-
-- Renaming a note now shows which links elsewhere reference it before the rename happens, so you can see what still needs updating by hand.
-- Screen readers now announce navigating to a heading, a filtered heading count, and a copied heading link in the note outline and breadcrumbs.
-- Notes can now be locked against accidental edits. Locking uses a plainly visible frontmatter marker, disables editing and write commands, and can be turned off per workspace in Settings.
-- Smart Collections now include a Board view. Choose an indexed frontmatter property to group notes into ordered columns, with unassigned notes clearly separated. Boards are read-only, and selecting a card opens its note as usual.
-
-- The command palette can now add or delete a row or column in the Markdown table under your cursor. Table edits keep the table's alignment and use normal undo.
-
-- If Leotheca finds invalid data in its app-wide configuration, Settings now explains the problem and offers an explicit rewrite action. Normal theme and workspace-profile changes no longer silently replace the original configuration while it awaits repair.
-
-- Block references now support headings. A trailing `^id` on an ATX or setext heading stays hidden in Preview, shares the normal block-ID namespace, and works with Copy block link.
-
-- Workspace profiles can now be renamed and assigned a built-in icon. The workspace switcher is searchable and keyboard-operable, Settings has a Workspace profiles management section, and the command palette can switch, add, or manage workspaces without bypassing the existing workspace-transition coordinator.
-- A workspace profile can now be relinked to a new folder (Settings > Workspace profiles > Relink) after its original folder moved or access was revoked, without losing its name, icon, or position in the list. Relinking rejects a folder already used by another known workspace and says which one.
-- You can now forget the workspace you currently have open, not just other ones. If there are changes that have not been saved yet, forgetting is stopped by default; you can confirm a second time to forget anyway and discard those changes.
-- If a workspace can't be opened when the app starts (its folder moved, or access was revoked), the welcome screen now says which workspace it was and offers Retry and Relink buttons directly, plus a list of your other workspaces to open instead.
-- If switching to a different workspace fails while you're already using the app (its folder moved, or access was revoked), you now stay on the workspace you were already in instead of being dropped to a blank "no workspace" screen, and a banner offers Retry, Relink/Grant access, Open another workspace, or Forget that workspace, matching the recovery options already available at startup.
-- Switching workspaces right after typing now properly saves that edit first instead of silently discarding it; if the save genuinely fails, the switch is stopped and a banner lets you retry or explicitly choose "Switch without saving."
-
-- Smart Collections now support persisted list, table, and card result views. Table view can edit already-supported top-level scalar and simple-list frontmatter values in place through the same lossless source-range editor and app-owned save authority as normal note editing; stale/conflicting values and unsupported YAML remain read-only. Card view renders selected metadata fields without reading note bodies, and collection evaluation now has deterministic multi-key sorting; the UI for configuring sort keys is still deferred.
-- Cold-starting the Android New note widget now shows native "Creating note" progress until the existing quick-note flow creates its expected file, instead of leaving the user staring at startup with no indication that the widget action is still working.
-- Canvas files now keep every card, connection, and unrecognized field an editor doesn't understand instead of silently dropping them the next time any card is edited. A canvas card's linked file path is now resolved against the canvas file's own location and verified to stay inside the open workspace before it can be opened, the same containment check already applied to note attachments.
-- Workspace settings, the app's global config, and bookmarks now validate their persisted file's contents on load instead of trusting them outright: an invalid value falls back to its default without discarding the rest of the file, and a workspace settings file that didn't fully decode shows a notice with an explicit "Rewrite settings file" action rather than being silently overwritten.
-- Workspace mutations are now enforced at the native boundary on both desktop and Android: note autosave, attachment/settings/index writes, creates, renames, and deletes stay inside the active workspace. Desktop writes replace files crash-safely, and create and rename operations use native no-overwrite semantics so a concurrent external change cannot silently replace an existing path.
-- The project's version number now has one canonical source (the root `VERSION` file), validated across every platform's build metadata in CI; a real release can no longer be tagged if the tag or the changelog has drifted from it.
-- CI now uses one same-commit validation gate for frontend, Rust, Android emulator installation, and AppImage launch checks, and release publication requires that gate to pass.
-- Android now exposes New note and Favorites as separate home-screen widgets instead of combining both actions in one widget.
-- Frontmatter property edits now preserve unrelated comments, ordering, line endings, scalar types, and unsupported structures instead of rebuilding the entire frontmatter block. Complex values that cannot be edited losslessly in the Properties panel are shown read-only and remain editable in Source view.
-- Opening a workspace now shows one level of folder structure right away instead of just the root; the existing "Expand all" button still walks the whole tree recursively.
-- Switching between open notes no longer tears down and rebuilds the editor from scratch; large documents should feel noticeably snappier to switch into.
-- Desktop saves (notes, attachments, settings) are now crash-safe: a save writes to a temporary file first and only replaces the real file once that write finishes, so a crash or forced quit mid-save can no longer leave a note truncated or empty.
-- Switching workspaces is now authoritative: a workspace switch started before an earlier one has finished loading can no longer have the earlier switch overwrite it, and pending saves for the workspace being left are drained instead of racing the new one.
-- The editor area now shows a short stoic-philosophy quote (with attribution) instead of a bare "No file open." message when no note is open.
-- The wikilink/tag/backlink index is more robust on a large workspace: a single note that fails to read (a lock, a permission change, a sync tool mid-write) no longer prevents the rest of the workspace from being indexed, and a small notice now appears if any notes couldn't be read. The index also uses file size alongside modification time to detect changed content, narrowing a rare case where an edit could otherwise go unnoticed.
-- The desktop app now reads more notes at once while rebuilding the wikilink index, which should make opening the Graph or Tags view on a large workspace feel faster. Android is unaffected.
-- A new Outline button on a note's toolbar shows a live, hierarchical list of its headings; clicking one jumps the editor to that heading without losing your place or undo history. Breadcrumbs, copy/insert-link actions, and current-section tracking are not part of this first slice yet.
-- A heading breadcrumb trail now appears above each note (in Source or Split view) showing the current section's ancestry; clicking a segment jumps there. It follows the Source cursor only for now; Preview-scroll tracking is not implemented yet, so breadcrumbs are hidden in Preview-only view.
-- Preview now resolves an image embedded more than once in the same note (e.g. a diagram referenced twice) only once instead of reading the same file again for every occurrence.
-- The heading breadcrumb trail now also appears in Preview-only view, following the section you're scrolled to.
-- The Outline panel and heading breadcrumbs now have full-size touch targets on narrow screens and a visible keyboard focus ring.
-- Keyboard focus now shows a visible outline on buttons, tabs, sidebar rows, and dialogs throughout the app, not just a few places; some browsers previously drew no focus indicator at all on these.
-- Fixed a rare crash where a corrupted or hand-edited wikilink index cache file could abort indexing the whole workspace instead of just re-reading the one affected note.
-- Wikilinks can now point at a specific heading, not just a whole note: `[[Note#Heading]]` links to a heading in another note, and `[[#Heading]]` links to a heading in the current note. Clicking one in Preview jumps straight to that heading. `[[Note|Custom text]]` (a link that shows different text than the note's name) also works correctly now. A heading that can't be found, or that matches more than one heading with the same name, is shown distinctly from a link to a missing note entirely. This can be turned off in Settings to go back to the previous plain wikilink behavior.
-- A new Task Hub button lists every `- [ ]`/`- [x]` task across the whole workspace in one place; clicking a task opens its note and jumps straight to it.
-- The Task Hub's checkbox now actually checks a task off (or reopens it), editing just that one task's checkbox in the note itself; if the note changed since the Task Hub last saw it, or the save fails, you get a clear message instead of a silently wrong edit. It can also filter by status, path, or tags, search by text, and group results by note or folder.
-- `[[Note#Heading]]`/`[[#Heading]]` heading-links now render inline in Source view too (styled resolved, unresolved, or ambiguous the same way Preview already shows them), not just in the rendered Preview pane. Typing `[[Note#` or `[[#` now also suggests that note's actual headings to complete the link with, instead of only note names.
-- A new Link Diagnostics button lists every wikilink in the workspace that's broken (points at a note that doesn't exist) or points at a heading that's missing or ambiguous; clicking a finding opens its note and jumps straight to the link. This first slice is read-only: fixing a link, or renaming/moving a note with its links updated automatically, is not part of it yet.
-
-- The Outline panel and the heading breadcrumb trail now each offer Copy link and Insert link for a heading: Copy puts a ready-to-paste `[[Note#Heading]]` link on the clipboard, Insert drops the same link (in its shorter `[[#Heading]]` form) into the note at your cursor. Both are disabled for a heading with no text, or one that shares its exact text with another heading in the same note, since a link built from either would not point anywhere precisely; Insert is also disabled while a note is shown in Preview-only view, since there's nowhere to insert into.
-- Fixed a rare mix-up where clicking one note right after another, or switching workspaces while a note was still opening, could momentarily show the wrong note or reopen one from the workspace you just left. The most recently clicked note now always wins.
-
-Entries will accumulate here from the first tagged release onward.
+- **Data-loss prevention** — Crash-safe saves, serialized writes for bookmarks/collections, and proper autosave before workspace transitions.
+- **Silent error surfacing** — Clicking a note that can no longer be read now shows an inline error instead of failing silently.
+- **Rename Preview dialog** — Now appears for Markdown-style link edits, not just wikilinks.
+- **Table editing** — Fixed cursor-boundary detection for add/delete row/column commands.
+- **Split-pane divider** — Fixed drag getting stuck if interrupted by context switch or multi-touch conflict.
+- **Compact layout switcher** — Now follows a note into the secondary pane on narrow windows and Android.
+- **PDF annotation data-loss** — Fixed loss of annotations drawn while a previous save was in flight.
+- **Speech-to-text opt-in** — Now gated behind a setting, off by default.
+- **Quick Capture payload size** — Now measured in UTF-8 bytes, not JavaScript string length.
+- **Android widget cold start** — Fixed "New note" widget silently dropping requests during app startup.
+- **Ink undo/redo** — Now persists the reverted document instead of only updating the view.
+- **Canvas card dragging** — Fixed "stuck" drag if interrupted by context switch.
+- **Smart Collections race condition** — Fixed silent loss of changes when mutations overlap.
+- **Bookmarks race condition** — Fixed silent loss of bookmarks when mutations overlap.
+- **Quick Capture inbox overwrite** — Fixed data loss when append fails but later retry succeeds.
+- **Android dictation** — Fixed silent no-op when tapping the microphone button.
+- **Graph/Canvas/Backlinks/Diagnostics/Bookmarks** — Fixed silent failures when clicking notes that were renamed, deleted, or moved.
+- **Workspace switch race** — Fixed stale workspace overwriting a newer one.
+- **Corrupted index cache** — Fixed rare crash when a corrupted wikilink index cache file could abort indexing.
+- **Frontmatter preservation** — Edits now preserve comments, ordering, line endings, and unsupported structures.
+- **Case-collision build failure** — Fixed Windows/macOS release build failure from `PendingCaptures.tsx`/`pendingCaptures.ts`.
+- **Android CI failures** — Fixed missing `FileInputStream` import and `NoSuchFileException` in widget tests.
+- **Vitest happy-dom issue** — Fixed DOMPurify sanitization and component test breakage.
+- **F05 Android share bridge** — Fixed dropped staged attachments and sensitive URI logging.
+- **Mistral-Vibe F05 quality** — Fixed recurring push-without-local-verification pattern breaking main CI.
+- **Desktop Tauri concurrency** — Fixed concurrency issues in desktop app.
+- **CodeMirror teardown** — Fixed full teardown on file switch.
+- **MarkdownPreview image loading** — Fixed sequential image loading.
+- **CanvasView edges** — Fixed rendering edges to retained unknown nodes.
+- **Android long-press conflict** — Fixed file-tree context menu competing with native text selection.
+- **Search match highlighting** — Fixed dropped repeat matches and corrupted HTML entities.
+- **RTL direction override** — Fixed `dir="auto"` injection silently overriding explicit `dir` attributes.
+- **Search query parser** — Fixed quoted phrases containing " OR " being split on the operator.
+- **Legacy editorLayout decode** — Fixed `viewMode: undefined` violating `EditorLayoutState`.
+- **Binary attachment corruption** — Fixed Quick Capture/share-intent attachments corrupted by text-decode round trip.
+- **Path separator in names** — Fixed note/folder names with "/" diverging by platform instead of erroring.
+- **Capture filename sanitization** — Fixed unsanitized attachment filenames used in filesystem paths.
+- **Link index rebuild race** — Fixed stale rebuild overwriting a newer workspace's index.
+- **`as any` lint errors** — Fixed `renameExecutor.test.ts` and `FileTree.test.tsx` lint errors breaking CI.
+- **Playwright E2E harness** — Fixed hardcoded `/usr/bin/chromium` path absent on cloud sandboxes.
+- **`tauriMock.js` parse error** — Fixed unescaped backticks in template literal breaking CI.
+- **`open-note` automation command** — Fixed silent drop when racing ahead of settings restoration.
+- **F-Droid workflow pins** — Fixed stale pre-F015 version/commit pins in submission-verify workflow.
+- **`saveCoordinator.flush()` phantom state** — Fixed revision bump before write creating unsaved-work state.
+- **`resetForSession` zombie entry** — Fixed permanent zombie entry when in-flight write is in progress.
+- **Asset protocol scope** — Fixed `asset://` allowing any local file read via `**` glob.
+- **Export HTML img inlining** — Fixed `<img>` un-inlined when attribute value contains `>`.
+- **Export HTML src replacement** — Fixed wrong attribute targeted when alt/src share the same value.
+- **Deep-link path validation** — Fixed `open-note` deep link not validating path against workspace.
+- **Android `WRITE_EXTERNAL_STORAGE`** — Removed broader-than-needed permission.
+- **`slashCommandCompletions` crash** — Fixed `RangeError` when `context.pos > doc.length`.
+- **Capture attachment filename** — Fixed literal colon and 15-char timestamp in filenames.
+- **Platform detection caching** — Fixed `isIOS`/`isMobile` not cached.
+- **Android file reads** — Fixed unbounded file buffering risking `OutOfMemoryError`.
+- **Recent-notes widget metadata** — Fixed dropped `size`/`mtime` fields.
+- **Highlight color picker re-render** — Fixed menu sub-tree rebuild on toggle.
+- **Duplicate `MAX_WALK_DEPTH` constant** — Documented for future refactor.
+- **Recent-notes widget desktop** — Fixed unnecessary full walk on desktop.
+- **Highlight color picker** — Added missing "Plain" option to remove color emoji.

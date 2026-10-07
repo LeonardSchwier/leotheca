@@ -37,6 +37,8 @@ echo "═══ Pre-push: running full local CI/CD pipeline ═══"
 echo ""
 
 # Run the full CI suite (all checks, not --quick)
+# For faster feedback, use: CI_LOCAL_QUICK=1 git push
+# For specific skips: CI_LOCAL_SKIP_ANDROID=1 CI_LOCAL_SKIP_APPIMAGE=1
 if bash scripts/ci-local.sh; then
   echo ""
   echo "✅ Pre-push CI passed. Pushing..."

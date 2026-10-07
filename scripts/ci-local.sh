@@ -149,6 +149,8 @@ if [ "$FRONTEND_ONLY" -eq 0 ] && [ "$BACKEND_ONLY" -eq 0 ] && [ "$APPIMAGE_ONLY"
     skip_check "Android checks" "CI_LOCAL_SKIP_ANDROID=1"
   elif [ "$QUICK" -eq 1 ]; then
     skip_check "Android checks" "skipped (--quick)"
+  elif [ -z "${ANDROID_HOME:-}" ] && [ -z "${ANDROID_SDK_ROOT:-}" ]; then
+    skip_check "Android checks" "ANDROID_HOME not set (SDK not available)"
   elif command -v java &>/dev/null && [ -d "android" ]; then
     run_check "Android unit tests" "cd android && ./gradlew testDebugUnitTest 2>&1 | tail -20"
     if [ "$QUICK" -eq 0 ]; then

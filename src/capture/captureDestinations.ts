@@ -77,3 +77,107 @@ export type DestinationMode = "append" | "new" | "date";
 export function isValidDestinationMode(mode: string): mode is DestinationMode {
   return ["append", "new", "date"].includes(mode);
 }
+
+/**
+ * F05-FR target picker: a concrete, user-selectable note to capture into,
+ * distinct from the mode (append/new/date) which decides *how* it is written.
+ *
+ * - `inbox`: the configured inbox note (the "Append to inbox" destination).
+ * - `daily`: today's daily note, resolved from the date-pattern setting
+ *   (or its default).
+ * - `bookmarked`: a note the user has bookmarked (kind "file").
+ * - `specific`: any other note the user picked (a "specific note").
+ *
+ * `bookmarked` and `specific` both carry the absolute note path; `inbox`
+ * and `daily` resolve their target path from workspace settings, so they
+ * carry none. `label` is the human-readable display name shown in the
+ * picker.
+ */
+export type CaptureTargetKind = "inbox" | "daily" | "bookmarked" | "specific";
+
+export interface CaptureTargetOption {
+  kind: CaptureTargetKind;
+  label: string;
+  /** Absolute note path, present for "bookmarked" and "specific". */
+  path?: string;
+  /** The bookmark's own id, present only for "bookmarked" (key + identity). */
+  bookmarkId?: string;
+}
+
+/**
+ * Builds the picker's target list: the two always-available presets
+ * (inbox, today's daily note) followed by every bookmarked note, each in
+ * its own "bookmarked" entry so a bookmarked note can be chosen directly.
+ *
+ * The specific-note picker lives in CaptureSheet (it lists the workspace's
+ * markdown files); this keeps this module free of workspace-file IO so it
+ * stays pure and trivially testable. `workspaceRoot` anchors inbox/daily
+ * labels to the open workspace when one is set; it is omitted when not.
+ */
+export function buildCaptureTargetOptions(
+  workspaceSettings: {
+    captureInboxNote: string;
+    captureDatePattern: string;
+  },
+  bookmarkedNotes: Array<{ id: string; label: string; path: string }>,
+  workspaceRoot?: string,
+): CaptureTargetOption[] {
+  const inboxNote = workspaceSettings.captureInboxNote || "Inbox.md";
+  const options: CaptureTargetOption[] = [
+    {
+      kind: "inbox",
+      label: `Inbox: ${inboxNote}`,
+      ...(workspaceRoot ? { path: `${workspaceRoot}/${inboxNote}` } : {}),
+    },
+    {
+      kind: "daily",
+      label: "Today's daily note",
+    },
+  ];
+  for (const note of bookmarkedNotes) {
+    options.push({
+      kind: "bookmarked",
+      label: note.label,
+      path: note.path,
+      bookmarkId: note.id,
+    });
+  }
+  return options;
+}
+
+/**
+ * Resolves the concrete destination a capture target writes into.
+ *
+ * - "inbox"/"bookmarked"/"specific" → the note path (the option's own
+ *   `path`, or the workspace root + configured inbox note for "inbox"),
+ *   which the caller passes to `appendToInboxNote` (append into existing).
+ * - "daily" → today's daily note from the date pattern (or its default),
+ *   which the caller passes to `createNoteWithTitle` (create new).
+ *
+ * Returns `null` when a required input is missing (no workspace root, or a
+ * bookmark/specific target with no path) so callers can refuse rather than
+ * write somewhere undefined. Pure: `resolvePathWithinWorkspace` and the
+ * daily pattern math are done here with no native bridge, so it stays
+ * trivially testable.
+ */
+export function resolveCaptureTargetPath(
+  option: CaptureTargetOption,
+  workspaceRoot: string | undefined,
+  date: Date = new Date(),
+): string | null {
+  if (!workspaceRoot) return null;
+  switch (option.kind) {
+    case "inbox":
+      return (
+        option.path ??
+        `${workspaceRoot}/${
+          option.label.replace(/^Inbox: /, "") || "Inbox.md"
+        }`
+      );
+    case "daily":
+      return option.path ?? resolveDatePattern("Daily/{{date:YYYY-MM-DD}}.md", date).path;
+    case "bookmarked":
+    case "specific":
+      return option.path && option.path.trim() !== "" ? option.path : null;
+  }
+}

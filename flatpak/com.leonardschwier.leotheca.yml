@@ -17,14 +17,13 @@ build-options:
   append-path: /usr/lib/sdk/rust-stable/bin:/usr/lib/sdk/node22/bin
   env:
     CARGO_HOME: /run/build/leotheca/cargo
-    # 2026-10-07: re-enabled npm offline mode. The original concern
-    # (2026-10-06) was that the cache was incomplete for `npm install`
-    # (which runs arborist's full resolution). With `npm ci` on
-    # Node 22 / npm 10.9.x, the install is purely lockfile-driven and
-    # the node-sources.json cache IS complete (verified: all 344
-    # packages from f87bc5a's package-lock.json are present). The
-    # --offline flag guarantees npm never attempts a registry call.
-    npm_config_offline: "true"
+    # 2026-10-07: do NOT set npm_config_offline. The flatpak-node-generator
+    # provider imports node-sources.json into the npm cache, and `npm ci`
+    # with `--legacy-peer-deps` is purely lockfile-driven (no arborist
+    # resolution, no peer-dep metadata fetches). Setting
+    # npm_config_offline=true forces make-fetch-happen into only-if-cached
+    # mode, which fails when the cache import misses a package (e.g.
+    # zod-validation-error 4.0.2, CI run 37640985067).
     npm_config_cache: /run/build/leotheca/flatpak-node/npm-cache
     ESBUILD_BINARY_PATH: /run/build/leotheca/flatpak-node/cache/esbuild/bin/esbuild-current
 

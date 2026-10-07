@@ -3,6 +3,11 @@
  *
  * Uses Capacitor when available (native Android/iOS), falls back to
  * browser detection otherwise.
+ *
+ * Every signal is evaluated at most once per process and cached, so the
+ * three exports (isAndroid, isIOS, isMobile) cost a single Capacitor/UA
+ * probe in total no matter how often they are called. isMobile composes the
+ * two cached booleans rather than re-sniffing the user agent.
  */
 
 import { Capacitor } from "@capacitor/core";
@@ -48,4 +53,14 @@ export function isIOS(): boolean {
 
 export function isMobile(): boolean {
   return cachedIsAndroid() || cachedIsIOS();
+}
+
+/**
+ * Clears the process-level cache so the next isAndroid/isIOS/isMobile call
+ * re-evaluates the platform signal. Intended for tests that need to change
+ * the mocked platform between cases; production code never calls this.
+ */
+export function resetPlatformCacheForTests(): void {
+  _cachedIsAndroid = null;
+  _cachedIsIOS = null;
 }

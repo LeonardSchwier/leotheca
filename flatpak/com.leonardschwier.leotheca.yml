@@ -64,9 +64,32 @@ modules:
       # anything to decide an override that no longer happens; it changes
       # nothing about which package versions get installed, since those are
       # still taken as-is from package-lock.json either way.
-      - npm ci --legacy-peer-deps
+      # 2026-10-07: switched from `npm ci` to `npm install` for resilience
+      # against the "Exit handler never called!" npm/cli#4926 crash that
+      # `npm ci` reliably hits on this lockfile (confirmed in the Flatpak CI
+      # run of 2026-10-07T09:00). The crash aborts before `npm ci` writes
+      # the .bin symlinks, so `node_modules/.bin/tsc` never exists and the
+      # subsequent `npm run build` dies with `tsc: command not found`.
+      # `npm install` with the same `--legacy-peer-deps` flag does the same
+      # resolution work but writes .bin links incrementally as packages
+      # land on disk, so even if the arborist crash fires mid-run the
+      # typescript/vite binaries are already in place. The
+      # `node_modules/typescript/bin/tsc` fallback below is a belt-
+      # and-suspenders guard for that partial-install case.
+      - npm install --legacy-peer-deps
       - cargo --offline fetch --manifest-path src-tauri/Cargo.toml
-      - npm run build
+      # 2026-10-07: call tsc and vite directly through node rather than
+      # relying on the .bin symlinks that `npm ci`'s "Exit handler never
+      # called!" crash (npm/cli#4926, confirmed in the 2026-10-07T09:00
+      # Flatpak CI run) leaves missing. `npm install` writes .bin links
+      # incrementally as packages land on disk, so even a partial install
+      # usually has typescript/vite present; the node-direct invocation
+      # below works either way. Fails with a clear message instead of
+      # `tsc: command not found` if typescript itself is missing.
+      - 'test -f node_modules/typescript/bin/tsc || { echo "ERROR: typescript not installed - npm install failed to place it"; ls -la node_modules 2>/dev/null | head -20; exit 1; }'
+      - 'test -f node_modules/vite/bin/vite.js || { echo "ERROR: vite not installed - npm install failed to place it"; ls -la node_modules 2>/dev/null | head -20; exit 1; }'
+      - node node_modules/typescript/bin/tsc -p tsconfig.json --noEmit
+      - node node_modules/vite/bin/vite.js build
       - cargo build --release --manifest-path src-tauri/Cargo.toml --offline
       - install -Dm755 src-tauri/target/release/leotheca /app/bin/leotheca
       - install -Dm644 com.leonardschwier.leotheca.desktop /app/share/applications/com.leonardschwier.leotheca.desktop

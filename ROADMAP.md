@@ -1,5 +1,17 @@
 # Roadmap
 
+## About this project
+
+Leotheca was built using agentic AI engineering approaches. The following agents and contributors are listed in the git history:
+
+- Leonard Schwier (maintainer, architect, human oversight)
+- LeoHub Hermes (local agent — most features, bug fixes, CI/CD, packaging)
+- Claude Code (cloud agent — specific roadmap items)
+- ChatGPT automation (cloud agent — specific roadmap items)
+- Leotheca CI (automated verification and release pipeline)
+
+All AI-generated code was reviewed, tested, and merged by the maintainer. Human oversight remained at every stage.
+
 ## Open
 
 - ⬜ **macOS Gatekeeper: Sign, notarize, and staple release DMGs**: Current macOS artifacts are deliberately unsigned and unnotarized, so Gatekeeper warns that the app cannot be verified. The maintainer must provide an Apple Developer Program membership, a Developer ID Application certificate, and an App Store Connect API key as repository secrets. Update the macOS release job to sign the universal `.app`, submit it with `notarytool`, wait for acceptance, staple the ticket to both `.app` and DMG, and fail publication if any step fails. Verify `codesign`, `spctl`, and a fresh download/open on both Apple Silicon and Intel macOS; only then remove the unsigned-install workaround from user documentation and complete the Homebrew Cask.

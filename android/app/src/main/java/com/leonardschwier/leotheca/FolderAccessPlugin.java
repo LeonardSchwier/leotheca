@@ -145,6 +145,22 @@ public class FolderAccessPlugin extends Plugin {
      */
     private static final int MAX_WALK_DEPTH = 40;
 
+    /**
+     * Cross-language cap for a single-file content read: one file's bytes
+     * must not be buffered past this into a ByteArrayOutputStream, the same
+     * ceiling as SEARCH_BATCH_MAX_BYTES in src/workspace/fileTreeStore.ts
+     * (which bounds a content-read *batch*). The TS side keeps any one file
+     * under SEARCH_BATCH_MAX_BYTES (a lone file over the batch cap but under
+     * MAX_SEARCHABLE_FILE_BYTES is read alone), so a read that gets here is
+     * expected to fit within this value. Enforced again here so a direct
+     * caller of readTextFile/readOneFileOrNull/readFileAsDataUrl — the three
+     * single-file paths the search batch never uses — can no longer buffer a
+     * multi-hundred-MB attachment into heap and OutOfMemory the app, the same
+     * failure the sibling readTextFilesBatch/findAllFiles paths were
+     * instrumented against (2026-08-28, on-device).
+     */
+    static final long MAX_READ_FILE_BYTES = 8 * 1024 * 1024;
+
     private static boolean isImageName(String name) {
         String lower = name.toLowerCase();
         return lower.endsWith(".png") || lower.endsWith(".jpg") || lower.endsWith(".jpeg")
@@ -395,6 +411,35 @@ public class FolderAccessPlugin extends Plugin {
         }
     }
 
+    /**
+     * Reads a single file's bytes into a buffer bounded by
+     * MAX_READ_FILE_BYTES, throwing IllegalStateException (not
+     * OutOfMemoryError) once the cap is exceeded so the caller can surface a
+     * clean, bounded error instead of allocating an unbounded
+     * ByteArrayOutputStream. Shared by readTextFile (reject on overflow),
+     * readOneFileOrNull (return null on overflow) and readFileAsDataUrl
+     * (reject on overflow), the three single-file read paths that bypass the
+     * already-bounded readTextFilesBatch.
+     */
+    private byte[] readBoundedBytes(String uriStr) throws Exception {
+        try (InputStream input = getContext().getContentResolver().openInputStream(Uri.parse(uriStr))) {
+            if (input == null) {
+                throw new IllegalStateException("Could not open file");
+            }
+            ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+            byte[] chunk = new byte[8192];
+            int read;
+            while ((read = input.read(chunk)) != -1) {
+                buffer.write(chunk, 0, read);
+                if (buffer.size() > MAX_READ_FILE_BYTES) {
+                    throw new IllegalStateException(
+                        "File exceeds the maximum readable size of " + MAX_READ_FILE_BYTES + " bytes");
+                }
+            }
+            return buffer.toByteArray();
+        }
+    }
+
     @PluginMethod
     public void readTextFile(PluginCall call) {
         String uriStr = call.getString("uri");
@@ -402,19 +447,10 @@ public class FolderAccessPlugin extends Plugin {
             call.reject("uri is required");
             return;
         }
-        try (InputStream input = getContext().getContentResolver().openInputStream(Uri.parse(uriStr))) {
-            if (input == null) {
-                call.reject("Could not open file");
-                return;
-            }
-            ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-            byte[] chunk = new byte[8192];
-            int read;
-            while ((read = input.read(chunk)) != -1) {
-                buffer.write(chunk, 0, read);
-            }
+        try {
+            byte[] bytes = readBoundedBytes(uriStr);
             JSObject ret = new JSObject();
-            ret.put("content", buffer.toString("UTF-8"));
+            ret.put("content", new String(bytes, StandardCharsets.UTF_8));
             call.resolve(ret);
         } catch (Exception e) {
             call.reject(e.getMessage(), e);
@@ -427,15 +463,8 @@ public class FolderAccessPlugin extends Plugin {
      * reasonably fail the whole batch, the same tolerance readTextFile's own
      * callers already apply per-file one call at a time. */
     private String readOneFileOrNull(String uriStr) {
-        try (InputStream input = getContext().getContentResolver().openInputStream(Uri.parse(uriStr))) {
-            if (input == null) return null;
-            ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-            byte[] chunk = new byte[8192];
-            int read;
-            while ((read = input.read(chunk)) != -1) {
-                buffer.write(chunk, 0, read);
-            }
-            return buffer.toString("UTF-8");
+        try {
+            return new String(readBoundedBytes(uriStr), StandardCharsets.UTF_8);
         } catch (Exception e) {
             return null;
         }
@@ -672,25 +701,14 @@ public class FolderAccessPlugin extends Plugin {
             return;
         }
         try {
+            byte[] bytes = readBoundedBytes(uriStr);
             Uri uri = Uri.parse(uriStr);
             String mime = getContext().getContentResolver().getType(uri);
             if (mime == null) mime = "application/octet-stream";
-            try (InputStream input = getContext().getContentResolver().openInputStream(uri)) {
-                if (input == null) {
-                    call.reject("Could not open file");
-                    return;
-                }
-                ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-                byte[] chunk = new byte[8192];
-                int read;
-                while ((read = input.read(chunk)) != -1) {
-                    buffer.write(chunk, 0, read);
-                }
-                String base64 = Base64.encodeToString(buffer.toByteArray(), Base64.NO_WRAP);
-                JSObject ret = new JSObject();
-                ret.put("dataUrl", "data:" + mime + ";base64," + base64);
-                call.resolve(ret);
-            }
+            String base64 = Base64.encodeToString(bytes, Base64.NO_WRAP);
+            JSObject ret = new JSObject();
+            ret.put("dataUrl", "data:" + mime + ";base64," + base64);
+            call.resolve(ret);
         } catch (Exception e) {
             call.reject(e.getMessage(), e);
         }
@@ -834,6 +852,22 @@ public class FolderAccessPlugin extends Plugin {
                 JSONObject storedEntry = new JSONObject();
                 storedEntry.put("label", label.isEmpty() ? path : label);
                 storedEntry.put("path", path);
+                // Persist the note's mtime and size too, not just label/path:
+                // the factory re-reads this blob on every refresh and can then
+                // render a relative-time suffix ("5 min ago") or any other
+                // metadata without a second sync pass over the workspace,
+                // which is the whole point of the "TypeScript side resolves,
+                // native side renders" division this method documents. mtime
+                // is milliseconds-since-epoch (the same unit the TS
+                // selectRecentNotes and the walkForAllFiles entries above use)
+                // and size is bytes; both are optional on the wire, so an
+                // entry lacking them still stores cleanly as label+path.
+                if (entry.has("mtime") && !entry.isNull("mtime")) {
+                    storedEntry.put("mtime", entry.getLong("mtime"));
+                }
+                if (entry.has("size") && !entry.isNull("size")) {
+                    storedEntry.put("size", entry.getLong("size"));
+                }
                 stored.put(storedEntry);
             }
             getContext()

@@ -96,6 +96,16 @@ export interface FavoritesWidgetEntry {
 export interface RecentNotesWidgetEntry {
   label: string;
   path: string;
+  /** Milliseconds since the Unix epoch, matching FsEntry.mtime. Optional:
+   * a note whose listing didn't cheaply expose an mtime still carries
+   * label+path only, and the native side stores exactly that. */
+  mtime?: number;
+  /** File size in bytes, matching FsEntry.size. Optional for the same
+   * reason as mtime above. Persisted by
+   * FolderAccessPlugin.updateRecentNotesWidget alongside label/path so the
+   * widget factory can render a relative-time suffix or other metadata
+   * without a second sync pass over the workspace. */
+  size?: number;
 }
 
 interface FolderAccessPlugin {

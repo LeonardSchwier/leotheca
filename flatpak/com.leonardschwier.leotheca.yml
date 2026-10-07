@@ -55,17 +55,20 @@ modules:
       # - The `node node_modules/typescript/bin/tsc` invocation below is
       #   a belt-and-suspenders guard: works even if .bin symlinks are
       #   missing from a partial install.
-      # 2026-10-07: use `npm install` with `--prefer-offline` instead of
-      # `npm ci`. The "Exit handler never called!" crash (npm/cli#4926)
-      # affects `npm ci` in the Flatpak sandbox regardless of npm version
-      # (confirmed: Node 22.23.2 / npm 10.9.8, CI run 37679761605).
-      # `npm install` with `--prefer-offline` uses the cache if available
-      # but doesn't crash when a package is missing — it falls back to
-      # the registry (which works in the GitHub Actions Docker container).
-      # `--legacy-peer-deps` skips the eslint-plugin-compat peer conflict.
-      # `--no-audit --no-fund` reduces network calls and output noise.
+      # 2026-10-07: use `npm ci` with `--offline` and `--cache` explicitly.
+      # The "Exit handler never called!" crash (npm/cli#4926) happens with
+      # `npm install --prefer-offline` (CI run 37682317519). `npm ci` with
+      # `--offline` forces npm to use the cache only, avoiding network calls
+      # that might trigger the arborist crash.
+      #
+      # The `--cache` flag explicitly points to the flatpak-node cache,
+      # ensuring npm uses the packages downloaded by flatpak-builder.
+      #
+      # `--legacy-peer-deps` is NOT used because the peer conflict
+      # (eslint-plugin-compat / eslint) might be triggering the crash.
+      # If `npm ci` fails with a peer conflict, we'll add it back.
       - node --version && npm --version
-      - /usr/lib/sdk/node22/bin/npm install --legacy-peer-deps --prefer-offline --no-audit --no-fund
+      - /usr/lib/sdk/node22/bin/npm ci --offline --cache /run/build/leotheca/flatpak-node/npm-cache
       - cargo --offline fetch --manifest-path src-tauri/Cargo.toml
       # 2026-10-07: call tsc and vite directly through node rather than
       # via .bin symlinks. Works even if the .bin symlink step was

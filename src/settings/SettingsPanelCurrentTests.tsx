@@ -785,4 +785,18 @@ describe("SettingsPanel", () => {
       expect(queryByRole("status")).toBeNull();
     });
   });
+
+  describe("Export settings", () => {
+    it("renders an Export as JSON button in the About section", () => {
+      workspacePath.value = "/vault";
+      const { getByRole } = render(
+        <SettingsPanel onOpenFile={vi.fn()} />,
+      );
+      // Open the About category via the category nav
+      const aboutBtn = getByRole("button", { name: /about/i });
+      fireEvent.click(aboutBtn);
+      const btn = getByRole("button", { name: /export as json/i });
+      expect(btn).toBeTruthy();
+    });
+  });
 });

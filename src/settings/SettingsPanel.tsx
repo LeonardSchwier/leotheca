@@ -35,6 +35,7 @@ import {
   type ViewMode,
 } from "./workspaceSettings";
 import { getWorkspaceStats } from "../workspace/tauriBridge";
+import { exportTextFileViaDialog } from "../workspace/tauriBridgeImpl";
 import { VaultStatsPanel } from "./VaultStatsPanel";
 import { WorkspaceProfilesSettings } from "./WorkspaceProfilesSettings";
 import { KEYBOARD_SHORTCUTS } from "../app/shortcuts";
@@ -190,6 +191,19 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
     await onOpenFile(path, name);
     settingsPanelOpen.value = false;
     if (viewMode.value === "preview") viewMode.value = "split";
+  };
+
+  const handleExportSettings = async () => {
+    try {
+      const payload = {
+        exportedAt: new Date().toISOString(),
+        appVersion: appVersion.value || "unknown",
+        workspaceSettings: JSON.parse(JSON.stringify(workspaceSettings.value)),
+      };
+      await exportTextFileViaDialog("leotheca-settings.json", JSON.stringify(payload, null, 2));
+    } catch (e) {
+      window.alert(`Couldn't export settings: ${e instanceof Error ? e.message : String(e)}`);
+    }
   };
 
   const matches = (...texts: string[]) => matchesSettingsSearch(searchQuery, ...texts);
@@ -1334,6 +1348,10 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
             <button onClick={() => setShowLicense(true)}>View License</button>
           </div>
           )}
+          <div class="settings-row">
+            <div class="settings-label">Export settings</div>
+            <button onClick={handleExportSettings}>Export as JSON</button>
+          </div>
         </section>
         )}
           </div>

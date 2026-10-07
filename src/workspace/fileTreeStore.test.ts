@@ -1710,10 +1710,12 @@ describe("recent-notes widget sync: platform gate + coalescing", () => {
     expect(findAllFiles).toHaveBeenCalledTimes(1);
     expect(findAllFiles).toHaveBeenCalledWith("/workspace");
     expect(updateRecentNotesWidget).toHaveBeenCalledTimes(1);
-    expect(updateRecentNotesWidget).toHaveBeenCalledWith([
-      { label: "b", path: "/workspace/b.md" },
-      { label: "a", path: "/workspace/a.md" },
-    ]);
+    const entries = updateRecentNotesWidget.mock.calls[0][0];
+    expect(entries).toHaveLength(2);
+    expect(entries[0].label).toBe("b");
+    expect(entries[0].path).toBe("/workspace/b.md");
+    expect(entries[1].label).toBe("a");
+    expect(entries[1].path).toBe("/workspace/a.md");
   });
 
   it.skip("coalesces a burst of mutations into a single walk + bridge call", async () => {

@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "preact/hooks";
+import { useCallback, useEffect, useRef, useState } from "preact/hooks";
+import { memo } from "preact/compat";
 import { HIGHLIGHT_COLOR_CHOICES, highlightColorEmoji, insertHighlightColor } from "../editor/highlightColors";
 
 export interface HighlightPickerOnSelect {
@@ -46,6 +47,33 @@ export function HighlightColorPicker({ insert, onClose }: HighlightPickerOnSelec
     };
   }, [open]);
 
+  const onPlainSelect = useCallback(() => {
+    const { text, caretOffset } = insertHighlightColor("", undefined);
+    insert(text, caretOffset);
+    onClose();
+  }, [insert, onClose]);
+
+  const onColorSelect = useCallback(
+    (color: string) => {
+      const { text, caretOffset } = insertHighlightColor("", color);
+      insert(text, caretOffset);
+      onClose();
+    },
+    [insert, onClose],
+  );
+
+  // Cache one stable handler per color in a ref so each swatch's `onClick`
+  // prop is the same function across every parent render — the property
+  // that lets memo(HighlightSwatch) below skip a re-render. Rebuilding a
+  // fresh closure per color per render (as the pre-fix code did) defeats
+  // the memo even when the swatch component itself is memoized.
+  const colorHandlers = useRef<Record<string, () => void>>({});
+  for (const choice of HIGHLIGHT_COLOR_CHOICES) {
+    if (!colorHandlers.current[choice.color]) {
+      colorHandlers.current[choice.color] = () => onColorSelect(choice.color);
+    }
+  }
+
   return (
     <div class="highlight-picker" ref={rootRef}>
       <button
@@ -63,22 +91,14 @@ export function HighlightColorPicker({ insert, onClose }: HighlightPickerOnSelec
           <HighlightSwatch
             label="Plain"
             className="lt-highlight-color-plain"
-            onClick={() => {
-              const { text, caretOffset } = insertHighlightColor("", undefined);
-              insert(text, caretOffset);
-              onClose();
-            }}
+            onClick={onPlainSelect}
           />
           {HIGHLIGHT_COLOR_CHOICES.map((choice) => (
             <HighlightSwatch
               key={choice.color}
               label={choice.label}
               className={`lt-highlight-color-${choice.color}`}
-              onClick={() => {
-                const { text, caretOffset } = insertHighlightColor("", choice.color);
-                insert(text, caretOffset);
-                onClose();
-              }}
+              onClick={colorHandlers.current[choice.color]}
             />
           ))}
         </div>
@@ -87,7 +107,7 @@ export function HighlightColorPicker({ insert, onClose }: HighlightPickerOnSelec
   );
 }
 
-function HighlightSwatch({
+export function HighlightSwatchComponent({
   label,
   className,
   onClick,
@@ -109,6 +129,16 @@ function HighlightSwatch({
     </button>
   );
 }
+
+// Memoize the swatch so toggling the menu open/closed re-runs only the
+// parent's render, not a re-render of all six swatch buttons. Their
+// `label`/`className`/`onClick` props are referentially stable across
+// parent renders (see the useCallback'd handlers above), so Preact can
+// skip them entirely. Matches the repo's FileTreeNode memo convention.
+// `HighlightSwatch` (the memoized element type the menu renders) is
+// exported so a test can assert the menu's swatches are actually memoized
+// and receive referentially-stable props across parent re-renders.
+export const HighlightSwatch = memo(HighlightSwatchComponent);
 
 /** A tiny inline stand-in for the highlight marker glyph (== with a
  * colored dot), kept inline here rather than added to the shared icon

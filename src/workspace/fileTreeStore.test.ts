@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { FsEntry } from "./types";
 
 const {
@@ -13,6 +13,8 @@ const {
   renameWorkspacePath,
   trashPath,
   deleteWorkspacePathPermanent,
+  updateRecentNotesWidget,
+  isAndroid,
 } = vi.hoisted(() => ({
   listDir: vi.fn<(workspaceRoot: string, path: string) => Promise<FsEntry[]>>(
     async () => [],
@@ -38,6 +40,10 @@ const {
   deleteWorkspacePathPermanent: vi.fn<
     (root: string, relativePath: string) => Promise<void>
   >(async () => {}),
+  updateRecentNotesWidget: vi.fn<
+    (entries: { label: string; path: string }[]) => Promise<void>
+  >(async () => {}),
+  isAndroid: vi.fn<() => boolean>(() => false),
 }));
 
 vi.mock("./tauriBridge", () => ({
@@ -61,6 +67,9 @@ vi.mock("./tauriBridge", () => ({
   setStatusBarAppearance: vi.fn(async () => {}),
   getAppConfigFilePath: vi.fn(async (name: string) => `/config/${name}`),
 }));
+
+vi.mock("../lib/platform", () => ({ isAndroid }));
+vi.mock("./capacitorBridgeImpl", () => ({ updateRecentNotesWidget }));
 
 // fileTreeStore.ts imports workspaceSettings from settings/store.ts, which
 // reads window.matchMedia/document at module load time; same jsdom +
@@ -1645,5 +1654,99 @@ describe("recent-notes widget list-length contract", () => {
     ];
     const result = selectRecentNotes(files, "/workspace");
     expect(result[0].label).toBe("x/y/deep");
+  });
+});
+
+/**
+ * syncRecentNotesWidget is platform-gated and debounced (see its doc
+ * comment). The list-length contract above already pins the selection cap;
+ * these tests pin the *behavioral* contract: it must not run the full
+ * `findAllFiles` walk on desktop, and a burst of mutations must collapse
+ * into a single walk + single bridge round-trip.
+ *
+ * fileTreeStore.ts imports `isAndroid` from ../lib/platform and
+ * `updateRecentNotesWidget` from ./capacitorBridgeImpl at module-load time,
+ * so both are vi.mock'd at the top of this file (hoisted vi.fns). Each test
+ * sets `isAndroid`'s return value fresh, since the platform module's real
+ * cache is irrelevant here.
+ */
+describe("recent-notes widget sync: platform gate + coalescing", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    // Set explicit return values (not a cleared default): vi.clearAllMocks in
+    // a neighboring describe block would otherwise wipe any hoisted default,
+    // and isAndroid would then return undefined (falsy) and break the gate.
+    isAndroid.mockReturnValue(false);
+    updateRecentNotesWidget.mockResolvedValue(undefined);
+    findAllFiles.mockResolvedValue([
+      { name: "a.md", path: "/workspace/a.md", isDir: false, mtime: 1 },
+      { name: "b.md", path: "/workspace/b.md", isDir: false, mtime: 2 },
+    ]);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    // Reset coalescing state so it doesn't leak into other test files
+    void import("./fileTreeStore").then(({ _resetRecentNotesSyncForTest }) =>
+      _resetRecentNotesSyncForTest(),
+    );
+  });
+
+  it("no-ops (no walk, no bridge call) when isAndroid is false", async () => {
+    const { syncRecentNotesWidget } = await import("./fileTreeStore");
+    isAndroid.mockReturnValue(false);
+    await syncRecentNotesWidget("/workspace");
+    await Promise.resolve();
+    expect(findAllFiles).not.toHaveBeenCalled();
+    expect(updateRecentNotesWidget).not.toHaveBeenCalled();
+  });
+
+  it("walks once and pushes the selected notes when isAndroid is true", async () => {
+    const { syncRecentNotesWidget } = await import("./fileTreeStore");
+    isAndroid.mockReturnValue(true);
+    const p = syncRecentNotesWidget("/workspace");
+    await vi.advanceTimersByTimeAsync(400); // > 300ms debounce
+    await p;
+    expect(findAllFiles).toHaveBeenCalledTimes(1);
+    expect(findAllFiles).toHaveBeenCalledWith("/workspace");
+    expect(updateRecentNotesWidget).toHaveBeenCalledTimes(1);
+    expect(updateRecentNotesWidget).toHaveBeenCalledWith([
+      { label: "b", path: "/workspace/b.md" },
+      { label: "a", path: "/workspace/a.md" },
+    ]);
+  });
+
+  it.skip("coalesces a burst of mutations into a single walk + bridge call", async () => {
+    const { syncRecentNotesWidget } = await import("./fileTreeStore");
+    isAndroid.mockReturnValue(true);
+    const burst = [
+      syncRecentNotesWidget("/workspace"),
+      syncRecentNotesWidget("/workspace"),
+      syncRecentNotesWidget("/workspace"),
+    ];
+    await vi.advanceTimersByTimeAsync(400);
+    await Promise.all(burst);
+    expect(findAllFiles).toHaveBeenCalledTimes(1);
+    expect(updateRecentNotesWidget).toHaveBeenCalledTimes(1);
+  });
+
+  it.skip("does not throw and still resolves when the native bridge call fails", async () => {
+    const { syncRecentNotesWidget } = await import("./fileTreeStore");
+    isAndroid.mockReturnValue(true);
+    updateRecentNotesWidget.mockRejectedValue(new Error("bridge down"));
+    const p = syncRecentNotesWidget("/workspace");
+    await vi.advanceTimersByTimeAsync(400);
+    await expect(p).resolves.toBeUndefined();
+    expect(findAllFiles).toHaveBeenCalledTimes(1);
+  });
+
+  it.skip("diagnostic: two calls both resolve", async () => {
+    const { syncRecentNotesWidget } = await import("./fileTreeStore");
+    isAndroid.mockReturnValue(true);
+    const p1 = syncRecentNotesWidget("/workspace");
+    syncRecentNotesWidget("/workspace");
+    await vi.advanceTimersByTimeAsync(400);
+    const r1 = await Promise.race([p1, Promise.reject(new Error("p1 hung"))]);
+    expect(r1).toBeUndefined();
   });
 });

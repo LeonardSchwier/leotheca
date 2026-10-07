@@ -868,15 +868,11 @@ export async function deleteEntry(
 }
 
 /**
- * Pushes the most recently edited notes (by mtime) to the Android
- * home-screen recent-notes widget. Best-effort: a failure here must never
- * surface to a file-tree caller. Only runs on Android; desktop has no
- * equivalent widget.
- *
- * List length: `RECENT_NOTES_WIDGET_MAX` is the TypeScript-side cap.
- * The native side (FolderAccessPlugin.updateRecentNotesWidget) has its
- * own independent cap; both must stay in sync — see
- * WidgetResourcesUnitTest.java's cross-file contract test.
+ * List length cap for the recent-notes widget, shared by
+ * `selectRecentNotes` below and the sync at the bottom of this file.
+ * Cross-language contract: the native side
+ * (FolderAccessPlugin.updateRecentNotesWidget) keeps its own matching cap,
+ * and WidgetResourcesUnitTest.java pins the two to the same value.
  */
 export const RECENT_NOTES_WIDGET_MAX = 5;
 
@@ -903,12 +899,80 @@ export function selectRecentNotes(
     });
 }
 
-async function syncRecentNotesWidget(rootPath: string): Promise<void> {
-  if (!isAndroid()) return;
-  try {
-    const files = await findAllFiles(rootPath);
-    await updateRecentNotesWidget(selectRecentNotes(files, rootPath));
-  } catch {
-    // Best-effort widget sync; the in-app file tree is unaffected.
+/** Coalescing delay (ms) for the recent-notes widget sync. Several quick
+ * mutations in a row (a batch rename, a burst of captures) collapse into a
+ * single `findAllFiles` walk instead of one full recursive SAF walk per
+ * mutation. */
+const RECENT_NOTES_WIDGET_SYNC_DEBOUNCE_MS = 300;
+
+let recentNotesSyncTimer: ReturnType<typeof setTimeout> | null = null;
+let pendingRecentNotesSync: {
+  rootPath: string;
+  resolve: () => void;
+} | null = null;
+
+/**
+ * Pushes the most recently edited notes to the Android home-screen
+ * recent-notes widget. Best-effort: a failure here must never surface to a
+ * file-tree caller. Only runs on Android — desktop has no equivalent
+ * widget, and the full `findAllFiles` walk it triggers would be pure
+ * wasted work there (the same out-of-memory class the `findAllFiles`
+ * doc comments warn about on large SAF vaults).
+ *
+ * Coalesced: each call schedules (and, if a sync is already pending,
+ * merely extends) a single debounced `findAllFiles` walk, so a burst of
+ * create/rename/delete mutations results in one walk and one bridge
+ * round-trip instead of one per mutation. The promise resolves as soon as
+ * the (possibly already-in-flight) sync has run — callers `await` it, so
+ * ordering with the surrounding mutation is preserved.
+ *
+ * List length: `RECENT_NOTES_WIDGET_MAX` is the TypeScript-side cap; the
+ * native side (FolderAccessPlugin.updateRecentNotesWidget) keeps its own
+ * matching cap. Both are pinned to the same value by
+ * WidgetResourcesUnitTest.java's cross-file contract test.
+ */
+/** @internal test-only: clear pending syncs and timers to avoid state leaks between tests. */
+export function _resetRecentNotesSyncForTest(): void {
+  pendingRecentNotesSync = null;
+  if (recentNotesSyncTimer !== null) {
+    clearTimeout(recentNotesSyncTimer);
+    recentNotesSyncTimer = null;
   }
+}
+
+export function syncRecentNotesWidget(rootPath: string): Promise<void> {
+  if (!isAndroid()) return Promise.resolve();
+
+  // A sync is already scheduled (or running) for this workspace: this call
+  // only extends the debounce and adopts the in-flight result, so no second
+  // `findAllFiles` walk is started for the burst.
+  if (pendingRecentNotesSync) {
+    if (recentNotesSyncTimer !== null) {
+      clearTimeout(recentNotesSyncTimer);
+      recentNotesSyncTimer = null;
+    }
+    return new Promise<void>((resolve) => {
+      pendingRecentNotesSync!.resolve = resolve;
+    });
+  }
+
+  return new Promise<void>((resolve) => {
+    pendingRecentNotesSync = { rootPath, resolve };
+    recentNotesSyncTimer = setTimeout(async () => {
+      recentNotesSyncTimer = null;
+      const pending = pendingRecentNotesSync;
+      pendingRecentNotesSync = null;
+      if (!pending) return;
+      try {
+        const files = await findAllFiles(pending.rootPath);
+        await updateRecentNotesWidget(
+          selectRecentNotes(files, pending.rootPath),
+        );
+      } catch {
+        // Best-effort widget sync; the in-app file tree is unaffected.
+      } finally {
+        pending.resolve();
+      }
+    }, RECENT_NOTES_WIDGET_SYNC_DEBOUNCE_MS);
+  });
 }

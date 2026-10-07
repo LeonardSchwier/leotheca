@@ -150,8 +150,16 @@ if [ "$FRONTEND_ONLY" -eq 0 ] && [ "$BACKEND_ONLY" -eq 0 ] && [ "$APPIMAGE_ONLY"
   elif [ "$QUICK" -eq 1 ]; then
     skip_check "Android checks" "skipped (--quick)"
   elif [ -z "${ANDROID_HOME:-}" ] && [ -z "${ANDROID_SDK_ROOT:-}" ]; then
-    skip_check "Android checks" "ANDROID_HOME not set (SDK not available)"
-  elif command -v java &>/dev/null && [ -d "android" ]; then
+    # Auto-detect SDK in common locations
+    if [ -d "/var/lib/leohub/chat/android-sdk" ]; then
+      export ANDROID_HOME="/var/lib/leohub/chat/android-sdk"
+    else
+      skip_check "Android checks" "ANDROID_HOME not set (SDK not available)"
+      ANDROID_HOME=""
+    fi
+  fi
+  if [ -n "${ANDROID_HOME:-}" ] && command -v java &>/dev/null && [ -d "android" ]; then
+    export GRADLE_OPTS="-Dhttp.proxyHost=127.0.0.1 -Dhttp.proxyPort=18182 -Dhttps.proxyHost=127.0.0.1 -Dhttps.proxyPort=18182"
     run_check "Android unit tests" "cd android && ./gradlew testDebugUnitTest 2>&1 | tail -20"
     if [ "$QUICK" -eq 0 ]; then
       run_check "Android debug APK build" "cd android && ./gradlew assembleDebug 2>&1 | tail -20"

@@ -523,6 +523,8 @@ export function App() {
       if (command.kind === "open-favorites") {
         bookmarksOpen.value = true;
         tagsOpen.value = false;
+        taskHubOpen.value = false;
+        collectionsOpen.value = false;
         sidebarOpen.value = true;
         return;
       }

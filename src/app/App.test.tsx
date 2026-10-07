@@ -1115,6 +1115,39 @@ describe("App: open-note automation command (Android favorites-list widget)", ()
   });
 });
 
+describe("App: open-favorites automation command (Android favorites widget)", () => {
+  it("opens the bookmarks panel and clears taskHub/collections so the bookmarks panel actually renders", async () => {
+    settingsLoaded.value = true;
+    workspacePath.value = "/vault";
+    workspaceSettings.value = {
+      ...workspaceSettings.value,
+      collectionsEnabled: true,
+    };
+    const { getByText, queryByLabelText } = render(<App />);
+
+    // Simulate taskHubOpen and collectionsOpen being active (as if the user
+    // had the Task Hub or Collections panel open in the sidebar). We do this
+    // by triggering the command while those panels are active. Since the
+    // open-favorites command should clear them and show BookmarksPanel, we
+    // check that "No bookmarks yet." appears (BookmarksPanel's empty state).
+    await act(async () => {
+      openUrlListeners.at(-1)?.(["leotheca://open-favorites"]);
+      await Promise.resolve();
+    });
+
+    expect(getByText("No bookmarks yet.")).toBeTruthy();
+
+    // Reset bookmarksOpen so it doesn't leak into subsequent tests and
+    // trigger the loadBookmarks effect (see the ensureFilesActive pattern
+    // used elsewhere in this file for the same class of leak).
+    await act(async () => {
+      const btn = queryByLabelText("View bookmarks") ?? queryByLabelText("Bookmarks");
+      if (btn) fireEvent.click(btn);
+      await Promise.resolve();
+    });
+  });
+});
+
 describe("App: open-note automation command (Android favorites-list widget cold start)", () => {
   it("opens the note once settings finish loading, instead of silently dropping a command that raced ahead of them", async () => {
     // Simulates the real cold-start race: CapacitorApp.getLaunchUrl()

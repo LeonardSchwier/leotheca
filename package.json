@@ -13,7 +13,11 @@
     "test:watch": "vitest",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "check-version": "node scripts/checkVersion.js"
+    "check-version": "node scripts/checkVersion.js",
+    "ci": "bash scripts/ci-local.sh",
+    "ci:quick": "bash scripts/ci-local.sh --quick",
+    "ci:frontend": "bash scripts/ci-local.sh --frontend",
+    "ci:backend": "bash scripts/ci-local.sh --backend"
   },
   "dependencies": {
     "@capacitor/android": "^7.0.1",

@@ -889,22 +889,25 @@ export const RECENT_NOTES_WIDGET_MAX = 5;
  */
 export function selectRecentNotes(
   files: FsEntry[],
+  rootPath?: string,
 ): RecentNotesWidgetEntry[] {
   return files
     .filter((f) => !f.isDir && f.name.toLowerCase().endsWith(".md"))
     .sort((a, b) => (b.mtime ?? 0) - (a.mtime ?? 0))
     .slice(0, RECENT_NOTES_WIDGET_MAX)
-    .map<RecentNotesWidgetEntry>((f) => ({
-      label: f.name.replace(/\.md$/i, ""),
-      path: f.path,
-    }));
+    .map<RecentNotesWidgetEntry>((f) => {
+      const label = rootPath
+        ? relativePath(rootPath, f.path).replace(/\.md$/i, "")
+        : f.name.replace(/\.md$/i, "");
+      return { label, path: f.path };
+    });
 }
 
 async function syncRecentNotesWidget(rootPath: string): Promise<void> {
   if (!isAndroid()) return;
   try {
     const files = await findAllFiles(rootPath);
-    await updateRecentNotesWidget(selectRecentNotes(files));
+    await updateRecentNotesWidget(selectRecentNotes(files, rootPath));
   } catch {
     // Best-effort widget sync; the in-app file tree is unaffected.
   }

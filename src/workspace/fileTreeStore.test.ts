@@ -1614,4 +1614,36 @@ describe("recent-notes widget list-length contract", () => {
     ];
     expect(selectRecentNotes(files)).toEqual([]);
   });
+
+  it("disambiguates same-named notes in different folders by relative path", async () => {
+    const { selectRecentNotes } = await import("./fileTreeStore");
+    const files: FsEntry[] = [
+      { name: "Note.md", path: "/workspace/a/Note.md", isDir: false, mtime: 100 },
+      { name: "Note.md", path: "/workspace/b/Note.md", isDir: false, mtime: 200 },
+    ];
+    const result = selectRecentNotes(files, "/workspace");
+    expect(result).toHaveLength(2);
+    const labels = result.map((e) => e.label);
+    expect(new Set(labels).size).toBe(2);
+    expect(labels).toContain("a/Note");
+    expect(labels).toContain("b/Note");
+  });
+
+  it("uses bare basename for notes at the workspace root", async () => {
+    const { selectRecentNotes } = await import("./fileTreeStore");
+    const files: FsEntry[] = [
+      { name: "root.md", path: "/workspace/root.md", isDir: false, mtime: 100 },
+    ];
+    const result = selectRecentNotes(files, "/workspace");
+    expect(result[0].label).toBe("root");
+  });
+
+  it("handles deeply nested notes with correct relative path labels", async () => {
+    const { selectRecentNotes } = await import("./fileTreeStore");
+    const files: FsEntry[] = [
+      { name: "deep.md", path: "/workspace/x/y/deep.md", isDir: false, mtime: 100 },
+    ];
+    const result = selectRecentNotes(files, "/workspace");
+    expect(result[0].label).toBe("x/y/deep");
+  });
 });

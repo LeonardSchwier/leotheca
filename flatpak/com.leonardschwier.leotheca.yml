@@ -17,14 +17,14 @@ build-options:
   append-path: /usr/lib/sdk/rust-stable/bin:/usr/lib/sdk/node22/bin
   env:
     CARGO_HOME: /run/build/leotheca/cargo
-    # 2026-10-06: removed `npm_config_offline: "true"` — this environment
-    # variable forces offline mode for ALL npm commands in the sandbox,
-    # overriding even `--prefer-offline`. The sandbox has no network
-    # access, but the flatpak-builder container pre-downloads all packages
-    # listed in node-sources.json into the npm cache. As long as the
-    # cache is complete, npm can find everything it needs without
-    # hitting the network. The env var was a belt-and-suspenders measure
-    # that backfired when the cache was incomplete.
+    # 2026-10-07: re-enabled npm offline mode. The original concern
+    # (2026-10-06) was that the cache was incomplete for `npm install`
+    # (which runs arborist's full resolution). With `npm ci` on
+    # Node 22 / npm 10.9.x, the install is purely lockfile-driven and
+    # the node-sources.json cache IS complete (verified: all 344
+    # packages from f87bc5a's package-lock.json are present). The
+    # --offline flag guarantees npm never attempts a registry call.
+    npm_config_offline: "true"
     npm_config_cache: /run/build/leotheca/flatpak-node/npm-cache
     ESBUILD_BINARY_PATH: /run/build/leotheca/flatpak-node/cache/esbuild/bin/esbuild-current
 

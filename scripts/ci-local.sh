@@ -22,7 +22,7 @@ set -o pipefail
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"
 
-QUICK=0
+QUICK="${CI_LOCAL_QUICK:-0}"
 FRONTEND_ONLY=0
 BACKEND_ONLY=0
 ANDROID_ONLY=0

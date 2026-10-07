@@ -178,11 +178,11 @@ if [ "$FRONTEND_ONLY" -eq 0 ] && [ "$BACKEND_ONLY" -eq 0 ] && [ "$ANDROID_ONLY" 
   elif [ "$QUICK" -eq 1 ]; then
     skip_check "AppImage build" "skipped (--quick)"
   else
-    # AppImage build requires tauri + linuxdeploy
-    if command -v cargo &>/dev/null && [ -d "src-tauri" ]; then
-      run_check "AppImage build (tauri)" "cd src-tauri && cargo clean && cd .. && npx tauri build --bundles appimage 2>&1 | tail -20"
+    # AppImage build via custom script (linuxdeploy-native)
+    if [ -f "scripts/build-appimage.sh" ]; then
+      run_check "AppImage build (linuxdeploy)" "./scripts/build-appimage.sh 2>&1 | tail -20"
     else
-      skip_check "AppImage build" "cargo or src-tauri not found"
+      skip_check "AppImage build" "build-appimage.sh not found"
     fi
   fi
 fi

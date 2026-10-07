@@ -40,3 +40,4 @@ Thumbs.db
 # E2E test artifacts
 tests/ui/__pycache__/
 tests/ui/screenshots/
+Leotheca-x86_64.AppImage

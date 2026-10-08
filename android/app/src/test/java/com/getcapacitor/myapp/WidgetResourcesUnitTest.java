@@ -222,6 +222,48 @@ public class WidgetResourcesUnitTest {
         assertTrue(factory.contains("leotheca://open-note?path="));
     }
 
+    // Cross-language walk-depth contract: the Rust side
+    // (src-tauri/src/commands.rs) and the Java side
+    // (FolderAccessPlugin.java) must agree on MAX_WALK_DEPTH.
+    // Both files must declare the same named constant with the same value,
+    // so the two native filesystem walkers stay in lock-step.
+    @Test
+    public void maxWalkDepthIsConsistentAcrossRustAndJava() throws IOException {
+        String java = source("java/com/leonardschwier/leotheca/FolderAccessPlugin.java");
+
+        // Read the Rust file from the repository root (not android/).
+        String currentDir = System.getProperty("user.dir");
+        java.nio.file.Path repoRoot = java.nio.file.Paths.get(currentDir);
+        while (!repoRoot.resolve("src-tauri").toFile().exists()) {
+            repoRoot = repoRoot.getParent();
+            if (repoRoot == null) throw new IOException("Cannot find repository root");
+        }
+        String rust = new String(
+            java.nio.file.Files.readAllBytes(repoRoot.resolve("src-tauri/src/commands.rs")),
+            java.nio.charset.StandardCharsets.UTF_8
+        );
+
+        // Both files must use a named constant (not a bare literal).
+        assertTrue("FolderAccessPlugin.java must define MAX_WALK_DEPTH",
+            java.contains("MAX_WALK_DEPTH"));
+        assertTrue("commands.rs must define MAX_WALK_DEPTH",
+            rust.contains("MAX_WALK_DEPTH"));
+
+        // Extract the integer value from each and assert they match.
+        java.util.regex.Matcher mJava = java.util.regex.Pattern
+            .compile("MAX_WALK_DEPTH\\s*=\\s*(\\d+)").matcher(java);
+        assertTrue("FolderAccessPlugin MAX_WALK_DEPTH must have a numeric value", mJava.find());
+        int javaVal = Integer.parseInt(mJava.group(1));
+
+        java.util.regex.Matcher mRust = java.util.regex.Pattern
+            .compile("MAX_WALK_DEPTH\\s*:\\s*\\w+\\s*=\\s*(\\d+)").matcher(rust);
+        assertTrue("commands.rs MAX_WALK_DEPTH must have a numeric value", mRust.find());
+        int rustVal = Integer.parseInt(mRust.group(1));
+
+        assertTrue("Walk-depth mismatch: Java=" + javaVal + " Rust=" + rustVal,
+            javaVal == rustVal);
+    }
+
     // Cross-language list-length contract: the TypeScript side
     // (src/workspace/fileTreeStore.ts) and the native side
     // (FolderAccessPlugin.java) must agree on RECENT_NOTES_WIDGET_MAX.

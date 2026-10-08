@@ -229,7 +229,7 @@ public class WidgetResourcesUnitTest {
     // so the two native filesystem walkers stay in lock-step.
     @Test
     public void maxWalkDepthIsConsistentAcrossRustAndJava() throws IOException {
-        String java = source("java/com/leonardschwier/leotheca/FolderAccessPlugin.java");
+        String javaSrc = source("java/com/leonardschwier/leotheca/FolderAccessPlugin.java");
 
         // Read the Rust file from the repository root (not android/).
         String currentDir = System.getProperty("user.dir");
@@ -238,25 +238,25 @@ public class WidgetResourcesUnitTest {
             repoRoot = repoRoot.getParent();
             if (repoRoot == null) throw new IOException("Cannot find repository root");
         }
-        String rust = new String(
+        String rustSrc = new String(
             java.nio.file.Files.readAllBytes(repoRoot.resolve("src-tauri/src/commands.rs")),
             java.nio.charset.StandardCharsets.UTF_8
         );
 
         // Both files must use a named constant (not a bare literal).
         assertTrue("FolderAccessPlugin.java must define MAX_WALK_DEPTH",
-            java.contains("MAX_WALK_DEPTH"));
+            javaSrc.contains("MAX_WALK_DEPTH"));
         assertTrue("commands.rs must define MAX_WALK_DEPTH",
-            rust.contains("MAX_WALK_DEPTH"));
+            rustSrc.contains("MAX_WALK_DEPTH"));
 
         // Extract the integer value from each and assert they match.
         java.util.regex.Matcher mJava = java.util.regex.Pattern
-            .compile("MAX_WALK_DEPTH\\s*=\\s*(\\d+)").matcher(java);
+            .compile("MAX_WALK_DEPTH\\s*=\\s*(\\d+)").matcher(javaSrc);
         assertTrue("FolderAccessPlugin MAX_WALK_DEPTH must have a numeric value", mJava.find());
         int javaVal = Integer.parseInt(mJava.group(1));
 
         java.util.regex.Matcher mRust = java.util.regex.Pattern
-            .compile("MAX_WALK_DEPTH\\s*:\\s*\\w+\\s*=\\s*(\\d+)").matcher(rust);
+            .compile("MAX_WALK_DEPTH\\s*:\\s*\\w+\\s*=\\s*(\\d+)").matcher(rustSrc);
         assertTrue("commands.rs MAX_WALK_DEPTH must have a numeric value", mRust.find());
         int rustVal = Integer.parseInt(mRust.group(1));
 

@@ -47,8 +47,8 @@ Minor bugs, UX improvements, and performance.
 - **Recent-notes widget metadata** — `size` and `mtime` fields are dropped during widget sync, blocking future relative-time display.
 - **Highlight color picker re-render** — Menu sub-tree rebuilds on every open/close toggle.
 - 🚧 **Duplicate `MAX_WALK_DEPTH` constant** — Present in Java and Rust; TS copy already removed. Cross-language contract test `maxWalkDepthIsConsistentAcrossRustAndJava` added to `WidgetResourcesUnitTest.java` pins both to 40 and fails the build if they diverge.
-  <!-- agent-state: {"schema":1,"id":"rm-697b797ae03af96b","state":"claimed","touch":["ROADMAP.md","android/app/src/test/java/com/getcapacitor/myapp/WidgetResourcesUnitTest.java","src-tauri/src/commands.rs"],"resources":["max-walk-depth-contract"],"owner":"hermes-20261008T072803Z-a9184252","token":"614932d4df7f13fb3863735bb82c3811","branch":"agent/rm-697b797ae03af96b/614932d4df7f","claimed_at":"2026-10-08T07:33:33Z","heartbeat_at":"2026-10-08T07:33:33Z","lease_until":"2026-10-08T09:03:33Z"} -->
-  Agent: hermes-20261008T072803Z-a9184252 | item: rm-697b797ae03af96b | lease until: 2026-10-08T09:03:33Z
+  <!-- agent-state: {"schema":1,"id":"rm-697b797ae03af96b","state":"claimed","touch":["ROADMAP.md","android/app/src/test/java/com/getcapacitor/myapp/WidgetResourcesUnitTest.java","src-tauri/src/commands.rs"],"resources":["max-walk-depth-contract"],"owner":"opencode-20261008T110211Z-d2bf85bb","token":"b498740575f097ba804abb0ac48cc649","branch":"agent/rm-697b797ae03af96b/b498740575f0","claimed_at":"2026-10-08T11:04:13Z","heartbeat_at":"2026-10-08T11:04:13Z","lease_until":"2026-10-08T12:34:13Z"} -->
+  Agent: opencode-20261008T110211Z-d2bf85bb | item: rm-697b797ae03af96b | lease until: 2026-10-08T12:34:13Z
 - **`syncRecentNotesWidget` desktop no-op** — Already covered by the performance item above.
 
 ## Implemented

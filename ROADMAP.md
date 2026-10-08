@@ -46,12 +46,14 @@ Minor bugs, UX improvements, and performance.
 - **Android file reads** — `FolderAccessPlugin` read methods buffer whole files with no size cap; risk of `OutOfMemoryError` on large attachments.
 - **Recent-notes widget metadata** — `size` and `mtime` fields are dropped during widget sync, blocking future relative-time display.
 - **Highlight color picker re-render** — Menu sub-tree rebuilds on every open/close toggle.
-- 🚧 **Duplicate `MAX_WALK_DEPTH` constant** — Present in Java and Rust; TS copy already removed. Cross-language contract test `maxWalkDepthIsConsistentAcrossRustAndJava` added to `WidgetResourcesUnitTest.java` pins both to 40 and fails the build if they diverge.
-  <!-- agent-state: {"schema":1,"id":"rm-697b797ae03af96b","state":"claimed","touch":["ROADMAP.md","android/app/src/test/java/com/getcapacitor/myapp/WidgetResourcesUnitTest.java","src-tauri/src/commands.rs"],"resources":["max-walk-depth-contract"],"owner":"opencode-20261008T110211Z-d2bf85bb","token":"b498740575f097ba804abb0ac48cc649","branch":"agent/rm-697b797ae03af96b/b498740575f0","claimed_at":"2026-10-08T11:04:13Z","heartbeat_at":"2026-10-08T11:04:13Z","lease_until":"2026-10-08T12:34:13Z"} -->
-  Agent: opencode-20261008T110211Z-d2bf85bb | item: rm-697b797ae03af96b | lease until: 2026-10-08T12:34:13Z
 - **`syncRecentNotesWidget` desktop no-op** — Already covered by the performance item above.
 
 ## Implemented
+
+- ✅ **Duplicate `MAX_WALK_DEPTH` constant** — Present in Java and Rust; TS copy already removed. Cross-language contract test `maxWalkDepthIsConsistentAcrossRustAndJava` added to `WidgetResourcesUnitTest.java` pins both to 40 and fails the build if they diverge.
+  <!-- agent-state: {"schema":1,"id":"rm-697b797ae03af96b","state":"done","touch":["ROADMAP.md","android/app/src/test/java/com/getcapacitor/myapp/WidgetResourcesUnitTest.java","src-tauri/src/commands.rs"],"resources":["max-walk-depth-contract"],"note":"Code already landed on main (commits e1dbf11, cbebe07) with CI green (run 37746072890). Cross-language contract test maxWalkDepthIsConsistentAcrossRustAndJava pins MAX_WALK_DEPTH=40 in both Java and Rust. TS copy was removed in a prior commit. Ledger icon/state mismatch was fixed in commit 853a23d.","completed_at":"2026-10-08T11:04:43Z","completed_by":"opencode-20261008T110211Z-d2bf85bb","branch":"agent/rm-697b797ae03af96b/b498740575f0"} -->
+  Agent: completed by opencode-20261008T110211Z-d2bf85bb | item: rm-697b797ae03af96b
+
 
 Leotheca 1.0.0 shipped a complete local-first note-taking experience across desktop (macOS, Windows, Linux) and Android. Highlights:
 

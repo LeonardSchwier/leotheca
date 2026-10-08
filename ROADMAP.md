@@ -46,7 +46,7 @@ Minor bugs, UX improvements, and performance.
 - **Android file reads** — `FolderAccessPlugin` read methods buffer whole files with no size cap; risk of `OutOfMemoryError` on large attachments.
 - **Recent-notes widget metadata** — `size` and `mtime` fields are dropped during widget sync, blocking future relative-time display.
 - **Highlight color picker re-render** — Menu sub-tree rebuilds on every open/close toggle.
-- **Duplicate `MAX_WALK_DEPTH` constant** — Present in Java, Rust, and TS; flagged for a future refactor.
+- ⬜ **Duplicate `MAX_WALK_DEPTH` constant** — Present in Java, Rust, and TS; flagged for a future refactor.
 - **`syncRecentNotesWidget` desktop no-op** — Already covered by the performance item above.
 
 ## Implemented

@@ -46,7 +46,9 @@ Minor bugs, UX improvements, and performance.
 - **Android file reads** — `FolderAccessPlugin` read methods buffer whole files with no size cap; risk of `OutOfMemoryError` on large attachments.
 - **Recent-notes widget metadata** — `size` and `mtime` fields are dropped during widget sync, blocking future relative-time display.
 - **Highlight color picker re-render** — Menu sub-tree rebuilds on every open/close toggle.
-- ⬜ **Duplicate `MAX_WALK_DEPTH` constant** — Present in Java, Rust, and TS; flagged for a future refactor.
+- 🚧 **Duplicate `MAX_WALK_DEPTH` constant** — Present in Java, Rust, and TS; flagged for a future refactor.
+  <!-- agent-state: {"schema":1,"id":"rm-697b797ae03af96b","state":"claimed","touch":["ROADMAP.md","android/app/src/test/java/com/getcapacitor/myapp/WidgetResourcesUnitTest.java","src-tauri/src/commands.rs"],"resources":["max-walk-depth-contract"],"owner":"hermes-20261008T072803Z-a9184252","token":"614932d4df7f13fb3863735bb82c3811","branch":"agent/rm-697b797ae03af96b/614932d4df7f","claimed_at":"2026-10-08T07:33:33Z","heartbeat_at":"2026-10-08T07:33:33Z","lease_until":"2026-10-08T09:03:33Z"} -->
+  Agent: hermes-20261008T072803Z-a9184252 | item: rm-697b797ae03af96b | lease until: 2026-10-08T09:03:33Z
 - **`syncRecentNotesWidget` desktop no-op** — Already covered by the performance item above.
 
 ## Implemented

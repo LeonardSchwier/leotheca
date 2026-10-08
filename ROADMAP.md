@@ -41,7 +41,9 @@ Minor bugs, UX improvements, and performance.
 
 - **Recent-notes widget performance** — Full workspace re-walk on every note mutation, fires on desktop where it has no handler, and hardcodes a 5-item cap that disagrees with the native 10-item cap.
 - **Recent-notes widget labels** — Bare basenames collide for same-named notes in different folders; deep-links open the wrong note.
-- ⬜ **Highlight color picker** — No "Plain" option to remove a previously typed color emoji from an `==highlight==`.
+- 🚧 **Highlight color picker** — No "Plain" option to remove a previously typed color emoji from an `==highlight==`.
+  <!-- agent-state: {"schema":1,"id":"rm-fcd2a44c75a885de","state":"claimed","touch":["ROADMAP.md","src/app/HighlightColorPicker.test.tsx","src/app/HighlightColorPicker.tsx","src/editor/highlightColors.test.ts","src/editor/highlightColors.ts"],"resources":["highlight-color-contract"],"owner":"opencode-20261008T110914Z-9ca2ed59","token":"e947ed1d2157be07815b284cd41db485","branch":"agent/rm-fcd2a44c75a885de/e947ed1d2157","claimed_at":"2026-10-08T11:10:41Z","heartbeat_at":"2026-10-08T11:10:41Z","lease_until":"2026-10-08T12:40:41Z"} -->
+  Agent: opencode-20261008T110914Z-9ca2ed59 | item: rm-fcd2a44c75a885de | lease until: 2026-10-08T12:40:41Z
 - **Platform detection caching** — `isIOS`/`isMobile` re-evaluate the user agent on every call while `isAndroid` is cached.
 - **Android file reads** — `FolderAccessPlugin` read methods buffer whole files with no size cap; risk of `OutOfMemoryError` on large attachments.
 - **Recent-notes widget metadata** — `size` and `mtime` fields are dropped during widget sync, blocking future relative-time display.

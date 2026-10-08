@@ -44,7 +44,9 @@ Minor bugs, UX improvements, and performance.
 - 🚧 **Highlight color picker** — No "Plain" option to remove a previously typed color emoji from an `==highlight==`.
   <!-- agent-state: {"schema":1,"id":"rm-fcd2a44c75a885de","state":"claimed","touch":["ROADMAP.md","src/app/HighlightColorPicker.test.tsx","src/app/HighlightColorPicker.tsx","src/editor/highlightColors.test.ts","src/editor/highlightColors.ts"],"resources":["highlight-color-contract"],"owner":"opencode-20261008T110914Z-9ca2ed59","token":"e947ed1d2157be07815b284cd41db485","branch":"agent/rm-fcd2a44c75a885de/e947ed1d2157","claimed_at":"2026-10-08T11:10:41Z","heartbeat_at":"2026-10-08T11:10:41Z","lease_until":"2026-10-08T12:40:41Z"} -->
   Agent: opencode-20261008T110914Z-9ca2ed59 | item: rm-fcd2a44c75a885de | lease until: 2026-10-08T12:40:41Z
-- ⬜ **Platform detection caching** — `isIOS`/`isMobile` re-evaluate the user agent on every call while `isAndroid` is cached.
+- 🚧 **Platform detection caching** — `isIOS`/`isMobile` re-evaluate the user agent on every call while `isAndroid` is cached.
+  <!-- agent-state: {"schema":1,"id":"rm-c7dd9ed39a1d6ed8","state":"claimed","touch":[],"resources":["platform-detection-contract"],"owner":"hermes-20261008T111553Z-a3c317be","token":"53d42c09d18186178553ffdcf8a6c334","branch":"agent/rm-c7dd9ed39a1d6ed8/53d42c09d181","claimed_at":"2026-10-08T11:22:13Z","heartbeat_at":"2026-10-08T11:22:13Z","lease_until":"2026-10-08T12:52:13Z"} -->
+  Agent: hermes-20261008T111553Z-a3c317be | item: rm-c7dd9ed39a1d6ed8 | lease until: 2026-10-08T12:52:13Z
 - **Android file reads** — `FolderAccessPlugin` read methods buffer whole files with no size cap; risk of `OutOfMemoryError` on large attachments.
 - **Recent-notes widget metadata** — `size` and `mtime` fields are dropped during widget sync, blocking future relative-time display.
 - **Highlight color picker re-render** — Menu sub-tree rebuilds on every open/close toggle.

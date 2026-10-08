@@ -41,7 +41,7 @@ Minor bugs, UX improvements, and performance.
 
 - **Recent-notes widget performance** — Full workspace re-walk on every note mutation, fires on desktop where it has no handler, and hardcodes a 5-item cap that disagrees with the native 10-item cap.
 - **Recent-notes widget labels** — Bare basenames collide for same-named notes in different folders; deep-links open the wrong note.
-- **Highlight color picker** — No "Plain" option to remove a previously typed color emoji from an `==highlight==`.
+- ⬜ **Highlight color picker** — No "Plain" option to remove a previously typed color emoji from an `==highlight==`.
 - **Platform detection caching** — `isIOS`/`isMobile` re-evaluate the user agent on every call while `isAndroid` is cached.
 - **Android file reads** — `FolderAccessPlugin` read methods buffer whole files with no size cap; risk of `OutOfMemoryError` on large attachments.
 - **Recent-notes widget metadata** — `size` and `mtime` fields are dropped during widget sync, blocking future relative-time display.

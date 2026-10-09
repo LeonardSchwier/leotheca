@@ -53,6 +53,9 @@ Minor bugs, UX improvements, and performance.
 - **Highlight color picker re-render** — Menu sub-tree rebuilds on every open/close toggle.
 - **`syncRecentNotesWidget` desktop no-op** — Already covered by the performance item above.
 
+- ⬜ **Set the app as the default handler for `.md` files (OS "Open with")**: Market Solution #2's 1.14 Desktop (Oct 5, 2026) added the "Open file from outside the vault" command, OS Open-with registration, and a settable default app for Markdown files. Leotheca already reads individual notes (the 'Open file from outside the vault' command shipped as F04) but cannot register itself as the OS default; completing that last step lets the user open their plain `.md` files in Leotheca from anywhere. (Competitor scan, Market Solution #2 changelog 1.14 Desktop, 2026-10-05)
+- ⬜ **macOS document icons for `.md`**: Market Solution #2's 1.14 Desktop (Oct 5, 2026) shipped custom document icons for its note file types so they are recognisable in Finder and Quick Look. Leotheca has no custom file-type icons of its own today. (Competitor scan, Market Solution #2 changelog 1.14 Desktop, 2026-10-05)
+
 ## Implemented
 
 - ✅ **Duplicate `MAX_WALK_DEPTH` constant** — Present in Java and Rust; TS copy already removed. Cross-language contract test `maxWalkDepthIsConsistentAcrossRustAndJava` added to `WidgetResourcesUnitTest.java` pins both to 40 and fails the build if they diverge.

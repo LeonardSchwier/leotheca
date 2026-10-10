@@ -1,3 +1,16 @@
+---
+name: roadmap-workflow
+description: Claim, lease, and land roadmap work.
+version: 1.0.0
+author: Leonard Schwier
+license: MIT
+platforms: [linux, macos, windows]
+metadata:
+  hermes:
+    tags: [roadmap, workflow, coordination, leotheca]
+    related_skills: [autonomous-roadmap-delivery, roadmap-entry-format, pre-push-verification]
+---
+
 <!--
 Variables: use CONSTITUTION.md's remote, main_branch, roadmap_file, handoff_dir,
 lease_minutes, heartbeat_minutes, clock_skew_minutes, contention_retries.

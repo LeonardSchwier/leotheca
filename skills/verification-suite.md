@@ -1,3 +1,16 @@
+---
+name: verification-suite
+description: Run the full verification suite.
+version: 1.0.0
+author: Leonard Schwier
+license: MIT
+platforms: [linux, macos, windows]
+metadata:
+  hermes:
+    tags: [verification, ci, testing, quality, leotheca]
+    related_skills: [pre-push-verification, ci-failure-triage, change-quality-gates, persistence-implementation]
+---
+
 <!--
 PROJECT COMMAND VARIABLES (commands run at repository root unless a cwd is given)
 CONFIG = CONSTITUTION.md

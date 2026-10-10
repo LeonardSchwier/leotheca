@@ -4,6 +4,8 @@
 
 Read the entrypoint and current policy first. These are plain Markdown procedures usable by any agent, including a runner without native skill discovery. Load only the applicable files. Project identity and timing settings live at the top of the constitution; domain paths and command profiles live at the top of the relevant runbook.
 
+Each runbook carries standard SKILL.md YAML frontmatter (name, description, version, author, license, platforms, hermes metadata) as its first bytes for portability across skill-aware runners. Runners without native discovery simply read the file body as before; the frontmatter does not change any procedure, path, or variable.
+
 | When | Read |
 | --- | --- |
 | Start/continue an autonomous session; blockers; shutdown | [autonomous-roadmap-delivery.md](autonomous-roadmap-delivery.md) |

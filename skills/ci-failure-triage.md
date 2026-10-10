@@ -1,3 +1,16 @@
+---
+name: ci-failure-triage
+description: Diagnose and repair failing CI.
+version: 1.0.0
+author: Leonard Schwier
+license: MIT
+platforms: [linux, macos, windows]
+metadata:
+  hermes:
+    tags: [ci, triage, debugging, leotheca]
+    related_skills: [verification-suite, pre-push-verification]
+---
+
 <!-- Variables: read CONSTITUTION.md; CI_WORKFLOW and job map = verification-suite.md. -->
 
 # Diagnose and repair CI

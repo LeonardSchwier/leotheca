@@ -1,3 +1,16 @@
+---
+name: phase-splitting-large-specs
+description: Split a large item into slices.
+version: 1.0.0
+author: Leonard Schwier
+license: MIT
+platforms: [linux, macos, windows]
+metadata:
+  hermes:
+    tags: [planning, spec, scoping, leotheca]
+    related_skills: [roadmap-workflow, roadmap-entry-format, writing-scanner-modules]
+---
+
 <!-- Variables: SPEC_DIR = spec; ROADMAP_FILE = configured roadmap_file; WORKFLOW = roadmap-workflow.md -->
 
 # Split a large item into complete slices

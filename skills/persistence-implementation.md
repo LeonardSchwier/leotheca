@@ -1,3 +1,16 @@
+---
+name: persistence-implementation
+description: Implement local persistence and settings.
+version: 1.0.0
+author: Leonard Schwier
+license: MIT
+platforms: [linux, macos, windows]
+metadata:
+  hermes:
+    tags: [persistence, storage, settings, leotheca]
+    related_skills: [verification-suite, change-quality-gates]
+---
+
 <!--
 Variables: CONFIG = ../CONSTITUTION.md; CHECKS = verification-suite.md
 SETTINGS_ROOT = src/settings

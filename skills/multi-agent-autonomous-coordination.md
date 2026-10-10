@@ -1,3 +1,16 @@
+---
+name: multi-agent-autonomous-coordination
+description: Coordinate concurrent autonomous agents.
+version: 1.0.0
+author: Leonard Schwier
+license: MIT
+platforms: [linux, macos, windows]
+metadata:
+  hermes:
+    tags: [agents, coordination, autonomous, leotheca]
+    related_skills: [autonomous-roadmap-delivery, roadmap-workflow, merge-conflict-resolution]
+---
+
 <!-- Variables: POLICY = ../CONSTITUTION.md; LOOP = autonomous-roadmap-delivery.md; TRANSACTIONS = roadmap-workflow.md -->
 
 # Compatibility entrypoint

@@ -1,3 +1,16 @@
+---
+name: autonomous-roadmap-delivery
+description: Run the multi-task claim-to-landing session loop.
+version: 1.0.0
+author: Leonard Schwier
+license: MIT
+platforms: [linux, macos, windows]
+metadata:
+  hermes:
+    tags: [roadmap, session-loop, autonomous, leotheca]
+    related_skills: [roadmap-workflow, verification-suite, pre-push-verification, maintenance-review]
+---
+
 <!-- Variables: read CONSTITUTION.md; handoff_dir, setup_minutes, ci_wait_minutes, blocked_recheck_minutes. -->
 
 # Autonomous session loop

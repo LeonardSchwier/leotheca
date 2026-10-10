@@ -1,3 +1,16 @@
+---
+name: competitor-changelog-scan
+description: Scan competitor changelogs for gaps.
+version: 1.0.0
+author: Leonard Schwier
+license: MIT
+platforms: [linux, macos, windows]
+metadata:
+  hermes:
+    tags: [research, changelog, competitive, leotheca]
+    related_skills: [roadmap-workflow, roadmap-entry-format]
+---
+
 <!--
 Variables: CONFIG = ../CONSTITUTION.md; PRODUCT_RULES = configured product_rules_file
 SOURCE_1 = https://joplinapp.org/help/about/changelog/desktop/

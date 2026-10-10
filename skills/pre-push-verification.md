@@ -1,3 +1,16 @@
+---
+name: pre-push-verification
+description: Verify the pre-push gate before pushing.
+version: 1.0.0
+author: Leonard Schwier
+license: MIT
+platforms: [linux, macos, windows]
+metadata:
+  hermes:
+    tags: [verification, pre-push, ci, gating, leotheca]
+    related_skills: [verification-suite, ci-failure-triage, merge-conflict-resolution, change-quality-gates]
+---
+
 <!-- Variables: read CONSTITUTION.md's remote, main_branch. TOOL = scripts/agent_ledger.py -->
 
 # Pre-push verification gate

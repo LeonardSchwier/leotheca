@@ -1,3 +1,16 @@
+---
+name: packaging-submission-pipelines
+description: Run packaging and store submission.
+version: 1.0.0
+author: Leonard Schwier
+license: MIT
+platforms: [linux, macos, windows]
+metadata:
+  hermes:
+    tags: [packaging, release, submission, flatpak, leotheca]
+    related_skills: [pre-push-verification, verification-suite]
+---
+
 <!--
 Variables: IDENTITY = ../CONSTITUTION.md (app_id, main_branch)
 ANDROID_PACKAGE_DIR = packaging/f-droid

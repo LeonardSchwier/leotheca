@@ -1,3 +1,16 @@
+---
+name: merge-conflict-resolution
+description: Integrate a moving main branch.
+version: 1.0.0
+author: Leonard Schwier
+license: MIT
+platforms: [linux, macos, windows]
+metadata:
+  hermes:
+    tags: [git, merge, conflict, integration, leotheca]
+    related_skills: [pre-push-verification, roadmap-workflow]
+---
+
 <!-- Variables: read CONSTITUTION.md; REMOTE = remote; MAIN_BRANCH = main_branch; ROADMAP_FILE = roadmap_file. -->
 
 # Integrate a moving main

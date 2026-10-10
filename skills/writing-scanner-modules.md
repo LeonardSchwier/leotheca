@@ -1,3 +1,16 @@
+---
+name: writing-scanner-modules
+description: Write a markdown scanner module.
+version: 1.0.0
+author: Leonard Schwier
+license: MIT
+platforms: [linux, macos, windows]
+metadata:
+  hermes:
+    tags: [markdown, scanner, frontend, leotheca]
+    related_skills: [phase-splitting-large-specs, verification-suite]
+---
+
 <!--
 Variables: CONFIG = ../CONSTITUTION.md
 SCANNER_EXAMPLE = src/markdown/headings.ts

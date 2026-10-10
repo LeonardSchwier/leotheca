@@ -1,3 +1,16 @@
+---
+name: change-quality-gates
+description: Boundary and sensitive-data quality gates.
+version: 1.0.0
+author: Leonard Schwier
+license: MIT
+platforms: [linux, macos, windows]
+metadata:
+  hermes:
+    tags: [quality, gates, leotheca]
+    related_skills: [pre-push-verification, verification-suite, persistence-implementation]
+---
+
 <!-- Variables: POLICY = ../CONSTITUTION.md; FRONTEND = ../src; ANDROID = ../android; NATIVE = ../src-tauri -->
 
 # Boundary and sensitive-data quality gates

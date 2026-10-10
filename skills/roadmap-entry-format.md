@@ -1,3 +1,16 @@
+---
+name: roadmap-entry-format
+description: Format roadmap entries consistently.
+version: 1.0.0
+author: Leonard Schwier
+license: MIT
+platforms: [linux, macos, windows]
+metadata:
+  hermes:
+    tags: [roadmap, format, writing, leotheca]
+    related_skills: [roadmap-workflow, phase-splitting-large-specs]
+---
+
 <!--
 Variables: ROADMAP_FILE = ../ROADMAP.md; HELPER = scripts/agent_ledger.py;
 LINTER = scripts/check_roadmap_format.py; SUMMARY_BUDGET = 500 characters

@@ -1,3 +1,16 @@
+---
+name: maintenance-review
+description: Review maintenance backlog and roadmap.
+version: 1.0.0
+author: Leonard Schwier
+license: MIT
+platforms: [linux, macos, windows]
+metadata:
+  hermes:
+    tags: [maintenance, review, roadmap, leotheca]
+    related_skills: [competitor-changelog-scan, roadmap-workflow]
+---
+
 <!--
 Variables: read CONSTITUTION.md (roadmap_file, handoff_dir, main_branch).
 HISTORIC_BATCH_COMMITS = 10

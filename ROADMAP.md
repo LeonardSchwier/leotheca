@@ -50,7 +50,9 @@ Minor bugs, UX improvements, and performance.
   - **Ledger note:** This item was stuck open as a ledger desync — the code landed in `e7930f6` but the ROADMAP icon was missing (bare `- **title**` instead of `- ⬜ **title**`), making it invisible to `agent_ledger.py`'s ITEM regex. Icon added in `259ca9d`.
 - **Android file reads** — `FolderAccessPlugin` read methods buffer whole files with no size cap; risk of `OutOfMemoryError` on large attachments.
 - **Recent-notes widget metadata** — `size` and `mtime` fields are dropped during widget sync, blocking future relative-time display.
-- ⬜ **Highlight color picker re-render** — Menu sub-tree rebuilds on every open/close toggle.
+- 🚧 **Highlight color picker re-render** — Menu sub-tree rebuilds on every open/close toggle.
+  <!-- agent-state: {"schema":1,"id":"rm-911108dd0eda25cb","state":"claimed","touch":["ROADMAP.md","src/app/HighlightColorPicker.test.tsx","src/app/HighlightColorPicker.tsx"],"resources":["highlight-picker-render"],"owner":"opencode-20261010T151954Z-37057da9","token":"178dcddfcd11c21c6423114c42db53e4","branch":"agent/rm-911108dd0eda25cb/178dcddfcd11","claimed_at":"2026-10-10T15:31:08Z","heartbeat_at":"2026-10-10T15:31:08Z","lease_until":"2026-10-10T17:01:08Z"} -->
+  Agent: opencode-20261010T151954Z-37057da9 | item: rm-911108dd0eda25cb | lease until: 2026-10-10T17:01:08Z
 - **`syncRecentNotesWidget` desktop no-op** — Already covered by the performance item above.
 
 - 🚧 **Set the app as the default handler for `.md` files (OS "Open with")**: Market Solution #2's 1.14 Desktop (Oct 5, 2026) added the "Open file from outside the vault" command, OS Open-with registration, and a settable default app for Markdown files. Leotheca already reads individual notes (the 'Open file from outside the vault' command shipped as F04) but cannot register itself as the OS default; completing that last step lets the user open their plain `.md` files in Leotheca from anywhere. (Competitor scan, Market Solution #2 changelog 1.14 Desktop, 2026-10-05)

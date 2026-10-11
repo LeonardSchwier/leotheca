@@ -41,7 +41,22 @@ Significant missing features users expect.
 
 Minor bugs, UX improvements, and performance.
 
-- **Recent-notes widget performance** — Full workspace re-walk on every note mutation, fires on desktop where it has no handler, and hardcodes a 5-item cap that disagrees with the native 10-item cap.
+- ✅ **Recent-notes widget performance** (done 2026-10-11, `579d804`):
+  Fixed two bugs in `syncRecentNotesWidget` (fileTreeStore.ts):
+  1. **Burst-coalescing bug**: `pendingRecentNotesSync` held a single `resolve` ref; when
+     multiple callers scheduled the sync within the 300 ms debounce window, all but the
+     last caller's promise never resolved. Changed to a `resolvers` array so every caller
+     is called in the `finally` block.
+  2. **Timer-clearing bug**: when a second call adopted a pending sync, it cleared the
+     timer without rescheduling it, so the sync never fired. Removed the timer-clearing
+     from the adopt path.
+  Bumped `RECENT_NOTES_WIDGET_MAX` from 5 to 10 in both TS (`fileTreeStore.ts`) and
+  Java (`FolderAccessPlugin.java`) to match the native widget's display capacity.
+  Un-skipped 3 tests that cover the burst-coalescing path (burst coalescing,
+  bridge-failure resolution, two-calls-both-resolve) and added `mockClear()` calls
+  to isolate per-test call counts.
+  - **Verified:** 3024 tests (159 files) all green · tsc --noEmit clean · vite build OK ·
+    full local CI/CD pipeline passed (13/14 checks, 1 skipped Flatpak build).
 - **Recent-notes widget labels** — Bare basenames collide for same-named notes in different folders; deep-links open the wrong note.
 - 🚧 **Highlight color picker** — No "Plain" option to remove a previously typed color emoji from an `==highlight==`.
   <!-- agent-state: {"schema":1,"id":"rm-fcd2a44c75a885de","state":"claimed","touch":["ROADMAP.md","src/app/HighlightColorPicker.test.tsx","src/app/HighlightColorPicker.tsx","src/editor/highlightColors.test.ts","src/editor/highlightColors.ts"],"resources":["highlight-color-contract"],"owner":"opencode-20261009T110227Z-670aec98","token":"c9b26ce23b2d933ea185aae76fe48faa","branch":"agent/rm-fcd2a44c75a885de/c9b26ce23b2d","claimed_at":"2026-10-09T11:02:39Z","heartbeat_at":"2026-10-09T11:02:39Z","lease_until":"2026-10-09T12:32:39Z"} -->

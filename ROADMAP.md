@@ -50,13 +50,23 @@ Minor bugs, UX improvements, and performance.
   - **Ledger note:** This item was stuck open as a ledger desync — the code landed in `e7930f6` but the ROADMAP icon was missing (bare `- **title**` instead of `- ⬜ **title**`), making it invisible to `agent_ledger.py`'s ITEM regex. Icon added in `259ca9d`.
 - **Android file reads** — `FolderAccessPlugin` read methods buffer whole files with no size cap; risk of `OutOfMemoryError` on large attachments.
 - **Recent-notes widget metadata** — `size` and `mtime` fields are dropped during widget sync, blocking future relative-time display.
-- ⬜ **Highlight color picker re-render** — Menu sub-tree rebuilds on every open/close toggle.
+- 🚧 **Highlight color picker re-render** — Menu sub-tree rebuilds on every open/close toggle.
+  <!-- agent-state: {"schema":1,"id":"rm-2f358fc7b7479397","state":"claimed","touch":["ROADMAP.md","src/app/HighlightColorPicker.test.tsx","src/app/HighlightColorPicker.tsx"],"resources":["highlight-picker-render"],"owner":"opencode-20261011T072022Z-787b0372","token":"8f3647245e368823840f540ded7696f7","branch":"agent/rm-2f358fc7b7479397/8f3647245e36","claimed_at":"2026-10-11T07:22:56Z","heartbeat_at":"2026-10-11T07:22:56Z","lease_until":"2026-10-11T08:52:56Z"} -->
+  Agent: opencode-20261011T072022Z-787b0372 | item: rm-2f358fc7b7479397 | lease until: 2026-10-11T08:52:56Z
 - **`syncRecentNotesWidget` desktop no-op** — Already covered by the performance item above.
 
 - 🚧 **Set the app as the default handler for `.md` files (OS "Open with")**: Market Solution #2's 1.14 Desktop (Oct 5, 2026) added the "Open file from outside the vault" command, OS Open-with registration, and a settable default app for Markdown files. Leotheca already reads individual notes (the 'Open file from outside the vault' command shipped as F04) but cannot register itself as the OS default; completing that last step lets the user open their plain `.md` files in Leotheca from anywhere. (Competitor scan, Market Solution #2 changelog 1.14 Desktop, 2026-10-05)
   <!-- agent-state: {"schema":1,"id":"rm-ae21e6dcf59b26cf","state":"claimed","touch":["ROADMAP.md","src-tauri/src/default_handler.rs","src-tauri/src/lib.rs","src/app/SettingsPanel.tsx","src/workspace/tauriBridgeImpl.ts"],"resources":["markdown-default-handler-contract"],"owner":"hermes-20261009T151025Z-e6d61247","token":"6747ff08a54fbbd7be76996ede95edcf","branch":"agent/rm-ae21e6dcf59b26cf/6747ff08a54f","claimed_at":"2026-10-09T15:12:50Z","heartbeat_at":"2026-10-09T15:12:50Z","lease_until":"2026-10-09T16:42:50Z"} -->
   Agent: hermes-20261009T151025Z-e6d61247 | item: rm-ae21e6dcf59b26cf | lease until: 2026-10-09T16:42:50Z
-- ⬜ **macOS document icons for `.md`**: Market Solution #2's 1.14 Desktop (Oct 5, 2026) shipped custom document icons for its note file types so they are recognisable in Finder and Quick Look. Leotheca has no custom file-type icons of its own today. (Competitor scan, Market Solution #2 changelog 1.14 Desktop, 2026-10-05)
+- ✅ **macOS document icons for `.md`** (done 2026-10-11, rm-7f4450d7782cc96f):
+  Added a custom rounded-square document icon (`docs-icon.icns` + 7 PNG sizes,
+  generated from the app icon by `scripts/generate-docs-icon.py`) so macOS
+  Finder shows a recognisable icon for `.md`/`.markdown`/`.mdown` files
+  instead of a generic blank page. The icon is installed into the `.app`
+  bundle's `Resources/` and the `Info.plist` is patched with
+  `CFBundleDocumentTypes` + `CFBundleDocumentIcons` in the macOS CI job
+  (`.github/workflows/release.yml`). Tests: `scripts/test_docs_icon.py`
+  (7 tests, all pass).
 
 ## Implemented
 

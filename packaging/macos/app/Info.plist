@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Extra Info.plist keys merged into the Tauri-generated .app/Contents/Info.plist
+  during the macOS release build (see .github/workflows/release.yml).
+
+  The Tauri bundler already writes CFBundleIdentifier, CFBundleShortVersionString,
+  CFBundleVersion, CFBundleIconFile, etc. from tauri.conf.json. This file adds:
+
+  1. CFBundleDocumentTypes  – declares .md / .markdown / .mdown as document types
+     the app can open, so macOS shows Leotheca's icon (not a generic blank page)
+     in Finder for those files.
+
+  2. CFBundleDocumentIcons  – points each document type to docs-icon.icns
+     (the rounded-square "document" variant of the app icon), so Finder uses a
+     distinct icon for .md files rather than the app icon itself.
+
+  3. LSSupportsOpeningDocumentsInPlace – lets the app open .md files directly
+     (Tauri's single-instance + open-file handler covers the actual open).
+
+  The key CFBundleIconFile is NOT overridden here; it stays "icon" (the .icns
+  Tauri generates). The document icon is a separate, additional icon.
+-->
+<plist version="1.0">
+<dict>
+    <key>CFBundleDocumentTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleTypeName</key>
+            <string>Markdown Document</string>
+            <key>CFBundleTypeExtensions</key>
+            <array>
+                <string>md</string>
+                <string>markdown</string>
+                <string>mdown</string>
+            </array>
+            <key>CFBundleTypeMIMETypes</key>
+            <array>
+                <string>text/markdown</string>
+                <string>text/x-markdown</string>
+            </array>
+            <key>CFBundleTypeRole</key>
+            <string>Viewer</string>
+            <key>LSHandlerRank</key>
+            <string>Alternate</string>
+            <key>LSItemContentTypes</key>
+            <array>
+                <string>net.daringfireball.markdown</string>
+                <string>public.plain-text</string>
+            </array>
+        </dict>
+    </array>
+    <key>CFBundleDocumentIcons</key>
+    <array>
+        <dict>
+            <key>CFBundleTypeExtensions</key>
+            <array>
+                <string>md</string>
+                <string>markdown</string>
+                <string>mdown</string>
+            </array>
+            <key>CFBundleTypeIconFile</key>
+            <string>docs-icon</string>
+        </dict>
+    </array>
+    <key>LSSupportsOpeningDocumentsInPlace</key>
+    <true/>
+</dict>
+</plist>

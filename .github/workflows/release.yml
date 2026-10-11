@@ -260,6 +260,31 @@ jobs:
           fi
       - name: Build universal DMG
         run: npx tauri build --target universal-apple-darwin --bundles dmg
+      - name: Install macOS document icon for .md files
+        # Tauri writes .app/Contents/Info.plist from tauri.conf.json but does
+        # not add CFBundleDocumentTypes/CFBundleDocumentIcons. We merge our
+        # packaging/macos/app/Info.plist (which declares .md/.markdown/.mdown
+        # with docs-icon.icns as the document icon) into the built bundle so
+        # Finder shows Leotheca's rounded-square icon for Markdown files.
+        run: |
+          set -e
+          APP_PATH=$(find src-tauri/target/universal-apple-darwin/release/bundle/macos -maxdepth 1 -name "*.app" -type d | head -1)
+          if [ -z "$APP_PATH" ]; then echo "::error::No .app found"; exit 1; fi
+          PLIST="$APP_PATH/Contents/Info.plist"
+          # Merge each key from our template plist into the app plist.
+          # plutil -convert xml1 normalises the format before we edit.
+          plutil -convert xml1 "$PLIST"
+          for KEY in CFBundleDocumentTypes CFBundleDocumentIcons LSSupportsOpeningDocumentsInPlace; do
+            # Extract the value for KEY from the template (may be dict or array).
+            VAL=$(plutil -extract "$KEY" -o json "packaging/macos/app/Info.plist" 2>/dev/null)
+            if [ -n "$VAL" ] && [ "$VAL" != "null" ]; then
+              plutil -replace "$KEY" -json "$VAL" "$PLIST"
+              echo "Merged $KEY into Info.plist"
+            fi
+          done
+          # Copy the document icon into Resources.
+          cp src-tauri/icons/docs-icon.icns "$APP_PATH/Contents/Resources/docs-icon.icns"
+          echo "Installed docs-icon.icns and merged document-type keys"
       - name: Notarize and staple the .app and DMG
         # Runs only when the signing secrets are configured. `notarytool`
         # with `--wait` blocks until Apple accepts the submission; staple

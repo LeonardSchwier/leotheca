@@ -823,7 +823,7 @@ public class FolderAccessPlugin extends Plugin {
     // Cross-language contract: RECENT_NOTES_WIDGET_MAX must stay in sync
     // with RECENT_NOTES_WIDGET_MAX in src/workspace/fileTreeStore.ts.
     // Enforced by WidgetResourcesUnitTest.java.
-    static final int RECENT_NOTES_WIDGET_MAX = 5;
+    static final int RECENT_NOTES_WIDGET_MAX = 10;
 
     /**
      * Android home-screen recent-notes widget: stores the already-resolved

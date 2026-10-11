@@ -874,7 +874,7 @@ export async function deleteEntry(
  * (FolderAccessPlugin.updateRecentNotesWidget) keeps its own matching cap,
  * and WidgetResourcesUnitTest.java pins the two to the same value.
  */
-export const RECENT_NOTES_WIDGET_MAX = 5;
+export const RECENT_NOTES_WIDGET_MAX = 10;
 
 /**
  * Pure selection logic for the recent-notes widget list: filter to
@@ -914,7 +914,9 @@ const RECENT_NOTES_WIDGET_SYNC_DEBOUNCE_MS = 300;
 let recentNotesSyncTimer: ReturnType<typeof setTimeout> | null = null;
 let pendingRecentNotesSync: {
   rootPath: string;
-  resolve: () => void;
+  /** Every caller that scheduled or adopted this sync gets a resolve; the
+   *  finally block calls them all so no caller hangs waiting on a burst. */
+  resolvers: Array<() => void>;
 } | null = null;
 
 /**
@@ -953,17 +955,13 @@ export function syncRecentNotesWidget(rootPath: string): Promise<void> {
   // only extends the debounce and adopts the in-flight result, so no second
   // `findAllFiles` walk is started for the burst.
   if (pendingRecentNotesSync) {
-    if (recentNotesSyncTimer !== null) {
-      clearTimeout(recentNotesSyncTimer);
-      recentNotesSyncTimer = null;
-    }
     return new Promise<void>((resolve) => {
-      pendingRecentNotesSync!.resolve = resolve;
+      pendingRecentNotesSync!.resolvers.push(resolve);
     });
   }
 
   return new Promise<void>((resolve) => {
-    pendingRecentNotesSync = { rootPath, resolve };
+    pendingRecentNotesSync = { rootPath, resolvers: [resolve] };
     recentNotesSyncTimer = setTimeout(async () => {
       recentNotesSyncTimer = null;
       const pending = pendingRecentNotesSync;
@@ -974,10 +972,10 @@ export function syncRecentNotesWidget(rootPath: string): Promise<void> {
         await updateRecentNotesWidget(
           selectRecentNotes(files, pending.rootPath),
         );
-      } catch {
-        // Best-effort widget sync; the in-app file tree is unaffected.
+      } catch (e) {
+        console.error("[syncRecentNotesWidget] error:", e);
       } finally {
-        pending.resolve();
+        for (const r of pending.resolvers) r();
       }
     }, RECENT_NOTES_WIDGET_SYNC_DEBOUNCE_MS);
   });

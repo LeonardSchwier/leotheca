@@ -1718,9 +1718,11 @@ describe("recent-notes widget sync: platform gate + coalescing", () => {
     expect(entries[1].path).toBe("/workspace/a.md");
   });
 
-  it.skip("coalesces a burst of mutations into a single walk + bridge call", async () => {
+  it("coalesces a burst of mutations into a single walk + bridge call", async () => {
     const { syncRecentNotesWidget } = await import("./fileTreeStore");
     isAndroid.mockReturnValue(true);
+    findAllFiles.mockClear();
+    updateRecentNotesWidget.mockClear();
     const burst = [
       syncRecentNotesWidget("/workspace"),
       syncRecentNotesWidget("/workspace"),
@@ -1732,9 +1734,11 @@ describe("recent-notes widget sync: platform gate + coalescing", () => {
     expect(updateRecentNotesWidget).toHaveBeenCalledTimes(1);
   });
 
-  it.skip("does not throw and still resolves when the native bridge call fails", async () => {
+  it("does not throw and still resolves when the native bridge call fails", async () => {
     const { syncRecentNotesWidget } = await import("./fileTreeStore");
     isAndroid.mockReturnValue(true);
+    findAllFiles.mockClear();
+    updateRecentNotesWidget.mockClear();
     updateRecentNotesWidget.mockRejectedValue(new Error("bridge down"));
     const p = syncRecentNotesWidget("/workspace");
     await vi.advanceTimersByTimeAsync(400);
@@ -1742,7 +1746,7 @@ describe("recent-notes widget sync: platform gate + coalescing", () => {
     expect(findAllFiles).toHaveBeenCalledTimes(1);
   });
 
-  it.skip("diagnostic: two calls both resolve", async () => {
+  it("diagnostic: two calls both resolve", async () => {
     const { syncRecentNotesWidget } = await import("./fileTreeStore");
     isAndroid.mockReturnValue(true);
     const p1 = syncRecentNotesWidget("/workspace");

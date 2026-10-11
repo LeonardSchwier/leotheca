@@ -29,7 +29,7 @@ Significant missing features users expect.
 - **Android speech-to-text** — Plugin was never registered with the Capacitor bridge; on-device confirmation still outstanding. Status: blocked on a physical Android device.
 - **Android folder-picker display name** — Picker always labels a new workspace "Workspace" instead of the real folder name. Status: claimed, needs on-device verification.
 - **Android home-screen widgets** — Recent-notes widget has a full-workspace re-walk performance issue and colliding labels; "favorites" hamburger bug under investigation. Status: in progress.
-- **Quick Capture target picker** — Capture always appends to the inbox note; no way to target a specific note, daily note, or bookmark. Status: open.
+- ⬜ **Quick Capture target picker** — Capture always appends to the inbox note; no way to target a specific note, daily note, or bookmark. Status: open.
 - **Android camera capture** — Take a photo directly from the "Insert attachment" toolbar. Status: open.
 - **Settings export** — No way to export the current settings bundle. Status: open.
 - **macOS Quick Look preview** — ⌥-click a `.md` file in Finder to preview it. Status: open.

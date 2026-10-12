@@ -59,8 +59,8 @@ Minor bugs, UX improvements, and performance.
     full local CI/CD pipeline passed (13/14 checks, 1 skipped Flatpak build).
 - **Recent-notes widget labels** — Bare basenames collide for same-named notes in different folders; deep-links open the wrong note.
 - 🚧 **Highlight color picker** — No "Plain" option to remove a previously typed color emoji from an `==highlight==`.
-  <!-- agent-state: {"schema":1,"id":"rm-fcd2a44c75a885de","state":"claimed","touch":["ROADMAP.md","src/app/HighlightColorPicker.test.tsx","src/app/HighlightColorPicker.tsx","src/editor/highlightColors.test.ts","src/editor/highlightColors.ts"],"resources":["highlight-color-contract"],"owner":"opencode-20261009T110227Z-670aec98","token":"c9b26ce23b2d933ea185aae76fe48faa","branch":"agent/rm-fcd2a44c75a885de/c9b26ce23b2d","claimed_at":"2026-10-09T11:02:39Z","heartbeat_at":"2026-10-09T11:02:39Z","lease_until":"2026-10-09T12:32:39Z"} -->
-  Agent: opencode-20261009T110227Z-670aec98 | item: rm-fcd2a44c75a885de | lease until: 2026-10-09T12:32:39Z
+  <!-- agent-state: {"schema":1,"id":"rm-fcd2a44c75a885de","state":"claimed","touch":["src/app/HighlightColorPicker.test.tsx","src/app/HighlightColorPicker.tsx"],"resources":["highlight-color-contract"],"owner":"hermes-20261012T112900Z-finish-plain","token":"5e5978fd890b55aef67a55b453465595","branch":"agent/rm-fcd2a44c75a885de/5e5978fd890b","claimed_at":"2026-10-12T07:30:07Z","heartbeat_at":"2026-10-12T07:30:07Z","lease_until":"2026-10-12T09:00:07Z"} -->
+  Agent: hermes-20261012T112900Z-finish-plain | item: rm-fcd2a44c75a885de | lease until: 2026-10-12T09:00:07Z
 - ✅ **Platform detection caching** — `isIOS`/`isMobile` re-evaluate the user agent on every call while `isAndroid` is cached.
   - **Fixed by:** `e7930f6` (fix(platform): cache isIOS/isMobile like isAndroid already does) — module-level `let _ios` / `let _mobile` caches with lazy-init pattern, identical to the pre-existing `isAndroid` pattern.
   - **Verified:** 13 tests in `src/lib/platform.test.ts` (11 value-correctness + 2 caching-invariant) — all green. Caching tests spy on `Capacitor.isNativePlatform` and assert 0 calls after warm-up.

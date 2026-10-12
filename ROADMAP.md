@@ -30,8 +30,8 @@ Significant missing features users expect.
 - **Android folder-picker display name** — Picker always labels a new workspace "Workspace" instead of the real folder name. Status: claimed, needs on-device verification.
 - **Android home-screen widgets** — Recent-notes widget has a full-workspace re-walk performance issue and colliding labels; "favorites" hamburger bug under investigation. Status: in progress.
 - 🚧 **Quick Capture target picker** — Capture always appends to the inbox note; no way to target a specific note, daily note, or bookmark. Status: open.
-  <!-- agent-state: {"schema":1,"id":"rm-dd5994dcac66ebf8","state":"claimed","touch":["ROADMAP.md","src/app/CaptureSheet.test.tsx","src/app/CaptureSheet.tsx","src/capture/captureDestinations.test.ts","src/capture/captureDestinations.ts"],"resources":["capture-target-picker"],"owner":"opencode-20261011T110526Z-c94dac32","token":"702e5785f1a4babbf4c1858bf4792e8e","branch":"agent/rm-dd5994dcac66ebf8/702e5785f1a4","claimed_at":"2026-10-11T11:06:55Z","heartbeat_at":"2026-10-11T11:06:55Z","lease_until":"2026-10-11T12:36:55Z"} -->
-  Agent: opencode-20261011T110526Z-c94dac32 | item: rm-dd5994dcac66ebf8 | lease until: 2026-10-11T12:36:55Z
+  <!-- agent-state: {"schema":1,"id":"rm-dd5994dcac66ebf8","state":"claimed","touch":["ROADMAP.md","src/app/CaptureSheet.test.tsx","src/app/CaptureSheet.tsx","src/capture/captureDestinations.test.ts","src/capture/captureDestinations.ts"],"resources":["capture-target-picker"],"owner":"opencode-20261012T070525Z-ac44ee31","token":"3c16da138c79898b847ba050e8bfd503","branch":"agent/rm-dd5994dcac66ebf8/3c16da138c79","claimed_at":"2026-10-12T07:07:30Z","heartbeat_at":"2026-10-12T07:07:30Z","lease_until":"2026-10-12T08:37:30Z"} -->
+  Agent: opencode-20261012T070525Z-ac44ee31 | item: rm-dd5994dcac66ebf8 | lease until: 2026-10-12T08:37:30Z
 - **Android camera capture** — Take a photo directly from the "Insert attachment" toolbar. Status: open.
 - **Settings export** — No way to export the current settings bundle. Status: open.
 - **macOS Quick Look preview** — ⌥-click a `.md` file in Finder to preview it. Status: open.

@@ -63,7 +63,7 @@ Minor bugs, UX improvements, and performance.
   - **Verified:** 13 tests in `src/lib/platform.test.ts` (11 value-correctness + 2 caching-invariant) — all green. Caching tests spy on `Capacitor.isNativePlatform` and assert 0 calls after warm-up.
   - **Ledger note:** This item was stuck open as a ledger desync — the code landed in `e7930f6` but the ROADMAP icon was missing (bare `- **title**` instead of `- ⬜ **title**`), making it invisible to `agent_ledger.py`'s ITEM regex. Icon added in `259ca9d`.
 - **Android file reads** — `FolderAccessPlugin` read methods buffer whole files with no size cap; risk of `OutOfMemoryError` on large attachments.
-- **Recent-notes widget metadata** — `size` and `mtime` fields are dropped during widget sync, blocking future relative-time display.
+- ⬜ **Recent-notes widget metadata** — `size` and `mtime` fields are dropped during widget sync, blocking future relative-time display.
 - 🚧 **Highlight color picker re-render** — Menu sub-tree rebuilds on every open/close toggle.
   <!-- agent-state: {"schema":1,"id":"rm-2f358fc7b7479397","state":"claimed","touch":["ROADMAP.md","src/app/HighlightColorPicker.test.tsx","src/app/HighlightColorPicker.tsx"],"resources":["highlight-picker-render"],"owner":"opencode-20261011T072022Z-787b0372","token":"8f3647245e368823840f540ded7696f7","branch":"agent/rm-2f358fc7b7479397/8f3647245e36","claimed_at":"2026-10-11T07:22:56Z","heartbeat_at":"2026-10-11T07:22:56Z","lease_until":"2026-10-11T08:52:56Z"} -->
   Agent: opencode-20261011T072022Z-787b0372 | item: rm-2f358fc7b7479397 | lease until: 2026-10-11T08:52:56Z

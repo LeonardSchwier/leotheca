@@ -105,4 +105,56 @@ describe("HighlightColorPicker", () => {
       expect(handlersAfter[i]).toBe(handlersBefore[i]);
     }
   });
+
+  it("calls the CURRENT insert/onClose from the first render, not a stale captured closure", () => {
+    // Regression: the six colored swatches cache a stable onClick handler per
+    // color in a ref (so memo(HighlightSwatch) can skip re-renders). That cache
+    // is created on the FIRST render and captured the onColorSelect closure from
+    // that render. onColorSelect was a useCallback([insert, onClose]) that
+    // re-created a fresh closure every render, but the ref-cached handler
+    // ignored the new closure and kept calling the first one — so after a
+    // parent re-render that swapped in a new insert/onClose, clicking a color
+    // swatch still invoked the OLD insert/onClose (the stale-closure defect).
+    //
+    // The Plain swatch is unaffected: onPlainSelect is re-created each render
+    // and passed directly (no ref cache), so it always sees the current props.
+    // This test asserts the color swatches do the same.
+    const insertA = vi.fn();
+    const onCloseA = vi.fn();
+    const insertB = vi.fn();
+    const onCloseB = vi.fn();
+    const { rerender } = render(
+      <HighlightColorPicker insert={insertA} onClose={onCloseA} />,
+    );
+    // Open the menu while props are still A — this is when the per-color handler
+    // cache is populated (first render with the menu open).
+    fireEvent.click(screen.getByRole("button", { name: /Highlight color/i }));
+    // First, confirm the baseline: with A still current, clicking Red calls A.
+    fireEvent.click(screen.getByRole("menuitem", { name: /Highlight: Red/i }));
+    expect(insertA).toHaveBeenCalledTimes(1);
+    expect(onCloseA).toHaveBeenCalledTimes(1);
+
+    // Re-render the SAME tree (menu state persists) but with NEW insert/onClose.
+    // The pre-fix code's cached handlers still close over insertA/onCloseA.
+    rerender(<HighlightColorPicker insert={insertB} onClose={onCloseB} />);
+
+    // With the stale closure, clicking a color swatch still routes through
+    // insertA/onCloseA. With the fix, it routes through the CURRENT insertB/onCloseB.
+    //
+    // Note: the menu may or may not still be open after the first click's
+    // onClose fired — that is itself a stale-closure symptom (the parent's
+    // onCloseA was called, which in a real app would have torn down the
+    // picker). We assert on call counts, which are deterministic regardless
+    // of whether the menu is open: the fix guarantees insertB/onCloseB are
+    // called and insertA/onCloseA are not called again.
+    fireEvent.click(screen.getByRole("menuitem", { name: /Highlight: Red/i }));
+
+    // The fix: the CURRENT insert/onClose are called exactly once.
+    expect(insertB).toHaveBeenCalledTimes(1);
+    expect(onCloseB).toHaveBeenCalledTimes(1);
+    // insertA/onCloseA are NOT called again — they were only used by the
+    // first click, before the re-render swapped in B.
+    expect(insertA).toHaveBeenCalledTimes(1);
+    expect(onCloseA).toHaveBeenCalledTimes(1);
+  });
 });

@@ -62,15 +62,26 @@ export function HighlightColorPicker({ insert, onClose }: HighlightPickerOnSelec
     [insert, onClose],
   );
 
+  // Keep a ref to the CURRENT onColorSelect closure so the per-color cached
+  // handlers below always call the latest insert/onClose, even though the
+  // handlers themselves are created once (first render) and kept stable for
+  // memo(HighlightSwatch). Without this indirection, the cached handlers
+  // would capture the first render's onColorSelect closure (and with it,
+  // that render's insert/onClose) — the stale-closure defect.
+  const onColorSelectRef = useRef(onColorSelect);
+  onColorSelectRef.current = onColorSelect;
+
   // Cache one stable handler per color in a ref so each swatch's `onClick`
   // prop is the same function across every parent render — the property
   // that lets memo(HighlightSwatch) below skip a re-render. Rebuilding a
   // fresh closure per color per render (as the pre-fix code did) defeats
-  // the memo even when the swatch component itself is memoized.
+  // the memo even when the swatch component itself is memoized. The
+  // handler reads onColorSelectRef.current at click time, so it always
+  // routes to the CURRENT insert/onClose regardless of when it was cached.
   const colorHandlers = useRef<Record<string, () => void>>({});
   for (const choice of HIGHLIGHT_COLOR_CHOICES) {
     if (!colorHandlers.current[choice.color]) {
-      colorHandlers.current[choice.color] = () => onColorSelect(choice.color);
+      colorHandlers.current[choice.color] = () => onColorSelectRef.current(choice.color);
     }
   }
 

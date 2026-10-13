@@ -12,4 +12,13 @@
         android:ellipsize="end"
         android:textSize="13sp"
         android:textColor="?android:attr/textColorPrimary" />
+
+    <TextView
+        android:id="@+id/widget_recent_notes_item_time"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="1dp"
+        android:singleLine="true"
+        android:textSize="11sp"
+        android:textColor="?android:attr/textColorSecondary" />
 </LinearLayout>

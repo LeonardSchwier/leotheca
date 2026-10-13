@@ -32,11 +32,42 @@ public class LeothecaRecentNotesWidgetFactory implements RemoteViewsService.Remo
     static final class RecentEntry {
         final String label;
         final String path;
+        final long mtime;
 
-        RecentEntry(String label, String path) {
+        RecentEntry(String label, String path, long mtime) {
             this.label = label;
             this.path = path;
+            this.mtime = mtime;
         }
+    }
+
+    /**
+     * Formats an epoch-milliseconds timestamp as a short relative-time string
+     * suitable for a home-screen widget subtitle. Pure and deterministic for a
+     * given "now"; the factory passes System.currentTimeMillis() at render
+     * time so the widget always shows a live relative time.
+     *
+     * Rules:
+     *   mtime == 0         -> "" (no time shown; the note had no mtime)
+     *   delta < 1 min      -> "just now"
+     *   delta < 60 min     -> "N min ago"
+     *   delta < 24 h       -> "N hour(s) ago"
+     *   delta < 7 days     -> "N day(s) ago"
+     *   otherwise          -> "N wks ago" (weeks, truncated)
+     */
+    static String formatRelativeTime(long mtimeMillis, long nowMillis) {
+        if (mtimeMillis <= 0) return "";
+        long deltaMs = nowMillis - mtimeMillis;
+        if (deltaMs < 0) return "just now";
+        long minutes = deltaMs / 60_000L;
+        if (minutes < 1) return "just now";
+        if (minutes < 60) return minutes + " min ago";
+        long hours = minutes / 60L;
+        if (hours < 24) return hours + (hours == 1 ? " hour ago" : " hours ago");
+        long days = hours / 24L;
+        if (days < 7) return days + (days == 1 ? " day ago" : " days ago");
+        long weeks = days / 7L;
+        return weeks + (weeks == 1 ? " wk ago" : " wks ago");
     }
 
     LeothecaRecentNotesWidgetFactory(Context context) {
@@ -65,7 +96,8 @@ public class LeothecaRecentNotesWidgetFactory implements RemoteViewsService.Remo
                     String path = obj.optString("path", "");
                     if (path.isEmpty()) continue;
                     String label = obj.optString("label", "");
-                    next.add(new RecentEntry(label.isEmpty() ? path : label, path));
+                    long mtime = obj.has("mtime") ? obj.optLong("mtime", 0) : 0;
+                    next.add(new RecentEntry(label.isEmpty() ? path : label, path, mtime));
                 }
             } catch (Exception ignored) {
             }
@@ -84,6 +116,8 @@ public class LeothecaRecentNotesWidgetFactory implements RemoteViewsService.Remo
         RecentEntry entry = entries.get(position);
         RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.leotheca_widget_recent_notes_item);
         views.setTextViewText(R.id.widget_recent_notes_item_label, entry.label);
+        String timeStr = formatRelativeTime(entry.mtime, System.currentTimeMillis());
+        views.setTextViewText(R.id.widget_recent_notes_item_time, timeStr);
 
         Intent fill = new Intent();
         fill.setData(Uri.parse("leotheca://open-note?path=" + Uri.encode(entry.path)));

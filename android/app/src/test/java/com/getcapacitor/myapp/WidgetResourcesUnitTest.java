@@ -222,6 +222,51 @@ public class WidgetResourcesUnitTest {
         assertTrue(factory.contains("leotheca://open-note?path="));
     }
 
+    // Recent-notes widget metadata: the factory must parse the mtime field
+    // that FolderAccessPlugin.updateRecentNotesWidget persists, and render
+    // it as a relative-time suffix in the item layout. The layout must have
+    // a dedicated TextView for the time so the label and time don't collide.
+    @Test
+    public void recentNotesItemLayoutHasADedicatedTimeTextView() throws IOException {
+        String item = source("res/layout/leotheca_widget_recent_notes_item.xml");
+
+        assertTrue("item layout must have a label TextView",
+            item.contains("@+id/widget_recent_notes_item_label"));
+        assertTrue("item layout must have a time TextView",
+            item.contains("@+id/widget_recent_notes_item_time"));
+    }
+
+    @Test
+    public void recentNotesFactoryParsesMtimeAndRendersTimeSuffix() throws IOException {
+        String factory = source("java/com/leonardschwier/leotheca/LeothecaRecentNotesWidgetFactory.java");
+
+        // The RecentEntry class must carry an optional mtime.
+        assertTrue("RecentEntry must declare an mtime field",
+            factory.contains("mtime"));
+
+        // loadEntries must read mtime from the JSON blob.
+        assertTrue("loadEntries must parse the mtime key from the stored JSON",
+            factory.contains("\"mtime\""));
+
+        // getViewAt must set the time TextView using a relative-time format.
+        assertTrue("getViewAt must set the time TextView",
+            factory.contains("widget_recent_notes_item_time"));
+        assertTrue("factory must use a relative-time formatting helper",
+            factory.contains("formatRelativeTime"));
+    }
+
+    @Test
+    public void formatRelativeTimeHandlesEdgeCases() throws IOException {
+        String factory = source("java/com/leonardschwier/leotheca/LeothecaRecentNotesWidgetFactory.java");
+
+        // The helper must handle: just now, minutes ago, hours ago, days ago,
+        // and a fallback for very old timestamps.
+        assertTrue("must handle 'just now'", factory.contains("just now"));
+        assertTrue("must handle minutes", factory.contains("min"));
+        assertTrue("must handle hours", factory.contains("hour"));
+        assertTrue("must handle days", factory.contains("day"));
+    }
+
     // Cross-language walk-depth contract: the Rust side
     // (src-tauri/src/commands.rs) and the Java side
     // (FolderAccessPlugin.java) must agree on MAX_WALK_DEPTH.

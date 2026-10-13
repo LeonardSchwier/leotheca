@@ -83,6 +83,7 @@ Minor bugs, UX improvements, and performance.
   `CFBundleDocumentTypes` + `CFBundleDocumentIcons` in the macOS CI job
   (`.github/workflows/release.yml`). Tests: `scripts/test_docs_icon.py`
   (7 tests, all pass).
+- ⬜ **Quick Capture: optional note template applied on capture**: Market Solution #2 1.14 Mobile (Oct 5, 2026) lets Quick Capture apply an optional template to the captured note (its iOS 1.14.3 entry, Sept 29, 2026, first shipped templates when the capture target is a daily note or a selected note). Leotheca's Quick Capture always appends plain text to the inbox note (the capture-target picker above is already queued); an opt-in per-capture markdown template snippet (a plain text file in the user's own workspace, no network, switchable off) is pure plain-file functionality that completes the existing capture flows without a new convention. (Competitor scan, Market Solution #2 changelog 1.14 Mobile, 2026-10-05)
 
 ## Weekly Code Review
 

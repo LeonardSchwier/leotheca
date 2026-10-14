@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { decodeCollectionsFile } from "./collectionDecode";
 import { MAX_QUERY_CLAUSES, type QueryGroupV1, type SmartCollectionV1 } from "./collectionTypes";
-import { FOLDER_GROUP_BY, groupKanbanColumns } from "./CollectionResults";
+import { FOLDER_GROUP_BY, groupResults } from "./CollectionResults";
 import type { NoteRecord } from "./collectionQuery";
 import type { FrontmatterProperty } from "../editor/frontmatterEdits";
 
@@ -280,7 +280,7 @@ describe("decodeCollectionsFile: malformed input", () => {
   });
 });
 
-describe("groupKanbanColumns — folder-based grouping", () => {
+describe("groupResults — folder-based grouping", () => {
   function noteWithFolder(folder: string, title: string): NoteRecord {
     return {
       path: folder ? `${folder}/${title}.md` : `${title}.md`,
@@ -293,7 +293,7 @@ describe("groupKanbanColumns — folder-based grouping", () => {
   }
 
   it("groups notes by their folder into named columns", () => {
-    const columns = groupKanbanColumns(
+    const columns = groupResults(
       [
         noteWithFolder("Projects", "alpha"),
         noteWithFolder("Projects", "beta"),
@@ -309,7 +309,7 @@ describe("groupKanbanColumns — folder-based grouping", () => {
   });
 
   it("places root-level notes (empty folder) in Unassigned", () => {
-    const columns = groupKanbanColumns(
+    const columns = groupResults(
       [
         noteWithFolder("", "root-note"),
         noteWithFolder("Projects", "deep"),
@@ -322,7 +322,7 @@ describe("groupKanbanColumns — folder-based grouping", () => {
   });
 
   it("trims whitespace in folder paths before grouping", () => {
-    const columns = groupKanbanColumns(
+    const columns = groupResults(
       [
         noteWithFolder("  Projects  ", "a"),
         noteWithFolder("Projects", "b"),
@@ -348,10 +348,10 @@ describe("groupKanbanColumns — folder-based grouping", () => {
       replaceRange: { start: 0, end: 0 },
       removeRange: { start: 0, end: 0 },
     });
-    const columns = groupKanbanColumns([withProp], FOLDER_GROUP_BY);
+    const columns = groupResults([withProp], FOLDER_GROUP_BY);
     expect(columns.map((c) => c.label)).toEqual(["Projects"]);
     // Property-based grouping would give a different result.
-    const byProp = groupKanbanColumns([withProp], "status");
+    const byProp = groupResults([withProp], "status");
     expect(byProp.map((c) => c.label)).toEqual(["done"]);
   });
 });

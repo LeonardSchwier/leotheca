@@ -426,6 +426,60 @@
   white-space: nowrap;
 }
 
+/* Collapsible group sections (list/table/card views with a groupBy set) */
+.collections-grouped {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-width: 100%;
+}
+
+.collections-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-sunken);
+}
+
+.collections-group-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-1);
+  padding: 2px var(--space-1);
+}
+
+.collections-group-title {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.collections-group-toggle {
+  min-width: 22px;
+  min-height: 22px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-raised);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.collections-group-toggle:hover {
+  background: var(--bg-hover);
+}
+
+.collections-group.is-collapsed .collections-group-heading {
+  padding-left: var(--space-1);
+}
+
 /* Builder (CollectionBuilder.tsx) */
 
 .collections-builder {

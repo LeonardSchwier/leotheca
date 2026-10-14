@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, waitFor } from "@testing-library/preact";
 import { parseFrontmatterProperties } from "../editor/frontmatterEdits";
-import { CollectionResults, FOLDER_GROUP_BY, groupKanbanColumns, type CollectionResultsProps } from "./CollectionResults";
+import { CollectionResults, FOLDER_GROUP_BY, groupResults, type CollectionResultsProps } from "./CollectionResults";
 import { sortCollectionResults, type NoteRecord } from "./collectionQuery";
 import type { SmartCollectionV1 } from "./collectionTypes";
 
@@ -102,7 +102,7 @@ describe("F09 Phase 2 result views", () => {
   it("renders configured table property cells and keeps note activation separate", () => {
     const onOpenFile = vi.fn();
     const entry = note("Projects/Alpha.md", "---\nstatus: active\n---\n");
-    const { getByRole, getByText } = render(
+    const { getByRole, getByTitle } = render(
       <CollectionResults
         collection={collection({ mode: "table", columns: ["status"] })}
         results={[entry]}
@@ -112,7 +112,7 @@ describe("F09 Phase 2 result views", () => {
       />,
     );
 
-    expect(getByText("status")).toBeTruthy();
+    expect(getByTitle("status")).toBeTruthy();
     expect(getByRole("button", { name: "active" })).toBeTruthy();
     fireEvent.click(getByRole("button", { name: "Alpha" }));
     expect(onOpenFile).toHaveBeenCalledWith("Projects/Alpha.md", "Alpha.md");
@@ -193,14 +193,14 @@ describe("F09 Phase 2 result views", () => {
     expect(getByText("Unassigned")).toBeTruthy();
     fireEvent.click(getByRole("button", { name: "Alpha" }));
     expect(onOpenFile).toHaveBeenCalledWith("Projects/Alpha.md", "Alpha.md");
-    fireEvent.change(getByRole("combobox", { name: "Board grouping property" }), {
+    fireEvent.change(getByRole("combobox", { name: "Grouping property" }), {
       target: { value: "owner" },
     });
     expect(onViewChange).toHaveBeenCalledWith({ mode: "kanban", groupBy: "owner" });
   });
 
   it("orders board columns deterministically and keeps list values unassigned", () => {
-    const columns = groupKanbanColumns([
+    const columns = groupResults([
       note("z/Done.md", "---\nstatus: done\n---\n"),
       note("a/Active.md", "---\nstatus: active\n---\n"),
       note("b/Tags.md", "---\nstatus: [one, two]\n---\n"),
@@ -216,7 +216,7 @@ describe("F09 Phase 2 result views", () => {
     // via its own case-folding `fold`) would match all three notes below
     // despite their frontmatter capitalizing the value differently -- the
     // board must group them into the same column, not fragment them.
-    const columns = groupKanbanColumns([
+    const columns = groupResults([
       note("a/Alpha.md", "---\nstatus: Work\n---\n"),
       note("b/Beta.md", "---\nstatus: work\n---\n"),
       note("c/Gamma.md", "---\nstatus: WORK\n---\n"),
@@ -237,7 +237,7 @@ describe("F09 Phase 2 result views", () => {
     // differently-cased folder names are two different folders, not the
     // same value written inconsistently, so they must stay separate
     // columns even though property grouping now folds case.
-    const columns = groupKanbanColumns(
+    const columns = groupResults(
       [note("Projects/Alpha.md"), note("projects/Beta.md")],
       FOLDER_GROUP_BY,
     );
@@ -374,7 +374,7 @@ describe("F09 Phase 2 result views: stale note handling (maintenance review)", (
       />,
     );
 
-    const select = getByLabelText("Board grouping property");
+    const select = getByLabelText("Grouping property");
     const options = Array.from(select.querySelectorAll("option")).map(
       (o) => o.textContent,
     );

@@ -1,4 +1,5 @@
 import { useState } from "preact/hooks";
+import type { ComponentChildren } from "preact";
 import { fileNameFromPath } from "../linking/store";
 import type { FrontmatterProperty } from "../editor/frontmatterEdits";
 import type { NoteRecord } from "./collectionQuery";
@@ -44,13 +45,17 @@ function visiblePropertyKeys(results: NoteRecord[], configured: string[] | undef
   return Array.from(keys.values());
 }
 
-function viewForMode(mode: Exclude<CollectionViewV1["mode"], "kanban">): CollectionViewV1 {
-  if (mode === "table") return { mode: "table" };
-  if (mode === "card") return { mode: "card" };
-  return { mode: "list" };
+function viewForMode(
+  mode: Exclude<CollectionViewV1["mode"], "kanban">,
+  groupBy: string | undefined,
+): CollectionViewV1 {
+  const withGroup = groupBy && groupBy.trim() !== "" ? { groupBy } : {};
+  if (mode === "table") return { mode: "table", ...withGroup };
+  if (mode === "card") return { mode: "card", ...withGroup };
+  return { mode: "list", ...withGroup };
 }
 
-interface KanbanColumn {
+interface GroupColumn {
   key: string;
   label: string;
   notes: NoteRecord[];
@@ -70,8 +75,8 @@ function folderColumnKey(note: NoteRecord): string {
  * and unsupported YAML join Unassigned) or by the note's containing folder
  * (`FOLDER_GROUP_BY`). Notes in the workspace root (empty folder) join
  * Unassigned for folder grouping. */
-export function groupKanbanColumns(results: NoteRecord[], groupBy: string): KanbanColumn[] {
-  const columns = new Map<string, KanbanColumn>();
+export function groupResults(results: NoteRecord[], groupBy: string): GroupColumn[] {
+  const columns = new Map<string, GroupColumn>();
   const byFolder = groupBy === FOLDER_GROUP_BY;
   const normalizedKey = byFolder ? "" : groupBy.toLocaleLowerCase();
   for (const note of results) {
@@ -193,34 +198,87 @@ function OpenErrorMessage({ note, openErrorPath }: { note: NoteRecord; openError
   );
 }
 
+interface GroupSectionProps {
+  column: GroupColumn;
+  children: ComponentChildren;
+}
+
+/** A collapsible section heading one group of results; the collapse state is
+ * per-render (not persisted) — the grouping itself persists in the
+ * collection's view, which is what the tests and the constitution require. */
+function GroupSection({ column, children }: GroupSectionProps) {
+  const [collapsed, setCollapsed] = useState(false);
+  return (
+    <section
+      class={`collections-group ${collapsed ? "is-collapsed" : ""}`}
+      aria-label={`${column.label}, ${column.notes.length} notes`}
+    >
+      <div class="collections-group-heading">
+        <h3 class="collections-group-title">
+          {column.label} ({column.notes.length})
+        </h3>
+        <button
+          type="button"
+          class="collections-group-toggle"
+          aria-expanded={!collapsed}
+          aria-label={`${collapsed ? "Expand" : "Collapse"} ${column.label}`.replace(/\s+/g, " ")}
+          onClick={() => setCollapsed((value) => !value)}
+        >
+          {collapsed ? "+" : "−"}
+        </button>
+      </div>
+      {!collapsed && children}
+      {collapsed && <span class="collections-group-hidden-note" role="note">{column.notes.length} hidden</span>}
+    </section>
+  );
+}
+
 function ListView({
+  collection,
   results,
   onOpenNote,
   openErrorPath,
-}: Pick<CollectionResultsProps, "results"> & OpenHandlerProps) {
+}: Pick<CollectionResultsProps, "collection" | "results"> & OpenHandlerProps) {
+  const groupBy = collection.view.mode === "list" ? collection.view.groupBy : undefined;
+  const row = (note: NoteRecord) => (
+    <li key={note.path} class="collections-result-item">
+      <button
+        class="file-tree-item collections-result-open"
+        onClick={() => onOpenNote(note)}
+      >
+        <span class="collections-result-name">{note.noteName}</span>
+        {note.folder && <span class="collections-result-folder">{note.folder}</span>}
+        <span class="collections-result-meta">
+          {note.tags.length > 0 && (
+            <span class="collections-result-tags">{note.tags.map((t) => `#${t}`).join(" ")}</span>
+          )}
+          {note.modified !== undefined && (
+            <span class="collections-result-modified">{formatModified(note.modified)}</span>
+          )}
+        </span>
+      </button>
+      <OpenErrorMessage note={note} openErrorPath={openErrorPath} />
+    </li>
+  );
+
+  if (!groupBy) {
+    return (
+      <ul class="collections-results-list" aria-label="Collection results">
+        {results.map(row)}
+      </ul>
+    );
+  }
+
   return (
-    <ul class="collections-results-list" aria-label="Collection results">
-      {results.map((note) => (
-        <li key={note.path} class="collections-result-item">
-          <button
-            class="file-tree-item collections-result-open"
-            onClick={() => onOpenNote(note)}
-          >
-            <span class="collections-result-name">{note.noteName}</span>
-            {note.folder && <span class="collections-result-folder">{note.folder}</span>}
-            <span class="collections-result-meta">
-              {note.tags.length > 0 && (
-                <span class="collections-result-tags">{note.tags.map((t) => `#${t}`).join(" ")}</span>
-              )}
-              {note.modified !== undefined && (
-                <span class="collections-result-modified">{formatModified(note.modified)}</span>
-              )}
-            </span>
-          </button>
-          <OpenErrorMessage note={note} openErrorPath={openErrorPath} />
-        </li>
+    <div class="collections-grouped" role="region" aria-label={`Collection results grouped by ${groupBy}`}>
+      {groupResults(results, groupBy).map((column) => (
+        <GroupSection key={column.key} column={column}>
+          <ul class="collections-results-list" aria-label={`${column.label} notes`}>
+            {column.notes.map(row)}
+          </ul>
+        </GroupSection>
       ))}
-    </ul>
+    </div>
   );
 }
 
@@ -232,8 +290,9 @@ function TableView({
   onEditProperty,
 }: Pick<CollectionResultsProps, "collection" | "results" | "onEditProperty"> & OpenHandlerProps) {
   const configured = collection.view.mode === "table" ? collection.view.columns : undefined;
+  const groupBy = collection.view.mode === "table" ? collection.view.groupBy : undefined;
   const propertyKeys = visiblePropertyKeys(results, configured);
-  return (
+  const table = (notes: NoteRecord[]) => (
     <div class="collections-table-wrap">
       <table class="collections-table">
         <thead>
@@ -242,11 +301,11 @@ function TableView({
             <th>Path</th>
             <th>Tags</th>
             <th>Modified</th>
-            {propertyKeys.map((key) => <th key={key}>{key}</th>)}
+            {propertyKeys.map((key) => <th key={key} title={key}>{key}</th>)}
           </tr>
         </thead>
         <tbody>
-          {results.map((note) => (
+          {notes.map((note) => (
             <tr key={note.path}>
               <td>
                 <button type="button" class="collections-note-link" onClick={() => onOpenNote(note)}>
@@ -272,6 +331,18 @@ function TableView({
       </table>
     </div>
   );
+
+  if (!groupBy) return table(results);
+
+  return (
+    <div class="collections-grouped" role="region" aria-label={`Collection table grouped by ${groupBy}`}>
+      {groupResults(results, groupBy).map((column) => (
+        <GroupSection key={column.key} column={column}>
+          {table(column.notes)}
+        </GroupSection>
+      ))}
+    </div>
+  );
 }
 
 function CardView({
@@ -281,33 +352,47 @@ function CardView({
   openErrorPath,
 }: Pick<CollectionResultsProps, "collection" | "results"> & OpenHandlerProps) {
   const configured = collection.view.mode === "card" ? collection.view.fields : undefined;
+  const groupBy = collection.view.mode === "card" ? collection.view.groupBy : undefined;
   const propertyKeys = visiblePropertyKeys(results, configured);
-  return (
+  const card = (note: NoteRecord) => (
+    <article key={note.path} class="collections-card">
+      <button type="button" class="collections-card-open" onClick={() => onOpenNote(note)}>
+        <strong>{note.noteName}</strong>
+        {note.folder && <span>{note.folder}</span>}
+      </button>
+      <OpenErrorMessage note={note} openErrorPath={openErrorPath} />
+      <dl class="collections-card-fields">
+        {propertyKeys.map((key) => {
+          const property = note.properties.get(key.toLocaleLowerCase());
+          if (!property) return null;
+          return (
+            <div key={key}>
+              <dt>{property.key}</dt>
+              <dd>{propertyText(property) || "-"}</dd>
+            </div>
+          );
+        })}
+      </dl>
+      <div class="collections-result-meta">
+        {note.tags.length > 0 && <span>{note.tags.map((tag) => `#${tag}`).join(" ")}</span>}
+        {note.modified !== undefined && <span>{formatModified(note.modified)}</span>}
+      </div>
+    </article>
+  );
+  const grid = (notes: NoteRecord[]) => (
     <div class="collections-card-grid" role="region" aria-label="Collection cards">
-      {results.map((note) => (
-        <article key={note.path} class="collections-card">
-          <button type="button" class="collections-card-open" onClick={() => onOpenNote(note)}>
-            <strong>{note.noteName}</strong>
-            {note.folder && <span>{note.folder}</span>}
-          </button>
-          <OpenErrorMessage note={note} openErrorPath={openErrorPath} />
-          <dl class="collections-card-fields">
-            {propertyKeys.map((key) => {
-              const property = note.properties.get(key.toLocaleLowerCase());
-              if (!property) return null;
-              return (
-                <div key={key}>
-                  <dt>{property.key}</dt>
-                  <dd>{propertyText(property) || "-"}</dd>
-                </div>
-              );
-            })}
-          </dl>
-          <div class="collections-result-meta">
-            {note.tags.length > 0 && <span>{note.tags.map((tag) => `#${tag}`).join(" ")}</span>}
-            {note.modified !== undefined && <span>{formatModified(note.modified)}</span>}
-          </div>
-        </article>
+      {notes.map(card)}
+    </div>
+  );
+
+  if (!groupBy) return grid(results);
+
+  return (
+    <div class="collections-grouped" role="region" aria-label={`Collection cards grouped by ${groupBy}`}>
+      {groupResults(results, groupBy).map((column) => (
+        <GroupSection key={column.key} column={column}>
+          {grid(column.notes)}
+        </GroupSection>
       ))}
     </div>
   );
@@ -320,7 +405,7 @@ function KanbanView({
   openErrorPath,
 }: Pick<CollectionResultsProps, "collection" | "results"> & OpenHandlerProps) {
   if (collection.view.mode !== "kanban") return null;
-  const columns = groupKanbanColumns(results, collection.view.groupBy);
+  const columns = groupResults(results, collection.view.groupBy);
   return (
     <div class="collections-kanban" role="region" aria-label={`Collection board grouped by ${collection.view.groupBy}`}>
       {columns.map((column) => (
@@ -365,6 +450,8 @@ export function CollectionResults({
   const hasFolderBoard = results.some((n) => n.folder.trim() !== "");
   const boardAvailable = availableKanbanKeys.length > 0 || hasFolderBoard;
   const selectedKanbanKey = collection.view.mode === "kanban" ? collection.view.groupBy : "";
+  const currentGroupBy =
+    "groupBy" in collection.view ? (collection.view.groupBy ?? "") : "";
   const [openErrorPath, setOpenErrorPath] = useState<string | null>(null);
 
   async function handleOpenNote(note: NoteRecord) {
@@ -386,7 +473,7 @@ export function CollectionResults({
             role="radio"
             aria-checked={collection.view.mode === mode}
             class={collection.view.mode === mode ? "active" : ""}
-            onClick={() => void onViewChange(viewForMode(mode))}
+            onClick={() => void onViewChange(viewForMode(mode, currentGroupBy || undefined))}
           >
             {mode === "list" ? "List" : mode === "table" ? "Table" : "Cards"}
           </button>
@@ -400,7 +487,7 @@ export function CollectionResults({
           title={!boardAvailable ? "A board needs an indexed frontmatter property or notes in folders" : undefined}
           onClick={() => {
             const groupBy =
-              selectedKanbanKey || (availableKanbanKeys[0] ?? (hasFolderBoard ? FOLDER_GROUP_BY : ""));
+              selectedKanbanKey || currentGroupBy || (availableKanbanKeys[0] ?? (hasFolderBoard ? FOLDER_GROUP_BY : ""));
             if (groupBy) void onViewChange({ mode: "kanban", groupBy });
           }}
         >
@@ -408,28 +495,41 @@ export function CollectionResults({
         </button>
       </div>
 
-      {collection.view.mode === "kanban" && (
-        <label class="collections-kanban-grouping">
-          Group by
-          <select
-            aria-label="Board grouping property"
-            value={collection.view.groupBy}
-            onChange={(event) => {
-              const groupBy = (event.target as HTMLSelectElement).value;
-              if (groupBy) void onViewChange({ mode: "kanban", groupBy });
-            }}
-          >
-            {collection.view.groupBy === FOLDER_GROUP_BY && (
-              <option value={FOLDER_GROUP_BY}>Folder</option>
+      <label class="collections-kanban-grouping">
+        Group by
+        <select
+          aria-label="Grouping property"
+          value={currentGroupBy}
+          onChange={(event) => {
+            const groupBy = (event.target as HTMLSelectElement).value;
+            const mode = collection.view.mode === "kanban" ? "kanban" : collection.view.mode;
+            if (groupBy) {
+              void onViewChange(
+                mode === "kanban"
+                  ? { mode: "kanban", groupBy }
+                  : viewForMode(mode, groupBy),
+              );
+            } else {
+              void onViewChange(
+                mode === "kanban"
+                  ? { mode: "kanban", groupBy: availableKanbanKeys[0] ?? FOLDER_GROUP_BY }
+                  : viewForMode(mode, undefined),
+              );
+            }
+          }}
+        >
+          {currentGroupBy === FOLDER_GROUP_BY && (
+            <option value={FOLDER_GROUP_BY}>Folder</option>
+          )}
+          {currentGroupBy !== FOLDER_GROUP_BY &&
+            currentGroupBy !== "" &&
+            !availableKanbanKeys.includes(currentGroupBy) && (
+              <option value={currentGroupBy}>{currentGroupBy}</option>
             )}
-            {collection.view.groupBy !== FOLDER_GROUP_BY &&
-              (!availableKanbanKeys.includes(collection.view.groupBy) && (
-                <option value={collection.view.groupBy}>{collection.view.groupBy}</option>
-              ))}
-            {availableKanbanKeys.map((key) => <option key={key} value={key}>{key}</option>)}
-          </select>
-        </label>
-      )}
+          <option value="">Ungrouped</option>
+          {availableKanbanKeys.map((key) => <option key={key} value={key}>{key}</option>)}
+        </select>
+      </label>
 
       {results.length === 0 ? (
         <p class="empty-hint">No notes match this collection.</p>
@@ -457,6 +557,7 @@ export function CollectionResults({
         />
       ) : (
         <ListView
+          collection={collection}
           results={results}
           onOpenNote={(note) => void handleOpenNote(note)}
           openErrorPath={openErrorPath}

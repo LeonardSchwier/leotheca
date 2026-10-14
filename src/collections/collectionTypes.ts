@@ -191,9 +191,9 @@ export const SYSTEM_FIELD_OPERATOR_FAMILIES: Record<SystemFieldName, keyof typeo
 };
 
 export type CollectionViewV1 =
-  | { mode: "list" }
-  | { mode: "table"; columns?: string[] }
-  | { mode: "card"; fields?: string[] }
+  | { mode: "list"; groupBy?: string }
+  | { mode: "table"; columns?: string[]; groupBy?: string }
+  | { mode: "card"; fields?: string[]; groupBy?: string }
   /** A read-only board grouped by one top-level indexed frontmatter key.
    * Board ordering is derived from the scalar values, never from a second
    * manually maintained ordering store. */

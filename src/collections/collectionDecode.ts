@@ -155,20 +155,25 @@ function decodeCollectionView(raw: unknown): { value: CollectionViewV1; corrupt:
   if (raw === undefined) return { value: { mode: "list" }, corrupt: false };
   if (typeof raw === "object" && raw !== null) {
     const record = raw as Record<string, unknown>;
-    if (record.mode === "list") return { value: { mode: "list" }, corrupt: false };
+    if (record.mode === "list") {
+      const groupBy = typeof record.groupBy === "string" && record.groupBy.trim() !== "" ? record.groupBy : undefined;
+      return { value: { mode: "list", ...(groupBy ? { groupBy } : {}) }, corrupt: false };
+    }
     if (record.mode === "table") {
       const columns =
         Array.isArray(record.columns) && record.columns.every((c) => typeof c === "string")
           ? (record.columns as string[])
           : undefined;
-      return { value: { mode: "table", ...(columns ? { columns } : {}) }, corrupt: false };
+      const groupBy = typeof record.groupBy === "string" && record.groupBy.trim() !== "" ? record.groupBy : undefined;
+      return { value: { mode: "table", ...(columns ? { columns } : {}), ...(groupBy ? { groupBy } : {}) }, corrupt: false };
     }
     if (record.mode === "card") {
       const fields =
         Array.isArray(record.fields) && record.fields.every((f) => typeof f === "string")
           ? (record.fields as string[])
           : undefined;
-      return { value: { mode: "card", ...(fields ? { fields } : {}) }, corrupt: false };
+      const groupBy = typeof record.groupBy === "string" && record.groupBy.trim() !== "" ? record.groupBy : undefined;
+      return { value: { mode: "card", ...(fields ? { fields } : {}), ...(groupBy ? { groupBy } : {}) }, corrupt: false };
     }
     if (record.mode === "kanban") {
       return typeof record.groupBy === "string" && record.groupBy.trim() !== ""

@@ -126,6 +126,8 @@ Deterministic, no external deps. 7 test cases in `scripts/test_docs_icon.py` all
 🟢 **Flatpak manifest — Node 20 → 22 migration**
 `node20` → `node22` SDK extension; `npm_config_offline` removed with a well-documented rationale (make-fetch-happen only-if-cached mode). Commit pin updated from `eb98b1a` to `f87bc5a`. `node-sources.json` / `cargo-sources.json` regenerated. No issues found.
 
+- ⬜ **Collapsible groups in collection list/table/card views**: Market Solution #2 1.14 Desktop (Oct 5, 2026) made the group sections of its Bases list, table, and card views collapsible. Leotheca's Smart Collections board view already groups notes by an indexed frontmatter property (see ARCHITECTURE.md); extending the same grouping to collapsible sections in the other collection views is a plain-file, offline extension of an existing feature with no new convention. (Competitor scan, Market Solution #2 changelog 1.14 Desktop, 2026-10-05)
+
 ## Implemented
 
 - ✅ **Recent-notes widget labels** — Bare basenames collide for same-named notes in different folders; deep-links open the wrong note.

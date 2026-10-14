@@ -23,44 +23,82 @@
 import { afterEach, beforeAll } from "vitest";
 
 // ---------------------------------------------------------------------------
-// Range.getClientRects / getBoundingClientRect
+// Helpers for polyfilling layout/geometry APIs on jsdom's prototype chain.
 //
-// CodeMirror (and ProseMirror) call these during its measure pass. jsdom has
-// no layout engine, so returning an empty list is the correct semantic answer
-// for "there are no measurable client rects" and lets the measure pass
-// complete instead of throwing.
+// CodeMirror (and ProseMirror) call Range.getClientRects / getBoundingClientRect
+// during its measure pass. jsdom has no layout engine, so returning an empty
+// list / zero rect is the correct semantic answer for "there are no measurable
+// client rects" and lets the measure pass complete instead of throwing.
 // ---------------------------------------------------------------------------
-const emptyClientRectList = (): { length: number; item: (i: number) => never; [Symbol.iterator]: () => Iterator<never> } => ({
+
+/** A DOM-rect-like object with all geometry fields zeroed. */
+const zeroRect: {
+  left: number; right: number; top: number; bottom: number;
+  width: number; height: number; x: number; y: number;
+  toJSON: () => Record<string, number>;
+} = {
+  left: 0, right: 0, top: 0, bottom: 0, width: 0, height: 0, x: 0, y: 0,
+  toJSON: () => ({ left: 0, right: 0, top: 0, bottom: 0, width: 0, height: 0 }),
+};
+
+/** An empty client-rects list (length 0, non-iterable, item() throws). */
+const emptyClientRectList = (): {
+  length: number;
+  item: (i: number) => never;
+  [Symbol.iterator]: () => Iterator<never>;
+} => ({
   length: 0,
   item: () => { throw new Error("empty list"); },
   [Symbol.iterator]: function* () {},
 });
 
-beforeAll(() => {
-  const proto = (globalThis as any).Range?.prototype;
-  if (proto && typeof proto.getClientRects !== "function") {
+/**
+ * Shape of a constructor whose prototype we may stub.
+ * Used to type the (globalThis as Record<string, ...>) lookups without
+ * resorting to `any`.
+ */
+interface Stubbable {
+  prototype?: {
+    getClientRects?: () => { length: number; item: (i: number) => never; [Symbol.iterator]: () => Iterator<never> };
+    getBoundingClientRect?: () => {
+      left: number; right: number; top: number; bottom: number;
+      width: number; height: number; x: number; y: number;
+      toJSON: () => Record<string, number>;
+    };
+  };
+}
+
+/**
+ * Look up a constructor on globalThis by name, typed as Stubbable.
+ * Returns undefined when the global is not present (e.g. in a worker that
+ * hasn't loaded jsdom yet) so callers can safely no-op.
+ */
+function globalCtor(name: string): Stubbable | undefined {
+  const g = globalThis as unknown as Record<string, unknown>;
+  const ctor = g[name];
+  if (typeof ctor !== "function") return undefined;
+  return ctor as unknown as Stubbable;
+}
+
+/** Install the zero-rect + empty-list stubs on a prototype if missing. */
+function installRectStubs(proto: NonNullable<Stubbable["prototype"]> | undefined): void {
+  if (!proto) return;
+  if (typeof proto.getClientRects !== "function") {
     proto.getClientRects = emptyClientRectList;
   }
-  if (proto && typeof proto.getBoundingClientRect !== "function") {
-    proto.getBoundingClientRect = () => ({
-      left: 0, right: 0, top: 0, bottom: 0, width: 0, height: 0, x: 0, y: 0,
-      toJSON: () => ({}),
-    });
+  if (typeof proto.getBoundingClientRect !== "function") {
+    proto.getBoundingClientRect = () => zeroRect;
   }
+}
 
-  // Element/HTMLElement/Text.getClientRects — some CodeMirror paths and
-  // testing-library assertions reach these on nodes directly.
+beforeAll(() => {
+  // Range — the class CodeMirror's measure pass calls.
+  installRectStubs(globalCtor("Range")?.prototype);
+
+  // Element / HTMLElement / Text — some CodeMirror paths and testing-library
+  // assertions reach these on nodes directly.
   for (const ctorName of ["Element", "HTMLElement", "Text"]) {
-    const C = (globalThis as any)[ctorName];
-    if (C && C.prototype && typeof C.prototype.getClientRects !== "function") {
-      C.prototype.getClientRects = emptyClientRectList;
-    }
-    if (C && C.prototype && typeof C.prototype.getBoundingClientRect !== "function") {
-      C.prototype.getBoundingClientRect = () => ({
-        left: 0, right: 0, top: 0, bottom: 0, width: 0, height: 0, x: 0, y: 0,
-        toJSON: () => ({}),
-      });
-    }
+    installRectStubs(globalCtor(ctorName)?.prototype);
   }
 });
 
@@ -68,7 +106,7 @@ beforeAll(() => {
 // restore the polyfill so a later test in the same worker doesn't see the
 // missing stub. (Most tests don't touch these; this is belt-and-braces.)
 afterEach(() => {
-  const proto = (globalThis as any).Range?.prototype;
+  const proto = globalCtor("Range")?.prototype;
   if (proto && typeof proto.getClientRects !== "function") {
     proto.getClientRects = emptyClientRectList;
   }

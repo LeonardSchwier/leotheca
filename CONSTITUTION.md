@@ -33,7 +33,14 @@ Read this entire file at session start. This is the current policy for every age
 
 ## Mission and standing authorization
 
-Run this loop for the available session budget: synchronize, claim one eligible roadmap item, implement it, test and review it, push directly to the configured main branch, inspect and repair available CI, then take the next item. Multiple agents execute this loop concurrently in separate checkouts. Keep useful work moving without a human review, PR, merge, or routine permission gate.
+The owner does not file crash-by-crash tickets; the owner requires the app to **stay crash-free**. Every agent in this repo is a co-owner of that standing outcome, not a contractor who closes the item pointed at. Two obligations flow from this:
+
+1. **Keep main crash-free (standing, always-on).** A working, non-crashing build on `main` is the baseline, not a stretch goal. Any landed defect, flaky test, or regression is your problem to drive to green even when no roadmap item names it. Crash-free means: it launches, survives the real user paths (open, edit, save, sync, background/resume, low memory, offline), and its tests reproduce those paths rather than mock them away. When in doubt, verify the real runtime, not the test count.
+2. **Prevent, don't just react.** Before and after any change, actively hunt the failure modes the change could introduce: unhandled promise rejections, unmounted-listener leaks, null/undefined at boundaries, unbounded memory on large inputs, async races, and platform no-op paths. A change that could plausibly crash is incomplete until you have a test or a traced path proving it cannot. This is the difference between "fixing the crash the owner reported" and "making crashes impossible in this area."
+
+Within that standing obligation, run this loop for the available session budget: synchronize, claim one eligible roadmap item, implement it, test and review it, push directly to the configured main branch, inspect and repair available CI, then take the next item. When roadmap items are exhausted or blocked, the default is **proactive reliability work** (see `skills/maintenance-review.md` and the crash-hunting pass below), not idle waiting and not cosmetic churn. Multiple agents execute this loop concurrently in separate checkouts. Keep useful work moving without a human review, PR, merge, or routine permission gate.
+
+A **crash-hunting pass** is the standard use of idle budget. Pick a high-risk area (filesystem/IPC, async lifecycle, persistence, large-input handlers, platform bridges), trace every public entrypoint to its observable output, and for each find: (a) a concrete input or state that crashes or corrupts, or (b) the test that would catch it if it regressed. Land the fix **and** the regression test in the same change. This is not ticket-driven; you choose the scope by risk, exactly as the owner would ask "what could crash here?"
 
 The owner authorizes agents to commit and push claims, completed changes, tests, documentation, maintenance, CI fixes, and recovery records directly to main. Incomplete code may be checkpointed on its own work branch. Do not ask whether to commit, push, resolve an ordinary conflict, fix a failing test, or take the next item. Automated review or rigorous self-review is sufficient; human review is not a completion criterion.
 
@@ -82,6 +89,17 @@ Before coding, write concrete acceptance criteria and identify the caller, data 
 
 Test meaningful outcomes at the boundary where behavior occurs. For bug fixes, demonstrate that the regression test fails without the fix and passes with it. Cover relevant invalid, empty, boundary, asynchronous, lifecycle, and cross-platform cases. Test count alone proves nothing. Never weaken a test, security boundary, or CI workflow to conceal a defect.
 
+**Crash-freedom checklist.** For every change that touches a user-reachable path, before considering it done, answer these with evidence (a test, a traced call, or a named guard) — not "it should be fine":
+
+- **Unhandled rejection/exception:** Is every `await`, callback, and IPC/native promise on this path wrapped or guaranteed to resolve/reject? An unhandled rejection in the app is a crash, not a log line.
+- **Lifecycle safety:** Do listeners, timers, subscriptions, and async continuations survive and clean up across mount/unmount, tab/workspace switch, background/resume, and app quit? Stale async results writing into a dead component are a top crash source.
+- **Boundary inputs:** What happens with empty, huge, null, malformed, and non-UTF-8 inputs at every entry the owner could reach? Unbounded reads/buffers on large files are an out-of-memory crash on mobile.
+- **Concurrency:** Can two of these fire at once (double-save, rapid capture, concurrent sync) and leave state inconsistent or double-resolve?
+- **Platform no-op:** On the platform where this path is a no-op, does it still resolve cleanly instead of throwing an unhandled promise?
+- **Recovery:** If the operation fails halfway, is the prior state intact or is there a partial-write/corruption path?
+
+A defect found in one of these is a first-class bug to fix now, with a regression test, even if no roadmap item named it. This is the concrete form of "keep it crash-free."
+
 For a changed native, IPC, platform, or persistence contract, test the real contract shape at both sides or a faithful typed fake at the boundary. Update every affected bridge mock in the same change, and run the project static/type gate before publishing. A bridge feature is incomplete when tests exercise only a wrapper while the provider contract, payload fields, failure behavior, or platform no-op path remains untested.
 
 A command or plugin method that accepts a path, URI, or file handle from the frontend is untrusted input by default, not trusted because of who currently calls it: verify it is checked against an explicit allow-list per `skills/change-quality-gates.md` before landing, and check that command's siblings with the same argument shape for the same gap in the same change.
@@ -98,9 +116,9 @@ After pushing, inspect checks for the actual landed SHA, not an arbitrary latest
 
 ## Work selection and productive waiting
 
-At each iteration, refresh main and read active roadmap entries and relevant handoffs. Prioritize a known main regression or deferred verification you can resolve, then eligible Open Bugs, then Open Features, in file order. Inspect only relevant branches and checkpoints; do not make every worker repeatedly audit every branch. Do not take another agent's live work because its branch looks ready.
+At each iteration, refresh main and read active roadmap entries and relevant handoffs. Prioritize a known main regression or deferred verification you can resolve, then eligible Open Bugs, then **crash-hunting in the highest-risk area you can trace**, then Open Features, in file order. A crash-hunting pass is not a fallback that loses to feature work; it is the standing crash-free obligation, so when the choice is between a low-risk polish feature and finding a real crash in a high-risk area, prefer the crash hunt. Inspect only relevant branches and checkpoints; do not make every worker repeatedly audit every branch. Do not take another agent's live work because its branch looks ready.
 
-While a check runs, inspect logs, review the candidate, read the next spec, or perform read-only historic review. Do not claim a second implementation item to fill a wait. If all tasks are done, live-claimed, or blocked, use `skills/maintenance-review.md`: claim a bounded historic commit/command review, find reproducible bugs, test gaps, and stale docs, and deliver fixes through the same loop. Do not invent features, cosmetic churn, or empty commits to look busy.
+While a check runs, inspect logs, review the candidate, read the next spec, or perform a read-only crash-hunt on an adjacent area. Do not claim a second implementation item to fill a wait. If all tasks are done, live-claimed, or blocked, use `skills/maintenance-review.md`: claim a bounded historic commit/command review **and** a forward crash-hunting pass, find reproducible bugs and missing regression tests, and deliver fixes through the same loop. The goal of the idle loop is a more crash-resistant app, not a longer commit list. Do not invent features, cosmetic churn, or empty commits to look busy.
 
 Diagnose blockers before deferring. Install declared dependencies where permitted, use pinned tool versions, reproduce failures, inspect actual logs, and resolve integrations yourself. Split a blocking prerequisite into a claimed task if needed. For an external limitation, make one handoff with a retry condition; do not create recursive blocker tasks or poll unchanged failures indefinitely.
 

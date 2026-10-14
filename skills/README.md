@@ -14,6 +14,7 @@ Each runbook carries standard SKILL.md YAML frontmatter (name, description, vers
 | Before every push, no exceptions | [pre-push-verification.md](pre-push-verification.md) |
 | Decide what to test; local/hosted/deferred CI | [verification-suite.md](verification-suite.md) |
 | A real job/test/build fails | [ci-failure-triage.md](ci-failure-triage.md) |
+| Keep the app crash-free — hunt proactively or react; fix the class, ship the regression test | [crash-freedom.md](crash-freedom.md) |
 | Main moves or a merge conflicts | [merge-conflict-resolution.md](merge-conflict-resolution.md) |
 | No feature work is currently runnable | [maintenance-review.md](maintenance-review.md) |
 | One specification is too large for a session | [phase-splitting-large-specs.md](phase-splitting-large-specs.md) |

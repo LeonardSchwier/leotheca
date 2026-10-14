@@ -22,6 +22,8 @@ search/parsing; editor/preview; platform parity; packaging; documentation
 
 Use when Open items are all implemented, live-claimed, or externally blocked. Continue improving reliability through a bounded, claimed review. Do not invent product scope or create cosmetic churn to consume tokens.
 
+**This is the standing crash-free obligation, not a fallback.** When the roadmap is quiet, the default work is making the app less crash-prone — see `skills/crash-freedom.md`. A crash-hunt pass outranks low-risk polish and cosmetic feature work: the owner expects "keep it crash-free," so idle budget goes to the highest-risk area you can trace, not to the longest feature list. Combine a historic review (what could have broken) with a forward hunt (what could break now), and ship each fix with a regression test.
+
 ## Pick an unreviewed scope
 
 1. Refresh main and the ledger. Read past review handoffs so workers do not repeatedly inspect the same commits/area. Prefer a recently changed high-risk area, then move backward through history.

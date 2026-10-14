@@ -57,7 +57,9 @@ Minor bugs, UX improvements, and performance.
   to isolate per-test call counts.
   - **Verified:** 3024 tests (159 files) all green · tsc --noEmit clean · vite build OK ·
     full local CI/CD pipeline passed (13/14 checks, 1 skipped Flatpak build).
-- ⬜ **Recent-notes widget labels** — Bare basenames collide for same-named notes in different folders; deep-links open the wrong note.
+- 🚧 **Recent-notes widget labels** — Bare basenames collide for same-named notes in different folders; deep-links open the wrong note.
+  <!-- agent-state: {"schema":1,"id":"rm-64b66b68ecc3ab77","state":"claimed","touch":["src/capacitor/widgets/fileTreeStore.test.ts","src/capacitor/widgets/fileTreeStore.ts"],"resources":["widget-labels"],"owner":"hermes-20261014T072707Z-119c13d7","token":"cf310385d7b731d2271404078f22a18f","branch":"agent/rm-64b66b68ecc3ab77/cf310385d7b7","claimed_at":"2026-10-14T07:28:06Z","heartbeat_at":"2026-10-14T07:28:06Z","lease_until":"2026-10-14T08:58:06Z"} -->
+  Agent: hermes-20261014T072707Z-119c13d7 | item: rm-64b66b68ecc3ab77 | lease until: 2026-10-14T08:58:06Z
 - ✅ **Platform detection caching** — `isIOS`/`isMobile` re-evaluate the user agent on every call while `isAndroid` is cached.
   - **Fixed by:** `e7930f6` (fix(platform): cache isIOS/isMobile like isAndroid already does) — module-level `let _ios` / `let _mobile` caches with lazy-init pattern, identical to the pre-existing `isAndroid` pattern.
   - **Verified:** 13 tests in `src/lib/platform.test.ts` (11 value-correctness + 2 caching-invariant) — all green. Caching tests spy on `Capacitor.isNativePlatform` and assert 0 calls after warm-up.

@@ -15,27 +15,27 @@ Leotheca was built using agentic AI engineering approaches. The following agents
 
 Items that block shipping to end users.
 
-- **macOS signing & notarization** — Ship signed, notarized DMGs so Gatekeeper does not warn. Status: blocked on Apple Developer Program credentials from the maintainer.
-- **Fedora Wayland AppImage** — WebKit/EGL crash leaves a blank window on Fedora. Status: blocked, needs a clean Fedora desktop to diagnose and verify the fix.
-- **Flathub submission** — Manifest and CI build are green; the actual submission to Flathub has not been made. Status: blocked on external submission access.
-- **F-Droid submission** — Build pipeline is ready; the actual F-Droid build and submission attempt has not been made. Status: blocked on external submission access.
-- **Flatpak folder-dialog verification** — Desktop-portal file dialogs need an end-to-end smoke test on a real Wayland and X11 session. Status: blocked, no interactive desktop available in the sandbox.
+- ⏸ **macOS signing & notarization** — Ship signed, notarized DMGs so Gatekeeper does not warn. Status: blocked on Apple Developer Program credentials from the maintainer.
+- ⏸ **Fedora Wayland AppImage** — WebKit/EGL crash leaves a blank window on Fedora. Status: blocked, needs a clean Fedora desktop to diagnose and verify the fix.
+- ⏸ **Flathub submission** — Manifest and CI build are green; the actual submission to Flathub has not been made. Status: blocked on external submission access.
+- ⏸ **F-Droid submission** — Build pipeline is ready; the actual F-Droid build and submission attempt has not been made. Status: blocked on external submission access.
+- ⏸ **Flatpak folder-dialog verification** — Desktop-portal file dialogs need an end-to-end smoke test on a real Wayland and X11 session. Status: blocked, no interactive desktop available in the sandbox.
 
 ## P1 — Feature gaps
 
 Significant missing features users expect.
 
-- **Android print & HTML export** — Code landed but never registered with the Capacitor bridge; on-device verification still outstanding. Status: blocked on a physical Android device.
-- **Android speech-to-text** — Plugin was never registered with the Capacitor bridge; on-device confirmation still outstanding. Status: blocked on a physical Android device.
-- **Android folder-picker display name** — Picker always labels a new workspace "Workspace" instead of the real folder name. Status: claimed, needs on-device verification.
-- **Android home-screen widgets** — Recent-notes widget has a full-workspace re-walk performance issue and colliding labels; "favorites" hamburger bug under investigation. Status: in progress.
+- ⏸ **Android print & HTML export** — Code landed but never registered with the Capacitor bridge; on-device verification still outstanding. Status: blocked on a physical Android device.
+- ⏸ **Android speech-to-text** — Plugin was never registered with the Capacitor bridge; on-device confirmation still outstanding. Status: blocked on a physical Android device.
+- ⏸ **Android folder-picker display name** — Picker always labels a new workspace "Workspace" instead of the real folder name. Status: claimed, needs on-device verification.
+- ⏸ **Android home-screen widgets** — Recent-notes widget has a full-workspace re-walk performance issue and colliding labels; "favorites" hamburger bug under investigation. Status: in progress.
 - 🚧 **Quick Capture target picker** — Capture always appends to the inbox note; no way to target a specific note, daily note, or bookmark. Status: open.
   <!-- agent-state: {"schema":1,"id":"rm-dd5994dcac66ebf8","state":"claimed","touch":["ROADMAP.md","src/app/CaptureSheet.test.tsx","src/app/CaptureSheet.tsx","src/capture/captureDestinations.test.ts","src/capture/captureDestinations.ts"],"resources":["capture-target-picker"],"owner":"opencode-20261014T071046Z-e770563c","token":"710ab19f2683187cf66c04b390261f6f","branch":"agent/rm-dd5994dcac66ebf8/710ab19f2683","claimed_at":"2026-10-14T07:12:38Z","heartbeat_at":"2026-10-14T07:12:38Z","lease_until":"2026-10-14T08:42:38Z"} -->
   Agent: opencode-20261014T071046Z-e770563c | item: rm-dd5994dcac66ebf8 | lease until: 2026-10-14T08:42:38Z
-- **Android camera capture** — Take a photo directly from the "Insert attachment" toolbar. Status: open.
-- **Settings export** — No way to export the current settings bundle. Status: open.
-- **macOS Quick Look preview** — ⌥-click a `.md` file in Finder to preview it. Status: open.
-- **Compatibility layer** — Load community extension manifests; gated on maintainer approval of the third-party-code security model. Status: open.
+- ⬜ **Android camera capture** — Take a photo directly from the "Insert attachment" toolbar. Status: open.
+- ⬜ **Settings export** — No way to export the current settings bundle. Status: open.
+- ⬜ **macOS Quick Look preview** — ⌥-click a `.md` file in Finder to preview it. Status: open.
+- ⏸ **Compatibility layer** — Load community extension manifests; gated on maintainer approval of the third-party-code security model. Status: open.
 
 ## P2 — Polish & fixes
 
@@ -57,16 +57,16 @@ Minor bugs, UX improvements, and performance.
   to isolate per-test call counts.
   - **Verified:** 3024 tests (159 files) all green · tsc --noEmit clean · vite build OK ·
     full local CI/CD pipeline passed (13/14 checks, 1 skipped Flatpak build).
-- **Recent-notes widget labels** — Bare basenames collide for same-named notes in different folders; deep-links open the wrong note.
+- ⬜ **Recent-notes widget labels** — Bare basenames collide for same-named notes in different folders; deep-links open the wrong note.
 - ✅ **Platform detection caching** — `isIOS`/`isMobile` re-evaluate the user agent on every call while `isAndroid` is cached.
   - **Fixed by:** `e7930f6` (fix(platform): cache isIOS/isMobile like isAndroid already does) — module-level `let _ios` / `let _mobile` caches with lazy-init pattern, identical to the pre-existing `isAndroid` pattern.
   - **Verified:** 13 tests in `src/lib/platform.test.ts` (11 value-correctness + 2 caching-invariant) — all green. Caching tests spy on `Capacitor.isNativePlatform` and assert 0 calls after warm-up.
   - **Ledger note:** This item was stuck open as a ledger desync — the code landed in `e7930f6` but the ROADMAP icon was missing (bare `- **title**` instead of `- ⬜ **title**`), making it invisible to `agent_ledger.py`'s ITEM regex. Icon added in `259ca9d`.
-- **Android file reads** — `FolderAccessPlugin` read methods buffer whole files with no size cap; risk of `OutOfMemoryError` on large attachments.
+- ⬜ **Android file reads** — `FolderAccessPlugin` read methods buffer whole files with no size cap; risk of `OutOfMemoryError` on large attachments.
 - 🚧 **Recent-notes widget metadata** — `size` and `mtime` fields are dropped during widget sync, blocking future relative-time display.
   <!-- agent-state: {"schema":1,"id":"rm-126935e4949ae25d","state":"claimed","touch":["android/app/src/main/java/com/leonardschwier/leotheca/LeothecaRecentNotesWidgetFactory.java","android/app/src/main/res/layout/leotheca_widget_recent_notes_item.xml","android/app/src/test/java/com/getcapacitor/myapp/WidgetResourcesUnitTest.java"],"resources":["recent-notes-widget-metadata"],"owner":"opencode-20261013T070600Z-9f3c21a7","token":"94432b8b00b5af869140c637ed38e86d","branch":"agent/rm-126935e4949ae25d/94432b8b00b5","claimed_at":"2026-10-13T07:07:28Z","heartbeat_at":"2026-10-13T07:12:12Z","lease_until":"2026-10-13T08:42:12Z"} -->
   Agent: opencode-20261013T070600Z-9f3c21a7 | item: rm-126935e4949ae25d | lease until: 2026-10-13T08:42:12Z
-- **`syncRecentNotesWidget` desktop no-op** — Already covered by the performance item above.
+- ⬜ **`syncRecentNotesWidget` desktop no-op** — Already covered by the performance item above.
 
 - 🚧 **Set the app as the default handler for `.md` files (OS "Open with")**: Market Solution #2's 1.14 Desktop (Oct 5, 2026) added the "Open file from outside the vault" command, OS Open-with registration, and a settable default app for Markdown files. Leotheca already reads individual notes (the 'Open file from outside the vault' command shipped as F04) but cannot register itself as the OS default; completing that last step lets the user open their plain `.md` files in Leotheca from anywhere. (Competitor scan, Market Solution #2 changelog 1.14 Desktop, 2026-10-05)
   <!-- agent-state: {"schema":1,"id":"rm-ae21e6dcf59b26cf","state":"claimed","touch":["ROADMAP.md","src-tauri/src/default_handler.rs","src-tauri/src/lib.rs","src/app/SettingsPanel.tsx","src/workspace/tauriBridgeImpl.ts"],"resources":["markdown-default-handler-contract"],"owner":"hermes-20261009T151025Z-e6d61247","token":"6747ff08a54fbbd7be76996ede95edcf","branch":"agent/rm-ae21e6dcf59b26cf/6747ff08a54f","claimed_at":"2026-10-09T15:12:50Z","heartbeat_at":"2026-10-09T15:12:50Z","lease_until":"2026-10-09T16:42:50Z"} -->

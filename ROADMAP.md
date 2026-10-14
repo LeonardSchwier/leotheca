@@ -57,9 +57,6 @@ Minor bugs, UX improvements, and performance.
   to isolate per-test call counts.
   - **Verified:** 3024 tests (159 files) all green · tsc --noEmit clean · vite build OK ·
     full local CI/CD pipeline passed (13/14 checks, 1 skipped Flatpak build).
-- 🚧 **Recent-notes widget labels** — Bare basenames collide for same-named notes in different folders; deep-links open the wrong note.
-  <!-- agent-state: {"schema":1,"id":"rm-64b66b68ecc3ab77","state":"claimed","touch":["src/capacitor/widgets/fileTreeStore.test.ts","src/capacitor/widgets/fileTreeStore.ts"],"resources":["widget-labels"],"owner":"hermes-20261014T072707Z-119c13d7","token":"cf310385d7b731d2271404078f22a18f","branch":"agent/rm-64b66b68ecc3ab77/cf310385d7b7","claimed_at":"2026-10-14T07:28:06Z","heartbeat_at":"2026-10-14T07:28:06Z","lease_until":"2026-10-14T08:58:06Z"} -->
-  Agent: hermes-20261014T072707Z-119c13d7 | item: rm-64b66b68ecc3ab77 | lease until: 2026-10-14T08:58:06Z
 - ✅ **Platform detection caching** — `isIOS`/`isMobile` re-evaluate the user agent on every call while `isAndroid` is cached.
   - **Fixed by:** `e7930f6` (fix(platform): cache isIOS/isMobile like isAndroid already does) — module-level `let _ios` / `let _mobile` caches with lazy-init pattern, identical to the pre-existing `isAndroid` pattern.
   - **Verified:** 13 tests in `src/lib/platform.test.ts` (11 value-correctness + 2 caching-invariant) — all green. Caching tests spy on `Capacitor.isNativePlatform` and assert 0 calls after warm-up.
@@ -130,6 +127,11 @@ Deterministic, no external deps. 7 test cases in `scripts/test_docs_icon.py` all
 `node20` → `node22` SDK extension; `npm_config_offline` removed with a well-documented rationale (make-fetch-happen only-if-cached mode). Commit pin updated from `eb98b1a` to `f87bc5a`. `node-sources.json` / `cargo-sources.json` regenerated. No issues found.
 
 ## Implemented
+
+- ✅ **Recent-notes widget labels** — Bare basenames collide for same-named notes in different folders; deep-links open the wrong note.
+  <!-- agent-state: {"schema":1,"id":"rm-64b66b68ecc3ab77","state":"done","touch":["src/capacitor/widgets/fileTreeStore.test.ts","src/capacitor/widgets/fileTreeStore.ts"],"resources":["widget-labels"],"note":"Code and tests for widget label disambiguation were already in place. Five dedicated tests verify the behavior. Ledger desync - code landed but ROADMAP icon was missing. Icon added in dd81053, item claimed and verified. tsc clean, 6050 tests green, vite build OK.","completed_at":"2026-10-14T07:35:07Z","completed_by":"hermes-20261014T072707Z-119c13d7","branch":"agent/rm-64b66b68ecc3ab77/cf310385d7b7"} -->
+  Agent: completed by hermes-20261014T072707Z-119c13d7 | item: rm-64b66b68ecc3ab77
+
 
 - ✅ **Highlight color picker re-render** — Menu sub-tree rebuilds on every open/close toggle.
   <!-- agent-state: {"schema":1,"id":"rm-2f358fc7b7479397","state":"done","touch":["src/app/HighlightColorPicker.test.tsx","src/app/HighlightColorPicker.tsx"],"resources":["highlight-picker-render"],"note":"Fixed highlight-picker stale-closure: cached per-color handlers now route via onColorSelectRef.current (current insert/onClose) instead of the first-render closure. TDD regression test added (RED-\u003eGREEN). tsc clean, vitest 3025/3025, vite build OK. Commit 689b26a. CI 13/14 pass.","completed_at":"2026-10-13T15:24:04Z","completed_by":"hermes-20261013T151000Z-hlpicker","branch":"agent/rm-2f358fc7b7479397/373bc7a9a007"} -->

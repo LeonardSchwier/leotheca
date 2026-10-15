@@ -309,6 +309,59 @@ public class WidgetResourcesUnitTest {
             javaVal == rustVal);
     }
 
+    // Cross-language read-cap contract: the TypeScript side
+    // (src/workspace/fileTreeStore.ts's SEARCH_BATCH_MAX_BYTES, which bounds a
+    // content-read *batch*) and the Java side (FolderAccessPlugin.java's
+    // MAX_READ_FILE_BYTES, which bounds a single-file read) must agree on the
+    // same byte ceiling. If they diverge, a file the TS side thinks fits the
+    // batch cap could overflow the Java cap (or vice versa), re-introducing
+    // the OutOfMemoryError the 2026-08-28 on-device crash exposed. Both sides
+    // use the expression "8 * 1024 * 1024"; this test pins the contract by
+    // extracting and comparing the right-hand expression from each source.
+    @Test
+    public void maxReadFileBytesIsConsistentAcrossJavaAndTs() throws IOException {
+        String plugin = source("java/com/leonardschwier/leotheca/FolderAccessPlugin.java");
+        // Read the TS file from the repository root (not android/).
+        String tsRoot = System.getProperty("user.dir");
+        java.nio.file.Path tsPath = java.nio.file.Paths.get(tsRoot);
+        while (!tsPath.resolve("package.json").toFile().exists()) {
+            tsPath = tsPath.getParent();
+            if (tsPath == null) throw new IOException("Cannot find repo root");
+        }
+        String ts = new String(
+            java.nio.file.Files.readAllBytes(tsPath.resolve("src/workspace/fileTreeStore.ts")),
+            java.nio.charset.StandardCharsets.UTF_8
+        );
+
+        // Both files must define a named constant (not a bare literal).
+        assertTrue("FolderAccessPlugin must define MAX_READ_FILE_BYTES",
+            plugin.contains("MAX_READ_FILE_BYTES"));
+        assertTrue("fileTreeStore.ts must define SEARCH_BATCH_MAX_BYTES",
+            ts.contains("SEARCH_BATCH_MAX_BYTES"));
+
+        // Extract the right-hand expression from each and assert they match
+        // after normalising whitespace. The Java side declares:
+        //   static final long MAX_READ_FILE_BYTES = 8 * 1024 * 1024;
+        // The TS side declares:
+        //   const SEARCH_BATCH_MAX_BYTES = 8 * 1024 * 1024;
+        java.util.regex.Matcher mJava = java.util.regex.Pattern
+            .compile("MAX_READ_FILE_BYTES\\s*=\\s*([^;]+);")
+            .matcher(plugin);
+        assertTrue("FolderAccessPlugin MAX_READ_FILE_BYTES must have an expression value",
+            mJava.find());
+        String javaExpr = mJava.group(1).replaceAll("\\s+", "").trim();
+
+        java.util.regex.Matcher mTs = java.util.regex.Pattern
+            .compile("SEARCH_BATCH_MAX_BYTES\\s*=\\s*([^;]+);")
+            .matcher(ts);
+        assertTrue("fileTreeStore.ts SEARCH_BATCH_MAX_BYTES must have an expression value",
+            mTs.find());
+        String tsExpr = mTs.group(1).replaceAll("\\s+", "").trim();
+
+        assertTrue("Read-cap mismatch: Java=" + javaExpr + " TS=" + tsExpr,
+            javaExpr.equals(tsExpr));
+    }
+
     // Cross-language list-length contract: the TypeScript side
     // (src/workspace/fileTreeStore.ts) and the native side
     // (FolderAccessPlugin.java) must agree on RECENT_NOTES_WIDGET_MAX.

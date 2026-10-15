@@ -29,6 +29,9 @@ vi.mock("./store", () => ({
   workspaceSettingsSaving: signal(false),
   workspaceSettings: signal(DEFAULT_WORKSPACE_SETTINGS),
 }));
+vi.mock("../workspace/tauriBridgeImpl", () => ({
+  exportTextFileViaDialog: vi.fn().mockResolvedValue(undefined),
+}));
 vi.mock("../workspace/tauriBridge", () => ({
   getWorkspaceStats: vi.fn(),
 }));
@@ -790,13 +793,47 @@ describe("SettingsPanel", () => {
     it("renders an Export as JSON button in the About section", () => {
       workspacePath.value = "/vault";
       const { getByRole } = render(
-        <SettingsPanel onOpenFile={vi.fn()} />,
+        <SettingsPanel onOpenFile={vi.fn()} />
       );
       // Open the About category via the category nav
       const aboutBtn = getByRole("button", { name: /about/i });
       fireEvent.click(aboutBtn);
       const btn = getByRole("button", { name: /export as json/i });
       expect(btn).toBeTruthy();
+    });
+
+    it("exports a JSON payload with exportedAt, appVersion, and workspaceSettings", async () => {
+      workspacePath.value = "/vault";
+      appVersion.value = "1.2.3-test";
+      workspaceSettings.value = { ...DEFAULT_WORKSPACE_SETTINGS, accentColor: "ocean" as const };
+      const exportFn = (await import("../workspace/tauriBridgeImpl")).exportTextFileViaDialog as ReturnType<typeof vi.fn>;
+      exportFn.mockClear();
+      const { getByRole } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+      fireEvent.click(getByRole("button", { name: /about/i }));
+      const btn = getByRole("button", { name: /export as json/i });
+      fireEvent.click(btn);
+      await vi.waitFor(() => expect(exportFn).toHaveBeenCalledTimes(1));
+      const [filename, content] = exportFn.mock.calls[0] as unknown as [string, string];
+      expect(filename).toBe("leotheca-settings.json");
+      const payload = JSON.parse(content);
+      expect(payload).toHaveProperty("exportedAt");
+      expect(payload).toHaveProperty("appVersion", "1.2.3-test");
+      expect(payload).toHaveProperty("workspaceSettings");
+      expect(payload.workspaceSettings.accentColor).toBe("ocean");
+    });
+
+    it("uses 'unknown' when appVersion is empty", async () => {
+      workspacePath.value = "/vault";
+      appVersion.value = "";
+      const exportFn = (await import("../workspace/tauriBridgeImpl")).exportTextFileViaDialog as ReturnType<typeof vi.fn>;
+      exportFn.mockClear();
+      const { getByRole } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+      fireEvent.click(getByRole("button", { name: /about/i }));
+      const btn = getByRole("button", { name: /export as json/i });
+      fireEvent.click(btn);
+      await vi.waitFor(() => expect(exportFn).toHaveBeenCalledTimes(1));
+      const payload = JSON.parse((exportFn.mock.calls[0] as unknown as [string, string])[1]);
+      expect(payload.appVersion).toBe("unknown");
     });
   });
 });

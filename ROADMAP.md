@@ -33,9 +33,6 @@ Significant missing features users expect.
   <!-- agent-state: {"schema":1,"id":"rm-dd5994dcac66ebf8","state":"claimed","touch":["ROADMAP.md","src/app/CaptureSheet.test.tsx","src/app/CaptureSheet.tsx","src/capture/captureDestinations.test.ts","src/capture/captureDestinations.ts"],"resources":["capture-target-picker"],"owner":"opencode-20261014T071046Z-e770563c","token":"710ab19f2683187cf66c04b390261f6f","branch":"agent/rm-dd5994dcac66ebf8/710ab19f2683","claimed_at":"2026-10-14T07:12:38Z","heartbeat_at":"2026-10-14T07:12:38Z","lease_until":"2026-10-14T08:42:38Z"} -->
   Agent: opencode-20261014T071046Z-e770563c | item: rm-dd5994dcac66ebf8 | lease until: 2026-10-14T08:42:38Z
 - ⬜ **Android camera capture** — Take a photo directly from the "Insert attachment" toolbar. Status: open.
-- 🚧 **Settings export** — No way to export the current settings bundle. Status: open.
-  <!-- agent-state: {"schema":1,"id":"rm-261fc73e9f7e4540","state":"claimed","touch":["ROADMAP.md","src/settings/SettingsPanel.tsx","src/settings/SettingsPanelCurrentTests.tsx"],"resources":["settings-export"],"owner":"hermes-20261015T070818Z-28fd4a6a","token":"e8d96222c5faa9db53916327ed8c696f","branch":"agent/rm-261fc73e9f7e4540/e8d96222c5fa","claimed_at":"2026-10-15T07:08:25Z","heartbeat_at":"2026-10-15T07:08:25Z","lease_until":"2026-10-15T08:38:25Z"} -->
-  Agent: hermes-20261015T070818Z-28fd4a6a | item: rm-261fc73e9f7e4540 | lease until: 2026-10-15T08:38:25Z
 - ⬜ **macOS Quick Look preview** — ⌥-click a `.md` file in Finder to preview it. Status: open.
 - ⏸ **Compatibility layer** — Load community extension manifests; gated on maintainer approval of the third-party-code security model. Status: open.
 
@@ -130,6 +127,11 @@ Deterministic, no external deps. 7 test cases in `scripts/test_docs_icon.py` all
 
 
 ## Implemented
+
+- ✅ **Settings export** — No way to export the current settings bundle. Status: open.
+  <!-- agent-state: {"schema":1,"id":"rm-261fc73e9f7e4540","state":"done","touch":["ROADMAP.md","src/settings/SettingsPanel.tsx","src/settings/SettingsPanelCurrentTests.tsx"],"resources":["settings-export"],"note":"test: export-settings payload shape + unknown fallback; 2921 tests green; tsc clean; vite build OK","completed_at":"2026-10-15T07:28:32Z","completed_by":"hermes-20261015T070818Z-28fd4a6a","branch":"agent/rm-261fc73e9f7e4540/e8d96222c5fa"} -->
+  Agent: completed by hermes-20261015T070818Z-28fd4a6a | item: rm-261fc73e9f7e4540
+
 
 - ✅ **Collapsible groups in collection list/table/card views**: Market Solution #2 1.14 Desktop (Oct 5, 2026) made the group sections of its Bases list, table, and card views collapsible. Leotheca's Smart Collections board view already groups notes by an indexed frontmatter property (see ARCHITECTURE.md); extending the same grouping to collapsible sections in the other collection views is a plain-file, offline extension of an existing feature with no new convention. (Competitor scan, Market Solution #2 changelog 1.14 Desktop, 2026-10-05)
   <!-- agent-state: {"schema":1,"id":"rm-b4368a36d7c31e5e","state":"done","touch":["src/collections/CollectionResults.tsx","src/collections/collectionCollapsible.test.tsx","src/collections/collectionDecode.test.ts","src/collections/collectionDecode.ts","src/collections/collectionPhase2.test.tsx","src/collections/collectionTypes.ts","src/collections/collections.css"],"resources":["collection-grouping"],"note":"Implemented collapsible group sections in list/table/card collection views when groupBy is set, sharing the groupResults contract (renamed from groupKanbanColumns) with the existing board view. Added GroupSection with accessible per-group collapse toggle, group-by selector now shown for all modes with Ungrouped option, groupBy preserved across non-board mode switches, decodeCollectionView reads groupBy for list/table/card. TDD: new collectionCollapsible.test.tsx (10 tests covering all three views, collapse/expand, backward-compat flat list, persistence across modes). Landed c1e34b9. Evidence: tsc --noEmit clean; eslint . clean; check-version pass; vitest 3035/3035 (160 files); vite build OK; pre-push CI 8 passed/0 failed (4 native builds skipped - unrelated frontend-only change).","completed_at":"2026-10-14T15:09:36Z","completed_by":"opencode-20261014T150154Z-ea47f993","branch":"agent/rm-b4368a36d7c31e5e/4dc1b0007b27"} -->

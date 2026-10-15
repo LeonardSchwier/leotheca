@@ -352,6 +352,6 @@ describe("groupResults — folder-based grouping", () => {
     expect(columns.map((c) => c.label)).toEqual(["Projects"]);
     // Property-based grouping would give a different result.
     const byProp = groupResults([withProp], "status");
-    expect(byProp.map((c) => c.label)).toEqual(["done"]);
+    expect(byProp.map((c) => c.label)).toEqual(["done", "Unassigned"]);
   });
 });

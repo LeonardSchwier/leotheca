@@ -222,7 +222,7 @@ describe("F09 Phase 2 result views", () => {
       note("c/Gamma.md", "---\nstatus: WORK\n---\n"),
     ], "status");
 
-    expect(columns).toHaveLength(1);
+    expect(columns).toHaveLength(2);
     expect(columns[0].notes.map((entry) => entry.path)).toEqual([
       "a/Alpha.md",
       "b/Beta.md",
@@ -230,6 +230,8 @@ describe("F09 Phase 2 result views", () => {
     ]);
     // The first-seen original casing is kept as the visible label.
     expect(columns[0].label).toBe("Work");
+    // Unassigned is always present as a drop target for drag-and-drop.
+    expect(columns[1].label).toBe("Unassigned");
   });
 
   it("keeps folder-based board columns case-sensitive, unlike property grouping", () => {

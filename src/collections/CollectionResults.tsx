@@ -105,11 +105,17 @@ export function groupResults(results: NoteRecord[], groupBy: string): GroupColum
       notes: [note],
     });
   }
-  return Array.from(columns.values()).sort((a, b) => {
+  const result = Array.from(columns.values()).sort((a, b) => {
     if (a.key === UNASSIGNED_KANBAN_COLUMN) return 1;
     if (b.key === UNASSIGNED_KANBAN_COLUMN) return -1;
     return a.label.localeCompare(b.label, undefined, { sensitivity: "base" }) || a.label.localeCompare(b.label);
   });
+  // For drag-and-drop, the Unassigned column must always exist as a drop
+  // target, even when no notes are currently unassigned.
+  if (!byFolder && !result.some((c) => c.key === UNASSIGNED_KANBAN_COLUMN)) {
+    result.push({ key: UNASSIGNED_KANBAN_COLUMN, label: "Unassigned", notes: [] });
+  }
+  return result;
 }
 
 interface PropertyCellProps {
@@ -398,18 +404,60 @@ function CardView({
   );
 }
 
+const DRAG_MIME_TYPE = "text/leotheca-kanban-note";
+
 function KanbanView({
   collection,
   results,
   onOpenNote,
   openErrorPath,
-}: Pick<CollectionResultsProps, "collection" | "results"> & OpenHandlerProps) {
+  onEditProperty,
+}: Pick<CollectionResultsProps, "collection" | "results" | "onEditProperty"> & OpenHandlerProps) {
   if (collection.view.mode !== "kanban") return null;
-  const columns = groupResults(results, collection.view.groupBy);
+  const groupBy = collection.view.groupBy;
+  const propertyGrouped = groupBy !== FOLDER_GROUP_BY;
+  const groupByKey = groupBy.toLocaleLowerCase();
+  const columns = groupResults(results, groupBy);
+
+  function handleDragStart(event: { dataTransfer: { setData: (type: string, value: string) => void; effectAllowed: string } }, note: NoteRecord) {
+    event.dataTransfer.setData(DRAG_MIME_TYPE, note.path);
+    event.dataTransfer.effectAllowed = "move";
+  }
+
+  function handleDrop(event: { dataTransfer: { getData: (type: string) => string }; preventDefault: () => void }, column: GroupColumn) {
+    event.preventDefault();
+    if (!propertyGrouped) return;
+    const notePath = event.dataTransfer.getData(DRAG_MIME_TYPE);
+    if (!notePath) return;
+
+    // No-op if the note is already in this column
+    const currentColumn = columns.find((c) => c.notes.some((n) => n.path === notePath));
+    if (currentColumn?.key === column.key) return;
+
+    const note = results.find((n) => n.path === notePath);
+    if (!note) return;
+
+    const property = note.properties.get(groupByKey);
+    if (!property) return;
+    if (property.kind === "readonly" || property.kind === "list") return;
+
+    // Unassigned means clear the value; otherwise set the column's value
+    const targetValue = column.key === UNASSIGNED_KANBAN_COLUMN ? "" : column.label;
+    void onEditProperty(note, property, targetValue).catch(() => {
+      // Edit failure is surfaced via the existing error path; do not crash
+    });
+  }
+
   return (
-    <div class="collections-kanban" role="region" aria-label={`Collection board grouped by ${collection.view.groupBy}`}>
+    <div class="collections-kanban" role="region" aria-label={`Collection board grouped by ${groupBy}`}>
       {columns.map((column) => (
-        <section key={column.key} class="collections-kanban-column" aria-label={`${column.label}, ${column.notes.length} notes`}>
+        <section
+          key={column.key}
+          class={`collections-kanban-column ${propertyGrouped ? "is-drop-target" : ""}`}
+          aria-label={`${column.label}, ${column.notes.length} notes`}
+          onDragOver={propertyGrouped ? (e: DragEvent) => { e.preventDefault(); } : undefined}
+          onDrop={propertyGrouped ? (e: DragEvent) => handleDrop(e as unknown as { dataTransfer: { getData: (t: string) => string }; preventDefault: () => void }, column) : undefined}
+        >
           <h3 class="collections-kanban-heading">
             <span>{column.label}</span>
             <span class="collections-kanban-count">{column.notes.length}</span>
@@ -421,6 +469,8 @@ function KanbanView({
                   type="button"
                   class="collections-kanban-card"
                   aria-label={note.noteName}
+                  draggable={propertyGrouped || undefined}
+                  onDragStart={propertyGrouped ? (e: DragEvent) => handleDragStart(e as unknown as { dataTransfer: { setData: (t: string, v: string) => void; effectAllowed: string } }, note) : undefined}
                   onClick={() => onOpenNote(note)}
                 >
                   <strong>{note.noteName}</strong>
@@ -554,6 +604,7 @@ export function CollectionResults({
           results={results}
           onOpenNote={(note) => void handleOpenNote(note)}
           openErrorPath={openErrorPath}
+          onEditProperty={onEditProperty}
         />
       ) : (
         <ListView

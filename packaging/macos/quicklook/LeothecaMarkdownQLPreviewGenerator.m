@@ -68,8 +68,11 @@
 
     NSString *markdown = [[NSString alloc] initWithData:fileData encoding:NSUTF8StringEncoding];
     if (!markdown) {
-        // Fallback: plain text preview
-        [self renderPlainText:markdown previewSize:previewSize context:context];
+        // Fallback: non-UTF-8 file — show a plain-text notice instead of
+        // passing nil to renderPlainText: (which would crash on
+        // stringByReplacingOccurrencesOfString: on a nil receiver).
+        NSString *notice = @"(binary or non-UTF-8 file — open in Leotheca to view)";
+        [self renderPlainText:notice previewSize:previewSize context:context];
         return;
     }
 

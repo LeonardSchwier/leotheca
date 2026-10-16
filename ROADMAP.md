@@ -127,6 +127,64 @@ Deterministic, no external deps. 7 test cases in `scripts/test_docs_icon.py` all
 `node20` → `node22` SDK extension; `npm_config_offline` removed with a well-documented rationale (make-fetch-happen only-if-cached mode). Commit pin updated from `eb98b1a` to `f87bc5a`. `node-sources.json` / `cargo-sources.json` regenerated. No issues found.
 
 
+## Security Audit (2026-10-16)
+
+_Performed per the Cloudflare security-audit-skill (multi-phase, source-first, boundary-violation evidence). Scope: full codebase on main (commit `2cd2f76`). Profile: standard. 5 confirmed findings, 0 critical/high, 4 medium, 1 informational._
+
+### Confirmed findings
+
+**S-1 (medium) — `assetProtocol` scope is empty: full-filesystem read via webview**
+`src-tauri/tauri.conf.json` line 27: `"assetProtocol": { "enable": true, "scope": [] }`. An empty scope array means the `asset:` protocol can serve **any file on disk** to the webview. Combined with the CSP `img-src 'self' asset: data: blob:`, a malicious note (e.g. one received via Android share intent or a compromised workspace) containing `<img src="asset:///etc/passwd">` could exfiltrate arbitrary file contents through image loading, canvas pixel reads, or `fetch("asset:///...")`.
+
+*Fix:* Set `assetProtocol.scope` to `["$APPDATA/**", "$HOME/Documents/**"]` or a narrower allowlist matching the user's actual workspace locations. The Tauri asset protocol supports glob patterns; restrict to the directories the app legitimately reads.
+
+**S-2 (medium) — `script-src 'unsafe-eval'` in CSP**
+`src-tauri/tauri.conf.json` line 23: `script-src 'self' 'unsafe-eval'`. While no direct `eval()`/`new Function()` calls exist in the codebase (verified by grep), `unsafe-eval` widens the XSS payload surface: any injection vector (e.g. S-1's asset protocol, or a DOMPurify bypass) can execute arbitrary code via `eval()`/`setTimeout(string)`/`new Function()` without an additional bypass step. The only consumers of dynamic code evaluation are mermaid and monaco, both of which ship as static bundles.
+
+*Fix:* Remove `'unsafe-eval'` from `script-src`. If mermaid or monaco genuinely need `eval()`, wrap that specific evaluation in a CSP nonce or move it to a Web Worker (the CSP `worker-src` directive does not inherit `unsafe-eval`). Add a CI test that asserts the CSP does not contain `unsafe-eval`.
+
+**S-3 (medium) — `read_markdown_file` in `external_open.rs` reads arbitrary paths with no containment check**
+`src-tauri/src/external_open.rs` line 47: `fs::read_to_string(&path).ok()` — no workspace, config-dir, or any other containment check. This is called from:
+1. `lib.rs` line 84: `external_open::extract_markdown_path(&cold_start_args).and_then(external_open::read_markdown_file)` — reads a path from CLI argv at cold start.
+2. `lib.rs` line 54: `external_open::extract_markdown_path(relaunch_args).and_then(external_open::read_markdown_file)` — reads a path from a relaunch intercepted by single-instance.
+
+The `extract_markdown_path` function (line 129) only checks `url.scheme() == "file"` and strips the `file://` prefix — it does **not** validate the resulting path stays within the workspace. An attacker who can control the OS launch arguments (e.g. a crafted `.md` file opened via file association, a malicious terminal alias, or a compromised desktop entry) can read any file the user's process can access. The result is emitted to the frontend via `emit_open_external_file`, which renders it in the editor — enabling exfiltration of arbitrary file contents to any channel the frontend can reach (clipboard via `read-current-note` deep-link, export, etc.).
+
+*Fix:* In `read_markdown_file`, after resolving the path, verify `fs::canonicalize(&path).starts_with(canonical_workspace_root)` before reading. If the path is outside the active workspace, return `None` (matching the existing silent-no-op convention). The doc comment already states the intent ("no workspace/config-dir containment check at all") — the code needs to match that intent by adding the check.
+
+**S-4 (informational) — Deep-link `open-note` path is trusted after frontend validation**
+`src/app/automationCommands.ts` line 44: the `open-note` deep-link command passes `command.path` to `handleOpenFile`. The frontend checks `isPathWithinWorkspace` (line 553 of `App.tsx`), but this is a JS-side check on a string that was constructed from OS-level untrusted input. If the frontend check is bypassed (e.g. a bug in `isPathWithinWorkspace`, or a race where `workspacePath` changes between check and use), the path is passed to the native `list_dir`/`find_markdown_files` Tauri commands, which **do** enforce `check_unscoped_path_allowed` server-side. The Rust-side enforcement is the real boundary; the JS check is defense-in-depth. This is correctly layered, but the JS check should be treated as non-authoritative.
+
+*Action:* No code change required. Add a comment in `automationCommands.ts` clarifying that the Rust-side `check_unscoped_path_allowed` is the authoritative containment gate, and the frontend `isPathWithinWorkspace` is a UX convenience, not a security boundary.
+
+**S-5 (informational) — `exportNoteHtml` fetches local image files without a path allowlist**
+`src/export/exportNoteHtml.ts` line 69: `fetchImpl(src)` where `src` is an `<img>` tag's `src` attribute from user-authored markdown. The `fetch` is called with the image's `src` value directly. For `asset://` URLs, the asset protocol's scope (S-1) is the only control. For `file://` URLs, the CSP `img-src` does not list `file:`, so the browser should block — but the CSP is the only defense here.
+
+*Action:* Addressed by fixing S-1 (restrict asset protocol scope). Additionally, validate that `src` starts with an allowed prefix (`asset://`, `data:`, or relative) before calling `fetchImpl`.
+
+### Verified clean (no finding)
+
+- **Path traversal in `resolve_within_workspace`** (`workspace_mutations.rs`): canonicalizes root, checks `starts_with`, handles symlinks, dangling links, and non-existing intermediate paths. Well-implemented, with comprehensive tests.
+- **`check_unscoped_path_allowed`** (`commands.rs`): rejects outside-workspace and outside-config-dir targets. Tests cover prefix-collision, symlink-escape, and no-root cases.
+- **DOMPurify sanitization** (`MarkdownPreview.tsx`): `DOMPurify.sanitize()` applied to all rendered markdown before `dangerouslySetInnerHTML`. `data-mermaid-source` is the only custom attribute allowed. Search highlighting is applied post-sanitization and only inserts static `<span class="search-highlight">` wrappers.
+- **Attachment filename sanitization** (`pendingCaptures.ts`): `sanitizeAttachmentFilename` strips path separators, control characters, Windows reserved names, and special characters. Tested.
+- **Deep-link capture payload size limit** (`automationCommands.ts`): 32 KiB UTF-8 byte cap via `TextEncoder().encode()`. Tested.
+- **Tauri capabilities** (`capabilities/default.json`): `fs:allow-read-text-file` and `fs:allow-write-text-file` are scoped by the Rust-side commands (which enforce workspace containment). `clipboard-manager:allow-write-text` is intentionally broad (user-initiated copy). No `shell`, `http`, or `net` plugins.
+- **Rust `clippy`**: zero warnings (verified in CI).
+- **No `innerHTML` without sanitization**: all `innerHTML` assignments in production code go through `DOMPurify.sanitize()` first (verified by grep).
+
+### Summary
+
+| ID | Severity | Component | Issue |
+|----|----------|-----------|-------|
+| S-1 | medium | `tauri.conf.json` | Empty asset protocol scope → arbitrary file read via webview |
+| S-2 | medium | `tauri.conf.json` | `unsafe-eval` in CSP widens XSS surface |
+| S-3 | medium | `external_open.rs` | `read_markdown_file` has no path containment check |
+| S-4 | info | `automationCommands.ts` | Frontend path check is non-authoritative (Rust is) — add clarifying comment |
+| S-5 | info | `exportNoteHtml.ts` | Image `src` fetch relies on CSP only — add prefix validation |
+
+_No prior security audit ledger exists for this repository. This is the first structured audit._
+
 ## Implemented
 
 - ✅ **macOS Quick Look preview** — ⌥-click a `.md` file in Finder to preview it. Status: done.

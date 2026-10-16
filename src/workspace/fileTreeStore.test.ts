@@ -1701,6 +1701,22 @@ describe("recent-notes widget sync: platform gate + coalescing", () => {
     expect(updateRecentNotesWidget).not.toHaveBeenCalled();
   });
 
+  it("desktop no-op: resolves immediately without scheduling any timer", async () => {
+    // Regression test for rm-9123b0b3110ba29c: the desktop (non-Android) path
+    // must be a true no-op — it must not start the debounce timer, so even
+    // after advancing fake timers far past the 300 ms window nothing fires.
+    const { syncRecentNotesWidget } = await import("./fileTreeStore");
+    isAndroid.mockReturnValue(false);
+    findAllFiles.mockClear();
+    updateRecentNotesWidget.mockClear();
+    const p = syncRecentNotesWidget("/workspace");
+    await p;
+    // Advance well past the 300 ms debounce window.
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(findAllFiles).not.toHaveBeenCalled();
+    expect(updateRecentNotesWidget).not.toHaveBeenCalled();
+  });
+
   it("walks once and pushes the selected notes when isAndroid is true", async () => {
     const { syncRecentNotesWidget } = await import("./fileTreeStore");
     isAndroid.mockReturnValue(true);

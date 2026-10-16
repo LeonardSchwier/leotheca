@@ -32,7 +32,9 @@ Significant missing features users expect.
 - 🚧 **Quick Capture target picker** — Capture always appends to the inbox note; no way to target a specific note, daily note, or bookmark. Status: open.
   <!-- agent-state: {"schema":1,"id":"rm-dd5994dcac66ebf8","state":"claimed","touch":["ROADMAP.md","src/app/CaptureSheet.test.tsx","src/app/CaptureSheet.tsx","src/capture/captureDestinations.test.ts","src/capture/captureDestinations.ts"],"resources":["capture-target-picker"],"owner":"opencode-20261014T071046Z-e770563c","token":"710ab19f2683187cf66c04b390261f6f","branch":"agent/rm-dd5994dcac66ebf8/710ab19f2683","claimed_at":"2026-10-14T07:12:38Z","heartbeat_at":"2026-10-14T07:12:38Z","lease_until":"2026-10-14T08:42:38Z"} -->
   Agent: opencode-20261014T071046Z-e770563c | item: rm-dd5994dcac66ebf8 | lease until: 2026-10-14T08:42:38Z
-- ⬜ **Android camera capture** — Take a photo directly from the "Insert attachment" toolbar. Status: open.
+- 🚧 **Android camera capture** — Take a photo directly from the "Insert attachment" toolbar. Status: open.
+  <!-- agent-state: {"schema":1,"id":"rm-5fc96a0db16f2169","state":"claimed","touch":["ROADMAP.md","src/editor/MarkdownEditor.test.tsx","src/editor/MarkdownEditor.tsx","src/editor/attachments.test.ts","src/editor/attachments.ts","src/editor/cameraCapture.test.ts","src/editor/cameraCapture.ts"],"resources":["android-camera-attachment"],"owner":"hermes-20261016T150447Z-c2c09206","token":"b17c71a8bbc0eca5975b6746ef6f014e","branch":"agent/rm-5fc96a0db16f2169/b17c71a8bbc0","claimed_at":"2026-10-16T15:05:16Z","heartbeat_at":"2026-10-16T15:05:16Z","lease_until":"2026-10-16T16:35:16Z"} -->
+  Agent: hermes-20261016T150447Z-c2c09206 | item: rm-5fc96a0db16f2169 | lease until: 2026-10-16T16:35:16Z
 - ⏸ **Compatibility layer** — Load community extension manifests; gated on maintainer approval of the third-party-code security model. Status: open.
 
 ## P2 — Polish & fixes

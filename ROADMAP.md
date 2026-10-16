@@ -64,9 +64,6 @@ Minor bugs, UX improvements, and performance.
 - 🚧 **Recent-notes widget metadata** — `size` and `mtime` fields are dropped during widget sync, blocking future relative-time display.
   <!-- agent-state: {"schema":1,"id":"rm-126935e4949ae25d","state":"claimed","touch":["android/app/src/main/java/com/leonardschwier/leotheca/LeothecaRecentNotesWidgetFactory.java","android/app/src/main/res/layout/leotheca_widget_recent_notes_item.xml","android/app/src/test/java/com/getcapacitor/myapp/WidgetResourcesUnitTest.java"],"resources":["recent-notes-widget-metadata"],"owner":"opencode-20261013T070600Z-9f3c21a7","token":"94432b8b00b5af869140c637ed38e86d","branch":"agent/rm-126935e4949ae25d/94432b8b00b5","claimed_at":"2026-10-13T07:07:28Z","heartbeat_at":"2026-10-13T07:12:12Z","lease_until":"2026-10-13T08:42:12Z"} -->
   Agent: opencode-20261013T070600Z-9f3c21a7 | item: rm-126935e4949ae25d | lease until: 2026-10-13T08:42:12Z
-- 🚧 **`syncRecentNotesWidget` desktop no-op** — Already covered by the performance item above.
-  <!-- agent-state: {"schema":1,"id":"rm-9123b0b3110ba29c","state":"claimed","touch":["ROADMAP.md","src/workspace/fileTreeStore.test.ts"],"resources":["recent-notes-sync-desktoptop"],"owner":"hermes-20261016T070000Z-synccnoop","token":"372fa5c1e79073ecbf4784f4a70d1d56","branch":"agent/rm-9123b0b3110ba29c/372fa5c1e790","claimed_at":"2026-10-16T07:07:27Z","heartbeat_at":"2026-10-16T07:07:27Z","lease_until":"2026-10-16T08:37:27Z"} -->
-  Agent: hermes-20261016T070000Z-synccnoop | item: rm-9123b0b3110ba29c | lease until: 2026-10-16T08:37:27Z
 
 - 🚧 **Set the app as the default handler for `.md` files (OS "Open with")**: Market Solution #2's 1.14 Desktop (Oct 5, 2026) added the "Open file from outside the vault" command, OS Open-with registration, and a settable default app for Markdown files. Leotheca already reads individual notes (the 'Open file from outside the vault' command shipped as F04) but cannot register itself as the OS default; completing that last step lets the user open their plain `.md` files in Leotheca from anywhere. (Competitor scan, Market Solution #2 changelog 1.14 Desktop, 2026-10-05)
   <!-- agent-state: {"schema":1,"id":"rm-ae21e6dcf59b26cf","state":"claimed","touch":["ROADMAP.md","src-tauri/src/default_handler.rs","src-tauri/src/lib.rs","src/app/SettingsPanel.tsx","src/workspace/tauriBridgeImpl.ts"],"resources":["markdown-default-handler-contract"],"owner":"hermes-20261009T151025Z-e6d61247","token":"6747ff08a54fbbd7be76996ede95edcf","branch":"agent/rm-ae21e6dcf59b26cf/6747ff08a54f","claimed_at":"2026-10-09T15:12:50Z","heartbeat_at":"2026-10-09T15:12:50Z","lease_until":"2026-10-09T16:42:50Z"} -->
@@ -130,6 +127,11 @@ Deterministic, no external deps. 7 test cases in `scripts/test_docs_icon.py` all
 
 
 ## Implemented
+
+- ✅ **`syncRecentNotesWidget` desktop no-op** — Already covered by the performance item above.
+  <!-- agent-state: {"schema":1,"id":"rm-9123b0b3110ba29c","state":"done","touch":["ROADMAP.md","src/workspace/fileTreeStore.test.ts"],"resources":["recent-notes-sync-desktoptop"],"note":"Ledger desync: desktop no-op behavior (isAndroid() guard returning Promise.resolve()) was already implemented in the 'Recent-notes widget performance' item (579d804). Added focused regression test 'desktop no-op: resolves immediately without scheduling any timer' that advances fake timers past the 300ms debounce window and asserts no walk/bridge call. All 3044 tests green, tsc clean, vite build OK.","completed_at":"2026-10-16T07:26:37Z","completed_by":"hermes-20261016T070000Z-synccnoop","branch":"agent/rm-9123b0b3110ba29c/372fa5c1e790"} -->
+  Agent: completed by hermes-20261016T070000Z-synccnoop | item: rm-9123b0b3110ba29c
+
 
 - ✅ **Settings export** — No way to export the current settings bundle. Status: open.
   <!-- agent-state: {"schema":1,"id":"rm-261fc73e9f7e4540","state":"done","touch":["ROADMAP.md","src/settings/SettingsPanel.tsx","src/settings/SettingsPanelCurrentTests.tsx"],"resources":["settings-export"],"note":"test: export-settings payload shape + unknown fallback; 2921 tests green; tsc clean; vite build OK","completed_at":"2026-10-15T07:28:32Z","completed_by":"hermes-20261015T070818Z-28fd4a6a","branch":"agent/rm-261fc73e9f7e4540/e8d96222c5fa"} -->

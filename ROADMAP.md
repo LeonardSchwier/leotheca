@@ -33,7 +33,9 @@ Significant missing features users expect.
   <!-- agent-state: {"schema":1,"id":"rm-dd5994dcac66ebf8","state":"claimed","touch":["ROADMAP.md","src/app/CaptureSheet.test.tsx","src/app/CaptureSheet.tsx","src/capture/captureDestinations.test.ts","src/capture/captureDestinations.ts"],"resources":["capture-target-picker"],"owner":"opencode-20261014T071046Z-e770563c","token":"710ab19f2683187cf66c04b390261f6f","branch":"agent/rm-dd5994dcac66ebf8/710ab19f2683","claimed_at":"2026-10-14T07:12:38Z","heartbeat_at":"2026-10-14T07:12:38Z","lease_until":"2026-10-14T08:42:38Z"} -->
   Agent: opencode-20261014T071046Z-e770563c | item: rm-dd5994dcac66ebf8 | lease until: 2026-10-14T08:42:38Z
 - ⬜ **Android camera capture** — Take a photo directly from the "Insert attachment" toolbar. Status: open.
-- ⬜ **macOS Quick Look preview** — ⌥-click a `.md` file in Finder to preview it. Status: open.
+- 🚧 **macOS Quick Look preview** — ⌥-click a `.md` file in Finder to preview it. Status: open.
+  <!-- agent-state: {"schema":1,"id":"rm-d18513b6a2034e1e","state":"claimed","touch":["ROADMAP.md","packaging/macos/quicklook/LeothecaMarkdownQLPreviewGenerator.m","scripts/test_ql_converter.py"],"resources":["macos-quicklook-qlgenerator"],"owner":"hermes-20261016T110629Z-dc99019d","token":"c35c75d6e53b6d59b634e4972f7c822b","branch":"agent/rm-d18513b6a2034e1e/c35c75d6e53b","claimed_at":"2026-10-16T11:06:38Z","heartbeat_at":"2026-10-16T11:06:38Z","lease_until":"2026-10-16T12:36:38Z"} -->
+  Agent: hermes-20261016T110629Z-dc99019d | item: rm-d18513b6a2034e1e | lease until: 2026-10-16T12:36:38Z
 - ⏸ **Compatibility layer** — Load community extension manifests; gated on maintainer approval of the third-party-code security model. Status: open.
 
 ## P2 — Polish & fixes

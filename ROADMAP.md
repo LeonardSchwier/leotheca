@@ -182,7 +182,9 @@ The `extract_markdown_path` function (line 129) only checks `url.scheme() == "fi
 
 _No prior security audit ledger exists for this repository. This is the first structured audit._
 
-- ⬜ **Quick Capture: launch from the OS without waiting for the app to load** — Market Solution #2 1.14 Mobile (Oct 5, 2026) lets iOS Quick Capture create a note from the Lock Screen, Control Center, Home Screen widget, or a Shortcut before the vault has even loaded. Leotheca's Quick Capture exists as an in-app sheet plus deep links/share intents, but every path requires the app to be running first; capturing straight from a widget/shortcuts entry that appends to the inbox note (opt-in, plain-file, offline, togglable) completes the existing capture feature without a new convention. (Competitor scan, Market Solution #2 changelog 1.14 Mobile, 2026-10-05)
+- 🚧 **Quick Capture: launch from the OS without waiting for the app to load** — Market Solution #2 1.14 Mobile (Oct 5, 2026) lets iOS Quick Capture create a note from the Lock Screen, Control Center, Home Screen widget, or a Shortcut before the vault has even loaded. Leotheca's Quick Capture exists as an in-app sheet plus deep links/share intents, but every path requires the app to be running first; capturing straight from a widget/shortcuts entry that appends to the inbox note (opt-in, plain-file, offline, togglable) completes the existing capture feature without a new convention. (Competitor scan, Market Solution #2 changelog 1.14 Mobile, 2026-10-05)
+  <!-- agent-state: {"schema":1,"id":"rm-9a637eae859ce76e","state":"claimed","touch":["ROADMAP.md","android","src/capacitor/widgets","src/capture"],"resources":["quick-capture-os-launch"],"owner":"hermes-20261017T093000Z-7bad5d6d","token":"5aaea73d1a8ecaf6def1b3e2680efd18","branch":"agent/rm-9a637eae859ce76e/5aaea73d1a8e","claimed_at":"2026-10-17T11:22:02Z","heartbeat_at":"2026-10-17T11:22:02Z","lease_until":"2026-10-17T12:52:02Z"} -->
+  Agent: hermes-20261017T093000Z-7bad5d6d | item: rm-9a637eae859ce76e | lease until: 2026-10-17T12:52:02Z
 
 ## Implemented
 

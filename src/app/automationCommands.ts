@@ -56,6 +56,16 @@ export function parseAutomationUrl(url: string): AutomationCommand | null {
         );
         return null;
       }
+      // SECURITY LAYERING (audit S-4): this `path` is untrusted deep-link
+      // input. The caller hands it to `handleOpenFile` (App.tsx), which
+      // reads the note through the Tauri bridge. That read is the ONLY
+      // authoritative containment gate: the Rust-side
+      // `check_unscoped_path_allowed` (src-tauri/src/commands.rs) rejects
+      // any target outside the active workspace root or the app config
+      // directory. Any frontend `isPathWithinWorkspace` check upstream of
+      // it is a UX convenience, NOT the security boundary -- do not treat
+      // it as a defense, and never weaken the Rust gate to "trust" a path
+      // that only a JS check cleared.
       return { kind: "open-note", path };
     }
     case "capture": {

@@ -133,10 +133,22 @@ _Performed per the Cloudflare security-audit-skill (multi-phase, source-first, b
 
 ### Confirmed findings
 
-**S-1 (medium) — `assetProtocol` scope is empty: full-filesystem read via webview**
-`src-tauri/tauri.conf.json` line 27: `"assetProtocol": { "enable": true, "scope": [] }`. An empty scope array means the `asset:` protocol can serve **any file on disk** to the webview. Combined with the CSP `img-src 'self' asset: data: blob:`, a malicious note (e.g. one received via Android share intent or a compromised workspace) containing `<img src="asset:///etc/passwd">` could exfiltrate arbitrary file contents through image loading, canvas pixel reads, or `fetch("asset:///...")`.
-
-*Fix:* Set `assetProtocol.scope` to `["$APPDATA/**", "$HOME/Documents/**"]` or a narrower allowlist matching the user's actual workspace locations. The Tauri asset protocol supports glob patterns; restrict to the directories the app legitimately reads.
+**S-1 (medium) — `assetProtocol` scope is empty: full-filesystem read via webview** ✅ **Resolved 2026-10-17**
+> **Audit correction:** The original claim — "an empty scope array means the `asset:` protocol can serve any file on disk" — is **false**. In Tauri, `scope: []` is **deny-by-default**: no files are served at all until the app explicitly allows a directory at runtime. The empty array is the *secure* state, not the vulnerable one. The vulnerable state was `["**"]`, which the 2026-09-23 fix removed.
+>
+> **Actual behavior (verified):** `set_active_workspace_root` (`src-tauri/src/commands.rs:877`) grants access *dynamically* via `app.asset_protocol_scope().allow_directory(root)` when a workspace is activated, and `forbid_directory(previous_root)` when switched away. The Rust regression test `set_active_workspace_root_scopes_asset_protocol_to_the_active_workspace_only` (`commands.rs:1433`) proves this: the asset protocol serves **only the active workspace**, and nothing else.
+>
+> **Gap fixed now:** The deny-by-default invariant was *correct* but **untested in the TS suite**. A future edit that reverted `scope` to `["**"]` (the 2026-09-23 bug), `null`, or any match-all pattern would silently reintroduce the arbitrary-file-read vulnerability with no CI alarm.
+>
+> **Resolution (commit `d0f22a3`):** Added `src/assetProtocolScope.test.ts` — 4 tests that lock the invariant in CI:
+> 1. `assetProtocol.enable` is `true` (required for local image/attachment rendering).
+> 2. `scope` is an array (not `null` — which in Tauri means "allow everything").
+> 3. `scope` contains no match-all pattern (`**`, `**/*`, `*`, `/**`, `/**/*`) — the exact patterns that match any absolute path.
+> 4. `scope` grants no `$APPDATA`/`$HOME` unconditionally — the only runtime grant must come from `set_active_workspace_root`.
+>
+> **TDD verified:** Injecting `scope: ["**"]` (the 2026-09-23 vuln) makes the test **fail** (RED). The current `scope: []` config **passes** (GREEN). Pre-push CI: 13/14 checks passed, 1 skipped, 3m30s. `tsc --noEmit` clean, `vitest run` 3048/3048 (162 files), `vite build` OK.
+>
+> The `*Fix*` line below (set scope to `["$APPDATA/**", ...]`) is **rejected** — it would *widen* the grant, not narrow it. The correct state is `scope: []` with runtime-only grants, which is already in place.
 
 **S-2 (medium) — `script-src 'unsafe-eval'` in CSP**
 `src-tauri/tauri.conf.json` line 23: `script-src 'self' 'unsafe-eval'`. While no direct `eval()`/`new Function()` calls exist in the codebase (verified by grep), `unsafe-eval` widens the XSS payload surface: any injection vector (e.g. S-1's asset protocol, or a DOMPurify bypass) can execute arbitrary code via `eval()`/`setTimeout(string)`/`new Function()` without an additional bypass step. The only consumers of dynamic code evaluation are mermaid and monaco, both of which ship as static bundles.
@@ -157,7 +169,7 @@ The `extract_markdown_path` function (line 129) only checks `url.scheme() == "fi
   <!-- agent-state: {"schema":1,"id":"rm-81d8ad863ac6b70c","state":"claimed","touch":["src/export/exportNoteHtml.test.ts","src/export/exportNoteHtml.ts"],"resources":["export-image-allowlist"],"owner":"hermes-20261017T071519Z-047145a3","token":"e44cbe3a596d594a5f8347480df86411","branch":"agent/rm-81d8ad863ac6b70c/e44cbe3a596d","claimed_at":"2026-10-17T07:37:30Z","heartbeat_at":"2026-10-17T07:37:30Z","lease_until":"2026-10-17T09:07:30Z"} -->
   Agent: hermes-20261017T071519Z-047145a3 | item: rm-81d8ad863ac6b70c | lease until: 2026-10-17T09:07:30Z
 
-*Action:* Addressed by fixing S-1 (restrict asset protocol scope). Additionally, validate that `src` starts with an allowed prefix (`asset://`, `data:`, or relative) before calling `fetchImpl`.
+*Action:* S-1 is resolved (see above: `scope: []` is already deny-by-default with runtime-only grants). For S-5 itself, validate that `src` starts with an allowed prefix (`asset://`, `data:`, or relative) before calling `fetchImpl`.
 
 ### Verified clean (no finding)
 
@@ -174,7 +186,7 @@ The `extract_markdown_path` function (line 129) only checks `url.scheme() == "fi
 
 | ID | Severity | Component | Issue |
 |----|----------|-----------|-------|
-| S-1 | medium | `tauri.conf.json` | Empty asset protocol scope → arbitrary file read via webview |
+| S-1 | medium | `tauri.conf.json` | Empty asset protocol scope → arbitrary file read via webview | ✅ **Resolved 2026-10-17** (audit claim was false: `[]` is deny-by-default; `["**"]` was the bug. Fixed the gap: added TS regression test locking the invariant. Commit `d0f22a3`. See correction above.) |
 | S-2 | medium | `tauri.conf.json` | `unsafe-eval` in CSP widens XSS surface |
 | S-3 | medium | `external_open.rs` | `read_markdown_file` has no path containment check |
 | S-4 | info | `automationCommands.ts` | Frontend path check is non-authoritative (Rust is) — add clarifying comment |

@@ -187,6 +187,8 @@ The `extract_markdown_path` function (line 129) only checks `url.scheme() == "fi
 
 _No prior security audit ledger exists for this repository. This is the first structured audit._
 
+- ⬜ **Quick Capture: launch from the OS without waiting for the app to load** — Market Solution #2 1.14 Mobile (Oct 5, 2026) lets iOS Quick Capture create a note from the Lock Screen, Control Center, Home Screen widget, or a Shortcut before the vault has even loaded. Leotheca's Quick Capture exists as an in-app sheet plus deep links/share intents, but every path requires the app to be running first; capturing straight from a widget/shortcuts entry that appends to the inbox note (opt-in, plain-file, offline, togglable) completes the existing capture feature without a new convention. (Competitor scan, Market Solution #2 changelog 1.14 Mobile, 2026-10-05)
+
 ## Implemented
 
 - ✅ **macOS Quick Look preview** — ⌥-click a `.md` file in Finder to preview it. Status: done.

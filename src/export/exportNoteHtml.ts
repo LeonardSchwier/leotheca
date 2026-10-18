@@ -65,7 +65,7 @@ export async function inlineLocalImages(html: string, deps: InlineLocalImagesDep
     if (src.startsWith("data:")) return false;
     if (src.startsWith("asset://")) return true;
     // Reject any URI with a known dangerous or external scheme.
-    if (/^[a-zA-Z][a-zA-Z0-9+.\-]*:/.test(src)) return false;
+    if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(src)) return false;
     // No scheme → relative path → allowed.
     return true;
   }

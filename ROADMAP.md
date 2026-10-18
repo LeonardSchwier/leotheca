@@ -166,8 +166,8 @@ The `extract_markdown_path` function (line 129) only checks `url.scheme() == "fi
 
 
 - 🚧 **`exportNoteHtml` fetches local image files without a path allowlist** (audit S-5): `inlineLocalImages` calls `fetchImpl(src)` on every non-`data:` `<img src>` from user-authored markdown. For `asset://` URLs, the asset protocol's scope is the only control; for `file://` or other schemes, the CSP `img-src` list is the only defense. Add an explicit prefix allowlist so only `asset://`, `data:`, and relative paths are fetched.
-  <!-- agent-state: {"schema":1,"id":"rm-81d8ad863ac6b70c","state":"claimed","touch":["src/export/exportNoteHtml.test.ts","src/export/exportNoteHtml.ts"],"resources":["export-image-allowlist"],"owner":"hermes-20261017T071519Z-047145a3","token":"e44cbe3a596d594a5f8347480df86411","branch":"agent/rm-81d8ad863ac6b70c/e44cbe3a596d","claimed_at":"2026-10-17T07:37:30Z","heartbeat_at":"2026-10-17T07:37:30Z","lease_until":"2026-10-17T09:07:30Z"} -->
-  Agent: hermes-20261017T071519Z-047145a3 | item: rm-81d8ad863ac6b70c | lease until: 2026-10-17T09:07:30Z
+  <!-- agent-state: {"schema":1,"id":"rm-81d8ad863ac6b70c","state":"claimed","touch":["src/export/exportNoteHtml.test.ts","src/export/exportNoteHtml.ts"],"resources":["export-image-allowlist"],"owner":"hermes-20261018T070706Z-505310b0","token":"16bd49394540a36bdff120fff184b725","branch":"agent/rm-81d8ad863ac6b70c/16bd49394540","claimed_at":"2026-10-18T07:14:36Z","heartbeat_at":"2026-10-18T07:14:36Z","lease_until":"2026-10-18T08:44:36Z"} -->
+  Agent: hermes-20261018T070706Z-505310b0 | item: rm-81d8ad863ac6b70c | lease until: 2026-10-18T08:44:36Z
 
 *Action:* S-1 is resolved (see above: `scope: []` is already deny-by-default with runtime-only grants). For S-5 itself, validate that `src` starts with an allowed prefix (`asset://`, `data:`, or relative) before calling `fetchImpl`.
 

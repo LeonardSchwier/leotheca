@@ -8,6 +8,7 @@
 - **Quick Capture target picker** — Choose the capture destination (specific note, daily note, or bookmark) with an optional template.
 - **Android camera capture** — Take a photo directly from the "Insert attachment" toolbar.
 - **Settings export** — Export the current settings bundle to a file.
+- **Folder exclusion in search** — A negated term (e.g. `-archive`) now hides a folder named `archive` and every file inside it at any depth. Exact-segment match: `-archive` hides `archive/x.md` but not `archivex/y.md`. Root-level files are unaffected. Applies to File Explorer, Bookmarks, and Outline search results. No file I/O for excluded entries.
 
 ### Bug Fixes
 

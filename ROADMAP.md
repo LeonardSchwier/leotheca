@@ -196,6 +196,45 @@ _No prior security audit ledger exists for this repository. This is the first st
 - ⬜ **Quick switcher/link suggestions: fuzzy word-start matching**: Market Solution #2 1.14 Desktop (Oct 5, 2026) improved its quick switcher, link suggestions, and panel searches so that fuzzy matching ranks matches where the typed letters start words higher, and now works at any vault size. Leotheca's note switcher and link suggestions use plain substring matching (no fuzzy matcher in the codebase yet); adopting a standard offline fuzzy-matching algorithm for those paths is a pure local improvement of existing features — no network, plain files, togglable. (Competitor scan, Market Solution #2 changelog 1.14 Desktop, 2026-10-05)
 - ⬜ **File panel searches: exclude term hides matching folder and everything inside it**: Market Solution #2 1.14 Desktop (Oct 5, 2026) made excluded search terms (e.g. `-Archive`) in its File Explorer, Bookmarks, and Outline views hide a matching folder and all of its contents. Leotheca's advanced full-text search already supports `-exclude` on note bodies (with a known-correct filter now shipped); extending the same exclusion semantics to the folder/panel tree views completes an existing convention rather than inventing a new one. (Competitor scan, Market Solution #2 changelog 1.14 Desktop, 2026-10-05)
 
+## Security and privacy review (2026-10-18)
+
+_Weekly review of code committed 2026-10-11..2026-10-18 (commits `3dc26d8..a53d947`). Scope: the 2026-10-16 audit's open findings, plus new attack surface in the window (kanban view, collapsible collection groups, macOS Quick Look converter, Android recent-notes widget, competitor-scan roadmap items). Verified: `npx vitest run` 3052/3052 (162 files), `npx tsc --noEmit` clean, `npx vite build` OK. No new critical/high findings; 1 medium carry-over still open, 2 low new._
+
+**W-2026-10-18-1 (medium, carry-over — unchanged) — `script-src 'unsafe-eval'` in CSP**
+`src-tauri/tauri.conf.json:23`. Still present on `a53d947`; handoff `.agents/handoffs/rm-s2-unsafe-eval-csp.md` exists but is unclaimed. No code change in the window touches it, so the finding stands as written on 2026-10-16: `unsafe-eval` widens the XSS payload surface, and the suggested CSP regression test (see W-2026-10-18-2) is still missing.
+
+*Fix:* as recorded for S-2 (2026-10-16): remove `'unsafe-eval'` after verifying mermaid/monaco do not need runtime `eval` (both ship as static bundles), or move their evaluation to a CSP-scoped Web Worker.
+
+**W-2026-10-18-2 (low, new) — no CSP regression test; `unsafe-eval` can silently return**
+The S-1 session added `src/assetProtocolScope.test.ts` locking the asset-scope invariant in CI, but no test asserts the CSP `script-src` directive does not contain `'unsafe-eval'`. `src/offline.test.ts` checks other CSP directives; a future edit to `tauri.conf.json` re-adding `unsafe-eval` would land with no CI alarm, the same gap class S-1 fixed for the asset protocol.
+
+*Fix:* add a test (e.g. in a new `src/cspPolicy.test.ts` or alongside the asset-scope tests) that parses `tauri.conf.json`'s CSP and asserts `script-src` does not include `'unsafe-eval'`, mirroring the asset-scope guard.
+
+**W-2026-10-18-3 (very low, new) — Quick Look converter: unescaped regex `$` patterns in substitution**
+`packaging/macos/quicklook/LeothecaMarkdownQLPreviewGenerator.m:173-193`: the markdown-to-HTML conversion uses `NSRegularExpression` replacements whose replacement strings are regex patterns, so note content containing `$&`, `$1`, etc. would be substituted as backreferences (e.g. a note titled `a $& b` renders `a <h1> b $& b`). The input is local user-authored note content rendered into a `WKWebView` (`loadHTMLString:baseURL:nil`, all HTML-special characters escaped at 145-147), so there is no XSS and no data-exfiltration path — output fidelity only, in a throwaway preview surface.
+
+*Fix:* use `NSRegularExpression` `replacementStringWithTemplate:` / `firstObject` with a replacement block instead of template-pattern substitution, or escape `$` in the source before substitution.
+
+### Verified clean (this window)
+
+- **S-3 (2026-10-16 audit) superseded:** `external_open.rs`'s no-containment design for `read_markdown_file` is intentional (the feature exists to open files outside the workspace; the F04 follow-up docs this in `commands.rs`), and the frontend-facing commands that *do* read arbitrary paths (`read_text_file`, `read_binary_file`, `workspace_stats`, `find_all_files`, `list_dir`) all gate through `check_unscoped_path_allowed` / `resolve_within_workspace` (verified in `src-tauri/src/commands.rs`, including the symlink-escape skip `is_symlink_escaping_workspace` applied across every walk, and the `MAX_WALK_DEPTH` cycle guard).
+- **S-5 (2026-10-16 audit) resolved 2026-10-18:** `src/export/exportNoteHtml.ts` now restricts `inlineLocalImages` to `asset://` and relative paths only; `file:`, `http(s):`, `javascript:`/`vbscript:` all rejected, with 4 regression tests (commit `a53d947`, under "Implemented" below).
+- **Kanban drag-and-drop** (`src/collections/CollectionResults.tsx:422-444`): the dropped value is read from the app's own `dataTransfer` under a custom MIME type and matched against already-loaded in-memory results — no `event.dataTransfer`-sourced untrusted value reaches the DOM or a filesystem path.
+- **Collapsible collection groups / `collectionDecode.ts`**: persisted collection JSON is decoded with explicit validation (no `eval`/`Function`, `JSON.parse` only), same discipline as before; no new raw-HTML rendering path.
+- **Quick Look WKWebView**: `baseURL:nil`, all dynamic content HTML-escaped before `loadHTMLString`; the only `evaluateJavaScript` calls (92, 104) read `document.readyState` with no string interpolation of external data.
+- **Android manifest / recent-notes widget** (commit `d8c7ae7`): the new `leotheca://` deep-link and `SEND`/`SEND_MULTIPLE` intent filters feed the existing `automationCommands.ts` capture path, which already enforces the 32 KiB payload cap (S-4's non-authoritative-path note stands — Rust remains the authoritative gate); no new exported component with a broad intent surface beyond the pre-existing `MainActivity`.
+- **No new `innerHTML`/`eval`/`new Function`** in `src/` (grep, window diff); DOMPurify coverage unchanged from the 2026-10-16 verified-clean list.
+
+### Summary
+
+| ID | Severity | Status | Component | Issue |
+|----|----------|--------|-----------|-------|
+| W-2026-10-18-1 | medium | open (carry-over S-2) | `src-tauri/tauri.conf.json:23` | `unsafe-eval` in CSP `script-src` |
+| W-2026-10-18-2 | low | open | CSP tests | no regression test locking CSP free of `unsafe-eval` |
+| W-2026-10-18-3 | very low | open | `packaging/macos/quicklook/LeothecaMarkdownQLPreviewGenerator.m:173-193` | unescaped `$` in regex replacement patterns |
+
+_Review only — no fixes implemented this pass; see the open items above for the suggested fixes._
+
 ## Implemented
 
 - ✅ **`exportNoteHtml` fetches local image files without a path allowlist** (audit S-5): `inlineLocalImages` calls `fetchImpl(src)` on every non-`data:` `<img src>` from user-authored markdown. For `asset://` URLs, the asset protocol's scope is the only control; for `file://` or other schemes, the CSP `img-src` list is the only defense. Add an explicit prefix allowlist so only `asset://`, `data:`, and relative paths are fetched.

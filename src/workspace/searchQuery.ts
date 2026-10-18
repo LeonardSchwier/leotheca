@@ -129,6 +129,54 @@ export function parseSearchQuery(raw: string): SearchQuery {
   return query;
 }
 
+/**
+ * Returns `true` if any negated text clause in `clauses` matches a folder
+ * name or any folder segment in `pathLower` (relative path, no leading
+ * slash).  This is the "hide folder + contents" rule for `-Term` searches:
+ * a file is excluded when any of its ancestor directories is exactly named
+ * `term` (case-insensitive, exact segment match — not a substring match
+ * against the whole path, so `-archive` hides `archive/x.md` but not
+ * `archivex/y.md`).  A root-level file (no `/` in the path) has no
+ * ancestor folders and is never excluded by this rule.
+ *
+ * The entry's own name (`nameLower`) is also checked: when the entry IS
+ * the matching folder (a dir entry whose name is `term`), it is excluded
+ * directly, even at the root level.
+ *
+ * @param clauses  parsed query clauses (from `parseSearchQuery`)
+ * @param pathLower  the file's path relative to the workspace root,
+ *                   lowercased (no leading slash)
+ * @param nameLower  the file/folder's own name, lowercased
+ * @returns `true` if the entry must be hidden by folder-exclusion rules
+ */
+export function isExcludedDir(
+  clauses: SearchClause[][],
+  pathLower: string,
+  nameLower: string,
+): boolean {
+  // Collect the set of negated text-term values (lowercased).
+  const negatedTerms = new Set<string>();
+  for (const group of clauses) {
+    for (const clause of group) {
+      if (clause.negate && clause.kind === "text") {
+        negatedTerms.add(clause.value);
+      }
+    }
+  }
+  if (negatedTerms.size === 0) return false;
+
+  // Check the entry's own name (covers the case where the entry IS the
+  // matching folder).
+  if (negatedTerms.has(nameLower)) return true;
+
+  // Check each ancestor folder segment in the relative path.
+  // `pathLower` has no leading slash; split on "/" and ignore the last
+  // segment (the file's own name — already checked above).
+  const segments = pathLower.split("/");
+  const folderSegments = segments.slice(0, -1);
+  return folderSegments.some((seg) => negatedTerms.has(seg));
+}
+
 export interface SearchContext {
   /** The note's file name, lowercased. */
   nameLower: string;

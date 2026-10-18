@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { matchesSearchQuery, parseSearchQuery, type SearchContext } from "./searchQuery";
+import { isExcludedDir, matchesSearchQuery, parseSearchQuery, type SearchContext } from "./searchQuery";
 
 describe("parseSearchQuery", () => {
   it("returns no groups at all for a blank query", () => {
@@ -237,5 +237,68 @@ describe("matchesSearchQuery", () => {
     const ctx = contextFor({ nameLower: "note.md", getContentLower });
     expect(await matchesSearchQuery(parseSearchQuery("foo bar"), ctx)).toBe(true);
     expect(reads).toBe(1);
+  });
+});
+
+// ─── isExcludedDir ────────────────────────────────────────────────────────────
+// New: folder + contents exclusion for negated text terms.
+// A negated bare term like -archive should hide the folder "archive" and
+// every file inside it (archive/note.md, archive/sub/note.md), but NOT
+// a folder whose name merely *contains* the term (e.g. "archivex") or a
+// file whose content happens to contain it (that is the content-filter
+// semantics, already covered by matchesSearchQuery).
+
+describe("isExcludedDir", () => {
+  const clauses = parseSearchQuery("-archive");
+
+  it("returns false when there are no negated text clauses", () => {
+    expect(isExcludedDir(parseSearchQuery("foo"), "archive/note.md", "note.md")).toBe(false);
+    expect(isExcludedDir(parseSearchQuery("tag:work"), "archive/note.md", "note.md")).toBe(false);
+  });
+
+  it("excludes a file directly inside the matching folder", () => {
+    expect(isExcludedDir(clauses, "archive/note.md", "note.md")).toBe(true);
+  });
+
+  it("excludes a file in a subfolder of the matching folder", () => {
+    expect(isExcludedDir(clauses, "archive/sub/deep.md", "deep.md")).toBe(true);
+  });
+
+  it("excludes the matching folder itself", () => {
+    // When the entry IS the folder "archive", its name matches.
+    expect(isExcludedDir(clauses, "archive", "archive")).toBe(true);
+  });
+
+  it("does NOT exclude a file whose folder name merely contains the term as a substring", () => {
+    // "archivex" is a different folder; the term "archive" should not match it.
+    expect(isExcludedDir(clauses, "archivex/note.md", "note.md")).toBe(false);
+  });
+
+  it("does NOT exclude a file at the root level (no folder in path)", () => {
+    expect(isExcludedDir(clauses, "note.md", "note.md")).toBe(false);
+  });
+
+  it("does NOT exclude a file whose name (not folder) matches the negated term", () => {
+    // The exclusion is for folders, not files: a file named "archive.md" at
+    // the root is NOT excluded (that is content-filter territory).
+    expect(isExcludedDir(clauses, "archive.md", "archive.md")).toBe(false);
+  });
+
+  it("handles case-insensitivity", () => {
+    const upper = parseSearchQuery("-Archive");
+    expect(isExcludedDir(upper, "archive/note.md", "note.md")).toBe(true);
+  });
+
+  it("handles multiple negated terms (any one triggers exclusion)", () => {
+    const multi = parseSearchQuery("-archive -tmp");
+    expect(isExcludedDir(multi, "archive/note.md", "note.md")).toBe(true);
+    expect(isExcludedDir(multi, "tmp/scratch.md", "scratch.md")).toBe(true);
+    expect(isExcludedDir(multi, "projects/note.md", "note.md")).toBe(false);
+  });
+
+  it("handles a negated term that matches a middle path segment", () => {
+    const mid = parseSearchQuery("-middle");
+    expect(isExcludedDir(mid, "top/middle/bottom.md", "bottom.md")).toBe(true);
+    expect(isExcludedDir(mid, "top/other/bottom.md", "bottom.md")).toBe(false);
   });
 });

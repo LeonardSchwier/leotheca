@@ -22,7 +22,7 @@ import {
 } from "../settings/store";
 import type { SortOrder } from "../settings/workspaceSettings";
 import { linkIndex } from "../linking/store";
-import { matchesSearchQuery, parseSearchQuery } from "./searchQuery";
+import { isExcludedDir, matchesSearchQuery, parseSearchQuery } from "./searchQuery";
 import { mapWithConcurrency } from "./concurrency";
 import {
   updateRecentNotesWidget,
@@ -803,6 +803,19 @@ export async function runSearch(rootPath: string, query: string) {
           }
           return contentPromise;
         };
+        // Folder-exclusion rule: a negated text term (e.g. -archive) hides
+        // the matching folder and everything inside it, at any depth.
+        // Checked before the content read so no file is read for an entry
+        // already excluded by this rule.
+        if (
+          isExcludedDir(
+            parsed,
+            relativePath(rootPath, entry.path).toLowerCase(),
+            entry.name.toLowerCase(),
+          )
+        ) {
+          return isCurrent() && false;
+        }
         const matched = await matchesSearchQuery(parsed, {
           nameLower: entry.name.toLowerCase(),
           pathLower: relativePath(rootPath, entry.path).toLowerCase(),

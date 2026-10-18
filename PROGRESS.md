@@ -4,14 +4,17 @@
 - Reviewed 7-day window (3dc26d8..a53d947): tauri.conf.json CSP/asset scope,
   capabilities, external_open.rs, commands.rs gating, automation, DOMPurify,
   kanban DND, Quick Look converter, android diff. S-1/S-4/S-5 resolved; S-2 open; S-3 superseded.
-- vitest: 3052/3052 passed (162 files). tsc --noEmit: clean.
-## In progress
-- timeout 900 npx vite build
+- vitest: 3052/3052 passed (162 files). tsc --noEmit: clean. vite build: OK (57s).
+- Wrote "## Security and privacy review (2026-10-18)" into ROADMAP.md before "## Implemented"
+  (W-2026-10-18-1 medium carry-over, -2 low, -3 very low; verified-clean list).
+- Fixed 2 pre-existing over-budget competitor-scan entries (details/summary blocks);
+  check_roadmap_format.py --base origin/main now OK.
+- Pushed: main at 4027aed (commits a597f67, 8ed7129, 4027aed); pre-push CI green;
+  local HEAD == origin/main. AppImage working-tree artifact restored.
+## Blocked
+- None.
 ## Next
-- Write "## Security and privacy review (2026-10-18)" into ROADMAP.md before "## Implemented"
-- Run scripts/check_roadmap_format.py --root . --base origin/main
-- git add -A && git commit -m 'weekly review: 2026-10-18' && git push origin HEAD:main
-- Report summary. Review-only; ROADMAP.md is the only intended edit; no ledger claims.
+- Report summary. (Review-only; no ledger claims made.)
 
 ---
 # (previous session log) S-1 asset-protocol scope regression lock

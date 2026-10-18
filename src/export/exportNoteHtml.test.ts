@@ -69,6 +69,50 @@ describe("inlineLocalImages", () => {
     expect((out.match(/data:image\/png;base64,/g) ?? []).length).toBe(2);
   });
 
+  it("does not fetch a file:// URL (CSP img-src is not the only defense)", async () => {
+    const fetchImpl = vi.fn(async () => fakeImageResponse([1]));
+    const out = await inlineLocalImages('<img src="file:///etc/passwd">', { fetchImpl });
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(out).toContain('src="file:///etc/passwd"');
+  });
+
+  it("does not fetch an http:// or https:// URL", async () => {
+    const fetchImpl = vi.fn(async () => fakeImageResponse([1]));
+    const out = await inlineLocalImages(
+      '<img src="https://example.com/evil.png"><img src="http://example.com/evil2.png">',
+      { fetchImpl },
+    );
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(out).toContain('src="https://example.com/evil.png"');
+    expect(out).toContain('src="http://example.com/evil2.png"');
+  });
+
+  it("does not fetch a javascript: or vbscript: URL", async () => {
+    const fetchImpl = vi.fn(async () => fakeImageResponse([1]));
+    const out = await inlineLocalImages(
+      '<img src="javascript:alert(1)"><img src="vbscript:msgbox(1)">',
+      { fetchImpl },
+    );
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(out).toContain('src="javascript:alert(1)"');
+    expect(out).toContain('src="vbscript:msgbox(1)"');
+  });
+
+  it("still fetches a relative path (no scheme) and an asset:// URL", async () => {
+    const fetchImpl = vi.fn(async (url: RequestInfo | URL) => {
+      const s = String(url);
+      if (s.startsWith("asset://")) return fakeImageResponse([1, 2]);
+      if (s === "attachments/pic.png") return fakeImageResponse([3, 4]);
+      throw new Error("unexpected url: " + s);
+    });
+    const out = await inlineLocalImages(
+      '<img src="attachments/pic.png"><img src="asset://localhost/x.png">',
+      { fetchImpl },
+    );
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect((out.match(/data:image\/png;base64,/g) ?? []).length).toBe(2);
+  });
+
   it("returns unchanged HTML when there are no images", async () => {
     const fetchImpl = vi.fn();
     const out = await inlineLocalImages("<p>Just text, no images.</p>", { fetchImpl });

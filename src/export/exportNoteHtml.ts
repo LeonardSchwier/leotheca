@@ -54,11 +54,27 @@ export async function inlineLocalImages(html: string, deps: InlineLocalImagesDep
   // an export function that must preserve the note's content exactly. Instead
   // we keep the original string and substitute only the `<img src>` values.
   const parsed = parser.parseFromString(html, "text/html");
+
+  // Security: only fetch from sources that are safe for this app to resolve.
+  // `asset://` — the app's own Tauri asset protocol (scoped to workspace).
+  // Relative paths (no scheme) — resolved relative to the app's origin.
+  // `data:` URIs are already excluded above.
+  // We must NOT fetch `file://`, `http://`, `https://`, `javascript:`,
+  // `vbscript:`, or any other external/unsafe scheme.
+  function isAllowedSrc(src: string): boolean {
+    if (src.startsWith("data:")) return false;
+    if (src.startsWith("asset://")) return true;
+    // Reject any URI with a known dangerous or external scheme.
+    if (/^[a-zA-Z][a-zA-Z0-9+.\-]*:/.test(src)) return false;
+    // No scheme → relative path → allowed.
+    return true;
+  }
+
   const imageSources = Array.from(
     new Set(
       Array.from(parsed.querySelectorAll("img"))
         .map((img) => img.getAttribute("src"))
-        .filter((src): src is string => !!src && !src.startsWith("data:")),
+        .filter((src): src is string => !!src && !src.startsWith("data:") && isAllowedSrc(src)),
     ),
   );
 

@@ -194,11 +194,13 @@ _No prior security audit ledger exists for this repository. This is the first st
   Agent: hermes-20261017T093000Z-7bad5d6d | item: rm-9a637eae859ce76e | lease until: 2026-10-17T12:52:02Z
 
 - ⬜ **Quick switcher/link suggestions: fuzzy word-start matching**: Market Solution #2 1.14 Desktop (Oct 5, 2026) added fuzzy matching to its quick switcher, link suggestions, and panel searches, ranking word-start matches higher at any vault size.
-  <details><summary>Context & rationale</summary>
+  <details>
+  <summary>Context & rationale</summary>
   Leotheca's note switcher and link suggestions use plain substring matching (no fuzzy matcher in the codebase yet); adopting a standard offline fuzzy-matching algorithm for those paths is a pure local improvement of existing features — no network, plain files, togglable. (Competitor scan, Market Solution #2 changelog 1.14 Desktop, 2026-10-05)
   </details>
 - ⬜ **File panel searches: exclude term hides matching folder and everything inside it**: Market Solution #2 1.14 Desktop (Oct 5, 2026) made excluded search terms (e.g. `-Archive`) hide a matching folder and all of its contents in File Explorer, Bookmarks, and Outline views.
-  <details><summary>Context & rationale</summary>
+  <details>
+  <summary>Context & rationale</summary>
   Leotheca's advanced full-text search already supports `-exclude` on note bodies (with a known-correct filter now shipped); extending the same exclusion semantics to the folder/panel tree views completes an existing convention rather than inventing a new one. (Competitor scan, Market Solution #2 changelog 1.14 Desktop, 2026-10-05)
   </details>
 

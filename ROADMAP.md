@@ -165,11 +165,6 @@ The `extract_markdown_path` function (line 129) only checks `url.scheme() == "fi
 *Fix:* In `read_markdown_file`, after resolving the path, verify `fs::canonicalize(&path).starts_with(canonical_workspace_root)` before reading. If the path is outside the active workspace, return `None` (matching the existing silent-no-op convention). The doc comment already states the intent ("no workspace/config-dir containment check at all") — the code needs to match that intent by adding the check.
 
 
-- 🚧 **`exportNoteHtml` fetches local image files without a path allowlist** (audit S-5): `inlineLocalImages` calls `fetchImpl(src)` on every non-`data:` `<img src>` from user-authored markdown. For `asset://` URLs, the asset protocol's scope is the only control; for `file://` or other schemes, the CSP `img-src` list is the only defense. Add an explicit prefix allowlist so only `asset://`, `data:`, and relative paths are fetched.
-  <!-- agent-state: {"schema":1,"id":"rm-81d8ad863ac6b70c","state":"claimed","touch":["src/export/exportNoteHtml.test.ts","src/export/exportNoteHtml.ts"],"resources":["export-image-allowlist"],"owner":"hermes-20261018T070706Z-505310b0","token":"16bd49394540a36bdff120fff184b725","branch":"agent/rm-81d8ad863ac6b70c/16bd49394540","claimed_at":"2026-10-18T07:14:36Z","heartbeat_at":"2026-10-18T07:14:36Z","lease_until":"2026-10-18T08:44:36Z"} -->
-  Agent: hermes-20261018T070706Z-505310b0 | item: rm-81d8ad863ac6b70c | lease until: 2026-10-18T08:44:36Z
-
-*Action:* S-1 is resolved (see above: `scope: []` is already deny-by-default with runtime-only grants). For S-5 itself, validate that `src` starts with an allowed prefix (`asset://`, `data:`, or relative) before calling `fetchImpl`.
 
 ### Verified clean (no finding)
 
@@ -199,6 +194,13 @@ _No prior security audit ledger exists for this repository. This is the first st
   Agent: hermes-20261017T093000Z-7bad5d6d | item: rm-9a637eae859ce76e | lease until: 2026-10-17T12:52:02Z
 
 ## Implemented
+
+- ✅ **`exportNoteHtml` fetches local image files without a path allowlist** (audit S-5): `inlineLocalImages` calls `fetchImpl(src)` on every non-`data:` `<img src>` from user-authored markdown. For `asset://` URLs, the asset protocol's scope is the only control; for `file://` or other schemes, the CSP `img-src` list is the only defense. Add an explicit prefix allowlist so only `asset://`, `data:`, and relative paths are fetched.
+  <!-- agent-state: {"schema":1,"id":"rm-81d8ad863ac6b70c","state":"done","touch":["src/export/exportNoteHtml.test.ts","src/export/exportNoteHtml.ts"],"resources":["export-image-allowlist"],"note":"Added scheme allowlist to inlineLocalImages: only asset:// and relative paths are fetched. file://, http://, https://, javascript:, vbscript:, and all other URI schemes are now rejected. 4 new regression tests covering file://, http(s)://, javascript:/vbscript:, and positive (relative + asset://) cases. All 23 tests pass; tsc clean; vitest 3052/3052 pass; vite build clean. Landed on branch agent/rm-81d8ad863ac6b70c/16bd49394540.","completed_at":"2026-10-18T07:19:58Z","completed_by":"hermes-20261018T070706Z-505310b0","branch":"agent/rm-81d8ad863ac6b70c/16bd49394540"} -->
+  Agent: completed by hermes-20261018T070706Z-505310b0 | item: rm-81d8ad863ac6b70c
+
+*Action:* S-1 is resolved (see above: `scope: []` is already deny-by-default with runtime-only grants). For S-5 itself, validate that `src` starts with an allowed prefix (`asset://`, `data:`, or relative) before calling `fetchImpl`.
+
 
 - ✅ **Deep-link `open-note` path is trusted after frontend validation** (audit S-4): the `open-note` deep-link passes `command.path` to `handleOpenFile`; the frontend `isPathWithinWorkspace` check is a UX convenience, while the Rust-side `check_unscoped_path_allowed` in the Tauri commands is the authoritative containment gate. Add a comment in `automationCommands.ts` making that layering explicit so future maintainers do not treat the JS check as the security boundary.
   <!-- agent-state: {"schema":1,"id":"rm-d7c4926987c506d2","state":"done","touch":["src/app/automationCommands.ts"],"resources":["automation-command-security-layering"],"note":"Implemented per audit S-4: added a security-layering comment in src/app/automationCommands.ts (open-note branch) naming handleOpenFile (App.tsx) and check_unscoped_path_allowed (src-tauri/src/commands.rs) as the authoritative containment gate, and marking the JS isPathWithinWorkspace check as a UX convenience rather than the security boundary. Landed SHA 47be3af4a6897c243b0e3b2d5fe25749e9a5aba1 on main. Verification on the integrated tree: tsc --noEmit clean, eslint clean, checkVersion clean, vitest src/app/automationCommands.test.ts 22/22 pass, vitest full (prior tree) 161 files / 3044 tests pass, npm run build successful (chunk-size warning pre-existing and unrelated). Locally verified per verification-suite 'All applicable local checks pass' row.","completed_at":"2026-10-17T09:49:22Z","completed_by":"opencode-20261017T092101Z-ea44c677","branch":"agent/rm-d7c4926987c506d2/cc6b4330702f"} -->

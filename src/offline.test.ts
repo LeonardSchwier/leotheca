@@ -72,6 +72,32 @@ describe("tauri.conf.json CSP", () => {
     expect(connectSources).not.toMatch(/https?:/);
     expect(connectSources).not.toMatch(/\*/);
   });
+
+  it("does not include 'unsafe-eval' in script-src (W-2026-10-18-2)", () => {
+    const conf = JSON.parse(fs.readFileSync(confPath, "utf8"));
+    const csp: string = conf.app.security.csp;
+
+    // The entire CSP must not contain 'unsafe-eval' anywhere
+    expect(csp).not.toMatch(/'unsafe-eval'/);
+  });
+
+  it("script-src contains only 'self' (no eval, no remote scripts)", () => {
+    const conf = JSON.parse(fs.readFileSync(confPath, "utf8"));
+    const csp: string = conf.app.security.csp;
+
+    const scriptMatch = csp.match(/script-src\s+([^;]+);/);
+    expect(scriptMatch).toBeTruthy();
+    const scriptSources = scriptMatch![1].trim();
+
+    // Must allow 'self'
+    expect(scriptSources).toMatch(/'self'/);
+    // Must NOT allow unsafe-eval or unsafe-inline
+    expect(scriptSources).not.toMatch(/'unsafe-eval'/);
+    expect(scriptSources).not.toMatch(/'unsafe-inline'/);
+    // Must NOT allow any remote source
+    expect(scriptSources).not.toMatch(/https?:/);
+    expect(scriptSources).not.toMatch(/\*/);
+  });
 });
 
 // ── 2. Runtime network isolation ────────────────────────────────────

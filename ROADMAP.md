@@ -198,7 +198,9 @@ _No prior security audit ledger exists for this repository. This is the first st
   <summary>Context & rationale</summary>
   Leotheca's note switcher and link suggestions use plain substring matching (no fuzzy matcher in the codebase yet); adopting a standard offline fuzzy-matching algorithm for those paths is a pure local improvement of existing features — no network, plain files, togglable. (Competitor scan, Market Solution #2 changelog 1.14 Desktop, 2026-10-05)
   </details>
-- ⬜ **File panel searches: exclude term hides matching folder and everything inside it**: Market Solution #2 1.14 Desktop (Oct 5, 2026) made excluded search terms (e.g. `-Archive`) hide a matching folder and all of its contents in File Explorer, Bookmarks, and Outline views.
+- 🚧 **File panel searches: exclude term hides matching folder and everything inside it**: Market Solution #2 1.14 Desktop (Oct 5, 2026) made excluded search terms (e.g. `-Archive`) hide a matching folder and all of its contents in File Explorer, Bookmarks, and Outline views.
+  <!-- agent-state: {"schema":1,"id":"rm-4ff673a760b13042","state":"claimed","touch":["CHANGELOG.md","ROADMAP.md","src/workspace/Sidebar.test.tsx","src/workspace/Sidebar.tsx","src/workspace/fileTreeStore.test.ts","src/workspace/fileTreeStore.ts","src/workspace/searchQuery.test.ts","src/workspace/searchQuery.ts"],"resources":["workspace-search"],"owner":"hermes-20261018T150834Z-83e51bc0","token":"71900831cd9a211d42f9a05979ccc037","branch":"agent/rm-4ff673a760b13042/71900831cd9a","claimed_at":"2026-10-18T15:08:39Z","heartbeat_at":"2026-10-18T15:08:39Z","lease_until":"2026-10-18T16:38:39Z"} -->
+  Agent: hermes-20261018T150834Z-83e51bc0 | item: rm-4ff673a760b13042 | lease until: 2026-10-18T16:38:39Z
   <details>
   <summary>Context & rationale</summary>
   Leotheca's advanced full-text search already supports `-exclude` on note bodies (with a known-correct filter now shipped); extending the same exclusion semantics to the folder/panel tree views completes an existing convention rather than inventing a new one. (Competitor scan, Market Solution #2 changelog 1.14 Desktop, 2026-10-05)

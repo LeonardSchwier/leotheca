@@ -193,13 +193,6 @@ _No prior security audit ledger exists for this repository. This is the first st
   <!-- agent-state: {"schema":1,"id":"rm-9a637eae859ce76e","state":"claimed","touch":["ROADMAP.md","android","src/capacitor/widgets","src/capture"],"resources":["quick-capture-os-launch"],"owner":"hermes-20261017T093000Z-7bad5d6d","token":"5aaea73d1a8ecaf6def1b3e2680efd18","branch":"agent/rm-9a637eae859ce76e/5aaea73d1a8e","claimed_at":"2026-10-17T11:22:02Z","heartbeat_at":"2026-10-17T11:22:02Z","lease_until":"2026-10-17T12:52:02Z"} -->
   Agent: hermes-20261017T093000Z-7bad5d6d | item: rm-9a637eae859ce76e | lease until: 2026-10-17T12:52:02Z
 
-- 🚧 **Quick switcher/link suggestions: fuzzy word-start matching**: Market Solution #2 1.14 Desktop (Oct 5, 2026) added fuzzy matching to its quick switcher, link suggestions, and panel searches, ranking word-start matches higher at any vault size.
-  <!-- agent-state: {"schema":1,"id":"rm-8738c69adbb82548","state":"claimed","touch":["src/app/CommandPalette.tsx","src/editor/MarkdownEditor.tsx","src/fuzzyMatch.test.ts","src/fuzzyMatch.ts","src/settings/workspaceProfiles.ts"],"resources":["fuzzy-match"],"owner":"hermes-20261019T090343Z-6b8a63","token":"4d2f03a90a1a7f8e134cec071909c80a","branch":"agent/rm-8738c69adbb82548/4d2f03a90a1a","claimed_at":"2026-10-19T07:16:01Z","heartbeat_at":"2026-10-19T07:16:01Z","lease_until":"2026-10-19T08:46:01Z"} -->
-  Agent: hermes-20261019T090343Z-6b8a63 | item: rm-8738c69adbb82548 | lease until: 2026-10-19T08:46:01Z
-  <details>
-  <summary>Context & rationale</summary>
-  Leotheca's note switcher and link suggestions use plain substring matching (no fuzzy matcher in the codebase yet); adopting a standard offline fuzzy-matching algorithm for those paths is a pure local improvement of existing features — no network, plain files, togglable. (Competitor scan, Market Solution #2 changelog 1.14 Desktop, 2026-10-05)
-  </details>
 - ✅ **File panel searches: exclude term hides matching folder and everything inside it** (completed 2026-10-18): `-Term` now hides a folder named `Term` and every file inside it at any depth in File Explorer, Bookmarks, and Outline search results. Exact-segment match — `-archive` hides `archive/x.md` but not `archivex/y.md`. Root-level files and files whose own name matches are unaffected (content-filter territory). Checked before content read, so no file I/O for excluded entries. 16 new tests (10 unit + 6 integration); all 3070 tests pass.
   <!-- agent-state: {"schema":1,"id":"rm-4ff673a760b13042","state":"done","touch":["CHANGELOG.md","ROADMAP.md","src/workspace/Sidebar.test.tsx","src/workspace/Sidebar.tsx","src/workspace/fileTreeStore.test.ts","src/workspace/fileTreeStore.ts","src/workspace/searchQuery.test.ts","src/workspace/searchQuery.ts"],"resources":["workspace-search"],"completed_at":"2026-10-18T15:24:00Z","completed_by":"hermes-20261018T150834Z-83e51bc0","branch":"agent/rm-4ff673a760b13042/71900831cd9a"} -->
   <details>
@@ -247,6 +240,15 @@ The S-1 session added `src/assetProtocolScope.test.ts` locking the asset-scope i
 _Review only — no fixes implemented this pass; see the open items above for the suggested fixes._
 
 ## Implemented
+
+- ✅ **Quick switcher/link suggestions: fuzzy word-start matching** — Completed 2026-10-19 by hermes-20261019T090343Z-6b8a63. Subsequence matcher (`src/fuzzyMatch.ts`) with word-start/consecutive-run bonuses, wired into wikilink completions, command palette, and workspace switcher. 15 new tests, tsc+vitest+build all pass.
+  <!-- agent-state: {"schema":1,"id":"rm-8738c69adbb82548","state":"done","touch":["src/app/CommandPalette.tsx","src/editor/MarkdownEditor.tsx","src/fuzzyMatch.test.ts","src/fuzzyMatch.ts","src/settings/workspaceProfiles.ts"],"resources":["fuzzy-match"],"note":"Fuzzy subsequence matcher (src/fuzzyMatch.ts) wired into wikilink completions, command palette, and workspace switcher. 15 new tests. tsc+vitest+build all pass.","completed_at":"2026-10-19T07:23:31Z","completed_by":"hermes-20261019T090343Z-6b8a63","branch":"agent/rm-8738c69adbb82548/4d2f03a90a1a"} -->
+  Agent: completed by hermes-20261019T090343Z-6b8a63 | item: rm-8738c69adbb82548
+  <details>
+  <summary>Context & rationale</summary>
+  Leotheca's note switcher and link suggestions use plain substring matching (no fuzzy matcher in the codebase yet); adopting a standard offline fuzzy-matching algorithm for those paths is a pure local improvement of existing features — no network, plain files, togglable. (Competitor scan, Market Solution #2 changelog 1.14 Desktop, 2026-10-05)
+  </details>
+
 
 - ✅ **`exportNoteHtml` fetches local image files without a path allowlist** (audit S-5): `inlineLocalImages` calls `fetchImpl(src)` on every non-`data:` `<img src>` from user-authored markdown. For `asset://` URLs, the asset protocol's scope is the only control; for `file://` or other schemes, the CSP `img-src` list is the only defense. Add an explicit prefix allowlist so only `asset://`, `data:`, and relative paths are fetched.
   <!-- agent-state: {"schema":1,"id":"rm-81d8ad863ac6b70c","state":"done","touch":["src/export/exportNoteHtml.test.ts","src/export/exportNoteHtml.ts"],"resources":["export-image-allowlist"],"note":"Added scheme allowlist to inlineLocalImages: only asset:// and relative paths are fetched. file://, http://, https://, javascript:, vbscript:, and all other URI schemes are now rejected. 4 new regression tests covering file://, http(s)://, javascript:/vbscript:, and positive (relative + asset://) cases. All 23 tests pass; tsc clean; vitest 3052/3052 pass; vite build clean. Landed on branch agent/rm-81d8ad863ac6b70c/16bd49394540.","completed_at":"2026-10-18T07:19:58Z","completed_by":"hermes-20261018T070706Z-505310b0","branch":"agent/rm-81d8ad863ac6b70c/16bd49394540"} -->

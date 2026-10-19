@@ -151,13 +151,20 @@ function decodeQueryNode(
   return { node: null, corrupt: true };
 }
 
+function decodeGroupOrder(raw: unknown): string[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const valid = raw.filter((v): v is string => typeof v === "string" && v.trim() !== "");
+  return valid.length > 0 ? valid : undefined;
+}
+
 function decodeCollectionView(raw: unknown): { value: CollectionViewV1; corrupt: boolean } {
   if (raw === undefined) return { value: { mode: "list" }, corrupt: false };
   if (typeof raw === "object" && raw !== null) {
     const record = raw as Record<string, unknown>;
     if (record.mode === "list") {
       const groupBy = typeof record.groupBy === "string" && record.groupBy.trim() !== "" ? record.groupBy : undefined;
-      return { value: { mode: "list", ...(groupBy ? { groupBy } : {}) }, corrupt: false };
+      const groupOrder = decodeGroupOrder(record.groupOrder);
+      return { value: { mode: "list", ...(groupBy ? { groupBy } : {}), ...(groupOrder ? { groupOrder } : {}) }, corrupt: false };
     }
     if (record.mode === "table") {
       const columns =
@@ -165,7 +172,8 @@ function decodeCollectionView(raw: unknown): { value: CollectionViewV1; corrupt:
           ? (record.columns as string[])
           : undefined;
       const groupBy = typeof record.groupBy === "string" && record.groupBy.trim() !== "" ? record.groupBy : undefined;
-      return { value: { mode: "table", ...(columns ? { columns } : {}), ...(groupBy ? { groupBy } : {}) }, corrupt: false };
+      const groupOrder = decodeGroupOrder(record.groupOrder);
+      return { value: { mode: "table", ...(columns ? { columns } : {}), ...(groupBy ? { groupBy } : {}), ...(groupOrder ? { groupOrder } : {}) }, corrupt: false };
     }
     if (record.mode === "card") {
       const fields =
@@ -173,12 +181,15 @@ function decodeCollectionView(raw: unknown): { value: CollectionViewV1; corrupt:
           ? (record.fields as string[])
           : undefined;
       const groupBy = typeof record.groupBy === "string" && record.groupBy.trim() !== "" ? record.groupBy : undefined;
-      return { value: { mode: "card", ...(fields ? { fields } : {}), ...(groupBy ? { groupBy } : {}) }, corrupt: false };
+      const groupOrder = decodeGroupOrder(record.groupOrder);
+      return { value: { mode: "card", ...(fields ? { fields } : {}), ...(groupBy ? { groupBy } : {}), ...(groupOrder ? { groupOrder } : {}) }, corrupt: false };
     }
     if (record.mode === "kanban") {
-      return typeof record.groupBy === "string" && record.groupBy.trim() !== ""
-        ? { value: { mode: "kanban", groupBy: record.groupBy }, corrupt: false }
-        : { value: { mode: "list" }, corrupt: true };
+      if (typeof record.groupBy === "string" && record.groupBy.trim() !== "") {
+        const groupOrder = decodeGroupOrder(record.groupOrder);
+        return { value: { mode: "kanban", groupBy: record.groupBy, ...(groupOrder ? { groupOrder } : {}) }, corrupt: false };
+      }
+      return { value: { mode: "list" }, corrupt: true };
     }
   }
   return { value: { mode: "list" }, corrupt: true };

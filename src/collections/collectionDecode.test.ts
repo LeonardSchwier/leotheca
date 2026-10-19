@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { decodeCollectionsFile } from "./collectionDecode";
-import { MAX_QUERY_CLAUSES, type QueryGroupV1, type SmartCollectionV1 } from "./collectionTypes";
+import { MAX_QUERY_CLAUSES, type CollectionViewV1, type QueryGroupV1, type SmartCollectionV1 } from "./collectionTypes";
 import { FOLDER_GROUP_BY, groupResults } from "./CollectionResults";
 import type { NoteRecord } from "./collectionQuery";
 import type { FrontmatterProperty } from "../editor/frontmatterEdits";
@@ -82,6 +82,60 @@ describe("decodeCollectionsFile: valid input", () => {
     );
     expect(corrupt).toBe(false);
     expect(file.collections[0].view).toEqual({ mode: "kanban", groupBy: "status" });
+  });
+
+  it("decodes a board view with a manual groupOrder and keeps it intact", () => {
+    const { file, corrupt } = decodeCollectionsFile(
+      fileWith([
+        validCollection({
+          view: { mode: "kanban", groupBy: "status", groupOrder: ["Done", "Active"] },
+        }),
+      ]),
+    );
+    expect(corrupt).toBe(false);
+    expect(file.collections[0].view).toEqual({
+      mode: "kanban",
+      groupBy: "status",
+      groupOrder: ["Done", "Active"],
+    });
+  });
+
+  it("decodes a list view with groupOrder", () => {
+    const { file, corrupt } = decodeCollectionsFile(
+      fileWith([
+        validCollection({
+          view: { mode: "list", groupBy: "status", groupOrder: ["In Progress"] },
+        }),
+      ]),
+    );
+    expect(corrupt).toBe(false);
+    expect(file.collections[0].view).toEqual({
+      mode: "list",
+      groupBy: "status",
+      groupOrder: ["In Progress"],
+    });
+  });
+
+  it("drops a malformed groupOrder (non-array) without flagging the whole collection corrupt", () => {
+    const raw = validCollection({
+      view: { mode: "kanban", groupBy: "status", groupOrder: "not-an-array" } as unknown as CollectionViewV1,
+    }) as unknown as Record<string, unknown>;
+    const { file, corrupt } = decodeCollectionsFile(fileWith([raw]));
+    // A bad groupOrder must not corrupt the collection: groupBy and mode survive.
+    expect(corrupt).toBe(false);
+    expect(file.collections[0].view).toEqual({ mode: "kanban", groupBy: "status" });
+  });
+
+  it("drops non-string entries from groupOrder while keeping the valid ones", () => {
+    const raw = validCollection({
+      view: { mode: "kanban", groupBy: "status", groupOrder: ["Done", 42, "", "Active"] as unknown as string[] },
+    }) as unknown as Record<string, unknown>;
+    const { file, corrupt } = decodeCollectionsFile(fileWith([raw]));
+    expect(corrupt).toBe(false);
+    expect((file.collections[0].view as { groupOrder?: string[] }).groupOrder).toEqual([
+      "Done",
+      "Active",
+    ]);
   });
 });
 

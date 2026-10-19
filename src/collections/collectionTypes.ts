@@ -191,13 +191,14 @@ export const SYSTEM_FIELD_OPERATOR_FAMILIES: Record<SystemFieldName, keyof typeo
 };
 
 export type CollectionViewV1 =
-  | { mode: "list"; groupBy?: string }
-  | { mode: "table"; columns?: string[]; groupBy?: string }
-  | { mode: "card"; fields?: string[]; groupBy?: string }
+  | { mode: "list"; groupBy?: string; groupOrder?: string[] }
+  | { mode: "table"; columns?: string[]; groupBy?: string; groupOrder?: string[] }
+  | { mode: "card"; fields?: string[]; groupBy?: string; groupOrder?: string[] }
   /** A read-only board grouped by one top-level indexed frontmatter key.
-   * Board ordering is derived from the scalar values, never from a second
-   * manually maintained ordering store. */
-  | { mode: "kanban"; groupBy: string };
+   * `groupOrder` is an optional per-view manual ordering of column labels
+   * (set via the Group by menu); columns not listed fall back to the
+   * derived (alphabetical) order. */
+  | { mode: "kanban"; groupBy: string; groupOrder?: string[] };
 
 export type SortFieldV1 =
   | { kind: "system"; field: "name" | "path" | "folder" | "modified" }

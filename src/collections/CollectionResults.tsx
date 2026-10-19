@@ -48,11 +48,13 @@ function visiblePropertyKeys(results: NoteRecord[], configured: string[] | undef
 function viewForMode(
   mode: Exclude<CollectionViewV1["mode"], "kanban">,
   groupBy: string | undefined,
+  groupOrder?: string[],
 ): CollectionViewV1 {
   const withGroup = groupBy && groupBy.trim() !== "" ? { groupBy } : {};
-  if (mode === "table") return { mode: "table", ...withGroup };
-  if (mode === "card") return { mode: "card", ...withGroup };
-  return { mode: "list", ...withGroup };
+  const withOrder = groupOrder && groupOrder.length > 0 ? { groupOrder } : {};
+  if (mode === "table") return { mode: "table", ...withGroup, ...withOrder };
+  if (mode === "card") return { mode: "card", ...withGroup, ...withOrder };
+  return { mode: "list", ...withGroup, ...withOrder };
 }
 
 interface GroupColumn {
@@ -75,7 +77,11 @@ function folderColumnKey(note: NoteRecord): string {
  * and unsupported YAML join Unassigned) or by the note's containing folder
  * (`FOLDER_GROUP_BY`). Notes in the workspace root (empty folder) join
  * Unassigned for folder grouping. */
-export function groupResults(results: NoteRecord[], groupBy: string): GroupColumn[] {
+export function groupResults(
+  results: NoteRecord[],
+  groupBy: string,
+  groupOrder?: string[],
+): GroupColumn[] {
   const columns = new Map<string, GroupColumn>();
   const byFolder = groupBy === FOLDER_GROUP_BY;
   const normalizedKey = byFolder ? "" : groupBy.toLocaleLowerCase();
@@ -105,17 +111,31 @@ export function groupResults(results: NoteRecord[], groupBy: string): GroupColum
       notes: [note],
     });
   }
-  const result = Array.from(columns.values()).sort((a, b) => {
+
+  const ordered = byFolder ? undefined : groupOrder;
+  const orderedLowerSet = new Set((ordered ?? []).map((l) => l.toLocaleLowerCase()));
+
+  const sortedAll = Array.from(columns.values()).sort((a, b) => {
     if (a.key === UNASSIGNED_KANBAN_COLUMN) return 1;
     if (b.key === UNASSIGNED_KANBAN_COLUMN) return -1;
+    if (ordered) {
+      const idxA = orderedLowerSet.has(a.label.toLocaleLowerCase())
+        ? (ordered ?? []).findIndex((l) => l.toLocaleLowerCase() === a.label.toLocaleLowerCase())
+        : Infinity;
+      const idxB = orderedLowerSet.has(b.label.toLocaleLowerCase())
+        ? (ordered ?? []).findIndex((l) => l.toLocaleLowerCase() === b.label.toLocaleLowerCase())
+        : Infinity;
+      if (idxA !== idxB) return idxA - idxB;
+    }
     return a.label.localeCompare(b.label, undefined, { sensitivity: "base" }) || a.label.localeCompare(b.label);
   });
+
   // For drag-and-drop, the Unassigned column must always exist as a drop
   // target, even when no notes are currently unassigned.
-  if (!byFolder && !result.some((c) => c.key === UNASSIGNED_KANBAN_COLUMN)) {
-    result.push({ key: UNASSIGNED_KANBAN_COLUMN, label: "Unassigned", notes: [] });
+  if (!byFolder && !sortedAll.some((c) => c.key === UNASSIGNED_KANBAN_COLUMN)) {
+    sortedAll.push({ key: UNASSIGNED_KANBAN_COLUMN, label: "Unassigned", notes: [] });
   }
-  return result;
+  return sortedAll;
 }
 
 interface PropertyCellProps {
@@ -246,6 +266,7 @@ function ListView({
   openErrorPath,
 }: Pick<CollectionResultsProps, "collection" | "results"> & OpenHandlerProps) {
   const groupBy = collection.view.mode === "list" ? collection.view.groupBy : undefined;
+  const groupOrder = collection.view.mode === "list" ? collection.view.groupOrder : undefined;
   const row = (note: NoteRecord) => (
     <li key={note.path} class="collections-result-item">
       <button
@@ -277,7 +298,7 @@ function ListView({
 
   return (
     <div class="collections-grouped" role="region" aria-label={`Collection results grouped by ${groupBy}`}>
-      {groupResults(results, groupBy).map((column) => (
+      {groupResults(results, groupBy, groupOrder).map((column) => (
         <GroupSection key={column.key} column={column}>
           <ul class="collections-results-list" aria-label={`${column.label} notes`}>
             {column.notes.map(row)}
@@ -297,6 +318,7 @@ function TableView({
 }: Pick<CollectionResultsProps, "collection" | "results" | "onEditProperty"> & OpenHandlerProps) {
   const configured = collection.view.mode === "table" ? collection.view.columns : undefined;
   const groupBy = collection.view.mode === "table" ? collection.view.groupBy : undefined;
+  const groupOrder = collection.view.mode === "table" ? collection.view.groupOrder : undefined;
   const propertyKeys = visiblePropertyKeys(results, configured);
   const table = (notes: NoteRecord[]) => (
     <div class="collections-table-wrap">
@@ -342,7 +364,7 @@ function TableView({
 
   return (
     <div class="collections-grouped" role="region" aria-label={`Collection table grouped by ${groupBy}`}>
-      {groupResults(results, groupBy).map((column) => (
+      {groupResults(results, groupBy, groupOrder).map((column) => (
         <GroupSection key={column.key} column={column}>
           {table(column.notes)}
         </GroupSection>
@@ -359,6 +381,7 @@ function CardView({
 }: Pick<CollectionResultsProps, "collection" | "results"> & OpenHandlerProps) {
   const configured = collection.view.mode === "card" ? collection.view.fields : undefined;
   const groupBy = collection.view.mode === "card" ? collection.view.groupBy : undefined;
+  const groupOrder = collection.view.mode === "card" ? collection.view.groupOrder : undefined;
   const propertyKeys = visiblePropertyKeys(results, configured);
   const card = (note: NoteRecord) => (
     <article key={note.path} class="collections-card">
@@ -395,7 +418,7 @@ function CardView({
 
   return (
     <div class="collections-grouped" role="region" aria-label={`Collection cards grouped by ${groupBy}`}>
-      {groupResults(results, groupBy).map((column) => (
+      {groupResults(results, groupBy, groupOrder).map((column) => (
         <GroupSection key={column.key} column={column}>
           {grid(column.notes)}
         </GroupSection>
@@ -415,9 +438,10 @@ function KanbanView({
 }: Pick<CollectionResultsProps, "collection" | "results" | "onEditProperty"> & OpenHandlerProps) {
   if (collection.view.mode !== "kanban") return null;
   const groupBy = collection.view.groupBy;
+  const groupOrder = collection.view.groupOrder;
   const propertyGrouped = groupBy !== FOLDER_GROUP_BY;
   const groupByKey = groupBy.toLocaleLowerCase();
-  const columns = groupResults(results, groupBy);
+  const columns = groupResults(results, groupBy, groupOrder);
 
   function handleDragStart(event: { dataTransfer: { setData: (type: string, value: string) => void; effectAllowed: string } }, note: NoteRecord) {
     event.dataTransfer.setData(DRAG_MIME_TYPE, note.path);
@@ -489,6 +513,89 @@ function KanbanView({
 /** F09 Phase 2 result surface. Switching modes persists into the collection
  * definition; table property cells edit only fields the shared lossless
  * frontmatter parser already marks editable. */
+interface GroupOrderMenuProps {
+  groupBy: string;
+  results: NoteRecord[];
+  currentOrder?: string[];
+  mode: Exclude<CollectionViewV1["mode"], "kanban">;
+  onViewChange: (view: CollectionViewV1) => void | Promise<void>;
+}
+
+/** F11 — Manual group management menu. Shows the current group columns
+ * (derived from the results) with up/down/hide buttons. Hiding a column
+ * removes it from `groupOrder`; moving one reorders it. The menu is a
+ * dropdown activated by a "Manage groups" button. */
+function GroupOrderMenu({ groupBy, results, currentOrder, mode, onViewChange }: GroupOrderMenuProps) {
+  const [open, setOpen] = useState(false);
+
+  // Compute the display order of columns (what groupResults would produce).
+  const displayColumns = groupResults(results, groupBy, currentOrder)
+    .filter((c) => c.key !== UNASSIGNED_KANBAN_COLUMN);
+
+  function move(label: string, direction: -1 | 1) {
+    const order = currentOrder ? [...currentOrder] : displayColumns.map((c) => c.label);
+    const idx = order.findIndex((l) => l.toLocaleLowerCase() === label.toLocaleLowerCase());
+    if (idx === -1) return;
+    const target = idx + direction;
+    if (target < 0 || target >= order.length) return;
+    [order[idx], order[target]] = [order[target], order[idx]];
+    void onViewChange(viewForMode(mode, groupBy, order));
+  }
+
+  function hide(label: string) {
+    const order = (currentOrder ?? displayColumns.map((c) => c.label)).filter(
+      (l) => l.toLocaleLowerCase() !== label.toLocaleLowerCase(),
+    );
+    void onViewChange(viewForMode(mode, groupBy, order.length > 0 ? order : undefined));
+  }
+
+  return (
+    <div class="collections-group-order-menu" role="menu" aria-label="Manage groups">
+      <button
+        type="button"
+        class="collections-group-order-toggle"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-haspopup="true"
+      >
+        {open ? "Close" : "Manage groups"}
+      </button>
+      {open && (
+        <ul class="collections-group-order-list" role="menuitem" aria-label="Group order">
+          {displayColumns.map((col, i) => (
+            <li key={col.key} class="collections-group-order-item" role="menuitem">
+              <span class="collections-group-order-label">{col.label}</span>
+              <button
+                type="button"
+                aria-label={`Move ${col.label} up`}
+                disabled={i === 0}
+                onClick={() => move(col.label, -1)}
+              >
+                ↑
+              </button>
+              <button
+                type="button"
+                aria-label={`Move ${col.label} down`}
+                disabled={i === displayColumns.length - 1}
+                onClick={() => move(col.label, 1)}
+              >
+                ↓
+              </button>
+              <button
+                type="button"
+                aria-label={`Hide ${col.label}`}
+                onClick={() => hide(col.label)}
+              >
+                ✕
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 export function CollectionResults({
   collection,
   results,
@@ -502,6 +609,8 @@ export function CollectionResults({
   const selectedKanbanKey = collection.view.mode === "kanban" ? collection.view.groupBy : "";
   const currentGroupBy =
     "groupBy" in collection.view ? (collection.view.groupBy ?? "") : "";
+  const currentGroupOrder =
+    "groupOrder" in collection.view ? collection.view.groupOrder : undefined;
   const [openErrorPath, setOpenErrorPath] = useState<string | null>(null);
 
   async function handleOpenNote(note: NoteRecord) {
@@ -523,7 +632,7 @@ export function CollectionResults({
             role="radio"
             aria-checked={collection.view.mode === mode}
             class={collection.view.mode === mode ? "active" : ""}
-            onClick={() => void onViewChange(viewForMode(mode, currentGroupBy || undefined))}
+            onClick={() => void onViewChange(viewForMode(mode, currentGroupBy || undefined, currentGroupOrder))}
           >
             {mode === "list" ? "List" : mode === "table" ? "Table" : "Cards"}
           </button>
@@ -538,7 +647,7 @@ export function CollectionResults({
           onClick={() => {
             const groupBy =
               selectedKanbanKey || currentGroupBy || (availableKanbanKeys[0] ?? (hasFolderBoard ? FOLDER_GROUP_BY : ""));
-            if (groupBy) void onViewChange({ mode: "kanban", groupBy });
+            if (groupBy) void onViewChange({ mode: "kanban", groupBy, ...(currentGroupOrder ? { groupOrder: currentGroupOrder } : {}) });
           }}
         >
           Board
@@ -556,8 +665,8 @@ export function CollectionResults({
             if (groupBy) {
               void onViewChange(
                 mode === "kanban"
-                  ? { mode: "kanban", groupBy }
-                  : viewForMode(mode, groupBy),
+                  ? { mode: "kanban", groupBy, ...(currentGroupOrder ? { groupOrder: currentGroupOrder } : {}) }
+                  : viewForMode(mode, groupBy, currentGroupOrder),
               );
             } else {
               void onViewChange(
@@ -580,6 +689,16 @@ export function CollectionResults({
           {availableKanbanKeys.map((key) => <option key={key} value={key}>{key}</option>)}
         </select>
       </label>
+
+      {currentGroupBy && currentGroupBy !== FOLDER_GROUP_BY && (
+        <GroupOrderMenu
+          groupBy={currentGroupBy}
+          results={results}
+          currentOrder={currentGroupOrder}
+          mode={collection.view.mode === "kanban" ? "list" : collection.view.mode}
+          onViewChange={onViewChange}
+        />
+      )}
 
       {results.length === 0 ? (
         <p class="empty-hint">No notes match this collection.</p>

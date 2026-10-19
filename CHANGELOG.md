@@ -9,6 +9,7 @@
 - **Android camera capture** — Take a photo directly from the "Insert attachment" toolbar.
 - **Settings export** — Export the current settings bundle to a file.
 - **Folder exclusion in search** — A negated term (e.g. `-archive`) now hides a folder named `archive` and every file inside it at any depth. Exact-segment match: `-archive` hides `archive/x.md` but not `archivex/y.md`. Root-level files are unaffected. Applies to File Explorer, Bookmarks, and Outline search results. No file I/O for excluded entries.
+- **Fuzzy matching in quick switcher, command palette, and link suggestions** — All three search surfaces now use subsequence-based fuzzy matching with word-start and consecutive-run bonuses instead of strict substring matching. Typing "mn" matches "Meeting Notes" and "ml" matches "Macronomics". Case-insensitive, zero new dependencies (`src/fuzzyMatch.ts`).
 
 ### Bug Fixes
 

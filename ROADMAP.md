@@ -193,7 +193,9 @@ _No prior security audit ledger exists for this repository. This is the first st
   <!-- agent-state: {"schema":1,"id":"rm-9a637eae859ce76e","state":"claimed","touch":["ROADMAP.md","android","src/capacitor/widgets","src/capture"],"resources":["quick-capture-os-launch"],"owner":"hermes-20261017T093000Z-7bad5d6d","token":"5aaea73d1a8ecaf6def1b3e2680efd18","branch":"agent/rm-9a637eae859ce76e/5aaea73d1a8e","claimed_at":"2026-10-17T11:22:02Z","heartbeat_at":"2026-10-17T11:22:02Z","lease_until":"2026-10-17T12:52:02Z"} -->
   Agent: hermes-20261017T093000Z-7bad5d6d | item: rm-9a637eae859ce76e | lease until: 2026-10-17T12:52:02Z
 
-- ⬜ **Quick switcher/link suggestions: fuzzy word-start matching**: Market Solution #2 1.14 Desktop (Oct 5, 2026) added fuzzy matching to its quick switcher, link suggestions, and panel searches, ranking word-start matches higher at any vault size.
+- 🚧 **Quick switcher/link suggestions: fuzzy word-start matching**: Market Solution #2 1.14 Desktop (Oct 5, 2026) added fuzzy matching to its quick switcher, link suggestions, and panel searches, ranking word-start matches higher at any vault size.
+  <!-- agent-state: {"schema":1,"id":"rm-8738c69adbb82548","state":"claimed","touch":["src/app/CommandPalette.tsx","src/editor/MarkdownEditor.tsx","src/fuzzyMatch.test.ts","src/fuzzyMatch.ts","src/settings/workspaceProfiles.ts"],"resources":["fuzzy-match"],"owner":"hermes-20261019T090343Z-6b8a63","token":"4d2f03a90a1a7f8e134cec071909c80a","branch":"agent/rm-8738c69adbb82548/4d2f03a90a1a","claimed_at":"2026-10-19T07:16:01Z","heartbeat_at":"2026-10-19T07:16:01Z","lease_until":"2026-10-19T08:46:01Z"} -->
+  Agent: hermes-20261019T090343Z-6b8a63 | item: rm-8738c69adbb82548 | lease until: 2026-10-19T08:46:01Z
   <details>
   <summary>Context & rationale</summary>
   Leotheca's note switcher and link suggestions use plain substring matching (no fuzzy matcher in the codebase yet); adopting a standard offline fuzzy-matching algorithm for those paths is a pure local improvement of existing features — no network, plain files, togglable. (Competitor scan, Market Solution #2 changelog 1.14 Desktop, 2026-10-05)

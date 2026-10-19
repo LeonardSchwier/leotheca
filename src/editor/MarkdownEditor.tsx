@@ -14,6 +14,7 @@ import {
 } from "@codemirror/autocomplete";
 import { linkIndex, resolveWikilink } from "../linking/store";
 import { escapeWikiLinkText } from "../linking/wikiSyntax";
+import { fuzzyScore } from "../fuzzyMatch";
 import { scanHeadings, type HeadingRecord } from "../markdown/headings";
 import { scanBlockIds, type BlockRecord } from "../markdown/blocks";
 import { readTextFile } from "../workspace/tauriBridge";
@@ -119,12 +120,15 @@ export function wikilinkCompletions(context: CompletionContext): CompletionResul
   const from = match.from + 2;
 
   const seenLabels = new Set<string>();
-  const options: { label: string; apply: string; type: string }[] = [];
+  const scored: { label: string; apply: string; type: string; score: number }[] = [];
   const addOption = (label: string | undefined) => {
     if (!label || seenLabels.has(label)) return;
-    if (!label.toLowerCase().includes(query)) return;
+    const lower = label.toLowerCase();
+    // Use fuzzy matching: substring OR subsequence, ranked by score
+    const score = query ? fuzzyScore(query, lower) : 1;
+    if (score < 1) return;
     seenLabels.add(label);
-    options.push({ label, apply: `${label}]]`, type: "text" });
+    scored.push({ label, apply: `${label}]]`, type: "text", score });
   };
 
   for (const paths of linkIndex.value.pathsByNoteName.values()) {
@@ -134,8 +138,9 @@ export function wikilinkCompletions(context: CompletionContext): CompletionResul
     for (const alias of aliases) addOption(alias);
   }
 
-  if (options.length === 0) return null;
-  return { from, options, filter: false };
+  if (scored.length === 0) return null;
+  scored.sort((a, b) => b.score - a.score);
+  return { from, options: scored.map(({ label, apply, type }) => ({ label, apply, type })), filter: false };
 }
 
 /** Matches the trigger point for F04 Phase 2's heading completion: `[[`,

@@ -32,12 +32,17 @@ describe("CommandPalette", () => {
     expect(getByText("Manage workspace profiles...")).toBeTruthy();
   });
 
-  it("filters commands by substring, case-insensitively", () => {
+  it("filters commands by fuzzy match, case-insensitively", () => {
     const { getByPlaceholderText, getAllByRole } = render(
       <CommandPalette commands={makeCommands()} onClose={vi.fn()} />,
     );
     fireEvent.input(getByPlaceholderText("Type a command..."), { target: { value: "NEW" } });
-    expect(getAllByRole("listitem").map((li) => li.textContent)).toEqual(["New note", "New folder"]);
+    const items = getAllByRole("listitem").map((li) => li.textContent);
+    // "New note" and "New folder" match via word-start; "Manage workspace profiles..."
+    // also matches via subsequence (n in Manage, e in Manage, w in workspace)
+    expect(items).toContain("New note");
+    expect(items).toContain("New folder");
+    expect(items).not.toContain("Open Settings");
   });
 
   it("shows a no-matches hint instead of an empty list", () => {

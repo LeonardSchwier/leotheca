@@ -1,5 +1,6 @@
 import type { WorkspaceIcon, WorkspaceProfile } from "./globalConfig";
 import { WORKSPACE_ICONS } from "./globalConfig";
+import { fuzzyScore } from "../fuzzyMatch";
 
 /** Pure validation/sort/naming/dedup helpers for workspace profiles (F20
  * Phase 1/2a, spec `leotheca-workspace-profiles-sdd.md` sections 7.5, 12,
@@ -104,14 +105,15 @@ export function sortWorkspaceProfiles(profiles: readonly WorkspaceProfile[]): Wo
   });
 }
 
-/** Section 10.2: case-insensitive match against the display name and,
+/** Section 10.2: case-insensitive fuzzy match against the display name and,
  * Desktop only, the folder basename and full path text. An Android
  * profile's `path` is always the synthetic `/workspace` root and its
  * `token` is never searchable, so only `name` ever matches for one. */
 export function matchesWorkspaceSearch(profile: WorkspaceProfile, query: string): boolean {
   const q = query.trim().toLocaleLowerCase();
   if (q === "") return true;
-  if (profile.name.toLocaleLowerCase().includes(q)) return true;
+  // Fuzzy match on name (subsequence or substring)
+  if (fuzzyScore(q, profile.name.toLocaleLowerCase()) >= 1) return true;
   if (profile.token) return false;
   const basename = profile.path.split("/").filter(Boolean).pop() ?? "";
   return basename.toLocaleLowerCase().includes(q) || profile.path.toLocaleLowerCase().includes(q);

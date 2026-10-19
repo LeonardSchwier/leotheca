@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
+import { fuzzyFilter } from "../fuzzyMatch";
 import {
   requestWorkspaceAdd,
   requestWorkspaceManage,
@@ -33,9 +34,9 @@ export function CommandPalette({ commands, onClose }: CommandPaletteProps) {
   }, []);
 
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
+    const q = query.trim();
     if (!q) return allCommands;
-    return allCommands.filter((c) => c.label.toLowerCase().includes(q));
+    return fuzzyFilter(q, allCommands, (c) => c.label);
   }, [allCommands, query]);
 
   const runAndClose = (command: Command) => {

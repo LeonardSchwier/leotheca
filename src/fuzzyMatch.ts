@@ -31,7 +31,6 @@ export function fuzzyScore(query: string, target: string): number {
   // Subsequence walk with scoring
   let qi = 0;
   let score = 0;
-  let run = 0;
   let prevMatched = -2; // position of last matched char in target
 
   for (let ti = 0; ti < t.length && qi < q.length; ti++) {
@@ -46,7 +45,6 @@ export function fuzzyScore(query: string, target: string): number {
 
     // Consecutive-run bonus
     if (ti === prevMatched + 1) {
-      run += 1;
       score += 1;
     } else {
       // Gap penalty for characters between prev match and this one
@@ -54,7 +52,6 @@ export function fuzzyScore(query: string, target: string): number {
         const gap = ti - prevMatched - 1;
         score -= gap;
       }
-      run = 0;
     }
 
     prevMatched = ti;

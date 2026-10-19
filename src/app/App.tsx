@@ -1428,6 +1428,38 @@ export function App() {
             }}
           />
         )}
+        {current?.kind === "text" && (
+          <>
+            <button
+              class="icon-button"
+              aria-label="Decrease font size"
+              title={`Decrease font size (${workspaceSettings.value.fontSize}px)`}
+              onClick={() => {
+                const next = nextFontSize(workspaceSettings.value.fontSize, "out");
+                if (next !== workspaceSettings.value.fontSize)
+                  void updateWorkspaceSettings({ fontSize: next });
+              }}
+            >
+              <span aria-hidden="true" style={{ fontSize: 14, fontWeight: 600, lineHeight: 1 }}>
+                A−
+              </span>
+            </button>
+            <button
+              class="icon-button"
+              aria-label="Increase font size"
+              title={`Increase font size (${workspaceSettings.value.fontSize}px)`}
+              onClick={() => {
+                const next = nextFontSize(workspaceSettings.value.fontSize, "in");
+                if (next !== workspaceSettings.value.fontSize)
+                  void updateWorkspaceSettings({ fontSize: next });
+              }}
+            >
+              <span aria-hidden="true" style={{ fontSize: 14, fontWeight: 600, lineHeight: 1 }}>
+                A+
+              </span>
+            </button>
+          </>
+        )}
         <div class="toolbar-spacer" />
         {!showActivityRailNav && current?.kind === "text" && (
           <button

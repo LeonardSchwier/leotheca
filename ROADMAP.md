@@ -239,9 +239,9 @@ The S-1 session added `src/assetProtocolScope.test.ts` locking the asset-scope i
 
 _Review only — no fixes implemented this pass; see the open items above for the suggested fixes._
 
-## Open
+## Done
 
-- ⬜ **Editor font size: increase/decrease commands (persisted in device-local storage)**: Leotheca has no user-facing editor font-size control. Step-based "Increase font size" / "Decrease font size" commands, persisted per device in the existing local settings store — no cloud, togglable. (Competitor scan, Market Solution #2 changelog 1.14.3 Desktop, 2026-09-29)
+- ✅ **Editor font size: increase/decrease commands (persisted in device-local storage)**: Added "A−" / "A+" buttons to the editor toolbar (visible when a text note is open). Each step is ±1px, clamped to 12–24px range, persisted via the existing local settings store (`updateWorkspaceSettings`). Command palette "Increase font size" / "Decrease font size" and settings-panel number input were already present (commit `fc49fe9`). New 3 tests in `App.test.tsx` cover increase/decrease, min clamp, and max clamp. (2026-10-19)
   <details>
   <summary>Why / source</summary>
   Market Solution #2 1.14.3 Desktop added "Increase font size" and "Decrease font size" editor commands and deliberately moved the base font size out of sync into device-local storage. The same shape fits Leotheca's plain-file, local-only settings store and extends the existing editor UI without a new convention.

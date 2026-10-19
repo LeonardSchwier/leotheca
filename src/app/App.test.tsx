@@ -478,6 +478,49 @@ describe("App: keyboard shortcuts", () => {
     });
     expect(updateWorkspaceSettingsSpy).toHaveBeenLastCalledWith({ fontSize: 15 });
   });
+
+  it("toolbar font size buttons increase and decrease the persisted font size", async () => {
+    workspacePath.value = "/vault";
+    workspaceSettings.value = { ...DEFAULT_WORKSPACE_SETTINGS, fontSize: 15 };
+    openOrFocusTab("/vault/note.md", "note.md", "hello", "text");
+    const { getByRole } = render(<App />);
+
+    const increaseBtn = getByRole("button", { name: "Increase font size" });
+    fireEvent.click(increaseBtn);
+    await Promise.resolve();
+    expect(updateWorkspaceSettingsSpy).toHaveBeenLastCalledWith({ fontSize: 16 });
+
+    const decreaseBtn = getByRole("button", { name: "Decrease font size" });
+    fireEvent.click(decreaseBtn);
+    await Promise.resolve();
+    expect(updateWorkspaceSettingsSpy).toHaveBeenLastCalledWith({ fontSize: 15 });
+  });
+
+  it("toolbar font size buttons clamp at minimum", async () => {
+    workspacePath.value = "/vault";
+    workspaceSettings.value = { ...DEFAULT_WORKSPACE_SETTINGS, fontSize: 12 };
+    openOrFocusTab("/vault/note.md", "note.md", "hello", "text");
+    const { getByRole } = render(<App />);
+
+    const decreaseBtn = getByRole("button", { name: "Decrease font size" });
+    fireEvent.click(decreaseBtn);
+    await Promise.resolve();
+    // Should not call updateWorkspaceSettings since 12 - 1 would be 11 < MIN
+    expect(updateWorkspaceSettingsSpy).not.toHaveBeenLastCalledWith({ fontSize: 11 });
+  });
+
+  it("toolbar font size buttons clamp at maximum", async () => {
+    workspacePath.value = "/vault";
+    workspaceSettings.value = { ...DEFAULT_WORKSPACE_SETTINGS, fontSize: 24 };
+    openOrFocusTab("/vault/note.md", "note.md", "hello", "text");
+    const { getByRole } = render(<App />);
+
+    const increaseBtn = getByRole("button", { name: "Increase font size" });
+    fireEvent.click(increaseBtn);
+    await Promise.resolve();
+    // Should not call updateWorkspaceSettings since 24 + 1 would be 25 > MAX
+    expect(updateWorkspaceSettingsSpy).not.toHaveBeenLastCalledWith({ fontSize: 25 });
+  });
 });
 
 describe("App: narrow-screen navigation", () => {

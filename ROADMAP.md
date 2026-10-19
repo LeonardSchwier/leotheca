@@ -239,6 +239,19 @@ The S-1 session added `src/assetProtocolScope.test.ts` locking the asset-scope i
 
 _Review only — no fixes implemented this pass; see the open items above for the suggested fixes._
 
+## Open
+
+- ⬜ **Editor font size: increase/decrease commands (persisted in device-local storage)**: Leotheca has no user-facing editor font-size control. Step-based "Increase font size" / "Decrease font size" commands, persisted per device in the existing local settings store — no cloud, togglable. (Competitor scan, Market Solution #2 changelog 1.14.3 Desktop, 2026-09-29)
+  <details>
+  <summary>Why / source</summary>
+  Market Solution #2 1.14.3 Desktop added "Increase font size" and "Decrease font size" editor commands and deliberately moved the base font size out of sync into device-local storage. The same shape fits Leotheca's plain-file, local-only settings store and extends the existing editor UI without a new convention.
+  </details>
+- ⬜ **Bases/collections: toolbar "Group by" menu with manual group management**: Collection views already group by an indexed frontmatter property, but there is no user-facing way to pick the grouping property or manage group order per view. A toolbar Group menu (choose property, reorder, hide, add) storing its state in the existing per-view plain-file state. (Competitor scan, Market Solution #2 changelog 1.14.3 Desktop, 2026-09-29)
+  <details>
+  <summary>Why / source</summary>
+  Market Solution #2 1.14.3 Desktop added a Group menu to its Bases toolbar for choosing the property to group by, plus manual reorder, hide, and add of groups in any view type. The collapsible-groups item (queued from the same scan) covers section collapsing; this covers the grouping controls.
+  </details>
+
 ## Implemented
 
 - ✅ **Quick switcher/link suggestions: fuzzy word-start matching** — Completed 2026-10-19 by hermes-20261019T090343Z-6b8a63. Subsequence matcher (`src/fuzzyMatch.ts`) with word-start/consecutive-run bonuses, wired into wikilink completions, command palette, and workspace switcher. 15 new tests, tsc+vitest+build all pass.

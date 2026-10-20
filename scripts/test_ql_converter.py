@@ -331,5 +331,44 @@ class TestOutputStructure(unittest.TestCase):
         self.assertIn("content here", body_match.group(1))
 
 
+class TestDollarSignInContent(unittest.TestCase):
+    """W-2026-10-18-3: note content containing $1, $&, etc. must render
+    as literal text, not as regex backreferences.
+
+    The Obj-C implementation uses NSRegularExpression's template syntax
+    ($1, $2 = capture group backreferences) in the *replacement strings*,
+    which are fixed literals like <h1>$2</h1>. The *content* itself
+    (capture group value) may contain $1/$& as literal text — that is
+    safe because it is inserted via the backreference, not interpreted
+    as a template. This test locks that invariant.
+    """
+
+    def test_heading_with_dollar_and_ampersand(self):
+        # A heading whose text contains $& should render the literal text
+        result = markdown_to_html("# a $& b")
+        self.assertIn("a $&amp; b", result)  # & is HTML-escaped
+        self.assertIn("<h1>", result)
+
+    def test_heading_with_dollar_one(self):
+        # A heading whose text contains $1 should render the literal text
+        result = markdown_to_html("# price is $1")
+        self.assertIn("$1", result)
+        self.assertIn("<h1>", result)
+
+    def test_code_block_with_dollar_signs(self):
+        # A code block containing $1 and $& should render them literally
+        md = "```\n$1 + $& = 2\n```"
+        result = markdown_to_html(md)
+        self.assertIn("$1", result)
+        self.assertIn("$&amp;", result)
+        self.assertIn("<pre><code>", result)
+
+    def test_paragraph_with_dollar_template(self):
+        # A paragraph with shell-like $VAR and ${VAR} patterns
+        result = markdown_to_html("echo $HOME and ${USER}")
+        self.assertIn("$HOME", result)
+        self.assertIn("${USER}", result)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

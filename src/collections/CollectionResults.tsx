@@ -45,15 +45,33 @@ function visiblePropertyKeys(results: NoteRecord[], configured: string[] | undef
   return Array.from(keys.values());
 }
 
-function viewForMode(
+/** Builds a `CollectionViewV1` for the given mode/groupBy/groupOrder.
+ * When `existing` is supplied (the view the user is editing), mode-specific
+ * fields (`columns` for table, `fields` for card) are carried over so that
+ * reordering a group column does not silently destroy the user's column or
+ * field selections. */
+export function viewForMode(
   mode: Exclude<CollectionViewV1["mode"], "kanban">,
   groupBy: string | undefined,
   groupOrder?: string[],
+  existing?: CollectionViewV1,
 ): CollectionViewV1 {
   const withGroup = groupBy && groupBy.trim() !== "" ? { groupBy } : {};
   const withOrder = groupOrder && groupOrder.length > 0 ? { groupOrder } : {};
-  if (mode === "table") return { mode: "table", ...withGroup, ...withOrder };
-  if (mode === "card") return { mode: "card", ...withGroup, ...withOrder };
+  if (mode === "table") {
+    const columns =
+      existing && existing.mode === "table" && existing.columns
+        ? { columns: existing.columns }
+        : {};
+    return { mode: "table", ...columns, ...withGroup, ...withOrder };
+  }
+  if (mode === "card") {
+    const fields =
+      existing && existing.mode === "card" && existing.fields
+        ? { fields: existing.fields }
+        : {};
+    return { mode: "card", ...fields, ...withGroup, ...withOrder };
+  }
   return { mode: "list", ...withGroup, ...withOrder };
 }
 
@@ -518,6 +536,7 @@ interface GroupOrderMenuProps {
   results: NoteRecord[];
   currentOrder?: string[];
   mode: Exclude<CollectionViewV1["mode"], "kanban">;
+  existingView?: CollectionViewV1;
   onViewChange: (view: CollectionViewV1) => void | Promise<void>;
 }
 
@@ -525,7 +544,7 @@ interface GroupOrderMenuProps {
  * (derived from the results) with up/down/hide buttons. Hiding a column
  * removes it from `groupOrder`; moving one reorders it. The menu is a
  * dropdown activated by a "Manage groups" button. */
-function GroupOrderMenu({ groupBy, results, currentOrder, mode, onViewChange }: GroupOrderMenuProps) {
+function GroupOrderMenu({ groupBy, results, currentOrder, mode, existingView, onViewChange }: GroupOrderMenuProps) {
   const [open, setOpen] = useState(false);
 
   // Compute the display order of columns (what groupResults would produce).
@@ -539,14 +558,14 @@ function GroupOrderMenu({ groupBy, results, currentOrder, mode, onViewChange }: 
     const target = idx + direction;
     if (target < 0 || target >= order.length) return;
     [order[idx], order[target]] = [order[target], order[idx]];
-    void onViewChange(viewForMode(mode, groupBy, order));
+    void onViewChange(viewForMode(mode, groupBy, order, existingView));
   }
 
   function hide(label: string) {
     const order = (currentOrder ?? displayColumns.map((c) => c.label)).filter(
       (l) => l.toLocaleLowerCase() !== label.toLocaleLowerCase(),
     );
-    void onViewChange(viewForMode(mode, groupBy, order.length > 0 ? order : undefined));
+    void onViewChange(viewForMode(mode, groupBy, order.length > 0 ? order : undefined, existingView));
   }
 
   return (
@@ -696,6 +715,7 @@ export function CollectionResults({
           results={results}
           currentOrder={currentGroupOrder}
           mode={collection.view.mode === "kanban" ? "list" : collection.view.mode}
+          existingView={collection.view}
           onViewChange={onViewChange}
         />
       )}

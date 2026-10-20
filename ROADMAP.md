@@ -214,10 +214,12 @@ The S-1 session added `src/assetProtocolScope.test.ts` locking the asset-scope i
 
 *Fix:* add a test (e.g. in a new `src/cspPolicy.test.ts` or alongside the asset-scope tests) that parses `tauri.conf.json`'s CSP and asserts `script-src` does not include `'unsafe-eval'`, mirroring the asset-scope guard.
 
-**W-2026-10-18-3 (very low, new) — Quick Look converter: unescaped regex `$` patterns in substitution**
+**W-2026-10-18-3 (very low, new) — Quick Look converter: unescaped regex `$` patterns in substitution** ✅
 `packaging/macos/quicklook/LeothecaMarkdownQLPreviewGenerator.m:173-193`: the markdown-to-HTML conversion uses `NSRegularExpression` replacements whose replacement strings are regex patterns, so note content containing `$&`, `$1`, etc. would be substituted as backreferences (e.g. a note titled `a $& b` renders `a <h1> b $& b`). The input is local user-authored note content rendered into a `WKWebView` (`loadHTMLString:baseURL:nil`, all HTML-special characters escaped at 145-147), so there is no XSS and no data-exfiltration path — output fidelity only, in a throwaway preview surface.
 
-*Fix:* use `NSRegularExpression` `replacementStringWithTemplate:` / `firstObject` with a replacement block instead of template-pattern substitution, or escape `$` in the source before substitution.
+*Analysis (2026-10-20):* The audit's concern is a **false positive**. NSRegularExpression's replacement template syntax (`$1`, `$2`) refers to **capture group values**, not to the *content being matched*. The replacement strings in the code are fixed literals like `<h1>$2</h1>` — the `$2` is a backreference to capture group 2 (the matched content), which is correct. The content itself (the capture group value) may contain `$1`/`$&` as literal text; that text is inserted via the backreference, not interpreted as a template. No escaping needed.
+
+*Resolution:* Added 4 regression tests (`TestDollarSignInContent` in `scripts/test_ql_converter.py`) that lock in the correct behavior and prevent a future "fix" that would break it. All 38 QL converter tests pass. Commit `239a1f7`.
 
 ### Verified clean (this window)
 
@@ -235,7 +237,7 @@ The S-1 session added `src/assetProtocolScope.test.ts` locking the asset-scope i
 |----|----------|--------|-----------|-------|
 | W-2026-10-18-1 | medium | open (carry-over S-2) | `src-tauri/tauri.conf.json:23` | `unsafe-eval` in CSP `script-src` |
 | W-2026-10-18-2 | low | open | CSP tests | no regression test locking CSP free of `unsafe-eval` |
-| W-2026-10-18-3 | very low | open | `packaging/macos/quicklook/LeothecaMarkdownQLPreviewGenerator.m:173-193` | unescaped `$` in regex replacement patterns |
+| W-2026-10-18-3 | very low | ✅ resolved (false positive + regression tests) | `packaging/macos/quicklook/LeothecaMarkdownQLPreviewGenerator.m:173-193` | unescaped `$` in regex replacement patterns |
 
 _Review only — no fixes implemented this pass; see the open items above for the suggested fixes._
 

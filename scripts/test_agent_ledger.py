@@ -392,6 +392,36 @@ class LeaseTests(unittest.TestCase):
         git(loser[0], "push", "-q", "origin", "HEAD:main")
         self.assertEqual(git(remote, "for-each-ref", "refs/heads/agent/").stdout, "")
 
+    def test_done_state_rejects_claimed_fields_and_invalid_branch(self):
+        """Regression: done-state entries must not carry owner/token, and branch must
+        start with agent/<id>/. Two entries in ROADMAP.md on main violated both rules,
+        breaking agent_ledger.py --root . list (which CI runs) on every push."""
+        common = {"schema": 1, "state": "done", "touch": ["src"], "resources": []}
+        item_id = "rm-" + "a" * 16
+        # 1. done + owner/token → must be rejected (the actual bug on main)
+        bad_owner = {**common, "id": item_id, "owner": "sess-1", "token": "ab" * 16,
+                     "branch": f"agent/{item_id}/x", "completed_by": "sess-1",
+                     "completed_at": "2026-10-19T17:20:00Z"}
+        with self.assertRaisesRegex(ledger.LedgerError, "Unknown agent-state fields|owner|token"):
+            ledger.validate_state(bad_owner, "✅")
+        # 2. done + branch not starting agent/<id>/ → must be rejected
+        bad_branch = {**common, "id": item_id,
+                      "branch": "hermes-20261020T130000Z-crashhunt",
+                      "completed_by": "sess-2", "completed_at": "2026-10-20T13:11:00Z"}
+        with self.assertRaisesRegex(ledger.LedgerError, "branch"):
+            ledger.validate_state(bad_branch, "✅")
+        # 3. Correct done state → must be accepted
+        good = {**common, "id": item_id,
+                "branch": f"agent/{item_id}/abc123",
+                "completed_by": "sess-3", "completed_at": "2026-10-20T13:11:00Z"}
+        ledger.validate_state(good, "✅")  # no exception
+        # 4. done without completed_by → must be rejected
+        missing_completed_by = {**common, "id": item_id,
+                                "branch": f"agent/{item_id}/abc123",
+                                "completed_at": "2026-10-20T13:11:00Z"}
+        with self.assertRaises(ledger.LedgerError):
+            ledger.validate_state(missing_completed_by, "✅")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

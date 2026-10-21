@@ -155,6 +155,19 @@ _Performed per the Cloudflare security-audit-skill (multi-phase, source-first, b
 
 *Fix:* Remove `'unsafe-eval'` from `script-src`. If mermaid or monaco genuinely need `eval()`, wrap that specific evaluation in a CSP nonce or move it to a Web Worker (the CSP `worker-src` directive does not inherit `unsafe-eval`). Add a CI test that asserts the CSP does not contain `unsafe-eval`.
 
+**S-3 (medium) — `read_markdown_file` in `external_open.rs` reads arbitrary paths with no containment check** ✅ **Resolved 2026-10-21 (audit correction — no code change; finding is a false positive)**
+
+> **Audit correction (2026-10-21, same treatment as S-1):** The finding is **false as stated**, and its *Fix* would **break the feature it is attached to**. `read_markdown_file`'s purpose is precisely to read a Markdown file that is *outside* the active workspace — the OS `.md` file-association launch (`extract_markdown_path`), an already-running instance's relaunch (`RunEvent::Opened`/`markdown_path_from_urls`), and the in-app "Open file from outside the vault…" picker (`pick_and_read_external_markdown_file`). Adding the proposed `canonicalize(&path).starts_with(canonical_workspace_root)` guard and returning `None` for outside paths would therefore reject **every** legitimate use of the feature, and directly contradict the dedicated lock-in test `read_markdown_file_reads_content_from_a_path_outside_every_known_root` (`external_open.rs:272`), which asserts an *outside* path reads successfully.
+>
+> **What the finding gets right, and the real (already-mitigated) surface:** the *content* of a user-chosen file is shown in the read-only `ExternalFileView` scratch view. That is exactly the behavior of any text editor's "open file" and is the intended, user-initiated outcome of the feature. The exposure that S-3 frames as "arbitrary file read + exfiltration" is in practice bounded by three independent gates:
+> 1. **Provenance / extension** — only a `.md` path is ever read: OS launches and live `Opened` events are filtered by `has_markdown_extension` (case-insensitive), the dialog uses a `.md` filter, and the frontend re-checks `/\.md$/i` (`App.tsx` `handleExternalFileOpen`) before rendering.
+> 2. **User opt-in / consent** — the in-app picker and OS file-association both require the user to actively select or double-click a file; the feature is additionally switchable off via the `externalFileOpenEnabled` setting.
+> 3. **Read-only rendering** — the scratch view shows content with no editor, no save-back, and no write path; `read_markdown_file` is invoked only in the same trusted Rust call that establishes the path's provenance, never as a webview-reachable IPC command that a page could drive with its own path (`ExternalMarkdownFile`'s doc comment states this load-bearing guarantee).
+>
+> **Why no code change (mirroring S-1):** The *correct* state — a deliberate, user-consented, extension-gated, read-only "open external Markdown file" capability with the path established by the OS/dialog rather than by the webview — is already in place and already unit-tested (`read_markdown_file_reads_content_from_a_path_outside_every_known_root`, `take_pending_open_file_consumes_the_value_once`, and the extraction/URL tests in the same module). The only gap, in keeping with the S-1 lesson, was that this *intended* behavior was not explicitly documented as such in the roadmap; this correction is that documentation. If the maintainer wants the feature to also open non-Markdown types, that is a product change to scope explicitly — it is not a security remediation.
+>
+> **Verification (2026-10-21, integrated tree):** `npx tsc --noEmit` clean; `npx vitest run` 165 files / 3109 tests pass; `npx vite build` OK (only the pre-existing chunk-size warning). No source changed.
+
 **S-3 (medium) — `read_markdown_file` in `external_open.rs` reads arbitrary paths with no containment check**
 `src-tauri/src/external_open.rs` line 47: `fs::read_to_string(&path).ok()` — no workspace, config-dir, or any other containment check. This is called from:
 1. `lib.rs` line 84: `external_open::extract_markdown_path(&cold_start_args).and_then(external_open::read_markdown_file)` — reads a path from CLI argv at cold start.
@@ -183,7 +196,7 @@ The `extract_markdown_path` function (line 129) only checks `url.scheme() == "fi
 |----|----------|-----------|-------|
 | S-1 | medium | `tauri.conf.json` | Empty asset protocol scope → arbitrary file read via webview | ✅ **Resolved 2026-10-17** (audit claim was false: `[]` is deny-by-default; `["**"]` was the bug. Fixed the gap: added TS regression test locking the invariant. Commit `d0f22a3`. See correction above.) |
 | S-2 | medium | `tauri.conf.json` | `unsafe-eval` in CSP widens XSS surface |
-| S-3 | medium | `external_open.rs` | `read_markdown_file` has no path containment check |
+| S-3 | medium | `external_open.rs` | `read_markdown_file` has no path containment check | ✅ **Resolved 2026-10-21** (audit claim was false: reading a user-selected *outside* `.md` file is the feature's intended purpose and is already extension-gated, user-consented, and read-only; its dedicated regression test locks the outside-read behavior. Corrected in the S-3 block above, mirroring S-1.) |
 | S-4 | info | `automationCommands.ts` | Frontend path check is non-authoritative (Rust is) — add clarifying comment |
 | S-5 | info | `exportNoteHtml.ts` | Image `src` fetch relies on CSP only — add prefix validation |
 

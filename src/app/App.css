@@ -2246,3 +2246,46 @@ button.icon-button.active {
     animation-duration: 4s;
   }
 }
+
+/* ── Quick Capture target picker ────────────────────────────────────── */
+.capture-sheet-select {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md, 6px);
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+.capture-sheet-select:focus {
+  outline: 2px solid var(--accent-blue);
+  outline-offset: 1px;
+}
+.capture-sheet-select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.capture-sheet-specific {
+  padding-left: var(--space-2);
+  border-left: 2px solid var(--border-primary);
+}
+.capture-sheet-loading {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: var(--space-2) var(--space-3);
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md, 6px);
+}
+.capture-sheet-error {
+  padding: var(--space-2) var(--space-3);
+  margin-bottom: var(--space-2);
+  font-size: 0.85rem;
+  color: var(--error, #d32f2f);
+  background-color: rgba(211, 47, 47, 0.1);
+  border-radius: var(--radius-md, 6px);
+}

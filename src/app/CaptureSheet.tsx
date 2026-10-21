@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "preact/hooks";
 import { signal } from "@preact/signals";
 import { workspacePath, workspaceSettings } from "../settings/store";
-import { selectedDir } from "../workspace/fileTreeStore";
 import { resolvePathWithinWorkspace } from "../workspace/paths";
 import {
   appendToInboxNote,
@@ -10,7 +9,13 @@ import {
 import {
   resolveDatePattern,
   DestinationMode,
+  buildCaptureTargetOptions,
+  resolveCaptureTargetPath,
+  CaptureTargetOption,
 } from "../capture/captureDestinations";
+import { bookmarks } from "../bookmarks/store";
+import { findAllFiles } from "../workspace/tauriBridge";
+import { relativePath } from "../workspace/fileTreeStore";
 import { Sheet } from "../ui/Sheet";
 
 // F05-FR-27: Accessibility announcement signal
@@ -24,6 +29,17 @@ export const captureSourceUrl = signal("");
 export const captureDestinationMode = signal<DestinationMode>("new");
 export const captureOpenAfterCapture = signal(true);
 export const captureTargetProfileId = signal<string | undefined>(undefined); // F05-FR-08
+
+// ── Quick Capture target picker signals ────────────────────────────────────
+/** The kind of capture target the user selected: inbox | daily | specific. */
+export const captureTargetKind = signal<"inbox" | "daily" | "specific">("inbox");
+/** Absolute note path for "specific" targets; empty otherwise. */
+export const captureTargetPath = signal("");
+/** Memoized target options (rebuilt when the sheet opens). */
+export const captureTargetOptions = signal<CaptureTargetOption[]>([]);
+/** Workspace markdown notes for the specific-note picker (loaded on demand). */
+export const captureNoteList = signal<Array<{ label: string; path: string }>>([]);
+export const captureNoteListLoading = signal(false);
 
 /** Callback type for when a capture is successfully created */
 export type OnCaptureCreated = (path: string, name: string) => void;
@@ -63,23 +79,75 @@ export function CaptureSheet({ onCreated }: CaptureSheetProps) {
   const content = captureContent.value;
   const title = captureTitle.value;
   const sourceUrl = captureSourceUrl.value;
-  const destinationMode = captureDestinationMode.value;
   const openAfterCapture = captureOpenAfterCapture.value;
+  const targetKind = captureTargetKind.value;
+  const targetPath = captureTargetPath.value;
+
+  // Load target options when the sheet opens
+  useEffect(() => {
+    if (captureSheetOpen.value) {
+      const fileBookmarks = bookmarks.value
+        .filter((b): b is Extract<typeof b, { kind: "file" }> => b.kind === "file")
+        .map((b) => ({ id: b.id, label: b.label, path: b.path }));
+      captureTargetOptions.value = buildCaptureTargetOptions(
+        {
+          captureInboxNote: workspaceSettings.value.captureInboxNote,
+          captureDatePattern: workspaceSettings.value.captureDatePattern,
+        },
+        fileBookmarks,
+        workspacePath.value ?? undefined,
+      );
+      // Reset to inbox if not already set by openCaptureSheetWithData
+      if (captureTargetKind.value === "inbox" && captureTargetPath.value === "") {
+        // default: inbox
+      }
+    }
+  }, [captureSheetOpen.value]);
+
+  // Load workspace notes for the specific-note picker when needed
+  useEffect(() => {
+    if (
+      captureSheetOpen.value &&
+      captureTargetKind.value === "specific" &&
+      captureNoteList.value.length === 0 &&
+      workspacePath.value
+    ) {
+      captureNoteListLoading.value = true;
+      findAllFiles(workspacePath.value)
+        .then((files) => {
+          const root = workspacePath.value;
+          if (!root) return;
+          captureNoteList.value = files
+            .filter((f) => !f.isDir && f.name.toLowerCase().endsWith(".md"))
+            .map((f) => ({
+              label: relativePath(root, f.path),
+              path: f.path,
+            }))
+            .sort((a, b) => a.label.localeCompare(b.label));
+        })
+        .catch(() => {
+          captureNoteList.value = [];
+        })
+        .finally(() => {
+          captureNoteListLoading.value = false;
+        });
+    }
+  }, [captureSheetOpen.value, captureTargetKind.value]);
 
   // F05-FR-27: Announce destination changes for screen readers
   useEffect(() => {
-    const modeNames = {
-      append: "Append to inbox",
-      new: "Create new note",
-      date: "Date pattern",
+    const kindNames = {
+      inbox: "Inbox (append)",
+      daily: "Daily note",
+      specific: "Specific note",
     };
     // Only announce if there's actual content (not initial empty state)
     if (content || title || sourceUrl) {
       announceCaptureMessage(
-        `Destination changed to: ${modeNames[destinationMode] || destinationMode}`,
+        `Destination changed to: ${kindNames[targetKind] || targetKind}`,
       );
     }
-  }, [destinationMode, content, title, sourceUrl]);
+  }, [targetKind, content, title, sourceUrl]);
 
   // F05-FR-27: Focus management for accessibility. The Sheet primitive
   // already focuses `textareaRef` (passed as `initialFocusRef` below) once
@@ -110,6 +178,13 @@ export function CaptureSheet({ onCreated }: CaptureSheetProps) {
       return;
     }
 
+    // Validate the target picker selection
+    if (targetKind === "specific" && !targetPath.trim()) {
+      setSubmitError("Please select a note to capture into");
+      announceCaptureMessage("Please select a note to capture into");
+      return;
+    }
+
     setIsSubmitting(true);
     setSubmitError(null);
 
@@ -117,37 +192,36 @@ export function CaptureSheet({ onCreated }: CaptureSheetProps) {
       let resultPath = "";
       let resultName = "";
 
-      if (destinationMode === "append") {
-        // F05: Append to configured inbox note
-        const inboxNote =
-          workspaceSettings.value.captureInboxNote || "Inbox.md";
-        const notePath = resolvePathWithinWorkspace(
-          workspacePath.value,
-          workspacePath.value,
-          inboxNote,
-        );
-        if (notePath) {
-          const { path, name } = await appendToInboxNote({
-            inboxNotePath: notePath,
-            content: content,
-            title: title || undefined,
-            sourceUrl: sourceUrl || undefined,
-            workspaceRoot: workspacePath.value,
-          });
-          resultPath = path;
-          resultName = name;
+      // Resolve the target option from the picker
+      const option =
+        captureTargetOptions.value.find(
+          (o) => o.kind === targetKind,
+        ) ?? { kind: targetKind, label: targetKind };
 
-          // F05-FR-27: Announce successful capture
-          announceCaptureMessage(`Captured to ${name}`);
-        }
-      } else if (destinationMode === "date") {
-        // F05: Date-pattern destination
+      // For "specific" targets, the path comes from the user-typed field
+      const effectiveOption: CaptureTargetOption =
+        targetKind === "specific"
+          ? { kind: "specific", label: targetPath, path: targetPath }
+          : option;
+
+      const resolvedPath = resolveCaptureTargetPath(
+        effectiveOption,
+        workspacePath.value,
+      );
+
+      if (!resolvedPath) {
+        setSubmitError("Could not resolve the capture destination");
+        announceCaptureMessage("Could not resolve the capture destination");
+        return;
+      }
+
+      if (targetKind === "daily") {
+        // Date-pattern destination: create a new note
         const datePattern =
           workspaceSettings.value.captureDatePattern ||
           "Daily/{{date:YYYY-MM-DD}}.md";
         const resolvedPattern = resolveDatePattern(datePattern);
 
-        // Get the directory part of the pattern
         const lastSlashIndex = resolvedPattern.path.lastIndexOf("/");
         const targetDir =
           lastSlashIndex > 0
@@ -158,7 +232,6 @@ export function CaptureSheet({ onCreated }: CaptureSheetProps) {
             ? resolvedPattern.path.substring(lastSlashIndex + 1)
             : resolvedPattern.path;
 
-        // Create the date-pattern note
         const { path, name } = await createNoteWithTitle(
           targetDir,
           content,
@@ -167,36 +240,28 @@ export function CaptureSheet({ onCreated }: CaptureSheetProps) {
         );
         resultPath = path;
         resultName = name;
-
-        // F05-FR-27: Announce successful capture
         announceCaptureMessage(`Created note: ${name}`);
       } else {
-        // F05: Create new note in configured folder
-        let targetDir = selectedDir.value ?? workspacePath.value;
-
-        const inboxFolder = workspaceSettings.value.captureInboxFolder;
-        if (inboxFolder) {
-          const resolvedInbox = resolvePathWithinWorkspace(
-            workspacePath.value,
-            workspacePath.value,
-            inboxFolder,
-          );
-          if (resolvedInbox) {
-            targetDir = resolvedInbox;
-          }
-        }
-
-        const { path, name } = await createNoteWithTitle(
-          targetDir,
-          content,
-          title || undefined,
+        // inbox / bookmarked / specific: append to the target note
+        const notePath = resolvePathWithinWorkspace(
           workspacePath.value,
+          workspacePath.value,
+          resolvedPath.startsWith(workspacePath.value + "/")
+            ? resolvedPath.slice(workspacePath.value.length + 1)
+            : resolvedPath,
         );
+        const finalPath = notePath ?? resolvedPath;
+
+        const { path, name } = await appendToInboxNote({
+          inboxNotePath: finalPath,
+          content,
+          title: title || undefined,
+          sourceUrl: sourceUrl || undefined,
+          workspaceRoot: workspacePath.value,
+        });
         resultPath = path;
         resultName = name;
-
-        // F05-FR-27: Announce successful capture
-        announceCaptureMessage(`Created note: ${name}`);
+        announceCaptureMessage(`Captured to ${name}`);
       }
 
       // Notify caller and open the note if requested
@@ -219,7 +284,8 @@ export function CaptureSheet({ onCreated }: CaptureSheetProps) {
     }
   }, [
     content,
-    destinationMode,
+    targetKind,
+    targetPath,
     openAfterCapture,
     isSubmitting,
     onCreated,
@@ -340,54 +406,70 @@ export function CaptureSheet({ onCreated }: CaptureSheetProps) {
           </span>
         </div>
 
-        <fieldset class="capture-sheet-field" disabled={isSubmitting}>
-          <legend>Destination Mode</legend>
-          <div
-            class="capture-sheet-radio-group"
-            role="radiogroup"
-            aria-label="Destination mode"
+        <div class="capture-sheet-field">
+          <label
+            for="capture-target"
           >
-            <label class="capture-sheet-radio">
-              <input
-                type="radio"
-                name="destination-mode"
-                value="append"
-                checked={destinationMode === "append"}
-                onChange={() => {
-                  captureDestinationMode.value = "append";
+            Capture into <span class="sr-only">(required)</span>
+          </label>
+          <select
+            id="capture-target"
+            class="capture-sheet-input capture-sheet-select"
+            value={targetKind}
+            onChange={(e) => {
+              captureTargetKind.value = e.currentTarget.value as
+                | "inbox"
+                | "daily"
+                | "specific";
+              // Reset path when switching away from "specific"
+              if (e.currentTarget.value !== "specific") {
+                captureTargetPath.value = "";
+              }
+            }}
+            disabled={isSubmitting}
+            aria-describedby="target-hint"
+          >
+            <option value="inbox">Inbox (append)</option>
+            <option value="daily">Daily note</option>
+            <option value="specific">Specific note…</option>
+          </select>
+          <span id="target-hint" class="sr-only">
+            Choose where the capture should be saved
+          </span>
+        </div>
+
+        {/* Specific-note sub-picker */}
+        {targetKind === "specific" && (
+          <div class="capture-sheet-field capture-sheet-specific">
+            <label for="capture-target-note">
+              Note <span class="sr-only">(required)</span>
+            </label>
+            {captureNoteListLoading.value ? (
+              <span class="capture-sheet-loading" role="status">
+                Loading notes…
+              </span>
+            ) : (
+              <select
+                id="capture-target-note"
+                class="capture-sheet-input capture-sheet-select"
+                value={captureTargetPath.value}
+                onChange={(e) => {
+                  captureTargetPath.value = e.currentTarget.value;
                 }}
                 disabled={isSubmitting}
-              />
-              Append to inbox
-            </label>
-            <label class="capture-sheet-radio">
-              <input
-                type="radio"
-                name="destination-mode"
-                value="new"
-                checked={destinationMode === "new"}
-                onChange={() => {
-                  captureDestinationMode.value = "new";
-                }}
-                disabled={isSubmitting}
-              />
-              Create new note
-            </label>
-            <label class="capture-sheet-radio">
-              <input
-                type="radio"
-                name="destination-mode"
-                value="date"
-                checked={destinationMode === "date"}
-                onChange={() => {
-                  captureDestinationMode.value = "date";
-                }}
-                disabled={isSubmitting}
-              />
-              Date pattern note
-            </label>
+                aria-describedby="target-note-hint"
+              >
+                <option value="">Select a note…</option>
+                {captureNoteList.value.map((n) => (
+                  <option value={n.path}>{n.label}</option>
+                ))}
+              </select>
+            )}
+            <span id="target-note-hint" class="sr-only">
+              Choose an existing note to append to
+            </span>
           </div>
-        </fieldset>
+        )}
 
         <div class="capture-sheet-field">
           <label class="capture-sheet-checkbox">
@@ -405,7 +487,7 @@ export function CaptureSheet({ onCreated }: CaptureSheetProps) {
 
         {/* F05-FR-27: Destination preview with proper accessibility */}
         <div class="capture-sheet-preview" aria-live="polite">
-          {destinationMode === "append" && (
+          {targetKind === "inbox" && (
             <span>
               Destination:{" "}
               <strong>
@@ -413,22 +495,20 @@ export function CaptureSheet({ onCreated }: CaptureSheetProps) {
               </strong>
             </span>
           )}
-          {destinationMode === "new" && (
-            <span>
-              Destination:{" "}
-              <strong>
-                {workspaceSettings.value.captureInboxFolder ||
-                  workspacePath.value ||
-                  "Workspace root"}
-              </strong>
-            </span>
-          )}
-          {destinationMode === "date" && (
+          {targetKind === "daily" && (
             <span>
               Destination:{" "}
               <strong>
                 {workspaceSettings.value.captureDatePattern ||
                   "Daily/YYYY-MM-DD.md"}
+              </strong>
+            </span>
+          )}
+          {targetKind === "specific" && (
+            <span>
+              Destination:{" "}
+              <strong>
+                {captureTargetPath.value || "Select a note…"}
               </strong>
             </span>
           )}
@@ -495,6 +575,10 @@ export function closeCaptureSheet() {
   captureSourceUrl.value = "";
   captureDestinationMode.value = "new";
   captureOpenAfterCapture.value = true;
+  // Reset target picker state
+  captureTargetKind.value = "inbox";
+  captureTargetPath.value = "";
+  captureNoteList.value = [];
   // F05-FR-27: Clear accessibility announcement
   captureAnnouncement.value = "";
 }

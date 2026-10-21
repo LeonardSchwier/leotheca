@@ -26,6 +26,9 @@ const {
   closeCaptureSheet,
   announceCaptureMessage,
   captureAnnouncement,
+  captureTargetKind,
+  captureTargetPath,
+  captureNoteList,
 } = await import("./CaptureSheet");
 
 describe("CaptureSheet Accessibility (F05-FR-27)", () => {
@@ -173,5 +176,106 @@ describe("CaptureSheet Sheet-primitive integration", () => {
     fireEvent.keyDown(document, { key: "Escape" });
     expect(document.activeElement).toBe(opener);
     opener.remove();
+  });
+});
+
+// ── Quick Capture target picker (rm-dd5994dcac66ebf8) ──────────────────────
+describe("CaptureSheet target picker", () => {
+  beforeEach(() => {
+    captureSheetOpen.value = false;
+    captureContent.value = "";
+    captureTitle.value = "";
+    captureSourceUrl.value = "";
+    captureDestinationMode.value = "new";
+    captureOpenAfterCapture.value = true;
+    captureAnnouncement.value = "";
+    captureTargetKind.value = "inbox";
+    captureTargetPath.value = "";
+  });
+
+  afterEach(() => {
+    cleanup();
+    closeCaptureSheet();
+    captureTargetKind.value = "inbox";
+    captureTargetPath.value = "";
+    document.body.style.overflow = "";
+  });
+
+  it("exports the target-selection signals", () => {
+    expect(captureTargetKind).toBeDefined();
+    expect(captureTargetPath).toBeDefined();
+  });
+
+  it("renders a 'Capture into' select when open", () => {
+    captureSheetOpen.value = true;
+    const { getByRole } = render(<CaptureSheet />);
+    const select = getByRole("combobox", { name: /capture into/i }) as HTMLSelectElement;
+    expect(select).toBeDefined();
+    // Default target is the inbox
+    expect(select.value).toBe("inbox");
+  });
+
+  it("shows a 'Pick a specific note…' option", () => {
+    captureSheetOpen.value = true;
+    const { getAllByRole } = render(<CaptureSheet />);
+    const options = getAllByRole("option");
+    const values = options.map((o) => o.getAttribute("value"));
+    expect(values).toContain("specific");
+  });
+
+  it("shows a 'Specific note' input when 'specific' is selected", () => {
+    captureSheetOpen.value = true;
+    captureTargetKind.value = "specific";
+    const { queryByLabelText, queryByRole } = render(<CaptureSheet />);
+    // The sub-picker renders a <select> labelled "Note" (id: capture-target-note)
+    const input = queryByLabelText(/^note/i) ?? queryByRole("combobox", { name: /^note/i });
+    expect(input).not.toBeNull();
+  });
+
+  it("does NOT show the specific-note input for other target kinds", () => {
+    captureSheetOpen.value = true;
+    captureTargetKind.value = "inbox";
+    const { queryByRole } = render(<CaptureSheet />);
+    // Only the main target select should be present, no note sub-picker
+    const selects = queryByRole("combobox", { name: /^note/i });
+    expect(selects).toBeNull();
+  });
+
+  it("resets captureTargetKind and captureTargetPath on close", () => {
+    captureSheetOpen.value = true;
+    captureTargetKind.value = "specific";
+    captureTargetPath.value = "/some/path.md";
+    closeCaptureSheet();
+    expect(captureTargetKind.value).toBe("inbox");
+    expect(captureTargetPath.value).toBe("");
+  });
+
+  it("updates the target select when the user changes it", () => {
+    captureSheetOpen.value = true;
+    const { getByRole } = render(<CaptureSheet />);
+    const select = getByRole("combobox", { name: /capture into/i });
+    fireEvent.change(select, { target: { value: "daily" } });
+    expect(captureTargetKind.value).toBe("daily");
+  });
+
+  it("updates captureTargetPath when the user selects a specific note", () => {
+    captureSheetOpen.value = true;
+    captureTargetKind.value = "specific";
+    captureNoteList.value = [
+      { label: "Notes.md", path: "/workspace/Notes.md" },
+      { label: "Ideas.md", path: "/workspace/Ideas.md" },
+    ];
+    const { getByRole } = render(<CaptureSheet />);
+    const select = getByRole("combobox", { name: /^note/i }) as HTMLSelectElement;
+    fireEvent.change(select, { target: { value: "/workspace/Notes.md" } });
+    expect(captureTargetPath.value).toBe("/workspace/Notes.md");
+  });
+
+  it("renders the target select inside the capture sheet dialog", () => {
+    captureSheetOpen.value = true;
+    const { getByRole } = render(<CaptureSheet />);
+    const dialog = getByRole("dialog", { name: "Quick Capture" });
+    const select = dialog.querySelector("select");
+    expect(select).not.toBeNull();
   });
 });

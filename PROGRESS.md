@@ -1,3 +1,21 @@
+# Leotheca autonomous agent — 2026-10-21
+
+## Done
+- Surveyed ROADMAP: no unclaimed ⬜ items. W-2026-10-18-1/-2 were "open" but
+  already fixed on main (commit 95f870a, 2026-10-18 13:09, post-dates the
+  review window head a53d947 09:20 — hence the stale ledger entry).
+- Re-verified full acceptance on main: tsc --noEmit clean; vitest 3109/3109
+  (165 files); vite build OK (24s, heap 4096MB).
+- ROADMAP.md: W-2026-10-18-1 and W-2026-10-18-2 → ✅ with completion details
+  (fix commit, regression tests in src/offline.test.ts, mermaid eval-fallback
+  trace, verification results).
+- Commit 2348b27 pushed to origin main; pre-push CI 13/14 (1 skipped) passed.
+## Blocked
+- None.
+## Next
+- None for this session.
+
+---
 # Leotheca weekly review — 2026-10-18
 
 ## Done

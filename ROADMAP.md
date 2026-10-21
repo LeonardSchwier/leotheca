@@ -204,15 +204,11 @@ _No prior security audit ledger exists for this repository. This is the first st
 
 _Weekly review of code committed 2026-10-11..2026-10-18 (commits `3dc26d8..a53d947`). Scope: the 2026-10-16 audit's open findings, plus new attack surface in the window (kanban view, collapsible collection groups, macOS Quick Look converter, Android recent-notes widget, competitor-scan roadmap items). Verified: `npx vitest run` 3052/3052 (162 files), `npx tsc --noEmit` clean, `npx vite build` OK. No new critical/high findings; 1 medium carry-over still open, 2 low new._
 
-**W-2026-10-18-1 (medium, carry-over — unchanged) — `script-src 'unsafe-eval'` in CSP**
-`src-tauri/tauri.conf.json:23`. Still present on `a53d947`; handoff `.agents/handoffs/rm-s2-unsafe-eval-csp.md` exists but is unclaimed. No code change in the window touches it, so the finding stands as written on 2026-10-16: `unsafe-eval` widens the XSS payload surface, and the suggested CSP regression test (see W-2026-10-18-2) is still missing.
+**W-2026-10-18-1 (medium, carry-over) — `script-src 'unsafe-eval'` in CSP** ✅
+`src-tauri/tauri.conf.json`. **Resolved 2026-10-21.** The fix landed in commit `95f870a` (2026-10-18, "fix(csp): remove unsafe-eval from script-src, add regression test") but the ledger entry was never closed — this is the ledger correction, not a re-implementation. Current config: `script-src 'self'` (no `unsafe-eval` anywhere in the CSP). Acceptance verified: (1) `unsafe-eval` absent from `script-src`; (2) regression test present (see W-2026-10-18-2); (3) mermaid renders without `eval` — both `renderMermaidToSvg` (src/markdown/mermaid.ts) and the MarkdownPreview effect catch failures and fall back to a code block; d3-dsv is the only `new Function` user in the dependency graph and is not bundled into mermaid's esm build; (4) `npx tsc --noEmit` clean, `npx vitest run` 3109/3109 (165 files), `npx vite build` OK (2026-10-21 re-verification).
 
-*Fix:* as recorded for S-2 (2026-10-16): remove `'unsafe-eval'` after verifying mermaid/monaco do not need runtime `eval` (both ship as static bundles), or move their evaluation to a CSP-scoped Web Worker.
-
-**W-2026-10-18-2 (low, new) — no CSP regression test; `unsafe-eval` can silently return**
-The S-1 session added `src/assetProtocolScope.test.ts` locking the asset-scope invariant in CI, but no test asserts the CSP `script-src` directive does not contain `'unsafe-eval'`. `src/offline.test.ts` checks other CSP directives; a future edit to `tauri.conf.json` re-adding `unsafe-eval` would land with no CI alarm, the same gap class S-1 fixed for the asset protocol.
-
-*Fix:* add a test (e.g. in a new `src/cspPolicy.test.ts` or alongside the asset-scope tests) that parses `tauri.conf.json`'s CSP and asserts `script-src` does not include `'unsafe-eval'`, mirroring the asset-scope guard.
+**W-2026-10-18-2 (low, new) — no CSP regression test; `unsafe-eval` can silently return** ✅
+**Resolved 2026-10-21 (ledger correction).** The test already exists: `src/offline.test.ts` "does not include 'unsafe-eval' in script-src (W-2026-10-18-2)" and "script-src contains only 'self' (no eval, no remote scripts)" (added with the fix in `95f870a`). Both tests pass in the 2026-10-21 run; any future edit re-adding `unsafe-eval` to `tauri.conf.json` will now fail CI. The 2026-10-18 review recorded these as open based on the state of the review-window snapshot; the fix commit `95f870a` (2026-10-18 13:09) post-dates the review's window head `a53d947` (2026-10-18 09:20), which is why the finding appeared unresolved at review time.
 
 **W-2026-10-18-3 (very low, new) — Quick Look converter: unescaped regex `$` patterns in substitution** ✅
 `packaging/macos/quicklook/LeothecaMarkdownQLPreviewGenerator.m:173-193`: the markdown-to-HTML conversion uses `NSRegularExpression` replacements whose replacement strings are regex patterns, so note content containing `$&`, `$1`, etc. would be substituted as backreferences (e.g. a note titled `a $& b` renders `a <h1> b $& b`). The input is local user-authored note content rendered into a `WKWebView` (`loadHTMLString:baseURL:nil`, all HTML-special characters escaped at 145-147), so there is no XSS and no data-exfiltration path — output fidelity only, in a throwaway preview surface.
@@ -235,8 +231,8 @@ The S-1 session added `src/assetProtocolScope.test.ts` locking the asset-scope i
 
 | ID | Severity | Status | Component | Issue |
 |----|----------|--------|-----------|-------|
-| W-2026-10-18-1 | medium | open (carry-over S-2) | `src-tauri/tauri.conf.json:23` | `unsafe-eval` in CSP `script-src` |
-| W-2026-10-18-2 | low | open | CSP tests | no regression test locking CSP free of `unsafe-eval` |
+| W-2026-10-18-1 | medium | ✅ resolved 2026-10-21 (fix `95f870a` + ledger correction) | `src-tauri/tauri.conf.json` | `unsafe-eval` in CSP `script-src` |
+| W-2026-10-18-2 | low | ✅ resolved 2026-10-21 (tests in `src/offline.test.ts`, added with `95f870a`) | CSP tests | no regression test locking CSP free of `unsafe-eval` |
 | W-2026-10-18-3 | very low | ✅ resolved (false positive + regression tests) | `packaging/macos/quicklook/LeothecaMarkdownQLPreviewGenerator.m:173-193` | unescaped `$` in regex replacement patterns |
 
 _Review only — no fixes implemented this pass; see the open items above for the suggested fixes._

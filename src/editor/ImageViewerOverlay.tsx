@@ -13,6 +13,7 @@ export function ImageViewerOverlay({
   onClose,
 }: ImageViewerOverlayProps) {
   const [resolvedSrc, setResolvedSrc] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [scale, setScale] = useState<number>(1);
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [position, setPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -21,12 +22,20 @@ export function ImageViewerOverlay({
 
   // Load the actual file source for local images
   useEffect(() => {
+    setError(null);
     if (src.startsWith("leotheca:")) {
       const path = src.slice("leotheca:".length);
       let cancelled = false;
-      fileSrc(path).then((resolved) => {
-        if (!cancelled) setResolvedSrc(resolved);
-      });
+      fileSrc(path)
+        .then((resolved) => {
+          if (!cancelled) setResolvedSrc(resolved);
+        })
+        .catch(() => {
+          // fileSrc rejects when the file is gone or the path is unreadable.
+          // Handle it here (never leave an unhandled rejection) and surface a
+          // recoverable error state instead of hanging on "Loading...".
+          if (!cancelled) setError("This image could not be loaded.");
+        });
       return () => {
         cancelled = true;
       };
@@ -120,6 +129,23 @@ export function ImageViewerOverlay({
   }, []);
 
   if (!resolvedSrc) {
+    if (error) {
+      return (
+        <div class="image-overlay image-overlay-error" onClick={onClose}>
+          <div class="image-overlay-content">
+            <p>{error}</p>
+            <button
+              class="image-overlay-button image-overlay-close"
+              onClick={(e) => { e.stopPropagation(); onClose(); }}
+              title="Close"
+              aria-label="Close"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      );
+    }
     return (
       <div class="image-overlay" onClick={onClose}>
         <div class="image-overlay-content">

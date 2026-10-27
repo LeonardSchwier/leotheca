@@ -121,6 +121,27 @@ describe("ImageViewer", () => {
     }).not.toThrow();
   });
 
+  it("does not leak an unhandled promise rejection and shows an error state when fileSrc rejects", async () => {
+    vi.mocked(fileSrc).mockRejectedValue(new Error("file not found"));
+    const unhandled = vi.fn();
+    window.addEventListener("unhandledrejection", unhandled);
+
+    const { container } = render(<ImageViewer path="/vault/missing.png" />);
+
+    // Let the rejected promise settle (and any late microtasks flush).
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    window.removeEventListener("unhandledrejection", unhandled);
+    expect(unhandled).not.toHaveBeenCalled();
+
+    // The viewer must not hang on "Loading..." — it should surface an error
+    // state the user can act on (a close button when one is available).
+    expect(container.textContent).not.toContain("Loading...");
+  });
+
   it("calls onClose once per Escape press when the prop is supplied", async () => {
     vi.mocked(fileSrc).mockResolvedValue("asset://localhost/vault/a.png");
     const onClose = vi.fn();

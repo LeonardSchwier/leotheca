@@ -13,6 +13,7 @@ interface ImageViewerProps {
 
 export function ImageViewer({ path, onClose }: ImageViewerProps) {
   const [src, setSrc] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [scale, setScale] = useState<number>(1);
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [position, setPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -22,9 +23,17 @@ export function ImageViewer({ path, onClose }: ImageViewerProps) {
   useEffect(() => {
     let cancelled = false;
     setSrc(null);
-    fileSrc(path).then((resolved) => {
-      if (!cancelled) setSrc(resolved);
-    });
+    setError(null);
+    fileSrc(path)
+      .then((resolved) => {
+        if (!cancelled) setSrc(resolved);
+      })
+      .catch(() => {
+        // fileSrc rejects when the file is gone or the path is unreadable.
+        // Handle it here (never leave an unhandled rejection) and surface a
+        // recoverable error state instead of hanging on "Loading...".
+        if (!cancelled) setError("This image could not be loaded.");
+      });
     return () => {
       cancelled = true;
     };
@@ -108,6 +117,18 @@ export function ImageViewer({ path, onClose }: ImageViewerProps) {
   }, [handleKeyDown]);
 
   if (!src) {
+    if (error) {
+      return (
+        <div class="image-viewer image-viewer-error">
+          <p>{error}</p>
+          {onClose && (
+            <button class="image-viewer-button image-viewer-close" onClick={onClose} title="Close" aria-label="Close">
+              ×
+            </button>
+          )}
+        </div>
+      );
+    }
     return <div class="image-viewer">Loading...</div>;
   }
 

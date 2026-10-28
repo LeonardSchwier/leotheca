@@ -11,7 +11,8 @@ export type AutomationCommand =
   | { kind: "open-favorites" }
   | { kind: "open-note"; path: string }
   | { kind: "new-note"; content: string }
-  | { kind: "capture"; text: string; title?: string; url?: string; mode?: "append" | "new" | "date"; profile?: string; open?: boolean };
+  | { kind: "capture"; text: string; title?: string; url?: string; mode?: "append" | "new" | "date"; profile?: string; open?: boolean }
+  | { kind: "insert-heading"; path: string; heading: string; content: string; position?: "prepend" | "append"; exactLevel?: number };
 
 /** Parses an incoming leotheca:// URL into a typed command, or null for
  * anything not recognized (a different scheme, an unknown command, or a
@@ -100,6 +101,44 @@ export function parseAutomationUrl(url: string): AutomationCommand | null {
         ...(mode && { mode }),
         ...(profile && { profile }),
         ...(open && { open })
+      };
+    }
+    case "insert-heading": {
+      // Heading-scoped insert (Market Solution #2 1.15.0 Desktop feature):
+      // append or prepend content under a specific heading in a note.
+      const path = parsed.searchParams.get("path");
+      const heading = parsed.searchParams.get("heading");
+      const content = parsed.searchParams.get("content");
+      if (!path || !heading || !content) return null;
+
+      // Reuse the same path-length guard as open-note
+      const MAX_PATH_LENGTH = 4096;
+      if (path.length > MAX_PATH_LENGTH) return null;
+
+      const position = parsed.searchParams.get("position");
+      if (position !== null && position !== "prepend" && position !== "append") {
+        return null;
+      }
+
+      const exactLevelRaw = parsed.searchParams.get("exactLevel");
+      let exactLevel: number | undefined;
+      if (exactLevelRaw !== null) {
+        const n = Number(exactLevelRaw);
+        if (!Number.isInteger(n) || n < 1 || n > 6) return null;
+        exactLevel = n;
+      }
+
+      // Content size guard (32 KiB, UTF-8 bytes)
+      const payloadBytes = new TextEncoder().encode(content).length;
+      if (payloadBytes > 32 * 1024) return null;
+
+      return {
+        kind: "insert-heading",
+        path,
+        heading,
+        content,
+        ...(position && { position }),
+        ...(exactLevel !== undefined && { exactLevel }),
       };
     }
     default:

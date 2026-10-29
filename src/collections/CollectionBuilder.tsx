@@ -12,8 +12,10 @@ import {
   type QueryOperatorV1,
   type QueryValueV1,
   type SystemFieldName,
+  type CollectionViewV1,
 } from "./collectionTypes";
 import { evaluateQueryNode, type NoteRecord } from "./collectionQuery";
+import { FilterRowsMenu } from "./FilterRowsMenu";
 import "./collections.css";
 
 /**
@@ -487,7 +489,13 @@ export interface CollectionBuilderProps {
    * comment). */
   notes: NoteRecord[];
   propertyKeys: string[];
-  onSave: (input: { name: string; description: string; query: QueryGroupV1 }) => void;
+  /** Optional: the collection's view shape (for the filter rows menu).
+   * When provided, the builder shows the "All views" / "This view"
+   * filter rows menu below the query builder. */
+  initialView?: CollectionViewV1;
+  /** Optional: callback when the view's filter rows change. */
+  onViewChange?: (view: CollectionViewV1) => void;
+  onSave: (input: { name: string; description: string; query: QueryGroupV1; view?: CollectionViewV1 }) => void;
   onCancel: () => void;
 }
 
@@ -502,12 +510,15 @@ export function CollectionBuilder({
   initialQuery,
   notes,
   propertyKeys,
+  initialView,
+  onViewChange,
   onSave,
   onCancel,
 }: CollectionBuilderProps) {
   const [name, setName] = useState(initialName);
   const [description, setDescription] = useState(initialDescription);
   const [query, setQuery] = useState<QueryGroupV1>(initialQuery);
+  const [view, setView] = useState<CollectionViewV1>(initialView ?? { mode: "list" });
 
   const totalClauses = countClauses(query);
   const tooManyClauses = totalClauses > MAX_QUERY_CLAUSES;
@@ -537,6 +548,30 @@ export function CollectionBuilder({
       </label>
 
       <QueryGroupEditor group={query} onChange={setQuery} depth={0} propertyKeys={propertyKeys} />
+
+      {initialView && (
+        <FilterRowsMenu
+          collection={{
+            id: "builder-preview",
+            name: name || "Untitled",
+            description,
+            query,
+            view,
+            sort: [],
+            createdAt: "",
+            updatedAt: "",
+          }}
+          onChange={(updated) => {
+            const newView = updated.view;
+            setView(newView);
+            if (onViewChange) onViewChange(newView);
+            // Also sync root query if "All views" filters changed
+            if (updated.query.type === "group") {
+              setQuery(updated.query);
+            }
+          }}
+        />
+      )}
 
       {tooManyClauses && (
         <p class="collections-builder-error">

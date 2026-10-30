@@ -30,8 +30,8 @@ Significant missing features users expect.
 - ⏸ **Android folder-picker display name** — Picker always labels a new workspace "Workspace" instead of the real folder name. Status: claimed, needs on-device verification.
 - ⏸ **Android home-screen widgets** — Recent-notes widget has a full-workspace re-walk performance issue and colliding labels; "favorites" hamburger bug under investigation. Status: in progress.
 - 🚧 **Android camera capture** — Take a photo directly from the "Insert attachment" toolbar. Status: open.
-  <!-- agent-state: {"schema":1,"id":"rm-5fc96a0db16f2169","state":"claimed","touch":["ROADMAP.md","src/editor/MarkdownEditor.test.tsx","src/editor/MarkdownEditor.tsx","src/editor/attachments.test.ts","src/editor/attachments.ts","src/editor/cameraCapture.test.ts","src/editor/cameraCapture.ts"],"resources":["android-camera-attachment"],"owner":"hermes-20261022T070453Z-341169da","token":"b245bc97a0a83e871537a1b512d02a0c","branch":"agent/rm-5fc96a0db16f2169/b245bc97a0a8","claimed_at":"2026-10-22T07:05:01Z","heartbeat_at":"2026-10-22T07:05:01Z","lease_until":"2026-10-22T08:35:01Z"} -->
-  Agent: hermes-20261022T070453Z-341169da | item: rm-5fc96a0db16f2169 | lease until: 2026-10-22T08:35:01Z
+  <!-- agent-state: {"schema":1,"id":"rm-5fc96a0db16f2169","state":"claimed","touch":["ROADMAP.md","src/editor/MarkdownEditor.test.tsx","src/editor/MarkdownEditor.tsx","src/editor/attachments.test.ts","src/editor/attachments.ts","src/editor/cameraCapture.test.ts","src/editor/cameraCapture.ts"],"resources":["android-camera-attachment"],"owner":"hermes-20261030T080439Z-0fdb1a0c","token":"22f57f7a6951b757ce94c2b5ab13c6e2","branch":"agent/rm-5fc96a0db16f2169/22f57f7a6951","claimed_at":"2026-10-30T08:05:32Z","heartbeat_at":"2026-10-30T08:05:32Z","lease_until":"2026-10-30T09:35:32Z"} -->
+  Agent: hermes-20261030T080439Z-0fdb1a0c | item: rm-5fc96a0db16f2169 | lease until: 2026-10-30T09:35:32Z
 - ⏸ **Compatibility layer** — Load community extension manifests; gated on maintainer approval of the third-party-code security model. Status: open.
 
 ## P2 — Polish & fixes

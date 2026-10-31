@@ -277,6 +277,8 @@ _Review only — no fixes implemented this pass; see the open items above for th
   <summary>Why / source</summary>
   Market Solution #2 1.14.3 Desktop added a Group menu to its Bases toolbar for choosing the property to group by, plus manual reorder, hide, and add of groups in any view type. The collapsible-groups item (queued from the same scan) covers section collapsing; this covers the grouping controls.
   </details>
+- ⬜ **MCP server: expose the note store to local AI tools**: Joplin Desktop v3.7.22 (Oct 28, 2026) added a read_notes MCP tool with outline/section navigation and search_notes returning the enclosing section. Leotheca's existing note-store APIs already cover this shape; exposing them through a local-only MCP endpoint (no network, plain-file reads, no telemetry) lets the user's local LLM stack read and navigate their notes without a proprietary convention. (Competitor scan, Joplin Desktop changelog v3.7.22, 2026-10-28)
+- ⬜ **Import notes from an Obsidian vault**: Joplin Desktop v3.7.13 (Aug 28, 2026) added support for importing notes from Obsidian. Since Leotheca already reads plain Markdown, importing an Obsidian vault is plain-file, offline, and requires no new convention. (Competitor scan, Joplin Desktop changelog v3.7.13, 2026-08-28)
 
 ## Implemented
 

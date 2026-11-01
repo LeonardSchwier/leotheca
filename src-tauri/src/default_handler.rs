@@ -71,6 +71,7 @@ pub fn markdown_association() -> FileAssociation {
 #[serde(rename_all = "kebab-case")]
 pub enum Platform {
     Windows,
+    #[allow(non_camel_case_types)]
     macOS,
     Linux,
     Android,

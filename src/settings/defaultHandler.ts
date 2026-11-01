@@ -215,6 +215,7 @@ export function currentDefaultHandlerContract(): DefaultHandlerContract {
   try {
     // Capacitor is only importable in the app bundle context; this is the
     // same pattern used elsewhere in the codebase (`isNativePlatform()`).
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { Capacitor } = require("@capacitor/core") as {
       Capacitor: { getPlatform(): string };
     };

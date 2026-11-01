@@ -3,7 +3,7 @@ import { marked, type Tokens } from "marked";
 import DOMPurify from "dompurify";
 import katex from "katex";
 import "katex/dist/katex.min.css";
-import { setMermaidRenderingEnabled, renderMermaidToSvg } from "../markdown/mermaid";
+import { setMermaidRenderingEnabled, renderMermaidToSvg, sanitizeMermaidSvgForInjection } from "../markdown/mermaid";
 import { fileNameFromPath, resolveWikilink } from "../linking/store";
 import { parseWikiLinks, type WikiLinkFragment, type WikiLinkRecord } from "../linking/wikiSyntax";
 import {
@@ -1714,7 +1714,10 @@ export function MarkdownPreview({
       void renderMermaidToSvg(source)
         .then((svg: string) => {
           if (cancelled) return;
-          el.outerHTML = svg;
+          // W-2026-11-01-2: last guard at the injection site — this outerHTML
+          // write happens after the container's main DOMPurify pass, so the
+          // SVG must be explicitly sanitized right before it enters the DOM.
+          el.outerHTML = sanitizeMermaidSvgForInjection(svg);
         })
         .catch(() => {
           if (cancelled) return;

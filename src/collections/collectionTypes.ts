@@ -191,14 +191,14 @@ export const SYSTEM_FIELD_OPERATOR_FAMILIES: Record<SystemFieldName, keyof typeo
 };
 
 export type CollectionViewV1 =
-  | { mode: "list"; groupBy?: string; groupOrder?: string[] }
-  | { mode: "table"; columns?: string[]; groupBy?: string; groupOrder?: string[] }
-  | { mode: "card"; fields?: string[]; groupBy?: string; groupOrder?: string[] }
+  | { mode: "list"; groupBy?: string; groupOrder?: string[]; filters?: QueryClauseV1[] }
+  | { mode: "table"; columns?: string[]; groupBy?: string; groupOrder?: string[]; filters?: QueryClauseV1[] }
+  | { mode: "card"; fields?: string[]; groupBy?: string; groupOrder?: string[]; filters?: QueryClauseV1[] }
   /** A read-only board grouped by one top-level indexed frontmatter key.
    * `groupOrder` is an optional per-view manual ordering of column labels
    * (set via the Group by menu); columns not listed fall back to the
    * derived (alphabetical) order. */
-  | { mode: "kanban"; groupBy: string; groupOrder?: string[] };
+  | { mode: "kanban"; groupBy: string; groupOrder?: string[]; filters?: QueryClauseV1[] };
 
 export type SortFieldV1 =
   | { kind: "system"; field: "name" | "path" | "folder" | "modified" }

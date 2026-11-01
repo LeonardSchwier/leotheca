@@ -24,8 +24,8 @@
  */
 export function fuzzyScore(query: string, target: string): number {
   if (!query) return 1; // empty query matches everything with base score
-  const q = query.toLowerCase();
-  const t = target.toLowerCase();
+  const q = foldDiacritics(query.toLowerCase());
+  const t = foldDiacritics(target.toLowerCase());
   if (q.length > t.length) return -1;
 
   // Subsequence walk with scoring
@@ -83,4 +83,12 @@ export function fuzzyFilter<T>(
 
 function isWordChar(c: string): boolean {
   return /[a-z0-9_]/i.test(c);
+}
+
+/**
+ * Strip diacritical marks (accents, umlauts, cedillas, etc.) via NFD
+ * decomposition so that "cafe" matches "café" and vice-versa.
+ */
+function foldDiacritics(s: string): string {
+  return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }

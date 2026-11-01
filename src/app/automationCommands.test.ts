@@ -141,4 +141,129 @@ describe("parseAutomationUrl", () => {
     expect(result).not.toBeNull();
     expect(result?.kind).toBe("capture");
   });
+
+  describe("insert-heading", () => {
+    it("parses path, heading, and content", () => {
+      expect(
+        parseAutomationUrl(
+          "leotheca://insert-heading?path=%2Fnotes%2FTodo.md&heading=Tasks&content=Do%20things",
+        ),
+      ).toEqual({
+        kind: "insert-heading",
+        path: "/notes/Todo.md",
+        heading: "Tasks",
+        content: "Do things",
+      });
+    });
+
+    it("parses position=prepend", () => {
+      expect(
+        parseAutomationUrl(
+          "leotheca://insert-heading?path=%2Fn.md&heading=H&content=X&position=prepend",
+        ),
+      ).toEqual({
+        kind: "insert-heading",
+        path: "/n.md",
+        heading: "H",
+        content: "X",
+        position: "prepend",
+      });
+    });
+
+    it("parses position=append", () => {
+      expect(
+        parseAutomationUrl(
+          "leotheca://insert-heading?path=%2Fn.md&heading=H&content=X&position=append",
+        ),
+      ).toEqual({
+        kind: "insert-heading",
+        path: "/n.md",
+        heading: "H",
+        content: "X",
+        position: "append",
+      });
+    });
+
+    it("parses exactLevel=3", () => {
+      expect(
+        parseAutomationUrl(
+          "leotheca://insert-heading?path=%2Fn.md&heading=H&content=X&exactLevel=3",
+        ),
+      ).toEqual({
+        kind: "insert-heading",
+        path: "/n.md",
+        heading: "H",
+        content: "X",
+        exactLevel: 3,
+      });
+    });
+
+    it("returns null when path is missing", () => {
+      expect(
+        parseAutomationUrl("leotheca://insert-heading?heading=H&content=X"),
+      ).toBeNull();
+    });
+
+    it("returns null when heading is missing", () => {
+      expect(
+        parseAutomationUrl("leotheca://insert-heading?path=%2Fn.md&content=X"),
+      ).toBeNull();
+    });
+
+    it("returns null when content is missing", () => {
+      expect(
+        parseAutomationUrl("leotheca://insert-heading?path=%2Fn.md&heading=H"),
+      ).toBeNull();
+    });
+
+    it("returns null for an invalid position value", () => {
+      expect(
+        parseAutomationUrl(
+          "leotheca://insert-heading?path=%2Fn.md&heading=H&content=X&position=middle",
+        ),
+      ).toBeNull();
+    });
+
+    it("returns null for an out-of-range exactLevel", () => {
+      expect(
+        parseAutomationUrl(
+          "leotheca://insert-heading?path=%2Fn.md&heading=H&content=X&exactLevel=7",
+        ),
+      ).toBeNull();
+    });
+
+    it("returns null for exactLevel=0", () => {
+      expect(
+        parseAutomationUrl(
+          "leotheca://insert-heading?path=%2Fn.md&heading=H&content=X&exactLevel=0",
+        ),
+      ).toBeNull();
+    });
+
+    it("returns null for a non-integer exactLevel", () => {
+      expect(
+        parseAutomationUrl(
+          "leotheca://insert-heading?path=%2Fn.md&heading=H&content=X&exactLevel=2.5",
+        ),
+      ).toBeNull();
+    });
+
+    it("rejects content exceeding 32 KiB", () => {
+      const large = "x".repeat(32 * 1024 + 1);
+      expect(
+        parseAutomationUrl(
+          `leotheca://insert-heading?path=%2Fn.md&heading=H&content=${encodeURIComponent(large)}`,
+        ),
+      ).toBeNull();
+    });
+
+    it("rejects a path exceeding 4096 chars", () => {
+      const longPath = "/" + "a".repeat(4097);
+      expect(
+        parseAutomationUrl(
+          `leotheca://insert-heading?path=${encodeURIComponent(longPath)}&heading=H&content=X`,
+        ),
+      ).toBeNull();
+    });
+  });
 });

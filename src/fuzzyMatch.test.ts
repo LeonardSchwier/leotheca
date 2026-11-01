@@ -50,6 +50,39 @@ describe("fuzzyScore", () => {
     expect(fuzzyScore("n", "my/notes")).toBeGreaterThan(0);
   });
 
+  it("matches diacritic-free query against diacritic-bearing target", () => {
+    // "cafe" should match "café" (accents folded away)
+    expect(fuzzyScore("cafe", "café")).toBeGreaterThan(0);
+  });
+
+  it("matches diacritic-bearing query against diacritic-free target", () => {
+    // "café" should match "cafe"
+    expect(fuzzyScore("café", "cafe")).toBeGreaterThan(0);
+  });
+
+  it("scores exact diacritic-free match higher than scattered match", () => {
+    const exact = fuzzyScore("cafe", "café latte");
+    const scattered = fuzzyScore("calte", "café latte");
+    expect(exact).toBeGreaterThan(scattered);
+  });
+
+  it("folds multiple diacritics simultaneously", () => {
+    // "naïve" → "naive"
+    expect(fuzzyScore("naive", "naïve approach")).toBeGreaterThan(0);
+    // "señor" → "senor"
+    expect(fuzzyScore("senor", "señor notes")).toBeGreaterThan(0);
+  });
+
+  it("folds umlauts and cedillas", () => {
+    expect(fuzzyScore("fuber", "füber")).toBeGreaterThan(0);
+    expect(fuzzyScore("coche", "coché")).toBeGreaterThan(0);
+  });
+
+  it("still rejects non-matching diacritic-free queries", () => {
+    // "xyz" should not match "café"
+    expect(fuzzyScore("xyz", "café")).toBe(-1);
+  });
+
   it("scores consecutive matches higher than gaps between matched chars", () => {
     // 'ac' in 'abc' — consecutive
     // vs 'ac' in 'axbc' — gap of 1 between them

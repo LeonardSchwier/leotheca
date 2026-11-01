@@ -247,6 +247,38 @@ _Weekly review of code committed 2026-10-11..2026-10-18 (commits `3dc26d8..a53d9
 
 _Review only — no fixes implemented this pass; see the open items above for the suggested fixes._
 
+## Security and privacy review (2026-11-01)
+
+_Weekly review at `1d46842` (main). Window: commits since 2026-10-25 (`8ceab87`, `1d46842`) plus uncommitted work-in-progress present in the tree (voice-note capture in `CaptureSheet.tsx`, `src/speech/captureVoice.ts`, Android camera capture in `src/editor/cameraCapture.ts` + `CameraCapturePlugin.java`, and the new local MCP server in `src/mcp/`). Verified: `timeout 600 npx vitest run` 170 files / 3176 tests pass; `timeout 600 npx tsc --noEmit` fails only on the uncommitted `cameraCapture.ts` (4 errors, W-1 below); `timeout 900 npx vite build` OK (`✓ built in 17.77s`, only the pre-existing chunk-size warning). No new critical or high findings; 2 medium (1 build-breaking, 1 latent), 1 very low._
+
+**W-2026-11-01-1 (medium, new, build-breaking) — uncommitted `cameraCapture.ts` imports `takeCameraPicture`/`CameraCaptureResult` that no bridge exports**
+`src/editor/cameraCapture.ts:16,150-151` (uncommitted WIP): `import type { CameraCaptureResult } from "../workspace/tauriBridge"` and `const { takeCameraPicture } = await import("../workspace/tauriBridge")` — but `src/workspace/tauriBridge.ts` (278 lines, neither impl re-exports it) has no such member, and no production caller invokes `captureAndInsertPhoto`/`requestCameraCaptureInsert`. `timeout 600 npx tsc --noEmit` fails with 4 errors (`cameraCapture.ts:16,150`; `cameraCapture.test.ts:136,144`) while the committed HEAD is clean — this WIP would break the pre-push hook and CI for whoever commits it next. Security posture of the feature itself is otherwise sound: `CameraCapturePlugin.java` uses a `FileProvider` URI (not `file://`), deletes the temp JPEG in `finally`, the webview path reuses the workspace-contained `saveAttachment`, and the manifest adds no new permission (only pre-existing `RECORD_AUDIO` for the voice note). *Fix:* commit as a unit — add `export interface CameraCaptureResult { taken: boolean; dataUrl?: string; mimeType?: string; byteLength?: number }` and `export function takeCameraPicture(): Promise<CameraCaptureResult>` to `tauriBridge.ts` (desktop: no-op `{ taken: false }`; Android: `cameraBridgePlugin("CameraCapture").takePicture()`), wire the `CaptureSheet`/`MarkdownEditor` call sites, then re-run `tsc`.
+
+**W-2026-11-01-2 (medium, new, latent) — Mermaid success-path SVG is injected via `outerHTML` after the main DOMPurify pass**
+`src/editor/MarkdownPreview.tsx:1716-1717` (committed, unchanged since the 2026-10-18 window): `renderMermaidToSvg(source).then((svg) => { el.outerHTML = svg; })` inserts the diagram into the preview container after the container's content was already passed through `DOMPurify.sanitize` (line 1388) — the fallback path (lines 1719-1725) HTML-escapes its content correctly, the success path does not. Mermaid's own `securityLevel: 'strict'` + `sanitizeMermaidSvg`'s regex + DOMPurify second pass (`src/markdown/mermaid.ts:94-105`) make this defense-in-depth, and the source comes from local note content, but any future mermaid version that emits raw `<script>`/`on*` in `result.svg` would land unsanitized in the preview DOM. *Fix:* route the success path through the same guard: `el.outerHTML = DOMPurify.sanitize(svg, { USE_PROFILES: { svg: true } })` (or reuse `sanitizeMermaidSvg`'s exported config), and add a regression test with a malicious mermaid source.
+
+**W-2026-11-01-3 (very low, new) — MCP `read_note` path argument relies entirely on the injected reader for containment**
+`src/mcp/mcpServer.ts:250-252` (new, uncommitted): `const path = String(args.path ?? "")` is passed verbatim to `deps.readNote` — `main()` injects the Tauri-bridge `readTextFile`, which enforces `check_unscoped_path_allowed`, so there is no new escape surface from stdio (the transport is local-only, no socket/HTTP, read-only tools, no telemetry — all confirmed clean). Still, the module's doc comment (lines 28-32) claims "This file adds no new path-escape surface" as if `mcpServer.ts` itself were safe, and a future re-wiring of `McpDeps.readNote` to a less restrictive reader would silently widen the exposure with no local guard. *Fix (optional):* normalize and reject absolute paths / `..` segments in `dispatchTool("read_note")` before calling `deps.readNote`, or add a comment that containment is the *dep's* contract.
+
+### Verified clean (this window)
+
+- **CSP / asset protocol** (`src-tauri/tauri.conf.json:22-27`): `script-src 'self'` (no `unsafe-eval`), `img-src 'self' asset: data: blob:`, `assetProtocol.scope: []` = deny-by-default with runtime-only grant from `set_active_workspace_root` (`commands.rs:877`) — invariant still locked by `src/assetProtocolScope.test.ts` and `src/offline.test.ts`; no regression since the 2026-10-18 review.
+- **Window commits**: `8ceab87` (image-viewer error surfacing + unhandled-rejection guards) adds try/catch/`.catch` only; `1d46842` is a ROADMAP ledger reclaim. Neither touches Tauri commands, deep links, or sanitization.
+- **DOMPurify coverage** (`src/` grep, non-test): `MarkdownPreview.tsx:1388,1612,1624` all sanitize before `innerHTML`/`dangerouslySetInnerHTML`; `mermaid.ts:105` sanitizes SVG with the SVG profile; the only remaining unguarded DOM write is the W-2 finding above. No `eval(`/`new Function` in production `src/`.
+- **Voice note** (`src/speech/captureVoice.ts`, uncommitted): opt-in behind `speechToTextEnabled` (off by default), audio never leaves the device, `transcribeBlobToText` never fabricates a transcript on error — no new attack surface; `CaptureSheet.tsx` diff only wires UI + the pre-existing `getGlobalSpeechController`.
+- **MCP server** (`src/mcp/mcpServer.ts`, uncommitted): stdio-only (no listener), read-only tool set (`search_notes`/`read_note`/`list_notes`), JSON-RPC 2.0 parse errors return `-32700`, no telemetry, `limit` caps bound both reads and matches (`mcpTools.ts:221,235`); pure logic is fully tested (`mcpTools.test.ts`, `mcpServer.test.ts`, in the 3176-passing run).
+- **Deep links / capabilities** unchanged since 2026-10-18: `automationCommands.ts` 32 KiB payload cap intact, `capabilities/default.json` still has no `shell`/`http`/`net` plugins, Android manifest only `RECORD_AUDIO`/`MODIFY_AUDIO_SETTINGS` plus the pre-existing `leotheca://` intent filters.
+
+### Summary
+
+| ID | Severity | Status | Component | Issue |
+|----|----------|--------|-----------|-------|
+| W-2026-11-01-1 | medium | ⬜ open (build-breaking WIP) | `src/editor/cameraCapture.ts:16,150` | `takeCameraPicture`/`CameraCaptureResult` imported but unexported → `tsc --noEmit` fails 4 errors |
+| W-2026-11-01-2 | medium | ⬜ open (latent) | `src/editor/MarkdownPreview.tsx:1716-1717` | Mermaid success-path SVG injected via `outerHTML` outside the DOMPurify pass |
+| W-2026-11-01-3 | very low | ⬜ open (hardening) | `src/mcp/mcpServer.ts:250-252` | `read_note` path containment is dep-contract only; no local guard |
+
+_Review only — no fixes implemented this pass._
+
 ## Done
 
 - ✅ **Editor font size: increase/decrease commands (persisted in device-local storage)**: Added "A−" / "A+" buttons to the editor toolbar (visible when a text note is open). Each step is ±1px, clamped to 12–24px range, persisted via the existing local settings store (`updateWorkspaceSettings`). Command palette "Increase font size" / "Decrease font size" and settings-panel number input were already present (commit `fc49fe9`). New 3 tests in `App.test.tsx` cover increase/decrease, min clamp, and max clamp. (2026-10-19)

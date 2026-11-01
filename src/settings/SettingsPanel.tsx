@@ -36,6 +36,10 @@ import {
 } from "./workspaceSettings";
 import { getWorkspaceStats } from "../workspace/tauriBridge";
 import { exportTextFileViaDialog } from "../workspace/tauriBridgeImpl";
+import {
+  currentDefaultHandlerContract,
+  type DefaultHandlerContract,
+} from "./defaultHandler";
 import { VaultStatsPanel } from "./VaultStatsPanel";
 import { WorkspaceProfilesSettings } from "./WorkspaceProfilesSettings";
 import { KEYBOARD_SHORTCUTS } from "../app/shortcuts";
@@ -308,6 +312,11 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
   const filteredShortcuts = KEYBOARD_SHORTCUTS.filter((shortcut) => matches(shortcut.description, shortcut.keys));
 
   const showExternalFileOpenRow = showExternalFileOpen && !Capacitor.isNativePlatform();
+  // The "Open with .md — set as default" guidance, resolved for the current
+  // platform. Computed once per render (it's a pure, cheap function); kept as
+  // a local so the JSX below can reference it and tests can stub the import.
+  const defaultHandlerContract: DefaultHandlerContract | null =
+    showExternalFileOpenRow ? currentDefaultHandlerContract() : null;
   const generalVisible =
     showRootFolder ||
     showExternalFileOpenRow ||
@@ -475,6 +484,29 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                   {option.label}
                 </button>
               ))}
+            </div>
+          </div>
+          )}
+
+          {showExternalFileOpenRow && defaultHandlerContract && (
+          <div class="settings-row">
+            <div>
+              <div class="settings-label">
+                Make Leotheca the default app for .md files
+              </div>
+              <div class="settings-hint">
+                {defaultHandlerContract.isSettable
+                  ? "Leotheca is already registered as an Open-with editor for .md files on this OS. Set it as the default using the steps for your platform."
+                  : "This OS has no per-file-type default app — pick Leotheca each time you open a .md file."}
+              </div>
+              <ol class="settings-ol">
+                {defaultHandlerContract.steps.map((step, i) => (
+                  <li key={String(i)}>
+                    <span class="settings-step-target">{step.target}</span>{" "}
+                    — {step.summary}
+                  </li>
+                ))}
+              </ol>
             </div>
           </div>
           )}

@@ -1,4 +1,5 @@
 mod commands;
+mod default_handler;
 mod external_open;
 mod speech_commands;
 mod workspace_mutations;
@@ -124,6 +125,11 @@ pub fn run() {
             speech_commands::check_whisper_models,
             external_open::take_pending_open_file,
             external_open::pick_and_read_external_markdown_file,
+            // OS "Open with" / default `.md` handler contract (ROADMAP.md's
+            // "Set the app as the default handler for `.md` files"): pure,
+            // platform-parameterized so it unit-tests on every CI platform.
+            default_handler::detect_platform,
+            default_handler::default_handler_for_platform,
         ])
         .build(tauri::generate_context!())
         .expect("error while building the Leotheca application")

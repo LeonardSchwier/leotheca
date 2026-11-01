@@ -107,6 +107,28 @@ export function sanitizeMermaidSvg(svg: string): string {
   });
 }
 
+// The injection-site guard.
+//
+// MarkdownPreview's mermaid effect writes this module's SVG output straight
+// into the DOM via `el.outerHTML = svg` *after* the container's main
+// DOMPurify pass (W-2026-11-01-2). `sanitizeMermaidSvg` above is
+// defense-in-depth and already covers the common payloads, but a future
+// mermaid release that emits raw <script>/<iframe>/<object>, inline
+// on* handlers, or dangerous href schemes would land unsanitized at the
+// injection site. This function is the last, explicit guard: it applies
+// the same regex strip plus DOMPurify with the SVG profile and a FORBID
+// list, so nothing dangerous survives no matter what mermaid emits.
+export function sanitizeMermaidSvgForInjection(svg: string): string {
+  const regexSanitized = svg
+    .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, "")
+    .replace(/(href|src|xlink:href)\s*=\s*"(?:javascript:|data:text\/html)[^"]*"/gi, "$1=\"#\"")
+    .replace(/(href|src|xlink:href)\s*=\s*(?:javascript:|data:text\/html)[^\s>]+/gi, "$1=#");
+  return DOMPurify.sanitize(regexSanitized, {
+    USE_PROFILES: { svg: true },
+    FORBID_TAGS: ["script", "iframe", "object", "embed", "foreignObject", "use"],
+  });
+}
+
 function codeBlockFallback(source: string): string {
   const escaped = source
     .replace(/&/g, "&amp;")

@@ -2,6 +2,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, waitFor } from "@testing-library/preact";
 
+vi.mock("../markdown/mermaid", async () => {
+  const actual = await vi.importActual<typeof import("../markdown/mermaid")>("../markdown/mermaid");
+  return {
+    ...actual,
+    renderMermaidToSvg: vi.fn(),
+  };
+});
+
 vi.mock("../workspace/tauriBridge", () => ({
   fileSrc: vi.fn(),
   readTextFile: vi.fn(),
@@ -1935,5 +1943,36 @@ describe("MarkdownPreview highlight (== syntax)", () => {
   it("sanitizes highlight content the same way as the rest of the document", () => {
     const { container } = render(<MarkdownPreview source={"==<script>window.pwned = true</script>=="} />);
     expect(container.querySelector("script")).toBeNull();
+  });
+});
+
+import { renderMermaidToSvg, sanitizeMermaidSvgForInjection } from "../markdown/mermaid";
+
+describe("MarkdownPreview: mermaid SVG injection-site sanitization (W-2026-11-01-2)", () => {
+  // The vi.mock above keeps the REAL sanitizeMermaidSvgForInjection (via
+  // vi.importActual) and replaces only renderMermaidToSvg with a vi.fn.
+  // So the component under test routes hostile SVG through the REAL guard.
+  // The import above resolves to the MOCKED renderMermaidToSvg (a vi.fn).
+
+  it("routes the mermaid result through the injection-site guard", async () => {
+    (renderMermaidToSvg as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(
+      `<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script><rect onmouseover="alert(2)" width="1" height="1"/></svg>`,
+    );
+    const { container } = render(
+      <MarkdownPreview source={"```mermaid\nA-->B\n```"} />,
+    );
+    await waitFor(() => {
+      expect(container.querySelector(".mermaid-placeholder")).toBeNull();
+    });
+    expect(container.innerHTML).not.toContain("<script");
+    expect(container.innerHTML).not.toMatch(/on\w+\s*=\s*["']?/i);
+    expect(container.querySelector("svg")).not.toBeNull();
+    expect(container.innerHTML).toContain("<rect");
+    // The real guard is what the component calls: pin its contract here too.
+    const guarded = sanitizeMermaidSvgForInjection(
+      `<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script><rect onmouseover="alert(2)" width="1" height="1"/></svg>`,
+    );
+    expect(guarded).not.toContain("<script");
+    expect(guarded).not.toMatch(/on\w+\s*=/i);
   });
 });

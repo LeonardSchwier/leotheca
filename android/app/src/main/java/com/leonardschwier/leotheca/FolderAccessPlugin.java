@@ -41,7 +41,14 @@ public class FolderAccessPlugin extends Plugin {
                 | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
                 | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION
         );
-        startActivityForResult(call, intent, "pickFolderResult");
+        // A device without a document-tree picker throws ActivityNotFoundException
+        // here; Capacitor rethrows anything that escapes a plugin method and the
+        // app terminates, so reject the call instead.
+        NativeBoundaryPolicy.runOrReject(
+            () -> startActivityForResult(call, intent, "pickFolderResult"),
+            call::reject,
+            "No folder picker is available on this device"
+        );
     }
 
     @ActivityCallback

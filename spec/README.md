@@ -305,3 +305,7 @@ The approved package is complete only when:
 8. F11 changes only the selected table range and never rewrites unrelated note text.
 9. Every new persisted file has runtime decoding, forward-compatibility behavior, and corruption tests.
 10. Desktop and Android documentation accurately describe the released behavior and limitations.
+
+## Per-item specs
+
+Specs written for individual roadmap items follow `skills/pdlc-playbook.md`: `spec/<slug>.md` while the item is in flight, moved to `spec/completed/<slug>.md` in the finish commit with its evidence table. This index and the SDD files above are the pre-playbook approved design pack and stay where they are.

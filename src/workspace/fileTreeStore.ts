@@ -276,7 +276,15 @@ export async function expandAll(rootPath: string) {
  * left in if `listDir` rejected for it, and collapsing then re-expanding
  * it retries the load like any other folder. */
 export async function expandFirstLevel(rootPath: string): Promise<void> {
-  const entries = await loadChildren(rootPath);
+  let entries: FsEntry[];
+  try {
+    entries = await loadChildren(rootPath);
+  } catch (error) {
+    // FileTree's mount effect fires this without a catch; an unreadable root
+    // (revoked folder, workspace switched mid-flight) must not reject.
+    console.warn("Could not expand the first level", error instanceof Error ? error.name : "error");
+    return;
+  }
   const dirs = entries.filter((entry) => entry.isDir);
   if (dirs.length === 0) return;
   expandedDirs.value = new Set(dirs.map((dir) => dir.path));
@@ -892,6 +900,12 @@ export async function runSearch(rootPath: string, query: string) {
       });
     }
     searchResults.value = scoredResults.map((r) => r.entry);
+  } catch (error) {
+    // Every caller is fire-and-forget (debounce timer, Enter, refresh), so a
+    // rejected native walk would surface as an unhandled promise rejection.
+    // Drop the now-stale results instead; the busy flag is reset below.
+    console.warn("Workspace search failed", error instanceof Error ? error.name : "error");
+    if (isCurrent()) searchResults.value = null;
   } finally {
     if (isCurrent()) searchInProgress.value = false;
   }

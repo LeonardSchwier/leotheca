@@ -1,0 +1,604 @@
+/* Component styles. Every value resolves to a token, so a theme or mode change
+ * needs no component rule of its own. Classes carry a ds- prefix to stay clear
+ * of whatever the host application already defines. */
+
+.ds-btn,
+.ds-icon-btn,
+.ds-tab,
+.ds-segmented-option,
+.ds-menu-item,
+.ds-input,
+.ds-select,
+.ds-textarea {
+  font-family: inherit;
+  transition:
+    background-color var(--ds-motion-fast) var(--ds-easing-standard),
+    border-color var(--ds-motion-fast) var(--ds-easing-standard),
+    color var(--ds-motion-fast) var(--ds-easing-standard),
+    opacity var(--ds-motion-fast) var(--ds-easing-standard);
+}
+
+/* Button */
+.ds-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ds-space-2);
+  font-weight: var(--ds-font-weight-medium);
+  border-radius: var(--ds-radius-md);
+  border: 1px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.ds-btn:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+.ds-btn-sm {
+  height: 28px;
+  padding: 0 var(--ds-space-3);
+  font-size: var(--ds-font-size-sm);
+}
+.ds-btn-md {
+  height: 34px;
+  padding: 0 var(--ds-space-4);
+  font-size: var(--ds-font-size-md);
+}
+.ds-btn-primary {
+  background: var(--ds-color-accent);
+  color: var(--ds-color-on-accent);
+  border-color: var(--ds-color-accent);
+}
+.ds-btn-primary:not(:disabled):hover {
+  background: var(--ds-color-accent-hover);
+  border-color: var(--ds-color-accent-hover);
+}
+.ds-btn-secondary {
+  background: var(--ds-color-raised);
+  color: var(--ds-color-text);
+  border-color: var(--ds-color-border-strong);
+}
+.ds-btn-secondary:not(:disabled):hover,
+.ds-btn-ghost:not(:disabled):hover {
+  background: var(--ds-color-hover);
+}
+.ds-btn-ghost {
+  background: transparent;
+  color: var(--ds-color-text);
+}
+.ds-btn-danger {
+  background: var(--ds-color-danger);
+  color: var(--ds-color-on-danger);
+  border-color: var(--ds-color-danger);
+}
+.ds-btn-danger:not(:disabled):hover {
+  filter: brightness(0.92);
+}
+.ds-btn-spinner {
+  display: inline-flex;
+}
+
+/* Icon button */
+.ds-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: var(--ds-radius-sm);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ds-color-text);
+  cursor: pointer;
+}
+.ds-icon-btn:not(:disabled):hover {
+  background: var(--ds-color-hover);
+}
+.ds-icon-btn:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+.ds-icon-btn-active {
+  background: var(--ds-color-selected);
+}
+.ds-icon-btn-sm {
+  width: 28px;
+  height: 28px;
+}
+/* 44px meets the touch target minimum used on compact layouts. */
+.ds-icon-btn-md {
+  width: 44px;
+  height: 44px;
+}
+
+/* Spinner */
+.ds-spinner {
+  display: inline-flex;
+  flex: none;
+  animation: ds-spin 0.9s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  /* Slowed rather than stopped: the motion still says that work is running. */
+  .ds-spinner {
+    animation-duration: 4s;
+  }
+}
+@keyframes ds-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Field: label, hint, and error around a control */
+.ds-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-1);
+  min-width: 0;
+}
+.ds-field-label {
+  font-size: var(--ds-font-size-sm);
+  font-weight: var(--ds-font-weight-medium);
+  color: var(--ds-color-text);
+}
+.ds-field-hint {
+  font-size: var(--ds-font-size-xs);
+  color: var(--ds-color-text-secondary);
+}
+.ds-field-error {
+  font-size: var(--ds-font-size-xs);
+  color: var(--ds-color-danger);
+}
+.ds-input,
+.ds-select,
+.ds-textarea {
+  width: 100%;
+  font-size: var(--ds-font-size-md);
+  color: var(--ds-color-text);
+  background: var(--ds-color-raised);
+  border: 1px solid var(--ds-color-border-strong);
+  border-radius: var(--ds-radius-md);
+}
+.ds-input,
+.ds-select {
+  height: 34px;
+  padding: 0 var(--ds-space-3);
+}
+.ds-textarea {
+  padding: var(--ds-space-2) var(--ds-space-3);
+  line-height: var(--ds-line-height-normal);
+  resize: vertical;
+}
+.ds-input::placeholder,
+.ds-textarea::placeholder {
+  color: var(--ds-color-text-muted);
+}
+.ds-input[aria-invalid="true"],
+.ds-select[aria-invalid="true"],
+.ds-textarea[aria-invalid="true"] {
+  border-color: var(--ds-color-danger);
+}
+.ds-input:disabled,
+.ds-select:disabled,
+.ds-textarea:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Checkbox and switch use the native input, so keyboard, form, and
+ * assistive technology behavior come from the platform. */
+.ds-check {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+  font-size: var(--ds-font-size-md);
+  color: var(--ds-color-text);
+  cursor: pointer;
+}
+.ds-check:has(input:disabled) {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.ds-checkbox-input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--ds-color-accent);
+}
+.ds-switch-input {
+  appearance: none;
+  position: relative;
+  flex: none;
+  width: 34px;
+  height: 20px;
+  margin: 0;
+  border: 1px solid var(--ds-color-border-strong);
+  border-radius: var(--ds-radius-full);
+  background: var(--ds-color-sunken);
+  cursor: inherit;
+  transition: background-color var(--ds-motion-fast) var(--ds-easing-standard);
+}
+.ds-switch-input::before {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: var(--ds-radius-full);
+  background: var(--ds-color-text-secondary);
+  transition: transform var(--ds-motion-fast) var(--ds-easing-standard);
+}
+.ds-switch-input:checked {
+  background: var(--ds-color-accent);
+  border-color: var(--ds-color-accent);
+}
+.ds-switch-input:checked::before {
+  background: var(--ds-color-on-accent);
+  transform: translateX(14px);
+}
+
+/* Tabs */
+.ds-tablist {
+  display: flex;
+  gap: var(--ds-space-1);
+  border-bottom: 1px solid var(--ds-color-border);
+}
+.ds-tab {
+  padding: var(--ds-space-2) var(--ds-space-3);
+  border: 0;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  background: transparent;
+  color: var(--ds-color-text-secondary);
+  font-size: var(--ds-font-size-md);
+  cursor: pointer;
+}
+.ds-tab:not(:disabled):hover {
+  color: var(--ds-color-text);
+}
+.ds-tab:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+/* The bar, not color alone, marks the selected tab. */
+.ds-tab[aria-selected="true"] {
+  color: var(--ds-color-text);
+  border-bottom-color: var(--ds-color-accent);
+  font-weight: var(--ds-font-weight-medium);
+}
+.ds-tabpanel {
+  padding-top: var(--ds-space-4);
+}
+
+/* Segmented control */
+.ds-segmented {
+  display: inline-flex;
+  border: 1px solid var(--ds-color-border-strong);
+  border-radius: var(--ds-radius-md);
+  overflow: hidden;
+}
+.ds-segmented-option {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ds-space-2);
+  min-width: 44px;
+  height: 32px;
+  padding: 0 var(--ds-space-3);
+  border: 0;
+  border-right: 1px solid var(--ds-color-border);
+  background: transparent;
+  color: var(--ds-color-text);
+  font-size: var(--ds-font-size-sm);
+  cursor: pointer;
+}
+.ds-segmented-option:last-child {
+  border-right: 0;
+}
+.ds-segmented-option:not(:disabled):hover {
+  background: var(--ds-color-hover);
+}
+.ds-segmented-option:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.ds-segmented-option[aria-checked="true"] {
+  background: var(--ds-color-selected);
+  font-weight: var(--ds-font-weight-semibold);
+}
+
+/* Tooltip */
+.ds-tooltip-anchor {
+  position: relative;
+  display: inline-flex;
+}
+.ds-tooltip {
+  position: absolute;
+  z-index: var(--ds-z-popover);
+  width: max-content;
+  max-width: 240px;
+  padding: var(--ds-space-1) var(--ds-space-2);
+  border-radius: var(--ds-radius-sm);
+  border: 1px solid var(--ds-color-border);
+  background: var(--ds-color-raised);
+  color: var(--ds-color-text);
+  font-size: var(--ds-font-size-xs);
+  line-height: 1.4;
+  text-align: center;
+  box-shadow: var(--ds-shadow-low);
+  pointer-events: none;
+}
+.ds-tooltip-top {
+  bottom: calc(100% + var(--ds-space-1));
+  left: 50%;
+  transform: translateX(-50%);
+}
+.ds-tooltip-bottom {
+  top: calc(100% + var(--ds-space-1));
+  left: 50%;
+  transform: translateX(-50%);
+}
+.ds-tooltip-left {
+  right: calc(100% + var(--ds-space-1));
+  top: 50%;
+  transform: translateY(-50%);
+}
+.ds-tooltip-right {
+  left: calc(100% + var(--ds-space-1));
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+/* Menu */
+.ds-menu-anchor {
+  display: inline-flex;
+}
+.ds-menu {
+  position: fixed;
+  z-index: var(--ds-z-popover);
+  display: flex;
+  flex-direction: column;
+  min-width: 180px;
+  overflow-y: auto;
+  padding: var(--ds-space-1);
+  border: 1px solid var(--ds-color-border);
+  border-radius: var(--ds-radius-lg);
+  background: var(--ds-color-raised);
+  color: var(--ds-color-text);
+  box-shadow: var(--ds-shadow-low);
+  animation: ds-pop-in var(--ds-motion-popover) var(--ds-easing-standard);
+}
+.ds-menu-item {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+  width: 100%;
+  min-height: 36px;
+  padding: var(--ds-space-2) var(--ds-space-3);
+  border: 0;
+  border-radius: var(--ds-radius-sm);
+  background: transparent;
+  color: inherit;
+  font-size: var(--ds-font-size-md);
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.ds-menu-item:hover,
+.ds-menu-item:focus-visible {
+  background: var(--ds-color-hover);
+}
+.ds-menu-item-danger {
+  color: var(--ds-color-danger);
+}
+.ds-menu-item:disabled {
+  color: var(--ds-color-text-muted);
+  cursor: not-allowed;
+}
+.ds-menu-item:disabled:hover {
+  background: transparent;
+}
+.ds-menu-item-content {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.ds-menu-item-reason {
+  color: var(--ds-color-text-secondary);
+  font-size: var(--ds-font-size-xs);
+  white-space: normal;
+}
+@keyframes ds-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+}
+
+/* Dialog */
+.ds-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--ds-z-dialog);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--ds-space-4);
+  background: rgba(10, 15, 20, 0.45);
+}
+.ds-dialog {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-height: 100%;
+  overflow: hidden;
+  border-radius: var(--ds-radius-xl);
+  border: 1px solid var(--ds-color-border);
+  background: var(--ds-color-raised);
+  color: var(--ds-color-text);
+  box-shadow: var(--ds-shadow-high);
+  animation: ds-pop-in var(--ds-motion-sheet) var(--ds-easing-standard);
+}
+.ds-dialog-sm {
+  max-width: 400px;
+}
+.ds-dialog-md {
+  max-width: 540px;
+}
+.ds-dialog-lg {
+  max-width: 760px;
+}
+.ds-dialog-header {
+  padding: var(--ds-space-5) var(--ds-space-6) 0;
+}
+.ds-dialog-header h2 {
+  margin: 0;
+  font-size: var(--ds-font-size-xl);
+  font-weight: var(--ds-font-weight-semibold);
+  line-height: var(--ds-line-height-tight);
+}
+.ds-dialog-content {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: var(--ds-space-3) var(--ds-space-6) var(--ds-space-5);
+}
+.ds-dialog-description {
+  margin-bottom: var(--ds-space-3);
+  color: var(--ds-color-text-secondary);
+}
+.ds-dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--ds-space-2);
+  padding: var(--ds-space-3) var(--ds-space-6) var(--ds-space-5);
+}
+
+/* Toast */
+.ds-toast-region {
+  position: fixed;
+  right: var(--ds-space-4);
+  bottom: var(--ds-space-4);
+  z-index: var(--ds-z-toast);
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-2);
+  max-width: min(420px, calc(100vw - 2 * var(--ds-space-4)));
+}
+.ds-toast {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--ds-space-3);
+  padding: var(--ds-space-3) var(--ds-space-4);
+  border: 1px solid var(--ds-color-border);
+  border-left: 3px solid var(--ds-color-border-strong);
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-color-raised);
+  color: var(--ds-color-text);
+  font-size: var(--ds-font-size-md);
+  box-shadow: var(--ds-shadow-low);
+  animation: ds-pop-in var(--ds-motion-popover) var(--ds-easing-standard);
+}
+.ds-toast-success {
+  border-left-color: var(--ds-color-success);
+}
+.ds-toast-warning {
+  border-left-color: var(--ds-color-warning);
+}
+.ds-toast-danger {
+  border-left-color: var(--ds-color-danger);
+}
+.ds-toast-message {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Badge */
+.ds-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ds-space-1);
+  padding: 0 var(--ds-space-2);
+  min-height: 20px;
+  border: 1px solid var(--ds-color-border-strong);
+  border-radius: var(--ds-radius-full);
+  background: transparent;
+  color: var(--ds-color-text-secondary);
+  font-size: var(--ds-font-size-xs);
+  font-weight: var(--ds-font-weight-medium);
+  white-space: nowrap;
+}
+.ds-badge-accent {
+  color: var(--ds-color-accent);
+  border-color: var(--ds-color-accent);
+}
+.ds-badge-success {
+  color: var(--ds-color-success);
+  border-color: var(--ds-color-success);
+}
+.ds-badge-warning {
+  color: var(--ds-color-warning);
+  border-color: var(--ds-color-warning);
+}
+.ds-badge-danger {
+  color: var(--ds-color-danger);
+  border-color: var(--ds-color-danger);
+}
+
+/* Card */
+.ds-card {
+  border: 1px solid var(--ds-color-border);
+  border-radius: var(--ds-radius-lg);
+  background: var(--ds-color-raised);
+  color: var(--ds-color-text);
+  padding: var(--ds-space-5);
+}
+.ds-card-raised {
+  box-shadow: var(--ds-shadow-low);
+}
+.ds-card-title {
+  margin: 0 0 var(--ds-space-2);
+  font-size: var(--ds-font-size-lg);
+  font-weight: var(--ds-font-weight-semibold);
+}
+
+/* Empty state */
+.ds-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--ds-space-3);
+  max-width: 32rem;
+  margin-inline: auto;
+  padding: var(--ds-space-8) var(--ds-space-6);
+  color: var(--ds-color-text-secondary);
+  text-align: center;
+}
+.ds-empty-title {
+  margin: 0;
+  color: var(--ds-color-text);
+  font-weight: var(--ds-font-weight-semibold);
+}
+.ds-empty-description {
+  margin: 0;
+  font-size: var(--ds-font-size-md);
+}
+
+/* Focus ring. An outline survives forced-colors mode, where box shadows do not. */
+.ds-btn:focus-visible,
+.ds-icon-btn:focus-visible,
+.ds-tab:focus-visible,
+.ds-segmented-option:focus-visible,
+.ds-menu-item:focus-visible,
+.ds-input:focus-visible,
+.ds-select:focus-visible,
+.ds-textarea:focus-visible,
+.ds-checkbox-input:focus-visible,
+.ds-switch-input:focus-visible {
+  outline: 2px solid var(--ds-color-focus);
+  outline-offset: 2px;
+}
+.ds-menu-item:focus-visible,
+.ds-segmented-option:focus-visible {
+  outline-offset: -2px;
+}

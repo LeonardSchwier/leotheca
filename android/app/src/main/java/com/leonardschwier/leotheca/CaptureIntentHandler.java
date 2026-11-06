@@ -63,19 +63,28 @@ public class CaptureIntentHandler {
             return;
         }
         
-        // Extract text content
-        String text = intent.getStringExtra(Intent.EXTRA_TEXT);
-        String subject = intent.getStringExtra(Intent.EXTRA_SUBJECT);
-        
-        // Extract URIs based on action type
+        // The activity is exported, so extras are untrusted: a sender can put any
+        // type under any key, and a bundle that fails to unparcel throws.
+        // getStringExtra also returns null for styled text (a CharSequence that is
+        // not a String, as browsers and mail apps send), so read CharSequence.
+        String text;
+        String subject;
         List<Uri> uris = new ArrayList<>();
-        if (Intent.ACTION_SEND.equals(action)) {
-            Uri streamUri = intent.getParcelableExtra(Intent.EXTRA_STREAM);
-            if (streamUri != null) {
-                uris.add(streamUri);
+        try {
+            text = NativeBoundaryPolicy.charSequenceToString(intent.getCharSequenceExtra(Intent.EXTRA_TEXT));
+            subject = NativeBoundaryPolicy.charSequenceToString(intent.getCharSequenceExtra(Intent.EXTRA_SUBJECT));
+            if (Intent.ACTION_SEND.equals(action)) {
+                Uri streamUri = intent.getParcelableExtra(Intent.EXTRA_STREAM);
+                if (streamUri != null) {
+                    uris.add(streamUri);
+                }
+            } else if (Intent.ACTION_SEND_MULTIPLE.equals(action)) {
+                uris = extractMultipleUris(intent);
             }
-        } else if (Intent.ACTION_SEND_MULTIPLE.equals(action)) {
-            uris = extractMultipleUris(intent);
+        } catch (RuntimeException e) {
+            // Dropping a malformed share beats crashing MainActivity.onCreate.
+            Log.w(TAG, "F05: Malformed share extras (" + e.getClass().getSimpleName() + ")");
+            return;
         }
         
         // Validate URI count

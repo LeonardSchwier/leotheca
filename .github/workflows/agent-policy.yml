@@ -14,6 +14,25 @@ on:
       - "scripts/check_roadmap_format.py"
       - "scripts/test_check_roadmap_format.py"
       - ".github/workflows/agent-policy.yml"
+      - "master-spec.md"
+      - "spec/master/**"
+      - "scripts/check_master_spec.py"
+      - "scripts/test_check_master_spec.py"
+      - "src/**"
+      - "src-tauri/**"
+      - "android/**"
+      - "capacitor.config.ts"
+      - "index.html"
+      - "package.json"
+      - "package-lock.json"
+      - "vite.config.ts"
+      - "VERSION"
+      - "public/**"
+      - "extensions/**"
+      - "flatpak/**"
+      - "packaging/**"
+      - "snap/**"
+      - ".github/workflows/**"
   pull_request:
     paths:
       - "CONSTITUTION.md"
@@ -27,6 +46,25 @@ on:
       - "scripts/check_roadmap_format.py"
       - "scripts/test_check_roadmap_format.py"
       - ".github/workflows/agent-policy.yml"
+      - "master-spec.md"
+      - "spec/master/**"
+      - "scripts/check_master_spec.py"
+      - "scripts/test_check_master_spec.py"
+      - "src/**"
+      - "src-tauri/**"
+      - "android/**"
+      - "capacitor.config.ts"
+      - "index.html"
+      - "package.json"
+      - "package-lock.json"
+      - "vite.config.ts"
+      - "VERSION"
+      - "public/**"
+      - "extensions/**"
+      - "flatpak/**"
+      - "packaging/**"
+      - "snap/**"
+      - ".github/workflows/**"
 
 permissions:
   contents: read
@@ -71,3 +109,36 @@ jobs:
             python3 scripts/check_roadmap_format.py --root .
           fi
 # ​
+  master-spec:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Test the master specification checker
+        run: python3 -m unittest scripts.test_check_master_spec -v
+      - name: Determine base commit
+        id: base
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            ref="${{ github.event.pull_request.base.sha }}"
+          elif [ "${{ github.event_name }}" = "push" ] \
+               && [ -n "${{ github.event.before }}" ] \
+               && [ "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ] \
+               && git cat-file -e "${{ github.event.before }}^{commit}" 2>/dev/null; then
+            ref="${{ github.event.before }}"
+          else
+            ref=""
+          fi
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+      - name: Application changes must update master-spec.md
+        run: |
+          if [ -n "${{ steps.base.outputs.ref }}" ]; then
+            python3 scripts/check_master_spec.py --root . --base "${{ steps.base.outputs.ref }}" --head HEAD
+          else
+            echo "No usable base commit; running the structure check only."
+            python3 scripts/check_master_spec.py --root .
+          fi

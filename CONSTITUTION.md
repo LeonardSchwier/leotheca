@@ -63,7 +63,7 @@ The 2026-09-06 owner instruction supersedes all earlier rules requiring a human 
 5. Renew the remote lease every `heartbeat_minutes` while making progress, including during tests and CI diagnosis. Renew synchronously at tool boundaries. A detached heartbeat that keeps renewing after its agent dies is forbidden.
 6. After `lease_until + clock_skew_minutes`, another worker may reclaim. The old worker must stop on wake-up, refresh main, and acquire a new claim before making more changes. Branch existence, unrelated commits, author identity, and queued CI do not extend a lease.
 7. Before every implementation publication, fetch main, merge it into your candidate, confirm the token still belongs to you and has enough time left, inspect the merged diff, and retest affected behavior. A stale token is a lost claim, even if the code is excellent.
-8. Never force-push, rewrite published history, bypass hooks/protection, delete another agent's work, or use whole-file `ours`/`theirs` to discard changes. Remote rejection means refresh and decide again, not force.
+8. Never force-push, rewrite published history, bypass hooks/protection, delete another agent's work, or use whole-file `ours`/`theirs` to discard changes. `hooks/` and `.github/workflows/rules.yml` enforce this mechanically where a tool can see it (map and bypass policy in `hooks/README.md`); the rule binds even where they cannot. Remote rejection means refresh and decide again, not force.
 
 The helper validates local ledger transitions. The runbook's fresh-base commit and normal push make those transitions exclusive on the remote. This is a cooperative protocol, not a server-side security boundary: all participating runners must follow it.
 
@@ -83,9 +83,17 @@ Keep `🚧` through post-push verification. Only finish after the verification s
 
 Legacy `🚧` entries without leases must be inspected and given one finite `legacy_grace_minutes` observation window with the helper. Never reset that window repeatedly. Record item-specific branch/main evidence, infer the touch set conservatively, and recover after that grace expires. If code already landed, claim only remaining scope or verification. Do not infer a human hold from commit name/email: cloud agents often use the owner's identity. Honor an explicit current owner hold, record it as blocked, and proceed elsewhere.
 
+## Spec-first delivery
+
+Every claimed implementation item follows `skills/pdlc-playbook.md`: (1) roadmap item, (2) spec at `spec/<slug>.md`, (3) grill: the agent interrogates the spec and records rulings (decision, why, cost if wrong), (4) design-system check recorded in the spec, (5) implementation, test first, (6) unit tests, independent review with a crafted brief, Playwright e2e smoke and the security gate, (7) spec moved to `spec/completed/` with evidence in the finish commit. Do not edit implementation files before stages 2-4 are written, and do not `finish` without stage 6 evidence or an honestly recorded deferral. The LLM judge makes the final call on whether and how to build, including declining; it never waits for a human. Coordination-only transactions and typo fixes are exempt. The playbook sets the details, not this file.
+
+## Author environment and runners
+
+The author (leonardschwier) develops with opencode on one NVIDIA GeForce RTX 4090 (24 GB VRAM) running a local Qwen model, which the owner wrote as "qwen 3.8 27b" (exact name unverified). Therefore every skill and playbook step must work with a ~27B local model: short skills, tiny tasks, state kept in files, no reliance on huge context or frontier-only capabilities. Supported runners include Claude Code, ChatGPT automation, Hermes, Mistral Vibe and opencode; all use the same ledger and this file.
+
 ## Quality and verification
 
-Before coding, write concrete acceptance criteria and identify the caller, data flow, platform boundaries, failure paths, and tests. Implement one coherent slice. Preserve remaining scope when splitting. Do not ship a facade, inert UI, TODO body, or mock as a completed feature.
+Before coding, write the spec (see Spec-first delivery) with concrete acceptance criteria and identify the caller, data flow, platform boundaries, failure paths, and tests. Implement one coherent slice. Preserve remaining scope when splitting. Do not ship a facade, inert UI, TODO body, or mock as a completed feature.
 
 Test meaningful outcomes at the boundary where behavior occurs. For bug fixes, demonstrate that the regression test fails without the fix and passes with it. Cover relevant invalid, empty, boundary, asynchronous, lifecycle, and cross-platform cases. Test count alone proves nothing. Never weaken a test, security boundary, or CI workflow to conceal a defect.
 

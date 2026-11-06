@@ -73,6 +73,11 @@ const HEADING_LINKS_OPTIONS: { value: boolean; label: string }[] = [
   { value: false, label: "Off" },
 ];
 
+const MARKDOWN_IMPORT_OPTIONS: { value: boolean; label: string }[] = [
+  { value: true, label: "On" },
+  { value: false, label: "Off" },
+];
+
 const MATH_RENDERING_OPTIONS: { value: boolean; label: string }[] = [
   { value: true, label: "On" },
   { value: false, label: "Off" },
@@ -249,6 +254,12 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
     "Heading links",
     "Resolve [[Note#Heading]] and [[#Heading]] links to a specific heading, with Preview click navigation to it. Off, [[wikilinks]] parse exactly as before this feature existed",
   );
+  const showMarkdownImport =
+    !Capacitor.isNativePlatform() &&
+    matches(
+      "Markdown vault import",
+      "Offer the Import Markdown vault command, which copies a chosen folder of notes into this workspace without changing the source",
+    );
   const showMathRendering = matches("Math rendering", "Render $inline$ and $$block$$ LaTeX math in Preview, via KaTeX");
   const showMermaidRendering = matches(
     "Mermaid diagrams",
@@ -327,6 +338,7 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
         (showDeleteBehavior ||
           showFrontmatterAliases ||
           showHeadingLinks ||
+          showMarkdownImport ||
           showMathRendering ||
           showMermaidRendering ||
           showPasteImages ||
@@ -699,6 +711,39 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                     onClick={() =>
                       void updateWorkspaceSettings({
                         headingLinksEnabled: option.value,
+                      })
+                    }
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {workspacePath.value && showMarkdownImport && (
+            <div class="settings-row">
+              <div>
+                <div class="settings-label">Markdown vault import</div>
+                <div class="settings-hint">
+                  Offer the Import Markdown vault command, which copies a chosen
+                  folder of notes into this workspace without changing the
+                  source. Desktop only
+                </div>
+              </div>
+              <div class="settings-switch">
+                {MARKDOWN_IMPORT_OPTIONS.map((option) => (
+                  <button
+                    key={String(option.value)}
+                    class={
+                      workspaceSettings.value.markdownImportEnabled ===
+                      option.value
+                        ? "active"
+                        : ""
+                    }
+                    onClick={() =>
+                      void updateWorkspaceSettings({
+                        markdownImportEnabled: option.value,
                       })
                     }
                   >

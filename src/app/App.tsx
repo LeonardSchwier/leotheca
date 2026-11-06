@@ -123,6 +123,9 @@ import {
   createInkQuick,
   createNoteQuick,
   deleteEntry,
+  dirChildren,
+  expandedDirs,
+  loadChildren,
   listTemplates,
   relativePath,
   renameEntry,
@@ -132,6 +135,9 @@ import {
   type NoteTemplate,
 } from "../workspace/fileTreeStore";
 import { confirmAction } from "./confirmDialog";
+import { MarkdownImportDialog } from "../markdownImport/MarkdownImportDialog";
+import { startMarkdownImport } from "../markdownImport/importStore";
+import { isMarkdownImportSupported } from "../markdownImport/markdownImport";
 import { NamePrompt } from "../workspace/NamePrompt";
 import { useRenamePreview } from "../refactor/useRenamePreview";
 import { RenamePreviewDialog } from "../refactor/RenamePreviewDialog";
@@ -993,6 +999,23 @@ export function App() {
         label: "Markdown formatting help",
         run: () => (markdownHelpOpen.value = true),
       },
+      ...(rootPath && isMarkdownImportSupported() && workspaceSettings.value.markdownImportEnabled
+        ? [
+            {
+              id: "import-markdown-vault",
+              label: "Import Markdown vault...",
+              run: () =>
+                void startMarkdownImport(async () => {
+                  // Reload the root and every open folder so the imported
+                  // files show without a manual refresh.
+                  const open = [rootPath, ...expandedDirs.value].filter((dir) =>
+                    dirChildren.value.has(dir) || dir === rootPath,
+                  );
+                  await Promise.allSettled(open.map((dir) => loadChildren(dir)));
+                }),
+            },
+          ]
+        : []),
       { id: "settings", label: "Open Settings", run: () => (settingsPanelOpen.value = true) },
       { id: "capture", label: "Quick Capture", run: () => openCaptureSheet() },
       ...(!Capacitor.isNativePlatform()
@@ -2019,6 +2042,7 @@ export function App() {
         <CommandPalette commands={commands} onClose={() => (commandPaletteOpen.value = false)} />
       )}
       <ConfirmDialogHost />
+      <MarkdownImportDialog />
       {imageOverlay && (
         <ImageViewerOverlay
           src={imageOverlay.src}

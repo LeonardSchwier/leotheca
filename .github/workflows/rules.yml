@@ -1,0 +1,102 @@
+name: Rules
+
+# Mechanical enforcement of rules written in CONSTITUTION.md and
+# documentation/PROJECT_RULES.md that a local hook cannot be trusted with
+# (hooks can be skipped). The same scripts back hooks/pre-commit and
+# hooks/pre-push, see hooks/README.md for the rule-to-check table.
+
+on:
+  push:
+  pull_request:
+  schedule:
+    # New advisories appear without any commit; re-run the supply-chain job.
+    - cron: "17 5 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  commits-and-lines:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Range under test
+        id: range
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "base=${{ github.event.pull_request.base.sha }}" >> "$GITHUB_OUTPUT"
+            echo "head=${{ github.event.pull_request.head.sha }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "base=${{ github.event.before }}" >> "$GITHUB_OUTPUT"
+            echo "head=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Commit message convention and trailer
+        run: node scripts/check-rules.mjs commits "${{ steps.range.outputs.base }}" "${{ steps.range.outputs.head }}"
+      - name: Push to main is a fast-forward (no force push or history rewrite)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          before="${{ github.event.before }}"
+          if echo "$before" | grep -Eq '^0+$'; then exit 0; fi
+          if ! git cat-file -e "$before^{commit}" 2>/dev/null; then
+            echo "Previous main tip $before is not reachable: history was rewritten." >&2; exit 1
+          fi
+          git merge-base --is-ancestor "$before" "${{ github.sha }}" || {
+            echo "main moved from $before to ${{ github.sha }} without being a descendant: force push." >&2; exit 1; }
+      - name: Dependency intake line for added or changed dependencies
+        run: node scripts/check-rules.mjs deps "${{ steps.range.outputs.base }}" "${{ steps.range.outputs.head }}"
+      - name: No em dashes, competitor names or secret-shaped tokens in added lines
+        run: |
+          base="${{ steps.range.outputs.base }}"
+          # A new branch or force push has no usable base; compare with the parent.
+          if ! git cat-file -e "$base^{commit}" 2>/dev/null; then base="${{ steps.range.outputs.head }}~1"; fi
+          node scripts/check-rules.mjs lines "$base" "${{ steps.range.outputs.head }}"
+      - name: Conflict markers and large files
+        run: |
+          base="${{ steps.range.outputs.base }}"
+          if ! git cat-file -e "$base^{commit}" 2>/dev/null; then base="${{ steps.range.outputs.head }}~1"; fi
+          # Reuse the staged-diff logic against the pushed range.
+          node scripts/check-rules.mjs files "$base" "${{ steps.range.outputs.head }}"
+
+  format:
+    # Ratchet: files changed in this push must be prettier-clean. The tree
+    # predates the check, so untouched legacy files are not reformatted here.
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: prettier --check on changed files
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            base="${{ github.event.pull_request.base.sha }}"; head="${{ github.event.pull_request.head.sha }}"
+          else
+            base="${{ github.event.before }}"; head="${{ github.sha }}"
+          fi
+          if ! git cat-file -e "$base^{commit}" 2>/dev/null; then base="$head~1"; fi
+          node scripts/check-rules.mjs format "$base" "$head"
+
+  supply-chain:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Dependency licenses (allow list in scripts/check-rules.mjs)
+        run: node scripts/check-rules.mjs licenses
+      - name: Workflow actions are pinned to a version
+        run: node scripts/check-rules.mjs workflows
+      - name: npm audit, fail on high or critical
+        run: npm audit --audit-level=high

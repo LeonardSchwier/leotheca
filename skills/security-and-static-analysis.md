@@ -8,7 +8,13 @@ platforms: [linux, macos, windows]
 metadata:
   hermes:
     tags: [security, static-analysis, review, verification, leotheca]
-    related_skills: [verification-suite, change-quality-gates, pre-push-verification, roadmap-entry-format]
+    related_skills:
+      [
+        verification-suite,
+        change-quality-gates,
+        pre-push-verification,
+        roadmap-entry-format,
+      ]
 ---
 
 <!--
@@ -58,19 +64,19 @@ Scope the run to the changed files plus their callers. Report findings in the ha
 
 Status was checked against `package.json`, `src-tauri/Cargo.toml`, `eslint.config.js`, `tsconfig.json`, and `.github/workflows/ci.yml` on 2026-11-07. "Verified" means run or queried in a real session. Check again before relying on this table, because tools and workflows change.
 
-| Tool | Command | Catches | Offline | Status in this repo |
-| --- | --- | --- | --- | --- |
-| TypeScript strict | `npx tsc -p tsconfig.json --noEmit` | Type confusion, null handling at bridges | yes | Wired: `strict: true`, run in CI and `npm run build`. |
-| ESLint recommended + typescript-eslint | `npm run lint` | Bug patterns, unsafe `any`, hooks misuse | yes | Wired in CI. No security rules. |
-| eslint-plugin-security | add to `eslint.config.js`, then `npm run lint` | `eval`, unsafe regex, non-literal `fs` paths, object injection (noisy) | yes | Not wired. Package exists on npm (4.2.1, Apache-2.0). Not trialled against this tree: rule noise is unknown. Seeded. |
-| cargo clippy | `cargo clippy --all-targets -- -D warnings` (in `src-tauri`) | Rust correctness and common unsafe patterns | yes | Wired in CI (backend job). |
-| npm audit | `npm audit --omit=dev` | Known-vulnerable npm dependencies | no (needs registry) | Works; not a CI gate. Verified 2026-11-07: reports 8 vulnerabilities (2 critical, 5 high, 1 low). Triage seeded; do not gate until triaged. |
-| cargo audit / cargo deny | `cargo audit`; `cargo deny check` (in `src-tauri`) | Known-vulnerable Rust crates (RustSec), licenses, bans | advisory DB must be fetched | Not wired. Not installed on the author's machine (`cargo audit`, `cargo deny` report no such command). Seeded. |
-| osv-scanner | `osv-scanner --lockfile package-lock.json --lockfile src-tauri/Cargo.lock` | Same classes across npm and Cargo in one tool | no (queries OSV) | Not installed here and not verified. Optional alternative to the two above. |
-| gitleaks | `gitleaks detect --redact` / `gitleaks protect --staged` | Secrets in history or staged changes | yes | Not installed, not wired. Seeded. |
-| semgrep (OSS) | `semgrep scan --config p/typescript --config p/rust --error` | Pattern-based injection, XSS sinks, unsafe APIs | rules offline if vendored; default fetches registry | Not installed here, not wired. Seeded. |
-| CodeQL | GitHub `github/codeql-action` (JS/TS) | Dataflow vulnerabilities | hosted only | Not wired. Hosted-only: add as a CI workflow, not part of the local gate. Seeded. |
-| Android lint | `./gradlew lint` (in `android`) | Manifest, exported-component and permission issues | yes (needs SDK) | Not wired in CI; not run this session. Seeded. |
+| Tool                                   | Command                                                                    | Catches                                                                | Offline                                             | Status in this repo                                                                                                                         |
+| -------------------------------------- | -------------------------------------------------------------------------- | ---------------------------------------------------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| TypeScript strict                      | `npx tsc -p tsconfig.json --noEmit`                                        | Type confusion, null handling at bridges                               | yes                                                 | Wired: `strict: true`, run in CI and `npm run build`.                                                                                       |
+| ESLint recommended + typescript-eslint | `npm run lint`                                                             | Bug patterns, unsafe `any`, hooks misuse                               | yes                                                 | Wired in CI. No security rules.                                                                                                             |
+| eslint-plugin-security                 | add to `eslint.config.js`, then `npm run lint`                             | `eval`, unsafe regex, non-literal `fs` paths, object injection (noisy) | yes                                                 | Not wired. Package exists on npm (4.2.1, Apache-2.0). Not trialled against this tree: rule noise is unknown. Seeded.                        |
+| cargo clippy                           | `cargo clippy --all-targets -- -D warnings` (in `src-tauri`)               | Rust correctness and common unsafe patterns                            | yes                                                 | Wired in CI (backend job).                                                                                                                  |
+| npm audit                              | `npm audit --omit=dev`                                                     | Known-vulnerable npm dependencies                                      | no (needs registry)                                 | Works; not a CI gate. Verified 2026-11-07: reports 8 vulnerabilities (2 critical, 5 high, 1 low). Triage seeded; do not gate until triaged. |
+| cargo audit / cargo deny               | `cargo audit`; `cargo deny check` (in `src-tauri`)                         | Known-vulnerable Rust crates (RustSec), licenses, bans                 | advisory DB must be fetched                         | Not wired. Not installed on the author's machine (`cargo audit`, `cargo deny` report no such command). Seeded.                              |
+| osv-scanner                            | `osv-scanner --lockfile package-lock.json --lockfile src-tauri/Cargo.lock` | Same classes across npm and Cargo in one tool                          | no (queries OSV)                                    | Not installed here and not verified. Optional alternative to the two above.                                                                 |
+| gitleaks                               | `gitleaks git --staged --redact`                                           | Secrets in history or staged changes                                   | yes                                                 | Optional step in `hooks/pre-commit` (reported skip when absent). Not installed here, so its run path is unverified; no CI job. Seeded.      |
+| semgrep (OSS)                          | `semgrep scan --config p/typescript --config p/rust --error`               | Pattern-based injection, XSS sinks, unsafe APIs                        | rules offline if vendored; default fetches registry | Not installed here, not wired. Seeded.                                                                                                      |
+| CodeQL                                 | GitHub `github/codeql-action` (JS/TS)                                      | Dataflow vulnerabilities                                               | hosted only                                         | Not wired. Hosted-only: add as a CI workflow, not part of the local gate. Seeded.                                                           |
+| Android lint                           | `./gradlew lint` (in `android`)                                            | Manifest, exported-component and permission issues                     | yes (needs SDK)                                     | Not wired in CI; not run this session. Seeded.                                                                                              |
 
 **Design rules for the stack.**
 
@@ -81,15 +87,15 @@ Status was checked against `package.json`, `src-tauri/Cargo.toml`, `eslint.confi
 
 ## 3. Practices adopted from commercial agent-guardrail products
 
-Reimplemented here in our own words from public descriptions of a commercial agent-guardrail product (its marketing claims are unverified, so only the ideas are used). Enforcement belongs to the existing hook work, the roadmap item **Git hooks and enforced quality gates**; add to that work instead of building a parallel mechanism.
+Reimplemented here in our own words from public descriptions of a commercial agent-guardrail product (its marketing claims are unverified, so only the ideas are used). Enforcement lives in the Git hooks work (`hooks/README.md` holds the rule-to-check map); extend that instead of building a parallel mechanism.
 
 1. **Defect claims are hypotheses until reproduced.** A reviewer, scanner, or model saying "this is vulnerable" is a lead. It becomes a finding only when a failing test, command, or exploit shows it. This is also how the audit rules in section 1 work.
-2. **Dependency-intake check.** Before adding any dependency (npm, Cargo, Gradle), record in the commit or handoff: it exists and is the intended package (watch for look-alike or model-invented names), its age and maintenance, real source repository, license, and whether it runs install scripts (`postinstall`, `build.rs`). Prefer not adding it. Run the audit tool for that ecosystem afterwards. Hook candidate, owned by the Git hooks item.
-3. **Secret-in-commit block.** A pre-commit scan of staged changes (gitleaks `protect --staged`) that blocks the commit. A CI scan is the backstop, because local hooks can be skipped.
-4. **Destructive-command guard.** Block `git reset --hard`, `git clean`, forced push, and recursive deletes outside the agent's own worktree, with the safe alternative named in the message. `AGENTS.md` and the workflow already forbid these in prose; the hook makes it mechanical.
+2. **Dependency-intake check.** Before adding any dependency (npm, Cargo, Gradle), record in a commit message a `Dependency-intake:` line: it exists and is the intended package (watch for look-alike or model-invented names), its age and maintenance, real source repository, license, and whether it runs install scripts (`postinstall`, `build.rs`). Prefer not adding it. Run the audit tool for that ecosystem afterwards. Enforced for `package.json` and `src-tauri/Cargo.toml` by `check-rules.mjs deps` (pre-push and CI). Gradle is not covered yet.
+3. **Secret-in-commit block.** `hooks/pre-commit` runs a built-in scan of staged added lines (private keys, cloud and GitHub tokens, hard-coded credentials) and, when installed, `gitleaks` on staged changes; a missing gitleaks is reported, not skipped silently. CI runs the built-in scan over pushed lines. A gitleaks CI job is not wired: the gitleaks run path was never executed in the session that added the hook.
+4. **Destructive-command guard.** `scripts/guard-command.mjs` blocks `git reset --hard`, `git clean`, forced push, `--no-verify`, `core.hooksPath` changes and recursive deletes outside the worktree, naming the safe alternative. It is opt-in in an agent runner's pre-tool hook because a git hook cannot see shell commands. `hooks/pre-push` refuses force pushes and deleting main; CI fails a non-fast-forward push to main.
 5. **Gate false-positive tracking.** When a gate or finding is overruled as a false positive, record the rule, the file, and the reason in the handoff. A rule with repeated false positives is tuned or scoped by a roadmap item. It is not silently disabled and not ignored.
 
-Hooks run on the author's machine and can be bypassed, so each of items 2 to 4 also needs a CI check to count as enforced.
+Hooks run on the author's machine and can be bypassed, so each of items 2 to 4 also has a CI check where one is possible (the guard in item 4 cannot be checked afterwards).
 
 ## Before completing a change in these areas
 

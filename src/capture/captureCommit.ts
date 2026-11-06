@@ -34,6 +34,10 @@ export interface CaptureAppendOptions {
   workspaceRoot?: string;
   attachments?: PendingAttachment[];
   attachmentsFolder?: string; // Use workspace's attachment folder setting
+  /** The content is already fully shaped (e.g. by a capture template): skip the
+   * built-in header, timestamp and source line. Separation and CRLF handling
+   * still apply. */
+  verbatim?: boolean;
 }
 
 /**
@@ -42,7 +46,7 @@ export interface CaptureAppendOptions {
  * Adds proper spacing between existing content and new content.
  */
 export async function appendToInboxNote(options: CaptureAppendOptions): Promise<{ path: string; name: string }> {
-  const { inboxNotePath, content, title, sourceUrl, workspaceRoot, attachments = [], attachmentsFolder } = options;
+  const { inboxNotePath, content, title, sourceUrl, workspaceRoot, attachments = [], attachmentsFolder, verbatim = false } = options;
   
   // F05-FR-07: Validate destination path is not under .leotheca/
   if (workspaceRoot) {
@@ -69,7 +73,9 @@ export async function appendToInboxNote(options: CaptureAppendOptions): Promise<
     existingContent = null;
   }
 
-  const formattedContent = formatCaptureContent(content, title, sourceUrl, attachmentPaths);
+  const formattedContent = verbatim
+    ? formatVerbatimContent(content, attachmentPaths)
+    : formatCaptureContent(content, title, sourceUrl, attachmentPaths);
   let newContent: string;
   if (existingContent !== null) {
     // Determine line ending convention from existing content
@@ -309,7 +315,8 @@ export async function createNoteWithTitle(
   title?: string,
   workspaceRoot?: string,
   attachments?: PendingAttachment[],
-  attachmentsFolder?: string
+  attachmentsFolder?: string,
+  options: { verbatim?: boolean } = {}
 ): Promise<{ path: string; name: string }> {
   const root = workspaceRoot;
   if (!root) {
@@ -356,7 +363,9 @@ export async function createNoteWithTitle(
     : [];
   
   // Format content for new note (per F05 spec section 8.2)
-  const formattedContent = formatNewNoteContent(content, title, attachmentPaths);
+  const formattedContent = options.verbatim
+    ? formatVerbatimContent(content, attachmentPaths)
+    : formatNewNoteContent(content, title, attachmentPaths);
   
   await createWorkspaceTextFileNew(root, relative, formattedContent);
   
@@ -436,4 +445,19 @@ function formatNewNoteContent(content: string, title?: string, attachmentPaths?:
   }
   
   return contentLines.join("\n");
+}
+
+/**
+ * Content that a capture template has already shaped: written as-is (trimmed of
+ * trailing blank lines) plus any attachment embeds.
+ */
+function formatVerbatimContent(content: string, attachmentPaths?: string[]): string {
+  const lines = [content.replace(/(\r?\n)+$/, "")];
+  if (attachmentPaths && attachmentPaths.length > 0) {
+    lines.push("");
+    for (const attachmentPath of attachmentPaths) {
+      lines.push(`![[${attachmentPath}]]`);
+    }
+  }
+  return lines.join("\n");
 }

@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+# Fast pre-commit gate: staged files only, no builds, no test suite (about 10 s).
+# Whole-project checks live in hooks/pre-push and CI. See hooks/README.md.
+# Portable to the bash 3.2 that ships with macOS (no mapfile).
+set -u
+cd "$(git rev-parse --show-toplevel)" || exit 1
+
+failed=0
+step() { printf '  pre-commit: %s\n' "$1"; }
+fail() { failed=1; }
+
+staged="$(git diff --cached --name-only --diff-filter=ACMR)"
+[ -z "$staged" ] && exit 0
+
+# Newline-separated list of staged paths matching an extended regex.
+matching() { printf '%s\n' "$staged" | grep -E "$1" || true; }
+
+step "whitespace errors (git diff --cached --check)"
+git diff --cached --check || fail
+
+step "conflict markers, large files"
+node scripts/check-rules.mjs files --staged || fail
+
+step "em dashes, competitor names, secret-shaped tokens in added lines"
+node scripts/check-rules.mjs lines --staged || fail
+
+# Broader secret scan when gitleaks is installed. Never silent: a missing tool is
+# reported on every commit (the built-in scan above and CI still run).
+if command -v gitleaks >/dev/null 2>&1; then
+  step "gitleaks (staged changes)"
+  if gitleaks git --help >/dev/null 2>&1; then
+    gitleaks git --staged --redact --no-banner --log-level warn || fail
+  else
+    gitleaks protect --staged --redact --no-banner || fail
+  fi
+else
+  echo "  pre-commit: SKIPPED gitleaks scan (gitleaks not installed); built-in secret scan ran, CI re-checks"
+fi
+
+if [ -x node_modules/.bin/prettier ]; then
+  step "prettier --check (staged files)"
+  node scripts/check-rules.mjs format --staged || fail
+else
+  echo "  pre-commit: node_modules missing, skipping prettier and eslint (run npm ci)"
+fi
+
+js="$(matching '\.(js|jsx|mjs|cjs|ts|tsx)$' | grep -v -E '^(control-[^/]*/|public/pdfjs/|dist/|android/app/(build|src/main/assets/public)/)' || true)"
+if [ -n "$js" ] && [ -x node_modules/.bin/eslint ]; then
+  step "eslint ($(printf '%s\n' "$js" | wc -l | tr -d ' ') staged files)"
+  printf '%s\n' "$js" | tr '\n' '\0' | xargs -0 node_modules/.bin/eslint --no-warn-ignored || fail
+fi
+
+if [ -n "$(matching '\.rs$')" ]; then
+  if command -v cargo >/dev/null 2>&1; then
+    step "cargo fmt --check"
+    (cd src-tauri && cargo fmt --all -- --check) || fail
+  else
+    echo "  pre-commit: cargo not found, skipping cargo fmt"
+  fi
+fi
+
+py="$(matching '\.py$')"
+if [ -n "$py" ] && command -v python3 >/dev/null 2>&1; then
+  step "python syntax"
+  printf '%s\n' "$py" | while IFS= read -r f; do
+    python3 -c 'import ast,sys; ast.parse(open(sys.argv[1], encoding="utf-8").read(), sys.argv[1])' "$f" || exit 1
+  done || fail
+fi
+
+if [ "$failed" -ne 0 ]; then
+  echo "pre-commit: FAILED. Fix the items above and commit again." >&2
+  exit 1
+fi

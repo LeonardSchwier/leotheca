@@ -12,6 +12,7 @@ Each runbook carries standard SKILL.md YAML frontmatter (name, description, vers
 | Implement a claimed item: spec, grill, design-system check, review, e2e smoke, archive | [pdlc-playbook.md](pdlc-playbook.md) |
 | Claim, renew, publish, finish, or recover work | [roadmap-workflow.md](roadmap-workflow.md) |
 | Write or edit a roadmap entry's prose | [roadmap-entry-format.md](roadmap-entry-format.md) |
+| Your change alters application behavior, a format, a bridge command, a setting or the build | [master-spec-maintenance.md](master-spec-maintenance.md) |
 | Before every push, no exceptions | [pre-push-verification.md](pre-push-verification.md) |
 | Decide what to test; local/hosted/deferred CI | [verification-suite.md](verification-suite.md) |
 | A real job/test/build fails | [ci-failure-triage.md](ci-failure-triage.md) |

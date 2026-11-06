@@ -401,4 +401,84 @@ public class WidgetResourcesUnitTest {
         assertTrue("List-length mismatch: Java=" + javaVal + " TS=" + tsVal,
             javaVal == tsVal);
     }
+
+    // Android home-screen "View note" widget: a sixth, separate widget from the
+    // five above (see ROADMAP.md's "Android home-screen 'View note' widget").
+    // Unlike the list widgets (favorites/recent), this one DISPLAYS the content
+    // of one user-chosen note on the home screen. The TypeScript side resolves
+    // the chosen note's title + workspace-absolute path and pushes it to the
+    // native side (FolderAccessPlugin.setViewNote), which persists it and reads
+    // the note's content directly from the SAF folder for the provider to
+    // render as plain text. The provider also deep-links a "change note" tap
+    // to the leotheca://select-widget-note review flow.
+    @Test
+    public void manifestRegistersTheViewNoteWidgetProvider() throws IOException {
+        String manifest = source("AndroidManifest.xml");
+
+        assertTrue(manifest.contains(".LeothecaViewNoteWidgetProvider"));
+        assertTrue(manifest.contains("@xml/leotheca_widget_view_note_info"));
+    }
+
+    @Test
+    public void viewNoteWidgetMetadataPointsAtItsOwnLayout() throws IOException {
+        String info = source("res/xml/leotheca_widget_view_note_info.xml");
+
+        // A content widget needs a real content area, so it's taller than the
+        // single-button widgets (48dp) and matches the list widgets (90dp).
+        assertTrue(info.contains("android:minWidth=\"110dp\""));
+        assertTrue(info.contains("android:minHeight=\"90dp\""));
+        assertTrue(info.contains("@layout/leotheca_widget_view_note"));
+        // Must not accidentally reuse another widget's layout.
+        assertFalse(info.contains("@layout/leotheca_widget_recent_notes\""));
+        assertFalse(info.contains("@layout/leotheca_widget_favorites\""));
+    }
+
+    @Test
+    public void viewNoteLayoutDeclaresTheIdsTheJavaCodeReferences() throws IOException {
+        String layout = source("res/layout/leotheca_widget_view_note.xml");
+
+        // The whole widget is the tappable "view/change note" target, and the
+        // two TextViews the provider fills in from the stored note.
+        assertTrue("layout must have the tappable container id",
+            layout.contains("@+id/widget_view_note"));
+        assertTrue("layout must have a title TextView",
+            layout.contains("@+id/widget_view_note_title"));
+        assertTrue("layout must have a content TextView",
+            layout.contains("@+id/widget_view_note_content"));
+        assertTrue("layout must have a change-note hint TextView",
+            layout.contains("@+id/widget_view_note_change_hint"));
+    }
+
+    @Test
+    public void viewNoteProviderReadsStoredNoteAndRendersContent() throws IOException {
+        String provider = source("java/com/leonardschwier/leotheca/LeothecaViewNoteWidgetProvider.java");
+
+        // Renders from the same SharedPreferences the plugin writes.
+        assertTrue(provider.contains("R.layout.leotheca_widget_view_note"));
+        assertTrue(provider.contains("R.id.widget_view_note_title"));
+        assertTrue(provider.contains("R.id.widget_view_note_content"));
+        assertTrue(provider.contains("PREFS_NAME"));
+        assertTrue(provider.contains("getString(VIEW_NOTE_KEY"));
+        // Strips markdown to readable plain text before rendering.
+        assertTrue("provider must strip markdown", provider.contains("stripMarkdownForWidget"));
+        // Deep-links a tap to the in-app choose-a-note flow (not new-note/favorites).
+        assertTrue(provider.contains("leotheca://select-widget-note"));
+        assertFalse("must not deep-link to new-note", provider.contains("leotheca://new-note"));
+        assertFalse("must not deep-link to favorites", provider.contains("open-favorites"));
+    }
+
+    @Test
+    public void viewNotePluginWritesTheSameSharedPreferencesKeyTheProviderReads() throws IOException {
+        String plugin = source("java/com/leonardschwier/leotheca/FolderAccessPlugin.java");
+        String provider = source("java/com/leonardschwier/leotheca/LeothecaViewNoteWidgetProvider.java");
+
+        assertTrue(plugin.contains("setViewNote"));
+        assertTrue(plugin.contains("LeothecaViewNoteWidgetProvider.PREFS_NAME"));
+        assertTrue(plugin.contains("LeothecaViewNoteWidgetProvider.VIEW_NOTE_KEY"));
+        assertTrue(provider.contains("PREFS_NAME = \"LeothecaWidgetData\""));
+        assertTrue(provider.contains("VIEW_NOTE_KEY = \"viewNote\""));
+        // The provider refreshes every placed instance after the plugin writes.
+        assertTrue(plugin.contains("refreshViewNoteWidgets"));
+        assertTrue(plugin.contains("notifyAppWidgetViewDataChanged"));
+    }
 }

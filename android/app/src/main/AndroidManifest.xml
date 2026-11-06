@@ -82,6 +82,11 @@
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/leotheca_widget_recent_notes_info" />
         </receiver>
 
+        <receiver android:name=".LeothecaViewNoteWidgetProvider" android:exported="false">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/leotheca_widget_view_note_info" />
+        </receiver>
+
         <service
             android:name=".LeothecaFavoritesListWidgetService"
             android:exported="false"

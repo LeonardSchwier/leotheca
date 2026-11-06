@@ -895,4 +895,51 @@ public class FolderAccessPlugin extends Plugin {
             manager.notifyAppWidgetViewDataChanged(ids, R.id.widget_recent_notes_list);
         }
     }
+
+    /**
+     * Android home-screen "View note" widget: stores the single user-chosen
+     * note's title + workspace-absolute path (computed on the TypeScript side)
+     * for LeothecaViewNoteWidgetProvider to render as a home-screen preview,
+     * then nudges every placed instance of that widget to re-read it. Same
+     * "TypeScript side resolves onto plain values, this file is a thin native
+     * boundary" division as updateFavoritesWidget/updateRecentNotesWidget
+     * above, but for one note instead of a list.
+     */
+    @PluginMethod
+    public void setViewNote(PluginCall call) {
+        String path = call.getString("path");
+        if (path == null || path.isEmpty()) {
+            call.reject("path is required");
+            return;
+        }
+        try {
+            JSONObject stored = new JSONObject();
+            stored.put("path", path);
+            String title = call.getString("title");
+            stored.put("title", title == null ? "" : title);
+            getContext()
+                .getSharedPreferences(
+                    LeothecaViewNoteWidgetProvider.PREFS_NAME,
+                    android.content.Context.MODE_PRIVATE
+                )
+                .edit()
+                .putString(LeothecaViewNoteWidgetProvider.VIEW_NOTE_KEY, stored.toString())
+                .apply();
+            refreshViewNoteWidgets();
+            call.resolve();
+        } catch (Exception e) {
+            call.reject(e.getMessage(), e);
+        }
+    }
+
+    private void refreshViewNoteWidgets() {
+        android.content.Context context = getContext();
+        android.appwidget.AppWidgetManager manager = android.appwidget.AppWidgetManager.getInstance(context);
+        int[] ids = manager.getAppWidgetIds(
+            new android.content.ComponentName(context, LeothecaViewNoteWidgetProvider.class)
+        );
+        if (ids.length > 0) {
+            manager.notifyAppWidgetViewDataChanged(ids, R.id.widget_view_note);
+        }
+    }
 }

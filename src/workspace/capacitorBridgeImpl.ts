@@ -163,6 +163,9 @@ interface FolderAccessPlugin {
   // Android home-screen recent-notes widget: pushes the resolved list of
   // most-recently-edited notes for the RemoteViewsService to render.
   updateRecentNotesWidget(options: { entries: RecentNotesWidgetEntry[] }): Promise<void>;
+  // Android home-screen "View note" widget: pushes the single user-chosen
+  // note's title + resolved SAF path so the provider can render its content.
+  setViewNote(options: { path: string; title: string }): Promise<void>;
 }
 
 const FolderAccess = registerPlugin<FolderAccessPlugin>("FolderAccess");
@@ -809,6 +812,21 @@ export async function updateRecentNotesWidget(entries: RecentNotesWidgetEntry[])
     await FolderAccess.updateRecentNotesWidget({ entries });
   } catch {
     // Best-effort widget sync; the in-app file tree is unaffected.
+  }
+}
+
+/**
+ * Pushes the single user-chosen note (title + resolved SAF path) to the
+ * "View note" home-screen widget (LeothecaViewNoteWidgetProvider), which
+ * renders its content. Same best-effort pattern as updateFavoritesWidget and
+ * updateRecentNotesWidget above: a failure must never surface to the caller
+ * (e.g. a note-open handler), because the in-app view is always authoritative.
+ */
+export async function setViewNoteWidget(path: string, title: string): Promise<void> {
+  try {
+    await FolderAccess.setViewNote({ path, title });
+  } catch {
+    // Best-effort widget sync; the in-app note view is unaffected.
   }
 }
 

@@ -94,16 +94,6 @@ Minor bugs, UX improvements, and performance.
   <!-- agent-state: {"schema":1,"id":"rm-57a389f7112eb947","state":"claimed","touch":["skills/verification-suite.md","tests/e2e","tests/ui"],"resources":["e2e-suite"],"owner":"claude-code-playwright-20261106T184824Z-29343451","token":"bc60d49db34fd5926490ce5f10034550","branch":"agent/rm-57a389f7112eb947/bc60d49db34f","claimed_at":"2026-11-06T18:49:33Z","heartbeat_at":"2026-11-06T18:49:33Z","lease_until":"2026-11-06T20:19:33Z"} -->
   Agent: claude-code-playwright-20261106T184824Z-29343451 | item: rm-57a389f7112eb947 | lease until: 2026-11-06T20:19:33Z
 - ⬜ **Agentic PDLC documentation**: Document how this repository is delivered by agents phase by phase, with the actual tools, settings, gates and known limits, each linked to the file or workflow that enforces it. Reference it visibly from README.md.
-- 🚧 **Spec-first delivery playbook (PDLC) enforced by the constitution**: Every roadmap item now moves through one written flow: spec, grill-me rulings, design-system check, implementation, tests plus independent review plus e2e smoke, then the spec is archived with evidence. Add the playbook skill, make the constitution require it, and document that the author runs a small local model so every step must stay small-context.
-  <!-- agent-state: {"schema":1,"id":"rm-93b4f2cba4489417","state":"claimed","touch":["CONSTITUTION.md","CONTRIBUTING.md","README.md","documentation/PROJECT_RULES.md","skills/README.md","skills/autonomous-roadmap-delivery.md","skills/pdlc-playbook.md","spec/README.md","spec/completed"],"resources":["pdlc-playbook"],"owner":"claude-code-pdlc-spec-20261106T231823Z-e3d9703a","token":"ad1fa6996e0e825fb4797cb98bf618b3","branch":"agent/rm-93b4f2cba4489417/ad1fa6996e0e","claimed_at":"2026-11-06T23:18:36Z","heartbeat_at":"2026-11-06T23:18:36Z","lease_until":"2026-11-07T00:48:36Z"} -->
-  Agent: claude-code-pdlc-spec-20261106T231823Z-e3d9703a | item: rm-93b4f2cba4489417 | lease until: 2026-11-07T00:48:36Z
-
-  <details>
-  <summary>Scope and constraints</summary>
-
-  Owner request (2026-11-07). Playwright e2e smoke is owned by the item "Playwright end-to-end suite in the CI pipeline" and security checks by skills/security-and-static-analysis.md; this item only references them as stage-6 gates. Also records opencode as a supported runner and the author's hardware.
-
-  </details>
 - 🚧 **Security review and static analysis in the PDLC test and review stage**: Add a tool-neutral skill that enforces the Cloudflare security-audit skill in two tiers (per-change guidance mode, periodic full audit) and lists the open-source static-analysis stack by design, with each tool marked wired or seeded. Link it from the verification suite's applicable-checks table.
   <!-- agent-state: {"schema":1,"id":"rm-f70f7be3a01e2dff","state":"claimed","touch":["skills/security-and-static-analysis.md","skills/verification-suite.md"],"resources":["verification-gates"],"owner":"claude-code-secgate-20261106T231758Z-76f8c3fc","token":"654f01b389bc058571a09fa7ee7e81a2","branch":"agent/rm-f70f7be3a01e2dff/654f01b389bc","claimed_at":"2026-11-06T23:18:10Z","heartbeat_at":"2026-11-06T23:18:10Z","lease_until":"2026-11-07T00:48:10Z"} -->
   Agent: claude-code-secgate-20261106T231758Z-76f8c3fc | item: rm-f70f7be3a01e2dff | lease until: 2026-11-07T00:48:10Z
@@ -364,6 +354,18 @@ _Review only — no fixes implemented this pass._
   - ✅ Completed 2026-11-06 — commit c137d45. New sixth widget in the family that DISPLAYS one chosen note's title + markdown-stripped content preview on the home screen. `LeothecaViewNoteWidgetProvider.java` (renders stored `{title, path}`, capped dependency-free `stripMarkdownForWidget` preview, deep-links a tap to `leotheca://select-widget-note`, degrades to a "tap to choose a note" prompt when nothing chosen/unreadable); `FolderAccessPlugin.setViewNote` (stores the note + nudges all placed instances, same division of labour as the favorites/recent widgets); `capacitorBridgeImpl.setViewNoteWidget` (best-effort TS wrapper); new `leotheca_widget_view_note` layout + `leotheca_widget_view_note_info` (110×90 content widget); receiver registered in AndroidManifest. Tests (TDD, written first): 5 new resource-contract tests in WidgetResourcesUnitTest. Gates: Android `:app:testDebugUnitTest` green, `npx tsc --noEmit` clean, `npx vitest run` 3221/3221 (171 files), `npx vite build` OK.
 
 ## Implemented
+
+- ✅ **Spec-first delivery playbook (PDLC) enforced by the constitution**: Every roadmap item now moves through one written flow: spec, grill-me rulings, design-system check, implementation, tests plus independent review plus e2e smoke, then the spec is archived with evidence. Add the playbook skill, make the constitution require it, and document that the author runs a small local model so every step must stay small-context.
+  <!-- agent-state: {"schema":1,"id":"rm-93b4f2cba4489417","state":"done","touch":["CONSTITUTION.md","CONTRIBUTING.md","README.md","documentation/PROJECT_RULES.md","skills/README.md","skills/autonomous-roadmap-delivery.md","skills/pdlc-playbook.md","spec/README.md","spec/completed"],"resources":["pdlc-playbook"],"note":"Landed f0868c8: skills/pdlc-playbook.md, constitution Spec-first delivery and Author environment sections, index/handoff/README/spec pointers. Local: git diff --check, POLICY_TEST 22 OK, check_roadmap_format OK, tidyRepoHygiene 3 passed. Hosted CI not inspected.","completed_at":"2026-11-06T23:20:15Z","completed_by":"claude-code-pdlc-spec-20261106T231823Z-e3d9703a","branch":"agent/rm-93b4f2cba4489417/ad1fa6996e0e"} -->
+  Agent: completed by claude-code-pdlc-spec-20261106T231823Z-e3d9703a | item: rm-93b4f2cba4489417
+
+  <details>
+  <summary>Scope and constraints</summary>
+
+  Owner request (2026-11-07). Playwright e2e smoke is owned by the item "Playwright end-to-end suite in the CI pipeline" and security checks by skills/security-and-static-analysis.md; this item only references them as stage-6 gates. Also records opencode as a supported runner and the author's hardware.
+
+  </details>
+
 
 - ✅ **Repository tidy-up**: The tree tracks a 100 MB AppImage, a leftover control worktree, private session logs and machine-specific paths that break the project's own rules. Remove them from the tip, ignore them going forward, and repair every reference. History is not rewritten.
   <!-- agent-state: {"schema":1,"id":"rm-d46e23fec03cf180","state":"done","touch":[".gitignore","Leotheca-x86_64.AppImage","PROGRESS.md","agent-log","control-hermes-20261010T154327Z-4a73a8ee","docs","logs","mermaid.smoke.test.ts","packaging/homebrew/README.md","scripts/build-appimage.sh","scripts/ci-local.sh","src/tidyRepoHygiene.test.ts"],"resources":["repo-tidy"],"note":"landed d98f117; tsc, lint 0 errors, check-version, build, npm test 173 files 3237 tests pass; release.yml agent-log comment left to the release-pipeline claim","completed_at":"2026-11-06T18:57:35Z","completed_by":"claude-code-tidy-20261106T190000Z-7c3a91e2","branch":"agent/rm-d46e23fec03cf180/33305ca5b6cf"} -->

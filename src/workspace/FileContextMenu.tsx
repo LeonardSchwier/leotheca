@@ -1,4 +1,5 @@
 import { useEffect } from "preact/hooks";
+import { copyTextToClipboard } from "../lib/clipboard";
 import { closeContextMenu, contextMenuPos, contextMenuTarget, relativePath } from "./fileTreeStore";
 import type { FsEntry } from "./types";
 
@@ -28,7 +29,7 @@ export function FileContextMenu({ rootPath, onNewNote, onNewFolder, onRename, on
   const { x, y } = contextMenuPos.value;
 
   const copyRelativePath = async () => {
-    await navigator.clipboard.writeText(relativePath(rootPath, entry.path));
+    await copyTextToClipboard(relativePath(rootPath, entry.path));
     closeContextMenu();
   };
 

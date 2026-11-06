@@ -8,7 +8,13 @@ platforms: [linux, macos, windows]
 metadata:
   hermes:
     tags: [verification, pre-push, ci, gating, leotheca]
-    related_skills: [verification-suite, ci-failure-triage, merge-conflict-resolution, change-quality-gates]
+    related_skills:
+      [
+        verification-suite,
+        ci-failure-triage,
+        merge-conflict-resolution,
+        change-quality-gates,
+      ]
 ---
 
 <!-- Variables: read CONSTITUTION.md's remote, main_branch. TOOL = scripts/agent_ledger.py -->
@@ -16,6 +22,10 @@ metadata:
 # Pre-push verification gate
 
 A concrete, mechanical checklist, not a restatement of general care. Read it before every push to the configured main branch. It applies even to a change that looks obviously correct — that feeling is exactly the failure mode this gate exists to catch, evidenced below.
+
+## Enforcement
+
+`hooks/pre-push` runs the fast subset (rule checks, `tsc`, `eslint`, vitest, ledger validation) and `.github/workflows/rules.yml` re-checks what a hook cannot be trusted with. Bypassing either is forbidden for agents. Both are the floor: this gate still requires the full applicable checks below. Map and bypass policy: `hooks/README.md`.
 
 ## The gate
 
@@ -32,8 +42,8 @@ A concrete, mechanical checklist, not a restatement of general care. Read it bef
 - Never treat hosted CI as your first test runner. It re-confirms what you already verified locally; it is not where you find out for the first time whether a change works. A local command finishes in seconds; a CI cycle costs everyone minutes with `main` red the whole time, and a chain of such pushes compounds that cost across every commit in the chain.
 - Never hand-author `TOOL`'s ledger/`agent-state` metadata by guessing its shape. Always call the actual helper. If it errors, the error is the thing to fix — read the traceback, correct the real input — never a reason to write the JSON block by hand instead. A malformed entry breaks ledger commands for every agent, not only the task that wrote it.
 
-## A concrete case from this repository (do not repeat this pattern)
+## Concrete cases from this repository (do not repeat)
 
-On 2026-09-07, in this exact repository: a regex meant to trim leading/trailing dots and spaces from a filename was ported from a Java string-embedded pattern (`"^[.\\s]+"`, which Java's string-escape processing correctly turns into the regex `^[.\s]+`) into a JS/TS regex *literal* using the same double backslash (`/^[.\\s]+/`). That is a different, wrong pattern in a regex literal — `\\s` there means a literal backslash followed by a literal "s", never whitespace — because a regex literal and a string that gets re-parsed into a regex follow different escaping rules. The commit that introduced this was never run against the behavior it touched. A later commit re-enabled the very test that would have caught it, again without running it before pushing, and asserted in its own message that the function "already handles [this] correctly." It did not; that push broke `main`'s CI. Neither commit ran the one command (`npx vitest run <the affected file>`) that would have caught this in seconds. The lesson isn't "double-check regex escaping" — it's that this gate's step 2 was skipped twice in a row.
+On 2026-09-07 a regex ported from a Java string (`"^[.\\s]+"`) into a JS regex literal kept the double backslash (`/^[.\\s]+/`), which matches a literal backslash and "s", not whitespace. A later commit re-enabled the test that would have caught it and claimed in its message that the function "already handles [this] correctly". It did not, and `main`'s CI broke. One command (`npx vitest run <the affected file>`) would have caught it in seconds: step 2 was skipped twice in a row.
 
-The same day (2026-09-07), a separate incident: a direct-to-main commit hand-wrote its own ledger `agent-state` comment instead of calling the actual helper script, using an `id` and `branch` shape that didn't match what the helper requires. Every ledger command parses and validates every entry before doing anything else, so this one malformed entry silently broke `list`/`claim`/`check`/`finish` for every agent — not a misrepresentation of one task's state, a break in the shared tool everyone depends on.
+The same day a direct commit hand-wrote its own `agent-state` comment with a wrong `id` and `branch` shape. Every ledger command validates every entry first, so that one entry broke `list`/`claim`/`check`/`finish` for every agent. Only the helper writes that block.

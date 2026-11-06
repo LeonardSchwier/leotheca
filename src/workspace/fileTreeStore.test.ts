@@ -105,6 +105,7 @@ const {
   deleteEntry,
   runSearch,
   searchResults,
+  searchInProgress,
   expandedDirs,
   dirChildren,
   selectedDir,
@@ -1985,5 +1986,30 @@ describe("toggleSearchSortMode", () => {
       searchSortMode: "name",
     });
     vi.restoreAllMocks();
+  });
+});
+
+describe("native failures on fire-and-forget entrypoints", () => {
+  // Sidebar's debounced search timer, the Enter/refresh handlers and
+  // FileTree's mount effect all call these without awaiting or catching, so a
+  // rejection here is an unhandled promise rejection, not a handled error.
+  beforeEach(() => {
+    vi.clearAllMocks();
+    expandedDirs.value = new Set();
+    dirChildren.value = new Map();
+    searchResults.value = [entry("stale.md")];
+  });
+
+  it("runSearch resolves when the native file walk fails, and clears stale results and the busy flag", async () => {
+    findAllFiles.mockRejectedValue(new Error("walk failed: folder access revoked"));
+    await expect(runSearch("/workspace", "milk")).resolves.toBeUndefined();
+    expect(searchInProgress.value).toBe(false);
+    expect(searchResults.value).toBeNull();
+  });
+
+  it("expandFirstLevel resolves when listing the workspace root fails", async () => {
+    listDir.mockRejectedValue(new Error("list failed"));
+    await expect(expandFirstLevel("/workspace")).resolves.toBeUndefined();
+    expect(expandedDirs.value.size).toBe(0);
   });
 });

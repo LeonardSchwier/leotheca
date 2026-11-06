@@ -109,19 +109,53 @@ Not examined (disclosed gap, out of this bounded pass): capture-path
 
 Checkpoint: none needed; implemented and landed in one session.
 
-Landed: pending this handoff's own commit — see the implementation commit
-  on origin/main (same push as this file) for the exact SHA.
+Landed: e164691 on origin/main (branch agent/rm-7da5133cbd5a7ec6/5beaf8d0984c,
+  pushed directly to main after merging fresh main twice more during
+  verification; confirmed an ancestor of origin/main by
+  `git merge-base --is-ancestor`).
 
-Checks (this exact tree):
+Concurrency note: while landing this, a newly-merged concurrent push
+  (the "Git hooks and enforced quality gates" item) wired a `prettier`
+  format-ratchet CI job (`rules.yml`) that, combined with the separately
+  concurrent "Master specification" item's own `master-spec` CI job
+  (`agent-policy.yml`), made master-spec.md's generated traceability
+  table and Prettier's table formatting mutually exclusive for any push
+  that had to touch master-spec.md -- which this item's own change did,
+  since it touches an application path. Seeded a small, unclaimed
+  ROADMAP.md bug entry documenting this the moment it was discovered;
+  by the time the next fresh-main merge landed, the git-hooks owner had
+  already added master-spec.md to `.prettierignore` (resolving it), so
+  the seeded entry was removed again in the same push rather than left
+  stale. No separate claim was taken for either the discovery or the
+  removal -- both were small, coordination-only ROADMAP.md edits.
+
+Checks (final merged tree, immediately before the push that landed e164691):
 - `cargo fmt --all -- --check` (src-tauri): clean
 - `cargo clippy --all-targets -- -D warnings` (src-tauri): 0 warnings
-- `cargo test` (src-tauri): 96 passed, 0 failed (+2 new vs. pre-change 94)
+- `cargo test` (src-tauri): 118 passed, 0 failed (includes 2 new tests
+  from this fix plus concurrently-landed modules merged in from main)
 - `cargo check` (src-tauri): clean
 - `npx tsc -p tsconfig.json --noEmit`: clean
-- `npx vitest run`: 173 files, 3237 tests passed (unchanged — no frontend
-  file touched by this fix)
+- `npx vitest run`: 178 files, 3345 tests passed
 - `npx vite build`: succeeds (pre-existing >500kB chunk-size warnings,
   unrelated)
+- `npm run lint` (eslint): 0 errors (3 pre-existing warnings in
+  `CaptureSheet.tsx`, from a concurrently-merged feature, not touched
+  by this item)
+- `npm run check-version`: passed
+- `node scripts/check-rules.mjs {commits,lines,files,deps,format}`
+  against `origin/main..HEAD`: all pass
+- `python3 scripts/check_master_spec.py --root . --base origin/main
+  --head HEAD`: "Master specification OK."
+- `python3 scripts/check_roadmap_format.py --root . --base origin/main`:
+  "Roadmap format OK."
+- `python3 -m unittest discover -s scripts -p 'test_agent_ledger.py'`:
+  22 passed
+- `python3 -m unittest scripts.test_check_master_spec`: 21 passed
+- The repo's own installed `pre-commit`/`pre-push` hooks (from the
+  concurrently-landed git-hooks item) also ran clean on every commit in
+  this session, including the final push (full vitest, version check,
+  roadmap format all reported `ok` in the push's own output).
 
 Review: traced the real success path (note autosave -> `saveCoordinator.ts`
   -> `write_text_file`/`write_workspace_text_file` -> `write_file_atomically`)
@@ -140,10 +174,13 @@ Review: traced the real success path (note autosave -> `saveCoordinator.ts`
 
 CI: not independently checked for this landed SHA from this session (no
   hosted-CI tool was invoked here); all applicable local checks listed
-  above are green, so per verification-suite.md's landing table this is
-  "all applicable local checks and review pass; no known code failure" —
-  eligible to land and finish, with a duplicate branch CI run optional. A
-  later session/CI run may still inspect the landed SHA's hosted workflow
+  above are green, including the repo's own hosted-CI-equivalent
+  mechanical gates (check-rules.mjs, check_master_spec.py,
+  check_roadmap_format.py) run directly against `origin/main..HEAD`, so
+  per verification-suite.md's landing table this is "all applicable
+  local checks and review pass; no known code failure" -- eligible to
+  land and finish, with a duplicate branch CI run optional. A later
+  session/CI run may still inspect the landed SHA's hosted workflow
   result.
 
 Missing evidence: none for the changed behavior itself. The disclosed,

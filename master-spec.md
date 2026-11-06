@@ -227,6 +227,7 @@ UTF-8, pretty-printed with 2 spaces. `version` is 1 by default, or 2 once a lega
 | `snippetsEnabled` | boolean | true | |
 | `snippets` | string | `todo<TAB>- [ ] ` | One `trigger<TAB>replacement` per line |
 | `headingLinksEnabled` | boolean | true | |
+| `markdownImportEnabled` | boolean | true | Offers the "Import Markdown vault..." command (desktop). |
 | `collectionsEnabled` | boolean | false | |
 | `rtlWorkspaceEnabled` | boolean | false | |
 | `speechToTextEnabled` | boolean | false | |
@@ -398,6 +399,8 @@ All return `Result<T, String>` unless noted. `FsEntry` is `{ name, path, isDir, 
 | `create_workspace_dir_new` | `workspaceRoot, relativePath` | `()` | Scoped, coded | Target must not exist. |
 | `rename_workspace_path_no_replace` | `workspaceRoot, from, to` | `()` | Scoped, coded | OS-level no-replace. |
 | `export_text_file_via_dialog` | `defaultFileName, contents` | `boolean` | User picks | `false` on cancel. HTML filter. |
+| `import_markdown_vault` | `targetFolder` | `ImportReport\|null` | User picks source; target scoped | Native folder dialog supplies the source (never the webview). `null` on cancel. Emits `markdown-import-progress`. Desktop only; other platforms return an error. |
+| `cancel_markdown_import` | none | `()` | none | Sets the cancel flag of the running import. |
 | `take_pending_open_file` | none | `{path, content}\|null` | Consume once | Not a Result. |
 | `pick_and_read_external_markdown_file` | none | `{path, content}\|null` | User picks | `.md` filter. |
 | `detect_platform` | `userAgent` | `Platform` | None | Pure. |
@@ -508,6 +511,7 @@ The URL parser is not the security boundary. The native gate on the eventual rea
 | FR-FS-010 | Native atomic overwrite MUST write a dot-prefixed temp file in the target directory and rename it over the target, removing the temp on rename failure. | Given an overwrite, When write_workspace_text_file succeeds, Then no .leotheca-tmp file remains. | `src-tauri/src/commands.rs` |
 | FR-FS-011 | Directory walks MUST stop descending at depth 40 on every platform. | Given a deeper tree, When walked, Then walking terminates without error. | `src-tauri/src/commands.rs` |
 | FR-FS-012 | A template picker MUST create a new note from a .md file in templatesFolder when templates are enabled. | Given a template, When selected, Then a new note with its content opens. | `src/workspace/TemplatePicker.test.tsx` |
+| FR-FS-013 | Native atomic overwrite's temp-file name MUST be unique per call within a process, not just per millisecond and PID, so two writes to the same target started close together never share a temp file. | Given many threads atomically-writing the same target at once, When all complete, Then every call succeeds and the final content is exactly one caller's complete payload. | `src-tauri/src/commands.rs` |
 
 ### Editor and saving (FR-EDIT)
 
@@ -759,6 +763,17 @@ The URL parser is not the security boundary. The native gate on the eventual rea
 | FR-EXT-002 | External files outside the workspace MUST open in a dedicated view rather than as workspace tabs. | Given an external file, When shown, Then ExternalFileView displays its path and content. | `src/app/ExternalFileView.test.tsx` |
 | FR-EXT-003 | externalFileOpenEnabled MUST default true and gate the feature. | Given false, When an event arrives, Then it is ignored. | `src/settings/globalConfig.test.ts` |
 
+### Markdown vault import (FR-IMPORT)
+
+| ID | Requirement | Acceptance | Test |
+| --- | --- | --- | --- |
+| FR-IMPORT-001 | On desktop with a workspace open and markdownImportEnabled true, the command palette MUST offer "Import Markdown vault..."; on Android or with the setting off it MUST NOT. | Given Android or the setting off, When the palette opens, Then the command is absent. | `src/markdownImport/markdownImport.test.ts` |
+| FR-IMPORT-002 | The source folder MUST come from a native dialog inside the command, and the source MUST NOT be modified. | Given an import, When it finishes, Then a byte snapshot of the source is unchanged and the webview supplied only targetFolder. | `src-tauri/src/markdown_import.rs` (cargo test) |
+| FR-IMPORT-003 | Notes MUST be copied to Imported/<source folder name> inside the workspace; an existing file MUST never be overwritten (a clash is saved as `name (imported)` and reported). | Given a clashing name, When imported, Then the old file is unchanged and the report lists the rename. | `src-tauri/src/markdown_import.rs` (cargo test) |
+| FR-IMPORT-004 | Symlinks MUST NOT be followed, hidden top-level source folders MUST be skipped, a target folder or destination escaping the workspace or lying inside the source MUST be rejected. | Given a symlinked target, a `..` target or a destination inside the source, When imported, Then an error is returned and nothing is written outside the workspace. | `src-tauri/src/markdown_import.rs` (cargo test) |
+| FR-IMPORT-005 | Only attachment embeds and links, nested heading links and %%comments%% MUST be rewritten; code, front matter and already supported syntax MUST stay byte-identical; non-UTF-8 notes MUST be copied unchanged and reported. | Given a note with each syntax, When imported, Then only the three kinds change and the report counts each finding. | `src-tauri/src/markdown_import.rs` (cargo test) |
+| FR-IMPORT-006 | The dialog MUST show progress with Cancel, then a report with exact counts and capped lists; a native failure MUST show an error dialog and the tree MUST refresh after files were written. | Given a finished import, When the dialog shows, Then converted, unsupported, renamed, skipped and failed items are listed. | `src/markdownImport/importStore.test.tsx` |
+
 ### Speech to text (FR-SPEECH)
 
 | ID | Requirement | Acceptance | Test |
@@ -934,6 +949,7 @@ Only numbers that exist in code, configuration or an observed run appear here. N
 | Workflow | Trigger | Does |
 | --- | --- | --- |
 | `ci.yml` | Push (ignoring `ROADMAP.md` and `.agents/handoffs/**`), PR, call | Jobs `frontend`, `backend`, `android`, `appimage-smoke`, `validation` |
+| `rules.yml` | Push, PR, weekly schedule | Commit convention, added-line rules, secret-shaped tokens, dependency intake, fast-forward-only main, prettier on changed files, licenses, action pinning, `npm audit` (reported, non-blocking until triaged) |
 | `agent-policy.yml` | Push and PR on policy paths | Python helper tests, ledger and roadmap format |
 | `release.yml` | Tag `v*`, implementation push to main, manual | Builds Linux, Android, Flatpak, macOS, Windows, then publishes |
 | `gh-pages.yml` | Push on `website/**` | Deploys the static site |
@@ -943,7 +959,7 @@ Only numbers that exist in code, configuration or an observed run appear here. N
 
 **Packaging.** `flatpak/` (GNOME 50 runtime, offline `cargo-sources.json`, `node-sources.json`), `packaging/f-droid/`, `packaging/homebrew/` (draft Cask with TODO placeholders), `packaging/macos/` (app and Quick Look), `snap/` (draft). External store submission status is not confirmed by the code.
 
-**Local hook.** `hooks/pre-push` runs `scripts/ci-local.sh`.
+**Local hooks.** `core.hooksPath=hooks` is set in the local repository config by `npm ci` (`prepare` runs `scripts/install-hooks.mjs`) or `npm run hooks:install`; the script is idempotent, never touches global config and skips CI and Flatpak builds. `hooks/pre-commit` checks staged files (whitespace, conflict markers, size, em dashes, competitor names, secret-shaped tokens, prettier, eslint, `cargo fmt`, optional gitleaks with a reported skip). `hooks/commit-msg` enforces the commit convention. `hooks/pre-push` runs the rule checks over the pushed range, refuses force pushes and deleting main, then `scripts/verify-fast.sh` (`tsc`, `eslint`, vitest, version, ledger); the e2e smoke runs only when the suite exists. `PREPUSH_FULL=1` runs the slow `scripts/ci-local.sh`. `scripts/guard-command.mjs` is an opt-in destructive-command guard. See `hooks/README.md`.
 
 ## 12. Test strategy
 
@@ -982,7 +998,7 @@ Generated from section 8 by `python3 scripts/check_master_spec.py --update-trace
 | Prefix | Area | Requirements | With a linked test | NONE | Test files |
 | --- | --- | --- | --- | --- | --- |
 | FR-WS | Workspaces and profiles | 12 | 12 | 0 | `src/settings/WelcomeDialog.test.tsx`, `src/settings/store.test.ts`, `src/settings/workspaceProfiles.test.ts`, `src/settings/workspaceTransition.test.ts`, `src/workspace/tauriBridge.test.ts`, `src/workspace/workspaceTransition.test.ts`, `src/workspace/workspaceTransitionRecovery.test.ts` |
-| FR-FS | File tree and file operations | 12 | 12 | 0 | `src-tauri/src/commands.rs`, `src/workspace/FileContextMenu.test.tsx`, `src/workspace/TemplatePicker.test.tsx`, `src/workspace/fileOpenAuthority.test.ts`, `src/workspace/fileTreeStore.test.ts`, `src/workspace/types.test.ts` |
+| FR-FS | File tree and file operations | 13 | 13 | 0 | `src-tauri/src/commands.rs`, `src/workspace/FileContextMenu.test.tsx`, `src/workspace/TemplatePicker.test.tsx`, `src/workspace/fileOpenAuthority.test.ts`, `src/workspace/fileTreeStore.test.ts`, `src/workspace/types.test.ts` |
 | FR-EDIT | Editor and saving | 17 | 17 | 0 | `src/app/fontSizeControls.test.ts`, `src/editor/attachments.test.ts`, `src/editor/frontmatterEdits.test.ts`, `src/editor/livePreview.test.ts`, `src/editor/slashCommands.test.ts`, `src/editor/snippets.test.ts`, `src/editor/textDiff.test.ts`, `src/editor/textDirection.test.ts`, `src/markdown/highlight.test.ts`, `src/markdown/tableCommands.test.ts`, `src/settings/workspaceSettings.test.ts`, `src/workspace/saveCoordinator.test.ts`, `src/workspace/tauriBridge.test.ts` |
 | FR-VIEW | Markdown preview | 9 | 9 | 0 | `src/editor/MarkdownPreview.concurrency.test.tsx`, `src/editor/MarkdownPreview.test.tsx`, `src/markdown/mermaidSanitize.test.ts`, `src/offline.test.ts` |
 | FR-LINK | Wikilinks, headings and blocks | 13 | 13 | 0 | `src/editor/MarkdownPreview.test.tsx`, `src/editor/blockLinkActions.test.ts`, `src/linking/BacklinksPanel.test.tsx`, `src/linking/frontmatter.test.ts`, `src/linking/store.test.ts`, `src/linking/wikiResolver.test.ts`, `src/linking/wikiSyntax.test.ts`, `src/markdown/blocks.test.ts`, `src/markdown/headings.test.ts` |
@@ -1005,12 +1021,13 @@ Generated from section 8 by `python3 scripts/check_master_spec.py --update-trace
 | FR-THEME | Themes and appearance | 4 | 4 | 0 | `src/app/zoomControls.test.ts`, `src/settings/customCss.test.ts`, `src/settings/store.test.ts`, `src/settings/workspaceSettings.test.ts` |
 | FR-EXP | Print and export | 3 | 3 | 0 | `src/export/exportNoteHtml.test.ts`, `src/export/printNote.test.ts`, `src/workspace/tauriBridgeImpl.test.ts` |
 | FR-EXT | External file open | 3 | 3 | 0 | `src-tauri/src/external_open.rs`, `src/app/ExternalFileView.test.tsx`, `src/settings/globalConfig.test.ts` |
+| FR-IMPORT | Markdown vault import | 6 | 6 | 0 | `src-tauri/src/markdown_import.rs`, `src/markdownImport/importStore.test.tsx`, `src/markdownImport/markdownImport.test.ts` |
 | FR-SPEECH | Speech to text | 4 | 3 | 1 | `src/settings/workspaceSettings.test.ts`, `src/speech/speechController.test.ts`, `src/workspace/speechBridgeImpl.test.ts` |
 | FR-SPELL | Spell check | 1 | 1 | 0 | `src/spellcheck/spellCheck.test.ts` |
 | FR-WID | Android widgets | 3 | 3 | 0 | `android/app/src/test/java/com/getcapacitor/myapp/WidgetResourcesUnitTest.java`, `android/app/src/test/java/com/leonardschwier/leotheca/NewNoteColdStartTrackerTest.java`, `src/workspace/fileTreeStore.test.ts` |
 | FR-CLIP | Web clipper extension | 1 | 1 | 0 | `extensions/web-clipper/clipperCore.test.js` |
 | FR-UI | Shell, UI primitives and accessibility | 12 | 10 | 2 | `src/app/App.test.tsx`, `src/app/CommandPalette.test.tsx`, `src/app/EmptyEditorState.test.tsx`, `src/app/layout/adaptiveLayout.test.ts`, `src/app/useResizableSidebar.test.ts`, `src/fuzzyMatch.test.ts`, `src/ui/Menu.test.tsx`, `src/ui/overlayStack.test.ts`, `src/workspace/FileTree.test.tsx` |
-| **Total** | | **185** | **176** | **9** | |
+| **Total** | | **192** | **183** | **9** | |
 <!-- traceability:end -->
 
 ## 15. Coverage gaps
@@ -1076,7 +1093,10 @@ Newest first. Each entry is `YYYY-MM-DD: what changed in behavior, contracts, fo
 
 <!-- change-log:start -->
 - 2026-11-07: Crash hardening (Android): `pickFolder` and `exportHtml` reject instead of throwing when the device has no document picker; share-intent extras are read defensively and styled text is kept; a restored activity no longer replays its share intent; `onNewIntent` is null-safe.
+- 2026-11-07: Desktop "Import Markdown vault..." command (`import_markdown_vault`, `cancel_markdown_import`, setting `markdownImportEnabled`, FR-IMPORT) copies a vault folder into `Imported/<name>`, converts three syntaxes and reports every outcome.
+- 2026-11-07: Build and process: versioned git hooks (pre-commit, commit-msg, fast pre-push) enabled through `npm run hooks:install`, `scripts/check-rules.mjs` mechanical rule checks, `scripts/guard-command.mjs`, and the `rules.yml` CI workflow. No application behavior changed.
 - 2026-11-07: Crash hardening (frontend): Preview falls back to escaped plain text when the Markdown parser throws on pathological nesting; clipboard writes, workspace search and first-level tree expansion no longer reject unhandled. Records the behavior of commit 0e80cd1.
 - 2026-11-07: Quick Capture gained an optional per-capture Template select (existing templates folder, placeholders {{content}} {{title}} {{url}} {{date}} {{time}}); None keeps the plain format.
+- 2026-11-06: Fixed a temp-file name collision in `write_file_atomically` (native atomic overwrite): two writes to the same target in the same millisecond on one process could silently overwrite each other's in-flight temp file, so the loser's rename failed with a spurious error while the winner's reported success actually held the other call's content. Temp names now carry a per-process monotonic sequence number as well as the existing timestamp/PID, so no two calls can collide. No caller-visible behavior change. Added FR-FS-013.
 - 2026-11-06: First version, written from the code on main at application version 1.0.0.
 <!-- change-log:end -->

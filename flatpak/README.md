@@ -27,7 +27,7 @@ The cloud automation sandbox is not expected to install a desktop runtime locall
 
 ## Regenerating dependency sources
 
-Regenerate both generated source lists whenever `package-lock.json` or `src-tauri/Cargo.lock` changes. Run these commands from the repository root:
+Regenerate both generated source lists whenever `package-lock.json` or `src-tauri/Cargo.lock` changes, and never edit them by hand: `scripts/flatpakSources.test.js` fails `npm test` when `node-sources.json` no longer matches the lockfile or npm's cache layout. Run these commands from the repository root:
 
 ```sh
 git clone --depth 1 https://github.com/flatpak/flatpak-builder-tools.git /tmp/flatpak-builder-tools

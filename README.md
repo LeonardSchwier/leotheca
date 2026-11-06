@@ -44,6 +44,7 @@ Leotheca was built using agentic AI engineering approaches. The following agents
 
 - **Leonard Schwier** — maintainer, architect
 - **LeoHub Hermes** (local agent) — most features, bug fixes, CI/CD, packaging
+- **opencode** (local agent, author's workstation) — small-model-friendly runs, same ledger and rules
 - **Mistral Vibe** (cloud agent) — specific roadmap items
 - **Claude Code** (cloud agent) — specific roadmap items
 - **ChatGPT automation** (cloud agent) — specific roadmap items

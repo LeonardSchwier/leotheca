@@ -89,6 +89,10 @@ describe("DEFAULT_WORKSPACE_SETTINGS", () => {
   it("defaults speech-to-text dictation to off, so no native speech API is touched until the user opts in", () => {
     expect(DEFAULT_WORKSPACE_SETTINGS.speechToTextEnabled).toBe(false);
   });
+
+  it("defaults search results to relevance order, so the newest, best-matching notes come first without any extra UI", () => {
+    expect(DEFAULT_WORKSPACE_SETTINGS.searchSortMode).toBe("relevance");
+  });
 });
 
 describe("loadWorkspaceSettings", () => {
@@ -194,6 +198,7 @@ describe("decodeWorkspaceSettings", () => {
         ...DEFAULT_WORKSPACE_SETTINGS,
         fontSize: "huge",
         sortOrder: "name-desc",
+        searchSortMode: "relevance",
       }),
       ROOT,
     );
@@ -390,6 +395,33 @@ describe("decodeWorkspaceSettings", () => {
     );
     expect(settings.version).toBe(1);
     expect(corrupt).toBe(false);
+  });
+
+  it("fills in searchSortMode when a settings file predates the field, not corrupt", () => {
+    const { settings, corrupt } = decodeWorkspaceSettings(
+      JSON.stringify({ ...DEFAULT_WORKSPACE_SETTINGS, searchSortMode: undefined }),
+      ROOT,
+    );
+    expect(corrupt).toBe(false);
+    expect(settings.searchSortMode).toBe("relevance");
+  });
+
+  it("keeps a non-default searchSortMode that was explicitly saved", () => {
+    const { settings, corrupt } = decodeWorkspaceSettings(
+      JSON.stringify({ ...DEFAULT_WORKSPACE_SETTINGS, searchSortMode: "name" }),
+      ROOT,
+    );
+    expect(corrupt).toBe(false);
+    expect(settings.searchSortMode).toBe("name");
+  });
+
+  it("defaults an unknown searchSortMode value to relevance and marks the settings corrupt", () => {
+    const { settings, corrupt } = decodeWorkspaceSettings(
+      JSON.stringify({ ...DEFAULT_WORKSPACE_SETTINGS, searchSortMode: "random" }),
+      ROOT,
+    );
+    expect(settings.searchSortMode).toBe("relevance");
+    expect(corrupt).toBe(true);
   });
 });
 
@@ -1535,6 +1567,24 @@ describe("decodeWorkspaceSettings with legacy migration", () => {
       expect(settings.sortOrder).toBe("name-desc");
       expect(settings.fontSize).toBe(20);
       expect(settings.uiZoom).toBe(125);
+    });
+
+    it("fills in searchSortMode from the v2 defaults for a settings file written before that field existed, without corrupting", () => {
+      const v1Settings = {
+        version: 1,
+        sortOrder: "name-asc",
+        fontSize: 15,
+        lastOpenPaths: ["/workspace/note.md"],
+        lastActivePath: "/workspace/note.md",
+      };
+
+      const { settings, corrupt } = decodeWorkspaceSettings(
+        JSON.stringify(v1Settings),
+        ROOT,
+      );
+
+      expect(corrupt).toBe(false);
+      expect(settings.searchSortMode).toBe(DEFAULT_WORKSPACE_SETTINGS.searchSortMode);
     });
 
     it("migrates v1 workspace with paths escaping workspace", () => {

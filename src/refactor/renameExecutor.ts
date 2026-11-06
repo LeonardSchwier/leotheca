@@ -20,6 +20,7 @@ import { createMetadataMigrationPlan } from "./metadataMigrator";
 import type { EditorLayoutState } from "../workspace/types";
 import type { Bookmark } from "../bookmarks/types";
 import type { WorkspaceSettings } from "../settings/workspaceSettings";
+import { DEFAULT_WORKSPACE_SETTINGS } from "../settings/workspaceSettings";
 
 /** Journal entry for a rename operation - records what was changed for rollback */
 export interface RenameJournalEntry {
@@ -151,42 +152,7 @@ function createBasicEditorLayout(tabPaths: string[] = [], activePath: string | n
 
 /** Helper to create basic workspace settings */
 function createBasicWorkspaceSettings(): WorkspaceSettings {
-  return {
-    version: 1,
-    sortOrder: "name-asc",
-    fontSize: 15,
-    defaultViewMode: "source",
-    deleteBehavior: "project-trash",
-    lastOpenPaths: [],
-    lastActivePath: null,
-    uiZoom: 100,
-    frontmatterAliasesEnabled: true,
-    mathRenderingEnabled: true,
-    mermaidRenderingEnabled: true,
-    pasteImagesEnabled: true,
-    attachmentsFolder: "",
-    frontmatterPropertiesEnabled: true,
-    graphColorGroups: [],
-    tagsEnabled: true,
-    templatesEnabled: true,
-    templatesFolder: "Templates",
-    canvasEnabled: true,
-    themesEnabled: true,
-    accentColor: "warm",
-    readingFont: "sans",
-    snippetsEnabled: true,
-    snippets: "",
-    headingLinksEnabled: true,
-    collectionsEnabled: false,
-    rtlWorkspaceEnabled: false,
-    speechToTextEnabled: false,
-    spellcheckEnabled: false,
-    captureInboxFolder: "",
-    captureInboxNote: "Inbox.md",
-    captureDatePattern: "",
-    customCssEnabled: false,
-    customCssPath: ".leotheca/custom.css",
-  };
+  return { ...DEFAULT_WORKSPACE_SETTINGS, version: 1 };
 }
 
 /**
@@ -707,42 +673,7 @@ export async function applyRenamePlan(
         },
       },
       bookmarks: [],
-      workspaceSettings: {
-        version: 1,
-        sortOrder: "name-asc" as const,
-        fontSize: 15,
-        defaultViewMode: "source" as const,
-        deleteBehavior: "project-trash" as const,
-        lastOpenPaths: [],
-        lastActivePath: null,
-        uiZoom: 100,
-        frontmatterAliasesEnabled: true,
-        mathRenderingEnabled: true,
-        mermaidRenderingEnabled: true,
-        pasteImagesEnabled: true,
-        attachmentsFolder: "",
-        frontmatterPropertiesEnabled: true,
-        graphColorGroups: [],
-        tagsEnabled: true,
-        templatesEnabled: true,
-        templatesFolder: "Templates",
-        canvasEnabled: true,
-        themesEnabled: true,
-        accentColor: "warm" as const,
-        readingFont: "sans" as const,
-        snippetsEnabled: true,
-        snippets: "",
-        headingLinksEnabled: true,
-        collectionsEnabled: false,
-        rtlWorkspaceEnabled: false,
-        speechToTextEnabled: false,
-    spellcheckEnabled: false,
-        captureInboxFolder: "",
-        captureInboxNote: "Inbox.md",
-        captureDatePattern: "",
-        customCssEnabled: false,
-        customCssPath: ".leotheca/custom.css",
-      },
+      workspaceSettings: { ...DEFAULT_WORKSPACE_SETTINGS, version: 1 },
     },
     step: "wikilink_updates_started",
     completed: false,

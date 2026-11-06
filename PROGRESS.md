@@ -1,3 +1,34 @@
+# Leotheca Daily Competitor Feature Scan — 2026-11-06 (cron)
+
+## Decision: NO CHANGE (silent run — nothing newer than cutoff)
+- **Cutoff (last scan):** 2026-11-03 — commit `2b48ef7` (Obsidian 1.15.1 Desktop+Mobile).
+  Rule: only queue entries strictly NEWER than cutoff.
+- **Joplin Desktop:** latest = v3.7.22 (2026-10-28). Its MCP read_notes tool + outline/section
+  nav + search enclosing-section already queued (ROADMAP.md line 320). No version newer than
+  2026-11-03 exists. → nothing new.
+- **Obsidian:** newest = 1.15.1 Desktop + Mobile, both dated Nov 3, 2026 = the last scan's exact
+  content, already queued (lines 326–327: relevance sort, View-note widget). Nov 3 is NOT newer
+  than the cutoff. Entries below the cutoff (Oct 22–27: Mermaid/Pele, PDF export, diacritic
+  search) already queued or shipped. → nothing new.
+
+## Policy
+- CONSTITUTION.md has NO "Daily competitor feature scan" section (read all 135 lines) →
+  followed the task-prompt policy. PHILOSOPHY.md 3 principles applied (moot — zero candidates
+  passed the date filter).
+
+## Actions
+- Fetched both changelogs via /opt/leohub/bin/leo-web (Joplin plain; Obsidian --render).
+- Cross-checked each candidate vs cutoff + existing ROADMAP (grep) + philosophy.
+- **No commit, no push** — a day with nothing worth adding is NORMAL per policy.
+
+## Notes (non-fatal)
+- `origin` = Gitea 100.98.97.38:3004 → "repository not found" on fetch. Task prompt's "GitHub
+  remote w/ embedded token" does NOT match this repo's actual origin. Irrelevant this run (nothing
+  to push), but a real push run must resolve the correct remote first.
+- Working tree has unrelated in-flight edits (App.css, renameExecutor, workspaceSettings, Sidebar,
+  fileTreeStore, searchQuery) — NOT ROADMAP.md; left untouched.
+
+---
 # Leotheca autonomous agent — 2026-10-21
 
 ## Done

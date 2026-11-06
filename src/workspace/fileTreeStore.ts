@@ -20,9 +20,9 @@ import {
   workspaceSession,
   workspaceSettings,
 } from "../settings/store";
-import type { SortOrder } from "../settings/workspaceSettings";
+import type { SortOrder, SearchSortMode } from "../settings/workspaceSettings";
 import { linkIndex } from "../linking/store";
-import { isExcludedDir, matchesSearchQuery, parseSearchQuery } from "./searchQuery";
+import { isExcludedDir, matchesSearchQuery, parseSearchQuery, queryNeedsContentForScoring, scoreSearchResult } from "./searchQuery";
 import { mapWithConcurrency } from "./concurrency";
 import {
   updateRecentNotesWidget,
@@ -331,6 +331,18 @@ export function toggleSortOrder() {
         ? "modified-desc"
         : "name-asc";
   updateWorkspaceSettings({ sortOrder: next });
+}
+
+/** Cycles the search result sort mode: relevance → name → modified → relevance. */
+export function toggleSearchSortMode() {
+  const current = workspaceSettings.value.searchSortMode;
+  const next: SearchSortMode =
+    current === "relevance"
+      ? "name"
+      : current === "name"
+        ? "modified"
+        : "relevance";
+  updateWorkspaceSettings({ searchSortMode: next });
 }
 
 /** Frontmatter stamped into every newly created note. Kept intentionally
@@ -768,11 +780,13 @@ export async function runSearch(rootPath: string, query: string) {
     const entries = await findAllFiles(rootPath);
     if (!isCurrent()) return;
     const readContent = createBatchedContentReader(isCurrent);
-    const matchFlags = await mapWithConcurrency(
+    const searchSortMode = workspaceSettings.value.searchSortMode;
+    const scoredResults: { entry: FsEntry; score: number }[] = [];
+    await mapWithConcurrency(
       entries,
       SEARCH_CONTENT_READ_CONCURRENCY,
       async (entry) => {
-        if (!isCurrent()) return false;
+        if (!isCurrent()) return;
         let contentPromise: Promise<string | null> | null = null;
         // Files that are images, excessively large, or not text are never read
         // for content matching. Non-text files (PDFs, videos, compressed
@@ -814,19 +828,70 @@ export async function runSearch(rootPath: string, query: string) {
             entry.name.toLowerCase(),
           )
         ) {
-          return isCurrent() && false;
+          return;
         }
+        const nameLower = entry.name.toLowerCase();
+        const pathLower = relativePath(rootPath, entry.path).toLowerCase();
+        const tagsLower = linkIndex.value.tagsByPath.get(entry.path) ?? [];
         const matched = await matchesSearchQuery(parsed, {
-          nameLower: entry.name.toLowerCase(),
-          pathLower: relativePath(rootPath, entry.path).toLowerCase(),
-          tagsLower: linkIndex.value.tagsByPath.get(entry.path) ?? [],
+          nameLower,
+          pathLower,
+          tagsLower,
           getContentLower,
         });
-        return isCurrent() && matched;
+        if (!matched || !isCurrent()) return;
+        if (searchSortMode === "relevance") {
+          // Only read content for scoring if the query has at least one
+          // positive text clause (the only clause type that scores content).
+          // Tag-only, path-only, and negated-only queries never read the
+          // file here — the same lazy-read guarantee matchesSearchQuery
+          // already provides during matching.
+          const contentLower = queryNeedsContentForScoring(parsed, nameLower)
+            ? await getContentLower()
+            : null;
+          scoredResults.push({
+            entry,
+            score: scoreSearchResult(
+              parsed,
+              nameLower,
+              pathLower,
+              tagsLower,
+              contentLower,
+              entry.mtime,
+            ),
+          });
+        } else {
+          // "name" and "modified" orders depend only on entry metadata
+          // (see the sort below); content was already read for matching
+          // but is not scored — score is a placeholder.
+          scoredResults.push({ entry, score: 0 });
+        }
       },
     );
     if (!isCurrent()) return;
-    searchResults.value = entries.filter((_, i) => matchFlags[i]);
+    if (searchSortMode === "relevance") {
+      scoredResults.sort((a, b) => b.score - a.score);
+    } else if (searchSortMode === "name") {
+      scoredResults.sort((a, b) =>
+        a.entry.name.localeCompare(b.entry.name, undefined, {
+          sensitivity: "base",
+          numeric: true,
+          caseFirst: "lower",
+        }),
+      );
+    } else {
+      // "modified": newest first, name as stable tiebreaker
+      scoredResults.sort((a, b) => {
+        const cmp = (b.entry.mtime ?? 0) - (a.entry.mtime ?? 0);
+        if (cmp !== 0) return cmp;
+        return a.entry.name.localeCompare(b.entry.name, undefined, {
+          sensitivity: "base",
+          numeric: true,
+          caseFirst: "lower",
+        });
+      });
+    }
+    searchResults.value = scoredResults.map((r) => r.entry);
   } finally {
     if (isCurrent()) searchInProgress.value = false;
   }

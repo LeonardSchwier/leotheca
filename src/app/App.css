@@ -1105,6 +1105,24 @@ button.icon-button.active {
   font-size: 11px;
 }
 
+.search-sort-toggle {
+  position: absolute;
+  right: 24px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--text-faint);
+  cursor: pointer;
+  font-size: 11px;
+  padding: 0;
+  line-height: 1;
+}
+
+.search-sort-toggle:hover {
+  color: var(--text-primary);
+}
+
 .search-results {
   list-style: none;
   margin: 0;

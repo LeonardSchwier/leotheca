@@ -113,6 +113,7 @@ const {
   expandAll,
   expandFirstLevel,
   revealPathInSidebar,
+  toggleSearchSortMode,
 } = await import("./fileTreeStore");
 
 function entry(name: string, isDir = false): FsEntry {
@@ -1891,5 +1892,98 @@ describe("runSearch – folder + contents exclusion", () => {
     ]);
     await runSearch(ws, "-archive");
     expect(searchResults.value?.map((e) => e.name)).toEqual(["root.md"]);
+  });
+});
+
+describe("runSearch: search result sort order", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // Back to the shipped default so tests below that don't set a mode
+    // exercise relevance sorting, as the app would out of the box.
+    workspaceSettings.value = { ...DEFAULT_WORKSPACE_SETTINGS };
+  });
+
+  it("ranks a name match above a content-only match when sorting by relevance", async () => {
+    const ws = "/workspace";
+    findAllFiles.mockResolvedValue([
+      { name: "diary.md", path: `${ws}/diary.md`, isDir: false },
+      { name: "milk list.md", path: `${ws}/milk list.md`, isDir: false },
+    ]);
+    mockFileContents({ [`${ws}/diary.md`]: "Bought some milk today." });
+    await runSearch(ws, "milk");
+    expect(searchResults.value?.map((e) => e.name)).toEqual(["milk list.md", "diary.md"]);
+  });
+
+  it("sorts by name A→Z regardless of discovery order when mode is name", async () => {
+    const ws = "/workspace";
+    // Deliberately returned in reverse-alphabetical order
+    findAllFiles.mockResolvedValue([
+      { name: "milk list.md", path: `${ws}/milk list.md`, isDir: false },
+      { name: "diary.md", path: `${ws}/diary.md`, isDir: false },
+    ]);
+    mockFileContents({ [`${ws}/diary.md`]: "Bought some milk today." });
+    workspaceSettings.value = { ...DEFAULT_WORKSPACE_SETTINGS, searchSortMode: "name" };
+    await runSearch(ws, "milk");
+    // Alphabetical: diary.md before milk list.md
+    expect(searchResults.value?.map((e) => e.name)).toEqual(["diary.md", "milk list.md"]);
+  });
+
+  it("sorts by mtime descending when mode is modified", async () => {
+    const ws = "/workspace";
+    const OLD = 1700000000000;
+    const NEW = 1762500000000;
+    findAllFiles.mockResolvedValue([
+      { name: "old.md", path: `${ws}/old.md`, isDir: false, mtime: OLD },
+      { name: "new.md", path: `${ws}/new.md`, isDir: false, mtime: NEW },
+      { name: "milk.md", path: `${ws}/milk.md`, isDir: false, mtime: OLD + 1000 },
+    ]);
+    mockFileContents({
+      [`${ws}/old.md`]: "milk",
+      [`${ws}/new.md`]: "milk",
+      [`${ws}/milk.md`]: "milk",
+    });
+    workspaceSettings.value = { ...DEFAULT_WORKSPACE_SETTINGS, searchSortMode: "modified" };
+    await runSearch(ws, "milk");
+    // Newest first: new.md, milk.md, old.md
+    expect(searchResults.value?.map((e) => e.name)).toEqual(["new.md", "milk.md", "old.md"]);
+  });
+
+  it("matches content in name mode too (sorting, not restricting) — name mode still reads content for matching", async () => {
+    const ws = "/workspace";
+    findAllFiles.mockResolvedValue([
+      { name: "milk list.md", path: `${ws}/milk list.md`, isDir: false },
+      { name: "diary.md", path: `${ws}/diary.md`, isDir: false },
+    ]);
+    mockFileContents({ [`${ws}/diary.md`]: "Bought some milk today." });
+    workspaceSettings.value = { ...DEFAULT_WORKSPACE_SETTINGS, searchSortMode: "name" };
+    await runSearch(ws, "milk");
+    // Both match (one by name, one by content); name mode sorts alphabetically
+    expect(searchResults.value?.map((e) => e.name)).toEqual(["diary.md", "milk list.md"]);
+  });
+});
+
+describe("toggleSearchSortMode", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    workspaceSettings.value = { ...DEFAULT_WORKSPACE_SETTINGS };
+  });
+
+  it("cycles relevance → name → modified → relevance", () => {
+    toggleSearchSortMode();
+    expect(workspaceSettings.value.searchSortMode).toBe("name");
+    toggleSearchSortMode();
+    expect(workspaceSettings.value.searchSortMode).toBe("modified");
+    toggleSearchSortMode();
+    expect(workspaceSettings.value.searchSortMode).toBe("relevance");
+  });
+
+  it("persists the new mode through updateWorkspaceSettings, not just in the in-memory store", async () => {
+    const settingsModule = await import("../settings/store");
+    vi.spyOn(settingsModule, "updateWorkspaceSettings");
+    await toggleSearchSortMode();
+    expect(settingsModule.updateWorkspaceSettings).toHaveBeenCalledWith({
+      searchSortMode: "name",
+    });
+    vi.restoreAllMocks();
   });
 });

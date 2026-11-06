@@ -246,3 +246,91 @@ export async function matchesSearchQuery(query: SearchQuery, ctx: SearchContext)
   }
   return false;
 }
+
+/** Returns true if any clause in the query is a positive (non-negated)
+ * `text` clause AND at least one such clause is NOT satisfied by the
+ * file's name alone. Callers use this to decide whether a content read
+ * is worth it for scoring: if every positive text clause already matches
+ * the name, the content read would add 0 points to the score (content
+ * hits only matter for clauses the name doesn't cover). */
+export function queryNeedsContentForScoring(
+  query: SearchQuery,
+  nameLower: string,
+): boolean {
+  for (const group of query) {
+    for (const clause of group) {
+      if (clause.negate || clause.kind !== "text") continue;
+      if (!nameLower.includes(clause.value)) return true;
+    }
+  }
+  return false;
+}
+
+/** Scores a single search result for relevance ordering (see
+ * fileTreeStore.ts's runSearch). A higher score means a more
+ * relevant match.
+ *
+ * Scoring rules (all positive, additive):
+ * - Each **positive** `text` clause that matches the file's **name**
+ *   contributes 10 points (name matches are the strongest signal).
+ * - Each **positive** `text` clause that does NOT match the name but
+ *   matches the **content** contributes 2 points (content-only matches
+ *   are weaker but still relevant).
+ * - `path:` and `tag:` clauses contribute 5 points each when they
+ *   match (these are structural matches, moderate signal).
+ * - Negated clauses contribute 0 (they only exclude; they don't rank).
+ * - Recency bonus: `(mtime ?? 0) / 1e10` (a recent file with 2026-11-06
+ *   mtime ≈ 1762500000000 ms → /1e10 ≈ 0.176) so ties between equally
+ *   relevant results are broken newest-first without overwhelming the
+ *   term-count signal.
+ *
+ * This function is pure and synchronous — it does not read any files.
+ * The caller must have already determined which content clause matched
+ * (i.e. called matchesSearchQuery first) and should pass the resolved
+ * contentLower (or null) so this function can score name-vs-content
+ * hits without re-reading. */
+export function scoreSearchResult(
+  query: SearchQuery,
+  nameLower: string,
+  pathLower: string,
+  tagsLower: string[],
+  contentLower: string | null,
+  mtime: number | undefined,
+): number {
+  let score = 0;
+
+  for (const group of query) {
+    for (const clause of group) {
+      if (clause.negate) continue; // negation only excludes, doesn't rank
+
+      switch (clause.kind) {
+        case "text": {
+          if (nameLower.includes(clause.value)) {
+            score += 10; // name hit: strongest signal
+          } else if (contentLower !== null && contentLower.includes(clause.value)) {
+            score += 2; // content hit: weaker signal
+          }
+          break;
+        }
+        case "path":
+          if (pathLower.includes(clause.value)) score += 5;
+          break;
+        case "tag":
+          if (
+            tagsLower.some(
+              (tag) => tag === clause.value || tag.startsWith(`${clause.value}/`),
+            )
+          ) {
+            score += 5;
+          }
+          break;
+      }
+    }
+  }
+
+  // Recency tiebreaker: small positive bonus so equally-scored results
+  // prefer newer files without distorting the term-based ranking.
+  score += (mtime ?? 0) / 1e10;
+
+  return score;
+}

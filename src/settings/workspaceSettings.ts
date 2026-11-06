@@ -17,6 +17,12 @@ import type { EditorLayoutState, ViewMode } from "../workspace/types";
 export type { ViewMode };
 export type SortOrder = "name-asc" | "name-desc" | "modified-desc";
 const SORT_ORDERS: readonly SortOrder[] = ["name-asc", "name-desc", "modified-desc"];
+/** How sidebar search results are ordered. "relevance" sorts by match
+ * quality (name matches score higher than content-only matches, ties
+ * broken by recency); "name" and "modified" reuse the workspace's
+ * existing sortOrder conventions for a predictable, non-scored order. */
+export type SearchSortMode = "relevance" | "name" | "modified";
+const SEARCH_SORT_MODES: readonly SearchSortMode[] = ["relevance", "name", "modified"];
 const VIEW_MODES: readonly ViewMode[] = ["source", "split", "preview"];
 /** "project-trash" moves a deleted entry into `<workspace>/.trash` (the
  * only behavior before this setting existed); "permanent" deletes it
@@ -64,6 +70,10 @@ export interface GraphColorGroup {
 export interface WorkspaceSettings {
   version: 1 | 2;
   sortOrder: SortOrder;
+  /** How sidebar search results are ordered. "relevance" (default) sorts
+   * by match quality; "name" and "modified" use the existing sortOrder
+   * conventions. See SearchSortMode above. */
+  searchSortMode: SearchSortMode;
   /** Applied to both the editor and the preview's reading font, in px. */
   fontSize: number;
   /** Applied once, when this workspace is opened; free to switch during
@@ -246,6 +256,7 @@ export function clamp(value: number, min: number, max: number): number {
 export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   version: 1,
   sortOrder: "name-asc",
+  searchSortMode: "relevance",
   fontSize: 15,
   defaultViewMode: "source",
   deleteBehavior: "project-trash",
@@ -580,6 +591,11 @@ export function decodeWorkspaceSettings(
     SORT_ORDERS,
     DEFAULT_WORKSPACE_SETTINGS.sortOrder,
   );
+  const searchSortMode = decodeEnum(
+    record.searchSortMode,
+    SEARCH_SORT_MODES,
+    DEFAULT_WORKSPACE_SETTINGS.searchSortMode,
+  );
   const fontSize = decodeNumberInRange(
     record.fontSize,
     MIN_FONT_SIZE,
@@ -778,6 +794,7 @@ export function decodeWorkspaceSettings(
     ...record,
     version: versionValue,
     sortOrder: sortOrder.value,
+    searchSortMode: searchSortMode.value,
     fontSize: fontSize.value,
     defaultViewMode: defaultViewMode.value,
     deleteBehavior: deleteBehavior.value,
@@ -822,6 +839,7 @@ export function decodeWorkspaceSettings(
     editorLayoutCorrupt ||
     anyCorrupt(
       sortOrder,
+      searchSortMode,
       fontSize,
       defaultViewMode,
       deleteBehavior,

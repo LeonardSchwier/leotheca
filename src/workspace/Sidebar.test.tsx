@@ -43,6 +43,7 @@ vi.mock("./fileTreeStore", () => ({
   deleteEntry,
   renameEntry,
   toggleSortOrder: vi.fn(),
+  toggleSearchSortMode: vi.fn(),
   loadChildren: vi.fn(async () => []),
   expandFirstLevel: vi.fn(async () => {}),
   openContextMenu: vi.fn(),
@@ -67,6 +68,7 @@ vi.mock("../settings/store", () => ({
 
 const { Sidebar } = await import("./Sidebar");
 const { workspaceSettings } = await import("../settings/store");
+const { toggleSearchSortMode } = await import("./fileTreeStore");
 const { DEFAULT_WORKSPACE_SETTINGS } = await import("../settings/workspaceSettings");
 const { ConfirmDialogHost } = await import("../app/ConfirmDialogHost");
 const { confirmRequest } = await import("../app/confirmDialog");
@@ -134,6 +136,51 @@ describe("Sidebar search debounce", () => {
     // the switch to workspace B, and its results would show up in B's
     // sidebar (searchResults is a single shared signal).
     expect(runSearch).not.toHaveBeenCalled();
+  });
+});
+
+describe("Sidebar search sort-mode toggle", () => {
+  const flushPendingAutosave = vi.fn(async () => {});
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    searchQuery.value = "";
+    searchResults.value = null;
+    searchInProgress.value = false;
+    contextMenuTarget.value = null;
+    workspaceSettings.value = { ...DEFAULT_WORKSPACE_SETTINGS };
+  });
+
+  afterEach(() => {
+    cleanup();
+  });
+
+  it("hides the toggle when there is no active search", () => {
+    const { queryByLabelText } = render(
+      <Sidebar rootPath="/workspace" onOpenFile={vi.fn()} flushPendingAutosave={flushPendingAutosave} />,
+    );
+    expect(queryByLabelText("Toggle search sort mode")).toBeNull();
+  });
+
+  it("shows the toggle while a search is active and cycles the mode on click", () => {
+    searchQuery.value = "milk";
+    const { getByLabelText } = render(
+      <Sidebar rootPath="/workspace" onOpenFile={vi.fn()} flushPendingAutosave={flushPendingAutosave} />,
+    );
+    const button = getByLabelText("Toggle search sort mode");
+    expect(button).not.toBeNull();
+    fireEvent.click(button);
+    expect(toggleSearchSortMode).toHaveBeenCalledTimes(1);
+  });
+
+  it("re-runs the search so the new order applies immediately, instead of waiting for the input debounce", () => {
+    searchQuery.value = "milk";
+    const { getByLabelText } = render(
+      <Sidebar rootPath="/workspace" onOpenFile={vi.fn()} flushPendingAutosave={flushPendingAutosave} />,
+    );
+    vi.mocked(runSearch).mockClear();
+    fireEvent.click(getByLabelText("Toggle search sort mode"));
+    expect(runSearch).toHaveBeenCalledWith("/workspace", "milk");
   });
 });
 

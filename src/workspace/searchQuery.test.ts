@@ -1,5 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
-import { isExcludedDir, matchesSearchQuery, parseSearchQuery, type SearchContext } from "./searchQuery";
+import {
+  isExcludedDir,
+  matchesSearchQuery,
+  parseSearchQuery,
+  scoreSearchResult,
+  type SearchContext,
+} from "./searchQuery";
 
 describe("parseSearchQuery", () => {
   it("returns no groups at all for a blank query", () => {
@@ -300,5 +306,73 @@ describe("isExcludedDir", () => {
     const mid = parseSearchQuery("-middle");
     expect(isExcludedDir(mid, "top/middle/bottom.md", "bottom.md")).toBe(true);
     expect(isExcludedDir(mid, "top/other/bottom.md", "bottom.md")).toBe(false);
+  });
+});
+
+describe("scoreSearchResult", () => {
+  const OLD = 1700000000000;
+  const NEW = 1762500000000;
+
+  it("scores a name match (10) higher than a content-only match (2) for the same term", () => {
+    const query = parseSearchQuery("milk");
+    const nameHit = scoreSearchResult(query, "milk list.md", "lists/milk list.md", [], null, OLD);
+    const contentHit = scoreSearchResult(query, "diary.md", "diary.md", [], "bought some milk today", OLD);
+    expect(nameHit).toBe(10 + OLD / 1e10);
+    expect(contentHit).toBe(2 + OLD / 1e10);
+    expect(nameHit).toBeGreaterThan(contentHit);
+  });
+
+  it("scores a path: clause (5) between a name and a content hit", () => {
+    const query = parseSearchQuery("path:journal");
+    const pathHit = scoreSearchResult(query, "entry.md", "journal/entry.md", [], null, OLD);
+    expect(pathHit).toBe(5 + OLD / 1e10);
+  });
+
+  it("scores a matching tag: clause (5), including a nested child tag", () => {
+    const query = parseSearchQuery("tag:work");
+    const exact = scoreSearchResult(query, "note.md", "notes/note.md", ["work"], null, OLD);
+    const nested = scoreSearchResult(query, "note.md", "notes/note.md", ["work/project"], null, OLD);
+    const unrelated = scoreSearchResult(query, "note.md", "notes/note.md", ["other"], null, OLD);
+    expect(exact).toBe(5 + OLD / 1e10);
+    expect(nested).toBe(5 + OLD / 1e10);
+    expect(unrelated).toBe(OLD / 1e10);
+  });
+
+  it("adds every matched clause's score rather than taking the best one", () => {
+    const query = parseSearchQuery("milk path:lists");
+    const score = scoreSearchResult(query, "milk list.md", "lists/milk list.md", [], null, OLD);
+    expect(score).toBe(15 + OLD / 1e10);
+  });
+
+  it("gives negated clauses zero ranking points, they only exclude", () => {
+    const score = scoreSearchResult(parseSearchQuery("-milk"), "milk list.md", "lists/milk list.md", [], "milk milk", OLD);
+    expect(score).toBe(OLD / 1e10);
+  });
+
+  it("breaks ties on recency: a newer file with an equal term score wins", () => {
+    const query = parseSearchQuery("milk");
+    const older = scoreSearchResult(query, "a.md", "a.md", [], "some milk", OLD);
+    const newer = scoreSearchResult(query, "b.md", "b.md", [], "some milk", NEW);
+    expect(older).toBe(2 + OLD / 1e10);
+    expect(newer).toBe(2 + NEW / 1e10);
+    expect(newer).toBeGreaterThan(older);
+  });
+
+  it("keeps the term signal above the recency signal: a name match on an old file beats a content match on a new one", () => {
+    const query = parseSearchQuery("milk");
+    const oldNameHit = scoreSearchResult(query, "milk list.md", "lists/milk list.md", [], null, OLD);
+    const newContentHit = scoreSearchResult(query, "diary.md", "diary.md", [], "some milk", NEW);
+    expect(oldNameHit).toBeGreaterThan(newContentHit);
+  });
+
+  it("scores a term that appears in both name and content as a name hit (strongest signal), not both", () => {
+    const query = parseSearchQuery("milk");
+    const score = scoreSearchResult(query, "milk list.md", "lists/milk list.md", [], "extra milk", OLD);
+    expect(score).toBe(10 + OLD / 1e10);
+  });
+
+  it("treats a missing mtime as zero recency without crashing", () => {
+    const score = scoreSearchResult(parseSearchQuery("milk"), "milk list.md", "lists/milk list.md", [], null, undefined);
+    expect(score).toBe(10);
   });
 });

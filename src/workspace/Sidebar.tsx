@@ -14,6 +14,7 @@ import {
   searchResults,
   searchInProgress,
   selectedDir,
+  toggleSearchSortMode,
   toggleSortOrder,
 } from "./fileTreeStore";
 import { closeTabsUnder, renameOpenTab } from "./store";
@@ -243,6 +244,30 @@ export function Sidebar({ rootPath, onOpenFile, flushPendingAutosave }: SidebarP
             aria-label="Clear search"
           >
             x
+          </button>
+        )}
+        {searchQuery.value.trim() && (
+          <button
+            class="search-sort-toggle"
+            title={
+              workspaceSettings.value.searchSortMode === "relevance"
+                ? "Sort: relevance (click for name)"
+                : workspaceSettings.value.searchSortMode === "name"
+                  ? "Sort: name A→Z (click for modified)"
+                  : "Sort: newest first (click for relevance)"
+            }
+            aria-label="Toggle search sort mode"
+            onClick={() => {
+              toggleSearchSortMode();
+              if (searchTimer.current) clearTimeout(searchTimer.current);
+              void runSearch(rootPath, searchQuery.value);
+            }}
+          >
+            {workspaceSettings.value.searchSortMode === "relevance"
+              ? "≣"
+              : workspaceSettings.value.searchSortMode === "name"
+                ? "A"
+                : "⏱"}
           </button>
         )}
       </div>

@@ -8,7 +8,7 @@ platforms: [linux, macos, windows]
 metadata:
   hermes:
     tags: [verification, ci, testing, quality, leotheca]
-    related_skills: [pre-push-verification, ci-failure-triage, change-quality-gates, persistence-implementation]
+    related_skills: [pre-push-verification, ci-failure-triage, change-quality-gates, persistence-implementation, security-and-static-analysis]
 ---
 
 <!--
@@ -42,6 +42,7 @@ Use the command variables above, checking the workflow and package scripts if th
 | Frontend, frontend tests, dependencies, shared configuration | FRONTEND_SETUP and every FRONTEND_CHECK; targeted behavior/regression tests. |
 | Rust source, bridge contract, native dependencies | Applicable frontend checks plus RUST_CHECKS from RUST_CWD. |
 | Android/native bridge or Android build configuration | Applicable frontend checks, ANDROID_PREPARE, ANDROID_CHECKS from ANDROID_CWD. |
+| Security/static analysis: `src-tauri/**`, Tauri capabilities, Capacitor plugins/AndroidManifest, IPC/invoke wrappers, any new dependency, any secret-bearing config | `skills/security-and-static-analysis.md`: Tier 1 guidance-mode review (or the recorded checklist fallback when it cannot run), plus each available static-analysis tool it lists for the surface. Confirmed high/critical blocks landing; never record an audit that did not run. |
 | Packaging/release/workflow changes | Exact affected workflow/jobs or equivalent local build. Use packaging skill for source-pin checks. |
 
 A shared API/data-format change affects both platforms even if only one file changed. Include its callers and platform contract tests. Inspect the candidate diff for generated changes after build/sync. Stage only intended files.

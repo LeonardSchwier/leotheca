@@ -5,6 +5,7 @@ import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { searchKeymap, search, setSearchQuery, SearchQuery } from "@codemirror/search";
 import { markdown } from "@codemirror/lang-markdown";
 import { languages } from "@codemirror/language-data";
+import { copyTextToClipboard } from "../lib/clipboard";
 import { syntaxHighlighting, defaultHighlightStyle } from "@codemirror/language";
 import {
   autocompletion,
@@ -914,7 +915,7 @@ export function MarkdownEditor({
     if (resolution.insertion) {
       view.dispatch({ changes: { from: resolution.insertion.from, insert: resolution.insertion.text } });
     }
-    void navigator.clipboard.writeText(resolution.linkText);
+    void copyTextToClipboard(resolution.linkText);
   }, [blockLinkCopyRequest]);
 
   // Applies a "Create block link" request (spec section 21 Phase 5): the

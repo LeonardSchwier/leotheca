@@ -1976,3 +1976,56 @@ describe("MarkdownPreview: mermaid SVG injection-site sanitization (W-2026-11-01
     expect(guarded).not.toMatch(/on\w+\s*=/i);
   });
 });
+
+
+describe("MarkdownPreview hostile nesting depth", () => {
+  // marked's recursive lexer/walker throws RangeError past a few thousand
+  // nested blockquotes. Nothing above MarkdownPreview catches a render-time
+  // throw, so a pasted or synced note like this used to blank the whole app.
+  const deepQuote = ">".repeat(20000) + " deep-marker";
+
+  it("does not throw for a pathologically nested blockquote and still shows the text", () => {
+    const { container } = render(<MarkdownPreview source={deepQuote} />);
+    expect(container.textContent).toContain("deep-marker");
+  });
+
+  it("keeps rendering the rest of the note when only a footnote body is pathological", () => {
+    const source = `Before[^a] after\n\n[^a]: ${">".repeat(20000)} fn-marker`;
+    const { container } = render(<MarkdownPreview source={source} />);
+    expect(container.textContent).toContain("Before");
+    expect(container.textContent).toContain("fn-marker");
+  });
+
+  it("recovers on the next edit once the pathological text is removed", () => {
+    const { container, rerender } = render(<MarkdownPreview source={deepQuote} />);
+    rerender(<MarkdownPreview source={"# Fine now"} />);
+    expect(container.querySelector("h1")?.textContent).toBe("Fine now");
+  });
+});
+
+describe("MarkdownPreview: rejected clipboard write for the block copy control", () => {
+  it("does not leak an unhandled rejection when the clipboard write is denied", async () => {
+    // A plain function, not vi.fn(): the spy wrapper attaches its own handler to
+    // the returned promise, which would mark the rejection as handled.
+    let writes = 0;
+    const writeText = () => {
+      writes += 1;
+      return Promise.reject(new DOMException("denied", "NotAllowedError"));
+    };
+    Object.assign(navigator, { clipboard: { writeText } });
+    const unhandled: unknown[] = [];
+    const onUnhandled = (reason: unknown) => unhandled.push(reason);
+    process.on("unhandledRejection", onUnhandled);
+    try {
+      const { container } = render(
+        <MarkdownPreview source="This decision is final. ^release-decision" notePath="/vault/plan.md" />,
+      );
+      fireEvent.click(container.querySelector<HTMLButtonElement>(".block-link-copy")!);
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(writes).toBe(1);
+      expect(unhandled).toEqual([]);
+    } finally {
+      process.off("unhandledRejection", onUnhandled);
+    }
+  });
+});

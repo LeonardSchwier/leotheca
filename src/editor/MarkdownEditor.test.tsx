@@ -1086,3 +1086,34 @@ describe("MarkdownEditor: remembers cursor position across a file switch (F07 Ph
     expect(view.state.doc.toString()).toBe("first file");
   });
 });
+
+describe("MarkdownEditor: Copy block link with a denied clipboard", () => {
+  it("does not leak an unhandled rejection and still inserts the block id", async () => {
+    // A plain function, not vi.fn(): the spy wrapper attaches its own handler to
+    // the returned promise, which would mark the rejection as handled.
+    let writes = 0;
+    const writeText = () => {
+      writes += 1;
+      return Promise.reject(new DOMException("denied", "NotAllowedError"));
+    };
+    Object.assign(navigator, { clipboard: { writeText } });
+    const unhandled: unknown[] = [];
+    const onUnhandled = (reason: unknown) => unhandled.push(reason);
+    process.on("unhandledRejection", onUnhandled);
+    try {
+      const value = "Only paragraph.";
+      const { container, rerender } = render(
+        <MarkdownEditor path="/vault/a.md" value={value} {...baseEditorProps()} blockLinkCopyRequest={null} />,
+      );
+      rerender(
+        <MarkdownEditor path="/vault/a.md" value={value} {...baseEditorProps()} blockLinkCopyRequest={{ requestId: 1 }} />,
+      );
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(writes).toBe(1);
+      expect(editorView(container).state.doc.toString()).toMatch(/\^b-[a-f0-9]{8}$/);
+      expect(unhandled).toEqual([]);
+    } finally {
+      process.off("unhandledRejection", onUnhandled);
+    }
+  });
+});

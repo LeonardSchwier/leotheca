@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef } from "preact/hooks";
 import { marked, type Tokens } from "marked";
+import { copyTextToClipboard } from "../lib/clipboard";
 import DOMPurify from "dompurify";
 import katex from "katex";
 import "katex/dist/katex.min.css";
@@ -102,6 +103,21 @@ let mathRenderingActive = true;
 
 function escapeHtml(text: string): string {
   return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+/** Single entry point for every marked.parse call in this file. marked's
+ * lexer and walker are recursive, so hostile or pasted input (tens of
+ * thousands of nested `>` quotes, deeply nested lists) throws RangeError, and
+ * nothing above a Preact render catches that: the whole app went blank. On
+ * any parser failure the text is shown escaped in a `<pre>` instead, so the
+ * note stays readable and the next edit re-renders normally. */
+function parseMarkdownSafely(text: string): string {
+  try {
+    return marked.parse(text, { async: false }) as string;
+  } catch (error) {
+    console.warn("Markdown preview fell back to plain text", error instanceof Error ? error.name : "parse error");
+    return `<pre class="preview-parse-fallback">${escapeHtml(text)}</pre>`;
+  }
 }
 
 function renderMath(tex: string, displayMode: boolean): string {
@@ -315,7 +331,7 @@ function renderFootnotesSection(): string {
     .map((id) => {
       const slug = slugifyFootnoteId(id);
       const body = footnoteState.definitions.get(id) ?? "";
-      const bodyHtml = (marked.parse(body, { async: false }) as string).trim();
+      const bodyHtml = parseMarkdownSafely(body).trim();
       // A single-paragraph body's wrapping <p>...</p> is unwrapped so the
       // back-reference link sits on the same line as the (usual) common
       // case text, matching how other footnote implementations render;
@@ -937,7 +953,7 @@ function renderEmbeddedMarkdownToHtml(
   // leftover state and renders a numbered reference with no corresponding
   // "Footnotes" section for this embed to link to.
   resetFootnoteState(new Map());
-  return marked.parse(withWikilinks, { async: false }) as string;
+  return parseMarkdownSafely(withWikilinks);
 }
 
 /** Converts an `EmbedExtraction` result into the embed frame's body HTML:
@@ -1378,9 +1394,7 @@ export function MarkdownPreview({
     const { text: withoutFootnoteDefinitions, definitions: footnoteDefinitions } =
       extractFootnoteDefinitions(withWikilinks);
     resetFootnoteState(footnoteDefinitions);
-    const rendered = marked.parse(withoutFootnoteDefinitions, {
-      async: false,
-    }) as string;
+    const rendered = parseMarkdownSafely(withoutFootnoteDefinitions);
     const renderedWithFootnotes = rendered + renderFootnotesSection();
     // Allow the mermaid-placeholder data attribute through DOMPurify so
     // the useEffect below can read the diagram source and replace the
@@ -1440,7 +1454,7 @@ export function MarkdownPreview({
         if (host.querySelector(".block-link-copy")) continue;
       const id = host.dataset.ltBlockId;
       if (!id) continue;
-      const copy = () => void navigator.clipboard.writeText(`[[#^${id}]]`);
+      const copy = () => void copyTextToClipboard(`[[#^${id}]]`);
       const button = document.createElement("button");
       button.type = "button";
       button.className = "block-link-copy";

@@ -1,6 +1,7 @@
 use serde::Serialize;
 use std::fs;
 use std::path::{Component, Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
 use std::time::UNIX_EPOCH;
 use tauri::Manager;
@@ -1001,6 +1002,43 @@ fn check_unscoped_path_allowed(
     ))
 }
 
+/// Monotonic per-process counter folded into every temp-file name
+/// `write_file_atomically` creates, alongside the millisecond timestamp and
+/// PID already in the name. Two concurrent writes to the *same* `target`
+/// from the same process (a double-save, or an autosave debounce firing
+/// right as an explicit save/capture-commit lands, see the crash-freedom
+/// checklist's "two of these fire at once" question) previously computed
+/// the exact same temp path whenever they landed in the same millisecond,
+/// since timestamp+PID alone is not unique within a process: millisecond
+/// resolution is coarse relative to how fast two near-simultaneous async
+/// commands can both reach this function. When that happened, the second
+/// call's `fs::write` silently truncated and overwrote the *first* call's
+/// still-in-flight temp file with its own content before the first call's
+/// `fs::rename` ran, so the first call's `Ok(())` result was a lie: the
+/// file it renamed into place actually held the *second* call's bytes, not
+/// its own, while the second call's own later rename then failed with
+/// `ENOENT` (its temp file had already been consumed by the first rename),
+/// surfacing a spurious write error for data that, confusingly, *had*
+/// landed. `fetch_add` makes every call's own name unique process-wide
+/// regardless of clock resolution, so each writer's temp file is never
+/// touched by another writer: no stolen content, no silent swap, no
+/// spurious failure.
+static TEMP_FILE_SEQUENCE: AtomicU64 = AtomicU64::new(0);
+
+/// Pure, independently testable piece of `write_file_atomically`'s temp-path
+/// construction, with the timestamp/PID/sequence inputs passed in rather
+/// than read from the clock/OS, so a test can prove two calls describing
+/// the same millisecond and PID (the exact collision `TEMP_FILE_SEQUENCE`
+/// exists to prevent) still produce distinct paths once given distinct
+/// sequence numbers.
+fn temp_file_path(target: &Path, stamp_millis: u128, pid: u32, sequence: u64) -> Option<PathBuf> {
+    let parent = target.parent().unwrap_or_else(|| Path::new("."));
+    let file_name = target.file_name()?.to_string_lossy().into_owned();
+    Some(parent.join(format!(
+        ".{file_name}.leotheca-tmp-{stamp_millis}-{pid}-{sequence}"
+    )))
+}
+
 /// Writes `bytes` to `target` crash-safely (audit follow-up F-004's
 /// remaining "atomic replacement" item): writes to a sibling temporary
 /// file in the same directory first, then atomically renames it over
@@ -1017,21 +1055,17 @@ fn check_unscoped_path_allowed(
 /// "rename" silently falls back to copy-then-delete, losing the
 /// guarantee this exists for. Callers still create `target`'s parent
 /// directory themselves first, since the parent must exist before the
-/// temp file can be written into it.
+/// temp file can be written into it. See `TEMP_FILE_SEQUENCE` for why the
+/// temp name also carries a monotonic sequence number, not just a
+/// timestamp and PID.
 fn write_file_atomically(target: &Path, bytes: &[u8]) -> Result<(), String> {
-    let parent = target.parent().unwrap_or_else(|| Path::new("."));
-    let file_name = target
-        .file_name()
-        .ok_or_else(|| "target has no file name".to_string())?
-        .to_string_lossy();
     let stamp = std::time::SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_millis())
         .unwrap_or(0);
-    let temp_path = parent.join(format!(
-        ".{file_name}.leotheca-tmp-{stamp}-{}",
-        std::process::id()
-    ));
+    let sequence = TEMP_FILE_SEQUENCE.fetch_add(1, Ordering::Relaxed);
+    let temp_path = temp_file_path(target, stamp, std::process::id(), sequence)
+        .ok_or_else(|| "target has no file name".to_string())?;
 
     fs::write(&temp_path, bytes).map_err(|e| e.to_string())?;
     fs::rename(&temp_path, target).map_err(|e| {
@@ -1872,6 +1906,111 @@ mod tests {
             })
             .collect();
         assert!(leftover_temp_files.is_empty());
+        fs::remove_dir_all(&base).unwrap();
+    }
+
+    #[test]
+    fn temp_file_path_is_unique_even_with_the_same_timestamp_and_pid() {
+        // Two writes to the same target landing in the same millisecond on
+        // the same process (a double-save racing an autosave debounce, or
+        // two capture-commits in a row -- see `TEMP_FILE_SEQUENCE`'s own
+        // doc comment) previously computed the exact same temp path, since
+        // the old formula was only `stamp-pid`. Pinning the timestamp and
+        // pid here and varying only the sequence number is the deterministic
+        // proof that the fix actually prevents that specific collision,
+        // independent of real clock/thread timing. Reverting
+        // `temp_file_path` to omit `sequence` from the format string
+        // reproduces the bug: both calls below then return the identical
+        // path and this assertion fails.
+        let target = Path::new("/tmp/leotheca-example-workspace/note.md");
+        let same_stamp = 1_700_000_000_000u128;
+        let same_pid = 4242u32;
+
+        let first = temp_file_path(target, same_stamp, same_pid, 0).unwrap();
+        let second = temp_file_path(target, same_stamp, same_pid, 1).unwrap();
+
+        assert_ne!(
+            first, second,
+            "two writers active in the same millisecond must not share a temp file"
+        );
+    }
+
+    #[test]
+    fn concurrent_writes_to_the_same_target_never_lose_or_corrupt_content() {
+        // Regression test for the temp-file collision `TEMP_FILE_SEQUENCE`
+        // fixes: many threads in this one process atomically-write the SAME
+        // target back-to-back with distinct content, synchronized to start
+        // together so their `write_file_atomically` calls land as close to
+        // simultaneously as real concurrent saves/autosaves/capture-commits
+        // would. Before the fix, a same-millisecond collision made the
+        // loser's `fs::write` silently overwrite the winner's still-in-flight
+        // temp file, so the winner's `Ok(())` lied about what actually
+        // landed and the loser's own rename then failed with a spurious
+        // `ENOENT`. With the fix, every writer's temp file is independent:
+        // every call must succeed, nothing is left behind, and the final
+        // content must be exactly one caller's complete, uncorrupted bytes
+        // -- never a mix, and never empty.
+        use std::sync::{Arc, Barrier};
+        use std::thread;
+
+        let base = std::env::temp_dir().join(format!(
+            "leotheca-test-atomicwrite-concurrent-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&base);
+        fs::create_dir_all(&base).unwrap();
+        let target = base.join("note.md");
+        fs::write(&target, b"initial").unwrap();
+
+        const WRITERS: usize = 24;
+        let barrier = Arc::new(Barrier::new(WRITERS));
+        let payloads: Vec<String> = (0..WRITERS)
+            .map(|index| format!("content-from-writer-{index}"))
+            .collect();
+
+        let handles: Vec<_> = payloads
+            .iter()
+            .cloned()
+            .map(|payload| {
+                let barrier = Arc::clone(&barrier);
+                let target = target.clone();
+                thread::spawn(move || {
+                    barrier.wait();
+                    write_file_atomically(&target, payload.as_bytes())
+                })
+            })
+            .collect();
+
+        for handle in handles {
+            let result = handle.join().expect("writer thread panicked");
+            assert!(
+                result.is_ok(),
+                "every concurrent writer must succeed: {result:?}"
+            );
+        }
+
+        let final_content = fs::read_to_string(&target).unwrap();
+        assert!(
+            payloads.iter().any(|payload| payload == &final_content),
+            "final content must be exactly one writer's complete payload, got {final_content:?}"
+        );
+
+        let leftover_temp_files: Vec<_> = fs::read_dir(&base)
+            .unwrap()
+            .filter(|entry| {
+                entry
+                    .as_ref()
+                    .unwrap()
+                    .file_name()
+                    .to_string_lossy()
+                    .contains("leotheca-tmp")
+            })
+            .collect();
+        assert!(
+            leftover_temp_files.is_empty(),
+            "no writer's temp file should outlive its own write"
+        );
+
         fs::remove_dir_all(&base).unwrap();
     }
 

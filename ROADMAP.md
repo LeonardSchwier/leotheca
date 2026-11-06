@@ -94,6 +94,14 @@ Minor bugs, UX improvements, and performance.
   <!-- agent-state: {"schema":1,"id":"rm-57a389f7112eb947","state":"claimed","touch":["skills/verification-suite.md","tests/e2e","tests/ui"],"resources":["e2e-suite"],"owner":"claude-code-playwright-20261106T184824Z-29343451","token":"bc60d49db34fd5926490ce5f10034550","branch":"agent/rm-57a389f7112eb947/bc60d49db34f","claimed_at":"2026-11-06T18:49:33Z","heartbeat_at":"2026-11-06T18:49:33Z","lease_until":"2026-11-06T20:19:33Z"} -->
   Agent: claude-code-playwright-20261106T184824Z-29343451 | item: rm-57a389f7112eb947 | lease until: 2026-11-06T20:19:33Z
 - ⬜ **Agentic PDLC documentation**: Document how this repository is delivered by agents phase by phase, with the actual tools, settings, gates and known limits, each linked to the file or workflow that enforces it. Reference it visibly from README.md.
+- ⬜ **Spec-first delivery playbook (PDLC) enforced by the constitution**: Every roadmap item now moves through one written flow: spec, grill-me rulings, design-system check, implementation, tests plus independent review plus e2e smoke, then the spec is archived with evidence. Add the playbook skill, make the constitution require it, and document that the author runs a small local model so every step must stay small-context.
+
+  <details>
+  <summary>Scope and constraints</summary>
+
+  Owner request (2026-11-07). Playwright e2e smoke is owned by the item "Playwright end-to-end suite in the CI pipeline" and security checks by skills/security-and-static-analysis.md; this item only references them as stage-6 gates. Also records opencode as a supported runner and the author's hardware.
+
+  </details>
 - 🚧 **Security review and static analysis in the PDLC test and review stage**: Add a tool-neutral skill that enforces the Cloudflare security-audit skill in two tiers (per-change guidance mode, periodic full audit) and lists the open-source static-analysis stack by design, with each tool marked wired or seeded. Link it from the verification suite's applicable-checks table.
   <!-- agent-state: {"schema":1,"id":"rm-f70f7be3a01e2dff","state":"claimed","touch":["skills/security-and-static-analysis.md","skills/verification-suite.md"],"resources":["verification-gates"],"owner":"claude-code-secgate-20261106T231758Z-76f8c3fc","token":"654f01b389bc058571a09fa7ee7e81a2","branch":"agent/rm-f70f7be3a01e2dff/654f01b389bc","claimed_at":"2026-11-06T23:18:10Z","heartbeat_at":"2026-11-06T23:18:10Z","lease_until":"2026-11-07T00:48:10Z"} -->
   Agent: claude-code-secgate-20261106T231758Z-76f8c3fc | item: rm-f70f7be3a01e2dff | lease until: 2026-11-07T00:48:10Z

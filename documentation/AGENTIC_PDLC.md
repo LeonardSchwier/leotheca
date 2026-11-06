@@ -118,7 +118,7 @@ The process is provider-neutral and also designed to run from the author's local
 ```sh
 python3 scripts/agent_ledger.py --root . list        # ownership ledger state
 python3 -m unittest discover -s scripts -p 'test_agent_ledger.py' -v
-python3 scripts/check_roadmap_format.py              # backlog entry format
-python3 scripts/check_master_spec.py                 # master spec consistency
+python3 scripts/check_roadmap_format.py --root .     # backlog entry format
+python3 scripts/check_master_spec.py --root .        # master spec consistency
 npm run hooks:install && cat hooks/README.md         # local enforcement and bypass policy
 ```

@@ -6,6 +6,8 @@
 // to any other path, surfaces only much later as ENOTCACHED inside the Flatpak
 // build, which is how the Release workflow stayed red for weeks unnoticed.
 
+import { Buffer } from "node:buffer";
+
 export function sha512Hex(integrity) {
   const match = /(?:^|\s)sha512-([A-Za-z0-9+/=]+)/.exec(integrity ?? "");
   return match ? Buffer.from(match[1], "base64").toString("hex") : null;

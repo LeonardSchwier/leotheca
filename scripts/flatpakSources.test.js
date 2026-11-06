@@ -1,3 +1,4 @@
+import { Buffer } from "node:buffer";
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { findFlatpakSourceProblems, sha512Hex } from "./flatpakSources.js";

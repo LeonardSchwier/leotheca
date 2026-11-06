@@ -38,6 +38,15 @@ Significant missing features users expect.
 
 Minor bugs, UX improvements, and performance.
 
+- ⬜ **`master-spec.md`'s generated traceability table fights Prettier**: its own `--update-traceability` output and Prettier's table formatting are mutually exclusive, so any push touching an application path now trips one of two required CI jobs no matter which it does last.
+
+  <details>
+  <summary>Why, and what's blocking a fix here</summary>
+
+  `check_master_spec.py --update-traceability`'s unpadded pipe-table output and Prettier's padded GFM table formatting are mutually exclusive for `master-spec.md`: running one always makes the other's check fail, with no ordering that satisfies both (reproduced directly). Any push that touches an application path must extend `master-spec.md` (`skills/master-spec-maintenance.md`, enforced by `agent-policy.yml`'s `master-spec` job) and, as of the concurrently-landed "Git hooks and enforced quality gates" item, every file a push changes must also be Prettier-clean (`rules.yml`'s `format` job via `scripts/check-rules.mjs format`) -- and `master-spec.md` as it already stands on `main` is not Prettier-clean (confirmed on the current `origin/main` blob directly, independent of any content change), so the next edit to it trips exactly one of these two jobs. Likely fix: add `master-spec.md` to `.prettierignore` (the same rationale already applied there to `ROADMAP.md`, and in-file to `CONSTITUTION.md` -- a generated/ledger-style document with its own byte-layout contract), or make the traceability generator emit Prettier-compatible padding. Not fixed here: `.prettierignore` was under a live claim's touch scope (`rm-beb6c8d16656ad41`, "Git hooks and enforced quality gates") at discovery time, and `scripts/check_master_spec.py`'s generator is outside this item's own claimed scope (`crash-review-fs-commands`, filesystem-bridge review). Found and recorded by `rm-7da5133cbd5a7ec6` while landing an unrelated fix that had to touch `master-spec.md`.
+
+  </details>
+
 - ✅ **Recent-notes widget performance** (done 2026-10-11, `579d804`):
   Fixed two bugs in `syncRecentNotesWidget` (fileTreeStore.ts):
   1. **Burst-coalescing bug**: `pendingRecentNotesSync` held a single `resolve` ref; when

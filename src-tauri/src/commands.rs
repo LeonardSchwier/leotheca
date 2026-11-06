@@ -1006,7 +1006,7 @@ fn check_unscoped_path_allowed(
 /// `write_file_atomically` creates, alongside the millisecond timestamp and
 /// PID already in the name. Two concurrent writes to the *same* `target`
 /// from the same process (a double-save, or an autosave debounce firing
-/// right as an explicit save/capture-commit lands — see the crash-freedom
+/// right as an explicit save/capture-commit lands, see the crash-freedom
 /// checklist's "two of these fire at once" question) previously computed
 /// the exact same temp path whenever they landed in the same millisecond,
 /// since timestamp+PID alone is not unique within a process: millisecond
@@ -1014,9 +1014,9 @@ fn check_unscoped_path_allowed(
 /// commands can both reach this function. When that happened, the second
 /// call's `fs::write` silently truncated and overwrote the *first* call's
 /// still-in-flight temp file with its own content before the first call's
-/// `fs::rename` ran, so the first call's `Ok(())` result was a lie — the
+/// `fs::rename` ran, so the first call's `Ok(())` result was a lie: the
 /// file it renamed into place actually held the *second* call's bytes, not
-/// its own — while the second call's own later rename then failed with
+/// its own, while the second call's own later rename then failed with
 /// `ENOENT` (its temp file had already been consumed by the first rename),
 /// surfacing a spurious write error for data that, confusingly, *had*
 /// landed. `fetch_add` makes every call's own name unique process-wide

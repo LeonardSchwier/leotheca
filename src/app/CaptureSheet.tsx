@@ -15,9 +15,10 @@ import {
 } from "../capture/captureDestinations";
 import { bookmarks } from "../bookmarks/store";
 import { findAllFiles } from "../workspace/tauriBridge";
-import { relativePath } from "../workspace/fileTreeStore";
+import { relativePath, listTemplates, type NoteTemplate } from "../workspace/fileTreeStore";
 import { Sheet } from "../ui/Sheet";
 import { appendTranscript, useCaptureVoice } from "../capture/captureVoice";
+import { loadCaptureTemplate, renderCaptureTemplate } from "../capture/captureTemplate";
 
 // F05-FR-27: Accessibility announcement signal
 export const captureAnnouncement = signal("");
@@ -41,6 +42,15 @@ export const captureTargetOptions = signal<CaptureTargetOption[]>([]);
 /** Workspace markdown notes for the specific-note picker (loaded on demand). */
 export const captureNoteList = signal<Array<{ label: string; path: string }>>([]);
 export const captureNoteListLoading = signal(false);
+
+// ── Quick Capture optional template ────────────────────────────────────────
+/** Absolute path of the chosen template, or "" for a plain capture (the
+ * default). Deliberately survives closing the sheet so a user who always
+ * captures with a template does not re-pick it; it is dropped on open when
+ * the file is no longer in the templates folder. */
+export const captureTemplatePath = signal("");
+/** Templates offered in the sheet (the workspace's templates folder). */
+export const captureTemplateList = signal<NoteTemplate[]>([]);
 
 /** Callback type for when a capture is successfully created */
 export type OnCaptureCreated = (path: string, name: string) => void;
@@ -146,6 +156,36 @@ export function CaptureSheet({ onCreated }: CaptureSheetProps) {
     }
   }, [captureSheetOpen.value, captureTargetKind.value]);
 
+  // Load the templates for the optional "Template" select. Only when the
+  // existing Templates feature is on; the cancelled flag keeps a listing that
+  // resolves after the sheet closed (or the workspace changed) from publishing.
+  useEffect(() => {
+    if (!captureSheetOpen.value) return;
+    const root = workspacePath.value;
+    if (!workspaceSettings.value.templatesEnabled || !root) {
+      captureTemplateList.value = [];
+      return;
+    }
+    let cancelled = false;
+    listTemplates(root)
+      .then((templates) => {
+        if (cancelled) return;
+        captureTemplateList.value = templates;
+        if (
+          captureTemplatePath.value &&
+          !templates.some((t) => t.path === captureTemplatePath.value)
+        ) {
+          captureTemplatePath.value = "";
+        }
+      })
+      .catch(() => {
+        if (!cancelled) captureTemplateList.value = [];
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [captureSheetOpen.value, workspacePath.value, workspaceSettings.value.templatesEnabled, workspaceSettings.value.templatesFolder]);
+
   // F05-FR-27: Announce destination changes for screen readers
   useEffect(() => {
     const kindNames = {
@@ -227,6 +267,33 @@ export function CaptureSheet({ onCreated }: CaptureSheetProps) {
         return;
       }
 
+      // Optional template: read and render before anything is written, so a
+      // failure leaves the typed capture and the workspace untouched.
+      let shaped: string | null = null;
+      const chosenTemplate = captureTemplateList.value.find(
+        (t) => t.path === captureTemplatePath.value,
+      );
+      if (chosenTemplate && workspaceSettings.value.templatesEnabled) {
+        try {
+          const templateText = await loadCaptureTemplate(
+            workspacePath.value,
+            workspaceSettings.value.templatesFolder,
+            chosenTemplate.path,
+          );
+          shaped = renderCaptureTemplate(templateText, {
+            content,
+            title: title || undefined,
+            url: sourceUrl || undefined,
+          });
+        } catch (templateError) {
+          const reason =
+            templateError instanceof Error ? templateError.message : "Template could not be read";
+          setSubmitError(`${reason}. Choose "None" under Template to capture without it.`);
+          announceCaptureMessage(`Capture not saved: ${reason}`);
+          return;
+        }
+      }
+
       if (targetKind === "daily") {
         // Date-pattern destination: create a new note
         const datePattern =
@@ -246,9 +313,12 @@ export function CaptureSheet({ onCreated }: CaptureSheetProps) {
 
         const { path, name } = await createNoteWithTitle(
           targetDir,
-          content,
+          shaped ?? content,
           title || fileName.replace(".md", ""),
           workspacePath.value,
+          undefined,
+          undefined,
+          shaped !== null ? { verbatim: true } : undefined,
         );
         resultPath = path;
         resultName = name;
@@ -266,10 +336,11 @@ export function CaptureSheet({ onCreated }: CaptureSheetProps) {
 
         const { path, name } = await appendToInboxNote({
           inboxNotePath: finalPath,
-          content,
-          title: title || undefined,
-          sourceUrl: sourceUrl || undefined,
+          content: shaped ?? content,
+          title: shaped === null ? title || undefined : undefined,
+          sourceUrl: shaped === null ? sourceUrl || undefined : undefined,
           workspaceRoot: workspacePath.value,
+          verbatim: shaped !== null,
         });
         resultPath = path;
         resultName = name;
@@ -483,6 +554,30 @@ export function CaptureSheet({ onCreated }: CaptureSheetProps) {
           </div>
         )}
 
+        {captureTemplateList.value.length > 0 && (
+          <div class="capture-sheet-field">
+            <label for="capture-template">Template</label>
+            <select
+              id="capture-template"
+              class="capture-sheet-input capture-sheet-select"
+              value={captureTemplatePath.value}
+              onChange={(e) => {
+                captureTemplatePath.value = e.currentTarget.value;
+              }}
+              disabled={isSubmitting}
+              aria-describedby="template-hint"
+            >
+              <option value="">None (plain capture)</option>
+              {captureTemplateList.value.map((t) => (
+                <option value={t.path}>{t.name.replace(/\.md$/i, "")}</option>
+              ))}
+            </select>
+            <span id="template-hint" class="sr-only">
+              Optional. Shapes this capture with a template from the templates folder.
+            </span>
+          </div>
+        )}
+
         <div class="capture-sheet-field">
           <label class="capture-sheet-checkbox">
             <input
@@ -620,6 +715,7 @@ export function closeCaptureSheet() {
   captureTargetKind.value = "inbox";
   captureTargetPath.value = "";
   captureNoteList.value = [];
+  captureTemplateList.value = [];
   // F05-FR-27: Clear accessibility announcement
   captureAnnouncement.value = "";
 }

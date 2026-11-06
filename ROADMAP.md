@@ -112,7 +112,9 @@ Minor bugs, UX improvements, and performance.
 - 🚧 **Crash-hunting review: frontend async lifecycle and large inputs**: Bounded forward review of editor, preview, search and tab lifecycle paths on current main. Each proven defect lands with a regression test that fails without the fix; the record names the scope covered and what was not examined.
   <!-- agent-state: {"schema":1,"id":"rm-cb06056f136952e7","state":"claimed","touch":[],"resources":["crash-hunt-frontend-review"],"owner":"claude-code-crash-fe-20261106T184535Z-4639688f","token":"490e37d48c64af7b64639339f1bdfc03","branch":"agent/rm-cb06056f136952e7/490e37d48c64","claimed_at":"2026-11-06T18:45:40Z","heartbeat_at":"2026-11-06T18:45:40Z","lease_until":"2026-11-06T20:15:40Z"} -->
   Agent: claude-code-crash-fe-20261106T184535Z-4639688f | item: rm-cb06056f136952e7 | lease until: 2026-11-06T20:15:40Z
-- ⬜ **Crash-hunting review: Android bridge and native plugins**: Bounded forward review of the Capacitor bridge, FolderAccessPlugin and widget providers on current main. Each proven defect lands with a regression test; the record names the scope covered and what was not examined.
+- 🚧 **Crash-hunting review: Android bridge and native plugins**: Bounded forward review of the Capacitor bridge, FolderAccessPlugin and widget providers on current main. Each proven defect lands with a regression test; the record names the scope covered and what was not examined.
+  <!-- agent-state: {"schema":1,"id":"rm-6cd0765e3fd31f24","state":"claimed","touch":["android/app/src/main/java","android/app/src/test/java/com/leonardschwier"],"resources":["android-native-bridge"],"owner":"claude-code-android-20261106T190000Z-a4c05da4780a4f96f","token":"71793a241f52b1d9cac457c6824c1c9d","branch":"agent/rm-6cd0765e3fd31f24/71793a241f52","claimed_at":"2026-11-06T18:54:45Z","heartbeat_at":"2026-11-06T18:54:45Z","lease_until":"2026-11-06T20:24:45Z"} -->
+  Agent: claude-code-android-20261106T190000Z-a4c05da4780a4f96f | item: rm-6cd0765e3fd31f24 | lease until: 2026-11-06T20:24:45Z
 
 ## Weekly Code Review
 

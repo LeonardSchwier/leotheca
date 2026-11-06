@@ -8,6 +8,9 @@ A free and open source markdown viewer and editor for a local folder of plain te
 [![CI](https://github.com/LeonardSchwier/leotheca/actions/workflows/ci.yml/badge.svg)](https://github.com/LeonardSchwier/leotheca/actions/workflows/ci.yml)
 ![Platforms](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows%20%7C%20Android-informational)
 
+> [!IMPORTANT]
+> **Reference implementation of an agentic PDLC.** Besides being a note app, this repository is a worked example of delivering software with autonomous coding agents under strict, partly machine-enforced controls: an ownership ledger, spec-first delivery, tests-first fixes, hooks, CI and independent review. See [`documentation/AGENTIC_PDLC.md`](documentation/AGENTIC_PDLC.md) for the stage-by-stage description, the enforcing files, and the known gaps.
+
 ## Why this exists
 
 Three principles govern every decision here, in order. Full detail in [`PHILOSOPHY.md`](PHILOSOPHY.md).

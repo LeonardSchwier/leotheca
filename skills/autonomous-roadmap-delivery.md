@@ -32,11 +32,11 @@ This is a prompt for existing runners, not a newly installed scheduler. Differen
 
 1. Refresh main and eligible work. Recover verification you can complete or claim a main regression repair before a new feature.
 2. Pick and publish one non-overlapping claim. Break a large spec into useful, testable phases if needed, preserving the rest in the roadmap.
-3. Record acceptance criteria and tests. Read the relevant code before editing.
+3. Run stages 2-4 of `pdlc-playbook.md`: write the spec with acceptance criteria and tests, record grill rulings and the design-system check. Read the relevant code before editing.
 4. Implement; checkpoint valuable progress; renew leases at the configured interval.
 5. Test and review; fix ordinary engineering failures yourself. Do not release work just because the first test or merge failed.
 6. Integrate current main, retest, and push. Record the landed SHA and inspect its checks.
-7. Finish only with evidence, or block with a precise deferred-verification record.
+7. Finish only with evidence (playbook stages 6-7, spec archived to `spec/completed/`), or block with a precise deferred-verification record.
 8. Immediately refresh and repeat. One completed item is one iteration, not a reason to end.
 
 During CI waits, use short polls separated by review, log reading, or next-task preparation. Do not claim another implementation item. After `ci_wait_minutes` without a usable result, apply the verification decision table instead of waiting indefinitely. A changed run/error/capability can justify another attempt; the same unchanged blockage does not.
@@ -65,6 +65,7 @@ Task: stable ID and exact title
 Owner/token: session ID and current token, or released
 Scope: touch paths, semantic resources, dependencies
 Acceptance: observable completion criteria
+Spec: spec/<slug>.md or spec/completed/<slug>.md, rulings recorded
 Checkpoint: remote branch and SHA, or none
 Landed: exact main implementation SHA, or not landed
 Checks: command/job, tested SHA/tree, result, relevant counts/output

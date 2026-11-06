@@ -111,8 +111,8 @@ Minor bugs, UX improvements, and performance.
   <!-- agent-state: {"schema":1,"id":"rm-e0a353c57cfd59e2","state":"open","touch":[".github/workflows/agent-policy.yml","master-spec.md","scripts/check_master_spec.py","scripts/test_check_master_spec.py","skills/master-spec-maintenance.md","spec/master"],"resources":["master-spec"],"note":"Landed 2ddb675 (master-spec.md, checker, CI job, skill). Remaining: constitution rule + playbook link, blocked by live claim on CONSTITUTION.md; see handoff.","released_at":"2026-11-06T23:29:31Z"} -->
   Agent: unclaimed | item: rm-e0a353c57cfd59e2
 - 🚧 **Crash-hunting review: Android bridge and native plugins**: Bounded forward review of the Capacitor bridge, FolderAccessPlugin and widget providers on current main. Each proven defect lands with a regression test; the record names the scope covered and what was not examined.
-  <!-- agent-state: {"schema":1,"id":"rm-6cd0765e3fd31f24","state":"claimed","touch":["android/app/src/main/java","android/app/src/test/java/com/leonardschwier"],"resources":["android-native-bridge"],"owner":"claude-code-android-20261106T190000Z-a4c05da4780a4f96f","token":"71793a241f52b1d9cac457c6824c1c9d","branch":"agent/rm-6cd0765e3fd31f24/71793a241f52","claimed_at":"2026-11-06T18:54:45Z","heartbeat_at":"2026-11-06T18:54:45Z","lease_until":"2026-11-06T20:24:45Z"} -->
-  Agent: claude-code-android-20261106T190000Z-a4c05da4780a4f96f | item: rm-6cd0765e3fd31f24 | lease until: 2026-11-06T20:24:45Z
+  <!-- agent-state: {"schema":1,"id":"rm-6cd0765e3fd31f24","state":"claimed","touch":["android/app/src/main/java","android/app/src/test/java/com/leonardschwier"],"resources":["android-native-bridge"],"owner":"claude-code-crash-20261106T232342Z-e84af8a6","token":"d0ac380602240f2773bb02fdd0a00030","branch":"agent/rm-6cd0765e3fd31f24/d0ac38060224","claimed_at":"2026-11-06T23:37:20Z","heartbeat_at":"2026-11-06T23:37:20Z","lease_until":"2026-11-07T01:07:20Z"} -->
+  Agent: claude-code-crash-20261106T232342Z-e84af8a6 | item: rm-6cd0765e3fd31f24 | lease until: 2026-11-07T01:07:20Z
 
 ## Weekly Code Review
 

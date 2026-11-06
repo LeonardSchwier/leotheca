@@ -83,7 +83,7 @@ interface GroupColumn {
 
 const UNASSIGNED_KANBAN_COLUMN = "__leotheca_unassigned__";
 /** Sentinel groupBy value for folder-based board grouping (competitor scan,
- * Obsidian 1.14.2 Bases Kanban precedent). The schema already stores
+ * common Kanban-board precedent in other note apps). The schema already stores
  * groupBy as a free-form string, so no decode or type change is needed. */
 export const FOLDER_GROUP_BY = "file.folder";
 

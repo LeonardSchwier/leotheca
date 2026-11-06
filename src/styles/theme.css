@@ -125,7 +125,7 @@
 
   /* ROADMAP.md rm-c2a2c2d840b60a2e: `==text==` -> <mark> color tokens.
      --color-mark-default is the uncolored case (plain `==text==`, no
-     emoji prefix); the five named ones back the Obsidian v1.14.0
+     emoji prefix); the five named ones back the
      emoji-color convention (see markdown/highlight.ts). Deliberately
      separate from --color-highlight/--color-highlight-text above: those
      back the unrelated search-match highlight (.search-highlight), a

@@ -6,6 +6,9 @@ export default tseslint.config(
   {
     ignores: [
       "dist/",
+      // Agent ledger-only worktrees live in the repo root and hold a full
+      // copy of the sources; linting them doubles the work and the noise.
+      "control-*/",
       "node_modules/",
       "src-tauri/target/",
       // Capacitor's `cap sync` copies the web build in here, and Gradle

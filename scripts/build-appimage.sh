@@ -55,7 +55,7 @@ chmod +x "$APPDIR/AppRun"
 
 # 4. Run linuxdeploy
 echo "Running linuxdeploy..."
-/var/lib/leohub/chat/.local/bin/linuxdeploy-native \
+"${LINUXDEPLOY:-linuxdeploy}" \
   --appdir="$APPDIR" \
   -o appimage
 

@@ -9,7 +9,7 @@ import {
   setMermaidRenderingEnabled,
   sanitizeMermaidSvg,
   renderMermaidToSvg,
-} from "./src/markdown/mermaid";
+} from "./mermaid";
 
 // Mock the mermaid module so renderMermaidToSvg can be tested without a
 // real DOM or browser runtime.

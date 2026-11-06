@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Maintenance
+
+- **Repository tidy-up** — Removed a tracked 100 MB AppImage, a stray control worktree, session logs, a scan session log and dated session reports from the tree (history is not rewritten). Added ignore rules, moved the speech-to-text research and plan to `documentation/`, moved the mermaid smoke test under `src/markdown/`, removed machine-specific paths from build scripts, and added `src/tidyRepoHygiene.test.ts`, which fails on tracked files over 5 MB or on private IP addresses and machine paths outside `.agents/handoffs`.
+
 ### New Features
 
 - **macOS Quick Look preview** — ⌥-click `.md` files in Finder to preview without opening the app.

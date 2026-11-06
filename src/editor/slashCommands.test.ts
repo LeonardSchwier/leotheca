@@ -135,7 +135,7 @@ describe("SLASH_COMMANDS", () => {
     expect(fenceCount).toBe(2);
   });
 
-  it("callout snippet uses Obsidian syntax", () => {
+  it("callout snippet uses the `> [!type]` callout syntax", () => {
     const callout = SLASH_COMMANDS.find((c) => c.label === "callout")!;
     expect(callout.snippet).toContain("> [!note]");
   });

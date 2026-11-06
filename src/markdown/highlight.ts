@@ -1,6 +1,6 @@
 /**
  * Shared, single-source-of-truth logic for the `==highlight==` inline
- * syntax's Obsidian v1.14.0 "shoulders of giants" emoji-color convention
+ * syntax's emoji-color convention
  * (see ROADMAP.md rm-c2a2c2d840b60a2e): a highlight can optionally start
  * with one recognized color emoji immediately after its opening `==`,
  * which is stripped from the rendered/decorated text and instead recorded
@@ -17,7 +17,7 @@
  */
 
 /**
- * The five color emoji Obsidian's own highlight-color convention uses
+ * The five color emoji the highlight-color convention uses
  * (ROADMAP.md's own wording: "a color emoji like 🔴🟠🟢🔵🟣"). Each is a
  * single, fully-qualified emoji codepoint (no variation selector needed),
  * so comparing by `codePointAt(0)` is exact and doesn't need a Unicode

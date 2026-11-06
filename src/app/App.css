@@ -875,7 +875,7 @@ button.icon-button.active {
 
 /* ROADMAP.md rm-c2a2c2d840b60a2e: `==text==` -> <mark>, rendered by
    MarkdownPreview.tsx's "highlight" marked extension. .lt-highlight-<color>
-   backs the Obsidian v1.14.0 emoji-color prefix convention
+   backs the emoji-color prefix convention
    (markdown/highlight.ts); with no recognized color emoji, only the base
    class applies and the highlight uses --color-mark-default. */
 .markdown-preview mark.lt-highlight {

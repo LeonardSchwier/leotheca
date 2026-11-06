@@ -180,7 +180,7 @@ emulator crash, not a code defect. Claim released (not completed).**
   and the CPU exposes `vmx`. So the KVM gate this item was blocked on is
   satisfied in this host — this is the first session where the
   precondition is met.
-- Bootstrapped a full Android SDK (`/var/lib/leohub/code/android-sdk`,
+- Bootstrapped a full Android SDK (`<local-path>`,
   ~1.5G): cmdline-tools, platform-tools 37.0.1, platforms;android-35,
   build-tools;35.0.0, emulator 37.1.11, system-images;android-35;default;
   x86_64 — all via `sdkmanager` through the proxy, licenses accepted.

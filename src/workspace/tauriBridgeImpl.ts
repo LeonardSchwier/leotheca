@@ -421,7 +421,7 @@ export function onExternalFileOpen(callback: (file: ExternalMarkdownFile) => voi
 }
 
 /** In-app half of ROADMAP.md's "Open files from outside the vault from
- * within an open app" (Obsidian Desktop v1.14.2 parity, 2026-09-15
+ * within an open app" (desktop parity, 2026-09-15
  * competitor scan). The OS-level half -- Markdown as a registered file
  * type an installer offers as a default-app option -- already exists via
  * this same `tauri.conf.json`'s `bundle.fileAssociations`, which the

@@ -1015,7 +1015,7 @@ At minimum, perform release verification on:
 3. Do not hide the feature behind a network or analytics-dependent flag.
 4. Update:
    - `README.md` feature list and usage;
-   - `docs/ARCHITECTURE.md` global storage model and transition ownership;
+   - `documentation/ARCHITECTURE.md` global storage model and transition ownership;
    - `ROADMAP.md` status and dependency notes;
    - user-facing change log;
    - platform permission documentation when Android recovery copy changes.

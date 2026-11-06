@@ -93,7 +93,7 @@ export const SLASH_COMMANDS: readonly SlashCommand[] = [
   {
     label: "callout",
     snippet: "> [!note]\n> Content\n",
-    description: "Insert an Obsidian-style callout",
+    description: "Insert a callout",
   },
   {
     label: "bold",

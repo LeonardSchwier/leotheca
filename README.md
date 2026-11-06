@@ -12,7 +12,7 @@ A free and open source markdown viewer and editor for a local folder of plain te
 
 Three principles govern every decision here, in order. Full detail in [`PHILOSOPHY.md`](PHILOSOPHY.md).
 
-1. 🔓 **Free and open source, without compromise.** The full source is open under the MIT license, forever. No paid tier, no telemetry, no required account, no network calls at all, fully offline. The CSP in [`src-tauri/tauri.conf.json`](src-tauri/tauri.conf.json) and the automated test in [`src/offline.test.ts`](src/offline.test.ts) enforce this — CI will fail if any code path makes a network call.
+1. 🔓 **Free and open source, without compromise.** The full source is open under the MIT license, forever. No paid tier, no telemetry, no required account, no network calls at all, fully offline. The CSP in [`src-tauri/tauri.conf.json`](src-tauri/tauri.conf.json) and the automated test in [`src/offline.test.ts`](src/offline.test.ts) enforce this; CI will fail if any code path makes a network call.
 2. 🤝 **Standing on the shoulders of giants.** Where the wider note-taking ecosystem already has a good convention (wikilinks, YAML frontmatter, a folder of plain files), this project adopts it instead of inventing a competing one.
 3. 📁 **Your notes belong to you.** Plain markdown files in a folder you control, not a database, not a proprietary format. Nothing about how a note is stored depends on this application continuing to exist.
 
@@ -24,12 +24,12 @@ Three principles govern every decision here, in order. Full detail in [`PHILOSOP
 - 🔗 `[[wikilinks]]`, resolved by filename, with autocomplete while typing and a backlinks panel.
 - 🕸️ A pannable, zoomable graph view of your whole workspace.
 - ⭐ Bookmarks for files and saved searches.
-- 🎨 A premium, deliberate light and dark theme, following your OS by default.
+- 🎨 A light and dark theme, following your OS by default.
 - 🔍 Full-text search across your entire vault, including hidden dotfiles.
 - 🏷️ Frontmatter properties with a Properties panel, case-insensitive kanban boards, and smart collections.
 - 📋 Command palette (Ctrl+K) for quick navigation and actions.
 - 📤 Export a note to standalone HTML or print/PDF via the OS dialog.
-- ⌨️ `==highlighted text==` with color emoji (🔴🟠🟢🔵🟣), following the Obsidian convention.
+- ⌨️ `==highlighted text==` with color emoji (🔴🟠🟢🔵🟣), a convention used by other Markdown note apps.
 - 📊 Task Hub: read-only view of all GFM task-list items across your vault.
 - 🎤 Local speech-to-text dictation (whisper.cpp on desktop, SpeechRecognizer on Android).
 - 📁 Open files from outside your vault, or from the OS file manager, into a read-only scratch view.

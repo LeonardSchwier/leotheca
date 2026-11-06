@@ -172,8 +172,8 @@ function slugifyFootnoteId(id: string): string {
 const FOOTNOTE_DEFINITION_START = /^\[\^([^\]\s]+)\]:[ \t]?(.*)$/;
 
 /**
- * `==highlight==` inline syntax (ROADMAP.md rm-c2a2c2d840b60a2e), Obsidian's
- * own "shoulders of giants" convention rather than an invented one: text
+ * `==highlight==` inline syntax (ROADMAP.md rm-c2a2c2d840b60a2e), a common
+ * convention rather than an invented one: text
  * wrapped in double equals renders as a `<mark>`. Registered as a marked
  * inline extension (level "inline", same pattern as inlineMath/footnoteRef
  * above), not a raw text pre-processing pass, so the marked lexer's own

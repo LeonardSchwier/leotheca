@@ -615,7 +615,7 @@ export async function createFolder(
 // after SEARCH_CONTENT_READ_CONCURRENCY below already cut native call
 // count 31x) turned out to come from one batch's *serialized JSON
 // response* needing a single ~288MB allocation, on a vault (migrated from
-// Evernote/Joplin exports) with some individual files large enough that a
+// note-app exports) with some individual files large enough that a
 // handful landing in the same up-to-40-file batch summed to that. Bytes,
 // not files, are what the native side actually has to allocate and
 // marshal in one shot, so bytes are what gets capped. 8MB leaves real

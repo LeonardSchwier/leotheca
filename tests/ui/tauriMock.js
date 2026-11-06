@@ -5,7 +5,7 @@
 
 const TAURI_MOCK_JS = `
 (function() {
-  const WORKSPACE_ROOT = '/home/leonard/leotheca-test-workspace';
+  const WORKSPACE_ROOT = '/home/user/leotheca-test-workspace';
 
   const MOCK_FILES = {
     'notes/welcome.md': '# Welcome to Leotheca\n\nThis is a **bold** and *italic* test workspace.\n\n## Features\n- ==Highlight== testing\n- [inline code] blocks\n\n> A blockquote for testing.\n\n### Subheading\nContent here.\n\n- [x] Done task\n- [ ] Open task\n\n$\\frac{a}{b} + c$\n\n| Col1 | Col2 |\n|------|------|\n| a    | b    |',
@@ -31,7 +31,7 @@ const TAURI_MOCK_JS = `
     lastWorkspacePath: WORKSPACE_ROOT,
     externalFileOpenEnabled: true
   };
-  FULL_PATHS['/home/leonard/.config/leotheca/config.json'] = JSON.stringify(GLOBAL_CONFIG, null, 2);
+  FULL_PATHS['/home/user/.config/leotheca/config.json'] = JSON.stringify(GLOBAL_CONFIG, null, 2);
 
   function listDir(path) {
     const normalized = path.endsWith('/') ? path : path + '/';
@@ -82,7 +82,7 @@ const TAURI_MOCK_JS = `
   }
 
   function getAppVersion() { return '0.1.0-e2e'; }
-  function getAppConfigFilePath() { return '/home/leonard/.config/leotheca/config.json'; }
+  function getAppConfigFilePath() { return '/home/user/.config/leotheca/config.json'; }
 
   function getWorkspaceStats(path) {
     return {
@@ -124,14 +124,14 @@ const TAURI_MOCK_JS = `
         case 'take_pending_external_file': return null;
         case 'export_text_file_via_dialog': return true;
         case 'plugin:dialog|open': return WORKSPACE_ROOT;
-        case 'plugin:dialog|save': return '/home/leonard/export.html';
+        case 'plugin:dialog|save': return '/home/user/export.html';
         case 'plugin:app|version': return '0.1.0-e2e';
         case 'plugin:deep-link|get_current': return null;
         case 'plugin:event|listen': return null;
         case 'take_pending_open_file': return null;
         case 'plugin:path|resolve_directory':
-          if (args && args.directory === 11) return '/home/leonard/.config/leotheca';
-          return '/home/leonard/.config/leotheca';
+          if (args && args.directory === 11) return '/home/user/.config/leotheca';
+          return '/home/user/.config/leotheca';
         case 'plugin:path|join':
           if (args && args.paths) return args.paths.join('/');
           return null;

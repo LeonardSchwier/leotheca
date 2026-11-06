@@ -1838,7 +1838,7 @@ describe("MarkdownPreview: F07 Phase 5 -- Ctrl/Cmd-click opens a link in the oth
 });
 
 // ROADMAP.md rm-c2a2c2d840b60a2e: `==highlight==` -> <mark>, plus the
-// Obsidian v1.14.0 emoji-color prefix convention.
+// Emoji-color prefix convention.
 describe("MarkdownPreview highlight (== syntax)", () => {
   it("renders ==text== as a <mark> with the base highlight class", () => {
     const { container } = render(<MarkdownPreview source={"==highlighted=="} />);

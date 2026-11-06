@@ -43,7 +43,7 @@ export default tseslint.config(
     // tests/ui/*.js (Playwright/headless-browser E2E harness support, e.g.
     // tauriMock.js) is the same kind of plain CommonJS Node script, loaded
     // by the E2E Python driver rather than bundled with the app.
-    files: ["scripts/**/*.js", "tests/ui/**/*.js"],
+    files: ["scripts/**/*.{js,mjs}", "tests/ui/**/*.js"],
     languageOptions: {
       globals: {
         console: "readonly",

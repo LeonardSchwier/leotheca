@@ -63,7 +63,7 @@ The 2026-09-06 owner instruction supersedes all earlier rules requiring a human 
 5. Renew the remote lease every `heartbeat_minutes` while making progress, including during tests and CI diagnosis. Renew synchronously at tool boundaries. A detached heartbeat that keeps renewing after its agent dies is forbidden.
 6. After `lease_until + clock_skew_minutes`, another worker may reclaim. The old worker must stop on wake-up, refresh main, and acquire a new claim before making more changes. Branch existence, unrelated commits, author identity, and queued CI do not extend a lease.
 7. Before every implementation publication, fetch main, merge it into your candidate, confirm the token still belongs to you and has enough time left, inspect the merged diff, and retest affected behavior. A stale token is a lost claim, even if the code is excellent.
-8. Never force-push, rewrite published history, bypass hooks/protection, delete another agent's work, or use whole-file `ours`/`theirs` to discard changes. Remote rejection means refresh and decide again, not force.
+8. Never force-push, rewrite published history, bypass hooks/protection, delete another agent's work, or use whole-file `ours`/`theirs` to discard changes. `hooks/` and `.github/workflows/rules.yml` enforce this mechanically where a tool can see it (map and bypass policy in `hooks/README.md`); the rule binds even where they cannot. Remote rejection means refresh and decide again, not force.
 
 The helper validates local ledger transitions. The runbook's fresh-base commit and normal push make those transitions exclusive on the remote. This is a cooperative protocol, not a server-side security boundary: all participating runners must follow it.
 

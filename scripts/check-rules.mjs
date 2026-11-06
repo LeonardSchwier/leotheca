@@ -380,7 +380,11 @@ const DEP_FILES = [
 
 function showAt(rev, path) {
   try {
-    return git(["show", `${rev}:${path}`]);
+    return execFileSync("git", ["show", `${rev}:${path}`], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+      maxBuffer: 64 * 1024 * 1024,
+    });
   } catch {
     return "";
   }

@@ -131,7 +131,16 @@ public class PrintExportPlugin extends Plugin {
         intent.addCategory(Intent.CATEGORY_OPENABLE);
         intent.setType("text/html");
         intent.putExtra(Intent.EXTRA_TITLE, defaultFileName);
-        startActivityForResult(call, intent, "exportHtmlResult");
+        // See FolderAccessPlugin.pickFolder: no document provider means
+        // ActivityNotFoundException, which must not escape to the bridge.
+        boolean launched = NativeBoundaryPolicy.runOrReject(
+            () -> startActivityForResult(call, intent, "exportHtmlResult"),
+            call::reject,
+            "No file picker is available on this device"
+        );
+        if (!launched) {
+            pendingExportHtml = null;
+        }
     }
 
     @ActivityCallback

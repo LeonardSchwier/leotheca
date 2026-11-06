@@ -41,6 +41,44 @@ vi.mock("../speech/speechController", () => ({
   },
 }));
 
+// Template capture tests drive a fake workspace; every other bridge function
+// keeps its real implementation (the no-op/jsdom behavior earlier tests use).
+const fakeFs = vi.hoisted(() => ({
+  files: new Map<string, string>(),
+  dirs: new Map<string, string[]>(),
+  writes: [] as Array<{ path: string; text: string }>,
+  created: [] as Array<{ root: string; rel: string; text: string }>,
+  active: false,
+  listDelay: null as null | Promise<void>,
+}));
+vi.mock("../workspace/tauriBridge", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../workspace/tauriBridge")>();
+  return {
+    ...actual,
+    listDir: async (root: string, path: string) => {
+      if (!fakeFs.active) return actual.listDir(root, path);
+      if (fakeFs.listDelay) await fakeFs.listDelay;
+      const names = fakeFs.dirs.get(path);
+      if (!names) throw new Error("no such dir");
+      return names.map((name) => ({ name, path: `${path}/${name}`, isDir: false }));
+    },
+    readTextFile: async (path: string) => {
+      if (!fakeFs.active) return actual.readTextFile(path);
+      const text = fakeFs.files.get(path);
+      if (text === undefined) throw new Error("ENOENT");
+      return text;
+    },
+    writeTextFile: async (path: string, text: string) => {
+      if (!fakeFs.active) return actual.writeTextFile(path, text);
+      fakeFs.writes.push({ path, text });
+    },
+    createWorkspaceTextFileNew: async (root: string, rel: string, text: string) => {
+      if (!fakeFs.active) return actual.createWorkspaceTextFileNew(root, rel, text);
+      fakeFs.created.push({ root, rel, text });
+    },
+  };
+});
+
 // CaptureSheet.tsx imports workspacePath from settings/store.ts, which reads
 // window.matchMedia at module load time; same jsdom + dynamic-import setup
 // as settings/store.test.ts, see its own comment.
@@ -65,8 +103,10 @@ const {
   captureTargetKind,
   captureTargetPath,
   captureNoteList,
+  captureTemplatePath,
+  captureTemplateList,
 } = await import("./CaptureSheet");
-const { workspaceSettings } = await import("../settings/store");
+const { workspaceSettings, workspacePath } = await import("../settings/store");
 const { act } = await import("@testing-library/preact");
 
 describe("CaptureSheet Accessibility (F05-FR-27)", () => {
@@ -373,5 +413,151 @@ describe("CaptureSheet voice input", () => {
       fakeEngine.resultCb?.({ text: "late", isFinal: true });
     });
     expect(captureContent.value).toBe("");
+  });
+});
+
+describe("CaptureSheet optional template", () => {
+  const original = workspaceSettings.value;
+  const settle = () => act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+
+  function setup(templatesEnabled = true) {
+    fakeFs.active = true;
+    fakeFs.files.clear();
+    fakeFs.dirs.clear();
+    fakeFs.writes.length = 0;
+    fakeFs.created.length = 0;
+    fakeFs.listDelay = null;
+    fakeFs.dirs.set("/ws/Templates", ["Meeting.md", "Plain.md", "notes.txt"]);
+    fakeFs.files.set("/ws/Templates/Meeting.md", "## Meeting {{date}}\n\n{{content}}\n");
+    fakeFs.files.set("/ws/Templates/Plain.md", "tags: capture");
+    fakeFs.files.set("/ws/Inbox.md", "# Inbox\n\nold");
+    workspacePath.value = "/ws";
+    workspaceSettings.value = { ...original, templatesEnabled, templatesFolder: "Templates", captureInboxNote: "Inbox.md" };
+    captureTemplatePath.value = "";
+    captureContent.value = "typed body";
+    captureSheetOpen.value = true;
+  }
+
+  afterEach(() => {
+    cleanup();
+    closeCaptureSheet();
+    captureTemplatePath.value = "";
+    fakeFs.active = false;
+    workspaceSettings.value = original;
+    workspacePath.value = null;
+  });
+
+  it("shows no Template select when Templates is disabled", async () => {
+    setup(false);
+    const { container } = render(<CaptureSheet />);
+    await settle();
+    expect(container.querySelector("#capture-template")).toBeNull();
+  });
+
+  it("shows no Template select when the templates folder is empty or missing", async () => {
+    setup();
+    fakeFs.dirs.clear();
+    const { container } = render(<CaptureSheet />);
+    await settle();
+    expect(container.querySelector("#capture-template")).toBeNull();
+  });
+
+  it("offers None first (the default) and only .md templates", async () => {
+    setup();
+    const { container } = render(<CaptureSheet />);
+    await settle();
+    const select = container.querySelector("#capture-template") as HTMLSelectElement;
+    expect(select.value).toBe("");
+    expect(Array.from(select.options).map((o) => o.textContent)).toEqual(["None (plain capture)", "Meeting", "Plain"]);
+  });
+
+  it("captures plain, exactly as before, when None is chosen", async () => {
+    setup();
+    const { getByLabelText } = render(<CaptureSheet />);
+    await settle();
+    fireEvent.click(getByLabelText("Capture note"));
+    await settle();
+    expect(fakeFs.writes).toHaveLength(1);
+    expect(fakeFs.writes[0].path).toBe("/ws/Inbox.md");
+    expect(fakeFs.writes[0].text).toMatch(/^# Inbox\n\nold\n\n### \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\n\ntyped body$/);
+  });
+
+  it("appends the rendered template, without the built-in header, when one is chosen", async () => {
+    setup();
+    const { container, getByLabelText } = render(<CaptureSheet />);
+    await settle();
+    fireEvent.change(container.querySelector("#capture-template") as HTMLSelectElement, {
+      target: { value: "/ws/Templates/Meeting.md" },
+    });
+    fireEvent.click(getByLabelText("Capture note"));
+    await settle();
+    expect(fakeFs.writes).toHaveLength(1);
+    expect(fakeFs.writes[0].text).toMatch(/^# Inbox\n\nold\n\n## Meeting \d{4}-\d{2}-\d{2}\n\ntyped body$/);
+    expect(captureSheetOpen.value).toBe(false);
+  });
+
+  it("creates the daily note from the rendered template", async () => {
+    setup();
+    fakeFs.dirs.set("Daily", []);
+    captureTargetKind.value = "daily";
+    workspaceSettings.value = { ...workspaceSettings.value, captureDatePattern: "Daily/{{date:YYYY-MM-DD}}.md" };
+    const { container, getByLabelText } = render(<CaptureSheet />);
+    await settle();
+    fireEvent.change(container.querySelector("#capture-template") as HTMLSelectElement, {
+      target: { value: "/ws/Templates/Plain.md" },
+    });
+    fireEvent.click(getByLabelText("Capture note"));
+    await settle();
+    expect(fakeFs.created).toHaveLength(1);
+    expect(fakeFs.created[0].text).toBe("tags: capture\n\ntyped body");
+    expect(fakeFs.created[0].rel).toMatch(/^Daily\/\d{4}-\d{2}-\d{2}\.md$/);
+  });
+
+  it("aborts with a visible error, writing nothing and keeping the text, when the template cannot be read", async () => {
+    setup();
+    const { container, getByLabelText, getByRole } = render(<CaptureSheet />);
+    await settle();
+    fakeFs.files.delete("/ws/Templates/Meeting.md");
+    fireEvent.change(container.querySelector("#capture-template") as HTMLSelectElement, {
+      target: { value: "/ws/Templates/Meeting.md" },
+    });
+    fireEvent.click(getByLabelText("Capture note"));
+    await settle();
+    expect(fakeFs.writes).toHaveLength(0);
+    expect(fakeFs.created).toHaveLength(0);
+    expect(getByRole("alert").textContent).toMatch(/Template could not be read.*None/);
+    expect(captureSheetOpen.value).toBe(true);
+    expect(captureContent.value).toBe("typed body");
+  });
+
+  it("drops a remembered template that no longer exists in the folder", async () => {
+    setup();
+    captureTemplatePath.value = "/ws/Templates/Gone.md";
+    render(<CaptureSheet />);
+    await settle();
+    expect(captureTemplatePath.value).toBe("");
+  });
+
+  it("keeps a still-valid choice across close and reopen", async () => {
+    setup();
+    captureTemplatePath.value = "/ws/Templates/Plain.md";
+    render(<CaptureSheet />);
+    await settle();
+    expect(captureTemplatePath.value).toBe("/ws/Templates/Plain.md");
+    act(() => closeCaptureSheet());
+    expect(captureTemplatePath.value).toBe("/ws/Templates/Plain.md");
+    expect(captureTemplateList.value).toEqual([]);
+  });
+
+  it("ignores a template listing that resolves after the sheet was closed", async () => {
+    setup();
+    let release!: () => void;
+    fakeFs.listDelay = new Promise<void>((r) => { release = r; });
+    const { unmount } = render(<CaptureSheet />);
+    act(() => closeCaptureSheet());
+    unmount();
+    release();
+    await settle();
+    expect(captureTemplateList.value).toEqual([]);
   });
 });

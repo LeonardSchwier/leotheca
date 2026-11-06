@@ -1,0 +1,90 @@
+.md-import-report {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-height: 60vh;
+  overflow-y: auto;
+  color: var(--color-text);
+  font-size: 13px;
+}
+
+.md-import-report h3 {
+  margin: 0 0 var(--space-1);
+  font-size: 13px;
+}
+
+.md-import-report ul {
+  margin: 0;
+  padding-left: var(--space-4);
+}
+
+.md-import-report code,
+.md-import-progress code {
+  font-family: var(--font-mono);
+  overflow-wrap: anywhere;
+}
+
+.md-import-section {
+  border-left: 3px solid var(--color-border-strong);
+  padding-left: var(--space-3);
+}
+
+.md-import-bad {
+  border-left-color: var(--color-danger);
+}
+
+.md-import-warn {
+  border-left-color: var(--color-warning);
+}
+
+.md-import-info {
+  border-left-color: var(--color-border-strong);
+}
+
+.md-import-summary,
+.md-import-destination,
+.md-import-more {
+  margin: 0;
+}
+
+.md-import-more,
+.md-import-hint,
+.md-import-current {
+  color: var(--color-text-secondary);
+}
+
+.md-import-examples {
+  color: var(--color-text-secondary);
+  margin-top: var(--space-1);
+}
+
+.md-import-copy {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.md-import-progress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  font-size: 13px;
+}
+
+.md-import-progress p {
+  margin: 0;
+}
+
+.md-import-progress progress {
+  width: 100%;
+  accent-color: var(--color-accent);
+}
+
+.md-import-current {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 600px) {
+  .md-import-report {
+    max-height: 70vh;
+  }
+}

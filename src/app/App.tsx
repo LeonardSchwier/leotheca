@@ -137,7 +137,7 @@ import {
 import { confirmAction } from "./confirmDialog";
 import { MarkdownImportDialog } from "../markdownImport/MarkdownImportDialog";
 import { startMarkdownImport } from "../markdownImport/importStore";
-import { isMarkdownImportSupported } from "../markdownImport/markdownImport";
+import { isMarkdownImportOffered } from "../markdownImport/markdownImport";
 import { NamePrompt } from "../workspace/NamePrompt";
 import { useRenamePreview } from "../refactor/useRenamePreview";
 import { RenamePreviewDialog } from "../refactor/RenamePreviewDialog";
@@ -999,7 +999,7 @@ export function App() {
         label: "Markdown formatting help",
         run: () => (markdownHelpOpen.value = true),
       },
-      ...(rootPath && isMarkdownImportSupported() && workspaceSettings.value.markdownImportEnabled
+      ...(rootPath && isMarkdownImportOffered(true, workspaceSettings.value.markdownImportEnabled)
         ? [
             {
               id: "import-markdown-vault",

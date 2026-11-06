@@ -508,6 +508,7 @@ The URL parser is not the security boundary. The native gate on the eventual rea
 | FR-FS-010 | Native atomic overwrite MUST write a dot-prefixed temp file in the target directory and rename it over the target, removing the temp on rename failure. | Given an overwrite, When write_workspace_text_file succeeds, Then no .leotheca-tmp file remains. | `src-tauri/src/commands.rs` |
 | FR-FS-011 | Directory walks MUST stop descending at depth 40 on every platform. | Given a deeper tree, When walked, Then walking terminates without error. | `src-tauri/src/commands.rs` |
 | FR-FS-012 | A template picker MUST create a new note from a .md file in templatesFolder when templates are enabled. | Given a template, When selected, Then a new note with its content opens. | `src/workspace/TemplatePicker.test.tsx` |
+| FR-FS-013 | Native atomic overwrite's temp-file name MUST be unique per call within a process, not just per millisecond and PID, so two writes to the same target started close together never share a temp file. | Given many threads atomically-writing the same target at once, When all complete, Then every call succeeds and the final content is exactly one caller's complete payload. | `src-tauri/src/commands.rs` |
 
 ### Editor and saving (FR-EDIT)
 
@@ -977,7 +978,7 @@ Generated from section 8 by `python3 scripts/check_master_spec.py --update-trace
 | Prefix | Area | Requirements | With a linked test | NONE | Test files |
 | --- | --- | --- | --- | --- | --- |
 | FR-WS | Workspaces and profiles | 12 | 12 | 0 | `src/settings/WelcomeDialog.test.tsx`, `src/settings/store.test.ts`, `src/settings/workspaceProfiles.test.ts`, `src/settings/workspaceTransition.test.ts`, `src/workspace/tauriBridge.test.ts`, `src/workspace/workspaceTransition.test.ts`, `src/workspace/workspaceTransitionRecovery.test.ts` |
-| FR-FS | File tree and file operations | 12 | 12 | 0 | `src-tauri/src/commands.rs`, `src/workspace/FileContextMenu.test.tsx`, `src/workspace/TemplatePicker.test.tsx`, `src/workspace/fileOpenAuthority.test.ts`, `src/workspace/fileTreeStore.test.ts`, `src/workspace/types.test.ts` |
+| FR-FS | File tree and file operations | 13 | 13 | 0 | `src-tauri/src/commands.rs`, `src/workspace/FileContextMenu.test.tsx`, `src/workspace/TemplatePicker.test.tsx`, `src/workspace/fileOpenAuthority.test.ts`, `src/workspace/fileTreeStore.test.ts`, `src/workspace/types.test.ts` |
 | FR-EDIT | Editor and saving | 17 | 17 | 0 | `src/app/fontSizeControls.test.ts`, `src/editor/attachments.test.ts`, `src/editor/frontmatterEdits.test.ts`, `src/editor/livePreview.test.ts`, `src/editor/slashCommands.test.ts`, `src/editor/snippets.test.ts`, `src/editor/textDiff.test.ts`, `src/editor/textDirection.test.ts`, `src/markdown/highlight.test.ts`, `src/markdown/tableCommands.test.ts`, `src/settings/workspaceSettings.test.ts`, `src/workspace/saveCoordinator.test.ts`, `src/workspace/tauriBridge.test.ts` |
 | FR-VIEW | Markdown preview | 9 | 9 | 0 | `src/editor/MarkdownPreview.concurrency.test.tsx`, `src/editor/MarkdownPreview.test.tsx`, `src/markdown/mermaidSanitize.test.ts`, `src/offline.test.ts` |
 | FR-LINK | Wikilinks, headings and blocks | 13 | 13 | 0 | `src/editor/MarkdownPreview.test.tsx`, `src/editor/blockLinkActions.test.ts`, `src/linking/BacklinksPanel.test.tsx`, `src/linking/frontmatter.test.ts`, `src/linking/store.test.ts`, `src/linking/wikiResolver.test.ts`, `src/linking/wikiSyntax.test.ts`, `src/markdown/blocks.test.ts`, `src/markdown/headings.test.ts` |
@@ -1005,7 +1006,7 @@ Generated from section 8 by `python3 scripts/check_master_spec.py --update-trace
 | FR-WID | Android widgets | 3 | 3 | 0 | `android/app/src/test/java/com/getcapacitor/myapp/WidgetResourcesUnitTest.java`, `android/app/src/test/java/com/leonardschwier/leotheca/NewNoteColdStartTrackerTest.java`, `src/workspace/fileTreeStore.test.ts` |
 | FR-CLIP | Web clipper extension | 1 | 1 | 0 | `extensions/web-clipper/clipperCore.test.js` |
 | FR-UI | Shell, UI primitives and accessibility | 12 | 10 | 2 | `src/app/App.test.tsx`, `src/app/CommandPalette.test.tsx`, `src/app/EmptyEditorState.test.tsx`, `src/app/layout/adaptiveLayout.test.ts`, `src/app/useResizableSidebar.test.ts`, `src/fuzzyMatch.test.ts`, `src/ui/Menu.test.tsx`, `src/ui/overlayStack.test.ts`, `src/workspace/FileTree.test.tsx` |
-| **Total** | | **183** | **174** | **9** | |
+| **Total** | | **184** | **175** | **9** | |
 <!-- traceability:end -->
 
 ## 15. Coverage gaps
@@ -1070,5 +1071,6 @@ These are current behavior, recorded honestly. None was fixed by the change that
 Newest first. Each entry is `YYYY-MM-DD: what changed in behavior, contracts, formats, build or release`. See `skills/master-spec-maintenance.md`.
 
 <!-- change-log:start -->
+- 2026-11-06: Fixed a temp-file name collision in `write_file_atomically` (native atomic overwrite): two writes to the same target in the same millisecond on one process could silently overwrite each other's in-flight temp file, so the loser's rename failed with a spurious error while the winner's reported success actually held the other call's content. Temp names now carry a per-process monotonic sequence number as well as the existing timestamp/PID, so no two calls can collide. No caller-visible behavior change. Added FR-FS-013.
 - 2026-11-06: First version, written from the code on main at application version 1.0.0.
 <!-- change-log:end -->

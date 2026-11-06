@@ -18,6 +18,7 @@
 
 ### Bug Fixes
 
+- **Atomic file writes under concurrent saves** - two writes to the same note landing in the same millisecond on one process (an autosave racing an explicit save, or two capture commits in a row) could silently swap which write's content actually landed while reporting a spurious failure for the other; fixed by giving every atomic write's temp file a unique, monotonically increasing name.
 - **Android folder picker** — New workspaces are now named after the real folder instead of the literal "Workspace".
 - **Recent-notes widget** — Fixed label collisions for same-named notes in different folders.
 - **Recent-notes widget** — Eliminated full-workspace re-walk on every note mutation.

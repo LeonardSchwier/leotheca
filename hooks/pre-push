@@ -1,51 +1,77 @@
 #!/usr/bin/env bash
-# Pre-push verification gate: runs the full local CI/CD pipeline before allowing a push.
+# Pre-push gate. Fast by default (about a minute): rule checks over the pushed
+# commits, then scripts/verify-fast.sh. A gate that takes tens of minutes gets
+# bypassed with --no-verify, which protects nothing, so the slow full pipeline
+# is explicit:  PREPUSH_FULL=1 git push   or   npm run ci
 #
-# This hook runs on EVERY push and covers:
-#   - Frontend: type check, lint, version consistency, tests, build
-#   - Backend (Rust/Tauri): fmt, clippy, tests
-#   - Android: unit tests, debug APK build (if SDK available)
-#   - AppImage: tauri build (if available)
-#   - Flatpak: manifest lint + build (if flatpak-builder available)
-#
-# Quick mode (skips slow builds): set CI_LOCAL_QUICK=1
-#   CI_LOCAL_QUICK=1 git push
-#
-# Skip specific checks:
-#   CI_LOCAL_SKIP_ANDROID=1   CI_LOCAL_SKIP_APPIMAGE=1   CI_LOCAL_SKIP_FLATPAK=1
-#
-# Emergency bypass: git push --no-verify
+# Pushes that only touch roadmap leases and handoffs skip the application
+# checks (they cannot affect the app); commit message rules still run.
+set -u
+cd "$(git rev-parse --show-toplevel)" || exit 1
 
-set -o pipefail
+ZERO=0000000000000000000000000000000000000000
+METADATA_RE='^(ROADMAP\.md|\.agents/handoffs/.*)$'
+failed=0
+app_changed=0
+checked=0
 
-# Resolve repo root from the git directory (works regardless of how this
-# script is invoked — symlink, direct path, or relative path).
-GIT_DIR="$(cd "$(dirname "$0")" && git rev-parse --git-dir 2>/dev/null)"
-if [ -n "$GIT_DIR" ]; then
-  REPO_ROOT="$(cd "$GIT_DIR" && cd .. && pwd)"
-else
-  # Fallback: walk up from the script location
-  REPO_ROOT="$(cd "$(dirname "$0")" && git rev-parse --show-toplevel 2>/dev/null)"
-  if [ -z "$REPO_ROOT" ]; then
-    REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+while read -r local_ref local_sha remote_ref remote_sha; do
+  [ -z "${local_sha:-}" ] && continue
+  if [ "$local_sha" = "$ZERO" ]; then # branch deletion
+    case "$remote_ref" in
+      refs/heads/main | refs/heads/master)
+        echo "pre-push: BLOCKED deleting $remote_ref" >&2
+        failed=1
+        ;;
+    esac
+    continue
   fi
-fi
-cd "$REPO_ROOT"
+  checked=1
 
-echo ""
-echo "═══ Pre-push: running full local CI/CD pipeline ═══"
-echo ""
+  base="$remote_sha"
+  if [ "$base" = "$ZERO" ] || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+    # New branch: compare against main, falling back to the tip commit alone.
+    base="$(git merge-base "$local_sha" origin/main 2>/dev/null || echo "$local_sha~1")"
+  fi
 
-# Run the full CI suite (all checks, not --quick)
-# For faster feedback, use: CI_LOCAL_QUICK=1 git push
-# For specific skips: CI_LOCAL_SKIP_ANDROID=1 CI_LOCAL_SKIP_APPIMAGE=1
-if bash scripts/ci-local.sh; then
-  echo ""
-  echo "✅ Pre-push CI passed. Pushing..."
-else
-  echo ""
-  echo "❌ Pre-push CI FAILED. Fix the errors above and push again."
-  echo "   Quick mode (skip slow builds): CI_LOCAL_QUICK=1 git push"
-  echo "   Emergency bypass: git push --no-verify"
+  # Force push / history rewrite: the remote tip must be an ancestor of what we send.
+  if [ "$remote_sha" != "$ZERO" ] && git cat-file -e "$remote_sha^{commit}" 2>/dev/null \
+    && ! git merge-base --is-ancestor "$remote_sha" "$local_sha"; then
+    echo "pre-push: BLOCKED non-fast-forward update of $remote_ref (force push). Fetch, merge, retest, push normally." >&2
+    failed=1
+    continue
+  fi
+
+  echo "pre-push: rule checks for $base..$local_sha"
+  node scripts/check-rules.mjs commits "$base" "$local_sha" || failed=1
+  node scripts/check-rules.mjs lines "$base" "$local_sha" || failed=1
+  node scripts/check-rules.mjs format "$base" "$local_sha" || failed=1
+  node scripts/check-rules.mjs deps "$base" "$local_sha" || failed=1
+
+  if git diff --name-only "$base" "$local_sha" | grep -v -E "$METADATA_RE" | grep -q .; then
+    app_changed=1
+  fi
+done
+
+if [ "$failed" -ne 0 ]; then
+  echo "pre-push: rule checks FAILED. Fix the items above, then push again." >&2
   exit 1
+fi
+
+[ "$checked" -eq 0 ] && exit 0
+
+if [ "$app_changed" -eq 0 ]; then
+  echo "pre-push: metadata-only push (roadmap/handoffs), application checks skipped."
+  exit 0
+fi
+
+if [ "${PREPUSH_FULL:-0}" = "1" ]; then
+  echo "pre-push: PREPUSH_FULL=1, running the full pipeline (slow)"
+  bash scripts/ci-local.sh || { echo "pre-push: full pipeline FAILED" >&2; exit 1; }
+else
+  bash scripts/verify-fast.sh || {
+    echo "pre-push: verification FAILED. Fix the errors above and push again." >&2
+    echo "          Full pipeline: PREPUSH_FULL=1 git push" >&2
+    exit 1
+  }
 fi

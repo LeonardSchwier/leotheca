@@ -556,3 +556,61 @@ describe("attachment filename generation (F05 §9.3)", () => {
     vi.restoreAllMocks();
   });
 });
+
+describe("verbatim (template-shaped) captures", () => {
+  async function load() {
+    const readTextFile = vi.fn();
+    const writeTextFile = vi.fn().mockResolvedValue(undefined);
+    const createWorkspaceTextFileNew = vi.fn().mockResolvedValue(undefined);
+    vi.resetModules();
+    vi.doMock("../workspace/tauriBridge", () => ({
+      readTextFile,
+      writeTextFile,
+      listDir: vi.fn().mockResolvedValue([]),
+      createWorkspaceTextFileNew,
+      writeWorkspaceBinaryFile: vi.fn(),
+      readBinaryFile: vi.fn(),
+    }));
+    const mod = await import("./captureCommit");
+    return { ...mod, readTextFile, writeTextFile, createWorkspaceTextFileNew };
+  }
+
+  it("append: writes the shaped text without a timestamp header, with normal separation", async () => {
+    const { appendToInboxNote, readTextFile, writeTextFile } = await load();
+    readTextFile.mockResolvedValue("# Inbox\r\n\r\nold");
+    await appendToInboxNote({
+      inboxNotePath: "/workspace/Inbox.md",
+      content: "## Meeting\n\nnotes\n\n",
+      title: "ignored",
+      sourceUrl: "https://ignored.test",
+      verbatim: true,
+    });
+    expect(writeTextFile).toHaveBeenCalledWith(
+      "/workspace/Inbox.md",
+      "# Inbox\r\n\r\nold\r\n\r\n## Meeting\n\nnotes",
+    );
+  });
+
+  it("append without verbatim keeps the built-in header (regression)", async () => {
+    const { appendToInboxNote, readTextFile, writeTextFile } = await load();
+    readTextFile.mockRejectedValue(new Error("missing"));
+    await appendToInboxNote({ inboxNotePath: "/workspace/Inbox.md", content: "plain" });
+    expect(writeTextFile.mock.calls[0][1]).toMatch(/^### \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\n\nplain$/);
+  });
+
+  it("new note: writes the shaped text as the whole note, no title heading", async () => {
+    const { createNoteWithTitle, createWorkspaceTextFileNew } = await load();
+    await createNoteWithTitle("/workspace/Daily", "---\ntags: [daily]\n---\n\nbody\n", "2026-11-07", "/workspace", undefined, undefined, { verbatim: true });
+    expect(createWorkspaceTextFileNew).toHaveBeenCalledWith(
+      "/workspace",
+      "Daily/2026-11-07.md",
+      "---\ntags: [daily]\n---\n\nbody",
+    );
+  });
+
+  it("new note without verbatim still adds the title heading (regression)", async () => {
+    const { createNoteWithTitle, createWorkspaceTextFileNew } = await load();
+    await createNoteWithTitle("/workspace/Daily", "body", "Title", "/workspace");
+    expect(createWorkspaceTextFileNew).toHaveBeenCalledWith("/workspace", "Daily/Title.md", "# Title\n\nbody");
+  });
+});

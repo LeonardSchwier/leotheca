@@ -82,6 +82,13 @@ describe("DEFAULT_WORKSPACE_SETTINGS", () => {
     expect(DEFAULT_WORKSPACE_SETTINGS.headingLinksEnabled).toBe(true);
   });
 
+  it("defaults Markdown vault import to on, and decodes a malformed value to the default", () => {
+    expect(DEFAULT_WORKSPACE_SETTINGS.markdownImportEnabled).toBe(true);
+    expect(decodeWorkspaceSettings(JSON.stringify({ markdownImportEnabled: false }), "/w").settings.markdownImportEnabled).toBe(false);
+    const bad = decodeWorkspaceSettings(JSON.stringify({ markdownImportEnabled: "no" }), "/w");
+    expect(bad.settings.markdownImportEnabled).toBe(true);
+  });
+
   it("defaults reading font to sans, per UX-01 spec section 23.2", () => {
     expect(DEFAULT_WORKSPACE_SETTINGS.readingFont).toBe("sans");
   });

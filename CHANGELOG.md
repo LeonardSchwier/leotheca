@@ -8,6 +8,7 @@
 
 ### New Features
 
+- **Markdown vault import** — Desktop command "Import Markdown vault..." copies a folder of Markdown notes into `Imported/<folder name>` in the open workspace without changing the source or overwriting any file, rewrites only attachment embeds, nested heading links and `%%comments%%`, and shows a report of what was converted, kept, unsupported, renamed, skipped or failed. Can be switched off in Settings.
 - **macOS Quick Look preview** — ⌥-click `.md` files in Finder to preview without opening the app.
 - **Quick Capture target picker** — Choose the capture destination (specific note, daily note, or bookmark) with an optional template.
 - **Android camera capture** — Take a photo directly from the "Insert attachment" toolbar.

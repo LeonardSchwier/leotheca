@@ -37,6 +37,10 @@ export default defineConfig({
       ".agents/control-*/**",
       ".agents/*/control-*/**",
       "control-*/**",
+      // The design system package is a self-contained package with its own
+      // lockfile, dependencies and test script (packages/design-system);
+      // its tests need that package's own node_modules.
+      "packages/**",
       "**/control-opencode-*/**",
     ],
 

@@ -934,6 +934,7 @@ Only numbers that exist in code, configuration or an observed run appear here. N
 | Workflow | Trigger | Does |
 | --- | --- | --- |
 | `ci.yml` | Push (ignoring `ROADMAP.md` and `.agents/handoffs/**`), PR, call | Jobs `frontend`, `backend`, `android`, `appimage-smoke`, `validation` |
+| `rules.yml` | Push, PR, weekly schedule | Commit convention, added-line rules, secret-shaped tokens, dependency intake, fast-forward-only main, prettier on changed files, licenses, action pinning, `npm audit` (reported, non-blocking until triaged) |
 | `agent-policy.yml` | Push and PR on policy paths | Python helper tests, ledger and roadmap format |
 | `release.yml` | Tag `v*`, implementation push to main, manual | Builds Linux, Android, Flatpak, macOS, Windows, then publishes |
 | `gh-pages.yml` | Push on `website/**` | Deploys the static site |
@@ -943,7 +944,7 @@ Only numbers that exist in code, configuration or an observed run appear here. N
 
 **Packaging.** `flatpak/` (GNOME 50 runtime, offline `cargo-sources.json`, `node-sources.json`), `packaging/f-droid/`, `packaging/homebrew/` (draft Cask with TODO placeholders), `packaging/macos/` (app and Quick Look), `snap/` (draft). External store submission status is not confirmed by the code.
 
-**Local hook.** `hooks/pre-push` runs `scripts/ci-local.sh`.
+**Local hooks.** `core.hooksPath=hooks` is set in the local repository config by `npm ci` (`prepare` runs `scripts/install-hooks.mjs`) or `npm run hooks:install`; the script is idempotent, never touches global config and skips CI and Flatpak builds. `hooks/pre-commit` checks staged files (whitespace, conflict markers, size, em dashes, competitor names, secret-shaped tokens, prettier, eslint, `cargo fmt`, optional gitleaks with a reported skip). `hooks/commit-msg` enforces the commit convention. `hooks/pre-push` runs the rule checks over the pushed range, refuses force pushes and deleting main, then `scripts/verify-fast.sh` (`tsc`, `eslint`, vitest, version, ledger); the e2e smoke runs only when the suite exists. `PREPUSH_FULL=1` runs the slow `scripts/ci-local.sh`. `scripts/guard-command.mjs` is an opt-in destructive-command guard. See `hooks/README.md`.
 
 ## 12. Test strategy
 
@@ -1075,6 +1076,7 @@ These are current behavior, recorded honestly. None was fixed by the change that
 Newest first. Each entry is `YYYY-MM-DD: what changed in behavior, contracts, formats, build or release`. See `skills/master-spec-maintenance.md`.
 
 <!-- change-log:start -->
+- 2026-11-07: Build and process: versioned git hooks (pre-commit, commit-msg, fast pre-push) enabled through `npm run hooks:install`, `scripts/check-rules.mjs` mechanical rule checks, `scripts/guard-command.mjs`, and the `rules.yml` CI workflow. No application behavior changed.
 - 2026-11-07: Crash hardening (frontend): Preview falls back to escaped plain text when the Markdown parser throws on pathological nesting; clipboard writes, workspace search and first-level tree expansion no longer reject unhandled. Records the behavior of commit 0e80cd1.
 - 2026-11-07: Quick Capture gained an optional per-capture Template select (existing templates folder, placeholders {{content}} {{title}} {{url}} {{date}} {{time}}); None keeps the plain format.
 - 2026-11-06: Fixed a temp-file name collision in `write_file_atomically` (native atomic overwrite): two writes to the same target in the same millisecond on one process could silently overwrite each other's in-flight temp file, so the loser's rename failed with a spurious error while the winner's reported success actually held the other call's content. Temp names now carry a per-process monotonic sequence number as well as the existing timestamp/PID, so no two calls can collide. No caller-visible behavior change. Added FR-FS-013.

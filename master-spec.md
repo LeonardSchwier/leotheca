@@ -905,6 +905,7 @@ Only numbers that exist in code, configuration or an observed run appear here. N
 | NFR-CRASH-002 | Tests MUST fail on unhandled errors in jsdom, using the polyfills in `src/test/setup-jsdom.ts`. | Observed | `vitest.config.ts` |
 | NFR-CRASH-003 | A Markdown parser failure on pathological input (for example deeply nested blockquotes) MUST NOT blank the app; the Preview MUST show the text escaped in a `<pre>` and recover on the next edit. | Observed passing | `src/editor/MarkdownPreview.test.tsx` |
 | NFR-CRASH-004 | Clipboard writes, workspace search and first-level tree expansion MUST NOT produce unhandled promise rejections when the native or clipboard call fails. | Observed passing | `src/workspace/fileTreeStore.test.ts`, `src/workspace/FileContextMenu.test.tsx` |
+| NFR-CRASH-005 | On Android, a plugin method MUST NOT let an exception escape to the Capacitor bridge: `pickFolder` and `exportHtml` reject when no document picker exists, and malformed share-intent extras drop the share. | Traced, JVM tests for the decision logic | `android/app/src/test/java/com/leonardschwier/leotheca/NativeBoundaryPolicyTest.java` |
 
 **Measured figures on record.** `documentation` and code comments cite a ~580-note SAF vault taking 90+ seconds with per-directory bridge calls, which motivated the single-call walk. This is a historical comment, not a current budget, and was not reproduced here.
 
@@ -1074,6 +1075,7 @@ These are current behavior, recorded honestly. None was fixed by the change that
 Newest first. Each entry is `YYYY-MM-DD: what changed in behavior, contracts, formats, build or release`. See `skills/master-spec-maintenance.md`.
 
 <!-- change-log:start -->
+- 2026-11-07: Crash hardening (Android): `pickFolder` and `exportHtml` reject instead of throwing when the device has no document picker; share-intent extras are read defensively and styled text is kept; a restored activity no longer replays its share intent; `onNewIntent` is null-safe.
 - 2026-11-07: Crash hardening (frontend): Preview falls back to escaped plain text when the Markdown parser throws on pathological nesting; clipboard writes, workspace search and first-level tree expansion no longer reject unhandled. Records the behavior of commit 0e80cd1.
 - 2026-11-07: Quick Capture gained an optional per-capture Template select (existing templates folder, placeholders {{content}} {{title}} {{url}} {{date}} {{time}}); None keeps the plain format.
 - 2026-11-06: First version, written from the code on main at application version 1.0.0.

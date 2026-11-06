@@ -84,7 +84,9 @@ public class MainActivity extends BridgeActivity {
 
         // F05: Handle Android share intents
         Intent intent = getIntent();
-        if (intent != null && (Intent.ACTION_SEND.equals(intent.getAction()) || Intent.ACTION_SEND_MULTIPLE.equals(intent.getAction()))) {
+        // Only on a fresh launch: after process-death restore the same intent is
+        // still attached and would be captured a second time.
+        if (intent != null && NativeBoundaryPolicy.shouldProcessShareAtCreate(savedInstanceState != null, intent.getAction())) {
             captureIntentHandler.processShareIntent(intent);
         }
 
@@ -118,7 +120,8 @@ public class MainActivity extends BridgeActivity {
         setIntent(intent);
         
         // F05: Handle Android share intents when app is already running
-        if (intent != null && (Intent.ACTION_SEND.equals(intent.getAction()) || Intent.ACTION_SEND_MULTIPLE.equals(intent.getAction()))) {
+        // captureIntentHandler is null after onDestroy.
+        if (intent != null && captureIntentHandler != null && NativeBoundaryPolicy.isShareAction(intent.getAction())) {
             captureIntentHandler.processShareIntent(intent);
         }
     }

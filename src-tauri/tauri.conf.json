@@ -38,6 +38,12 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
+    "macOS": {
+      "infoPlist": "../packaging/macos/app/Info.plist",
+      "files": {
+        "Resources/docs-icon.icns": "icons/docs-icon.icns"
+      }
+    },
     "fileAssociations": [
       {
         "ext": ["md"],

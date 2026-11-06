@@ -5,6 +5,42 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { cleanup, fireEvent, render } from "@testing-library/preact";
 
+// Voice capture tests drive a fake engine; the real controller would touch
+// MediaRecorder/native bridges that do not exist in jsdom.
+const fakeEngine = vi.hoisted(() => ({
+  created: 0,
+  available: true,
+  resultCb: null as null | ((r: { text: string; isFinal: boolean }) => void),
+  stateCb: null as null | ((s: string) => void),
+}));
+vi.mock("../speech/speechController", () => ({
+  SpeechController: class {
+    constructor() {
+      fakeEngine.created++;
+    }
+    onResult(cb: (r: { text: string; isFinal: boolean }) => void) {
+      fakeEngine.resultCb = cb;
+      return () => {};
+    }
+    onError() {
+      return () => {};
+    }
+    onStateChange(cb: (s: string) => void) {
+      fakeEngine.stateCb = cb;
+      return () => {};
+    }
+    isSpeechRecognitionAvailable() {
+      return Promise.resolve(fakeEngine.available);
+    }
+    async start() {
+      fakeEngine.stateCb?.("recording");
+    }
+    async stop() {
+      fakeEngine.stateCb?.("idle");
+    }
+  },
+}));
+
 // CaptureSheet.tsx imports workspacePath from settings/store.ts, which reads
 // window.matchMedia at module load time; same jsdom + dynamic-import setup
 // as settings/store.test.ts, see its own comment.
@@ -30,6 +66,8 @@ const {
   captureTargetPath,
   captureNoteList,
 } = await import("./CaptureSheet");
+const { workspaceSettings } = await import("../settings/store");
+const { act } = await import("@testing-library/preact");
 
 describe("CaptureSheet Accessibility (F05-FR-27)", () => {
   beforeEach(() => {
@@ -277,5 +315,63 @@ describe("CaptureSheet target picker", () => {
     const dialog = getByRole("dialog", { name: "Quick Capture" });
     const select = dialog.querySelector("select");
     expect(select).not.toBeNull();
+  });
+});
+// ── Quick Capture voice input (rm-f6a0135fc66d7dcd) ───────────────────────
+describe("CaptureSheet voice input", () => {
+  const original = workspaceSettings.value;
+  beforeEach(() => {
+    fakeEngine.created = 0;
+    fakeEngine.available = true;
+    captureSheetOpen.value = true;
+    captureContent.value = "typed";
+  });
+  afterEach(() => {
+    cleanup();
+    closeCaptureSheet();
+    workspaceSettings.value = original;
+  });
+
+  it("shows no microphone control and never creates an engine while speech-to-text is off", async () => {
+    workspaceSettings.value = { ...original, speechToTextEnabled: false };
+    const { queryByText } = render(<CaptureSheet />);
+    await act(async () => {});
+    expect(queryByText("Speak")).toBeNull();
+    expect(fakeEngine.created).toBe(0);
+  });
+
+  it("hides the control when the engine is unavailable", async () => {
+    workspaceSettings.value = { ...original, speechToTextEnabled: true };
+    fakeEngine.available = false;
+    const { queryByText } = render(<CaptureSheet />);
+    await act(async () => {});
+    expect(queryByText("Speak")).toBeNull();
+  });
+
+  it("appends a transcript to typed text and blocks Capture while recording", async () => {
+    workspaceSettings.value = { ...original, speechToTextEnabled: true };
+    const { findByText, getByLabelText } = render(<CaptureSheet />);
+    fireEvent.click(await findByText("Speak"));
+    await act(async () => {});
+    const capture = (await findByText("Stop and transcribe")) as HTMLButtonElement;
+    expect((getByLabelText("Capture note") as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(capture);
+    await act(async () => {
+      fakeEngine.resultCb?.({ text: "spoken words", isFinal: true });
+    });
+    expect(captureContent.value).toBe("typed\nspoken words");
+  });
+
+  it("drops a transcript that arrives after the sheet was closed", async () => {
+    workspaceSettings.value = { ...original, speechToTextEnabled: true };
+    const { findByText } = render(<CaptureSheet />);
+    fireEvent.click(await findByText("Speak"));
+    await act(async () => {});
+    await act(async () => closeCaptureSheet());
+    captureContent.value = "";
+    await act(async () => {
+      fakeEngine.resultCb?.({ text: "late", isFinal: true });
+    });
+    expect(captureContent.value).toBe("");
   });
 });

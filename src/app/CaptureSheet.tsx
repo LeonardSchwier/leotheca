@@ -17,6 +17,7 @@ import { bookmarks } from "../bookmarks/store";
 import { findAllFiles } from "../workspace/tauriBridge";
 import { relativePath } from "../workspace/fileTreeStore";
 import { Sheet } from "../ui/Sheet";
+import { appendTranscript, useCaptureVoice } from "../capture/captureVoice";
 
 // F05-FR-27: Accessibility announcement signal
 export const captureAnnouncement = signal("");
@@ -82,6 +83,17 @@ export function CaptureSheet({ onCreated }: CaptureSheetProps) {
   const openAfterCapture = captureOpenAfterCapture.value;
   const targetKind = captureTargetKind.value;
   const targetPath = captureTargetPath.value;
+
+  // Local voice input: only active when the opt-in speech-to-text setting is
+  // on and the sheet is open, so nothing touches the microphone otherwise.
+  const voice = useCaptureVoice({
+    enabled: workspaceSettings.value.speechToTextEnabled && captureSheetOpen.value,
+    onTranscript: (text) => {
+      captureContent.value = appendTranscript(captureContent.value, text);
+      announceCaptureMessage("Voice note added to capture");
+    },
+  });
+  const voiceBusy = voice.state !== "idle";
 
   // Load target options when the sheet opens
   useEffect(() => {
@@ -325,7 +337,7 @@ export function CaptureSheet({ onCreated }: CaptureSheetProps) {
           <button
             class="primary"
             onClick={handleSubmit}
-            disabled={isSubmitting || content.trim() === ""}
+            disabled={isSubmitting || voiceBusy || content.trim() === ""}
             aria-label={isSubmitting ? "Saving capture" : "Capture note"}
           >
             {isSubmitting ? "Saving..." : "Capture"}
@@ -531,6 +543,35 @@ export function CaptureSheet({ onCreated }: CaptureSheetProps) {
         aria-describedby="content-hint content-error"
         aria-required="true"
       />
+      {voice.available && (
+        <div class="capture-sheet-voice">
+          <button
+            type="button"
+            class={`capture-sheet-voice-button${voice.state === "recording" ? " recording" : ""}`}
+            onClick={voice.toggle}
+            disabled={isSubmitting || voice.state === "starting" || voice.state === "transcribing"}
+            aria-pressed={voice.state === "recording"}
+          >
+            {voice.state === "recording"
+              ? "Stop and transcribe"
+              : voice.state === "starting"
+                ? "Starting microphone..."
+                : voice.state === "transcribing"
+                  ? "Transcribing..."
+                  : "Speak"}
+          </button>
+          {voice.state === "recording" && (
+            <button type="button" onClick={() => void voice.cancel()}>
+              Discard recording
+            </button>
+          )}
+        </div>
+      )}
+      {voice.message && (
+        <div role="status" class="capture-sheet-voice-message">
+          {voice.message}
+        </div>
+      )}
       <span id="content-hint" class="sr-only">
         Main capture content - required field
       </span>

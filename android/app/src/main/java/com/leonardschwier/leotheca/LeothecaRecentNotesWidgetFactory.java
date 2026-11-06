@@ -118,6 +118,12 @@ public class LeothecaRecentNotesWidgetFactory implements RemoteViewsService.Remo
         views.setTextViewText(R.id.widget_recent_notes_item_label, entry.label);
         String timeStr = formatRelativeTime(entry.mtime, System.currentTimeMillis());
         views.setTextViewText(R.id.widget_recent_notes_item_time, timeStr);
+        // An empty TextView still reserves one line of height, so a note
+        // without an mtime would render a blank gap under its label.
+        views.setViewVisibility(
+            R.id.widget_recent_notes_item_time,
+            timeStr.isEmpty() ? android.view.View.GONE : android.view.View.VISIBLE
+        );
 
         Intent fill = new Intent();
         fill.setData(Uri.parse("leotheca://open-note?path=" + Uri.encode(entry.path)));

@@ -16,6 +16,7 @@
 - **Android folder picker** — New workspaces are now named after the real folder instead of the literal "Workspace".
 - **Recent-notes widget** — Fixed label collisions for same-named notes in different folders.
 - **Recent-notes widget** — Eliminated full-workspace re-walk on every note mutation.
+- **Recent-notes widget** — Each row shows a relative-time line ("5 min ago") from the note's modified time; the line is hidden, not blank, for notes without one.
 
 ### Security
 

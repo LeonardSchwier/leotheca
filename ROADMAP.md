@@ -29,9 +29,9 @@ Significant missing features users expect.
 - ⏸ **Android speech-to-text** — Plugin was never registered with the Capacitor bridge; on-device confirmation still outstanding. Status: blocked on a physical Android device.
 - ⏸ **Android folder-picker display name** — Picker always labels a new workspace "Workspace" instead of the real folder name. Status: claimed, needs on-device verification.
 - ⏸ **Android home-screen widgets** — Recent-notes widget has a full-workspace re-walk performance issue and colliding labels; "favorites" hamburger bug under investigation. Status: in progress.
-- 🚧 **Android camera capture** — Take a photo directly from the "Insert attachment" toolbar. Status: open.
-  <!-- agent-state: {"schema":1,"id":"rm-5fc96a0db16f2169","state":"claimed","touch":[],"resources":["triage-recovery"],"owner":"claude-code-triage-20261106T231749Z-1a7d2ea0","token":"95d5836ddbb18e98eaa34af4924d17ff","branch":"agent/rm-5fc96a0db16f2169/95d5836ddbb1","claimed_at":"2026-11-06T23:22:15Z","heartbeat_at":"2026-11-06T23:22:15Z","lease_until":"2026-11-07T00:52:15Z"} -->
-  Agent: claude-code-triage-20261106T231749Z-1a7d2ea0 | item: rm-5fc96a0db16f2169 | lease until: 2026-11-07T00:52:15Z
+- ⬜ **Android camera capture** — Take a photo directly from the "Insert attachment" toolbar. Status: open.
+  <!-- agent-state: {"schema":1,"id":"rm-5fc96a0db16f2169","state":"open","touch":[],"resources":["triage-recovery"],"note":"Triage 2026-11-06T23:25Z by claude-code-triage: previous owner hermes-20261030T080439Z-0fdb1a0c lease expired 2026-10-30. No remote or local branch and no handoff exist. Main has no cameraCapture.ts or CameraCapturePlugin; the WIP the 2026-11-01 weekly review saw was uncommitted and is not recoverable. Restart from main. Device-side testing needs an Android device or emulator with camera; split JS bridge and unit tests from device verification.","released_at":"2026-11-06T23:22:16Z"} -->
+  Agent: unclaimed | item: rm-5fc96a0db16f2169
 - ⏸ **Compatibility layer** — Load community extension manifests; gated on maintainer approval of the third-party-code security model. Status: open.
 
 ## P2 — Polish & fixes

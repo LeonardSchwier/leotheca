@@ -227,6 +227,7 @@ UTF-8, pretty-printed with 2 spaces. `version` is 1 by default, or 2 once a lega
 | `snippetsEnabled` | boolean | true | |
 | `snippets` | string | `todo<TAB>- [ ] ` | One `trigger<TAB>replacement` per line |
 | `headingLinksEnabled` | boolean | true | |
+| `markdownImportEnabled` | boolean | true | Offers the "Import Markdown vault..." command (desktop). |
 | `collectionsEnabled` | boolean | false | |
 | `rtlWorkspaceEnabled` | boolean | false | |
 | `speechToTextEnabled` | boolean | false | |
@@ -398,6 +399,8 @@ All return `Result<T, String>` unless noted. `FsEntry` is `{ name, path, isDir, 
 | `create_workspace_dir_new` | `workspaceRoot, relativePath` | `()` | Scoped, coded | Target must not exist. |
 | `rename_workspace_path_no_replace` | `workspaceRoot, from, to` | `()` | Scoped, coded | OS-level no-replace. |
 | `export_text_file_via_dialog` | `defaultFileName, contents` | `boolean` | User picks | `false` on cancel. HTML filter. |
+| `import_markdown_vault` | `targetFolder` | `ImportReport\|null` | User picks source; target scoped | Native folder dialog supplies the source (never the webview). `null` on cancel. Emits `markdown-import-progress`. Desktop only; other platforms return an error. |
+| `cancel_markdown_import` | none | `()` | none | Sets the cancel flag of the running import. |
 | `take_pending_open_file` | none | `{path, content}\|null` | Consume once | Not a Result. |
 | `pick_and_read_external_markdown_file` | none | `{path, content}\|null` | User picks | `.md` filter. |
 | `detect_platform` | `userAgent` | `Platform` | None | Pure. |
@@ -759,6 +762,17 @@ The URL parser is not the security boundary. The native gate on the eventual rea
 | FR-EXT-002 | External files outside the workspace MUST open in a dedicated view rather than as workspace tabs. | Given an external file, When shown, Then ExternalFileView displays its path and content. | `src/app/ExternalFileView.test.tsx` |
 | FR-EXT-003 | externalFileOpenEnabled MUST default true and gate the feature. | Given false, When an event arrives, Then it is ignored. | `src/settings/globalConfig.test.ts` |
 
+### Markdown vault import (FR-IMPORT)
+
+| ID | Requirement | Acceptance | Test |
+| --- | --- | --- | --- |
+| FR-IMPORT-001 | On desktop with a workspace open and markdownImportEnabled true, the command palette MUST offer "Import Markdown vault..."; on Android or with the setting off it MUST NOT. | Given Android or the setting off, When the palette opens, Then the command is absent. | `src/markdownImport/markdownImport.test.ts` |
+| FR-IMPORT-002 | The source folder MUST come from a native dialog inside the command, and the source MUST NOT be modified. | Given an import, When it finishes, Then a byte snapshot of the source is unchanged and the webview supplied only targetFolder. | `src-tauri/src/markdown_import.rs` (cargo test) |
+| FR-IMPORT-003 | Notes MUST be copied to Imported/<source folder name> inside the workspace; an existing file MUST never be overwritten (a clash is saved as `name (imported)` and reported). | Given a clashing name, When imported, Then the old file is unchanged and the report lists the rename. | `src-tauri/src/markdown_import.rs` (cargo test) |
+| FR-IMPORT-004 | Symlinks MUST NOT be followed, hidden top-level source folders MUST be skipped, a target folder or destination escaping the workspace or lying inside the source MUST be rejected. | Given a symlinked target, a `..` target or a destination inside the source, When imported, Then an error is returned and nothing is written outside the workspace. | `src-tauri/src/markdown_import.rs` (cargo test) |
+| FR-IMPORT-005 | Only attachment embeds and links, nested heading links and %%comments%% MUST be rewritten; code, front matter and already supported syntax MUST stay byte-identical; non-UTF-8 notes MUST be copied unchanged and reported. | Given a note with each syntax, When imported, Then only the three kinds change and the report counts each finding. | `src-tauri/src/markdown_import.rs` (cargo test) |
+| FR-IMPORT-006 | The dialog MUST show progress with Cancel, then a report with exact counts and capped lists; a native failure MUST show an error dialog and the tree MUST refresh after files were written. | Given a finished import, When the dialog shows, Then converted, unsupported, renamed, skipped and failed items are listed. | `src/markdownImport/importStore.test.tsx` |
+
 ### Speech to text (FR-SPEECH)
 
 | ID | Requirement | Acceptance | Test |
@@ -1005,12 +1019,13 @@ Generated from section 8 by `python3 scripts/check_master_spec.py --update-trace
 | FR-THEME | Themes and appearance | 4 | 4 | 0 | `src/app/zoomControls.test.ts`, `src/settings/customCss.test.ts`, `src/settings/store.test.ts`, `src/settings/workspaceSettings.test.ts` |
 | FR-EXP | Print and export | 3 | 3 | 0 | `src/export/exportNoteHtml.test.ts`, `src/export/printNote.test.ts`, `src/workspace/tauriBridgeImpl.test.ts` |
 | FR-EXT | External file open | 3 | 3 | 0 | `src-tauri/src/external_open.rs`, `src/app/ExternalFileView.test.tsx`, `src/settings/globalConfig.test.ts` |
+| FR-IMPORT | Markdown vault import | 6 | 6 | 0 | `src-tauri/src/markdown_import.rs`, `src/markdownImport/importStore.test.tsx`, `src/markdownImport/markdownImport.test.ts` |
 | FR-SPEECH | Speech to text | 4 | 3 | 1 | `src/settings/workspaceSettings.test.ts`, `src/speech/speechController.test.ts`, `src/workspace/speechBridgeImpl.test.ts` |
 | FR-SPELL | Spell check | 1 | 1 | 0 | `src/spellcheck/spellCheck.test.ts` |
 | FR-WID | Android widgets | 3 | 3 | 0 | `android/app/src/test/java/com/getcapacitor/myapp/WidgetResourcesUnitTest.java`, `android/app/src/test/java/com/leonardschwier/leotheca/NewNoteColdStartTrackerTest.java`, `src/workspace/fileTreeStore.test.ts` |
 | FR-CLIP | Web clipper extension | 1 | 1 | 0 | `extensions/web-clipper/clipperCore.test.js` |
 | FR-UI | Shell, UI primitives and accessibility | 12 | 10 | 2 | `src/app/App.test.tsx`, `src/app/CommandPalette.test.tsx`, `src/app/EmptyEditorState.test.tsx`, `src/app/layout/adaptiveLayout.test.ts`, `src/app/useResizableSidebar.test.ts`, `src/fuzzyMatch.test.ts`, `src/ui/Menu.test.tsx`, `src/ui/overlayStack.test.ts`, `src/workspace/FileTree.test.tsx` |
-| **Total** | | **185** | **176** | **9** | |
+| **Total** | | **191** | **182** | **9** | |
 <!-- traceability:end -->
 
 ## 15. Coverage gaps
@@ -1075,6 +1090,7 @@ These are current behavior, recorded honestly. None was fixed by the change that
 Newest first. Each entry is `YYYY-MM-DD: what changed in behavior, contracts, formats, build or release`. See `skills/master-spec-maintenance.md`.
 
 <!-- change-log:start -->
+- 2026-11-07: Desktop "Import Markdown vault..." command (`import_markdown_vault`, `cancel_markdown_import`, setting `markdownImportEnabled`, FR-IMPORT) copies a vault folder into `Imported/<name>`, converts three syntaxes and reports every outcome.
 - 2026-11-07: Build and process: versioned git hooks (pre-commit, commit-msg, fast pre-push) enabled through `npm run hooks:install`, `scripts/check-rules.mjs` mechanical rule checks, `scripts/guard-command.mjs`, and the `rules.yml` CI workflow. No application behavior changed.
 - 2026-11-07: Crash hardening (frontend): Preview falls back to escaped plain text when the Markdown parser throws on pathological nesting; clipboard writes, workspace search and first-level tree expansion no longer reject unhandled. Records the behavior of commit 0e80cd1.
 - 2026-11-07: Quick Capture gained an optional per-capture Template select (existing templates folder, placeholders {{content}} {{title}} {{url}} {{date}} {{time}}); None keeps the plain format.

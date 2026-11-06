@@ -192,6 +192,10 @@ export interface WorkspaceSettings {
    * net-new functionality, matching every other feature flag in this
    * file. */
   headingLinksEnabled: boolean;
+  /** Whether the "Import Markdown vault..." command is offered (copies a
+   * chosen folder of notes into this workspace, see markdownImport/). A
+   * new capability, so it can be switched off; defaults to on. */
+  markdownImportEnabled: boolean;
   /** Whether file-backed Collections (see collections/collectionStore.ts,
    * `.leotheca/collections.json`) can be created and opened at all.
    * Unlike every other feature flag in this file, this one defaults to
@@ -281,6 +285,7 @@ export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   snippetsEnabled: true,
   snippets: "todo\t- [ ] ",
   headingLinksEnabled: true,
+  markdownImportEnabled: true,
   collectionsEnabled: false,
   rtlWorkspaceEnabled: false,
   speechToTextEnabled: false,
@@ -732,6 +737,10 @@ export function decodeWorkspaceSettings(
     record.snippets,
     DEFAULT_WORKSPACE_SETTINGS.snippets,
   );
+  const markdownImportEnabled = decodeBoolean(
+    record.markdownImportEnabled,
+    DEFAULT_WORKSPACE_SETTINGS.markdownImportEnabled,
+  );
   const headingLinksEnabled = decodeBoolean(
     record.headingLinksEnabled,
     DEFAULT_WORKSPACE_SETTINGS.headingLinksEnabled,
@@ -818,6 +827,7 @@ export function decodeWorkspaceSettings(
     snippetsEnabled: snippetsEnabled.value,
     snippets: snippets.value,
     headingLinksEnabled: headingLinksEnabled.value,
+    markdownImportEnabled: markdownImportEnabled.value,
     collectionsEnabled: collectionsEnabled.value,
     rtlWorkspaceEnabled: rtlWorkspaceEnabled.value,
     speechToTextEnabled: speechToTextEnabled.value,
@@ -863,6 +873,7 @@ export function decodeWorkspaceSettings(
       snippetsEnabled,
       snippets,
       headingLinksEnabled,
+      markdownImportEnabled,
       collectionsEnabled,
       rtlWorkspaceEnabled,
       speechToTextEnabled,

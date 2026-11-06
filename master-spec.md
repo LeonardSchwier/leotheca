@@ -638,6 +638,8 @@ The URL parser is not the security boundary. The native gate on the eventual rea
 | FR-CAP-007 | The queue MUST persist in localStorage under leotheca-pending-captures and recover from corrupt data without throwing. | Given invalid JSON, When initialized, Then the queue is empty and the app continues. Traced by reading only; entries inside a valid array are not validated (KG-010). | NONE |
 | FR-CAP-008 | Android share intents MUST be drained into the pending queue. | Given pending share data, When processed, Then a capture with source android-share is added. | `src/capture/androidShareBridge.test.ts` |
 | FR-CAP-009 | The pending panel MUST let the user see, retry and remove queued captures. | Given a queued capture, When rendered, Then it is listed with actions. | `src/capture/PendingCapturesPanel.test.tsx` |
+| FR-CAP-010 | When Templates is enabled and the templates folder has Markdown files, the capture sheet MUST offer a Template select defaulting to None; None MUST produce the plain capture format. A chosen template MUST be read from the templates folder at submit time and rendered by single-pass substitution of {{content}}, {{title}}, {{url}}, {{date}} and {{time}} (values never re-scanned); the body is appended when {{content}} is absent and an unused source URL becomes a Source line; no built-in header is added. | Given a template `## {{date}}\n\n{{content}}`, When captured to an inbox, Then the note ends with that rendered block and no timestamp header. | `src/capture/captureTemplate.test.ts` |
+| FR-CAP-011 | A template that cannot be read, exceeds 64 KiB or lies outside the templates folder MUST abort the capture with a visible error, write nothing and keep the typed text. | Given a deleted template, When Capture is pressed, Then an alert names the failure, no write occurs and the sheet stays open. | `src/app/CaptureSheet.test.tsx` |
 
 ### Automation URLs (FR-AUTO)
 
@@ -902,6 +904,8 @@ Only numbers that exist in code, configuration or an observed run appear here. N
 | NFR-A11Y-001 | Both themes and keyboard navigation for shell surfaces. | Partial, by component tests | `src/ui/Menu.test.tsx` |
 | NFR-CRASH-001 | Main MUST launch on the Linux AppImage smoke and install on an API 35 emulator. | CI | `.github/workflows/ci.yml` |
 | NFR-CRASH-002 | Tests MUST fail on unhandled errors in jsdom, using the polyfills in `src/test/setup-jsdom.ts`. | Observed | `vitest.config.ts` |
+| NFR-CRASH-003 | A Markdown parser failure on pathological input (for example deeply nested blockquotes) MUST NOT blank the app; the Preview MUST show the text escaped in a `<pre>` and recover on the next edit. | Observed passing | `src/editor/MarkdownPreview.test.tsx` |
+| NFR-CRASH-004 | Clipboard writes, workspace search and first-level tree expansion MUST NOT produce unhandled promise rejections when the native or clipboard call fails. | Observed passing | `src/workspace/fileTreeStore.test.ts`, `src/workspace/FileContextMenu.test.tsx` |
 
 **Measured figures on record.** `documentation` and code comments cite a ~580-note SAF vault taking 90+ seconds with per-directory bridge calls, which motivated the single-call walk. This is a historical comment, not a current budget, and was not reproduced here.
 
@@ -988,7 +992,7 @@ Generated from section 8 by `python3 scripts/check_master_spec.py --update-trace
 | FR-OUTLINE | Outline and breadcrumbs | 5 | 5 | 0 | `src/outline/HeadingLinkActions.test.tsx`, `src/outline/OutlinePanel.test.tsx`, `src/outline/outlineVirtualization.test.ts`, `src/outline/splitAuthority.test.ts` |
 | FR-BOOK | Bookmarks | 3 | 3 | 0 | `src/bookmarks/store.test.ts` |
 | FR-COLL | Smart collections | 9 | 9 | 0 | `src/collections/collectionDecode.test.ts`, `src/collections/collectionQuery.test.ts`, `src/collections/collectionTypesInference.test.ts`, `src/collections/filterRows.test.ts`, `src/collections/groupOrder.test.ts`, `src/settings/workspaceSettings.test.ts` |
-| FR-CAP | Quick capture | 9 | 6 | 3 | `src/capture/PendingCapturesPanel.test.tsx`, `src/capture/androidShareBridge.test.ts`, `src/capture/captureCommit.test.ts`, `src/capture/captureDestinations.test.ts`, `src/capture/pendingCaptures.test.ts` |
+| FR-CAP | Quick capture | 11 | 8 | 3 | `src/app/CaptureSheet.test.tsx`, `src/capture/PendingCapturesPanel.test.tsx`, `src/capture/androidShareBridge.test.ts`, `src/capture/captureCommit.test.ts`, `src/capture/captureDestinations.test.ts`, `src/capture/captureTemplate.test.ts`, `src/capture/pendingCaptures.test.ts` |
 | FR-AUTO | Automation URLs | 6 | 6 | 0 | `src/app/automationCommands.test.ts`, `src/capture/headingInsertCommit.test.ts`, `src/headingInsert.test.ts` |
 | FR-REN | Rename and refactor | 7 | 6 | 1 | `src-tauri/src/workspace_mutations.rs`, `src/refactor/metadataMigrator.test.ts`, `src/refactor/renameExecutor.test.ts`, `src/refactor/renamePlan.test.ts` |
 | FR-DIAG | Diagnostics and health | 3 | 3 | 0 | `src/diagnostics/DiagnosticsPanel.test.tsx`, `src/diagnostics/diagnostics.test.ts`, `src/diagnostics/healthAudit.test.ts` |
@@ -1006,7 +1010,7 @@ Generated from section 8 by `python3 scripts/check_master_spec.py --update-trace
 | FR-WID | Android widgets | 3 | 3 | 0 | `android/app/src/test/java/com/getcapacitor/myapp/WidgetResourcesUnitTest.java`, `android/app/src/test/java/com/leonardschwier/leotheca/NewNoteColdStartTrackerTest.java`, `src/workspace/fileTreeStore.test.ts` |
 | FR-CLIP | Web clipper extension | 1 | 1 | 0 | `extensions/web-clipper/clipperCore.test.js` |
 | FR-UI | Shell, UI primitives and accessibility | 12 | 10 | 2 | `src/app/App.test.tsx`, `src/app/CommandPalette.test.tsx`, `src/app/EmptyEditorState.test.tsx`, `src/app/layout/adaptiveLayout.test.ts`, `src/app/useResizableSidebar.test.ts`, `src/fuzzyMatch.test.ts`, `src/ui/Menu.test.tsx`, `src/ui/overlayStack.test.ts`, `src/workspace/FileTree.test.tsx` |
-| **Total** | | **184** | **175** | **9** | |
+| **Total** | | **186** | **177** | **9** | |
 <!-- traceability:end -->
 
 ## 15. Coverage gaps
@@ -1071,6 +1075,8 @@ These are current behavior, recorded honestly. None was fixed by the change that
 Newest first. Each entry is `YYYY-MM-DD: what changed in behavior, contracts, formats, build or release`. See `skills/master-spec-maintenance.md`.
 
 <!-- change-log:start -->
+- 2026-11-07: Crash hardening (frontend): Preview falls back to escaped plain text when the Markdown parser throws on pathological nesting; clipboard writes, workspace search and first-level tree expansion no longer reject unhandled. Records the behavior of commit 0e80cd1.
+- 2026-11-07: Quick Capture gained an optional per-capture Template select (existing templates folder, placeholders {{content}} {{title}} {{url}} {{date}} {{time}}); None keeps the plain format.
 - 2026-11-06: Fixed a temp-file name collision in `write_file_atomically` (native atomic overwrite): two writes to the same target in the same millisecond on one process could silently overwrite each other's in-flight temp file, so the loser's rename failed with a spurious error while the winner's reported success actually held the other call's content. Temp names now carry a per-process monotonic sequence number as well as the existing timestamp/PID, so no two calls can collide. No caller-visible behavior change. Added FR-FS-013.
 - 2026-11-06: First version, written from the code on main at application version 1.0.0.
 <!-- change-log:end -->

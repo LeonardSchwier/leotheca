@@ -125,3 +125,26 @@ describe("FileContextMenu", () => {
     expect(onDelete).not.toHaveBeenCalled();
   });
 });
+
+describe("FileContextMenu: rejected clipboard write", () => {
+  it("Copy Relative Path does not leak an unhandled rejection and still closes the menu", async () => {
+    const writeText = vi.fn().mockRejectedValue(new DOMException("denied", "NotAllowedError"));
+    Object.assign(navigator, { clipboard: { writeText } });
+    const unhandled: unknown[] = [];
+    const onUnhandled = (reason: unknown) => unhandled.push(reason);
+    process.on("unhandledRejection", onUnhandled);
+    try {
+      contextMenuTarget.value = file;
+      const { getByText } = render(
+        <FileContextMenu rootPath="/vault" onNewNote={noop} onNewFolder={noop} onRename={noop} onDelete={noop} />,
+      );
+      fireEvent.click(getByText("Copy Relative Path"));
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(writeText).toHaveBeenCalledWith("notes/note.md");
+      expect(unhandled).toEqual([]);
+      expect(contextMenuTarget.value).toBeNull();
+    } finally {
+      process.off("unhandledRejection", onUnhandled);
+    }
+  });
+});

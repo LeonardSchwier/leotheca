@@ -1,6 +1,7 @@
 mod commands;
 mod default_handler;
 mod external_open;
+mod markdown_import;
 mod speech_commands;
 mod workspace_mutations;
 
@@ -70,6 +71,7 @@ pub fn run() {
     // review, rm-dfd60513a2eb352c), now also their read/create/rename/
     // delete siblings (rm-60f748cb1a58be89).
     builder = builder.manage(commands::ActiveWorkspaceRoot::default());
+    builder = builder.manage(markdown_import::MarkdownImportState::default());
 
     // Cold start's own counterpart of the single-instance callback above:
     // when the OS launches a *fresh* Leotheca process directly via its
@@ -117,6 +119,8 @@ pub fn run() {
             workspace_mutations::create_workspace_dir_new,
             workspace_mutations::rename_workspace_path_no_replace,
             commands::workspace_stats,
+            markdown_import::import_markdown_vault,
+            markdown_import::cancel_markdown_import,
             // Speech recognition commands
             speech_commands::init_speech_recognition,
             speech_commands::transcribe_audio,

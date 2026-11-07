@@ -2,7 +2,7 @@
 
 Status: the manifest is prepared as a standalone stable-release submission and has a dedicated cloud verification gate. The app source is pinned to a fixed commit instead of relying on a local checkout. The submission metadata, generated dependency source lists, and Cargo configuration can therefore be copied to an external submission repository without changing build paths.
 
-The pinned commit is not a tagged release: the repository's version scheme moved to `VERSION`-file-driven `0.1.0` semantics (audit follow-up F-015), and no `v0.1.0` tag has been cut yet, so there is currently no real release tag to pin to. The manifest is instead pinned to a specific, currently-working commit hash, updated to a real `v0.1.0`-style tag once one exists. See the dated comment in `com.leonardschwier.leotheca.yml`'s `sources:` block for the real CI failure (an `npm ci --offline` registry hit caused by the old `v1.0.0` tag's stale, already-fixed-on-`main` `eslint-plugin-preact` dependency) that made re-pinning necessary.
+The pinned commit is not a tagged release: the project currently publishes only the rolling `dev-build` release, and the `v1.0.0` tag was deleted, so there is no release tag to pin to. The manifest is instead pinned to a specific, currently-working commit hash, to be replaced by a real version tag once one is cut. See the dated comment in `com.leonardschwier.leotheca.yml`'s `sources:` block for the real CI failure (an `npm ci --offline` registry hit caused by the old `v1.0.0` tag's stale, already-fixed-on-`main` `eslint-plugin-preact` dependency) that made re-pinning necessary.
 
 ## Files
 

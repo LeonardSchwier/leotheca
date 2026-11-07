@@ -9,7 +9,7 @@ description: |
 base: core24
 confinement: strict
 grade: stable
-version: "0.1.0"
+version: "1.0.0"
 icon: assets/icons/leotheca.svg
 apps:
   leotheca:

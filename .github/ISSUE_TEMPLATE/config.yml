@@ -1,8 +1,0 @@
-blank_issues_enabled: false
-contact_links:
-  - name: Report a security vulnerability
-    url: https://github.com/LeonardSchwier/leotheca/security
-    about: Use private vulnerability reporting for anything exploitable. See SECURITY.md.
-  - name: Roadmap
-    url: https://github.com/LeonardSchwier/leotheca/blob/main/ROADMAP.md
-    about: Check whether the work is already planned or claimed before filing an issue.

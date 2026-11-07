@@ -1,2 +1,0 @@
-# Rustfmt defaults are used intentionally. This file makes the formatter
-# configuration explicit for local development and CI.

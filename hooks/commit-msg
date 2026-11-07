@@ -1,5 +1,0 @@
-#!/usr/bin/env bash
-# Enforces the commit message convention (prefix, trailer, no em dash or
-# competitor names). CI runs the same logic over pushed commits.
-cd "$(git rev-parse --show-toplevel)" || exit 1
-exec node scripts/commit-msg-check.mjs "$1"

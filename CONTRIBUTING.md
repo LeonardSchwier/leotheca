@@ -24,12 +24,15 @@ On Arch Linux:
 sudo pacman -S webkit2gtk-4.1 gtk3 librsvg libayatana-appindicator base-devel openssl
 ```
 
-Install JavaScript dependencies and start the desktop app:
+Install JavaScript dependencies, install the repository's git hooks, and start the desktop app:
 
 ```sh
-npm install
+npm ci
+npm run hooks:install
 npm run tauri dev
 ```
+
+The shared UI tokens and components come from the Leoforma design system, an external package pinned in `package.json` and downloaded from its GitHub release on install, so `npm ci` needs network access to github.com. Do not copy its styles into this repository: a missing token or component is added in the Leoforma repository and the pin bumped. See [documentation/ARCHITECTURE.md](documentation/ARCHITECTURE.md) (`ui/` row).
 
 ## Android setup
 
@@ -53,6 +56,17 @@ npm test
 npm run lint
 npm run build
 ```
+
+The Playwright end-to-end suite is a separate package. It builds the frontend itself and runs in Chromium against a mock of the native bridge:
+
+```sh
+cd tests/e2e
+npm ci
+npm run install:browsers
+npm test
+```
+
+After a visible UI change, regenerate the README screenshots with `node screenshots.mjs` from `tests/e2e` (see [documentation/TESTING.md](documentation/TESTING.md)).
 
 Run Rust tests from the desktop-shell directory:
 

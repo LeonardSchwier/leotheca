@@ -44,14 +44,14 @@ python3 tests/ui/leotheca_e2e_test.py --url http://127.0.0.1:5173
 
 ### What it covers
 
-| Area | Tests |
-|------|-------|
-| App boot | Container loads, no Tauri errors, content rendered, sidebar visible, not on onboarding |
-| File tree | All 5 mock files visible, click opens file |
-| Search | Full-text, `tag:`, `path:`, negation (`-term`), `OR`, empty state, clear |
+| Area               | Tests                                                                                      |
+| ------------------ | ------------------------------------------------------------------------------------------ |
+| App boot           | Container loads, no Tauri errors, content rendered, sidebar visible, not on onboarding     |
+| File tree          | All 5 mock files visible, click opens file                                                 |
+| Search             | Full-text, `tag:`, `path:`, negation (`-term`), `OR`, empty state, clear                   |
 | Markdown rendering | H1/H2/H3, bold, italic, inline code, blockquote, task checkboxes, table, KaTeX math, links |
-| Settings | Theme toggle, font size, workspace stats |
-| Console | No unhandled errors |
+| Settings           | Theme toggle, font size, workspace stats                                                   |
+| Console            | No unhandled errors                                                                        |
 
 ### How it works
 
@@ -80,13 +80,13 @@ tests/ui/screenshots/
 
 Five jobs, all must pass:
 
-| Job | What it checks |
-|-----|---------------|
-| **frontend** | TypeScript, ESLint, version consistency, Vitest, Vite build |
-| **backend** | Rust fmt, Clippy, cargo test, cargo check |
-| **android** | Gradle unit tests, debug APK build, emulator smoke test (API 35) |
-| **appimage-smoke** | Full AppImage build, extract, launch under `xvfb` (15s timeout) |
-| **validation** | Requires all four jobs above to succeed |
+| Job                | What it checks                                                   |
+| ------------------ | ---------------------------------------------------------------- |
+| **frontend**       | TypeScript, ESLint, version consistency, Vitest, Vite build      |
+| **backend**        | Rust fmt, Clippy, cargo test, cargo check                        |
+| **android**        | Gradle unit tests, debug APK build, emulator smoke test (API 35) |
+| **appimage-smoke** | Full AppImage build, extract, launch under `xvfb` (15s timeout)  |
+| **validation**     | Requires all four jobs above to succeed                          |
 
 Badge: [![CI](https://github.com/LeonardSchwier/leotheca/actions/workflows/ci.yml/badge.svg)](https://github.com/LeonardSchwier/leotheca/actions/workflows/ci.yml)
 
@@ -94,19 +94,18 @@ Badge: [![CI](https://github.com/LeonardSchwier/leotheca/actions/workflows/ci.ym
 
 Beyond automated tests, visual verification is a standing practice:
 
-- **Screenshots:** Every UI change is verified with a Chromium screenshot (Playwright, headless). Dark and light modes are both captured. Screenshots are compared against the previous state before and after a change.
-- **Video capture:** For animation or interaction sequences that a still image can't convey, Playwright records the browser session to `.webm`, converted to `.mp4` (H.264, 720p) via `ffmpeg`. This is used for PR evidence and user demos.
+- **Screenshots:** UI changes are meant to be checked with a Chromium screenshot (Playwright, headless). Dark and light modes are both captured. Screenshots are compared against the previous state before and after a change.
+- **Video capture:** For animation or interaction sequences that a still image can't convey, Playwright can record the browser session to `.webm`, convertible to `.mp4` with `ffmpeg`. `tests/ui/record_demo.py` is an older recorder for this (dev server on port 5173, its own mock, not run in CI); there is no demo video in the repository.
 - **Dev server workflow:** The Vite dev server is restarted before every screenshot session to avoid stale HMR state. The port (5173) is verified free before starting.
 
-### Demo video
+### README screenshots
 
-A recorded demo of the key interactions (file tree, preview, search, theme toggle) lives in [`../assets/screenshots/demo.mp4`](../assets/screenshots/demo.mp4) and is embedded in the [README](../README.md#-demo). Regenerate it any time with:
+The screenshots in the [README](../README.md#-screenshots) come from `tests/e2e/screenshots.mjs`. It builds the frontend, serves it with `vite preview`, loads a small workspace of original sample notes through the same in-page bridge mock the E2E suite uses, and writes the split view, graph view and settings in light (`assets/screenshots/<name>.png`) and dark (`<name>-dark.png`). It fails if any request leaves the origin or the console logs an error, and runs `optipng` when installed. Regenerate them after a visible UI change:
 
 ```bash
-python3 tests/ui/record_demo.py
-# → .webm in /tmp/leotheca_demo_video/, convert with:
-ffmpeg -i /tmp/leotheca_demo_video/*.webm -c:v libx264 -crf 23 -preset fast \
-  -pix_fmt yuv420p -vf "scale=1280:720" -an assets/screenshots/demo.mp4
+cd tests/e2e
+npm ci && npm run install:browsers   # once
+node screenshots.mjs
 ```
 
 ## Adding Tests

@@ -625,6 +625,39 @@ function checkWorkflows() {
   return report("Workflow action pinning", problems);
 }
 
+// A pull request body must carry the three headings of
+// .github/pull_request_template.md, so the squash commit (built from the body)
+// records what changed, the evidence, and how dangerous the merge is.
+export const PR_BODY_HEADINGS = ["Summary", "Evidence", "Merge danger"];
+
+export function prBodyProblems(body) {
+  // Comments in the template are instructions, not content.
+  const text = String(body ?? "")
+    .replace(/\r/g, "")
+    .replace(/<!--[\s\S]*?-->/g, "");
+  const problems = [];
+  for (const name of PR_BODY_HEADINGS) {
+    const re = new RegExp(`^#{1,6}[ \\t]+${name}[ \\t]*$`, "im");
+    const at = text.search(re);
+    if (at < 0) {
+      problems.push(`missing heading "## ${name}"`);
+      continue;
+    }
+    const rest = text.slice(at).split("\n").slice(1);
+    const next = rest.findIndex((l) => /^#{1,6}[ \t]/.test(l));
+    const section = (next < 0 ? rest : rest.slice(0, next)).join("\n").trim();
+    if (!section) problems.push(`heading "## ${name}" has no content`);
+  }
+  return problems;
+}
+
+function checkPrBody() {
+  const problems = prBodyProblems(process.env.PR_BODY).map(
+    (p) => `${p} (see .github/pull_request_template.md)`,
+  );
+  return report("Pull request body", problems);
+}
+
 function main(argv) {
   const [cmd, ...rest] = argv;
   switch (cmd) {
@@ -648,9 +681,11 @@ function main(argv) {
       return checkLicenses();
     case "workflows":
       return checkWorkflows();
+    case "prbody":
+      return checkPrBody();
     default:
       console.error(
-        "usage: check-rules.mjs lines|files|format (--staged | <base> <head>) | commits <base> <head> | deps <base> <head> | trailers <base> <head> | reflection <base> <head> | licenses | workflows",
+        "usage: check-rules.mjs lines|files|format (--staged | <base> <head>) | commits <base> <head> | deps <base> <head> | trailers <base> <head> | reflection <base> <head> | licenses | workflows | prbody (body in env PR_BODY)",
       );
       return 2;
   }

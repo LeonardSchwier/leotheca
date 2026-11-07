@@ -26,7 +26,7 @@ Every governance and hygiene file in this repository, what it does, and what act
 | [`SECURITY.md`](../SECURITY.md)                                           | Supported versions, private reporting route, scope and response goals  | GitHub shows it in the Security tab; reporting needs the hosting setting below  |
 | [`CODE_OF_CONDUCT.md`](../CODE_OF_CONDUCT.md)                             | Conduct expectations and enforcement for project spaces                | Maintainer                                                                      |
 | [`.github/ISSUE_TEMPLATE/`](../.github/ISSUE_TEMPLATE)                    | YAML forms for bug and feature reports; blank issues off               | GitHub validates the forms when a user opens an issue                           |
-| [`.github/PULL_REQUEST_TEMPLATE.md`](../.github/PULL_REQUEST_TEMPLATE.md) | Pull request checklist that mirrors the evidence trailers              | GitHub pre-fills it; the trailers themselves are checked by `rules.yml`         |
+| [`.github/pull_request_template.md`](../.github/pull_request_template.md) | Pull request checklist that mirrors the evidence trailers              | GitHub pre-fills it; the trailers themselves are checked by `rules.yml`         |
 | [`LICENSE`](../LICENSE)                                                   | MIT licence                                                            | `Legal-Check:` trailer for changes; `check-rules.mjs licenses` for dependencies |
 | [`CHANGELOG.md`](../CHANGELOG.md)                                         | Released changes                                                       | `Legal-Check:` trailer for changes; `npm run check-version` in `verify`         |
 

@@ -30,4 +30,4 @@ Reuse: both components come from the shared design system. Nothing is added or c
 
 ## Evidence
 
-(filled in when the item is finished)
+Landed 1bee0c5 (formatting only) and c91a06c (swap). Hosted on c91a06c: Agent policy 42370369392, Rules 42370369385, CI 42370369419, Release 42370369400 success; Release jobs windows, macos, flatpak, publish success. Local gate in the pre-push hook: tsc 0, eslint 0 errors (3 warnings), vitest 174 files / 3276 tests, build ok, e2e 14 passed; the ported stacking and back-press tests pass against Leoforma's Sheet; master spec and traceability updated.

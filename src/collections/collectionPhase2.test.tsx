@@ -1,0 +1,415 @@
+/** @vitest-environment jsdom */
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, waitFor } from "@testing-library/preact";
+import { parseFrontmatterProperties } from "../editor/frontmatterEdits";
+import { CollectionResults, FOLDER_GROUP_BY, groupResults, type CollectionResultsProps } from "./CollectionResults";
+import { sortCollectionResults, type NoteRecord } from "./collectionQuery";
+import type { SmartCollectionV1 } from "./collectionTypes";
+
+function note(path: string, frontmatter = ""): NoteRecord {
+  const properties = new Map(
+    parseFrontmatterProperties(frontmatter).properties.map((property) => [
+      property.key.toLocaleLowerCase(),
+      property,
+    ]),
+  );
+  const slash = path.lastIndexOf("/");
+  const file = slash === -1 ? path : path.slice(slash + 1);
+  return {
+    path,
+    noteName: file.replace(/\.md$/i, ""),
+    folder: slash === -1 ? "" : path.slice(0, slash),
+    tags: [],
+    hasFrontmatter: properties.size > 0,
+    properties,
+  };
+}
+
+function collection(view: SmartCollectionV1["view"]): SmartCollectionV1 {
+  return {
+    id: "phase2",
+    name: "Phase 2",
+    query: { type: "group", operator: "and", children: [] },
+    view,
+    sort: [],
+    createdAt: "",
+    updatedAt: "",
+  };
+}
+
+function successfulEdit(): CollectionResultsProps["onEditProperty"] {
+  return async () => "ok";
+}
+
+afterEach(cleanup);
+
+describe("F09 Phase 2 sorting", () => {
+  it("applies multiple sort keys, missing placement, and the path tie-breaker", () => {
+    const alpha = note("z/Alpha.md", "---\nstatus: active\nrating: 2\n---\n");
+    const beta = note("a/Beta.md", "---\nstatus: active\nrating: 2\n---\n");
+    const gamma = note("Gamma.md", "---\nstatus: later\n---\n");
+
+    const result = sortCollectionResults([alpha, beta, gamma], [
+      {
+        field: { kind: "property", key: "rating" },
+        direction: "desc",
+        missing: "last",
+      },
+      {
+        field: { kind: "property", key: "status" },
+        direction: "asc",
+        missing: "last",
+      },
+    ]);
+
+    expect(result.map((entry) => entry.path)).toEqual(["a/Beta.md", "z/Alpha.md", "Gamma.md"]);
+  });
+});
+
+describe("F09 Phase 2 result views", () => {
+  it("switches views through the persisted-view callback", () => {
+    const onViewChange = vi.fn();
+    const { getByRole } = render(
+      <CollectionResults
+        collection={collection({ mode: "list" })}
+        results={[note("Alpha.md")]}
+        onOpenFile={vi.fn()}
+        onViewChange={onViewChange}
+        onEditProperty={successfulEdit()}
+      />,
+    );
+
+    fireEvent.click(getByRole("radio", { name: "Table" }));
+    expect(onViewChange).toHaveBeenCalledWith({ mode: "table" });
+  });
+
+  it("switches to a board using the first indexed property", () => {
+    const onViewChange = vi.fn();
+    const { getByRole } = render(
+      <CollectionResults
+        collection={collection({ mode: "list" })}
+        results={[note("Alpha.md", "---\nstatus: active\n---\n")]}
+        onOpenFile={vi.fn()}
+        onViewChange={onViewChange}
+        onEditProperty={successfulEdit()}
+      />,
+    );
+
+    fireEvent.click(getByRole("radio", { name: "Board" }));
+    expect(onViewChange).toHaveBeenCalledWith({ mode: "kanban", groupBy: "status" });
+  });
+
+  it("renders configured table property cells and keeps note activation separate", () => {
+    const onOpenFile = vi.fn();
+    const entry = note("Projects/Alpha.md", "---\nstatus: active\n---\n");
+    const { getByRole, getByTitle } = render(
+      <CollectionResults
+        collection={collection({ mode: "table", columns: ["status"] })}
+        results={[entry]}
+        onOpenFile={onOpenFile}
+        onViewChange={vi.fn()}
+        onEditProperty={successfulEdit()}
+      />,
+    );
+
+    expect(getByTitle("status")).toBeTruthy();
+    expect(getByRole("button", { name: "active" })).toBeTruthy();
+    fireEvent.click(getByRole("button", { name: "Alpha" }));
+    expect(onOpenFile).toHaveBeenCalledWith("Projects/Alpha.md", "Alpha.md");
+  });
+
+  it("commits an editable scalar cell through the mutation callback", async () => {
+    const entry = note("Alpha.md", "---\nstatus: active\n---\n");
+    const onEditProperty = vi.fn<CollectionResultsProps["onEditProperty"]>(successfulEdit());
+    const { getByRole, getByLabelText } = render(
+      <CollectionResults
+        collection={collection({ mode: "table", columns: ["status"] })}
+        results={[entry]}
+        onOpenFile={vi.fn()}
+        onViewChange={vi.fn()}
+        onEditProperty={onEditProperty}
+      />,
+    );
+
+    fireEvent.click(getByRole("button", { name: "active" }));
+    const input = getByLabelText("Edit status for Alpha") as HTMLInputElement;
+    fireEvent.input(input, { target: { value: "archived" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    await waitFor(() => expect(onEditProperty).toHaveBeenCalledTimes(1));
+    expect(onEditProperty.mock.calls[0][2]).toBe("archived");
+  });
+
+  it("renders unsupported YAML read-only instead of an edit affordance", () => {
+    const entry = note("Alpha.md", "---\nnested:\n  child: value\n---\n");
+    const { getByTitle, queryByLabelText } = render(
+      <CollectionResults
+        collection={collection({ mode: "table", columns: ["nested"] })}
+        results={[entry]}
+        onOpenFile={vi.fn()}
+        onViewChange={vi.fn()}
+        onEditProperty={successfulEdit()}
+      />,
+    );
+
+    expect(getByTitle("This YAML value is read-only")).toBeTruthy();
+    expect(queryByLabelText("Edit nested for Alpha")).toBeNull();
+  });
+
+  it("renders card fields from metadata without a note-body read", () => {
+    const entry = note("Projects/Alpha.md", "---\nstatus: active\nowner: Sam\n---\n");
+    const { getByRole, getByText } = render(
+      <CollectionResults
+        collection={collection({ mode: "card", fields: ["status", "owner"] })}
+        results={[entry]}
+        onOpenFile={vi.fn()}
+        onViewChange={vi.fn()}
+        onEditProperty={successfulEdit()}
+      />,
+    );
+
+    expect(getByRole("region", { name: "Collection cards" })).toBeTruthy();
+    expect(getByText("active")).toBeTruthy();
+    expect(getByText("Sam")).toBeTruthy();
+  });
+
+  it("renders a read-only board, opens cards, and lets its grouping change", () => {
+    const onOpenFile = vi.fn();
+    const onViewChange = vi.fn();
+    const { getByRole, getByText } = render(
+      <CollectionResults
+        collection={collection({ mode: "kanban", groupBy: "status" })}
+        results={[
+          note("Projects/Alpha.md", "---\nstatus: active\nowner: Sam\n---\n"),
+          note("Projects/Beta.md", "---\nowner: Sam\n---\n"),
+        ]}
+        onOpenFile={onOpenFile}
+        onViewChange={onViewChange}
+        onEditProperty={successfulEdit()}
+      />,
+    );
+
+    expect(getByRole("region", { name: "Collection board grouped by status" })).toBeTruthy();
+    expect(getByText("Unassigned")).toBeTruthy();
+    fireEvent.click(getByRole("button", { name: "Alpha" }));
+    expect(onOpenFile).toHaveBeenCalledWith("Projects/Alpha.md", "Alpha.md");
+    fireEvent.change(getByRole("combobox", { name: "Grouping property" }), {
+      target: { value: "owner" },
+    });
+    expect(onViewChange).toHaveBeenCalledWith({ mode: "kanban", groupBy: "owner" });
+  });
+
+  it("orders board columns deterministically and keeps list values unassigned", () => {
+    const columns = groupResults([
+      note("z/Done.md", "---\nstatus: done\n---\n"),
+      note("a/Active.md", "---\nstatus: active\n---\n"),
+      note("b/Tags.md", "---\nstatus: [one, two]\n---\n"),
+      note("c/Missing.md", "---\nowner: Sam\n---\n"),
+    ], "status");
+
+    expect(columns.map((column) => column.label)).toEqual(["active", "done", "Unassigned"]);
+    expect(columns[2].notes.map((entry) => entry.path)).toEqual(["b/Tags.md", "c/Missing.md"]);
+  });
+
+  it("groups property values case-insensitively, matching how a filter query already treats them", () => {
+    // A `status is Work` filter (collectionQuery.ts's evaluateStringLike,
+    // via its own case-folding `fold`) would match all three notes below
+    // despite their frontmatter capitalizing the value differently -- the
+    // board must group them into the same column, not fragment them.
+    const columns = groupResults([
+      note("a/Alpha.md", "---\nstatus: Work\n---\n"),
+      note("b/Beta.md", "---\nstatus: work\n---\n"),
+      note("c/Gamma.md", "---\nstatus: WORK\n---\n"),
+    ], "status");
+
+    expect(columns).toHaveLength(2);
+    expect(columns[0].notes.map((entry) => entry.path)).toEqual([
+      "a/Alpha.md",
+      "b/Beta.md",
+      "c/Gamma.md",
+    ]);
+    // The first-seen original casing is kept as the visible label.
+    expect(columns[0].label).toBe("Work");
+    // Unassigned is always present as a drop target for drag-and-drop.
+    expect(columns[1].label).toBe("Unassigned");
+  });
+
+  it("keeps folder-based board columns case-sensitive, unlike property grouping", () => {
+    // Folders are real directories on a case-sensitive filesystem: two
+    // differently-cased folder names are two different folders, not the
+    // same value written inconsistently, so they must stay separate
+    // columns even though property grouping now folds case.
+    const columns = groupResults(
+      [note("Projects/Alpha.md"), note("projects/Beta.md")],
+      FOLDER_GROUP_BY,
+    );
+
+    expect(columns.map((column) => column.label).sort()).toEqual(["Projects", "projects"]);
+  });
+});
+
+describe("F09 Phase 2 result views: stale note handling (maintenance review)", () => {
+  // A collection's results are a projection of the cached link/metadata
+  // index, not a live filesystem listing, so a listed note can be deleted,
+  // renamed outside the app, or moved by an external tool/sync client by
+  // the time its row is actually clicked. Every view mode wired a bare,
+  // un-awaited onOpenFile call, so a rejection became an unhandled promise
+  // rejection with zero user feedback instead of a visible error.
+
+  it("List view shows an inline error instead of silently doing nothing when onOpenFile rejects", async () => {
+    const onOpenFile = vi.fn().mockRejectedValue(new Error("stale file handle"));
+    const { getByRole, findByRole } = render(
+      <CollectionResults
+        collection={collection({ mode: "list" })}
+        results={[note("Alpha.md")]}
+        onOpenFile={onOpenFile}
+        onViewChange={vi.fn()}
+        onEditProperty={successfulEdit()}
+      />,
+    );
+
+    fireEvent.click(getByRole("button", { name: /Alpha/ }));
+    const error = await findByRole("alert");
+    expect(error.textContent).toMatch(/couldn't open/i);
+  });
+
+  it("Table view shows an inline error instead of silently doing nothing when onOpenFile rejects", async () => {
+    const onOpenFile = vi.fn().mockRejectedValue(new Error("stale file handle"));
+    const { getByRole, findByRole } = render(
+      <CollectionResults
+        collection={collection({ mode: "table" })}
+        results={[note("Projects/Alpha.md")]}
+        onOpenFile={onOpenFile}
+        onViewChange={vi.fn()}
+        onEditProperty={successfulEdit()}
+      />,
+    );
+
+    fireEvent.click(getByRole("button", { name: "Alpha" }));
+    const error = await findByRole("alert");
+    expect(error.textContent).toMatch(/couldn't open/i);
+  });
+
+  it("Card view shows an inline error instead of silently doing nothing when onOpenFile rejects", async () => {
+    const onOpenFile = vi.fn().mockRejectedValue(new Error("stale file handle"));
+    const { getByRole, findByRole } = render(
+      <CollectionResults
+        collection={collection({ mode: "card" })}
+        results={[note("Projects/Alpha.md")]}
+        onOpenFile={onOpenFile}
+        onViewChange={vi.fn()}
+        onEditProperty={successfulEdit()}
+      />,
+    );
+
+    fireEvent.click(getByRole("button", { name: /Alpha/ }));
+    const error = await findByRole("alert");
+    expect(error.textContent).toMatch(/couldn't open/i);
+  });
+
+  it("Board (kanban) view shows an inline error instead of silently doing nothing when onOpenFile rejects", async () => {
+    const onOpenFile = vi.fn().mockRejectedValue(new Error("stale file handle"));
+    const { getByRole, findByRole } = render(
+      <CollectionResults
+        collection={collection({ mode: "kanban", groupBy: "status" })}
+        results={[note("Projects/Alpha.md", "---\nstatus: active\n---\n")]}
+        onOpenFile={onOpenFile}
+        onViewChange={vi.fn()}
+        onEditProperty={successfulEdit()}
+      />,
+    );
+
+    fireEvent.click(getByRole("button", { name: "Alpha" }));
+    const error = await findByRole("alert");
+    expect(error.textContent).toMatch(/couldn't open/i);
+  });
+
+  it("clears a prior open error and re-attempts when the note is clicked again", async () => {
+    const onOpenFile = vi.fn().mockRejectedValueOnce(new Error("stale file handle")).mockResolvedValueOnce(undefined);
+    const { getByRole, findByRole, queryByRole } = render(
+      <CollectionResults
+        collection={collection({ mode: "list" })}
+        results={[note("Alpha.md")]}
+        onOpenFile={onOpenFile}
+        onViewChange={vi.fn()}
+        onEditProperty={successfulEdit()}
+      />,
+    );
+
+    fireEvent.click(getByRole("button", { name: /Alpha/ }));
+    await findByRole("alert");
+
+    fireEvent.click(getByRole("button", { name: /Alpha/ }));
+    await waitFor(() => expect(onOpenFile).toHaveBeenCalledTimes(2));
+    expect(queryByRole("alert")).toBeNull();
+  });
+
+  it("enables the Board button when notes have folders (even without indexed properties)", () => {
+    // A note in a folder but with no frontmatter at all.
+    const folderNote = note("Projects/Alpha.md", "");
+    // Strip the frontmatter flag so it looks like a plain note.
+    folderNote.hasFrontmatter = false;
+
+    const { getByRole } = render(
+      <CollectionResults
+        collection={collection({ mode: "list" })}
+        results={[folderNote]}
+        onOpenFile={vi.fn()}
+        onViewChange={vi.fn()}
+        onEditProperty={successfulEdit()}
+      />,
+    );
+
+    const boardButton = getByRole("radio", { name: /Board/ });
+    expect(boardButton).not.toHaveProperty("disabled", true);
+  });
+
+  it("shows a 'Folder' option in the board grouping selector when groupBy is FOLDER_GROUP_BY", () => {
+    const folderNote = note("Projects/Alpha.md", "");
+    const { getByLabelText } = render(
+      <CollectionResults
+        collection={collection({ mode: "kanban", groupBy: FOLDER_GROUP_BY })}
+        results={[folderNote]}
+        onOpenFile={vi.fn()}
+        onViewChange={vi.fn()}
+        onEditProperty={successfulEdit()}
+      />,
+    );
+
+    const select = getByLabelText("Grouping property");
+    const options = Array.from(select.querySelectorAll("option")).map(
+      (o) => o.textContent,
+    );
+    expect(options).toContain("Folder");
+  });
+
+  it("renders folder-grouped board columns from notes with distinct folders", () => {
+    const inbox = note("Inbox/First.md", "");
+    const projects = note("Projects/Second.md", "");
+    const { getByRole } = render(
+      <CollectionResults
+        collection={collection({ mode: "kanban", groupBy: FOLDER_GROUP_BY })}
+        results={[inbox, projects]}
+        onOpenFile={vi.fn()}
+        onViewChange={vi.fn()}
+        onEditProperty={successfulEdit()}
+      />,
+    );
+
+    // KanbanView renders columns as sections with aria-label.
+    const sections = Array.from(
+      getByRole("region", { name: /board grouped by/i }).querySelectorAll("section"),
+    );
+    const labels = sections.map((s) => s.getAttribute("aria-label"));
+    expect(labels).toEqual(
+      expect.arrayContaining([
+        "Inbox, 1 notes",
+        "Projects, 1 notes",
+      ]),
+    );
+    // No Unassigned column because both notes have folders.
+    expect(labels).not.toEqual(
+      expect.arrayContaining([expect.stringContaining("Unassigned")]),
+    );
+  });
+});

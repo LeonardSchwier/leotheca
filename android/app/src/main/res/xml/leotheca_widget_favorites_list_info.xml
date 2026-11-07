@@ -1,0 +1,7 @@
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="180dp"
+    android:minHeight="180dp"
+    android:updatePeriodMillis="0"
+    android:initialLayout="@layout/leotheca_widget_favorites_list"
+    android:resizeMode="horizontal|vertical"
+    android:widgetCategory="home_screen" />

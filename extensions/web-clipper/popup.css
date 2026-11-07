@@ -1,0 +1,63 @@
+:root {
+  color: #20242a;
+  font-family: system-ui, sans-serif;
+}
+
+body {
+  width: 260px;
+  margin: 0;
+  background: #f8f8f5;
+}
+
+main {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+}
+
+h1 {
+  margin: 0 0 2px;
+  font-size: 16px;
+}
+
+label,
+#status {
+  font-size: 12px;
+}
+
+input[type="text"] {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 36px;
+  padding: 7px 8px;
+  color: inherit;
+  border: 1px solid #b8bcc2;
+  border-radius: 5px;
+  background: #fff;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+button {
+  min-height: 38px;
+  color: #fff;
+  border: 0;
+  border-radius: 5px;
+  background: #355f91;
+  font: inherit;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #294d78;
+}
+
+#status {
+  min-height: 1.2em;
+  margin: 0;
+  color: #8b2424;
+}

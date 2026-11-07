@@ -1,0 +1,9 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Leotheca</string>
+    <string name="title_activity_main">Leotheca</string>
+    <string name="package_name">com.leonardschwier.leotheca</string>
+    <string name="custom_url_scheme">com.leonardschwier.leotheca</string>
+    <string name="creating_note">Creating note</string>
+    <string name="widget_favorites_list_empty">No favorites yet. Bookmark a note to see it here.</string>
+</resources>

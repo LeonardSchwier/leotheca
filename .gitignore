@@ -1,0 +1,49 @@
+# Internal planning docs (private, not part of the public project history)
+/roadmap/
+
+# Private per-session agent activity audit trail (not the public release CHANGELOG.md)
+/agent-log/
+
+# Node / frontend
+/node_modules/
+/dist/
+
+# Python (scripts/agent_ledger.py and its tests)
+/scripts/__pycache__/
+
+# Rust / Tauri
+/src-tauri/target/
+
+# Android (Gradle/Capacitor build output and machine-local SDK path)
+/android/local.properties
+/android/build/
+/android/app/build/
+/android/.gradle/
+/android/capacitor-cordova-android-plugins/build/
+# Debug keystore (embedded as base64 in CI workflow, safe to commit)
+# but keep the decoded copy out of the repo so it doesn't accidentally
+# become a release key
+~/.config/.android/debug.keystore*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+*.swp
+
+# Claude Code local session/tool state, not part of the project
+/.claude/
+
+# E2E test artifacts
+tests/ui/__pycache__/
+tests/ui/screenshots/
+
+# Release artifacts and machine-local leftovers that must never be tracked
+# (a 100 MB AppImage once was; src/tidyRepoHygiene.test.ts enforces the size cap)
+*.AppImage
+/control-*/
+/logs/
+PROGRESS.md

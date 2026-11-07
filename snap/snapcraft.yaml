@@ -1,0 +1,62 @@
+name: leotheca
+summary: "Local markdown viewer and editor - no account, no telemetry, no sync"
+description: |
+  Leotheca is a free and open source markdown viewer and editor for a
+  local folder of notes. No account, no telemetry, no sync. Works with
+  any folder of .md files. Supports math, mermaid diagrams, PDFs, CSV,
+  and images. Built with Tauri (Rust + Preact).
+
+base: core24
+confinement: strict
+grade: stable
+version: "0.1.0"
+icon: assets/icons/leotheca.svg
+apps:
+  leotheca:
+    command: usr/bin/leotheca
+    plugs:
+      - home
+      - network
+      - desktop
+      - x11
+      - wayland
+      - desktop-legacy
+      - unity7
+    desktop: leotheca.desktop
+slots:
+  desktop:
+    extensions: [core24]
+parts:
+  leotheca:
+    plugin: nil
+    source: .
+    build-attributes: [no-patchelf, no-parallel]
+    override-build: |
+      # Install Rust toolchain
+      rustup toolchain install stable --profile minimal
+      rustup default stable
+
+      # Install Node.js
+      export NVM_DIR="$SNAPCRAFT_PART_SRC/node"
+      mkdir -p "$NVM_DIR"
+      curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
+      export NVM_DIR="$HOME/.nvm"
+      [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+      nvm install 20
+      nvm use 20
+
+      # Build Tauri app
+      cd src-tauri
+      cargo build --release
+
+      # Copy binary
+      install -Dm755 target/release/leotheca $CRAFT_PART_INSTALL/usr/bin/leotheca
+      # Copy desktop file
+      install -Dm644 $CRAFT_PART_SRC/flatpak/com.leonardschwier.leotheca.desktop $CRAFT_PART_INSTALL/usr/share/applications/leotheca.desktop
+      # Copy icons
+      mkdir -p $CRAFT_PART_INSTALL/usr/share/icons/hicolor/128x128/apps/
+      install -Dm644 $CRAFT_PART_SRC/assets/icons/leotheca.svg $CRAFT_PART_INSTALL/usr/share/icons/hicolor/128x128/apps/leotheca.svg
+    prime:
+      - -usr/lib/rustlib/**
+    organize:
+      src-tauri/target/release/leotheca: usr/bin/leotheca

@@ -1,0 +1,10 @@
+Task: rm-102d06409c10e22f - Install and use the Cloudflare security audit skill
+Owner/token: released (finished)
+Scope: install the skill, one guidance-mode run, seed findings
+Source verification: github.com/cloudflare/security-audit-skill, MIT (LICENSE read), commit c1c8a8c, last push 2026-09-14. Read SKILL.md in full and grepped all files for network or process use: only the two test files use child_process, no downloads, no network calls. SKILL.md sets read-only source inspection, sandboxed execution and no live probing.
+Install: cloned to a scratch directory, then `npx skills add <local clone> --skill security-audit --global`; installed to ~/.agents/skills/security-audit, symlinked for Claude Code and Hermes; diff against the clone is identical. Nothing generated is committed. Upstream command in skills/security-and-static-analysis.md is unchanged.
+Guidance run: Tier 1 source trace of src-tauri commands and capabilities, the Capacitor plugins (FolderAccessPlugin, CaptureIntentHandler) and AndroidManifest, using DESKTOP-MOBILE-AND-LOCAL-IPC.md classes. Manual by the main agent; no sub-agents.
+Findings (all seeded as roadmap items with validation plans): list_dir not gated by the active root (low, clear fix); foreign share stream URIs plus an unused FileProvider with an external-storage root path (low, needs device validation); set_active_workspace_root unauthenticated (design gap); speech model path and directory probe (needs_validation, whisper stub build).
+Could not do: no full six-phase Tier 2 audit, no coverage ledger, no independent verifier agents, no sandboxed execution of target code or emulator run, no merged-manifest inspection, no check of the tauri capability JSON schema output in src-tauri/gen. Absence of other findings is not evidence of safety. Not covered: markdown_import, external_open, WorkspaceMutationPlugin, PrintExportPlugin, widgets, speech Java plugin, Tauri updater and deep-link handlers beyond reading.
+Missing evidence: none for install; audit coverage is partial by design
+Next action: claim the two clear-fix items (list_dir gate, share stream URI policy); run a Tier 2 audit on a capable runner

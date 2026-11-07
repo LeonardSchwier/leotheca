@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Leotheca Web Clipper</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main>
+      <h1>Clip selection</h1>
+      <label for="title">Note title</label>
+      <input id="title" name="title" type="text" autocomplete="off" />
+      <label class="check" for="include-source">
+        <input id="include-source" type="checkbox" checked />
+        Include source link
+      </label>
+      <button id="clip" type="button">Save Markdown file</button>
+      <p id="status" role="status" aria-live="polite"></p>
+    </main>
+    <script src="popup.js"></script>
+  </body>
+</html>

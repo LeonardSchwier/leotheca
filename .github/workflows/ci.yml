@@ -1,0 +1,198 @@
+name: CI
+
+on:
+  push:
+    # Lease heartbeats and handoffs change no application code. The separate
+    # agent-policy workflow validates ROADMAP state without native rebuilds.
+    paths-ignore:
+      - "ROADMAP.md"
+      - ".agents/handoffs/**"
+  pull_request:
+  workflow_call:
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install build essentials
+        run: sudo apt-get update && sudo apt-get install -y build-essential
+      - run: npm ci
+      - name: Type check
+        run: npx tsc -p tsconfig.json --noEmit
+      - name: Lint
+        run: npm run lint
+      - name: Check release-version consistency
+        run: npm run check-version
+      - name: Test frontend
+        run: npm test
+      - name: Build frontend
+        run: npm run build
+
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install build essentials
+        run: sudo apt-get update && sudo apt-get install -y build-essential
+      - run: npm ci
+      - name: Install e2e dependencies
+        working-directory: tests/e2e
+        run: npm ci
+      - name: Install Chromium
+        working-directory: tests/e2e
+        run: npx playwright install --with-deps chromium
+      - name: Run end-to-end smoke tests
+        working-directory: tests/e2e
+        run: npm test
+      - name: Upload traces and report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: |
+            tests/e2e/playwright-report
+            tests/e2e/test-results
+          retention-days: 14
+
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt,clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - name: Install Linux dependencies
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev libayatana-appindicator3-dev build-essential libssl-dev
+      - name: Check Rust formatting
+        working-directory: src-tauri
+        run: cargo fmt --all -- --check
+      - name: Lint backend
+        working-directory: src-tauri
+        run: cargo clippy --all-targets -- -D warnings
+      - name: Test backend
+        working-directory: src-tauri
+        run: cargo test
+      - name: Check backend
+        working-directory: src-tauri
+        run: cargo check
+
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: android-actions/setup-android@v3
+        with:
+          # Google removed the legacy "tools" package from the SDK repository
+          # (2026-09-15); the action's own default ("tools platform-tools")
+          # now fails sdkmanager outright. platform-tools is all this job
+          # needs itself -- the Android Gradle Plugin fetches whichever
+          # platform/build-tools versions the project requires during the
+          # Gradle build steps below.
+          packages: platform-tools
+      - run: npm ci
+      - run: npx vite build
+      - run: npx cap sync android
+      - name: Run Android unit tests
+        working-directory: android
+        run: ./gradlew testDebugUnitTest
+      - name: Build debug APK
+        working-directory: android
+        run: ./gradlew assembleDebug
+      - name: Enable KVM for emulator smoke test
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Install debug APK in emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: default
+          arch: x86_64
+          profile: pixel_2
+          disable-animations: true
+          script: |
+            adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+            adb shell pm path com.leonardschwier.leotheca | grep -q '^package:'
+
+  appimage-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - name: Install Linux dependencies
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev libayatana-appindicator3-dev build-essential libssl-dev squashfs-tools p7zip-full xvfb dbus-x11
+      - run: npm ci
+      - name: Build AppImage
+        run: |
+          cd src-tauri && cargo clean && cd ..
+          npx tauri build --bundles appimage || {
+            test -x src-tauri/target/release/bundle/appimage/Leotheca.AppDir/AppRun
+            test -x src-tauri/target/release/bundle/appimage/Leotheca.AppDir/usr/bin/leotheca
+          }
+          appdir=src-tauri/target/release/bundle/appimage/Leotheca.AppDir
+          ln -sf Leotheca.png "$appdir/leotheca.png"
+          ARCH=x86_64 "$HOME/.cache/tauri/linuxdeploy-plugin-appimage.AppImage" --appimage-extract-and-run --appdir="$appdir"
+          bash src-tauri/resources/patch-appimage-mime.sh Leotheca-x86_64.AppImage
+      - name: Extract AppImage
+        run: |
+          chmod +x Leotheca-x86_64.AppImage
+          ./Leotheca-x86_64.AppImage --appimage-extract >/dev/null
+          test -x squashfs-root/AppRun
+          test -x squashfs-root/usr/bin/leotheca
+      - name: Launch extracted AppImage
+        run: |
+          set +e
+          timeout 15s xvfb-run -a dbus-run-session -- ./squashfs-root/AppRun > /tmp/leotheca-appimage.log 2>&1
+          status=$?
+          set -e
+          cat /tmp/leotheca-appimage.log
+          if [ "$status" -ne 124 ]; then
+            exit "$status"
+          fi
+
+  validation:
+    if: always()
+    needs: [frontend, e2e, backend, android, appimage-smoke]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every validation job to succeed
+        env:
+          FRONTEND_RESULT: ${{ needs.frontend.result }}
+          E2E_RESULT: ${{ needs.e2e.result }}
+          BACKEND_RESULT: ${{ needs.backend.result }}
+          ANDROID_RESULT: ${{ needs.android.result }}
+          APPIMAGE_RESULT: ${{ needs.appimage-smoke.result }}
+        run: |
+          test "$FRONTEND_RESULT" = success
+          test "$E2E_RESULT" = success
+          test "$BACKEND_RESULT" = success
+          test "$ANDROID_RESULT" = success
+          test "$APPIMAGE_RESULT" = success

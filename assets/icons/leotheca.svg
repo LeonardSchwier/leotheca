@@ -1,0 +1,18 @@
+<!--
+  Leotheca icon
+  SPDX-License-Identifier: CC0-1.0
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Leotheca app icon</title>
+  <desc id="desc">A single page holding a notched bookmark ribbon, evoking a kept, findable note.</desc>
+  <rect width="512" height="512" rx="112" fill="#152229"/>
+  <!-- The page: one plain, bold shape, legible as a silhouette even at
+       favicon size, deliberately without any inner rule lines that would
+       just disappear at 16px. -->
+  <rect x="108" y="108" width="296" height="296" rx="46" fill="#F3EBDD"/>
+  <!-- The ribbon: a "theca" (case, container) motif reduced to its
+       simplest form, a kept/marked place inside the page rather than a
+       generic folded-corner document glyph. Its notch is what keeps the
+       mark from reading as a plain two-tone square. -->
+  <path d="M304 108V316L256 276L208 316V108Z" fill="#BF9B5E"/>
+</svg>

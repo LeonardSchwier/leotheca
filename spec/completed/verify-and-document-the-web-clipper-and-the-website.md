@@ -1,0 +1,64 @@
+# Verify and document the web clipper and the website
+
+## Item
+
+- Roadmap id `rm-b02ec2c20b433f2c`, "Verify and document the web clipper and the website".
+- Outcome: for `extensions/web-clipper` and `website/`, either test for real and document, or remove if safe. Rulings are recorded here with evidence.
+
+## Acceptance
+
+1. Clipper unit tests run and pass; a real clip runs end to end in Chromium (extension loaded unpacked) and the extension is loaded in Firefox as a temporary add-on.
+2. What the clipper sends where is verified against the code, not the README.
+3. Install steps for Chrome and Firefox are in `extensions/web-clipper/README.md`.
+4. The website is served locally under the project Pages sub-path, both pages opened in Chromium, links and assets resolve, every claim matches code or is narrowed or removed.
+5. The Pages deployment state is checked and the build and deploy path is documented in `website/README.md`.
+6. Regression tests pin each fix; `master-spec.md` is updated.
+
+## Context
+
+- Clipper (6 source files, no dependencies): content script converts the selection to Markdown, background script calls `downloads.download` with a `data:` URL and `saveAs: true`. Permissions `activeTab`, `downloads`; content script on `http(s)://*/*`. No `fetch`, `XMLHttpRequest`, `WebSocket` or `host_permissions` in any file (read in full). Playwright recorded zero requests to any host except the test page.
+- It cannot write into a workspace silently: the browser save dialog is the only path, the user picks the folder. This is by design (least privilege) and is now stated in its README.
+- Website: two static pages plus assets, deployed by `.github/workflows/gh-pages.yml`. `gh api repos/LeonardSchwier/leotheca/pages` returns 404 and `has_pages` is false: the site was never live. Both workflow runs (2026-09-25, 2026-10-06) failed at Setup Pages ("Get Pages site failed").
+
+## Findings
+
+| Finding                                                                                                                                                                                                                                                                                                                     | Evidence                                                                                                                                                                               | Fix                                                                                                                                                                                                          |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Clipper never worked in Chrome: listeners returned a value instead of calling `sendResponse` (ignored by Chrome), so the content script reply was `undefined` and every popup clip failed with "Could not create a clip".                                                                                                   | Playwright Chromium run on the unmodified code: `build-clip` response `undefined`. After the fix the popup flow downloaded `# My clip ...` with the converted body and `Source:` line. | `content.js`, `background.js` answer through `sendResponse`; `popup.js` and others use `globalThis.browser ?? globalThis.chrome`. `messaging.test.js` (5 tests) fails 5/5 on the old code and passes now.    |
+| Manifest had only `background.service_worker` and no Firefox settings.                                                                                                                                                                                                                                                      | `web-ext lint`: unsupported `service_worker` warning; real Firefox 156 `web-ext run` installs it as a temporary add-on without error after the change.                                 | Added `background.scripts`, `browser_specific_settings.gecko` (id, `strict_min_version` 142, `data_collection_permissions: none`). The remaining lint warning is expected: Firefox ignores `service_worker`. |
+| Keyboard shortcut handler could reject on pages without the content script.                                                                                                                                                                                                                                                 | Read; test added.                                                                                                                                                                      | try/catch in `onCommand`.                                                                                                                                                                                    |
+| Website used root-absolute URLs (`/styles.css`). Under `/leotheca/` every stylesheet, image and cross-page link 404s.                                                                                                                                                                                                       | Playwright against a `/leotheca/` sub-path: 6 failed requests on the index, 2 on features. After the fix 0, and all local links return 200.                                            | Relative URLs; `website/website.test.js` pins this.                                                                                                                                                          |
+| `features.html` claimed "all 250 features shipped" but was a dump of roadmap entries: bug reports, CI failures, security findings, items still blocked.                                                                                                                                                                     | Read in full.                                                                                                                                                                          | Replaced by a short list of features each confirmed by a source file; no counts.                                                                                                                             |
+| Index claims: F-Droid listed as an install option (submission not made), "Nothing leaves your device" for dictation (Android recognizer may use a network service; desktop dictation has no compiled backend, master-spec KG-002), "forever" / "Ever" promises, "159 KB" (file is 162218 bytes), "every keyboard shortcut". | README and ROADMAP say F-Droid and Flathub are not submitted; KG-002; file size.                                                                                                       | Narrowed or removed. README dictation line corrected the same way.                                                                                                                                           |
+| `og:image` / `twitter:image` used a root path to an SVG.                                                                                                                                                                                                                                                                    | Not a valid preview image and a 404 under the sub-path.                                                                                                                                | Removed.                                                                                                                                                                                                     |
+
+## Rulings
+
+| Q                                        | Decision                                                                                      | Why                                                                                                                                | Cost if wrong                                                |
+| ---------------------------------------- | --------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| Remove the clipper?                      | Keep, fix, document.                                                                          | Small, local, no network, fits plain-file philosophy, only broken by an API-compat bug.                                            | A user clips nothing; low.                                   |
+| Remove the website?                      | Keep, fix, document.                                                                          | Small, no build, content now verified; nothing deployed exists to remove.                                                          | A wrong claim stays public; mitigated by the claims test.    |
+| Enable GitHub Pages now?                 | No. Document the one-time command in `website/README.md` and leave it to the owner's account. | It publishes a public site and changes repository hosting settings; the authorization excludes hosting access controls.            | Site stays offline and workflow runs stay red until enabled. |
+| Add the clipper e2e to the CI e2e suite? | No; unit tests plus a documented manual Playwright run.                                       | Extension loading needs a persistent headless Chromium context and a native save dialog is not testable; flaky for a required job. | Browser-only regressions are caught manually.                |
+| Keep the screenshots?                    | Keep, with a dated note in `website/README.md`.                                               | Taken 2026-09-25 from the web build; theme file last changed 2026-09-23.                                                           | Visual drift if the theme changes.                           |
+| Clip lands in workspace automatically?   | No, documented.                                                                               | The only safe path under least privilege is the save dialog.                                                                       | User must pick the folder.                                   |
+
+## Design system
+
+No application UI changed. The website keeps its own `styles.css`.
+
+## Text and rights check
+
+Scope: website, README, extension README, master-spec. Every changed statement was matched to code or the release artifacts; unverifiable claims were narrowed or removed rather than escalated. No third-party names, logos, screenshots or text were added; fonts are the existing SIL OFL Source Code Pro with its license file. No employer or competitor names introduced.
+
+## Out of scope
+
+Enabling Pages, a signed Firefox build or store listings, regenerating screenshots, a clipper e2e in required CI, any change to `package.json` (owned by another claim).
+
+## Evidence
+
+Landed 385d9e0 on main. Hosted runs for that SHA: CI 42355407172 success (frontend, e2e, backend, android, appimage-smoke, validation), Agent policy 42355407143 success, Rules 42355407138 success. Release 42355407233: windows and flatpak failed at `npm ci` (git dependency `@leonardschwier/leoforma` prepare step, from another claim, unrelated to these files); validation, linux, android, macos, publish succeeded. Deploy to GitHub Pages failed at Setup Pages as expected (Pages not enabled).
+
+Local: `npx vitest run extensions website` 18 passed; `npm test` 3365 passed in 181 files; `tsc --noEmit` 0; `eslint` 0 errors; prettier clean on changed files; `check_master_spec` OK. Playwright Chromium: popup flow produced the Markdown file, zero off-page requests; local site under `/leotheca/`: 0 failed requests after fix (8 before). `web-ext lint`: 0 errors; `web-ext run` in Firefox 156 installed the temporary add-on.
+
+Review (self, separate pass): traced content script -> popup -> background -> downloads for success, empty selection, refused download and keyboard command; the only network surface is none. Security gate: no `src-tauri`, capability or IPC change, not applicable.

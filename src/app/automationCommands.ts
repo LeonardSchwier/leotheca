@@ -1,0 +1,147 @@
+/** The custom URL scheme this app registers for local inter-application
+ * automation (see `src-tauri/tauri.conf.json`'s plugins.deep-link config
+ * and ROADMAP.md's "Local Automation Commands" item): an OS-level tool (a
+ * Shortcuts action, a shell script, a launcher) can trigger these without
+ * this app ever making a network call itself, since dispatch happens
+ * entirely through the OS's own URL-scheme mechanism, not a server. */
+const SCHEME = "leotheca:";
+
+export type AutomationCommand =
+  | { kind: "read-current-note" }
+  | { kind: "open-favorites" }
+  | { kind: "open-note"; path: string }
+  | { kind: "new-note"; content: string }
+  | { kind: "capture"; text: string; title?: string; url?: string; mode?: "append" | "new" | "date"; profile?: string; open?: boolean }
+  | { kind: "insert-heading"; path: string; heading: string; content: string; position?: "prepend" | "append"; exactLevel?: number };
+
+/** Parses an incoming leotheca:// URL into a typed command, or null for
+ * anything not recognized (a different scheme, an unknown command, or a
+ * malformed URL) rather than throwing: a URL this app didn't ask to be
+ * launched with (a stray argv entry, a future OS quirk) should be quietly
+ * ignored by the caller, not crash the handler that calls this. */
+export function parseAutomationUrl(url: string): AutomationCommand | null {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return null;
+  }
+  if (parsed.protocol !== SCHEME) return null;
+  switch (parsed.hostname) {
+    case "read-current-note":
+      return { kind: "read-current-note" };
+    case "new-note":
+      return { kind: "new-note", content: parsed.searchParams.get("content") ?? "" };
+    case "open-favorites":
+      return { kind: "open-favorites" };
+    case "open-note": {
+      // Backs the Android favorites-list home-screen widget (each row is a
+      // deep link built from the note's own workspace-absolute path, the
+      // same path shape bookmarks/store.ts already persists), plus any
+      // other local automation that wants to open one specific note by
+      // path. A missing path is a malformed command, not "open nothing in
+      // particular", so it is rejected like any other unrecognized command
+      // rather than resolved to some default note.
+      const path = parsed.searchParams.get("path");
+      if (!path) return null;
+      // The path is untrusted OS-level input; a real workspace-absolute
+      // path is short, so cap it to prevent a pathologically long deep
+      // link (e.g. from a hand-crafted Shortcuts action) from doing
+      // anything more than being rejected. The cap is generous enough for
+      // any plausible vault depth on every platform, and far below any
+      // realistic URL-length limit.
+      const MAX_OPEN_NOTE_PATH_LENGTH = 4096;
+      if (path.length > MAX_OPEN_NOTE_PATH_LENGTH) {
+        console.warn(
+          `open-note: path length ${path.length} exceeds ${MAX_OPEN_NOTE_PATH_LENGTH}, rejecting`,
+        );
+        return null;
+      }
+      // SECURITY LAYERING (audit S-4): this `path` is untrusted deep-link
+      // input. The caller hands it to `handleOpenFile` (App.tsx), which
+      // reads the note through the Tauri bridge. That read is the ONLY
+      // authoritative containment gate: the Rust-side
+      // `check_unscoped_path_allowed` (src-tauri/src/commands.rs) rejects
+      // any target outside the active workspace root or the app config
+      // directory. Any frontend `isPathWithinWorkspace` check upstream of
+      // it is a UX convenience, NOT the security boundary -- do not treat
+      // it as a defense, and never weaken the Rust gate to "trust" a path
+      // that only a JS check cleared.
+      return { kind: "open-note", path };
+    }
+    case "capture": {
+      // F05: Support text, title, url, mode, profile, open parameters
+      const text = parsed.searchParams.get("text") ?? parsed.searchParams.get("content") ?? "";
+      const title = parsed.searchParams.get("title");
+      const url = parsed.searchParams.get("url");
+      const mode = parsed.searchParams.get("mode") as "append" | "new" | "date" | null;
+      const profile = parsed.searchParams.get("profile");
+      const open = parsed.searchParams.get("open") === "true";
+      
+      // F05-FR-02/F05-FR-06: Validate payload size (32 KiB limit for text+title+url).
+      // Spec section 5.2 documents `text` as a UTF-8 body and the 32 KiB
+      // limit in bytes; JS string .length counts UTF-16 code units, which
+      // under-counts any multi-byte character (CJK, emoji, accented Latin,
+      // Cyrillic, ...) and would let a genuinely oversized payload through.
+      // TextEncoder().encode(...).length gives the real UTF-8 byte size,
+      // matching the pattern already used for the same reason in
+      // MarkdownPreview.tsx's embed byte budget.
+      const payloadSize = new TextEncoder().encode(text + (title ?? "") + (url ?? "")).length;
+      const MAX_CAPTURE_PAYLOAD_SIZE = 32 * 1024; // 32 KiB
+      if (payloadSize > MAX_CAPTURE_PAYLOAD_SIZE) {
+        console.warn(`F05: Capture payload size (${payloadSize}) exceeds 32 KiB limit`);
+        return null; // Reject oversized payload
+      }
+      
+      return {
+        kind: "capture",
+        text,
+        ...(title && { title }),
+        ...(url && { url }),
+        ...(mode && { mode }),
+        ...(profile && { profile }),
+        ...(open && { open })
+      };
+    }
+    case "insert-heading": {
+      // Heading-scoped insert (Market Solution #2 1.15.0 Desktop feature):
+      // append or prepend content under a specific heading in a note.
+      const path = parsed.searchParams.get("path");
+      const heading = parsed.searchParams.get("heading");
+      const content = parsed.searchParams.get("content");
+      if (!path || !heading || !content) return null;
+
+      // Reuse the same path-length guard as open-note
+      const MAX_PATH_LENGTH = 4096;
+      if (path.length > MAX_PATH_LENGTH) return null;
+
+      const position = parsed.searchParams.get("position");
+      if (position !== null && position !== "prepend" && position !== "append") {
+        return null;
+      }
+
+      const exactLevelRaw = parsed.searchParams.get("exactLevel");
+      let exactLevel: number | undefined;
+      if (exactLevelRaw !== null) {
+        const n = Number(exactLevelRaw);
+        if (!Number.isInteger(n) || n < 1 || n > 6) return null;
+        exactLevel = n;
+      }
+
+      // Content size guard (32 KiB, UTF-8 bytes)
+      const payloadBytes = new TextEncoder().encode(content).length;
+      if (payloadBytes > 32 * 1024) return null;
+
+      return {
+        kind: "insert-heading",
+        path,
+        heading,
+        content,
+        ...(position && { position }),
+        ...(exactLevel !== undefined && { exactLevel }),
+      };
+    }
+    default:
+      return null;
+  }
+}

@@ -1,0 +1,2323 @@
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  /* Whole-UI zoom (see WorkspaceSettings.uiZoom's doc comment for why this
+     is `zoom` and not a transform-based scale). A no-op at the default 1. */
+  zoom: var(--ui-zoom, 1);
+  /* Keeps content clear of the gesture nav bar and any display cutouts on
+     edge-to-edge Android (enforced by default since Android 15). The top
+     inset is handled by the toolbar itself instead, so its background
+     extends into the status bar rather than leaving a bare strip above it.
+     All a no-op on desktop, where these resolve to 0. */
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  /* Extends the toolbar's own background up into the status bar on
+     edge-to-edge Android, instead of just clearing it, so the header reads
+     as one continuous surface. A no-op on desktop (resolves to 0). */
+  padding-top: calc(var(--space-2) + env(safe-area-inset-top));
+  background: var(--bg-raised);
+  border-bottom: 1px solid var(--border);
+  -webkit-app-region: drag;
+}
+
+.toolbar button {
+  -webkit-app-region: no-drag;
+}
+
+.app-title {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.app-title-hint {
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+/* F20 Phase 1: minimal workspace switcher (spec
+   leotheca-workspace-profiles-sdd.md section 10.1). */
+.workspace-switcher {
+  position: relative;
+}
+
+.workspace-switcher-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  max-width: 220px;
+}
+
+.workspace-switcher-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-switcher-caret {
+  font-size: 10px;
+  color: var(--text-faint);
+}
+
+.workspace-switcher-menu {
+  /* `fixed`, not `absolute`: `.toolbar` sets `overflow-x: auto` on narrow
+     viewports (see the `max-width: 720px` block below) to let its buttons
+     scroll horizontally, which clips any `absolute` descendant that
+     overflows the toolbar's box — this menu was rendering but invisible on
+     Android because of it. `top`/`left` come from an inline style computed
+     from the trigger's own bounding rect in WorkspaceSwitcher.tsx, the same
+     approach FileContextMenu.tsx already uses for `.context-menu`. */
+  position: fixed;
+  z-index: 20;
+  min-width: 240px;
+  max-height: 320px;
+  overflow-y: auto;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-low);
+  padding: var(--space-1);
+}
+
+.workspace-switcher-empty {
+  padding: var(--space-2) var(--space-3);
+  color: var(--text-faint);
+  font-size: 12px;
+}
+
+.workspace-switcher-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  border-radius: var(--radius-sm);
+}
+
+.workspace-switcher-row.active {
+  background: var(--bg-hover);
+}
+
+.workspace-switcher-row-button {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  border: none;
+  background: transparent;
+  text-align: left;
+  padding: var(--space-1) var(--space-2);
+}
+
+.workspace-switcher-row-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-switcher-check {
+  color: var(--text-primary);
+}
+
+.workspace-switcher-forget {
+  border: none;
+  background: transparent;
+  color: var(--text-faint);
+  padding: var(--space-1) var(--space-2);
+  min-height: 44px;
+}
+
+.workspace-switcher-forget:hover {
+  color: var(--color-danger);
+}
+
+.workspace-switcher-add {
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  min-height: 44px;
+  padding: var(--space-1) var(--space-2);
+}
+
+.toolbar button {
+  font: inherit;
+  background: var(--bg-sunken);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-3);
+  cursor: pointer;
+}
+
+.toolbar button:hover {
+  background: var(--bg-hover);
+}
+
+.toolbar-spacer {
+  flex: 1;
+}
+
+button.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  font-size: 15px;
+  line-height: 1;
+}
+
+button.icon-button.active {
+  background: var(--bg-selected);
+  color: var(--text-primary);
+}
+
+/* RTL Phase 2: Workspace-level right-to-left layout */
+.rtl .app-body {
+  flex-direction: row-reverse;
+}
+
+.rtl .sidebar {
+  border-right: none;
+  border-left: 1px solid var(--border);
+}
+
+.rtl .sidebar-resize-handle {
+  left: auto;
+  right: 0;
+}
+
+.rtl .toolbar {
+  flex-direction: row-reverse;
+}
+
+.view-mode-switch {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.view-mode-switch button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  border: none;
+  border-radius: 0;
+  border-right: 1px solid var(--border);
+}
+
+.view-mode-switch button:last-child {
+  border-right: none;
+}
+
+.view-mode-switch button.active {
+  background: var(--bg-selected);
+  color: var(--text-primary);
+}
+
+/* Same look as .view-mode-switch, but for the Settings panel's text-label
+   toggles (Theme, Default view mode, Delete behavior): those need each
+   button sized to its own label, not the toolbar's fixed 30px icon slot,
+   which was clipping/overlapping multi-word labels like "Follow System". */
+.settings-switch {
+  display: flex;
+  flex-wrap: wrap;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.settings-switch button {
+  padding: var(--space-1) var(--space-2);
+  white-space: nowrap;
+  border: none;
+  border-radius: 0;
+  border-right: 1px solid var(--border);
+}
+
+.settings-switch button:last-child {
+  border-right: none;
+}
+
+.settings-switch button.active {
+  background: var(--bg-selected);
+  color: var(--text-primary);
+}
+
+.app-body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  /* Anchors .sidebar--overlay/.sidebar-overlay-backdrop below (Medium
+     width, spec 12.1/12.4): both position themselves relative to this
+     element, not the viewport, so they stay confined to the document
+     area and never cover the Global Top Bar. */
+  position: relative;
+}
+
+/* UX-01 spec section 12.2/13.2: 48px fixed strip, Wide+ only for now (see
+   adaptiveLayout.ts's showsActivityRail doc comment for why Medium isn't
+   included yet). */
+.activity-rail {
+  width: 48px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-2) 0;
+  background: var(--bg-sunken);
+  border-right: 1px solid var(--border);
+}
+
+.activity-rail-primary,
+.activity-rail-bottom {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.activity-rail-button {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.activity-rail-button:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+/* Section 13.2: "Selection is communicated by icon treatment, a shape or
+   side indicator, and accessible state, not color alone" -- the left bar
+   below and aria-current (set in ActivityRail.tsx) are that indicator and
+   accessible state; the background/text color change is reinforcement. */
+.activity-rail-button.active {
+  background: var(--color-selected);
+  color: var(--text-primary);
+}
+
+.activity-rail-button.active::before {
+  content: "";
+  position: absolute;
+  left: -8px;
+  top: 6px;
+  bottom: 6px;
+  width: 3px;
+  border-radius: var(--radius-full);
+  background: var(--color-accent);
+}
+
+.sidebar {
+  width: 260px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  /* The two regions below manage their own scrolling; the sidebar itself
+     never scrolls as one long blob (that was forcing a scroll through the
+     whole file tree just to reach the backlinks panel at the bottom). */
+  overflow: hidden;
+  background: var(--bg-sunken);
+  border-right: 1px solid var(--border);
+}
+
+.sidebar-primary {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-2);
+}
+
+/* Spec 12.1/12.4: Medium width's "collision-safe side sheet" -- floats
+   over the document surface, after the Activity Rail, instead of taking
+   up permanent flex-row space the way the Wide/Expanded docked column
+   does. Same .sidebar content and width as docked; only positioning,
+   elevation, and the backdrop below are Medium-specific. */
+.sidebar--overlay {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 48px; /* .activity-rail's own fixed width */
+  z-index: 20;
+  box-shadow: var(--shadow-high);
+}
+
+.sidebar-overlay-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 19;
+  background: rgba(0, 0, 0, 0.25);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .sidebar--overlay {
+    animation: sidebar-overlay-in var(--motion-sheet) ease-out;
+  }
+}
+
+@keyframes sidebar-overlay-in {
+  from {
+    transform: translateX(-8px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* UX-01 spec section 13.7: consolidated Properties/Backlinks panel,
+   overlaying from the right at every width it appears at (Medium+, see
+   Inspector.tsx's own doc comment for why this pass always overlays
+   rather than adding an optional docked mode at Expanded). Mirrors
+   .sidebar--overlay's own anchoring/elevation/backdrop pattern exactly,
+   mirrored to the opposite edge. */
+.inspector {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  width: 320px;
+  max-width: 90vw;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-sunken);
+  border-left: 1px solid var(--border);
+  box-shadow: var(--shadow-high);
+}
+
+.inspector-overlay-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 19;
+  background: rgba(0, 0, 0, 0.25);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .inspector {
+    animation: inspector-overlay-in var(--motion-sheet) ease-out;
+  }
+}
+
+@keyframes inspector-overlay-in {
+  from {
+    transform: translateX(8px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.inspector-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.inspector-tabs {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.inspector-tabs button {
+  background: none;
+  border: none;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.inspector-tabs button:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.inspector-tabs button.active {
+  background: var(--color-selected);
+  color: var(--text-primary);
+}
+
+.inspector-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-2);
+}
+
+.editor-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* UX-01 spec section 13.5: title/icon, save-state, view-mode, and bookmark
+   for the active note, Wide+ only for now (see DocumentHeader.tsx's own
+   doc comment for what's deliberately not here yet: Inspector, overflow,
+   and a full clickable path breadcrumb beyond the tooltip variant). */
+.document-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-2) var(--space-5);
+  background: var(--color-raised);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.document-header-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  flex-shrink: 1;
+}
+
+.document-header-path {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  min-width: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.8125rem;
+  font-weight: 400;
+}
+
+.document-header-icon {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+  opacity: 0.7;
+}
+
+.document-header-path-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.document-header-savestate-wrapper {
+  flex-shrink: 0;
+}
+
+.document-header-dirty-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-warning);
+}
+
+.document-header-savestate {
+  flex-shrink: 0;
+}
+
+/* The Retry control is now the section 20 `Button` primitive (variant
+   ghost, size sm, see DocumentHeader.tsx) -- its base appearance comes
+   from Leoforma. `.ds-btn-sm` is 28px tall, which is a poor
+   inline fit inside the 12px-tall StatusIndicator label, so this
+   call-site override keeps the button as a true inline text action
+   (the `Button` contract -- size, token colors, hover, focus ring --
+   still applies to everything it does define). */
+.document-header-savestate-retry {
+  height: auto;
+  padding: 0;
+  text-decoration: underline;
+  margin-left: var(--space-2);
+}
+
+.document-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+/* The view-mode switch is the section 20 Leoforma `SegmentedControl`
+   (see DocumentHeader.tsx). 13.5 requires visible text labels at Wide and
+   Expanded widths -- the only widths this header renders at -- so the
+   call site passes icon+label options; the primitive already renders
+   both when set. Icon+label is wider than the legacy icon-only row, so
+   the call site also passes the `document-header-viewmode` class, which
+   this override narrows: drop the 30px icon-slot minimum (the label is
+   the size now, not the icon) and tighten the icon-text gap so the
+   option reads as one labeled control. Everything else -- border, radius,
+   colors, hover, focus ring, active state -- stays the primitive's, per
+   the section 20 contract. */
+.document-header-viewmode .ds-segmented-option {
+  min-width: 0;
+  column-gap: var(--space-1-5);
+}
+
+.save-error-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  color: var(--color-danger);
+  background: var(--bg-sunken);
+  border-bottom: 1px solid var(--border);
+  font-size: 0.875rem;
+}
+
+.save-error-bar button {
+  flex: none;
+}
+
+.editor-panes {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+.editor-panes .markdown-editor,
+.editor-panes .markdown-preview {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+}
+
+.editor-panes.mode-split .markdown-editor {
+  border-right: 1px solid var(--border);
+}
+
+/* F07 Phase 3: split-pane shell. `.editor-area` (primary) keeps its
+   existing flex:1 rule for the unsplit case; when split, App.tsx sets its
+   inline flex-basis from the persisted ratio and `.secondary-group` (also
+   `.editor-area`) fills the remainder via that same flex:1. */
+.editor-groups-shell {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  min-width: 0;
+  min-height: 0;
+}
+
+.editor-groups-shell .editor-area {
+  min-width: 0;
+}
+
+/* F07 Phase 4: compact-layout group switcher (spec 8.2). `flex-basis: 100%`
+   on a wrapping flex parent forces it onto its own row above whichever
+   single pane App.tsx currently mounts, without a separate wrapper element
+   around the switcher and the (mutually-exclusive) primary/secondary
+   panes. */
+.compact-group-switcher {
+  flex: 0 0 100%;
+  display: flex;
+  border-bottom: 1px solid var(--border);
+}
+
+.compact-group-switcher button {
+  flex: 1;
+  padding: var(--space-2) var(--space-3);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font: inherit;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.compact-group-switcher button.active {
+  color: var(--text);
+  border-bottom-color: var(--accent, var(--border));
+}
+
+.split-separator {
+  flex: none;
+  width: 6px;
+  cursor: col-resize;
+  background: var(--border);
+  touch-action: none;
+}
+
+.split-separator:hover,
+.split-separator:focus-visible {
+  background: var(--accent, var(--border));
+  outline: none;
+}
+
+.secondary-group {
+  border-left: 1px solid var(--border);
+}
+
+.secondary-view-mode-switch {
+  display: flex;
+  gap: var(--space-1, 4px);
+  padding: var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--border);
+}
+
+.secondary-pane-empty,
+.secondary-pane-unsupported {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.markdown-editor {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+/* Inline live-preview styling for the editor's normal (source) mode, see
+   src/editor/livePreview.ts for which markup gets hidden and when. */
+.cm-live-heading-1 {
+  font-size: 1.7em;
+  font-weight: 700;
+}
+.cm-live-heading-2 {
+  font-size: 1.5em;
+  font-weight: 700;
+}
+.cm-live-heading-3 {
+  font-size: 1.3em;
+  font-weight: 700;
+}
+.cm-live-heading-4,
+.cm-live-heading-5,
+.cm-live-heading-6 {
+  font-size: 1.15em;
+  font-weight: 700;
+}
+.cm-live-strong {
+  font-weight: 700;
+}
+.cm-live-em {
+  font-style: italic;
+}
+.cm-live-code {
+  background: var(--bg-sunken);
+  border-radius: var(--radius-sm);
+  padding: 0 4px;
+}
+/* ROADMAP.md rm-c2a2c2d840b60a2e: editor-side live decoration for
+   `==text==`, the source-mode analog of .markdown-preview mark.lt-highlight
+   above (same color tokens, same class-naming scheme, see
+   editor/livePreview.ts's Highlight branch in buildLiveDecorations). */
+.cm-live-highlight {
+  background-color: var(--color-mark-default);
+  color: var(--color-mark-text);
+  border-radius: 2px;
+}
+.cm-live-highlight-red {
+  background-color: var(--color-mark-red);
+}
+.cm-live-highlight-orange {
+  background-color: var(--color-mark-orange);
+}
+.cm-live-highlight-green {
+  background-color: var(--color-mark-green);
+}
+.cm-live-highlight-blue {
+  background-color: var(--color-mark-blue);
+}
+.cm-live-highlight-purple {
+  background-color: var(--color-mark-purple);
+}
+.cm-live-wikilink-resolved {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.cm-live-wikilink-broken {
+  color: var(--text-secondary);
+  text-decoration: underline dashed;
+  text-underline-offset: 2px;
+}
+/* F04 Phase 2: a heading-link (`[[Note#Heading]]`/`[[#Heading]]`) whose
+   note resolves but whose named heading is missing or ambiguous, the same
+   two states linking/linking.css already distinguishes with a dotted
+   underline in Preview mode (see its headingStatus=missing/ambiguous
+   rule). Distinct from cm-live-wikilink-broken (the note itself doesn't
+   exist) and cm-live-wikilink-resolved (both note and heading resolved),
+   which this phase reuses as-is rather than duplicating. */
+.cm-live-wikilink-heading-missing,
+.cm-live-wikilink-heading-ambiguous {
+  color: var(--text-secondary);
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
+}
+/* F04 Phase 3c: the same treatment as the heading-missing/ambiguous rule
+   above, for a block-link (`[[Note#^block-id]]`/`[[#^block-id]]`) whose
+   note resolves but whose block id is missing or ambiguous. */
+.cm-live-wikilink-block-missing,
+.cm-live-wikilink-block-ambiguous {
+  color: var(--text-secondary);
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
+}
+/* F04 Phase 3f: an embed (`![[Note]]`/`![[Note#Heading]]`/
+   `![[Note#^block-id]]`) whose target fully resolves or is fully broken
+   (a missing/ambiguous fragment reuses the heading/block classes above
+   as-is, since that state means the same thing for an embed as for a
+   link). Same color pairing as cm-live-wikilink-resolved/broken, with an
+   added italic so an embed still reads as visually distinct from a plain
+   link even when both point at a fully valid target. */
+.cm-live-embed-resolved {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  font-style: italic;
+}
+.cm-live-embed-broken {
+  color: var(--text-secondary);
+  text-decoration: underline dashed;
+  text-underline-offset: 2px;
+  font-style: italic;
+}
+.cm-live-list-bullet {
+  color: var(--text-faint);
+}
+
+/* UX-01 spec section 14.2/READ-002: centered content column at a readable
+   maximum line length (72ch, with an 820px hard cap for very large font
+   sizes/zoom levels where 72ch alone would grow too wide) instead of the
+   previous full-width stretch. Wide-layout padding widened from
+   --space-6 (24px) to --space-8 (32px) per the spec's 32-48px reference
+   range; the existing narrow-breakpoint override below still applies its
+   own --space-4 (16px), within the spec's 16-20px narrow range. */
+.markdown-preview {
+  max-width: min(72ch, 820px);
+  margin-inline: auto;
+  padding: var(--space-8);
+  font-family: var(--font-reading);
+  font-size: var(--content-font-size);
+  line-height: 1.7;
+  color: var(--text-primary);
+}
+
+.markdown-preview > :first-child {
+  margin-top: 0;
+}
+
+.markdown-preview > :last-child {
+  margin-bottom: 0;
+}
+
+.markdown-preview h1,
+.markdown-preview h2,
+.markdown-preview h3,
+.markdown-preview h4 {
+  font-family: var(--font-ui);
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.markdown-preview code {
+  font-family: var(--font-mono);
+  background: var(--bg-sunken);
+  padding: 1px 4px;
+  border-radius: var(--radius-sm);
+  font-size: 0.9em;
+}
+
+.markdown-preview pre {
+  background: var(--bg-sunken);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  overflow-x: auto;
+}
+
+.markdown-preview pre code {
+  background: none;
+  padding: 0;
+}
+
+.markdown-preview blockquote {
+  margin: 0;
+  padding-left: var(--space-3);
+  border-left: 3px solid var(--border);
+  color: var(--text-secondary);
+}
+
+/* ROADMAP.md rm-c2a2c2d840b60a2e: `==text==` -> <mark>, rendered by
+   MarkdownPreview.tsx's "highlight" marked extension. .lt-highlight-<color>
+   backs the emoji-color prefix convention
+   (markdown/highlight.ts); with no recognized color emoji, only the base
+   class applies and the highlight uses --color-mark-default. */
+.markdown-preview mark.lt-highlight {
+  background-color: var(--color-mark-default);
+  color: var(--color-mark-text);
+  padding: 0 2px;
+  border-radius: 2px;
+}
+.markdown-preview mark.lt-highlight-red {
+  background-color: var(--color-mark-red);
+}
+.markdown-preview mark.lt-highlight-orange {
+  background-color: var(--color-mark-orange);
+}
+.markdown-preview mark.lt-highlight-green {
+  background-color: var(--color-mark-green);
+}
+.markdown-preview mark.lt-highlight-blue {
+  background-color: var(--color-mark-blue);
+}
+.markdown-preview mark.lt-highlight-purple {
+  background-color: var(--color-mark-purple);
+}
+
+.markdown-preview img {
+  max-width: 100%;
+}
+
+.markdown-preview [data-lt-block-id] {
+  position: relative;
+}
+
+.block-link-copy {
+  position: absolute;
+  top: 0;
+  right: 0;
+  opacity: 0;
+  padding: 2px var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-raised);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.75em;
+  cursor: pointer;
+}
+
+.block-link-copy::after {
+  content: "Copy link";
+}
+
+.markdown-preview [data-lt-block-id]:hover .block-link-copy,
+.markdown-preview [data-lt-block-id]:focus-within .block-link-copy,
+.block-link-copy:focus-visible {
+  opacity: 1;
+}
+
+.image-viewer {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: auto;
+  background: var(--bg-sunken);
+}
+
+.image-viewer img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.empty-hint {
+  color: var(--text-faint);
+  padding: var(--space-4);
+  font-size: 13px;
+}
+
+.editor-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: var(--space-2);
+}
+
+.editor-empty-quote {
+  font-style: italic;
+  max-width: 32em;
+  margin: 0;
+}
+
+.editor-empty-author {
+  margin: 0;
+  font-size: 12px;
+}
+
+.file-tree {
+  list-style: none;
+  margin: 0;
+  padding-left: var(--space-2);
+}
+
+.file-tree:first-child {
+  padding-left: 0;
+}
+
+.file-tree-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font: inherit;
+  padding: 2px var(--space-2) 2px 2px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  /* On Android, a long-press on this label can trigger the WebView's
+     native text-selection mode at the same time as our own long-press
+     context menu (openContextMenu), so a follow-up tap meant for the
+     menu sometimes lands on selection handles instead. This item is
+     never meant to be text-selected. */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.file-tree-marker {
+  display: inline-block;
+  width: 0.75em;
+  flex-shrink: 0;
+  text-align: center;
+  color: var(--text-faint);
+}
+
+.file-tree-item:hover {
+  background: var(--bg-hover);
+}
+
+.file-tree-item.selected {
+  background: var(--bg-selected);
+  color: var(--text-primary);
+}
+
+.file-tree-open-error {
+  margin: 0;
+  padding: 2px var(--space-1) var(--space-1) calc(0.75em + var(--space-1));
+  font-size: 12px;
+  color: var(--color-danger);
+}
+
+.sidebar-inner {
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-bottom: var(--space-2);
+}
+
+.sidebar-toolbar button {
+  font: inherit;
+  font-size: 12px;
+  background: var(--bg-raised);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 2px var(--space-2);
+  cursor: pointer;
+}
+
+.sidebar-toolbar button:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.sidebar-toolbar button.icon-button {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+}
+
+.sidebar-toolbar .expand-all-spinner {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  animation: expand-pulse 1s ease-in-out infinite;
+}
+
+@keyframes expand-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+.sidebar-search {
+  position: relative;
+  margin-bottom: var(--space-2);
+}
+
+.sidebar-search input {
+  width: 100%;
+  font: inherit;
+  font-size: 13px;
+  background: var(--bg-raised);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-6) var(--space-1) var(--space-2);
+}
+
+.search-clear {
+  position: absolute;
+  right: var(--space-1);
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--text-faint);
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.search-sort-toggle {
+  position: absolute;
+  right: 24px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--text-faint);
+  cursor: pointer;
+  font-size: 11px;
+  padding: 0;
+  line-height: 1;
+}
+
+.search-sort-toggle:hover {
+  color: var(--text-primary);
+}
+
+.search-results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.search-results .file-tree-item {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.search-result-path {
+  color: var(--text-faint);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tab-bar {
+  display: flex;
+  background: var(--bg-raised);
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  border-right: 1px solid var(--border);
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  /* On Android, a long-press on this tab can trigger the WebView's
+     native text-selection mode at the same time as our own long-press
+     context menu, so a follow-up tap meant for the menu sometimes
+     lands on selection handles instead. This tab is never meant to
+     be text-selected. */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.tab-active {
+  color: var(--text-primary);
+  background: var(--bg-base);
+}
+
+.tab-dragging {
+  opacity: 0.5;
+}
+
+.tab-pin {
+  color: var(--text-faint);
+  font-size: 0.72rem;
+  margin-left: 0.35rem;
+}
+
+.tab-close {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  padding: 0 2px;
+  font-size: 11px;
+}
+
+.context-menu {
+  position: fixed;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  min-width: 160px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-low);
+  padding: var(--space-1);
+  /* Prevent text selection within context menus to avoid conflict with touch/long-press */
+  user-select: none;
+}
+
+.context-menu button {
+  font: inherit;
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.context-menu button:hover {
+  background: var(--bg-hover);
+}
+
+.context-menu button:disabled {
+  color: var(--text-faint);
+  cursor: default;
+}
+
+.context-menu button:disabled:hover {
+  background: none;
+}
+
+/* UX-01 spec section 15.3: "destructive actions use semantic danger
+   styling but are not color-only." The button's own text label ("Delete")
+   already names the action; this color is reinforcement, not the sole
+   signal, matching the spec's intent without needing a second visual
+   marker on a plain text menu item. */
+.context-menu-danger {
+  color: var(--color-danger);
+}
+
+.context-menu-danger:hover {
+  background: color-mix(in srgb, var(--color-danger) 12%, transparent);
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.modal {
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-high);
+  padding: var(--space-6);
+  /* A fixed min-width here would exceed the actual viewport on narrow
+     phones, since min-width wins over max-width when the two conflict —
+     .command-palette hit exactly this in session 31 and got its own
+     width: min(...) fix, but every OTHER modal (Settings, License,
+     Markdown help, NamePrompt) inherits this shared class and had the
+     same latent bug. */
+  width: min(420px, 92vw);
+  /* The real cause of session 53's on-device "Settings can't be closed"
+     bug, confirmed live on a real device: .modal had no height cap, and
+     Settings' content (General + Appearance + workspace stats + keyboard
+     shortcuts + About) is routinely taller than a phone's viewport. With
+     .modal-overlay centering an over-tall child and nowhere to scroll,
+     the excess overflows equally above AND below the screen — pushing
+     the header, including the close button, up under the status bar,
+     where it's not just visually clipped but physically untappable
+     (confirmed on-device: neither the X, the backdrop, nor the hardware
+     back button could close it; the theme toggle *inside* the panel,
+     lower down and still on-screen, worked instantly). Capping the
+     modal's own height and scrolling internally instead keeps the whole
+     dialog, including its header, within the visible/touchable viewport
+     no matter how much content it holds. */
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  /* Sticks to the top of .modal's own scroll area (not the page), so the
+     close button stays reachable regardless of how far the dialog's body
+     is scrolled, rather than only being reachable at scroll position
+     zero. Cancels .modal's own padding on this element's edges and
+     re-applies it as padding instead, so the sticky header still lines
+     up flush with the modal's rounded top corners and has its own
+     background to sit above scrolled-under content, not transparent. */
+  position: sticky;
+  top: calc(-1 * var(--space-6));
+  margin: calc(-1 * var(--space-6)) calc(-1 * var(--space-6)) var(--space-4);
+  padding: var(--space-6) var(--space-6) var(--space-3);
+  background: var(--bg-raised);
+  z-index: 1;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.settings-saving-indicator {
+  margin-left: auto;
+  margin-right: var(--space-3);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.command-palette-overlay {
+  align-items: flex-start;
+  padding-top: 12vh;
+}
+
+/* UX-01 spec section 16.1: "Settings opens as a large adaptive dialog,
+   approximately 800px wide." Settings previously had no width override at
+   all, so it inherited .modal's own 420px -- reasonable for a short
+   confirmation dialog, cramped for Settings' actual content (General,
+   Appearance, Features, Workspace Profiles, Shortcuts, Health, About).
+   Desktop width matches 16.1's "approximately 800px wide"; the
+   `max-width: 720px` media query below overrides this to a true
+   full-screen presentation per 16.2. Same width: min(...) shape as
+   .command-palette just below, for the same narrow-viewport reason its own
+   comment explains. */
+.settings-panel {
+  width: min(800px, 92vw);
+}
+
+.command-palette {
+  padding: 0;
+  /* A fixed min-width here (like .modal's 420px) would exceed the actual
+     viewport on narrow phones, since min-width wins over max-width when
+     the two conflict, causing the whole palette to overflow off-screen.
+     A single width expression that already accounts for the viewport
+     avoids that. UX-01 spec section 15.2: "centered dialog, approximately
+     560px to 640px wide" -- widened from 480px to the middle of that
+     range. */
+  width: min(600px, 92vw);
+  overflow: hidden;
+}
+
+.command-palette-input {
+  width: 100%;
+  padding: var(--space-4);
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: none;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 15px;
+}
+
+/* `.command-palette`'s `overflow: hidden` would clip theme.css's default
+ * outward `outline-offset: 2px` ring on this always-top, edge-to-edge
+ * input, so it draws inset instead (same technique as
+ * resizable-sidebar.css's `.sidebar-resize-handle`). */
+.command-palette-input:focus-visible {
+  outline-offset: -2px;
+}
+
+.command-palette-list {
+  list-style: none;
+  margin: 0;
+  padding: var(--space-2);
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.command-palette-list button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font: inherit;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.command-palette-list button.active {
+  background: var(--bg-selected);
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 14px;
+}
+
+/* Wider than the shared .modal's 420px default: a Markdown preview needs
+   real reading width, unlike the form-shaped dialogs (Settings, Capture,
+   License) that class was originally sized for. */
+.external-file-view {
+  width: min(720px, 92vw);
+}
+
+.external-file-view-toolbar {
+  display: flex;
+  gap: var(--space-1);
+  margin-bottom: var(--space-2);
+}
+
+.external-file-view-toolbar .icon-button {
+  padding: 4px 8px;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.external-file-view-toolbar .icon-button.active {
+  background: var(--bg-sunken);
+  color: var(--text-primary);
+}
+
+.external-file-view-panels {
+  display: flex;
+  gap: 0;
+}
+
+.external-file-view-preview {
+  flex: 1;
+  min-width: 0;
+}
+
+.external-file-view-panels .outline-panel,
+.external-file-view-panels .backlinks-panel {
+  width: 240px;
+  flex-shrink: 0;
+  border-left: 1px solid var(--border);
+  padding-left: var(--space-3);
+  margin-left: var(--space-3);
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.external-file-view-path {
+  margin: 0 0 var(--space-3);
+  color: var(--text-secondary);
+  font-size: 13px;
+  word-break: break-all;
+}
+
+.external-file-view-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-sunken);
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.external-file-view-error {
+  color: var(--color-danger);
+  font-size: 12px;
+  margin: 0 0 var(--space-3);
+}
+
+.external-file-view-body {
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.settings-search {
+  margin-bottom: var(--space-4);
+}
+
+.settings-search-input {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-sunken);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 13px;
+}
+
+/* UX-01 spec section 16.1: "left category navigation; right scrollable
+   content pane." Both regions scroll together as one unit within .modal's
+   own existing scroll container (see .modal's own comment on why it has a
+   height cap and scrolls at all) rather than each having an independent
+   scroll region: the simpler, already-proven-correct behavior, at the
+   disclosed cost of the category nav not staying pinned in view on a very
+   tall Settings page. A real independent-scroll-regions version is
+   follow-up work, not attempted here. */
+.settings-body {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-6);
+}
+
+.settings-nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  flex-shrink: 0;
+  width: 160px;
+}
+
+.settings-nav button {
+  text-align: left;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.settings-nav button:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.settings-nav button.active {
+  background: var(--color-selected);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.settings-content {
+  flex: 1;
+  min-width: 0;
+}
+
+/* UX-01 spec 16.2's compact category-list-then-detail Back action.
+   Hidden outside the `max-width: 720px` compact breakpoint below, where
+   the category list and detail content already sit side by side and a
+   Back control would be meaningless -- see SettingsPanel.tsx's own
+   compactDetailOpen doc comment for why this needs no JS-side width
+   check to stay correct at every width. */
+.settings-compact-back {
+  display: none;
+}
+
+.settings-section {
+  margin-bottom: var(--space-4);
+}
+
+.settings-section h3 {
+  margin: 0 0 var(--space-2);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-3);
+  background: var(--bg-sunken);
+  border-radius: var(--radius-sm);
+}
+
+.settings-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.settings-value {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  word-break: break-all;
+}
+
+.settings-hint {
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+/* Feature selection's own switch descriptions only, not every
+   .settings-hint in the panel: a scoped modifier rather than italicizing
+   .settings-hint everywhere, so this styling choice for "which optional
+   features are on" doesn't ripple into unrelated settings rows. */
+.settings-hint-italic {
+  font-style: italic;
+}
+
+.settings-value input[type="number"] {
+  width: 4em;
+}
+
+.settings-value kbd {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  background: var(--bg-sunken);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 2px 6px;
+  white-space: nowrap;
+}
+
+.welcome-dialog {
+  text-align: center;
+}
+
+.welcome-dialog h2 {
+  margin-top: 0;
+}
+
+.welcome-dialog p {
+  color: var(--text-secondary);
+  margin-bottom: var(--space-4);
+}
+
+/* F20 Phase 2b-iii-a: the recovery/recent-profiles variant of the welcome
+   dialog (spec sections 17.2/17.3). Reuses .workspace-switcher-row's own
+   left-aligned row styling for the profile list, overriding
+   .welcome-dialog's centered text just for that list. */
+.workspace-launcher-actions {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.workspace-launcher-label {
+  text-align: left;
+  color: var(--text-faint);
+  font-size: 12px;
+  margin-bottom: var(--space-1);
+}
+
+.workspace-launcher-list {
+  text-align: left;
+  margin-bottom: var(--space-4);
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.name-prompt input {
+  width: 100%;
+  font: inherit;
+  background: var(--bg-sunken);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.name-prompt-error {
+  color: var(--color-danger);
+  font-size: 12px;
+  margin: 0 0 var(--space-2);
+}
+
+/* F20 Phase 2b-iii-b: in-session failed-transition recovery banner (spec
+   sections 16.4/23). Sits inline at the top of the app shell rather than as
+   a modal overlay, deliberately: the previously-active workspace stays
+   authoritative and visible underneath it, unlike WelcomeDialog's
+   full-screen startup-failure surface. */
+.workspace-transition-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-sunken);
+  border-bottom: 1px solid var(--border);
+}
+
+.workspace-transition-banner-message {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.workspace-transition-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+.workspace-transition-banner-danger {
+  color: var(--color-danger);
+}
+
+.workspace-transition-banner-dismiss {
+  background: none;
+  border: none;
+  color: var(--text-faint);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  padding: var(--space-1);
+}
+
+.name-prompt-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.license-viewer {
+  max-width: 640px;
+}
+
+.license-text {
+  max-height: 60vh;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.markdown-help {
+  max-width: 480px;
+}
+
+.markdown-help-subheading {
+  margin: var(--space-4) 0 var(--space-2);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.markdown-help-table {
+  width: 100%;
+  border-collapse: collapse;
+  /* The dialog now holds two of these (markdown syntax, then keyboard
+     shortcuts) stacked in one modal; 60vh each was fine when there was
+     only one, but risks the dialog itself overflowing a short viewport
+     now that there can be two, so each gets a smaller share instead. */
+  max-height: 34vh;
+  display: block;
+  overflow-y: auto;
+}
+
+.markdown-help-table tr {
+  border-bottom: 1px solid var(--border);
+}
+
+.markdown-help-table td {
+  padding: var(--space-2) 0;
+  vertical-align: top;
+}
+
+.markdown-help-table code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  white-space: pre-wrap;
+  color: var(--text-primary);
+}
+
+.markdown-help-result {
+  color: var(--text-secondary);
+  font-size: 13px;
+  text-align: right;
+  padding-left: var(--space-4);
+}
+
+@media (max-width: 720px) {
+  .toolbar {
+    flex-shrink: 0;
+    gap: 2px;
+    padding-right: var(--space-1);
+    padding-left: var(--space-1);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .toolbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .toolbar > * {
+    flex-shrink: 0;
+  }
+
+  .app-title,
+  .app-title-hint {
+    display: none;
+  }
+
+  .toolbar-spacer {
+    flex: 0 0 var(--space-1);
+    min-width: 0;
+  }
+
+  .toolbar button.icon-button,
+  .view-mode-switch button {
+    width: 44px;
+    height: 44px;
+    background: transparent;
+    border-color: transparent;
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+  }
+
+  .toolbar button.icon-button:hover,
+  .view-mode-switch button:hover {
+    background: var(--bg-hover);
+  }
+
+  .toolbar button.icon-button.active,
+  .view-mode-switch button.active {
+    background: var(--bg-selected);
+    border-color: var(--border);
+    color: var(--text-primary);
+  }
+
+  .view-mode-switch {
+    gap: 2px;
+    border: none;
+    border-radius: 0;
+    overflow: visible;
+  }
+
+  .view-mode-switch button,
+  .view-mode-switch button:last-child {
+    border: 1px solid transparent;
+  }
+
+  .app-body {
+    position: relative;
+  }
+
+  .sidebar {
+    position: absolute;
+    inset: 0;
+    z-index: 10;
+    width: 100% !important;
+    border-right: none;
+  }
+
+  .sidebar-resize-handle {
+    display: none;
+  }
+
+  .sidebar-toolbar button.icon-button {
+    width: 44px;
+    height: 44px;
+  }
+
+  .sidebar-search input,
+  .file-tree-item,
+  .context-menu button {
+    min-height: 44px;
+  }
+
+  .sidebar-search input {
+    padding-right: 44px;
+  }
+
+  .search-clear,
+  .modal-close {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .search-clear {
+    right: 0;
+    font-size: 14px;
+  }
+
+  .file-tree-item {
+    padding-right: var(--space-3);
+    padding-left: var(--space-2);
+  }
+
+  .tab {
+    min-height: 44px;
+  }
+
+  .tab-close {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .markdown-preview {
+    padding: var(--space-4);
+  }
+
+  .search-highlight {
+    background-color: var(--color-highlight, #f5d678);
+    color: var(--color-highlight-text, #25231f);
+    padding: 0 2px;
+    border-radius: 2px;
+  }
+
+  /* Fullscreen Image Viewer Overlay - Phase 1 */
+  .image-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    cursor: pointer;
+  }
+
+  .image-overlay-content {
+    position: relative;
+    max-width: 90vw;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .image-overlay-image-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.1s ease;
+    user-select: none;
+  }
+
+  .image-overlay-image {
+    max-width: 100%;
+    max-height: 80vh;
+    object-fit: contain;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+  }
+
+  .image-overlay-controls {
+    display: flex;
+    gap: var(--space-2);
+    margin-top: var(--space-4);
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  /* This overlay's own backdrop is a fixed, theme-independent dark scrim
+     (rgba(0, 0, 0, 0.9) above, on .image-overlay) regardless of whether the
+     app is in Light or Dark mode -- the usual "lightbox" convention, since
+     photos read better against black either way. These buttons previously
+     read `color: var(--text-primary, #fff)`, but --text-primary is always
+     defined (theme.css's :root sets it unconditionally), so that fallback
+     could never actually apply: in Light theme this rendered dark ink-colored
+     text on the always-dark #333 button background, a real, near-unreadable
+     contrast failure. Colors here are intentionally hardcoded rather than
+     theme tokens, since the surface itself never changes with the theme. */
+  .image-overlay-button {
+    background: #333;
+    color: #fff;
+    border: 1px solid #555;
+    border-radius: var(--radius-sm);
+    padding: var(--space-2) var(--space-4);
+    font-size: 1.1em;
+    cursor: pointer;
+    min-width: 40px;
+    transition: background-color 0.2s ease;
+  }
+
+  .image-overlay-button:hover {
+    background: #444;
+  }
+
+  .image-overlay-close {
+    background: #d32f2f;
+    border-color: #d32f2f;
+  }
+
+  .image-overlay-close:hover {
+    background: #b71c1c;
+  }
+
+  /* Enhanced Image Viewer for standalone tabs */
+  .image-viewer {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background-color: #222;
+    position: relative;
+  }
+
+  .image-viewer-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.1s ease;
+    user-select: none;
+  }
+
+  .image-viewer-image {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+  }
+
+  .image-viewer-controls {
+    display: flex;
+    gap: var(--space-2);
+    margin-top: var(--space-4);
+    position: absolute;
+    bottom: var(--space-4);
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.7);
+    padding: var(--space-2);
+    border-radius: var(--radius-sm);
+  }
+
+  /* Same theme-independent-dark reasoning and same real contrast fix as
+     .image-overlay-button above: this sits over the same kind of fixed
+     dark scrim (.image-viewer-controls' rgba(0, 0, 0, 0.7) background). */
+  .image-viewer-button {
+    background: #333;
+    color: #fff;
+    border: 1px solid #555;
+    border-radius: var(--radius-sm);
+    padding: var(--space-2) var(--space-4);
+    font-size: 1.1em;
+    cursor: pointer;
+    min-width: 40px;
+    transition: background-color 0.2s ease;
+  }
+
+  .image-viewer-button:hover {
+    background: #444;
+  }
+
+  /* Mirror of .image-overlay-close above: the standalone viewer's close
+     button sits on the same fixed dark scrim (.image-viewer-controls), so it
+     shares that surface's same intentional always-dark treatment. */
+  .image-viewer-close {
+    background: #d32f2f;
+    border-color: #d32f2f;
+  }
+
+  .image-viewer-close:hover {
+    background: #b71c1c;
+  }
+
+  /* F05: Capture Sheet. Its own backdrop/surface sizing now comes from
+     the shared Sheet from @leonardschwier/leoforma (.ds-sheet), which
+     already governs width responsively at every viewport size -- this
+     compact-only override predates that migration and would otherwise
+     fight the primitive's own max-width. Only the field/textarea-level
+     styling below is still this component's own. */
+
+  /* border-primary/bg-secondary/accent-blue below were never-defined
+     custom properties (no such tokens exist in theme.css), so these
+     rules were quietly falling back to CSS's own invalid-at-computed-
+     value handling -- an implicit transparent background and a
+     currentColor border -- rather than any deliberately chosen color.
+     Mapped onto this file's real tokens, respecting the user's chosen
+     accent/theme like the rest of the app instead of a fixed blue. */
+  .capture-sheet-textarea {
+    width: 100%;
+    min-height: 150px;
+    padding: var(--space-3);
+    margin: var(--space-3) 0;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background-color: var(--bg-sunken);
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: inherit;
+    resize: vertical;
+    box-sizing: border-box;
+  }
+
+  .capture-sheet-textarea:focus {
+    outline: none;
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 2px var(--color-accent-soft);
+  }
+
+  .capture-sheet-textarea::placeholder {
+    color: var(--text-secondary);
+    opacity: 0.7;
+  }
+
+  .capture-sheet-textarea:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .capture-sheet-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-2);
+    margin-top: var(--space-2);
+  }
+
+  .capture-sheet-hint {
+    margin-top: var(--space-4);
+    font-size: 0.85em;
+    color: var(--text-secondary);
+    text-align: right;
+  }
+
+  .capture-sheet .primary {
+    background-color: var(--color-accent);
+    color: var(--color-on-accent);
+    border: none;
+  }
+
+  .capture-sheet .primary:hover:not(:disabled) {
+    background-color: var(--color-accent-hover);
+  }
+
+  .capture-sheet .primary:disabled {
+    background-color: var(--color-accent);
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* UX-01 spec 16.2: compact Settings uses a full-screen presentation
+     with a category landing page, then a detail page per category.
+     .settings-panel grows to fill the viewport (overriding just this one
+     modal's own width/height, not .modal generally -- every other dialog
+     sharing that class is unaffected); .settings-body's two children
+     (the category list and the detail content) are toggled by
+     compactDetailOpen's settings-body--compact-detail class rather than
+     being shown side by side, both only true here, under this same
+     breakpoint SettingsPanel.tsx's own narrow-width behavior already
+     used before this pass. */
+  .settings-panel {
+    width: 100vw;
+    max-width: 100vw;
+    height: 100vh;
+    max-height: 100vh;
+    border-radius: 0;
+  }
+
+  .settings-body {
+    flex-direction: column;
+  }
+
+  .settings-nav {
+    flex-direction: column;
+    width: auto;
+  }
+
+  .settings-nav button {
+    min-height: 44px;
+    font-size: 15px;
+  }
+
+  .settings-body--compact-detail .settings-nav {
+    display: none;
+  }
+
+  .settings-body:not(.settings-body--compact-detail) .settings-content {
+    display: none;
+  }
+
+  .settings-body--compact-detail .settings-compact-back {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    margin-bottom: var(--space-2);
+    background: none;
+    border: none;
+    color: var(--color-accent);
+    font: inherit;
+    font-size: 15px;
+    cursor: pointer;
+    padding: 0;
+  }
+}
+
+/* Speech recognition button styles */
+.speech-recognition-wrapper {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.speech-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+/* These five selectors were a plain space (a descendant combinator) rather
+   than a dot before the state class name -- `.speech-button recording`
+   instead of `.speech-button.recording` -- which only ever matches a
+   literal `<recording>` element nested inside `.speech-button`, never the
+   real markup (SpeechRecognitionButton.tsx sets `recording`/etc. as one of
+   several space-separated classes on the button itself, not a child
+   element). None of the recording pulse, transcribing spin, starting dim,
+   error color, or disabled cursor/opacity states have ever actually
+   applied since this feature shipped; fixed to compound class selectors.
+   Colors also moved from a hardcoded, theme/accent-independent
+   blue/red onto the shared semantic tokens, so this respects the user's
+   chosen accent and theme like the rest of the app. */
+.speech-button.recording {
+  color: var(--color-danger);
+  animation: speech-pulse 1s infinite;
+}
+
+.speech-button.transcribing {
+  color: var(--color-accent);
+  animation: speech-spin 1s linear infinite;
+}
+
+.speech-button.starting {
+  color: var(--color-accent);
+  opacity: 0.7;
+}
+
+.speech-button.error {
+  color: var(--color-danger);
+}
+
+.speech-button.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.speech-error-message {
+  font-size: 12px;
+  color: var(--color-danger);
+  white-space: nowrap;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@keyframes speech-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+@keyframes speech-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .speech-button.recording {
+    animation: none;
+  }
+  .speech-button.transcribing {
+    animation-duration: 4s;
+  }
+}
+
+/* ── Quick Capture target picker ────────────────────────────────────── */
+.capture-sheet-select {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md, 6px);
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+.capture-sheet-select:focus {
+  outline: 2px solid var(--accent-blue);
+  outline-offset: 1px;
+}
+.capture-sheet-select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.capture-sheet-specific {
+  padding-left: var(--space-2);
+  border-left: 2px solid var(--border-primary);
+}
+.capture-sheet-loading {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: var(--space-2) var(--space-3);
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md, 6px);
+}
+.capture-sheet-error {
+  padding: var(--space-2) var(--space-3);
+  margin-bottom: var(--space-2);
+  font-size: 0.85rem;
+  color: var(--error, #d32f2f);
+  background-color: rgba(211, 47, 47, 0.1);
+  border-radius: var(--radius-md, 6px);
+}

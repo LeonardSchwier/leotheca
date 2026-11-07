@@ -1,0 +1,7 @@
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="110dp"
+    android:minHeight="90dp"
+    android:updatePeriodMillis="0"
+    android:initialLayout="@layout/leotheca_widget_recent_notes"
+    android:resizeMode="horizontal|vertical"
+    android:widgetCategory="home_screen" />

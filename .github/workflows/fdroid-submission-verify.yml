@@ -12,8 +12,8 @@ jobs:
   branch-quality:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -35,7 +35,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out submission branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           path: submission
 
@@ -49,17 +49,17 @@ jobs:
           echo "version-code=$(scripts/read-fdroid-recipe-pin.sh version-code "$recipe")" >> "$GITHUB_OUTPUT"
 
       - name: Check out tagged release source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ steps.recipe.outputs.commit }}
           path: release-source
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: "21"
 
-      - uses: android-actions/setup-android@v3
+      - uses: android-actions/setup-android@v4
         with:
           # Google removed the legacy "tools" package from the SDK repository
           # (2026-09-15); the action's own default ("tools platform-tools")
@@ -124,7 +124,7 @@ jobs:
           test "$(apkanalyzer manifest version-name "$apk")" = "${{ steps.recipe.outputs.version-name }}"
 
       - name: Upload verification APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: mobile-distribution-unsigned-release-apk
           path: release-source/android/app/build/outputs/apk/release/app-release-unsigned.apk
@@ -133,7 +133,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out submission branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           path: submission
 
@@ -162,7 +162,7 @@ jobs:
 
       - name: Upload server-tools build output
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: mobile-distribution-server-tools-output
           path: |

@@ -38,6 +38,7 @@ Items with an owner. An expired lease means the item can be recovered.
 
 Items nobody owns. Take the first one that fits.
 
+- ⬜ **Confirm the local model name in the docs**: The owner confirmed on 2026-11-07 that the local model is Qwen 3.8 27B. Remove the "unverified" hedges in `CONSTITUTION.md` and `documentation/AGENTIC_PDLC.md`.
 - ⬜ **Android camera capture**: Take a photo directly from the "Insert attachment" toolbar. Status: open.
   <!-- agent-state: {"schema":1,"id":"rm-5fc96a0db16f2169","state":"open","touch":[],"resources":["triage-recovery"],"note":"Triage 2026-11-06T23:25Z by claude-code-triage: previous owner hermes-20261030T080439Z-0fdb1a0c lease expired 2026-10-30. No remote or local branch and no handoff exist. Main has no cameraCapture.ts or CameraCapturePlugin; the WIP the 2026-11-01 weekly review saw was uncommitted and is not recoverable. Restart from main. Device-side testing needs an Android device or emulator with camera; split JS bridge and unit tests from device verification.","released_at":"2026-11-06T23:22:16Z"} -->
   Agent: unclaimed | item: rm-5fc96a0db16f2169

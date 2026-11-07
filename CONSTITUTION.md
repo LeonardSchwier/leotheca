@@ -79,7 +79,7 @@ Never hand-author an `agent-state` HTML comment. Only `scripts/agent_ledger.py` 
 | `⏸` | Blocked or verification deferred, no active owner | Record evidence and a retry time/condition; take other work. |
 | `✅` under `## Implemented` | Shipped with completion evidence | Do not reimplement; historic review may identify a new bug. |
 
-Keep `🚧` through post-push verification. Only finish after the verification skill's completion rule is satisfied. Code can be on main while verification is pending; record its SHA and missing checks, never call that green. A successor inspects the recorded SHA and main before writing code, so recovery can finish verification instead of duplicating the feature.
+Keep `🚧` until the change is on main and the local gate passed. Then finish even if hosted CI has not reported, with `hosted CI pending` in the finish note. The landed SHA and the missing checks go into the item's handoff file, and the run ids are appended there when they exist. Pending is never green: a pending run that turns red is a main regression and takes priority over new work. The weekly audit fails a pending item older than 24 hours whose handoff names no run id. A successor inspects the recorded SHA and main before writing code, so recovery can finish verification instead of duplicating the feature.
 
 Legacy `🚧` entries without leases must be inspected and given one finite `legacy_grace_minutes` observation window with the helper. Never reset that window repeatedly. Record item-specific branch/main evidence, infer the touch set conservatively, and recover after that grace expires. If code already landed, claim only remaining scope or verification. Do not infer a human hold from commit name/email: cloud agents often use the owner's identity. Honor an explicit current owner hold, record it as blocked, and proceed elsewhere.
 
@@ -124,7 +124,7 @@ Read `skills/pre-push-verification.md` before every push, without exception, inc
 
 Follow `skills/verification-suite.md` for commands and the CI capability decision table. Run applicable checks locally whenever possible. Full local verification permits direct landing without waiting for duplicate branch CI. When local coverage is incomplete, use hosted branch checks when accessible. Missing CI is not a pass and is not a reason to wait forever. Only the documented limited deferred-verification path permits landing with evidence gaps; known code failures never qualify.
 
-After pushing, inspect checks for the actual landed SHA, not an arbitrary latest run. Fix failures you introduced before taking another feature. Existing main failures take priority as separately claimed repairs. If CI stays queued, inaccessible, or externally broken beyond the configured wait/setup budget, record the exact state and next check in a committed handoff, release the lease, and choose runnable work. An agent capable of the missing verification resumes it first.
+After pushing, inspect checks for the actual landed SHA, not an arbitrary latest run. Fix failures you introduced before taking another feature. Existing main failures take priority as separately claimed repairs. If CI stays queued, inaccessible, or externally broken beyond the configured wait/setup budget, finish with `hosted CI pending` as above (exact state and next check in the committed handoff) instead of holding the lease, and choose runnable work. An agent capable of the missing verification resumes it first.
 
 ## Work selection and productive waiting
 

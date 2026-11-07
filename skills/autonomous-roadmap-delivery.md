@@ -8,7 +8,13 @@ platforms: [linux, macos, windows]
 metadata:
   hermes:
     tags: [roadmap, session-loop, autonomous, leotheca]
-    related_skills: [roadmap-workflow, verification-suite, pre-push-verification, maintenance-review]
+    related_skills:
+      [
+        roadmap-workflow,
+        verification-suite,
+        pre-push-verification,
+        maintenance-review,
+      ]
 ---
 
 <!-- Variables: read CONSTITUTION.md; handoff_dir, setup_minutes, ci_wait_minutes, blocked_recheck_minutes. -->
@@ -35,24 +41,24 @@ This is a prompt for existing runners, not a newly installed scheduler. Differen
 3. Run stages 2-4 of `pdlc-playbook.md`: write the spec with acceptance criteria and tests, record grill rulings and the design-system check. Read the relevant code before editing.
 4. Implement; checkpoint valuable progress; renew leases at the configured interval.
 5. Test and review; fix ordinary engineering failures yourself. Do not release work just because the first test or merge failed.
-6. Integrate current main, retest, and push. Record the landed SHA and inspect its checks.
+6. Integrate current main, retest, and push. Record the landed SHA and inspect its checks; if hosted CI has not reported within `ci_wait_minutes`, finish with `hosted CI pending` and append the run ids to the handoff file later.
 7. Finish only with evidence (playbook stages 6-7, spec archived to `spec/completed/`), or block with a precise deferred-verification record.
 8. Immediately refresh and repeat. One completed item is one iteration, not a reason to end.
 
-During CI waits, use short polls separated by review, log reading, or next-task preparation. Do not claim another implementation item. After `ci_wait_minutes` without a usable result, apply the verification decision table instead of waiting indefinitely. A changed run/error/capability can justify another attempt; the same unchanged blockage does not.
+During CI waits, use short polls separated by review, log reading, or next-task preparation. Do not claim another implementation item. After `ci_wait_minutes` without a usable result, apply the verification decision table instead of waiting indefinitely: with the local gate green and the push landed, finish with `hosted CI pending` rather than holding the claim. Put the landed SHA and missing checks in the handoff, append the run ids when they exist, and treat a pending run that turns red as a main regression with priority over new work. A changed run/error/capability can justify another attempt; the same unchanged blockage does not.
 
 ## Resolve blockers without a human queue
 
-| Situation | Action |
-| --- | --- |
-| Missing declared dependency/tool | Use lockfile/pinned version and the existing setup instructions. Spend up to setup_minutes on a real permitted bootstrap, then choose another verification route. |
-| Type/lint/test/build failure | Read the first real error, reproduce, inspect callers and baseline, fix root cause, retest. Never weaken assertions to match bad output. |
-| Main moved or conflicts | Fetch, check ownership, integrate deliberately, retest. |
-| Another task owns a prerequisite | Use another eligible item, or document a dependency and release. Never steal a live claim. |
-| Newly discovered prerequisite you can fix | Split and record it, release current item, claim prerequisite, then return. |
-| Missing credentials/permissions, unavailable platform, infrastructure outage | Record evidence, checkpoint, release as blocked with a retry condition, and continue runnable work. Do not fabricate credentials or change access controls. |
-| Product-scope conflict | Record it as blocked/out of scope with the relevant rule, and continue. Do not repeatedly ask for the same decision. |
-| No eligible roadmap work | Follow maintenance-review.md, including historic commands and bugs. |
+| Situation                                                                    | Action                                                                                                                                                            |
+| ---------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Missing declared dependency/tool                                             | Use lockfile/pinned version and the existing setup instructions. Spend up to setup_minutes on a real permitted bootstrap, then choose another verification route. |
+| Type/lint/test/build failure                                                 | Read the first real error, reproduce, inspect callers and baseline, fix root cause, retest. Never weaken assertions to match bad output.                          |
+| Main moved or conflicts                                                      | Fetch, check ownership, integrate deliberately, retest.                                                                                                           |
+| Another task owns a prerequisite                                             | Use another eligible item, or document a dependency and release. Never steal a live claim.                                                                        |
+| Newly discovered prerequisite you can fix                                    | Split and record it, release current item, claim prerequisite, then return.                                                                                       |
+| Missing credentials/permissions, unavailable platform, infrastructure outage | Record evidence, checkpoint, release as blocked with a retry condition, and continue runnable work. Do not fabricate credentials or change access controls.       |
+| Product-scope conflict                                                       | Record it as blocked/out of scope with the relevant rule, and continue. Do not repeatedly ask for the same decision.                                              |
+| No eligible roadmap work                                                     | Follow maintenance-review.md, including historic commands and bugs.                                                                                               |
 
 A failed local install proves a setup limitation, not that the code passes. A red check is a code failure until its logs support another classification.
 

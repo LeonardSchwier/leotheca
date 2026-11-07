@@ -45,6 +45,52 @@ class EvidenceProblems(unittest.TestCase):
         self.assertEqual(len(checker.evidence_problems(far)), 1)
 
 
+class PendingEvidence(unittest.TestCase):
+    def setUp(self):
+        import tempfile
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name)
+        (self.root / ".agents" / "handoffs").mkdir(parents=True)
+
+    def finished(self, note, hours_ago, item_id="rm-0123456789abcdef"):
+        from datetime import datetime, timedelta, timezone
+        stamp = (datetime(2026, 11, 8, 12, 0, tzinfo=timezone.utc) - timedelta(hours=hours_ago)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        return item(item_id, "done", note, completed_at=stamp)
+
+    NOW = None
+
+    def now(self):
+        from datetime import datetime, timezone
+        return datetime(2026, 11, 8, 12, 0, tzinfo=timezone.utc)
+
+    def test_a_pending_note_is_accepted(self):
+        self.assertEqual(checker.evidence_problems("Local gate green, hosted CI pending."), [])
+
+    def test_a_young_pending_item_passes_the_audit(self):
+        found = checker.problems_for([self.finished("Landed abc123, hosted CI pending.", 2)], self.root, self.now())
+        self.assertEqual(found, [])
+
+    def test_an_old_pending_item_without_run_ids_fails_the_audit(self):
+        found = checker.problems_for([self.finished("Landed abc123, hosted CI pending.", 30)], self.root, self.now())
+        self.assertEqual(len(found), 1)
+        self.assertIn("more than 24 hours", found[0])
+
+    def test_an_old_pending_item_passes_when_its_handoff_names_a_run(self):
+        (self.root / ".agents" / "handoffs" / "rm-0123456789abcdef.md").write_text("Completion evidence: CI run 42370369419 success, Release 42370369400 success.\n")
+        found = checker.problems_for([self.finished("Landed abc123, hosted CI pending.", 30)], self.root, self.now())
+        self.assertEqual(found, [])
+
+    def test_a_handoff_of_another_item_does_not_count(self):
+        (self.root / ".agents" / "handoffs" / "rm-ffffffffffffffff.md").write_text("CI run 42370369419 success.\n")
+        found = checker.problems_for([self.finished("Landed abc123, hosted CI pending.", 30)], self.root, self.now())
+        self.assertEqual(len(found), 1)
+
+    def test_a_note_with_a_run_id_never_needs_the_handoff(self):
+        found = checker.problems_for([self.finished("Landed abc123, CI run 42370369419 success.", 99)], self.root, self.now())
+        self.assertEqual(found, [])
+
+
 class Selection(unittest.TestCase):
     def test_newly_done_ignores_items_that_were_already_done(self):
         base = [item("a", "done"), item("b", "claimed")]

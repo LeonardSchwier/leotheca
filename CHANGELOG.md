@@ -4,6 +4,7 @@
 
 ### Maintenance
 
+- **Android share hardening**: Sharing into Leotheca now accepts only another app's content URI; file URIs and the app's own provider are rejected, and the unused FileProvider was removed.
 - **Dependency security update**: Updated production dependencies to clear all 8 known vulnerabilities reported by `npm audit` (including two critical: DOMPurify and Capacitor Android). A weekly audit workflow now reports new advisories.
 - **Speech model commands restricted**: Desktop `init_speech_recognition` now takes a model name (tiny, base, small, medium) and loads it from the app's own `whisper-models` directory; `check_whisper_models` takes no path. The renderer can no longer make the app open an arbitrary file.
 - **Documentation corrections**: Removed "Android camera capture" from the new-features list (the repository contains no camera code; the feature is still open on the roadmap). Moved the macOS Quick Look generator out of the shipped features: its source and build scripts are in the repository (`packaging/macos/quicklook/`, `scripts/build-quicklook.sh`), but no release workflow builds or bundles it, so it is not part of the downloadable app. Rewrote `packaging/STATUS.md` in English with the current state, and corrected the version stated in `packaging/f-droid/README.md`.

@@ -1,7 +1,7 @@
 import { useState } from "preact/hooks";
 import { bookmarks, removeBookmark } from "./store";
 import type { Bookmark } from "./types";
-import { EmptyState } from "../ui/EmptyState";
+import { EmptyState, Icon } from "@leonardschwier/leoforma";
 import "./bookmarks.css";
 
 interface BookmarksPanelProps {
@@ -59,7 +59,7 @@ export function BookmarksPanel({
     return (
       <EmptyState
         size="sm"
-        icon="bookmark"
+        icon={<Icon name="bookmark" size={20} />}
         title="No bookmarks yet."
         description="Bookmark a note or saved search to find it here."
       />

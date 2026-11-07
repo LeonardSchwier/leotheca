@@ -1,5 +1,5 @@
 import type { ComponentChildren } from "preact";
-import { Icon as RegistryIcon } from "../../ui/icons";
+import { Icon as RegistryIcon } from "@leonardschwier/leoforma";
 import { Tooltip } from "@leonardschwier/leoforma";
 
 /** UX-01 spec section 13.2: "a fixed navigation strip" for Files,

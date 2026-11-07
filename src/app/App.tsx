@@ -86,7 +86,11 @@ import {
 } from "../workspace/store";
 import { SplitSeparator } from "../editorGroups/SplitSeparator";
 import { SecondaryEditorPane } from "../editorGroups/SecondaryEditorPane";
-import { StatusIndicator } from "@leonardschwier/leoforma";
+import {
+  Icon as RegistryIcon,
+  StatusIndicator,
+  type IconName,
+} from "@leonardschwier/leoforma";
 import { CompactGroupSwitcher } from "../editorGroups/CompactGroupSwitcher";
 import {
   onExternalFileOpen,
@@ -221,7 +225,6 @@ import { ConfirmDialogHost } from "./ConfirmDialogHost";
 import { createSaveCoordinator } from "../workspace/saveCoordinator";
 import { workspaceTransitions } from "../workspace/workspaceTransition";
 import { EmptyEditorState } from "./EmptyEditorState";
-import { Icon as RegistryIcon, type IconName } from "../ui/icons";
 
 // Workspace-scoped stores participate in the same generation-authoritative
 // transition as settings and autosave. Registration is synchronous at module

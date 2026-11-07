@@ -2,12 +2,13 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import type { ViewMode } from "../../settings/workspaceSettings";
 import {
   Button,
+  Icon as RegistryIcon,
   IconButton,
   Menu,
   SegmentedControl,
   StatusIndicator,
+  type IconName,
 } from "@leonardschwier/leoforma";
-import { Icon as RegistryIcon, type IconName } from "../../ui/icons";
 
 /** UX-01 spec section 13.5/UX-005: "Note-specific view, bookmark,
  * Inspector, and overflow actions shall appear in the Document Header or

@@ -3,7 +3,7 @@ import {
   type FrontmatterPropertiesPanelProps,
 } from "../../editor/FrontmatterPropertiesPanel";
 import { BacklinksPanel } from "../../linking/BacklinksPanel";
-import { Icon as RegistryIcon } from "../../ui/icons";
+import { Icon as RegistryIcon } from "@leonardschwier/leoforma";
 
 /** UX-01 spec section 13.7: consolidates Properties and Backlinks into one
  * on-demand panel "without permanently reducing editor height" -- the

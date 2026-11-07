@@ -950,7 +950,7 @@ Only numbers that exist in code, configuration or an observed run appear here. N
 | --- | --- | --- |
 | `ci.yml` | Push (ignoring `ROADMAP.md` and `.agents/handoffs/**`), PR, call | Jobs `frontend`, `e2e`, `backend`, `android`, `appimage-smoke`, `validation` (`validation` requires every other job) |
 | `rules.yml` | Push, PR, weekly schedule | Commit convention, added-line rules, secret-shaped tokens, dependency intake, fast-forward-only main, prettier on changed files, licenses, action pinning, `npm audit` (reported, non-blocking until triaged) |
-| `agent-policy.yml` | Push and PR on policy paths; weekly schedule (Monday 05:17 UTC) | Python helper tests, ledger and roadmap format, hosted CI evidence in finished items; the schedule runs only the `ledger-audit` job |
+| `agent-policy.yml` | Push on policy paths; every pull request and merge-queue run; weekly schedule (Monday 05:17 UTC) | Python helper tests, ledger and roadmap format, hosted CI evidence in finished items; the schedule runs only the `ledger-audit` job |
 | `release.yml` | Tag `v*`, implementation push to main, manual | Builds Linux, Android, Flatpak, macOS, Windows, then publishes |
 | `flathub-submission-verify.yml`, `fdroid-submission-verify.yml` | Workflow-defined | Verify store recipes |
 
@@ -1116,4 +1116,5 @@ Newest first. Each entry is `YYYY-MM-DD: what changed in behavior, contracts, fo
 - 2026-11-06: Fixed a temp-file name collision in `write_file_atomically` (native atomic overwrite): two writes to the same target in the same millisecond on one process could silently overwrite each other's in-flight temp file, so the loser's rename failed with a spurious error while the winner's reported success actually held the other call's content. Temp names now carry a per-process monotonic sequence number as well as the existing timestamp/PID, so no two calls can collide. No caller-visible behavior change. Added FR-FS-013.
 - 2026-11-06: First version, written from the code on main at application version 1.0.0.
 - 2026-11-07: Release workflow: the publish job now runs in a concurrency group per release (tag, or dev-build) with cancel-in-progress false, so overlapping runs no longer race on release assets. No application behavior changed.
+- 2026-11-07: Process: `ci.yml`, `rules.yml` and `agent-policy.yml` also run on `merge_group`, and `agent-policy.yml` no longer filters pull requests by path, so a required check is never skipped for the merge queue (`documentation/BRANCH_MODEL.md`). No application behavior changed.
 <!-- change-log:end -->

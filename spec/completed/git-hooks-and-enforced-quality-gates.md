@@ -50,3 +50,6 @@ No UI surface.
 ## Evidence
 
 Filled at finish.
+
+## Evidence
+Landed 2f798cf, afa4a2a, b4a6a9e, 4a5ccb1. Hosted CI on 4a5ccb1: CI run 42313896683 success, Rules run 42313896679 success, Agent policy run 42313896798 success; its Release run 42313896810 failed in the release pipeline, tracked and fixed under the separate Release item, and Release is green on 1a672b8 (run 42315044185). Main at 1a672b8 also has CI 42315044064 and Rules 42315044043 success. Local evidence by the implementing session: hooks run for real (pre-commit rejected a staged token, em dash and conflict marker; commit-msg rejected a bad message; pre-push refused a simulated force push and a main deletion), vitest 3287 passed. Not verified: gitleaks run path (binary download refused in the sandbox), Gradle dependency intake, PreToolUse wiring for the guard (documented, not enabled), Playwright step in pre-push (no suite on main).

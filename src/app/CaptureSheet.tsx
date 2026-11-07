@@ -15,10 +15,17 @@ import {
 } from "../capture/captureDestinations";
 import { bookmarks } from "../bookmarks/store";
 import { findAllFiles } from "../workspace/tauriBridge";
-import { relativePath, listTemplates, type NoteTemplate } from "../workspace/fileTreeStore";
+import {
+  relativePath,
+  listTemplates,
+  type NoteTemplate,
+} from "../workspace/fileTreeStore";
 import { Sheet } from "../ui/Sheet";
 import { appendTranscript, useCaptureVoice } from "../capture/captureVoice";
-import { loadCaptureTemplate, renderCaptureTemplate } from "../capture/captureTemplate";
+import {
+  loadCaptureTemplate,
+  renderCaptureTemplate,
+} from "../capture/captureTemplate";
 
 // F05-FR-27: Accessibility announcement signal
 export const captureAnnouncement = signal("");
@@ -34,13 +41,17 @@ export const captureTargetProfileId = signal<string | undefined>(undefined); // 
 
 // ── Quick Capture target picker signals ────────────────────────────────────
 /** The kind of capture target the user selected: inbox | daily | specific. */
-export const captureTargetKind = signal<"inbox" | "daily" | "specific">("inbox");
+export const captureTargetKind = signal<"inbox" | "daily" | "specific">(
+  "inbox",
+);
 /** Absolute note path for "specific" targets; empty otherwise. */
 export const captureTargetPath = signal("");
 /** Memoized target options (rebuilt when the sheet opens). */
 export const captureTargetOptions = signal<CaptureTargetOption[]>([]);
 /** Workspace markdown notes for the specific-note picker (loaded on demand). */
-export const captureNoteList = signal<Array<{ label: string; path: string }>>([]);
+export const captureNoteList = signal<Array<{ label: string; path: string }>>(
+  [],
+);
 export const captureNoteListLoading = signal(false);
 
 // ── Quick Capture optional template ────────────────────────────────────────
@@ -97,7 +108,8 @@ export function CaptureSheet({ onCreated }: CaptureSheetProps) {
   // Local voice input: only active when the opt-in speech-to-text setting is
   // on and the sheet is open, so nothing touches the microphone otherwise.
   const voice = useCaptureVoice({
-    enabled: workspaceSettings.value.speechToTextEnabled && captureSheetOpen.value,
+    enabled:
+      workspaceSettings.value.speechToTextEnabled && captureSheetOpen.value,
     onTranscript: (text) => {
       captureContent.value = appendTranscript(captureContent.value, text);
       announceCaptureMessage("Voice note added to capture");
@@ -109,7 +121,9 @@ export function CaptureSheet({ onCreated }: CaptureSheetProps) {
   useEffect(() => {
     if (captureSheetOpen.value) {
       const fileBookmarks = bookmarks.value
-        .filter((b): b is Extract<typeof b, { kind: "file" }> => b.kind === "file")
+        .filter(
+          (b): b is Extract<typeof b, { kind: "file" }> => b.kind === "file",
+        )
         .map((b) => ({ id: b.id, label: b.label, path: b.path }));
       captureTargetOptions.value = buildCaptureTargetOptions(
         {
@@ -120,7 +134,10 @@ export function CaptureSheet({ onCreated }: CaptureSheetProps) {
         workspacePath.value ?? undefined,
       );
       // Reset to inbox if not already set by openCaptureSheetWithData
-      if (captureTargetKind.value === "inbox" && captureTargetPath.value === "") {
+      if (
+        captureTargetKind.value === "inbox" &&
+        captureTargetPath.value === ""
+      ) {
         // default: inbox
       }
     }
@@ -184,7 +201,12 @@ export function CaptureSheet({ onCreated }: CaptureSheetProps) {
     return () => {
       cancelled = true;
     };
-  }, [captureSheetOpen.value, workspacePath.value, workspaceSettings.value.templatesEnabled, workspaceSettings.value.templatesFolder]);
+  }, [
+    captureSheetOpen.value,
+    workspacePath.value,
+    workspaceSettings.value.templatesEnabled,
+    workspaceSettings.value.templatesFolder,
+  ]);
 
   // F05-FR-27: Announce destination changes for screen readers
   useEffect(() => {
@@ -245,10 +267,9 @@ export function CaptureSheet({ onCreated }: CaptureSheetProps) {
       let resultName = "";
 
       // Resolve the target option from the picker
-      const option =
-        captureTargetOptions.value.find(
-          (o) => o.kind === targetKind,
-        ) ?? { kind: targetKind, label: targetKind };
+      const option = captureTargetOptions.value.find(
+        (o) => o.kind === targetKind,
+      ) ?? { kind: targetKind, label: targetKind };
 
       // For "specific" targets, the path comes from the user-typed field
       const effectiveOption: CaptureTargetOption =
@@ -287,8 +308,12 @@ export function CaptureSheet({ onCreated }: CaptureSheetProps) {
           });
         } catch (templateError) {
           const reason =
-            templateError instanceof Error ? templateError.message : "Template could not be read";
-          setSubmitError(`${reason}. Choose "None" under Template to capture without it.`);
+            templateError instanceof Error
+              ? templateError.message
+              : "Template could not be read";
+          setSubmitError(
+            `${reason}. Choose "None" under Template to capture without it.`,
+          );
           announceCaptureMessage(`Capture not saved: ${reason}`);
           return;
         }
@@ -490,9 +515,7 @@ export function CaptureSheet({ onCreated }: CaptureSheetProps) {
         </div>
 
         <div class="capture-sheet-field">
-          <label
-            for="capture-target"
-          >
+          <label for="capture-target">
             Capture into <span class="sr-only">(required)</span>
           </label>
           <select
@@ -501,9 +524,7 @@ export function CaptureSheet({ onCreated }: CaptureSheetProps) {
             value={targetKind}
             onChange={(e) => {
               captureTargetKind.value = e.currentTarget.value as
-                | "inbox"
-                | "daily"
-                | "specific";
+                "inbox" | "daily" | "specific";
               // Reset path when switching away from "specific"
               if (e.currentTarget.value !== "specific") {
                 captureTargetPath.value = "";
@@ -573,7 +594,8 @@ export function CaptureSheet({ onCreated }: CaptureSheetProps) {
               ))}
             </select>
             <span id="template-hint" class="sr-only">
-              Optional. Shapes this capture with a template from the templates folder.
+              Optional. Shapes this capture with a template from the templates
+              folder.
             </span>
           </div>
         )}
@@ -614,9 +636,7 @@ export function CaptureSheet({ onCreated }: CaptureSheetProps) {
           {targetKind === "specific" && (
             <span>
               Destination:{" "}
-              <strong>
-                {captureTargetPath.value || "Select a note…"}
-              </strong>
+              <strong>{captureTargetPath.value || "Select a note…"}</strong>
             </span>
           )}
         </div>
@@ -644,7 +664,11 @@ export function CaptureSheet({ onCreated }: CaptureSheetProps) {
             type="button"
             class={`capture-sheet-voice-button${voice.state === "recording" ? " recording" : ""}`}
             onClick={voice.toggle}
-            disabled={isSubmitting || voice.state === "starting" || voice.state === "transcribing"}
+            disabled={
+              isSubmitting ||
+              voice.state === "starting" ||
+              voice.state === "transcribing"
+            }
             aria-pressed={voice.state === "recording"}
           >
             {voice.state === "recording"

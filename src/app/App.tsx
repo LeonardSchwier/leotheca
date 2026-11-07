@@ -1,8 +1,17 @@
 import { batch, computed, effect, signal, useSignal } from "@preact/signals";
-import { useCallback, useEffect, useMemo, useRef, useState } from "preact/hooks";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "preact/hooks";
 import { Capacitor } from "@capacitor/core";
 import { App as CapacitorApp } from "@capacitor/app";
-import { getCurrent as getCurrentDeepLinkUrls, onOpenUrl } from "@tauri-apps/plugin-deep-link";
+import {
+  getCurrent as getCurrentDeepLinkUrls,
+  onOpenUrl,
+} from "@tauri-apps/plugin-deep-link";
 import { writeText as writeClipboardText } from "@tauri-apps/plugin-clipboard-manager";
 import { Sidebar } from "../workspace/Sidebar";
 import { TabBar } from "../workspace/TabBar";
@@ -14,11 +23,28 @@ import { ImageViewer } from "../editor/ImageViewer";
 import { ImageViewerOverlay } from "../editor/ImageViewerOverlay";
 import { PdfViewer } from "../pdf/PdfViewer";
 import { printNoteHtml } from "../export/printNote";
-import { inlineLocalImages, buildExportDocument } from "../export/exportNoteHtml";
-import { exportTextFileViaDialog, pickMarkdownFileToOpen } from "../workspace/tauriBridgeImpl";
-import { printNote as printNoteAndroid, exportNoteHtml as exportNoteHtmlAndroid } from "../workspace/capacitorBridgeImpl";
-import { CaptureSheet, captureSheetOpen, openCaptureSheet } from "./CaptureSheet";
-import { PendingCapturesPanel, initPendingCaptures, processAndroidPendingShareData } from "../capture";
+import {
+  inlineLocalImages,
+  buildExportDocument,
+} from "../export/exportNoteHtml";
+import {
+  exportTextFileViaDialog,
+  pickMarkdownFileToOpen,
+} from "../workspace/tauriBridgeImpl";
+import {
+  printNote as printNoteAndroid,
+  exportNoteHtml as exportNoteHtmlAndroid,
+} from "../workspace/capacitorBridgeImpl";
+import {
+  CaptureSheet,
+  captureSheetOpen,
+  openCaptureSheet,
+} from "./CaptureSheet";
+import {
+  PendingCapturesPanel,
+  initPendingCaptures,
+  processAndroidPendingShareData,
+} from "../capture";
 import { classifyWorkspaceResource } from "../workspace/types";
 import { CanvasView } from "../canvas/CanvasView";
 import { InkView } from "../ink/InkView";
@@ -62,10 +88,17 @@ import { SplitSeparator } from "../editorGroups/SplitSeparator";
 import { SecondaryEditorPane } from "../editorGroups/SecondaryEditorPane";
 import { StatusIndicator } from "../ui/StatusIndicator";
 import { CompactGroupSwitcher } from "../editorGroups/CompactGroupSwitcher";
-import { onExternalFileOpen, readTextFile, takePendingExternalFile } from "../workspace/tauriBridge";
+import {
+  onExternalFileOpen,
+  readTextFile,
+  takePendingExternalFile,
+} from "../workspace/tauriBridge";
 import type { ExternalMarkdownFile } from "../workspace/tauriBridge";
 import { isPathWithinWorkspace } from "../workspace/paths";
-import { beginFileOpenAuthority, isCurrentFileOpen } from "../workspace/fileOpenAuthority";
+import {
+  beginFileOpenAuthority,
+  isCurrentFileOpen,
+} from "../workspace/fileOpenAuthority";
 import {
   addWorkspaceFromPath,
   externalFileOpenEnabled,
@@ -88,8 +121,15 @@ import { WorkspaceSwitcher } from "../settings/WorkspaceSwitcher";
 import { BacklinksPanel } from "../linking/BacklinksPanel";
 import { OutlinePanel } from "../outline/OutlinePanel";
 import { OutlineLiveRegion } from "../outline/OutlineLiveRegion";
-import { announceOutline, headingNavigationAnnouncement } from "../outline/outlineAnnouncements";
-import { outlineInsertRequest, outlineRevealRequest, requestOutlineReveal } from "../outline/outlineNavigation";
+import {
+  announceOutline,
+  headingNavigationAnnouncement,
+} from "../outline/outlineAnnouncements";
+import {
+  outlineInsertRequest,
+  outlineRevealRequest,
+  requestOutlineReveal,
+} from "../outline/outlineNavigation";
 import {
   blockLinkCopyRequest,
   blockLinkCreateRequest,
@@ -97,12 +137,21 @@ import {
   requestCreateBlockLinkAtCursor,
 } from "../editor/blockLinkRequest";
 
-import { requestTableCommand, tableCommandRequest } from "../editor/tableCommandRequest";
+import {
+  requestTableCommand,
+  tableCommandRequest,
+} from "../editor/tableCommandRequest";
 import { HeadingBreadcrumbs } from "../outline/HeadingBreadcrumbs";
-import { nextSplitAuthority, type SplitAuthority } from "../outline/splitAuthority";
+import {
+  nextSplitAuthority,
+  type SplitAuthority,
+} from "../outline/splitAuthority";
 import { scanHeadings } from "../markdown/headings";
 import { scanBlockIds } from "../markdown/blocks";
-import { resolveBlockFragment, resolveHeadingFragment } from "../linking/wikiResolver";
+import {
+  resolveBlockFragment,
+  resolveHeadingFragment,
+} from "../linking/wikiResolver";
 import {
   linkIndexBuilding,
   linkIndexUnreadablePaths,
@@ -110,7 +159,12 @@ import {
   resetLinkIndexCache,
 } from "../linking/store";
 import { BookmarksPanel } from "../bookmarks/BookmarksPanel";
-import { addFileBookmark, bookmarks, loadBookmarks, removeBookmark } from "../bookmarks/store";
+import {
+  addFileBookmark,
+  bookmarks,
+  loadBookmarks,
+  removeBookmark,
+} from "../bookmarks/store";
 import { resetWorkspaceTree } from "../workspace/fileTreeStore";
 import { TagsPanel } from "../tags/TagsPanel";
 import { TaskHubPanel } from "../tasks/TaskHubPanel";
@@ -148,10 +202,18 @@ import "./resizable-sidebar.css";
 import { GraphView } from "../graph/GraphView";
 import { MarkdownHelpDialog } from "./MarkdownHelpDialog";
 import { CommandPalette, type Command } from "./CommandPalette";
-import { nextUiZoom, zoomActionForKey, zoomActionForWheel } from "./zoomControls";
+import {
+  nextUiZoom,
+  zoomActionForKey,
+  zoomActionForWheel,
+} from "./zoomControls";
 import { nextFontSize } from "./fontSizeControls";
 import { isNarrowViewport } from "./responsiveLayout";
-import { classifyLayout, navigationPanelOverlays, showsActivityRail } from "./layout/adaptiveLayout";
+import {
+  classifyLayout,
+  navigationPanelOverlays,
+  showsActivityRail,
+} from "./layout/adaptiveLayout";
 import { ActivityRail } from "./layout/ActivityRail";
 import { DocumentHeader } from "./layout/DocumentHeader";
 import { Inspector, type InspectorTab } from "./layout/Inspector";
@@ -167,7 +229,6 @@ import { Icon as RegistryIcon, type IconName } from "../ui/icons";
 // publish a workspace. This replaces the old post-render session effects.
 workspaceTransitions.registerReset(resetWorkspaceTree);
 workspaceTransitions.registerReset(resetLinkIndexCache);
-
 
 const VIEW_MODE_ICONS: Record<ViewMode, IconName> = {
   source: "code",
@@ -201,7 +262,9 @@ const inspectorOpen = signal(false);
 const inspectorTab = signal<InspectorTab>("properties");
 
 // RTL Phase 2: Derived signal for workspace-level RTL mode
-const rtlWorkspaceEnabled = computed(() => workspaceSettings.value.rtlWorkspaceEnabled);
+const rtlWorkspaceEnabled = computed(
+  () => workspaceSettings.value.rtlWorkspaceEnabled,
+);
 
 function toggleSidebarPanel(panel: typeof bookmarksOpen): void {
   const next = !panel.value;
@@ -282,15 +345,18 @@ export function App() {
   // Task Hub and Collections have no Activity Rail slot in the base spec
   // (see ActivityRailProps' own doc comment), so the rail shows no
   // selection while either is open rather than a misleading one.
-  const activeNavDestination: "files" | "bookmarks" | "tags" | null = !sidebarOpen.value
-    ? null
-    : tagsOpen.value && workspaceSettings.value.tagsEnabled
-      ? "tags"
-      : taskHubOpen.value || (collectionsOpen.value && workspaceSettings.value.collectionsEnabled)
-        ? null
-        : bookmarksOpen.value
-          ? "bookmarks"
-          : "files";
+  const activeNavDestination: "files" | "bookmarks" | "tags" | null =
+    !sidebarOpen.value
+      ? null
+      : tagsOpen.value && workspaceSettings.value.tagsEnabled
+        ? "tags"
+        : taskHubOpen.value ||
+            (collectionsOpen.value &&
+              workspaceSettings.value.collectionsEnabled)
+          ? null
+          : bookmarksOpen.value
+            ? "bookmarks"
+            : "files";
   // Spec 8.2: in compact layout, only the switcher's currently-selected
   // group is mounted (never both at once); outside compact layout, both
   // panes and the separator render as before, unaffected by
@@ -303,32 +369,42 @@ export function App() {
     editorLayout.value.compactVisibleGroupId === "primary";
   const showSecondaryPane =
     editorLayout.value.splitEnabled &&
-    (!isCompactLayout || editorLayout.value.compactVisibleGroupId === "secondary");
+    (!isCompactLayout ||
+      editorLayout.value.compactVisibleGroupId === "secondary");
   const showSeparator = editorLayout.value.splitEnabled && !isCompactLayout;
   const rootPath = workspacePath.value;
   const session = workspaceSession.value;
-  const save = useMemo(() => createSaveCoordinator({
-    // Keeps the Task Hub's own `tasksByPath` projection current for an
-    // ordinary editor edit (typing a task's checkbox open/closed, or any
-    // other edit to a task line), not just a toggle driven by the Task
-    // Hub's own checkbox: without this, a note saved while the panel is
-    // already open never updates it until the panel is closed and
-    // reopened (which forces a full rebuildLinkIndex). The tab's own
-    // current content is read here rather than threaded through the
-    // coordinator's callback signature, since it is already the same
-    // content this save just wrote (a still-open tab is the only source
-    // `save.change` ever writes from).
-    onSaveStart: (path: string) => markTabSaving(path),
-    onSaved: (path: string) => {
-      markTabSaved(path);
-      clearTabSaveError(path);
-      const content = openTabs.value.find((tab) => tab.path === path)?.content;
-      if (content !== undefined) replaceIndexedTasks(path, content);
-      refresh();
-    },
-    onError: (path: string, error: string) => markTabSaveError(path, error),
-  }), [refresh]);
-  const [tabRename, setTabRename] = useState<{ path: string; name: string } | null>(null);
+  const save = useMemo(
+    () =>
+      createSaveCoordinator({
+        // Keeps the Task Hub's own `tasksByPath` projection current for an
+        // ordinary editor edit (typing a task's checkbox open/closed, or any
+        // other edit to a task line), not just a toggle driven by the Task
+        // Hub's own checkbox: without this, a note saved while the panel is
+        // already open never updates it until the panel is closed and
+        // reopened (which forces a full rebuildLinkIndex). The tab's own
+        // current content is read here rather than threaded through the
+        // coordinator's callback signature, since it is already the same
+        // content this save just wrote (a still-open tab is the only source
+        // `save.change` ever writes from).
+        onSaveStart: (path: string) => markTabSaving(path),
+        onSaved: (path: string) => {
+          markTabSaved(path);
+          clearTabSaveError(path);
+          const content = openTabs.value.find(
+            (tab) => tab.path === path,
+          )?.content;
+          if (content !== undefined) replaceIndexedTasks(path, content);
+          refresh();
+        },
+        onError: (path: string, error: string) => markTabSaveError(path, error),
+      }),
+    [refresh],
+  );
+  const [tabRename, setTabRename] = useState<{
+    path: string;
+    name: string;
+  } | null>(null);
   const [tabRenameError, setTabRenameError] = useState<string | null>(null);
   const renamePreview = useRenamePreview();
   const [templatePicker, setTemplatePicker] = useState<{
@@ -338,11 +414,21 @@ export function App() {
   // ROADMAP.md's "Open a Markdown file from outside the workspace via OS
   // file association": read-only scratch-view state for a note opened
   // this way whose path resolves outside every currently open workspace.
-  const [externalFile, setExternalFile] = useState<{ path: string; name: string; content: string } | null>(null);
-  const [externalFileOpeningWorkspace, setExternalFileOpeningWorkspace] = useState(false);
-  const [externalFileWorkspaceError, setExternalFileWorkspaceError] = useState<string | null>(null);
+  const [externalFile, setExternalFile] = useState<{
+    path: string;
+    name: string;
+    content: string;
+  } | null>(null);
+  const [externalFileOpeningWorkspace, setExternalFileOpeningWorkspace] =
+    useState(false);
+  const [externalFileWorkspaceError, setExternalFileWorkspaceError] = useState<
+    string | null
+  >(null);
   // Fullscreen image viewer overlay state
-  const [imageOverlay, setImageOverlay] = useState<{ src: string; alt: string } | null>(null);
+  const [imageOverlay, setImageOverlay] = useState<{
+    src: string;
+    alt: string;
+  } | null>(null);
   const handleImageClick = useCallback((src: string, alt: string) => {
     setImageOverlay({ src, alt });
   }, []);
@@ -370,7 +456,9 @@ export function App() {
   // Preview-mode counterpart to cursorPos (spec section 7.4): the index,
   // among MarkdownPreview's own rendered heading elements, that has
   // crossed the reading threshold.
-  const [previewActiveIndex, setPreviewActiveIndex] = useState<number | undefined>(undefined);
+  const [previewActiveIndex, setPreviewActiveIndex] = useState<
+    number | undefined
+  >(undefined);
   // Split-mode breadcrumb authority (spec section 7.5): which of
   // cursorPos/previewActiveIndex above HeadingBreadcrumbs should actually
   // follow while both panes are visible. Only consulted when viewMode is
@@ -379,7 +467,8 @@ export function App() {
   // regardless of the current view mode, so it already reflects the
   // right pane the moment the user switches into Split. See
   // src/outline/splitAuthority.ts for the transition rule itself.
-  const [splitAuthority, setSplitAuthority] = useState<SplitAuthority>("source");
+  const [splitAuthority, setSplitAuthority] =
+    useState<SplitAuthority>("source");
 
   useEffect(() => {
     const p = initSettings();
@@ -396,11 +485,16 @@ export function App() {
   }, []);
 
   effect(() => {
-    if (bookmarksOpen.value && workspacePath.value) void loadBookmarks(workspacePath.value);
+    if (bookmarksOpen.value && workspacePath.value)
+      void loadBookmarks(workspacePath.value);
   });
 
   effect(() => {
-    if (collectionsOpen.value && workspaceSettings.value.collectionsEnabled && workspacePath.value)
+    if (
+      collectionsOpen.value &&
+      workspaceSettings.value.collectionsEnabled &&
+      workspacePath.value
+    )
       void loadCollections(workspacePath.value);
   });
 
@@ -463,12 +557,19 @@ export function App() {
     async (
       path: string,
       name: string,
-      options?: { headingKey?: string; blockId?: string; searchQuery?: string; otherGroup?: boolean; sourceNotePath?: string },
+      options?: {
+        headingKey?: string;
+        blockId?: string;
+        searchQuery?: string;
+        otherGroup?: boolean;
+        sourceNotePath?: string;
+      },
     ) => {
       const authority = beginFileOpenAuthority();
       const kind = classifyWorkspaceResource(path);
       if (kind === "image") {
-        if (options?.otherGroup) openPathInOtherGroup(path, name, "", "image", options.sourceNotePath);
+        if (options?.otherGroup)
+          openPathInOtherGroup(path, name, "", "image", options.sourceNotePath);
         else openOrFocusTab(path, name, "", "image", options?.searchQuery);
       } else {
         let content: string;
@@ -486,20 +587,41 @@ export function App() {
         // not the disk read. openDocuments, not openTabs: the canonical
         // document list is group-agnostic, so this also finds a tab open
         // only in the secondary group.
-        const existingDocument = openDocuments.value.find((document) => document.path === path);
+        const existingDocument = openDocuments.value.find(
+          (document) => document.path === path,
+        );
         const effectiveContent = existingDocument?.content ?? content;
         batch(() => {
-          if (options?.otherGroup) openPathInOtherGroup(path, name, content, kind, options.sourceNotePath);
+          if (options?.otherGroup)
+            openPathInOtherGroup(
+              path,
+              name,
+              content,
+              kind,
+              options.sourceNotePath,
+            );
           else openOrFocusTab(path, name, content, kind, options?.searchQuery);
           if (options?.headingKey) {
-            const match = resolveHeadingFragment(scanHeadings(effectiveContent), options.headingKey);
+            const match = resolveHeadingFragment(
+              scanHeadings(effectiveContent),
+              options.headingKey,
+            );
             if (match.status === "resolved") {
-              requestOutlineReveal(match.heading.contentFrom, match.heading.contentTo);
+              requestOutlineReveal(
+                match.heading.contentFrom,
+                match.heading.contentTo,
+              );
             }
           } else if (options?.blockId) {
-            const match = resolveBlockFragment(scanBlockIds(effectiveContent), options.blockId);
+            const match = resolveBlockFragment(
+              scanBlockIds(effectiveContent),
+              options.blockId,
+            );
             if (match.status === "resolved") {
-              requestOutlineReveal(match.block.contentFrom, match.block.contentTo);
+              requestOutlineReveal(
+                match.block.contentFrom,
+                match.block.contentTo,
+              );
             }
           }
         });
@@ -512,7 +634,10 @@ export function App() {
 
   const handleSelectTemplate = async (template: NoteTemplate) => {
     if (!templatePicker) return;
-    const { path, name } = await createNoteFromTemplate(templatePicker.targetDir, template);
+    const { path, name } = await createNoteFromTemplate(
+      templatePicker.targetDir,
+      template,
+    );
     setTemplatePicker(null);
     await handleOpenFile(path, name);
   };
@@ -523,7 +648,8 @@ export function App() {
       if (!command) return;
       if (command.kind === "read-current-note") {
         const activeNote = activeTab();
-        if (activeNote?.kind === "text") void writeClipboardText(activeNote.content);
+        if (activeNote?.kind === "text")
+          void writeClipboardText(activeNote.content);
         return;
       }
       if (command.kind === "open-favorites") {
@@ -556,7 +682,10 @@ export function App() {
         // exercises the genuine no-workspace case (settings loaded, but
         // workspacePath still null).
         await waitForSettingsLoaded();
-        if (!workspacePath.value || !isPathWithinWorkspace(workspacePath.value, command.path)) {
+        if (
+          !workspacePath.value ||
+          !isPathWithinWorkspace(workspacePath.value, command.path)
+        ) {
           return;
         }
         const name = command.path.slice(command.path.lastIndexOf("/") + 1);
@@ -576,19 +705,27 @@ export function App() {
         const sourceUrl = command.url;
         const profile = command.profile; // F05-FR-08: Target profile UUID
         const shouldOpen = command.open ?? true;
-        
+
         // F05-FR-03: External deep-link captures shall require user review before writing
         if (!workspacePath.value) {
           // Queue capture if no workspace is available
-          const { queueCaptureIfNoWorkspace } = await import("../capture/captureProcessor");
+          const { queueCaptureIfNoWorkspace } =
+            await import("../capture/captureProcessor");
           queueCaptureIfNoWorkspace(
-            { text, title, sourceUrl, mode, targetProfileId: profile, openAfterCommit: shouldOpen },
+            {
+              text,
+              title,
+              sourceUrl,
+              mode,
+              targetProfileId: profile,
+              openAfterCommit: shouldOpen,
+            },
             workspacePath.value,
-            "deep-link"
+            "deep-link",
           );
           return;
         }
-        
+
         // When workspace is available, open CaptureSheet for user review
         const { openCaptureSheetWithData } = await import("./CaptureSheet");
         openCaptureSheetWithData({
@@ -597,7 +734,7 @@ export function App() {
           sourceUrl,
           mode: mode as "append" | "new" | "date",
           targetProfileId: profile,
-          openAfterCapture: shouldOpen
+          openAfterCapture: shouldOpen,
         });
         return;
       }
@@ -615,7 +752,10 @@ export function App() {
         await waitForSettingsLoaded();
         if (!workspacePath.value) return;
         const targetDir = selectedDir.value ?? workspacePath.value;
-        const { path, name } = await createNoteQuick(targetDir, command.content);
+        const { path, name } = await createNoteQuick(
+          targetDir,
+          command.content,
+        );
         await handleOpenFile(path, name);
         return;
       }
@@ -626,15 +766,22 @@ export function App() {
   useEffect(() => {
     if (Capacitor.isNativePlatform()) {
       let listener: { remove: () => Promise<void> } | undefined;
-      void CapacitorApp.getLaunchUrl().then((result) => result?.url && void runAutomationUrl(result.url));
-      void CapacitorApp.addListener("appUrlOpen", ({ url }) => void runAutomationUrl(url)).then((next) => (listener = next));
+      void CapacitorApp.getLaunchUrl().then(
+        (result) => result?.url && void runAutomationUrl(result.url),
+      );
+      void CapacitorApp.addListener(
+        "appUrlOpen",
+        ({ url }) => void runAutomationUrl(url),
+      ).then((next) => (listener = next));
       return () => void listener?.remove();
     }
     let cancelled = false;
     void getCurrentDeepLinkUrls().then((urls) => {
       if (!cancelled) urls?.forEach((url) => void runAutomationUrl(url));
     });
-    const unlistenPromise = onOpenUrl((urls) => urls.forEach((url) => void runAutomationUrl(url)));
+    const unlistenPromise = onOpenUrl((urls) =>
+      urls.forEach((url) => void runAutomationUrl(url)),
+    );
     return () => {
       cancelled = true;
       void unlistenPromise.then((unlisten) => unlisten());
@@ -671,7 +818,10 @@ export function App() {
       const name = file.path.slice(
         Math.max(file.path.lastIndexOf("/"), file.path.lastIndexOf("\\")) + 1,
       );
-      if (workspacePath.value && isPathWithinWorkspace(workspacePath.value, file.path)) {
+      if (
+        workspacePath.value &&
+        isPathWithinWorkspace(workspacePath.value, file.path)
+      ) {
         try {
           await handleOpenFile(file.path, name);
           // A second external open landing inside the workspace supersedes
@@ -713,7 +863,9 @@ export function App() {
     void takePendingExternalFile().then((file) => {
       if (!cancelled && file) void handleExternalFileOpen(file);
     });
-    const unlisten = onExternalFileOpen((file) => void handleExternalFileOpen(file));
+    const unlisten = onExternalFileOpen(
+      (file) => void handleExternalFileOpen(file),
+    );
     return () => {
       cancelled = true;
       unlisten();
@@ -742,7 +894,10 @@ export function App() {
     if (!externalFile) return;
     const folder = externalFile.path.slice(
       0,
-      Math.max(externalFile.path.lastIndexOf("/"), externalFile.path.lastIndexOf("\\")),
+      Math.max(
+        externalFile.path.lastIndexOf("/"),
+        externalFile.path.lastIndexOf("\\"),
+      ),
     );
     setExternalFileOpeningWorkspace(true);
     setExternalFileWorkspaceError(null);
@@ -767,9 +922,12 @@ export function App() {
     [session, save],
   );
 
-  const flushPendingAutosave = useCallback(async (path: string) => {
-    await save.flush(session, path);
-  }, [session, save]);
+  const flushPendingAutosave = useCallback(
+    async (path: string) => {
+      await save.flush(session, path);
+    },
+    [session, save],
+  );
 
   /** Spec 6.4: "If any affected document has an unresolved save error,
    * group close first presents the existing save-recovery flow." Reuses
@@ -780,7 +938,9 @@ export function App() {
     const blocking = secondaryOpenTabs.value.find((tab) => tab.saveError);
     if (blocking) {
       focusTab(blocking.path);
-      window.alert(`Couldn't close: "${blocking.name}" has an unresolved save error. Resolve or retry it first.`);
+      window.alert(
+        `Couldn't close: "${blocking.name}" has an unresolved save error. Resolve or retry it first.`,
+      );
       refresh();
       return;
     }
@@ -797,11 +957,12 @@ export function App() {
         if (!workspacePath.value) return;
         e.preventDefault();
         const next = nextUiZoom(workspaceSettings.value.uiZoom, zoomAction);
-        if (next !== workspaceSettings.value.uiZoom) void updateWorkspaceSettings({ uiZoom: next });
+        if (next !== workspaceSettings.value.uiZoom)
+          void updateWorkspaceSettings({ uiZoom: next });
       } else if (key === "n" && rootPath) {
         e.preventDefault();
-        void createNoteQuick(selectedDir.value ?? rootPath).then(({ path, name }) =>
-          handleOpenFile(path, name),
+        void createNoteQuick(selectedDir.value ?? rootPath).then(
+          ({ path, name }) => handleOpenFile(path, name),
         );
       } else if (key === "k") {
         e.preventDefault();
@@ -813,7 +974,9 @@ export function App() {
       } else if (key === "tab" && openTabs.value.length > 1) {
         e.preventDefault();
         const tabs = openTabs.value;
-        const currentIndex = tabs.findIndex((t) => t.path === activeTabPath.value);
+        const currentIndex = tabs.findIndex(
+          (t) => t.path === activeTabPath.value,
+        );
         const delta = e.shiftKey ? -1 : 1;
         const nextIndex = (currentIndex + delta + tabs.length) % tabs.length;
         focusTab(tabs[nextIndex].path);
@@ -846,7 +1009,8 @@ export function App() {
       if (!zoomAction) return;
       e.preventDefault();
       const next = nextUiZoom(workspaceSettings.value.uiZoom, zoomAction);
-      if (next !== workspaceSettings.value.uiZoom) void updateWorkspaceSettings({ uiZoom: next });
+      if (next !== workspaceSettings.value.uiZoom)
+        void updateWorkspaceSettings({ uiZoom: next });
     }
     window.addEventListener("wheel", onWheel, { passive: false });
     return () => window.removeEventListener("wheel", onWheel);
@@ -854,14 +1018,19 @@ export function App() {
 
   const current = activeTab();
   const currentBookmark =
-    current && bookmarks.value.find((b) => b.kind === "file" && b.path === current.path);
-  const currentIsPinned = current && editorLayout.value.groups.primary.pinnedPaths.includes(current.path);
+    current &&
+    bookmarks.value.find((b) => b.kind === "file" && b.path === current.path);
+  const currentIsPinned =
+    current &&
+    editorLayout.value.groups.primary.pinnedPaths.includes(current.path);
 
   // F07 Phase 3: the secondary group's own active document, independent of
   // `current` above (which stays primary-only, matching every existing
   // caller of it -- bookmarks, pin state, breadcrumbs, the outline panel).
   const secondaryCurrent = secondaryActiveTabPath.value
-    ? openDocuments.value.find((document) => document.path === secondaryActiveTabPath.value)
+    ? openDocuments.value.find(
+        (document) => document.path === secondaryActiveTabPath.value,
+      )
     : undefined;
   const editorGroupsShellRef = useRef<HTMLDivElement>(null);
 
@@ -968,7 +1137,9 @@ export function App() {
       },
       {
         id: "toggle-bookmarks",
-        label: bookmarksOpen.value ? "Hide bookmarks panel" : "Show bookmarks panel",
+        label: bookmarksOpen.value
+          ? "Hide bookmarks panel"
+          : "Show bookmarks panel",
         run: () => toggleSidebarPanel(bookmarksOpen),
       },
       ...(workspaceSettings.value.tagsEnabled
@@ -989,7 +1160,9 @@ export function App() {
         ? [
             {
               id: "toggle-collections",
-              label: collectionsOpen.value ? "Hide Collections" : "Open Collections",
+              label: collectionsOpen.value
+                ? "Hide Collections"
+                : "Open Collections",
               run: openCollectionsPanel,
             },
           ]
@@ -999,7 +1172,11 @@ export function App() {
         label: "Markdown formatting help",
         run: () => (markdownHelpOpen.value = true),
       },
-      ...(rootPath && isMarkdownImportOffered(true, workspaceSettings.value.markdownImportEnabled)
+      ...(rootPath &&
+      isMarkdownImportOffered(
+        true,
+        workspaceSettings.value.markdownImportEnabled,
+      )
         ? [
             {
               id: "import-markdown-vault",
@@ -1008,15 +1185,21 @@ export function App() {
                 void startMarkdownImport(async () => {
                   // Reload the root and every open folder so the imported
                   // files show without a manual refresh.
-                  const open = [rootPath, ...expandedDirs.value].filter((dir) =>
-                    dirChildren.value.has(dir) || dir === rootPath,
+                  const open = [rootPath, ...expandedDirs.value].filter(
+                    (dir) => dirChildren.value.has(dir) || dir === rootPath,
                   );
-                  await Promise.allSettled(open.map((dir) => loadChildren(dir)));
+                  await Promise.allSettled(
+                    open.map((dir) => loadChildren(dir)),
+                  );
                 }),
             },
           ]
         : []),
-      { id: "settings", label: "Open Settings", run: () => (settingsPanelOpen.value = true) },
+      {
+        id: "settings",
+        label: "Open Settings",
+        run: () => (settingsPanelOpen.value = true),
+      },
       { id: "capture", label: "Quick Capture", run: () => openCaptureSheet() },
       ...(!Capacitor.isNativePlatform()
         ? [
@@ -1035,7 +1218,9 @@ export function App() {
           label: "New note from template",
           run: () => {
             const targetDir = selectedDir.value ?? rootPath;
-            void listTemplates(rootPath).then((templates) => setTemplatePicker({ targetDir, templates }));
+            void listTemplates(rootPath).then((templates) =>
+              setTemplatePicker({ targetDir, templates }),
+            );
           },
         });
       }
@@ -1043,28 +1228,35 @@ export function App() {
         id: "new-note",
         label: "New note",
         run: () =>
-          void createNoteQuick(selectedDir.value ?? rootPath).then(({ path, name }) =>
-            handleOpenFile(path, name),
+          void createNoteQuick(selectedDir.value ?? rootPath).then(
+            ({ path, name }) => handleOpenFile(path, name),
           ),
       });
       if (workspaceSettings.value.canvasEnabled) {
         list.unshift({
           id: "new-canvas",
           label: "New canvas",
-          run: () => void createCanvasQuick(selectedDir.value ?? rootPath).then(({ path, name }) => handleOpenFile(path, name)),
+          run: () =>
+            void createCanvasQuick(selectedDir.value ?? rootPath).then(
+              ({ path, name }) => handleOpenFile(path, name),
+            ),
         });
       }
       list.unshift({
         id: "new-drawing",
         label: "New drawing",
-        run: () => void createInkQuick(selectedDir.value ?? rootPath).then(({ path, name }) => handleOpenFile(path, name)),
+        run: () =>
+          void createInkQuick(selectedDir.value ?? rootPath).then(
+            ({ path, name }) => handleOpenFile(path, name),
+          ),
       });
       list.push({
         id: "increase-font-size",
         label: "Increase font size",
         run: () => {
           const next = nextFontSize(workspaceSettings.value.fontSize, "in");
-          if (next !== workspaceSettings.value.fontSize) void updateWorkspaceSettings({ fontSize: next });
+          if (next !== workspaceSettings.value.fontSize)
+            void updateWorkspaceSettings({ fontSize: next });
         },
       });
       list.push({
@@ -1072,14 +1264,19 @@ export function App() {
         label: "Decrease font size",
         run: () => {
           const next = nextFontSize(workspaceSettings.value.fontSize, "out");
-          if (next !== workspaceSettings.value.fontSize) void updateWorkspaceSettings({ fontSize: next });
+          if (next !== workspaceSettings.value.fontSize)
+            void updateWorkspaceSettings({ fontSize: next });
         },
       });
       list.push({
         id: "graph-view",
         label: "Open graph view",
         run: () => {
-          void rebuildLinkIndex(rootPath, workspaceSettings.value.frontmatterAliasesEnabled, workspaceSettings.value.tagsEnabled);
+          void rebuildLinkIndex(
+            rootPath,
+            workspaceSettings.value.frontmatterAliasesEnabled,
+            workspaceSettings.value.tagsEnabled,
+          );
           graphOpen.value = true;
         },
       });
@@ -1091,7 +1288,11 @@ export function App() {
           label: "Switch to Source view",
           run: () => (viewMode.value = "source"),
         },
-        { id: "view-split", label: "Switch to Split view", run: () => (viewMode.value = "split") },
+        {
+          id: "view-split",
+          label: "Switch to Split view",
+          run: () => (viewMode.value = "split"),
+        },
         {
           id: "view-preview",
           label: "Switch to Preview view",
@@ -1107,7 +1308,9 @@ export function App() {
                     "#primary-editor-panes .markdown-preview",
                   );
                   if (!container) {
-                    window.alert("Switch to Preview or Split view to print this note.");
+                    window.alert(
+                      "Switch to Preview or Split view to print this note.",
+                    );
                     return;
                   }
                   printNoteHtml(current.name, container.innerHTML);
@@ -1121,7 +1324,9 @@ export function App() {
                     "#primary-editor-panes .markdown-preview",
                   );
                   if (!container) {
-                    window.alert("Switch to Preview or Split view to export this note.");
+                    window.alert(
+                      "Switch to Preview or Split view to export this note.",
+                    );
                     return;
                   }
                   const bodyHtml = container.innerHTML;
@@ -1133,7 +1338,9 @@ export function App() {
                         buildExportDocument(current.name, inlined),
                       );
                     } catch (e) {
-                      window.alert(`Couldn't export note: ${e instanceof Error ? e.message : String(e)}`);
+                      window.alert(
+                        `Couldn't export note: ${e instanceof Error ? e.message : String(e)}`,
+                      );
                     }
                   })();
                 },
@@ -1148,11 +1355,18 @@ export function App() {
                     "#primary-editor-panes .markdown-preview",
                   );
                   if (!container) {
-                    window.alert("Switch to Preview or Split view to print this note.");
+                    window.alert(
+                      "Switch to Preview or Split view to print this note.",
+                    );
                     return;
                   }
-                  void printNoteAndroid(current.name, container.innerHTML).catch((e) => {
-                    window.alert(`Couldn't print note: ${e instanceof Error ? e.message : String(e)}`);
+                  void printNoteAndroid(
+                    current.name,
+                    container.innerHTML,
+                  ).catch((e) => {
+                    window.alert(
+                      `Couldn't print note: ${e instanceof Error ? e.message : String(e)}`,
+                    );
                   });
                 },
               },
@@ -1164,23 +1378,32 @@ export function App() {
                     "#primary-editor-panes .markdown-preview",
                   );
                   if (!container) {
-                    window.alert("Switch to Preview or Split view to export this note.");
+                    window.alert(
+                      "Switch to Preview or Split view to export this note.",
+                    );
                     return;
                   }
-                  void exportNoteHtmlAndroid(current.name, container.innerHTML, `${current.name}.html`).catch(
-                    (e) => {
-                      window.alert(`Couldn't export note: ${e instanceof Error ? e.message : String(e)}`);
-                    },
-                  );
+                  void exportNoteHtmlAndroid(
+                    current.name,
+                    container.innerHTML,
+                    `${current.name}.html`,
+                  ).catch((e) => {
+                    window.alert(
+                      `Couldn't export note: ${e instanceof Error ? e.message : String(e)}`,
+                    );
+                  });
                 },
               },
             ]),
         {
           id: "toggle-bookmark",
-          label: currentBookmark ? "Remove bookmark from this note" : "Bookmark this note",
+          label: currentBookmark
+            ? "Remove bookmark from this note"
+            : "Bookmark this note",
           run: toggleCurrentNoteBookmark,
         },
-        ...(workspaceSettings.value.headingLinksEnabled && viewMode.value !== "preview"
+        ...(workspaceSettings.value.headingLinksEnabled &&
+        viewMode.value !== "preview"
           ? [
               {
                 id: "copy-block-link",
@@ -1196,13 +1419,33 @@ export function App() {
           : []),
         ...(viewMode.value !== "preview"
           ? [
-              { id: "table-add-row", label: "Table: add row below", run: () => requestTableCommand("add-row-below") },
-              { id: "table-delete-row", label: "Table: delete row", run: () => requestTableCommand("delete-row") },
-              { id: "table-add-column", label: "Table: add column right", run: () => requestTableCommand("add-column-right") },
-              { id: "table-delete-column", label: "Table: delete column", run: () => requestTableCommand("delete-column") },
+              {
+                id: "table-add-row",
+                label: "Table: add row below",
+                run: () => requestTableCommand("add-row-below"),
+              },
+              {
+                id: "table-delete-row",
+                label: "Table: delete row",
+                run: () => requestTableCommand("delete-row"),
+              },
+              {
+                id: "table-add-column",
+                label: "Table: add column right",
+                run: () => requestTableCommand("add-column-right"),
+              },
+              {
+                id: "table-delete-column",
+                label: "Table: delete column",
+                run: () => requestTableCommand("delete-column"),
+              },
             ]
           : []),
-        { id: "rename-tab", label: "Rename current note", run: () => setTabRename(current) },
+        {
+          id: "rename-tab",
+          label: "Rename current note",
+          run: () => setTabRename(current),
+        },
         {
           id: "close-tab",
           label: "Close current tab",
@@ -1257,7 +1500,7 @@ export function App() {
       });
     }
     return list;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     rootPath,
     current,
@@ -1282,19 +1525,34 @@ export function App() {
     toggleCurrentNoteBookmark,
   ]);
 
-  const handleTabRenameSubmit = useCallback(async (newName: string) => {
-    if (!tabRename) return;
-    try {
-      if (!(await renamePreview.confirmRenameWithPreview(tabRename.path, newName))) return;
-      await flushPendingAutosave(tabRename.path);
-      const newPath = await renameEntry(tabRename.path, newName);
-      renameOpenTab(tabRename.path, newPath, newName);
-      setTabRename(null);
-      setTabRenameError(null);
-    } catch (e) {
-      setTabRenameError(e instanceof Error ? e.message : String(e));
-    }
-  }, [tabRename, flushPendingAutosave, renamePreview, setTabRename, setTabRenameError]);
+  const handleTabRenameSubmit = useCallback(
+    async (newName: string) => {
+      if (!tabRename) return;
+      try {
+        if (
+          !(await renamePreview.confirmRenameWithPreview(
+            tabRename.path,
+            newName,
+          ))
+        )
+          return;
+        await flushPendingAutosave(tabRename.path);
+        const newPath = await renameEntry(tabRename.path, newName);
+        renameOpenTab(tabRename.path, newPath, newName);
+        setTabRename(null);
+        setTabRenameError(null);
+      } catch (e) {
+        setTabRenameError(e instanceof Error ? e.message : String(e));
+      }
+    },
+    [
+      tabRename,
+      flushPendingAutosave,
+      renamePreview,
+      setTabRename,
+      setTabRenameError,
+    ],
+  );
 
   // Document Header overflow menu (spec 13.5): "Copy Relative Path" and
   // "Delete" for the currently open note, mirroring FileContextMenu.tsx's
@@ -1323,7 +1581,9 @@ export function App() {
       await deleteEntry(rootPath, target.path);
       closeTabsUnder(target.path);
     } catch (e) {
-      window.alert(`Couldn't delete "${target.name}": ${e instanceof Error ? e.message : String(e)}`);
+      window.alert(
+        `Couldn't delete "${target.name}": ${e instanceof Error ? e.message : String(e)}`,
+      );
     }
   }, [current, rootPath, flushPendingAutosave]);
 
@@ -1331,7 +1591,9 @@ export function App() {
     if (!current || !rootPath) return;
     const path = relativePath(rootPath, current.path);
     void navigator.clipboard.writeText(path).catch((e) => {
-      window.alert(`Couldn't copy path: ${e instanceof Error ? e.message : String(e)}`);
+      window.alert(
+        `Couldn't copy path: ${e instanceof Error ? e.message : String(e)}`,
+      );
     });
   }, [current, rootPath]);
 
@@ -1367,24 +1629,33 @@ export function App() {
             Indexing…
           </StatusIndicator>
         )}
-        {!linkIndexBuilding.value && linkIndexUnreadablePaths.value.length > 0 && (
-          <StatusIndicator
-            variant="warning"
-            size="sm"
-            live="polite"
-            className="app-title-hint"
-            title={`Could not read: ${linkIndexUnreadablePaths.value.join(", ")}`}
-          >
-            {linkIndexUnreadablePaths.value.length === 1
-              ? "1 note couldn't be indexed"
-              : `${linkIndexUnreadablePaths.value.length} notes couldn't be indexed`}
-          </StatusIndicator>
-        )}
+        {!linkIndexBuilding.value &&
+          linkIndexUnreadablePaths.value.length > 0 && (
+            <StatusIndicator
+              variant="warning"
+              size="sm"
+              live="polite"
+              className="app-title-hint"
+              title={`Could not read: ${linkIndexUnreadablePaths.value.join(", ")}`}
+            >
+              {linkIndexUnreadablePaths.value.length === 1
+                ? "1 note couldn't be indexed"
+                : `${linkIndexUnreadablePaths.value.length} notes couldn't be indexed`}
+            </StatusIndicator>
+          )}
         {rootPath && (
           <button
             class="icon-button"
-            aria-label={editorLayout.value.splitEnabled ? "Close reference group" : "Split right"}
-            title={editorLayout.value.splitEnabled ? "Close reference group" : "Split right"}
+            aria-label={
+              editorLayout.value.splitEnabled
+                ? "Close reference group"
+                : "Split right"
+            }
+            title={
+              editorLayout.value.splitEnabled
+                ? "Close reference group"
+                : "Split right"
+            }
             onClick={() => {
               if (editorLayout.value.splitEnabled) attemptCloseSecondaryGroup();
               else {
@@ -1435,22 +1706,23 @@ export function App() {
             })}
           </div>
         )}
-        {current?.kind === "text" && workspaceSettings.value.speechToTextEnabled && (
-          <SpeechRecognitionButton
-            onResult={(text) => {
-              if (text && current) {
-                // Use the existing outline insert mechanism to insert speech text
-                outlineInsertRequest.value = { 
-                  text, 
-                  requestId: Date.now() // Use timestamp as unique requestId
-                };
-              }
-            }}
-            onError={(error) => {
-              console.error('Speech recognition error:', error);
-            }}
-          />
-        )}
+        {current?.kind === "text" &&
+          workspaceSettings.value.speechToTextEnabled && (
+            <SpeechRecognitionButton
+              onResult={(text) => {
+                if (text && current) {
+                  // Use the existing outline insert mechanism to insert speech text
+                  outlineInsertRequest.value = {
+                    text,
+                    requestId: Date.now(), // Use timestamp as unique requestId
+                  };
+                }
+              }}
+              onError={(error) => {
+                console.error("Speech recognition error:", error);
+              }}
+            />
+          )}
         {current?.kind === "text" && (
           <>
             <button
@@ -1458,12 +1730,18 @@ export function App() {
               aria-label="Decrease font size"
               title={`Decrease font size (${workspaceSettings.value.fontSize}px)`}
               onClick={() => {
-                const next = nextFontSize(workspaceSettings.value.fontSize, "out");
+                const next = nextFontSize(
+                  workspaceSettings.value.fontSize,
+                  "out",
+                );
                 if (next !== workspaceSettings.value.fontSize)
                   void updateWorkspaceSettings({ fontSize: next });
               }}
             >
-              <span aria-hidden="true" style={{ fontSize: 14, fontWeight: 600, lineHeight: 1 }}>
+              <span
+                aria-hidden="true"
+                style={{ fontSize: 14, fontWeight: 600, lineHeight: 1 }}
+              >
                 A−
               </span>
             </button>
@@ -1472,12 +1750,18 @@ export function App() {
               aria-label="Increase font size"
               title={`Increase font size (${workspaceSettings.value.fontSize}px)`}
               onClick={() => {
-                const next = nextFontSize(workspaceSettings.value.fontSize, "in");
+                const next = nextFontSize(
+                  workspaceSettings.value.fontSize,
+                  "in",
+                );
                 if (next !== workspaceSettings.value.fontSize)
                   void updateWorkspaceSettings({ fontSize: next });
               }}
             >
-              <span aria-hidden="true" style={{ fontSize: 14, fontWeight: 600, lineHeight: 1 }}>
+              <span
+                aria-hidden="true"
+                style={{ fontSize: 14, fontWeight: 600, lineHeight: 1 }}
+              >
                 A+
               </span>
             </button>
@@ -1487,7 +1771,9 @@ export function App() {
         {!showActivityRailNav && current?.kind === "text" && (
           <button
             class={`icon-button ${currentBookmark ? "active" : ""}`}
-            aria-label={currentBookmark ? "Remove bookmark" : "Bookmark this note"}
+            aria-label={
+              currentBookmark ? "Remove bookmark" : "Bookmark this note"
+            }
             title={currentBookmark ? "Remove bookmark" : "Bookmark this note"}
             onClick={toggleCurrentNoteBookmark}
           >
@@ -1539,8 +1825,12 @@ export function App() {
         {current?.kind === "text" && (
           <button
             class={`icon-button ${outlineOpen.value ? "active" : ""}`}
-            aria-label={outlineOpen.value ? "Hide note outline" : "Show note outline"}
-            title={outlineOpen.value ? "Hide note outline" : "Show note outline"}
+            aria-label={
+              outlineOpen.value ? "Hide note outline" : "Show note outline"
+            }
+            title={
+              outlineOpen.value ? "Hide note outline" : "Show note outline"
+            }
             onClick={() => (outlineOpen.value = !outlineOpen.value)}
           >
             <RegistryIcon name="outline" size={16} />
@@ -1552,7 +1842,12 @@ export function App() {
             aria-label="Graph view"
             title="Graph view"
             onClick={() => {
-              if (rootPath) void rebuildLinkIndex(rootPath, workspaceSettings.value.frontmatterAliasesEnabled, workspaceSettings.value.tagsEnabled);
+              if (rootPath)
+                void rebuildLinkIndex(
+                  rootPath,
+                  workspaceSettings.value.frontmatterAliasesEnabled,
+                  workspaceSettings.value.tagsEnabled,
+                );
               graphOpen.value = true;
             }}
           >
@@ -1599,7 +1894,12 @@ export function App() {
             }}
             onSelectTags={openTagsPanel}
             onOpenGraph={() => {
-              if (rootPath) void rebuildLinkIndex(rootPath, workspaceSettings.value.frontmatterAliasesEnabled, workspaceSettings.value.tagsEnabled);
+              if (rootPath)
+                void rebuildLinkIndex(
+                  rootPath,
+                  workspaceSettings.value.frontmatterAliasesEnabled,
+                  workspaceSettings.value.tagsEnabled,
+                );
               graphOpen.value = true;
             }}
             onOpenSettings={() => (settingsPanelOpen.value = true)}
@@ -1627,21 +1927,31 @@ export function App() {
                         onOpenFile={handleOpenFile}
                         save={save}
                         onNavigated={() => {
-                          if (viewMode.value === "preview") viewMode.value = "split";
+                          if (viewMode.value === "preview")
+                            viewMode.value = "split";
                         }}
                       />
-                    ) : collectionsOpen.value && workspaceSettings.value.collectionsEnabled ? (
+                    ) : collectionsOpen.value &&
+                      workspaceSettings.value.collectionsEnabled ? (
                       <CollectionsPanel onOpenFile={handleOpenFile} />
                     ) : bookmarksOpen.value ? (
                       <BookmarksPanel
                         onOpenFile={handleOpenFile}
                         onRunSearch={(query) => runSearch(rootPath, query)}
-                        onRevealInSidebar={(path) => revealPathInSidebar(rootPath, path)}
+                        onRevealInSidebar={(path) =>
+                          revealPathInSidebar(rootPath, path)
+                        }
                       />
                     ) : (
                       <Sidebar
                         rootPath={rootPath}
-                        onOpenFile={(path, name, searchQuery) => handleOpenFile(path, name, searchQuery ? { searchQuery } : undefined)}
+                        onOpenFile={(path, name, searchQuery) =>
+                          handleOpenFile(
+                            path,
+                            name,
+                            searchQuery ? { searchQuery } : undefined,
+                          )
+                        }
                         flushPendingAutosave={flushPendingAutosave}
                       />
                     )}
@@ -1653,7 +1963,8 @@ export function App() {
                       noteTitle={current.name}
                       canInsertLink={viewMode.value !== "preview"}
                       onNavigated={() => {
-                        if (viewMode.value === "preview") viewMode.value = "split";
+                        if (viewMode.value === "preview")
+                          viewMode.value = "split";
                       }}
                     />
                   )}
@@ -1679,243 +1990,314 @@ export function App() {
           </>
         )}
         <div class="editor-groups-shell" ref={editorGroupsShellRef}>
-        {editorLayout.value.splitEnabled && isCompactLayout && (
-          <CompactGroupSwitcher
-            visibleGroupId={editorLayout.value.compactVisibleGroupId}
-            primaryActiveName={current?.name ?? null}
-            secondaryActiveName={secondaryCurrent?.name ?? null}
-            onSelect={(groupId) => {
-              setCompactVisibleGroup(groupId);
-              refresh();
-            }}
-          />
-        )}
-        {showPrimaryPane && (
-        <main class="editor-area"
-          style={editorLayout.value.splitEnabled && !isCompactLayout ? { flex: `0 0 ${editorLayout.value.preferredRatio * 100}%` } : undefined}
-          onClick={() => {
-            // Spec 6.5: a group becomes active when the user focuses its
-            // editor or preview. Click-anywhere-in-the-pane is a coarser
-            // proxy for that than binding CodeMirror's own focus event, but
-            // is enough to route the next open/global command correctly
-            // without touching either editor component itself.
-            if (editorLayout.value.splitEnabled && editorLayout.value.activeGroupId !== "primary") focusGroup("primary");
-          }}
-        >
-          <TabBar
-            tabs={openTabs.value}
-            pinnedPaths={editorLayout.value.groups.primary.pinnedPaths}
-            activePath={activeTabPath.value}
-            onSelect={(path) => {
-              focusTab(path);
-              refresh();
-            }}
-            onRename={(path, name) => setTabRename({ path, name })}
-            onClose={(path) => {
-              closeTab(path);
-              refresh();
-            }}
-            onCloseOthers={(path) => {
-              closeOtherTabs(path);
-              refresh();
-            }}
-            onCloseAll={() => {
-              closeAllUnpinnedTabs();
-              refresh();
-            }}
-            onPin={(path) => {
-              pinTab(path);
-              refresh();
-            }}
-            onUnpin={(path) => {
-              unpinTab(path);
-              refresh();
-            }}
-            onUnpinAndClose={(path) => {
-              unpinAndCloseTab(path);
-              refresh();
-            }}
-            onReorder={(path, beforePath) => {
-              moveTabWithinGroup(path, beforePath);
-              refresh();
-            }}
-            onMoveLeft={(path) => {
-              reorderTabWithinGroup(path, "left");
-              refresh();
-            }}
-            onMoveRight={(path) => {
-              reorderTabWithinGroup(path, "right");
-              refresh();
-            }}
-          />
-          {showActivityRailNav && current?.kind === "text" && (
-            <DocumentHeader
-              key={current.path}
-              workspaceRelativePath={rootPath ? relativePath(rootPath, current.path) : current.name}
-              notePath={current.path}
-              viewMode={viewMode.value}
-              onSetViewMode={(mode) => (viewMode.value = mode)}
-              bookmarked={!!currentBookmark}
-              onToggleBookmark={toggleCurrentNoteBookmark}
-              dirty={current.dirty}
-              saving={current.saving}
-              saveError={current.saveError}
-              onRetrySave={() => void save.retry(session, current.path)}
-              inspectorOpen={inspectorOpen.value}
-              onToggleInspector={toggleInspector}
-              onRename={() => setTabRename(current)}
-              onCopyRelativePath={handleCopyCurrentNoteRelativePath}
-              onDelete={() => void handleDeleteCurrentNote()}
-              onShowHelp={() => (markdownHelpOpen.value = true)}
+          {editorLayout.value.splitEnabled && isCompactLayout && (
+            <CompactGroupSwitcher
+              visibleGroupId={editorLayout.value.compactVisibleGroupId}
+              primaryActiveName={current?.name ?? null}
+              secondaryActiveName={secondaryCurrent?.name ?? null}
+              onSelect={(groupId) => {
+                setCompactVisibleGroup(groupId);
+                refresh();
+              }}
             />
           )}
-          {!(showActivityRailNav && current?.kind === "text") && current?.saveError && (
-            <div class="save-error-bar" role="alert">
-              <span>
-                Couldn't save "{current.name}": {current.saveError}
-              </span>
-              <button type="button" onClick={() => void save.retry(session, current.path)}>
-                Retry
-              </button>
-            </div>
-          )}
-          {current ? (
-            current.kind === "image" ? (
-              <ImageViewer
-                path={current.path}
-                onClose={() => {
-                  closeTab(current.path);
+          {showPrimaryPane && (
+            <main
+              class="editor-area"
+              style={
+                editorLayout.value.splitEnabled && !isCompactLayout
+                  ? { flex: `0 0 ${editorLayout.value.preferredRatio * 100}%` }
+                  : undefined
+              }
+              onClick={() => {
+                // Spec 6.5: a group becomes active when the user focuses its
+                // editor or preview. Click-anywhere-in-the-pane is a coarser
+                // proxy for that than binding CodeMirror's own focus event, but
+                // is enough to route the next open/global command correctly
+                // without touching either editor component itself.
+                if (
+                  editorLayout.value.splitEnabled &&
+                  editorLayout.value.activeGroupId !== "primary"
+                )
+                  focusGroup("primary");
+              }}
+            >
+              <TabBar
+                tabs={openTabs.value}
+                pinnedPaths={editorLayout.value.groups.primary.pinnedPaths}
+                activePath={activeTabPath.value}
+                onSelect={(path) => {
+                  focusTab(path);
+                  refresh();
+                }}
+                onRename={(path, name) => setTabRename({ path, name })}
+                onClose={(path) => {
+                  closeTab(path);
+                  refresh();
+                }}
+                onCloseOthers={(path) => {
+                  closeOtherTabs(path);
+                  refresh();
+                }}
+                onCloseAll={() => {
+                  closeAllUnpinnedTabs();
+                  refresh();
+                }}
+                onPin={(path) => {
+                  pinTab(path);
+                  refresh();
+                }}
+                onUnpin={(path) => {
+                  unpinTab(path);
+                  refresh();
+                }}
+                onUnpinAndClose={(path) => {
+                  unpinAndCloseTab(path);
+                  refresh();
+                }}
+                onReorder={(path, beforePath) => {
+                  moveTabWithinGroup(path, beforePath);
+                  refresh();
+                }}
+                onMoveLeft={(path) => {
+                  reorderTabWithinGroup(path, "left");
+                  refresh();
+                }}
+                onMoveRight={(path) => {
+                  reorderTabWithinGroup(path, "right");
                   refresh();
                 }}
               />
-            ) : current.kind === "pdf" ? (
-              <PdfViewer path={current.path} />
-            ) : current.kind === "canvas" ? (
-              <CanvasView path={current.path} source={current.content} onChange={(value) => handleChange(current.path, value)} onOpenFile={(path) => handleOpenFile(path, path.split("/").pop() ?? path)} />
-            ) : current.kind === "ink" ? (
-              <InkView path={current.path} source={current.content} onChange={(value) => handleChange(current.path, value)} />
-            ) : (
-              <>
-                <HeadingBreadcrumbs
+              {showActivityRailNav && current?.kind === "text" && (
+                <DocumentHeader
                   key={current.path}
-                  noteTitle={current.name}
-                  content={current.content}
-                  activeSource={
-                    viewMode.value === "preview" ||
-                    (viewMode.value === "split" && splitAuthority === "preview")
-                      ? previewActiveIndex !== undefined
-                        ? { kind: "previewIndex", index: previewActiveIndex }
-                        : { kind: "none" }
-                      : cursorPos !== null
-                        ? { kind: "cursor", offset: cursorPos }
-                        : { kind: "none" }
+                  workspaceRelativePath={
+                    rootPath
+                      ? relativePath(rootPath, current.path)
+                      : current.name
                   }
-                  onSelectRoot={() => {
-                    requestOutlineReveal(0, 0);
-                    announceOutline(`Navigated to ${current.name}, line 1.`);
-                  }}
-                  onSelectHeading={(heading) => {
-                    requestOutlineReveal(heading.contentFrom, heading.contentTo);
-                    announceOutline(
-                      headingNavigationAnnouncement(
-                        heading.displayText || "heading",
-                        current.content,
-                        heading.contentFrom,
-                      ),
-                    );
-                  }}
-                  canInsertLink={viewMode.value !== "preview"}
+                  notePath={current.path}
+                  viewMode={viewMode.value}
+                  onSetViewMode={(mode) => (viewMode.value = mode)}
+                  bookmarked={!!currentBookmark}
+                  onToggleBookmark={toggleCurrentNoteBookmark}
+                  dirty={current.dirty}
+                  saving={current.saving}
+                  saveError={current.saveError}
+                  onRetrySave={() => void save.retry(session, current.path)}
+                  inspectorOpen={inspectorOpen.value}
+                  onToggleInspector={toggleInspector}
+                  onRename={() => setTabRename(current)}
+                  onCopyRelativePath={handleCopyCurrentNoteRelativePath}
+                  onDelete={() => void handleDeleteCurrentNote()}
+                  onShowHelp={() => (markdownHelpOpen.value = true)}
                 />
-                {/* UX-01 spec 13.7: at Medium+ this moves into Inspector's
+              )}
+              {!(showActivityRailNav && current?.kind === "text") &&
+                current?.saveError && (
+                  <div class="save-error-bar" role="alert">
+                    <span>
+                      Couldn't save "{current.name}": {current.saveError}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => void save.retry(session, current.path)}
+                    >
+                      Retry
+                    </button>
+                  </div>
+                )}
+              {current ? (
+                current.kind === "image" ? (
+                  <ImageViewer
+                    path={current.path}
+                    onClose={() => {
+                      closeTab(current.path);
+                      refresh();
+                    }}
+                  />
+                ) : current.kind === "pdf" ? (
+                  <PdfViewer path={current.path} />
+                ) : current.kind === "canvas" ? (
+                  <CanvasView
+                    path={current.path}
+                    source={current.content}
+                    onChange={(value) => handleChange(current.path, value)}
+                    onOpenFile={(path) =>
+                      handleOpenFile(path, path.split("/").pop() ?? path)
+                    }
+                  />
+                ) : current.kind === "ink" ? (
+                  <InkView
+                    path={current.path}
+                    source={current.content}
+                    onChange={(value) => handleChange(current.path, value)}
+                  />
+                ) : (
+                  <>
+                    <HeadingBreadcrumbs
+                      key={current.path}
+                      noteTitle={current.name}
+                      content={current.content}
+                      activeSource={
+                        viewMode.value === "preview" ||
+                        (viewMode.value === "split" &&
+                          splitAuthority === "preview")
+                          ? previewActiveIndex !== undefined
+                            ? {
+                                kind: "previewIndex",
+                                index: previewActiveIndex,
+                              }
+                            : { kind: "none" }
+                          : cursorPos !== null
+                            ? { kind: "cursor", offset: cursorPos }
+                            : { kind: "none" }
+                      }
+                      onSelectRoot={() => {
+                        requestOutlineReveal(0, 0);
+                        announceOutline(
+                          `Navigated to ${current.name}, line 1.`,
+                        );
+                      }}
+                      onSelectHeading={(heading) => {
+                        requestOutlineReveal(
+                          heading.contentFrom,
+                          heading.contentTo,
+                        );
+                        announceOutline(
+                          headingNavigationAnnouncement(
+                            heading.displayText || "heading",
+                            current.content,
+                            heading.contentFrom,
+                          ),
+                        );
+                      }}
+                      canInsertLink={viewMode.value !== "preview"}
+                    />
+                    {/* UX-01 spec 13.7: at Medium+ this moves into Inspector's
                     own Properties tab instead (rendered elsewhere in this
                     tree), so it no longer permanently occupies editor
                     height here -- Compact keeps this exact pre-Inspector
                     rendering, since Inspector doesn't render there. */}
-                {!showActivityRailNav && (
-                  <FrontmatterPropertiesPanel
-                    key={current.path}
-                    source={current.content}
-                    onChange={(value) => handleChange(current.path, value)}
-                    enabled={workspaceSettings.value.frontmatterPropertiesEnabled}
-                  />
-                )}
-                <div id="primary-editor-panes" class={`editor-panes mode-${viewMode.value}`}>
-                  {viewMode.value !== "preview" && (
-                    <MarkdownEditor
-                      path={current.path}
-                      value={current.content}
-                      onChange={(value) => handleChange(current.path, value)}
-                      workspaceRoot={rootPath ?? ""}
-                      attachmentsFolder={workspaceSettings.value.attachmentsFolder}
-                      pasteImagesEnabled={workspaceSettings.value.pasteImagesEnabled}
-                      snippetsEnabled={workspaceSettings.value.snippetsEnabled}
-                      snippets={workspaceSettings.value.snippets}
-                      spellcheckEnabled={workspaceSettings.value.spellcheckEnabled}
-                      workspaceRootPath={rootPath ?? undefined}
-                      reveal={outlineRevealRequest.value}
-                      insertRequest={outlineInsertRequest.value}
-                      blockLinkCopyRequest={blockLinkCopyRequest.value}
-                      blockLinkCreateRequest={blockLinkCreateRequest.value}
-                      tableCommandRequest={tableCommandRequest.value}
-                      onCursorChange={(pos) => {
-                        setCursorPos(pos);
-                        setSplitAuthority(nextSplitAuthority("source-cursor"));
-                      }}
-                      searchQuery={current.searchQuery}
-                    />
-                  )}
-                  {viewMode.value !== "source" && (
-                    <MarkdownPreview
-                      source={current.content}
-                      onOpenFile={handleOpenFile}
-                      mathRenderingEnabled={workspaceSettings.value.mathRenderingEnabled}
-                      mermaidRenderingEnabled={workspaceSettings.value.mermaidRenderingEnabled}
-                      headingLinksEnabled={workspaceSettings.value.headingLinksEnabled}
-                      notePath={current.path}
-                      onActiveHeadingChange={setPreviewActiveIndex}
-                      onDirectInteraction={() =>
-                        setSplitAuthority(nextSplitAuthority("preview-interaction"))
-                      }
-                      searchQuery={current.searchQuery}
-                      onImageClick={handleImageClick}
-                    />
-                  )}
-                </div>
-              </>
-            )
-          ) : (
-            <EmptyEditorState />
+                    {!showActivityRailNav && (
+                      <FrontmatterPropertiesPanel
+                        key={current.path}
+                        source={current.content}
+                        onChange={(value) => handleChange(current.path, value)}
+                        enabled={
+                          workspaceSettings.value.frontmatterPropertiesEnabled
+                        }
+                      />
+                    )}
+                    <div
+                      id="primary-editor-panes"
+                      class={`editor-panes mode-${viewMode.value}`}
+                    >
+                      {viewMode.value !== "preview" && (
+                        <MarkdownEditor
+                          path={current.path}
+                          value={current.content}
+                          onChange={(value) =>
+                            handleChange(current.path, value)
+                          }
+                          workspaceRoot={rootPath ?? ""}
+                          attachmentsFolder={
+                            workspaceSettings.value.attachmentsFolder
+                          }
+                          pasteImagesEnabled={
+                            workspaceSettings.value.pasteImagesEnabled
+                          }
+                          snippetsEnabled={
+                            workspaceSettings.value.snippetsEnabled
+                          }
+                          snippets={workspaceSettings.value.snippets}
+                          spellcheckEnabled={
+                            workspaceSettings.value.spellcheckEnabled
+                          }
+                          workspaceRootPath={rootPath ?? undefined}
+                          reveal={outlineRevealRequest.value}
+                          insertRequest={outlineInsertRequest.value}
+                          blockLinkCopyRequest={blockLinkCopyRequest.value}
+                          blockLinkCreateRequest={blockLinkCreateRequest.value}
+                          tableCommandRequest={tableCommandRequest.value}
+                          onCursorChange={(pos) => {
+                            setCursorPos(pos);
+                            setSplitAuthority(
+                              nextSplitAuthority("source-cursor"),
+                            );
+                          }}
+                          searchQuery={current.searchQuery}
+                        />
+                      )}
+                      {viewMode.value !== "source" && (
+                        <MarkdownPreview
+                          source={current.content}
+                          onOpenFile={handleOpenFile}
+                          mathRenderingEnabled={
+                            workspaceSettings.value.mathRenderingEnabled
+                          }
+                          mermaidRenderingEnabled={
+                            workspaceSettings.value.mermaidRenderingEnabled
+                          }
+                          headingLinksEnabled={
+                            workspaceSettings.value.headingLinksEnabled
+                          }
+                          notePath={current.path}
+                          onActiveHeadingChange={setPreviewActiveIndex}
+                          onDirectInteraction={() =>
+                            setSplitAuthority(
+                              nextSplitAuthority("preview-interaction"),
+                            )
+                          }
+                          searchQuery={current.searchQuery}
+                          onImageClick={handleImageClick}
+                        />
+                      )}
+                    </div>
+                  </>
+                )
+              ) : (
+                <EmptyEditorState />
+              )}
+            </main>
           )}
-        </main>
-        )}
-        {showSeparator && (
-          <SplitSeparator
-            ratio={editorLayout.value.preferredRatio}
-            containerRef={editorGroupsShellRef}
-            onChange={setSplitRatio}
-            onReset={resetSplitRatio}
-          />
-        )}
-        {showSecondaryPane && (
+          {showSeparator && (
+            <SplitSeparator
+              ratio={editorLayout.value.preferredRatio}
+              containerRef={editorGroupsShellRef}
+              onChange={setSplitRatio}
+              onReset={resetSplitRatio}
+            />
+          )}
+          {showSecondaryPane && (
             <div
               onClick={() => {
-                if (editorLayout.value.activeGroupId !== "secondary") focusGroup("secondary");
+                if (editorLayout.value.activeGroupId !== "secondary")
+                  focusGroup("secondary");
               }}
             >
               <SecondaryEditorPane
                 tabs={secondaryOpenTabs.value}
-                pinnedPaths={editorLayout.value.groups.secondary?.pinnedPaths ?? []}
+                pinnedPaths={
+                  editorLayout.value.groups.secondary?.pinnedPaths ?? []
+                }
                 activePath={secondaryActiveTabPath.value}
                 current={secondaryCurrent}
-                viewMode={editorLayout.value.groups.secondary?.viewMode ?? "source"}
+                viewMode={
+                  editorLayout.value.groups.secondary?.viewMode ?? "source"
+                }
                 onViewModeChange={(mode) => setGroupViewMode("secondary", mode)}
                 session={session}
                 save={save}
                 workspaceRoot={rootPath ?? ""}
                 attachmentsFolder={workspaceSettings.value.attachmentsFolder}
                 pasteImagesEnabled={workspaceSettings.value.pasteImagesEnabled}
-                mathRenderingEnabled={workspaceSettings.value.mathRenderingEnabled}
-                mermaidRenderingEnabled={workspaceSettings.value.mermaidRenderingEnabled}
+                mathRenderingEnabled={
+                  workspaceSettings.value.mathRenderingEnabled
+                }
+                mermaidRenderingEnabled={
+                  workspaceSettings.value.mermaidRenderingEnabled
+                }
                 snippetsEnabled={workspaceSettings.value.snippetsEnabled}
                 snippets={workspaceSettings.value.snippets}
                 onSelect={(path) => {
@@ -1970,25 +2352,30 @@ export function App() {
                 }}
               />
             </div>
-        )}
+          )}
         </div>
-        {showActivityRailNav && current?.kind === "text" && inspectorOpen.value && (
-          <>
-            <div class="inspector-overlay-backdrop" onClick={() => (inspectorOpen.value = false)} />
-            <Inspector
-              activeTab={inspectorTab.value}
-              onSetActiveTab={(tab) => (inspectorTab.value = tab)}
-              onClose={() => (inspectorOpen.value = false)}
-              properties={{
-                source: current.content,
-                onChange: (value) => handleChange(current.path, value),
-                enabled: workspaceSettings.value.frontmatterPropertiesEnabled,
-              }}
-              path={current.path}
-              onOpenFile={handleOpenFile}
-            />
-          </>
-        )}
+        {showActivityRailNav &&
+          current?.kind === "text" &&
+          inspectorOpen.value && (
+            <>
+              <div
+                class="inspector-overlay-backdrop"
+                onClick={() => (inspectorOpen.value = false)}
+              />
+              <Inspector
+                activeTab={inspectorTab.value}
+                onSetActiveTab={(tab) => (inspectorTab.value = tab)}
+                onClose={() => (inspectorOpen.value = false)}
+                properties={{
+                  source: current.content,
+                  onChange: (value) => handleChange(current.path, value),
+                  enabled: workspaceSettings.value.frontmatterPropertiesEnabled,
+                }}
+                path={current.path}
+                onOpenFile={handleOpenFile}
+              />
+            </>
+          )}
       </div>
       <SettingsPanel onOpenFile={handleOpenFile} />
       {rootPath && <WorkspaceTransitionBanner />}
@@ -2039,7 +2426,10 @@ export function App() {
         />
       )}
       {commandPaletteOpen.value && (
-        <CommandPalette commands={commands} onClose={() => (commandPaletteOpen.value = false)} />
+        <CommandPalette
+          commands={commands}
+          onClose={() => (commandPaletteOpen.value = false)}
+        />
       )}
       <ConfirmDialogHost />
       <MarkdownImportDialog />
@@ -2052,7 +2442,9 @@ export function App() {
       )}
       <PendingCapturesPanel />
       {captureSheetOpen.value && (
-        <CaptureSheet onCreated={(path, name) => void handleOpenFile(path, name)} />
+        <CaptureSheet
+          onCreated={(path, name) => void handleOpenFile(path, name)}
+        />
       )}
       {externalFile && (
         <ExternalFileView

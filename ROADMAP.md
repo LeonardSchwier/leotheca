@@ -32,7 +32,14 @@ Items with an owner. An expired lease means the item can be recovered.
 
 Items nobody owns. Take the first one that fits.
 
-- ⬜ **Adopt a shared glossary that the PDLC maintains by itself**: Idea from the public MIT-licensed `mattpocock/skills` repository (ubiquitous language, ADRs inline), made automatic. Add `GLOSSARY.md` (domain terms of Leotheca: workspace, note, capture, grant, ledger, lease and so on, one line each), read at startup by AGENTS.md, extended by the grill stage when a spec introduces or sharpens a term (`Glossary:` line in the spec, `none` allowed), and checked mechanically: a newly archived spec without a `Glossary:` line fails like the `Reflection:` check. Credit the source in documentation/AGENTIC_PDLC.md.
+- ⬜ **Adopt a shared glossary that the PDLC maintains by itself**: Idea from the public MIT-licensed `mattpocock/skills` repository (ubiquitous language, ADRs inline), made automatic.
+
+  <details>
+  <summary>Scope and detail</summary>
+
+  Add `GLOSSARY.md` (domain terms of Leotheca: workspace, note, capture, grant, ledger, lease and so on, one line each), read at startup by AGENTS.md, extended by the grill stage when a spec introduces or sharpens a term (`Glossary:` line in the spec, `none` allowed), and checked mechanically: a newly archived spec without a `Glossary:` line fails like the `Reflection:` check. Credit the source in documentation/AGENTIC_PDLC.md.
+
+  </details>
 - 🚧 **Add a pull request template with evidence and a merge-danger call**: Idea from `mattpocock/skills` (`pr` skill), made automatic. Add `.github/pull_request_template.md` and use it in `skills/pull-request-delivery.md`: summary, before/after evidence, and a merge-danger call (one-way or two-way door, blast radius). Add a Rules check that a pull request body contains the headings, so the squash commit carries them. Update the PDLC document.
   <!-- agent-state: {"schema":1,"id":"rm-924816f694a6fce8","state":"claimed","touch":[".github/PULL_REQUEST_TEMPLATE.md",".github/pull_request_template.md",".github/workflows/rules.yml","scripts/check-rules.mjs","scripts/prbody.test.js","skills/README.md","skills/pull-request-delivery.md"],"resources":[],"owner":"claude-code-prtemplate-20261107T225126Z-b16fa00f","token":"e7f435b6c70a6a2edaf73c7bc32eb59a","branch":"agent/rm-924816f694a6fce8/e7f435b6c70a","claimed_at":"2026-11-07T22:52:02Z","heartbeat_at":"2026-11-07T22:52:02Z","lease_until":"2026-11-08T00:22:02Z"} -->
   Agent: claude-code-prtemplate-20261107T225126Z-b16fa00f | item: rm-924816f694a6fce8 | lease until: 2026-11-08T00:22:02Z
@@ -41,9 +48,16 @@ Items nobody owns. Take the first one that fits.
   Agent: claude-code-reviewaxes-20261107T225137Z | item: rm-4951084b07a113bf | lease until: 2026-11-08T00:21:48Z
 - ⬜ **Lint the shape of skills and agent entry files**: Idea from `mattpocock/skills` (`writing-for-agents`), made automatic. Add a check that every `skills/*.md` has frontmatter with name and description, stays under a line limit that a 27B local model can follow, and that `AGENTS.md` and the constitution stay short with links for detail; fix the files that exceed it by splitting. Document the rule in skills/README.md.
 - ⬜ **Run a scheduled architecture survey that seeds roadmap items**: Idea from `mattpocock/skills` (`improve-codebase-architecture`, `codebase-design`), made automatic. Add a maintenance skill that surveys the code for shallow modules and duplicated seams, writes its candidates as cited roadmap seeds (never a human questionnaire), and runs from the integrator or maintenance pass about weekly. Record the vocabulary (deep module, seam) in the glossary.
-- 🚧 **Commit as a distinct agent identity**: Agent commits currently carry the owner's name and noreply address as author, with only a Co-Authored-By trailer naming the agent. Owner decision 2026-11-07: agents commit as `Claude Code (agent) <noreply@anthropic.com>` (author and committer), keep the trailer, and existing history stays untouched. Put the rule in the constitution and AGENTS.md, add `scripts/agent-git-env.sh` to export the identity, and add a check that warns when an agent-trailer commit is authored under the owner's address.
+- 🚧 **Commit as a distinct agent identity**: Agent commits currently carry the owner's name and noreply address as author, with only a Co-Authored-By trailer naming the agent.
   <!-- agent-state: {"schema":1,"id":"rm-ded6a0ed0f5513f1","state":"claimed","touch":["AGENTS.md","CONSTITUTION.md","hooks/README.md","scripts/agent-git-env.sh","scripts/check-rules.test.js","scripts/commit-msg-check.mjs"],"resources":[],"owner":"claude-code-pdlc-20261106T231246Z-fcf4c9d1","token":"50f0a9f9644a02e49cf7d5bc55d8cedf","branch":"agent/rm-ded6a0ed0f5513f1/50f0a9f9644a","claimed_at":"2026-11-07T22:48:58Z","heartbeat_at":"2026-11-07T22:48:58Z","lease_until":"2026-11-08T00:18:58Z"} -->
   Agent: claude-code-pdlc-20261106T231246Z-fcf4c9d1 | item: rm-ded6a0ed0f5513f1 | lease until: 2026-11-08T00:18:58Z
+
+  <details>
+  <summary>Scope and detail</summary>
+
+  Owner decision 2026-11-07: agents commit as `Claude Code (agent) <noreply@anthropic.com>` (author and committer), keep the trailer, and existing history stays untouched. Put the rule in the constitution and AGENTS.md, add `scripts/agent-git-env.sh` to export the identity, and add a check that warns when an agent-trailer commit is authored under the owner's address.
+
+  </details>
 - ⬜ **Run Android lint in CI**: `./gradlew lint` is not wired. Add it to the android job (or its own workflow), read the first report, fix or baseline each finding with a reason, and keep it non-required until triaged.
 - ⬜ **Retire the legacy tests/ui script**: `tests/ui` holds about 28 Python Playwright tests against a Tauri mock, outside CI; `tests/e2e` has 16 journeys. Map each legacy test to an e2e journey (add the missing ones) or drop it with a stated reason, then delete `tests/ui`, its eslint entry and the `documentation/TESTING.md` section.
 - ⬜ **Minimalistic Nordic UI theme**: Redesign Leotheca's visual system around a minimal Nordic idiom -- a restrained cool light palette (frost white, soft greys, fog blue, a single muted accent), low-contrast light mode plus a dark "polar night" companion, generous whitespace, calm restrained typography, and reduced chrome (fewer borders, subtle elevation, quiet borders) across the desktop and Android UIs.
@@ -76,9 +90,16 @@ Items that wait for access or a decision outside the repository.
 
 ## Implemented
 
-- ✅ **Remove voice dictation and microphone access**: Owner decision 2026-11-07: Leotheca will have no camera and no voice dictation, because both need access that can invade privacy. Remove the dictation feature (src/speech, the desktop whisper commands in src-tauri/src/speech_commands.rs, the Android SpeechRecognitionPlugin and capacitorSpeechBridge, the palette and settings entries), drop the RECORD_AUDIO and MODIFY_AUDIO_SETTINGS permissions from the Android manifest, update master-spec.md, README and CHANGELOG, and state the privacy stance (no camera, no microphone) in documentation/PROJECT_RULES.md and the README.
+- ✅ **Remove voice dictation and microphone access**: Owner decision 2026-11-07: Leotheca will have no camera and no voice dictation, because both need access that can invade privacy.
   <!-- agent-state: {"schema":1,"id":"rm-80dec1c02fce18c1","state":"done","touch":[".agents/handoffs","CHANGELOG.md","README.md","android","documentation","flatpak","master-spec.md","package-lock.json","package.json","spec","src","src-tauri","tests"],"resources":["speech-dictation"],"note":"Implemented scope; PR 87 merged as ded114dde6ac411446b32d6e882679338212b383; 29 PR checks green, local tsc/eslint/vitest/cargo/e2e green; post-merge run ids in the handoff","completed_at":"2026-11-07T22:59:13Z","completed_by":"claude-code-nomic-20261107T223733Z-4694a3d6","branch":"agent/rm-80dec1c02fce18c1/87cb3da66b93"} -->
   Agent: completed by claude-code-nomic-20261107T223733Z-4694a3d6 | item: rm-80dec1c02fce18c1
+
+  <details>
+  <summary>Scope and detail</summary>
+
+  Remove the dictation feature (src/speech, the desktop whisper commands in src-tauri/src/speech_commands.rs, the Android SpeechRecognitionPlugin and capacitorSpeechBridge, the palette and settings entries), drop the RECORD_AUDIO and MODIFY_AUDIO_SETTINGS permissions from the Android manifest, update master-spec.md, README and CHANGELOG, and state the privacy stance (no camera, no microphone) in documentation/PROJECT_RULES.md and the README.
+
+  </details>
 
 
 - ✅ **Add SAST to the pipeline: eslint-plugin-security, semgrep, CodeQL, Android lint**: None is wired. Trial eslint-plugin-security (4.2.1) and semgrep OSS rules against the tree non-blocking, record noise and false positives, then make the useful ones blocking; add CodeQL (hosted only) and `./gradlew lint` as CI jobs. Each must be run and its output read before it is called wired. See skills/security-and-static-analysis.md.

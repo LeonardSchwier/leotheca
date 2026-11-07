@@ -1,6 +1,7 @@
-/* global browser, document */
+/* global document */
 
-const api = browser;
+// Firefox exposes `browser`; Chrome exposes `chrome` (and `browser` only in recent versions).
+const api = globalThis.browser ?? globalThis.chrome;
 const titleInput = document.querySelector("#title");
 const includeSourceInput = document.querySelector("#include-source");
 const clipButton = document.querySelector("#clip");
@@ -24,11 +25,19 @@ async function clipSelection() {
     });
     if (!built?.ok) throw new Error(built?.error || "Could not create a clip.");
 
-    const saved = await api.runtime.sendMessage({ type: "save-clip", clip: built.clip });
-    if (!saved?.ok) throw new Error(saved?.error || "Could not save the Markdown file.");
+    const saved = await api.runtime.sendMessage({
+      type: "save-clip",
+      clip: built.clip,
+    });
+    if (!saved?.ok)
+      throw new Error(saved?.error || "Could not save the Markdown file.");
     showStatus("Choose your workspace folder in the save dialog.", false);
   } catch (error) {
-    showStatus(error instanceof Error ? error.message : "Could not save the Markdown file.");
+    showStatus(
+      error instanceof Error
+        ? error.message
+        : "Could not save the Markdown file.",
+    );
   } finally {
     clipButton.disabled = false;
   }

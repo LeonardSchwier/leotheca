@@ -153,7 +153,7 @@ Only Linux CI builds and launches a desktop artifact as a smoke test. macOS and 
 | `src/styles/theme.css` | Design tokens. |
 | `src-tauri/src/` | `commands.rs`, `workspace_mutations.rs`, `external_open.rs`, `default_handler.rs`, `speech_commands.rs`, `lib.rs`. |
 | `android/app/src/main/java/.../` | `MainActivity`, `FolderAccessPlugin`, `WorkspaceMutationPlugin`, `PrintExportPlugin`, `SpeechRecognitionPlugin`, `CaptureIntentHandler`, widget providers. |
-| `extensions/web-clipper/` | Standalone WebExtension. It does not communicate with the app. |
+| `extensions/web-clipper/` | Standalone WebExtension for Chrome and Firefox (Manifest V3, install notes in its README). It does not communicate with the app. |
 
 **Startup sequence (Traced).**
 
@@ -802,6 +802,8 @@ The URL parser is not the security boundary. The native gate on the eventual rea
 | ID | Requirement | Acceptance | Test |
 | --- | --- | --- | --- |
 | FR-CLIP-001 | The clipper MUST save selection as Markdown through the browser save dialog with activeTab and downloads permissions only, and MUST NOT contact the app or a server. | Given selected HTML, When converted, Then Markdown is produced. | `extensions/web-clipper/clipperCore.test.js` |
+| FR-CLIP-002 | Extension scripts MUST work in Chrome and Firefox: use `globalThis.browser ?? globalThis.chrome`, and answer messages through `sendResponse` (a bare return value is ignored by Chrome). | Given a `build-clip` message with a selection, When the listener runs, Then `sendResponse` receives the clip synchronously. | `extensions/web-clipper/messaging.test.js` |
+| FR-CLIP-003 | The background script MUST report a refused download as `{ ok: false, error }` and the keyboard command MUST NOT reject on a page without the content script. | Given a rejected `downloads.download`, When `save-clip` arrives, Then the reply is `ok: false`. | `extensions/web-clipper/messaging.test.js` |
 
 ### Shell, UI primitives and accessibility (FR-UI)
 
@@ -952,7 +954,7 @@ Only numbers that exist in code, configuration or an observed run appear here. N
 | `rules.yml` | Push, PR, weekly schedule | Commit convention, added-line rules, secret-shaped tokens, dependency intake, fast-forward-only main, prettier on changed files, licenses, action pinning, `npm audit` (reported, non-blocking until triaged) |
 | `agent-policy.yml` | Push and PR on policy paths | Python helper tests, ledger and roadmap format |
 | `release.yml` | Tag `v*`, implementation push to main, manual | Builds Linux, Android, Flatpak, macOS, Windows, then publishes |
-| `gh-pages.yml` | Push on `website/**` | Deploys the static site |
+| `gh-pages.yml` | Push on `website/**`, manual | Deploys the static `website/` (two pages, relative URLs, no build step). The repository's Pages source is not enabled as of 2026-11-07, so the job fails at Setup Pages until it is (see `website/README.md`) |
 | `flathub-submission-verify.yml`, `fdroid-submission-verify.yml` | Workflow-defined | Verify store recipes |
 
 **Release channels.** A `v*` tag publishes a draft versioned release (draft because no Android signing keys exist). A push to main replaces the rolling `dev-build` prerelease. Publication requires `validation`, `version-guard`, Linux and Android success. Flatpak, macOS and Windows are optional, and their absence is recorded in the release body. Manual runs never publish.
@@ -1026,9 +1028,9 @@ Generated from section 8 by `python3 scripts/check_master_spec.py --update-trace
 | FR-SPEECH | Speech to text | 4 | 3 | 1 | `src/settings/workspaceSettings.test.ts`, `src/speech/speechController.test.ts`, `src/workspace/speechBridgeImpl.test.ts` |
 | FR-SPELL | Spell check | 1 | 1 | 0 | `src/spellcheck/spellCheck.test.ts` |
 | FR-WID | Android widgets | 3 | 3 | 0 | `android/app/src/test/java/com/getcapacitor/myapp/WidgetResourcesUnitTest.java`, `android/app/src/test/java/com/leonardschwier/leotheca/NewNoteColdStartTrackerTest.java`, `src/workspace/fileTreeStore.test.ts` |
-| FR-CLIP | Web clipper extension | 1 | 1 | 0 | `extensions/web-clipper/clipperCore.test.js` |
+| FR-CLIP | Web clipper extension | 3 | 3 | 0 | `extensions/web-clipper/clipperCore.test.js`, `extensions/web-clipper/messaging.test.js` |
 | FR-UI | Shell, UI primitives and accessibility | 12 | 10 | 2 | `src/app/App.test.tsx`, `src/app/CommandPalette.test.tsx`, `src/app/EmptyEditorState.test.tsx`, `src/app/layout/adaptiveLayout.test.ts`, `src/app/useResizableSidebar.test.ts`, `src/fuzzyMatch.test.ts`, `src/ui/Menu.test.tsx`, `src/ui/overlayStack.test.ts`, `src/workspace/FileTree.test.tsx` |
-| **Total** | | **192** | **183** | **9** | |
+| **Total** | | **194** | **185** | **9** | |
 <!-- traceability:end -->
 
 ## 15. Coverage gaps
@@ -1094,6 +1096,7 @@ Newest first. Each entry is `YYYY-MM-DD: what changed in behavior, contracts, fo
 
 <!-- change-log:start -->
 - 2026-11-07: Build: the app depends on `@leonardschwier/leoforma` (public design system, tag v0.1.0, `git+https`, commit pinned by `package-lock.json`, `allow-git=root` in `.npmrc`; builds offline from the npm cache). Not yet imported by any source file. No application behavior changed.
+- 2026-11-07: Web clipper now works in Chrome (listeners reply through `sendResponse`, scripts fall back from `browser` to `chrome`, Firefox manifest keys added, FR-CLIP-002/003); install and test notes added. The website uses relative URLs so it works under the project Pages path, its feature list is now a short code-checked list, and unverified claims (store availability, dictation, counts) were narrowed.
 - 2026-11-07: Build and process: Playwright end-to-end smoke suite (`tests/e2e`, 14 journeys) and a required `e2e` job in `ci.yml` that uploads traces on failure. No application behavior changed.
 - 2026-11-07: Crash hardening (Android): `pickFolder` and `exportHtml` reject instead of throwing when the device has no document picker; share-intent extras are read defensively and styled text is kept; a restored activity no longer replays its share intent; `onNewIntent` is null-safe.
 - 2026-11-07: Desktop "Import Markdown vault..." command (`import_markdown_vault`, `cancel_markdown_import`, setting `markdownImportEnabled`, FR-IMPORT) copies a vault folder into `Imported/<name>`, converts three syntaxes and reports every outcome.

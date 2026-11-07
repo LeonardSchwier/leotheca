@@ -10,7 +10,10 @@ describe("buildPrintDocument", () => {
   });
 
   it("escapes an unsafe title so it cannot break out of <title> or inject markup", () => {
-    const doc = buildPrintDocument('A & B <script>alert(1)</script>', "<p>body</p>");
+    const doc = buildPrintDocument(
+      "A & B <script>alert(1)</script>",
+      "<p>body</p>",
+    );
     expect(doc).not.toContain("<script>alert(1)</script>");
     expect(doc).toContain("A &amp; B &lt;script&gt;alert(1)&lt;/script&gt;");
   });
@@ -29,7 +32,10 @@ describe("printNoteHtml", () => {
       const triggerPrint = vi.fn();
       const bodyBefore = document.querySelectorAll("iframe").length;
 
-      printNoteHtml("My Note", "<h1>Hello</h1>", { triggerPrint, cleanupDelayMs: 500 });
+      printNoteHtml("My Note", "<h1>Hello</h1>", {
+        triggerPrint,
+        cleanupDelayMs: 500,
+      });
 
       const iframes = document.querySelectorAll("iframe");
       expect(iframes.length).toBe(bodyBefore + 1);
@@ -38,7 +44,9 @@ describe("printNoteHtml", () => {
       // The iframe's own document actually received the built print
       // document, not just an empty/blank frame.
       expect(iframe.contentDocument?.title).toBe("My Note");
-      expect(iframe.contentDocument?.body.innerHTML).toContain("<h1>Hello</h1>");
+      expect(iframe.contentDocument?.body.innerHTML).toContain(
+        "<h1>Hello</h1>",
+      );
 
       // print() is called on the iframe's own window, not the host
       // window: printing only this content, never the whole app chrome.
@@ -80,8 +88,16 @@ describe("printNoteHtml", () => {
     vi.useFakeTimers();
     try {
       const printSpy = vi.fn();
-      const fakeWin = { print: printSpy, addEventListener: vi.fn(), removeEventListener: vi.fn() } as unknown as Window;
-      const fakeIframeDoc = { open: vi.fn(), write: vi.fn(), close: vi.fn() } as unknown as Document;
+      const fakeWin = {
+        print: printSpy,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      } as unknown as Window;
+      const fakeIframeDoc = {
+        open: vi.fn(),
+        write: vi.fn(),
+        close: vi.fn(),
+      } as unknown as Document;
       const fakeIframe = {
         style: {},
         setAttribute: vi.fn(),
@@ -97,7 +113,9 @@ describe("printNoteHtml", () => {
       printNoteHtml("Title", "<p>x</p>", { doc: fakeDoc });
 
       expect(printSpy).toHaveBeenCalledTimes(1);
-      expect(fakeIframeDoc.write).toHaveBeenCalledWith(expect.stringContaining("<p>x</p>"));
+      expect(fakeIframeDoc.write).toHaveBeenCalledWith(
+        expect.stringContaining("<p>x</p>"),
+      );
 
       vi.advanceTimersByTime(1000);
       expect(fakeIframe.remove).toHaveBeenCalledTimes(1);
@@ -117,7 +135,11 @@ describe("printNoteHtml", () => {
         }),
         removeEventListener: vi.fn(),
       } as unknown as Window;
-      const fakeIframeDoc = { open: vi.fn(), write: vi.fn(), close: vi.fn() } as unknown as Document;
+      const fakeIframeDoc = {
+        open: vi.fn(),
+        write: vi.fn(),
+        close: vi.fn(),
+      } as unknown as Document;
       const fakeIframe = {
         style: {},
         setAttribute: vi.fn(),
@@ -130,7 +152,10 @@ describe("printNoteHtml", () => {
         body: { appendChild: vi.fn() },
       } as unknown as Document;
 
-      printNoteHtml("Title", "<p>x</p>", { doc: fakeDoc, cleanupDelayMs: 60_000 });
+      printNoteHtml("Title", "<p>x</p>", {
+        doc: fakeDoc,
+        cleanupDelayMs: 60_000,
+      });
 
       expect(fakeIframe.remove).not.toHaveBeenCalled();
       listeners["afterprint"]();
@@ -143,5 +168,59 @@ describe("printNoteHtml", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe("print stylesheet pagination", () => {
+  const doc = buildPrintDocument("T", "<p>x</p>");
+
+  it("keeps headings with the following block and does not split code blocks or table rows", () => {
+    expect(doc).toMatch(/break-after:\s*avoid/);
+    expect(doc).toMatch(/pre[^{]*\{[^}]*break-inside:\s*avoid/);
+    expect(doc).toMatch(/tr[^{]*\{[^}]*break-inside:\s*avoid/);
+  });
+
+  it("appends extra CSS after the base stylesheet", () => {
+    const withExtra = buildPrintDocument("T", "<p>x</p>", {
+      extraCss: ".zzz{color:red}",
+    });
+    expect(withExtra).toContain(".zzz{color:red}");
+    expect(withExtra.indexOf(".zzz")).toBeGreaterThan(
+      withExtra.indexOf("@media print"),
+    );
+  });
+});
+
+describe("printNoteHtml extensions", () => {
+  it("waits for assets before printing and builds the document with the given builder", async () => {
+    const calls: string[] = [];
+    const triggerPrint = vi.fn(() => calls.push("print"));
+    const waitForAssets = vi.fn(async () => {
+      calls.push("wait");
+    });
+    const buildDocument = (t: string, b: string) =>
+      `<!DOCTYPE html><html><head><title>${t}</title></head><body>CUSTOM ${b}</body></html>`;
+    await printNoteHtml("Named", "<p>b</p>", {
+      triggerPrint,
+      waitForAssets,
+      buildDocument,
+      cleanupDelayMs: 1,
+    });
+    expect(calls).toEqual(["wait", "print"]);
+    const iframes = document.querySelectorAll("iframe");
+    const last = iframes[iframes.length - 1] as HTMLIFrameElement | undefined;
+    if (last) expect(last.contentDocument?.body.innerHTML).toContain("CUSTOM");
+  });
+
+  it("still prints when waiting for assets rejects", async () => {
+    const triggerPrint = vi.fn();
+    await printNoteHtml("N", "<p>b</p>", {
+      triggerPrint,
+      waitForAssets: async () => {
+        throw new Error("x");
+      },
+      cleanupDelayMs: 1,
+    });
+    expect(triggerPrint).toHaveBeenCalledTimes(1);
   });
 });

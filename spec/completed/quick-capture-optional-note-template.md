@@ -43,3 +43,6 @@ Reuse: the existing `capture-sheet-field`, `capture-sheet-input`, `capture-sheet
 ## Evidence
 
 Filled at stage 6.
+
+## Evidence
+Landed a7eb21b (merge 6bf60fa) and 155617e. Hosted CI: CI run 42313292686 success and Agent policy run 42313292622 success on 155617e; its Rules and Release runs failed on an untriaged npm audit finding, a Prettier warning on master-spec.md and a release publish error, all outside this change and fixed by later commits. Main at 1a672b8, which contains 155617e: CI run 42315044064, Release run 42315044185, Rules run 42315044043 all success. Local checks by the implementing session: tsc 0, eslint 0 errors, npm test 174 files / 3264 passed, build ok; four new tests fail when captureCommit.ts is reverted. Not covered: persisted default-template setting, pending and Android-share captures.

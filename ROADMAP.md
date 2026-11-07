@@ -95,7 +95,9 @@ Minor bugs, UX improvements, and performance.
 - ⬜ **Master specification for spec-driven rebuilds**: Write master-spec.md, a full specification of the application's current behavior sufficient to rebuild it, and add a constitution rule plus a CI check so every implementation push to main updates it.
   <!-- agent-state: {"schema":1,"id":"rm-e0a353c57cfd59e2","state":"open","touch":[".github/workflows/agent-policy.yml","master-spec.md","scripts/check_master_spec.py","scripts/test_check_master_spec.py","skills/master-spec-maintenance.md","spec/master"],"resources":["master-spec"],"note":"Landed 2ddb675 (master-spec.md, checker, CI job, skill). Remaining: constitution rule + playbook link, blocked by live claim on CONSTITUTION.md; see handoff.","released_at":"2026-11-06T23:29:31Z"} -->
   Agent: unclaimed | item: rm-e0a353c57cfd59e2
-- ⬜ **Constitution and index pointers**: Add the master specification rule to CONSTITUTION.md with a link from skills/pdlc-playbook.md, add the constitution reference and README row for the security skill, and fix hooks/README.md, which still says the e2e suite is not on main.
+- 🚧 **Constitution and index pointers**: Add the master specification rule to CONSTITUTION.md with a link from skills/pdlc-playbook.md, add the constitution reference and README row for the security skill, and fix hooks/README.md, which still says the e2e suite is not on main.
+  <!-- agent-state: {"schema":1,"id":"rm-fbcbd094e7cc8498","state":"claimed","touch":["CONSTITUTION.md","hooks/README.md","skills/README.md","skills/pdlc-playbook.md","skills/security-and-static-analysis.md"],"resources":["constitution"],"owner":"claude-code-pointers-20261107T081216Z-830cdb5e","token":"29a68add6ee5046f451580711133be76","branch":"agent/rm-fbcbd094e7cc8498/29a68add6ee5","claimed_at":"2026-11-07T08:12:41Z","heartbeat_at":"2026-11-07T08:12:41Z","lease_until":"2026-11-07T09:42:41Z"} -->
+  Agent: claude-code-pointers-20261107T081216Z-830cdb5e | item: rm-fbcbd094e7cc8498 | lease until: 2026-11-07T09:42:41Z
 
   <details>
   <summary>Scope and validation</summary>

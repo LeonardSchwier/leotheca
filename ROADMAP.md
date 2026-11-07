@@ -36,7 +36,9 @@ Items nobody owns. Take the first one that fits.
   <!-- agent-state: {"schema":1,"id":"rm-166ef9a028950ee5","state":"claimed","touch":["src/settings/WorkspaceSwitcher.test.tsx"],"resources":[],"owner":"claude-code-reviewaxes-20261107T225137Z","token":"554d67236af235fde0491fc03a3be5dc","branch":"agent/rm-166ef9a028950ee5/554d67236af2","claimed_at":"2026-11-07T23:12:09Z","heartbeat_at":"2026-11-07T23:12:09Z","lease_until":"2026-11-08T00:42:09Z"} -->
   Agent: claude-code-reviewaxes-20261107T225137Z | item: rm-166ef9a028950ee5 | lease until: 2026-11-08T00:42:09Z
 
-- ⬜ **Move the PDF export spec from the ledger branch to main**: The PDF export agent archived `spec/completed/pdf-export-for-notes.md` on the ledger branch, so a ledger push that merges main looks like an application change and runs the full gate. Add the file to main by pull request and remove it from the ledger branch; tell agents in `skills/roadmap-workflow.md` that spec archives travel with the code pull request.
+- 🚧 **Move the PDF export spec from the ledger branch to main**: The PDF export agent archived `spec/completed/pdf-export-for-notes.md` on the ledger branch, so a ledger push that merges main looks like an application change and runs the full gate. Add the file to main by pull request and remove it from the ledger branch; tell agents in `skills/roadmap-workflow.md` that spec archives travel with the code pull request.
+  <!-- agent-state: {"schema":1,"id":"rm-8260073f3367dc1c","state":"claimed","touch":["spec/completed/pdf-export-for-notes.md","spec/pdf-export-for-notes.md"],"resources":[],"owner":"claude-code-pdlc-20261106T231246Z-fcf4c9d1","token":"01aa66c356fbab48606573c779602078","branch":"agent/rm-8260073f3367dc1c/01aa66c356fb","claimed_at":"2026-11-07T23:14:18Z","heartbeat_at":"2026-11-07T23:14:18Z","lease_until":"2026-11-08T00:44:18Z"} -->
+  Agent: claude-code-pdlc-20261106T231246Z-fcf4c9d1 | item: rm-8260073f3367dc1c | lease until: 2026-11-08T00:44:18Z
 - ⬜ **Adopt a shared glossary that the PDLC maintains by itself**: Idea from the public MIT-licensed `mattpocock/skills` repository (ubiquitous language, ADRs inline), made automatic.
 
   <details>

@@ -67,7 +67,9 @@ Items nobody owns. Take the first one that fits.
   Found by the security-audit skill in guidance mode (source trace; severity low, needs_validation for the merged manifest on a device). A sending app could name a path under the provider's roots with an image extension and have it staged as a capture. Fix: remove the provider and file_paths.xml if no caller exists (confirm with a repo-wide search), and add a pure NativeBoundaryPolicy check that only accepts content scheme URIs whose authority is not the app's own, wired into stageSingleUri, with JVM unit tests. Touches android/app/src/main, android/app/src/test and master-spec.md.
 
   </details>
-- ⬜ **Restrict the speech model path and model directory commands**: `init_speech_recognition(model_path)` passes a webview-supplied path to the whisper FFI loader and `check_whisper_models(app_dir)` probes file existence in any directory.
+- 🚧 **Restrict the speech model path and model directory commands**: `init_speech_recognition(model_path)` passes a webview-supplied path to the whisper FFI loader and `check_whisper_models(app_dir)` probes file existence in any directory.
+  <!-- agent-state: {"schema":1,"id":"rm-cc7afa94052b442d","state":"claimed","touch":[".agents/handoffs","master-spec.md","spec/restrict-speech-model-paths.md","src-tauri/src/lib.rs","src-tauri/src/speech_commands.rs","src/workspace/speechBridge.ts","src/workspace/speechBridgeImpl.ts"],"resources":[],"owner":"claude-code-pdlc-20261106T231246Z-fcf4c9d1","token":"ed141ba0a74042f798540a1334ce819f","branch":"agent/rm-cc7afa94052b442d/ed141ba0a740","claimed_at":"2026-11-07T17:42:56Z","heartbeat_at":"2026-11-07T17:42:56Z","lease_until":"2026-11-07T19:12:56Z"} -->
+  Agent: claude-code-pdlc-20261106T231246Z-fcf4c9d1 | item: rm-cc7afa94052b442d | lease until: 2026-11-07T19:12:56Z
 
   <details>
   <summary>Evidence and validation plan</summary>

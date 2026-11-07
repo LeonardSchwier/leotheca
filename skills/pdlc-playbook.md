@@ -29,7 +29,7 @@ FIX_LOOP_CAP = 3 review/fix rounds; DEBUG_STRIKES = 3
 
 # Spec-first delivery for one roadmap item
 
-Every implementation item runs these seven stages after its claim. The claim, lease and push mechanics stay in `roadmap-workflow.md`; check commands stay in `verification-suite.md`. This file only adds the stages and their gates. No stage waits for a human: where a person would approve, an LLM judge records a ruling and moves on.
+Every implementation item runs these eight stages after its claim. The claim, lease and push mechanics stay in `roadmap-workflow.md`; check commands stay in `verification-suite.md`. This file only adds the stages and their gates. No stage waits for a human: where a person would approve, an LLM judge records a ruling and moves on.
 
 Exempt: claim/renew/finish/handoff transactions, roadmap seed edits, and pure-typo docs fixes. A small item gets a small spec (see "Sizing"), never none.
 
@@ -37,7 +37,7 @@ Exempt: claim/renew/finish/handoff transactions, roadmap seed edits, and pure-ty
 
 The author runs a ~27B local model (see the constitution's author environment), so every stage must work without huge context or frontier-only features. Keep each task to about 5 files and one test file; split larger work per `phase-splitting-large-specs.md`. Treat the spec file and handoff file as memory: write to disk, re-read one stage at a time, never rely on the chat. Load only the files a stage names. Subagents and parallelism are optional speedups; the same stage done as a separate, fresh pass by the same agent is equivalent.
 
-## The seven stages
+## The eight stages
 
 | #   | Stage               | Output                          | Gate to leave                                                    |
 | --- | ------------------- | ------------------------------- | ---------------------------------------------------------------- |
@@ -48,6 +48,7 @@ The author runs a ~27B local model (see the constitution's author environment), 
 | 5   | Implement           | code + tests on the work branch | test seen failing first, then passing                            |
 | 6   | Verify              | evidence in the spec            | unit, review, e2e smoke, security all green or honestly deferred |
 | 7   | Archive             | `DONE_DIR/<slug>.md`            | evidence table complete, finish transaction pushed               |
+| 8   | Reflect             | `Reflection:` line in the spec  | finding and action recorded, or `none` with a reason             |
 
 HARD GATE: do not edit implementation files before stages 2-4 are written into `SPEC_FILE` on your work branch. Do not run `finish` before stage 6 evidence exists.
 
@@ -98,12 +99,20 @@ A failing check is a code failure until its log says otherwise. Debugging: no fi
 
 In the finish transaction, fill **Evidence** (table below), then `git mv SPEC_FILE DONE_DIR/<slug>.md` in the same commit as the helper's `finish` and the handoff update. A spec that is not completed stays in `SPEC_DIR`.
 
-| Claim                     | Evidence (command or trace)                     | Result                        |
-| ------------------------- | ----------------------------------------------- | ----------------------------- |
-| each acceptance criterion | exact test name or command, tested SHA          | observed output               |
-| review                    | reviewer, rounds, findings fixed                | closed                        |
-| e2e smoke / security      | job or command                                  | pass, or deferred with reason |
-| legal/text check          | `Legal/text check: N verified, M fixed, 0 open` | recorded in the spec          |
+| Claim                     | Evidence (command or trace)            | Result                        |
+| ------------------------- | -------------------------------------- | ----------------------------- |
+| each acceptance criterion | exact test name or command, tested SHA | observed output               |
+| review                    | reviewer, rounds, findings fixed       | closed                        |
+| e2e smoke / security      | job or command                         | pass, or deferred with reason |
+
+### 8. Reflect
+
+Before the spec is archived, add one line at its end:
+
+`Reflection: <what this item showed about a rule, skill, hook, check or tool> -> <applied | seeded | none: reason>`
+
+`applied` means you changed the process in this item; `seeded` means you added a roadmap item for it; `none` needs a reason. The line must be at least a sentence: `scripts/check-rules.mjs reflection` rejects an empty or one-word line when the spec is archived. You may change the constitution, `AGENTS.md`, skills, hooks and checks to fix what you found (constitution, "Self-improvement").
+| legal/text check | `Legal/text check: N verified, M fixed, 0 open` | recorded in the spec |
 
 Banned before evidence exists: "should work", "probably fine", "done". Distrust a success report you did not see: check the diff and rerun the command.
 

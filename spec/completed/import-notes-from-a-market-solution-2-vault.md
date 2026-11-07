@@ -47,3 +47,6 @@ Reuse `ui/Dialog`, `ui/Button`, `ui/Spinner` and existing theme tokens; add `mar
 ## Evidence
 
 Filled at archive.
+
+## Evidence
+Landed 5b394ae, 341eb63, 1a672b8. Hosted CI on 1a672b8: CI run 42315044064 success, Release run 42315044185 success, Rules run 42315044043 success; Agent policy success on 341eb63. Local checks by the implementing session: tsc 0, eslint 0 errors, check-version ok, npm test 178 files / 3345 passed, build ok, cargo fmt/clippy -D warnings/check ok, cargo test 118 passed. Not verified: Android build of the non-desktop stub path, real-app GUI run.

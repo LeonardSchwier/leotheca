@@ -13,3 +13,6 @@ Next action: gh run view 42392463898; a red run is a main regression.
 Retry: available now.
 
 Reflection: a pre-existing phantom diff on android/gradlew.bat (CRLF attribute) blocked the helper's clean-tree check -> applied: used git update-index --assume-unchanged locally; recorded here only (a skill fix would be to document it; not done to keep scope).
+
+## Hosted CI result (2026-11-07T17:42:23Z)
+All green for f8891d6: CI 42392463898, Rules 42392463927, Agent policy 42392463915, Release 42392463954.

@@ -125,6 +125,38 @@ Minor bugs, UX improvements, and performance.
   Install per its README at user or project level and do not commit generated audit output. Record honestly what the local runner could not do and never claim a full audit. Covers todo 5b. Validation: the skill source and license verified before install, guidance run notes in a handoff, seeds validated by scripts/check_roadmap_format.py.
 
   </details>
+- ⬜ **Gate the list_dir desktop command with the active workspace root**: `list_dir(path, workspace_root)` in src-tauri/src/commands.rs takes both the directory and its containment root from the frontend and never consults ActiveWorkspaceRoot, so a compromised webview can list any readable directory by passing the same value twice. Every sibling command (find_*, read_*, workspace_stats) gates `path` with check_unscoped_path_allowed.
+
+  <details>
+  <summary>Evidence, fix and validation plan</summary>
+
+  Found by the security-audit skill in guidance mode (source trace, severity low: names and mtimes only, hidden entries skipped). Fix: take the ActiveWorkspaceRoot state and app handle like find_markdown_files and call check_unscoped_path_allowed on `path` before listing, keeping the existing workspace_root containment check; update the frontend bridge only if its call shape changes. Regression test: a core-function test where the caller passes workspace_root equal to a directory outside the active root and must be rejected, failing before the fix. Touches src-tauri/src/commands.rs and master-spec.md.
+
+  </details>
+- ⬜ **Reject foreign share streams and drop the unused FileProvider**: The exported MainActivity accepts SEND intents whose EXTRA_STREAM is any URI, and CaptureIntentHandler.stageSingleUri opens it with the app's own ContentResolver, which includes the app's own FileProvider (authority applicationId.fileprovider). That provider is unused (no getUriForFile call) and file_paths.xml maps the whole external storage root.
+
+  <details>
+  <summary>Evidence, fix and validation plan</summary>
+
+  Found by the security-audit skill in guidance mode (source trace; severity low, needs_validation for the merged manifest on a device). A sending app could name a path under the provider's roots with an image extension and have it staged as a capture. Fix: remove the provider and file_paths.xml if no caller exists (confirm with a repo-wide search), and add a pure NativeBoundaryPolicy check that only accepts content scheme URIs whose authority is not the app's own, wired into stageSingleUri, with JVM unit tests. Touches android/app/src/main, android/app/src/test and master-spec.md.
+
+  </details>
+- ⬜ **Bind the active workspace root to a native folder grant**: `set_active_workspace_root(path)` accepts any string from the webview and then widens both the unscoped-path allow-list and the asset protocol scope to it, so the per-command containment checks only hold while the webview is trusted.
+
+  <details>
+  <summary>Evidence and validation plan</summary>
+
+  Found by the security-audit skill in guidance mode (design gap, severity needs_validation: exploiting it needs script execution in the webview, and the CSP is script-src self with no remote content). Direction: accept only a root produced by the native folder dialog or already persisted in the app's own workspace list, and reject other values; needs a spec with rulings because the frontend restores roots on start. Validation: Rust test that an arbitrary path is rejected while a dialog-granted or persisted root is accepted.
+
+  </details>
+- ⬜ **Restrict the speech model path and model directory commands**: `init_speech_recognition(model_path)` passes a webview-supplied path to the whisper FFI loader and `check_whisper_models(app_dir)` probes file existence in any directory.
+
+  <details>
+  <summary>Evidence and validation plan</summary>
+
+  Found by the security-audit skill in guidance mode (source trace; needs_validation because shipping builds compile the whisper stub, see whisper_ffi is_whisper_available). Direction: resolve the model from a fixed set of ggml file names under the app data directory chosen natively, never from a caller path. The frontend currently passes a model size name as the path, so the real contract also needs fixing. Validation: Rust tests that traversal, absolute and unknown names are rejected.
+
+  </details>
 
 ## Weekly Code Review
 

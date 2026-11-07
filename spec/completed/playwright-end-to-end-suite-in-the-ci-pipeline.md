@@ -56,3 +56,6 @@ No UI surface. The suite only observes the product.
 ## Evidence
 
 Filled at finish.
+
+## Evidence
+Suite landed 07f7a65 (tests/e2e, 14 journeys) with a required e2e job in ci.yml uploading traces on failure; policy fixes landed 4cc8d50. Hosted: CI run 42340859598 on 07f7a65 with job e2e success; on 4cc8d50 CI 42343989613, Release 42343989717, Agent policy 42343989581, Rules 42343989607 all success. Local: 14 passed, eslint 0 errors, tsc 0. Open: typing freeze after a pending edit (cause not found, insertText used in the autosave test); root test:e2e script so the pre-push gate runs the suite.

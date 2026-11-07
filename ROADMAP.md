@@ -32,9 +32,6 @@ Items with an owner. An expired lease means the item can be recovered.
 
 Items nobody owns. Take the first one that fits.
 
-- 🚧 **Update tokio past the unsound advisory**: The `cargo-audit` job reports `tokio` 1.53.1 as unsound (RUSTSEC-2026-0386). `cargo update -p tokio` offers 1.54.1. Update, confirm with the audit that the advisory is gone, regenerate `flatpak/cargo-sources.json`, run the Rust tests and deliver by pull request.
-  <!-- agent-state: {"schema":1,"id":"rm-9b3ed3584209c9f8","state":"claimed","touch":[".agents/handoffs","flatpak/cargo-sources.json","master-spec.md","src-tauri/Cargo.lock","src-tauri/Cargo.toml"],"resources":[],"owner":"claude-code-pdlc-20261106T231246Z-fcf4c9d1","token":"9089ec29d3e821983c62c3ccd1ea7fb8","branch":"agent/rm-9b3ed3584209c9f8/9089ec29d3e8","claimed_at":"2026-11-07T21:22:57Z","heartbeat_at":"2026-11-07T21:22:57Z","lease_until":"2026-11-07T22:52:57Z"} -->
-  Agent: claude-code-pdlc-20261106T231246Z-fcf4c9d1 | item: rm-9b3ed3584209c9f8 | lease until: 2026-11-07T22:52:57Z
 - ⬜ **Android camera capture**: Take a photo directly from the "Insert attachment" toolbar. Status: open.
   <!-- agent-state: {"schema":1,"id":"rm-5fc96a0db16f2169","state":"open","touch":[],"resources":["triage-recovery"],"note":"Triage 2026-11-06T23:25Z by claude-code-triage: previous owner hermes-20261030T080439Z-0fdb1a0c lease expired 2026-10-30. No remote or local branch and no handoff exist. Main has no cameraCapture.ts or CameraCapturePlugin; the WIP the 2026-11-01 weekly review saw was uncommitted and is not recoverable. Restart from main. Device-side testing needs an Android device or emulator with camera; split JS bridge and unit tests from device verification.","released_at":"2026-11-06T23:22:16Z"} -->
   Agent: unclaimed | item: rm-5fc96a0db16f2169
@@ -70,6 +67,11 @@ Items that wait for access or a decision outside the repository.
 - ⏸ **Compatibility layer**: Load community extension manifests; gated on maintainer approval of the third-party-code security model.
 
 ## Implemented
+
+- ✅ **Update tokio past the unsound advisory**: The `cargo-audit` job reports `tokio` 1.53.1 as unsound (RUSTSEC-2026-0386). `cargo update -p tokio` offers 1.54.1. Update, confirm with the audit that the advisory is gone, regenerate `flatpak/cargo-sources.json`, run the Rust tests and deliver by pull request.
+  <!-- agent-state: {"schema":1,"id":"rm-9b3ed3584209c9f8","state":"done","touch":[".agents/handoffs","flatpak/cargo-sources.json","master-spec.md","src-tauri/Cargo.lock","src-tauri/Cargo.toml"],"resources":[],"note":"Merged as PR 83 (34c8d1c): tokio 1.54.1, cargo-audit no longer lists it; 25 required PR checks green; hosted CI pending for post-merge runs, ids in handoff","completed_at":"2026-11-07T21:34:43Z","completed_by":"claude-code-pdlc-20261106T231246Z-fcf4c9d1","branch":"agent/rm-9b3ed3584209c9f8/9089ec29d3e8"} -->
+  Agent: completed by claude-code-pdlc-20261106T231246Z-fcf4c9d1 | item: rm-9b3ed3584209c9f8
+
 
 - ✅ **Anchor self-improvement and a mechanical Reflection check in the process**: Owner permission 2026-11-07: agents may improve the constitution, AGENTS.md, skills, hooks and checks themselves and must reflect at the end of every item. Add a constitution section and an AGENTS.md paragraph, playbook stage 8 Reflect (`Reflection: <finding> -> <applied|seeded|none: reason>`), and a check that fails when a spec newly archived under `spec/completed/` has no such line.
   <!-- agent-state: {"schema":1,"id":"rm-573e5969c54c86fe","state":"done","touch":[".agents/handoffs",".github/workflows/rules.yml","AGENTS.md","CONSTITUTION.md","documentation/AGENTIC_PDLC.md","documentation/DECISIONS.md","hooks","master-spec.md","scripts/check-rules.mjs","scripts/check-rules.test.js","skills/pdlc-playbook.md"],"resources":[],"note":"Merged as PR 82 (f39e185): constitution Self-improvement section, AGENTS.md paragraph, playbook stage 8, check-rules reflection mode in hook and Rules workflow, PDLC gap table brought up to date; 23 required PR checks green; hosted CI pending for post-merge runs, ids in handoff","completed_at":"2026-11-07T21:22:04Z","completed_by":"claude-code-pdlc-20261106T231246Z-fcf4c9d1","branch":"agent/rm-573e5969c54c86fe/9ec5cc57699b"} -->

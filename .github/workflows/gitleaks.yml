@@ -1,0 +1,53 @@
+name: Secret scan
+
+# gitleaks over the commits a change adds, plus the working tree. The pre-commit
+# hook runs the same tool on staged changes when it is installed; this is the
+# backstop for machines without it. Rules and narrow allowlists live in
+# .gitleaks.toml. The weekly run scans the whole history. A false positive gets
+# a narrow allowlist with a reason there, never a disabled rule.
+# Not a required merge check by itself; a red run on main is a regression.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "17 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  gitleaks:
+    runs-on: ubuntu-latest
+    env:
+      GITLEAKS_VERSION: 8.30.1
+      # SHA-256 from gitleaks_8.30.1_checksums.txt in the release.
+      GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install gitleaks (pinned release binary, checksum verified)
+        run: |
+          asset="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -fsSL -o "$RUNNER_TEMP/$asset" \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/$asset"
+          echo "$GITLEAKS_SHA256  $RUNNER_TEMP/$asset" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/$asset" -C "$RUNNER_TEMP" gitleaks
+      - name: Scan the working tree
+        run: '"$RUNNER_TEMP/gitleaks" dir . --redact --no-banner --verbose'
+      - name: Scan the commits of this change
+        if: github.event_name == 'pull_request'
+        run: |
+          "$RUNNER_TEMP/gitleaks" git . --redact --no-banner --verbose \
+            --log-opts "${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
+      - name: Scan the pushed commits
+        if: github.event_name == 'push' && github.event.before != '0000000000000000000000000000000000000000'
+        run: |
+          "$RUNNER_TEMP/gitleaks" git . --redact --no-banner --verbose \
+            --log-opts "${{ github.event.before }}..${{ github.sha }}"
+      - name: Scan the whole history
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        run: '"$RUNNER_TEMP/gitleaks" git . --redact --no-banner --verbose'

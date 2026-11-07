@@ -31,11 +31,6 @@ serde_json = "1"
 # `tauri` itself.
 url = "2"
 
-# Local whisper.cpp FFI bindings for speech recognition
-# If whisper.cpp source is available, it will be compiled and used;
-# otherwise stub implementations are used
-whisper-ffi = { path = "native/whisper" }
-
 [dev-dependencies]
 # "test" feature only: enables tauri::test::mock_builder for
 # set_active_workspace_root's asset-protocol-scope test (commands.rs),

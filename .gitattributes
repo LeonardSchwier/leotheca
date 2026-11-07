@@ -9,7 +9,6 @@
 package-lock.json linguist-generated=true
 tests/e2e/package-lock.json linguist-generated=true
 src-tauri/Cargo.lock linguist-generated=true
-src-tauri/native/whisper/Cargo.lock linguist-generated=true
 flatpak/node-sources.json linguist-generated=true
 flatpak/cargo-sources.json linguist-generated=true
 src-tauri/gen/** linguist-generated=true

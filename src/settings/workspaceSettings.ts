@@ -216,17 +216,6 @@ export interface WorkspaceSettings {
   collectionsEnabled: boolean;
   /** RTL Phase 2: Whether the workspace chrome (sidebar, toolbar) is mirrored for RTL languages. */
   rtlWorkspaceEnabled: boolean;
-  /** Whether the toolbar's speech-to-text dictation button (see
-   * editor/SpeechRecognitionButton.tsx) is shown at all. Defaults to
-   * **off**, the same deliberate opt-out-of-the-default-on-convention
-   * deviation `collectionsEnabled` documents above: the button's own
-   * mount effect immediately probes platform speech availability, which
-   * on Android reaches the native SpeechRecognizer plugin, so leaving
-   * this on by default would engage microphone-adjacent native code
-   * before the user has ever expressed interest in dictation. Off, the
-   * button doesn't render at all, the same as before this feature
-   * existed. */
-  speechToTextEnabled: boolean;
   /** Offline spellchecking: flags misspelled words in the editor using a
    * local Hunspell-compatible dictionary (`.leotheca/dictionary.aff` and
    * `.leotheca/dictionary.dic`). Off by default to avoid loading a
@@ -296,7 +285,6 @@ export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
   markdownImportEnabled: true,
   collectionsEnabled: false,
   rtlWorkspaceEnabled: false,
-  speechToTextEnabled: false,
   spellcheckEnabled: false,
   captureInboxFolder: "",
   captureInboxNote: "Inbox.md",
@@ -829,10 +817,6 @@ export function decodeWorkspaceSettings(
     record.rtlWorkspaceEnabled,
     DEFAULT_WORKSPACE_SETTINGS.rtlWorkspaceEnabled,
   );
-  const speechToTextEnabled = decodeBoolean(
-    record.speechToTextEnabled,
-    DEFAULT_WORKSPACE_SETTINGS.speechToTextEnabled,
-  );
   const spellcheckEnabled = decodeBoolean(
     record.spellcheckEnabled,
     DEFAULT_WORKSPACE_SETTINGS.spellcheckEnabled,
@@ -918,7 +902,6 @@ export function decodeWorkspaceSettings(
     markdownImportEnabled: markdownImportEnabled.value,
     collectionsEnabled: collectionsEnabled.value,
     rtlWorkspaceEnabled: rtlWorkspaceEnabled.value,
-    speechToTextEnabled: speechToTextEnabled.value,
     spellcheckEnabled: spellcheckEnabled.value,
     captureInboxFolder: captureInboxFolder.value,
     captureInboxNote: captureInboxNote.value,
@@ -926,6 +909,11 @@ export function decodeWorkspaceSettings(
     customCssEnabled: customCssEnabled.value,
     customCssPath: customCssPath.value,
   } as unknown as WorkspaceSettings;
+
+  // Voice dictation was removed (product rule: no microphone). An old settings
+  // file may still carry its switch; drop it silently instead of keeping a
+  // dead key around or treating it as corruption.
+  delete (settings as unknown as Record<string, unknown>).speechToTextEnabled;
 
   // F07 Phase 2b: Corruption only when editorLayout is invalid AND cannot be migrated from legacy
   const editorLayoutCorrupt =
@@ -965,7 +953,6 @@ export function decodeWorkspaceSettings(
       markdownImportEnabled,
       collectionsEnabled,
       rtlWorkspaceEnabled,
-      speechToTextEnabled,
       spellcheckEnabled,
       captureInboxFolder,
       captureInboxNote,

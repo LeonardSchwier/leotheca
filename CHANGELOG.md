@@ -4,10 +4,10 @@
 
 ### Maintenance
 
+- **Voice dictation and microphone access removed**: Leotheca now uses neither the camera nor the microphone, because that access can invade privacy. The optional speech-to-text dictation (editor button, Quick Capture voice note, desktop whisper commands, Android recognizer) and the Android `RECORD_AUDIO` and `MODIFY_AUDIO_SETTINGS` permissions are gone, along with the unused native whisper build code. An old "Speech-to-text dictation" setting in a settings file is ignored and dropped. The README and the product rules now state the stance: no camera, no microphone, no network.
 - **Capture no longer stalls on long runs of blank lines**: Trailing blank lines are removed in linear time. A note ending in tens of thousands of newlines followed by text used to freeze the capture sheet for seconds. Static security analysis (ESLint security rules, Semgrep, CodeQL) now runs on the sources.
 - **Android share hardening**: Sharing into Leotheca now accepts only another app's content URI; file URIs and the app's own provider are rejected, and the unused FileProvider was removed.
 - **Dependency security update**: Updated production dependencies to clear all 8 known vulnerabilities reported by `npm audit` (including two critical: DOMPurify and Capacitor Android). A weekly audit workflow now reports new advisories.
-- **Speech model commands restricted**: Desktop `init_speech_recognition` now takes a model name (tiny, base, small, medium) and loads it from the app's own `whisper-models` directory; `check_whisper_models` takes no path. The renderer can no longer make the app open an arbitrary file.
 - **Documentation corrections**: Removed "Android camera capture" from the new-features list (the repository contains no camera code; the feature is still open on the roadmap). Moved the macOS Quick Look generator out of the shipped features: its source and build scripts are in the repository (`packaging/macos/quicklook/`, `scripts/build-quicklook.sh`), but no release workflow builds or bundles it, so it is not part of the downloadable app. Rewrote `packaging/STATUS.md` in English with the current state, and corrected the version stated in `packaging/f-droid/README.md`.
 - **Repository tidy-up** — Removed a tracked 100 MB AppImage, a stray control worktree, session logs, a scan session log and dated session reports from the tree (history is not rewritten). Added ignore rules, moved the speech-to-text research and plan to `documentation/`, moved the mermaid smoke test under `src/markdown/`, removed machine-specific paths from build scripts, and added `src/tidyRepoHygiene.test.ts`, which fails on tracked files over 5 MB or on private IP addresses and machine paths outside `.agents/handoffs`.
 
@@ -56,7 +56,6 @@
 - **Outline and breadcrumbs** — Live hierarchical heading list and breadcrumb trail with copy/insert-link actions.
 - **Workspace profiles** — Rename, assign icons, relink folders, and manage multiple workspaces from a searchable switcher.
 - **Android home-screen widgets** — New note, Favorites, Recent notes, and Quick Capture widgets.
-- **Local speech-to-text** — Opt-in voice dictation (Settings → General, off by default).
 - **Quick Capture** — Capture from deep links and Android share intents with review before commit.
 - **RTL text direction** — Automatic per-note direction detection for Hebrew, Arabic, and other RTL scripts.
 - **Offline spellchecking** — Local dictionary-based spellcheck, no network calls.

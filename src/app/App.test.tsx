@@ -233,12 +233,6 @@ vi.mock("../settings/SettingsPanel", () => ({
   SettingsPanel: () => null,
 }));
 
-vi.mock("../editor/SpeechRecognitionButton", () => ({
-  SpeechRecognitionButton: () => (
-    <button data-testid="mock-speech-button">Speak</button>
-  ),
-}));
-
 const { App } = await import("./App");
 const {
   activeTabPath,
@@ -990,26 +984,6 @@ describe("App: Collections gated by collectionsEnabled, off by default (2026-09-
     };
     const { queryByLabelText } = render(<App />);
     expect(queryByLabelText("Open Collections")).toBeTruthy();
-  });
-});
-
-describe("App: speech-to-text dictation gated by speechToTextEnabled, off by default (2026-09-15)", () => {
-  it("does not mount SpeechRecognitionButton for an open note when speechToTextEnabled is off (the default)", () => {
-    workspacePath.value = "/vault";
-    openOrFocusTab("/vault/a.md", "a.md", "", "text");
-    const { queryByTestId } = render(<App />);
-    expect(queryByTestId("mock-speech-button")).toBeNull();
-  });
-
-  it("mounts SpeechRecognitionButton for an open note once speechToTextEnabled is turned on", () => {
-    workspacePath.value = "/vault";
-    workspaceSettings.value = {
-      ...DEFAULT_WORKSPACE_SETTINGS,
-      speechToTextEnabled: true,
-    };
-    openOrFocusTab("/vault/a.md", "a.md", "", "text");
-    const { queryByTestId } = render(<App />);
-    expect(queryByTestId("mock-speech-button")).toBeTruthy();
   });
 });
 

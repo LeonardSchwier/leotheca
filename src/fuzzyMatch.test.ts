@@ -36,8 +36,12 @@ describe("fuzzyScore", () => {
   });
 
   it("is case-insensitive", () => {
-    expect(fuzzyScore("Hello", "hello world")).toBe(fuzzyScore("hello", "hello world"));
-    expect(fuzzyScore("HELLO", "hello world")).toBe(fuzzyScore("hello", "hello world"));
+    expect(fuzzyScore("Hello", "hello world")).toBe(
+      fuzzyScore("hello", "hello world"),
+    );
+    expect(fuzzyScore("HELLO", "hello world")).toBe(
+      fuzzyScore("hello", "hello world"),
+    );
   });
 
   it("matches single character at word start", () => {

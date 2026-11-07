@@ -15,23 +15,42 @@ function fragment(html) {
 describe("web clipper core", () => {
   it("turns selected headings, text, links, and list items into Markdown", () => {
     const markdown = globalThis.LeothecaClipperCore.fragmentToMarkdown(
-      fragment("<h2>Heading</h2><p>Hello <strong>world</strong> <a href='https://example.test/path'>link</a>.</p><script>ignored()</script><ul><li>One</li><li>Two</li></ul>"),
+      fragment(
+        "<h2>Heading</h2><p>Hello <strong>world</strong> <a href='https://example.test/path'>link</a>.</p><script>ignored()</script><ul><li>One</li><li>Two</li></ul>",
+      ),
     );
 
     expect(markdown).toContain("## Heading");
-    expect(markdown).toContain("Hello **world** [link](https://example.test/path).");
+    expect(markdown).toContain(
+      "Hello **world** [link](https://example.test/path).",
+    );
     expect(markdown).toContain("- One");
     expect(markdown).toContain("- Two");
     expect(markdown).not.toContain("ignored()");
   });
 
   it("does not preserve unsafe links and rejects an empty selection", () => {
-    expect(globalThis.LeothecaClipperCore.fragmentToMarkdown(fragment("<a href='javascript:alert(1)'>text</a>"))).toBe("text");
-    expect(() => globalThis.LeothecaClipperCore.buildClip({ title: "Empty", fragment: fragment("  "), sourceUrl: "https://example.test", includeSource: true })).toThrow("Select some readable page content");
+    expect(
+      globalThis.LeothecaClipperCore.fragmentToMarkdown(
+        fragment("<a href='javascript:alert(1)'>text</a>"),
+      ),
+    ).toBe("text");
+    expect(() =>
+      globalThis.LeothecaClipperCore.buildClip({
+        title: "Empty",
+        fragment: fragment("  "),
+        sourceUrl: "https://example.test",
+        includeSource: true,
+      }),
+    ).toThrow("Select some readable page content");
   });
 
   it("preserves hard line breaks in selected content", () => {
-    expect(globalThis.LeothecaClipperCore.fragmentToMarkdown(fragment("<p>First line<br>Second line</p>"))).toBe("First line\nSecond line");
+    expect(
+      globalThis.LeothecaClipperCore.fragmentToMarkdown(
+        fragment("<p>First line<br>Second line</p>"),
+      ),
+    ).toBe("First line\nSecond line");
   });
 
   it("creates a portable Markdown note with an optional safe source link", () => {
@@ -43,7 +62,9 @@ describe("web clipper core", () => {
     });
 
     expect(clip.filename).toBe("A - useful clip.md");
-    expect(clip.markdown).toBe("# A / useful clip\n\nSelected text\n\nSource: https://example.test/article\n");
+    expect(clip.markdown).toBe(
+      "# A / useful clip\n\nSelected text\n\nSource: https://example.test/article\n",
+    );
   });
 
   it("omits an unsafe source URL instead of preserving it in a note", () => {

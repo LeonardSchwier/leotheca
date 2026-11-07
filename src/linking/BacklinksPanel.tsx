@@ -46,7 +46,8 @@ export function BacklinksPanel({ path, onOpenFile }: BacklinksPanelProps) {
               </button>
               {openErrorPath === backlinkPath && (
                 <p class="backlinks-error-message" role="alert">
-                  Couldn't open "{fileNameFromPath(backlinkPath)}" — it may have been moved, renamed, or deleted.
+                  Couldn't open "{fileNameFromPath(backlinkPath)}": it may have
+                  been moved, renamed, or deleted.
                 </p>
               )}
             </li>

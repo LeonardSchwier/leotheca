@@ -12,6 +12,30 @@ package com.leonardschwier.leotheca;
 final class NativeBoundaryPolicy {
     private NativeBoundaryPolicy() {}
 
+    /**
+     * Whether a shared stream URI may be opened with the app's own ContentResolver.
+     *
+     * MainActivity is exported, so any app can send any URI. Only a content URI that
+     * belongs to another app is acceptable: a file URI would read app-private files
+     * and a URI of one of the app's own providers would read the app's own data with
+     * the app's identity. A leading user id ("10@authority") is not part of the
+     * authority that selects a provider, so it is stripped before the comparison.
+     */
+    static boolean isAcceptableShareUri(String scheme, String authority, String ownPackage) {
+        if (scheme == null || !"content".equalsIgnoreCase(scheme)) {
+            return false;
+        }
+        if (authority == null || ownPackage == null) {
+            return false;
+        }
+        String provider = authority.substring(authority.lastIndexOf('@') + 1).toLowerCase(java.util.Locale.ROOT);
+        String own = ownPackage.toLowerCase(java.util.Locale.ROOT);
+        if (provider.isEmpty() || provider.equals(own) || provider.startsWith(own + ".")) {
+            return false;
+        }
+        return true;
+    }
+
     /** An action that may throw, such as launching an activity. */
     interface Action {
         void run() throws Exception;

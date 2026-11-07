@@ -9,8 +9,12 @@ describe("heading block IDs", () => {
     const [heading] = scanHeadings(source);
     expect(heading.displayText).toBe("Architecture boundary");
     expect(heading.blockId?.id).toBe("architecture-boundary");
-    expect(source.slice(heading.contentFrom, heading.contentTo)).toBe("Architecture boundary");
-    expect(source.slice(heading.blockId!.idFrom, heading.blockId!.idTo)).toBe("^architecture-boundary");
+    expect(source.slice(heading.contentFrom, heading.contentTo)).toBe(
+      "Architecture boundary",
+    );
+    expect(source.slice(heading.blockId!.idFrom, heading.blockId!.idTo)).toBe(
+      "^architecture-boundary",
+    );
   });
   it("recognizes a marker before optional ATX closing hashes", () => {
     const [heading] = scanHeadings("### Shipping ^release ##");
@@ -22,7 +26,9 @@ describe("heading block IDs", () => {
     const [heading] = scanHeadings(source);
     expect(heading.displayText).toBe("Architecture");
     expect(heading.blockId?.id).toBe("arch");
-    expect(source.slice(heading.sourceFrom, heading.sourceTo)).toBe("Architecture ^arch\n============");
+    expect(source.slice(heading.sourceFrom, heading.sourceTo)).toBe(
+      "Architecture ^arch\n============",
+    );
   });
   it("leaves malformed heading markers visible", () => {
     const [heading] = scanHeadings("## Heading ^bad_id");
@@ -36,12 +42,17 @@ describe("heading block IDs", () => {
   });
   it("finds a markerless heading as the block at the cursor", () => {
     const source = "# Markerless heading\n\nBody.";
-    expect(findBlockAtOffset(source, source.indexOf("heading"))?.kind).toBe("heading");
+    expect(findBlockAtOffset(source, source.indexOf("heading"))?.kind).toBe(
+      "heading",
+    );
   });
   it("lets Copy block link create a marker for a markerless heading", () => {
     const source = "## Heading\n\nBody.";
     const heading = scanHeadings(source)[0];
-    const result = resolveBlockLinkAtCursor(source, source.indexOf("Heading") + 2)!;
+    const result = resolveBlockLinkAtCursor(
+      source,
+      source.indexOf("Heading") + 2,
+    )!;
     expect(result.insertion?.from).toBe(heading.contentTo);
     expect(result.insertion?.text).toMatch(/^ \^b-[a-f0-9]{8}$/);
     expect(result.linkText).toBe(`[[#^${result.insertion!.text.slice(2)}]]`);

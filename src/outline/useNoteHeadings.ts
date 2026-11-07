@@ -14,7 +14,9 @@ const SCAN_DEBOUNCE_MS = 75;
  * that consumer boundary, not a signal every future feature reaches into).
  */
 export function useNoteHeadings(content: string): HeadingRecord[] {
-  const [headings, setHeadings] = useState<HeadingRecord[]>(() => scanHeadings(content));
+  const [headings, setHeadings] = useState<HeadingRecord[]>(() =>
+    scanHeadings(content),
+  );
   const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const isFirstContentRef = useRef(true);
 
@@ -26,7 +28,10 @@ export function useNoteHeadings(content: string): HeadingRecord[] {
       return;
     }
     if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => setHeadings(scanHeadings(content)), SCAN_DEBOUNCE_MS);
+    timerRef.current = setTimeout(
+      () => setHeadings(scanHeadings(content)),
+      SCAN_DEBOUNCE_MS,
+    );
     return () => clearTimeout(timerRef.current);
   }, [content]);
 

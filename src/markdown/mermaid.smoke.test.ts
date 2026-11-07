@@ -24,7 +24,8 @@ import mermaid from "mermaid";
 
 describe("sanitizeMermaidSvg", () => {
   it("strips onerror and onclick event-handler attributes", () => {
-    const input = '<svg onerror="alert(1)" onclick="steal()"><circle onmouseover="x"/></svg>';
+    const input =
+      '<svg onerror="alert(1)" onclick="steal()"><circle onmouseover="x"/></svg>';
     const output = sanitizeMermaidSvg(input);
     expect(output).not.toContain("onerror");
     expect(output).not.toContain("onclick");
@@ -43,7 +44,8 @@ describe("sanitizeMermaidSvg", () => {
   });
 
   it("leaves safe href and src values untouched", () => {
-    const input = '<a href="https://example.com">link</a><img src="data:image/png;base64,AA==" />';
+    const input =
+      '<a href="https://example.com">link</a><img src="data:image/png;base64,AA==" />';
     const output = sanitizeMermaidSvg(input);
     expect(output).toContain('href="https://example.com"');
     expect(output).toContain('src="data:image/png;base64,AA=="');
@@ -72,9 +74,9 @@ describe("foreignObject injection (security regression)", () => {
 
   const maliciousSvg =
     '<svg xmlns="http://www.w3.org/2000/svg" onclick="pwn()">' +
-    "<foreignObject width=\"100%\" height=\"100%\">" +
+    '<foreignObject width="100%" height="100%">' +
     '<div xmlns="http://www.w3.org/1999/xhtml">' +
-    '<script>window.pwned = true</script>' +
+    "<script>window.pwned = true</script>" +
     '<img src="x" onerror="window.pwned = true" />' +
     '<a href="javascript:alert(1)">x</a>' +
     "</div>" +
@@ -109,7 +111,9 @@ describe("foreignObject injection (security regression)", () => {
   });
 
   it("full renderMermaidToSvg pipeline: hostile SVG output is fully neutralized", async () => {
-    vi.mocked(mermaid.render).mockResolvedValueOnce({ svg: maliciousSvg } as never);
+    vi.mocked(mermaid.render).mockResolvedValueOnce({
+      svg: maliciousSvg,
+    } as never);
     const html = await renderMermaidToSvg("graph TD\n  A-->B");
     // The regex layer ran (event handlers and javascript: URLs scrubbed).
     expect(html).not.toMatch(/\son\w+\s*=/i);
@@ -132,7 +136,7 @@ describe("renderMermaidToSvg fallback path", () => {
     vi.mocked(mermaid.render).mockRejectedValueOnce(new Error("parse error"));
     const source = "not a valid diagram";
     const html = await renderMermaidToSvg(source);
-    expect(html).toContain("<pre><code class=\"language-mermaid\">");
+    expect(html).toContain('<pre><code class="language-mermaid">');
     expect(html).toContain("not a valid diagram");
     expect(html).not.toContain("<svg");
   });
@@ -141,7 +145,7 @@ describe("renderMermaidToSvg fallback path", () => {
     vi.mocked(mermaid.render).mockResolvedValueOnce({ svg: "" } as never);
     const source = "graph TD\n  A-->B";
     const html = await renderMermaidToSvg(source);
-    expect(html).toContain("<pre><code class=\"language-mermaid\">");
+    expect(html).toContain('<pre><code class="language-mermaid">');
     expect(html).toContain("graph TD");
   });
 });

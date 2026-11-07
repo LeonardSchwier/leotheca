@@ -32,9 +32,10 @@ function deferred<T>(): Deferred<T> {
 }
 
 function imageSource(prefix: string, count: number): string {
-  return Array.from({ length: count }, (_, index) => `![${prefix}-${index}](${prefix}-${index}.png)`).join(
-    "\n",
-  );
+  return Array.from(
+    { length: count },
+    (_, index) => `![${prefix}-${index}](${prefix}-${index}.png)`,
+  ).join("\n");
 }
 
 beforeEach(() => {
@@ -64,7 +65,10 @@ describe("MarkdownPreview attachment read concurrency", () => {
     });
 
     const { container } = render(
-      <MarkdownPreview source={imageSource("cat", 12)} notePath="/vault/notes/today.md" />,
+      <MarkdownPreview
+        source={imageSource("cat", 12)}
+        notePath="/vault/notes/today.md"
+      />,
     );
 
     await waitFor(() => expect(fileSrc).toHaveBeenCalledTimes(6));
@@ -82,9 +86,11 @@ describe("MarkdownPreview attachment read concurrency", () => {
     await waitFor(() => {
       const images = Array.from(container.querySelectorAll("img"));
       expect(images).toHaveLength(12);
-      expect(images.every((image) => image.getAttribute("src")?.startsWith("asset://localhost/"))).toBe(
-        true,
-      );
+      expect(
+        images.every((image) =>
+          image.getAttribute("src")?.startsWith("asset://localhost/"),
+        ),
+      ).toBe(true);
     });
     expect(maxActive).toBeLessThanOrEqual(6);
   });
@@ -102,13 +108,23 @@ describe("MarkdownPreview attachment read concurrency", () => {
     });
 
     const view = render(
-      <MarkdownPreview source={imageSource("old", 10)} notePath="/vault/notes/today.md" />,
+      <MarkdownPreview
+        source={imageSource("old", 10)}
+        notePath="/vault/notes/today.md"
+      />,
     );
 
     await waitFor(() => expect(fileSrc).toHaveBeenCalledTimes(6));
-    view.rerender(<MarkdownPreview source="![new](new.png)" notePath="/vault/notes/today.md" />);
+    view.rerender(
+      <MarkdownPreview
+        source="![new](new.png)"
+        notePath="/vault/notes/today.md"
+      />,
+    );
 
-    await waitFor(() => expect(fileSrc).toHaveBeenCalledWith("/vault/notes/new.png"));
+    await waitFor(() =>
+      expect(fileSrc).toHaveBeenCalledWith("/vault/notes/new.png"),
+    );
 
     for (const gate of oldGates) {
       gate.resolve("asset://localhost/vault/notes/old.png");
@@ -125,18 +141,22 @@ describe("MarkdownPreview attachment read concurrency", () => {
 
   it("keeps one failed attachment local and continues resolving the rest of the current queue", async () => {
     vi.mocked(fileSrc).mockImplementation((path) => {
-      if (path.endsWith("/cat-0.png")) return Promise.reject(new Error("unreadable"));
+      if (path.endsWith("/cat-0.png"))
+        return Promise.reject(new Error("unreadable"));
       return Promise.resolve(`asset://localhost${path}`);
     });
 
     const { container } = render(
-      <MarkdownPreview source={imageSource("cat", 8)} notePath="/vault/notes/today.md" />,
+      <MarkdownPreview
+        source={imageSource("cat", 8)}
+        notePath="/vault/notes/today.md"
+      />,
     );
 
     await waitFor(() => expect(fileSrc).toHaveBeenCalledTimes(8));
     await waitFor(() => {
-      const resolved = Array.from(container.querySelectorAll("img")).filter((image) =>
-        image.getAttribute("src")?.startsWith("asset://localhost/"),
+      const resolved = Array.from(container.querySelectorAll("img")).filter(
+        (image) => image.getAttribute("src")?.startsWith("asset://localhost/"),
       );
       expect(resolved).toHaveLength(7);
     });

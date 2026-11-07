@@ -176,20 +176,20 @@ When a path cannot be represented safely in the existing syntax, the affected ed
 
 The first release includes:
 
-| Code | Diagnostic | Default severity |
-|---|---|---|
-| `broken-note` | Note target cannot be resolved | Error |
-| `ambiguous-note` | Note target resolves to multiple candidates | Error |
-| `missing-heading` | Note exists but heading fragment does not | Warning |
-| `ambiguous-heading` | Fragment matches duplicate normalized headings | Warning |
-| `missing-block` | Note exists but block ID does not | Warning |
-| `duplicate-block-id` | Same block ID occurs more than once in a note | Error |
-| `duplicate-note-name` | Multiple notes share a basename | Info or Warning |
-| `duplicate-alias` | Alias resolves to multiple notes | Warning |
-| `case-mismatch` | Reference casing differs from actual target | Info |
-| `missing-attachment` | Local image or attachment target is absent | Warning |
-| `broken-canvas-file` | Supported canvas file reference is absent | Warning |
-| `orphan-note` | Eligible note has no inbound note references | Info |
+| Code                  | Diagnostic                                     | Default severity |
+| --------------------- | ---------------------------------------------- | ---------------- |
+| `broken-note`         | Note target cannot be resolved                 | Error            |
+| `ambiguous-note`      | Note target resolves to multiple candidates    | Error            |
+| `missing-heading`     | Note exists but heading fragment does not      | Warning          |
+| `ambiguous-heading`   | Fragment matches duplicate normalized headings | Warning          |
+| `missing-block`       | Note exists but block ID does not              | Warning          |
+| `duplicate-block-id`  | Same block ID occurs more than once in a note  | Error            |
+| `duplicate-note-name` | Multiple notes share a basename                | Info or Warning  |
+| `duplicate-alias`     | Alias resolves to multiple notes               | Warning          |
+| `case-mismatch`       | Reference casing differs from actual target    | Info             |
+| `missing-attachment`  | Local image or attachment target is absent     | Warning          |
+| `broken-canvas-file`  | Supported canvas file reference is absent      | Warning          |
+| `orphan-note`         | Eligible note has no inbound note references   | Info             |
 
 Self-links do not count as inbound links for orphan detection. Notes in configured template, archive, or generated folders may be excluded through future settings. In the first release, the Templates folder and `.leotheca/` are excluded.
 
@@ -307,7 +307,12 @@ No plan may be applied from a stale preview.
 ```typescript
 interface RefactorPlan {
   id: string;
-  kind: "rename-note" | "move-note" | "rename-folder" | "move-folder" | "repair-reference";
+  kind:
+    | "rename-note"
+    | "move-note"
+    | "rename-folder"
+    | "move-folder"
+    | "repair-reference";
   workspaceSession: number;
   indexGeneration: number;
   createdAt: string;
@@ -675,17 +680,17 @@ Use workspaces with:
 
 ## 21. Risks and mitigations
 
-| Risk | Impact | Mitigation |
-|---|---|---|
-| Partial multi-file failure | Broken workspace | Durable journal, backups, recorded steps, rollback, startup recovery |
-| Stale preview | User changes lost | Preflight re-read and immutable generation-scoped plan |
-| Parser rewrites false positives | Corrupted prose or code | Rewrite only proven format records with exact ranges |
-| Dirty tab overwritten | Data loss | Flush canonical document and use one mutation lock |
-| Folder move changes relative semantics | Broken links | Resolve against complete post-operation path graph |
-| Platform rename behavior differs | Partial results | Capability-aware adapters, preflight, failure injection on desktop and SAF |
-| Recovery journal itself is malformed | Unsafe writes | Versioned decoder, allowlisted operations, containment revalidation |
-| Huge preview exhausts memory | Unresponsive app | Lazy diffs, bounded concurrency, virtualization, cancellation |
-| Metadata adapter misses a path owner | Stale UI state | Central adapter registry and package-level path-ownership audit |
+| Risk                                   | Impact                  | Mitigation                                                                 |
+| -------------------------------------- | ----------------------- | -------------------------------------------------------------------------- |
+| Partial multi-file failure             | Broken workspace        | Durable journal, backups, recorded steps, rollback, startup recovery       |
+| Stale preview                          | User changes lost       | Preflight re-read and immutable generation-scoped plan                     |
+| Parser rewrites false positives        | Corrupted prose or code | Rewrite only proven format records with exact ranges                       |
+| Dirty tab overwritten                  | Data loss               | Flush canonical document and use one mutation lock                         |
+| Folder move changes relative semantics | Broken links            | Resolve against complete post-operation path graph                         |
+| Platform rename behavior differs       | Partial results         | Capability-aware adapters, preflight, failure injection on desktop and SAF |
+| Recovery journal itself is malformed   | Unsafe writes           | Versioned decoder, allowlisted operations, containment revalidation        |
+| Huge preview exhausts memory           | Unresponsive app        | Lazy diffs, bounded concurrency, virtualization, cancellation              |
+| Metadata adapter misses a path owner   | Stale UI state          | Central adapter registry and package-level path-ownership audit            |
 
 ## 22. Documentation changes
 

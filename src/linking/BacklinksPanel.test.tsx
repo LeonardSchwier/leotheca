@@ -19,7 +19,9 @@ afterEach(() => {
 
 describe("BacklinksPanel", () => {
   it("shows a placeholder when nothing links to this note", () => {
-    const { getByText } = render(<BacklinksPanel path="/vault/note.md" onOpenFile={vi.fn()} />);
+    const { getByText } = render(
+      <BacklinksPanel path="/vault/note.md" onOpenFile={vi.fn()} />,
+    );
     expect(getByText("No notes link here.")).toBeTruthy();
   });
 
@@ -35,7 +37,9 @@ describe("BacklinksPanel", () => {
       tagsByPath: new Map(),
       tasksByPath: new Map(),
     };
-    const { getByText } = render(<BacklinksPanel path="/vault/note.md" onOpenFile={vi.fn()} />);
+    const { getByText } = render(
+      <BacklinksPanel path="/vault/note.md" onOpenFile={vi.fn()} />,
+    );
     expect(getByText("a.md")).toBeTruthy();
     expect(getByText("b.md")).toBeTruthy();
   });
@@ -71,14 +75,18 @@ describe("BacklinksPanel", () => {
       tasksByPath: new Map(),
     };
     const onOpenFile = vi.fn();
-    const { getByText } = render(<BacklinksPanel path="/vault/note.md" onOpenFile={onOpenFile} />);
+    const { getByText } = render(
+      <BacklinksPanel path="/vault/note.md" onOpenFile={onOpenFile} />,
+    );
     fireEvent.click(getByText("a.md"));
     expect(onOpenFile).toHaveBeenCalledWith("/vault/sub/a.md", "a.md");
   });
 
   it("shows an inline error instead of failing silently when a backlink's source can't be opened", async () => {
     linkIndex.value = {
-      backlinksByPath: new Map([["/vault/note.md", ["/vault/deleted-note.md"]]]),
+      backlinksByPath: new Map([
+        ["/vault/note.md", ["/vault/deleted-note.md"]],
+      ]),
       pathsByNoteName: new Map(),
       pathsByAlias: new Map(),
       aliasesByPath: new Map(),

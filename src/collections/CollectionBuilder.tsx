@@ -91,7 +91,8 @@ const OPERATOR_LABELS: Record<QueryOperatorV1, string> = {
 const NO_VALUE_OPERATORS = NO_VALUE_QUERY_OPERATORS;
 
 function inferClauseFamily(clause: QueryClauseV1): FamilyKey {
-  if (clause.field.kind === "system") return SYSTEM_FIELD_OPERATOR_FAMILIES[clause.field.field];
+  if (clause.field.kind === "system")
+    return SYSTEM_FIELD_OPERATOR_FAMILIES[clause.field.field];
   const { operator, value } = clause;
   if (operator === "is-true" || operator === "is-false") return "boolean";
   if (
@@ -154,7 +155,8 @@ function defaultValueForFamily(family: FamilyKey): QueryValueV1 | undefined {
 }
 
 export function isClauseValid(clause: QueryClauseV1): boolean {
-  if (clause.field.kind === "property" && clause.field.key.trim() === "") return false;
+  if (clause.field.kind === "property" && clause.field.key.trim() === "")
+    return false;
   if (NO_VALUE_OPERATORS.has(clause.operator)) return true;
   const value = clause.value;
   if (!value) return false;
@@ -224,12 +226,22 @@ function ValueEditor({ family, operator, value, onChange }: ValueEditorProps) {
         class="collections-value-input"
         type="date"
         value={iso}
-        onInput={(e) => onChange({ type: "date", value: (e.target as HTMLInputElement).value })}
+        onInput={(e) =>
+          onChange({
+            type: "date",
+            value: (e.target as HTMLInputElement).value,
+          })
+        }
       />
     );
   }
 
-  if (family === "list" && (operator === "contains-all-items" || operator === "contains-any-item" || operator === "contains-no-item")) {
+  if (
+    family === "list" &&
+    (operator === "contains-all-items" ||
+      operator === "contains-any-item" ||
+      operator === "contains-no-item")
+  ) {
     const items = value?.type === "string-list" ? value.value : [];
     return (
       <input
@@ -237,7 +249,12 @@ function ValueEditor({ family, operator, value, onChange }: ValueEditorProps) {
         type="text"
         placeholder="comma, separated, items"
         value={items.join(", ")}
-        onInput={(e) => onChange({ type: "string-list", value: splitList((e.target as HTMLInputElement).value) })}
+        onInput={(e) =>
+          onChange({
+            type: "string-list",
+            value: splitList((e.target as HTMLInputElement).value),
+          })
+        }
       />
     );
   }
@@ -245,13 +262,19 @@ function ValueEditor({ family, operator, value, onChange }: ValueEditorProps) {
   // "string" family, "path" family, and list's "contains-item" all edit a
   // single text value; only the QueryValueV1 tag differs.
   const valueType = family === "path" ? "path" : "string";
-  const text = value?.type === "string" || value?.type === "path" ? value.value : "";
+  const text =
+    value?.type === "string" || value?.type === "path" ? value.value : "";
   return (
     <input
       class="collections-value-input"
       type="text"
       value={text}
-      onInput={(e) => onChange({ type: valueType, value: (e.target as HTMLInputElement).value })}
+      onInput={(e) =>
+        onChange({
+          type: valueType,
+          value: (e.target as HTMLInputElement).value,
+        })
+      }
     />
   );
 }
@@ -263,14 +286,27 @@ interface QueryClauseRowProps {
   propertyKeys: string[];
 }
 
-function QueryClauseRow({ clause, onChange, onRemove, propertyKeys }: QueryClauseRowProps) {
+function QueryClauseRow({
+  clause,
+  onChange,
+  onRemove,
+  propertyKeys,
+}: QueryClauseRowProps) {
   const family = inferClauseFamily(clause);
   const isProperty = clause.field.kind === "property";
 
   function setField(next: QueryFieldV1) {
-    const nextFamily = next.kind === "system" ? SYSTEM_FIELD_OPERATOR_FAMILIES[next.field] : "string";
+    const nextFamily =
+      next.kind === "system"
+        ? SYSTEM_FIELD_OPERATOR_FAMILIES[next.field]
+        : "string";
     const operator = OPERATOR_GROUPS[nextFamily][0];
-    onChange({ type: "clause", field: next, operator, value: defaultValueForFamily(nextFamily) });
+    onChange({
+      type: "clause",
+      field: next,
+      operator,
+      value: defaultValueForFamily(nextFamily),
+    });
   }
 
   function setFamily(nextFamily: FamilyKey) {
@@ -282,12 +318,16 @@ function QueryClauseRow({ clause, onChange, onRemove, propertyKeys }: QueryClaus
     onChange({
       ...clause,
       operator,
-      value: NO_VALUE_OPERATORS.has(operator) ? undefined : (clause.value ?? defaultValueForFamily(family)),
+      value: NO_VALUE_OPERATORS.has(operator)
+        ? undefined
+        : (clause.value ?? defaultValueForFamily(family)),
     });
   }
 
   return (
-    <div class={`collections-clause-row ${isClauseValid(clause) ? "" : "collections-row-invalid"}`}>
+    <div
+      class={`collections-clause-row ${isClauseValid(clause) ? "" : "collections-row-invalid"}`}
+    >
       <select
         class="collections-field-select"
         aria-label="Field"
@@ -318,7 +358,10 @@ function QueryClauseRow({ clause, onChange, onRemove, propertyKeys }: QueryClaus
             onInput={(e) =>
               onChange({
                 ...clause,
-                field: { kind: "property", key: (e.target as HTMLInputElement).value },
+                field: {
+                  kind: "property",
+                  key: (e.target as HTMLInputElement).value,
+                },
               })
             }
           />
@@ -326,7 +369,9 @@ function QueryClauseRow({ clause, onChange, onRemove, propertyKeys }: QueryClaus
             class="collections-family-select"
             aria-label="Compare as"
             value={family}
-            onChange={(e) => setFamily((e.target as HTMLSelectElement).value as FamilyKey)}
+            onChange={(e) =>
+              setFamily((e.target as HTMLSelectElement).value as FamilyKey)
+            }
           >
             {(Object.keys(OPERATOR_GROUPS) as FamilyKey[]).map((key) => (
               <option key={key} value={key}>
@@ -341,7 +386,9 @@ function QueryClauseRow({ clause, onChange, onRemove, propertyKeys }: QueryClaus
         class="collections-operator-select"
         aria-label="Operator"
         value={clause.operator}
-        onChange={(e) => setOperator((e.target as HTMLSelectElement).value as QueryOperatorV1)}
+        onChange={(e) =>
+          setOperator((e.target as HTMLSelectElement).value as QueryOperatorV1)
+        }
       >
         {OPERATOR_GROUPS[family].map((operator) => (
           <option key={operator} value={operator}>
@@ -386,10 +433,21 @@ interface QueryGroupEditorProps {
 }
 
 function defaultClause(): QueryClauseV1 {
-  return { type: "clause", field: { kind: "system", field: "name" }, operator: "contains", value: { type: "string", value: "" } };
+  return {
+    type: "clause",
+    field: { kind: "system", field: "name" },
+    operator: "contains",
+    value: { type: "string", value: "" },
+  };
 }
 
-function QueryGroupEditor({ group, onChange, onRemove, depth, propertyKeys }: QueryGroupEditorProps) {
+function QueryGroupEditor({
+  group,
+  onChange,
+  onRemove,
+  depth,
+  propertyKeys,
+}: QueryGroupEditorProps) {
   function updateChild(index: number, next: QueryNodeV1) {
     const children = group.children.slice();
     children[index] = next;
@@ -397,7 +455,10 @@ function QueryGroupEditor({ group, onChange, onRemove, depth, propertyKeys }: Qu
   }
 
   function removeChild(index: number) {
-    onChange({ ...group, children: group.children.filter((_, i) => i !== index) });
+    onChange({
+      ...group,
+      children: group.children.filter((_, i) => i !== index),
+    });
   }
 
   function addClause() {
@@ -407,12 +468,18 @@ function QueryGroupEditor({ group, onChange, onRemove, depth, propertyKeys }: Qu
   function addGroup() {
     onChange({
       ...group,
-      children: [...group.children, { type: "group", operator: "and", children: [] }],
+      children: [
+        ...group.children,
+        { type: "group", operator: "and", children: [] },
+      ],
     });
   }
 
   return (
-    <div class="collections-group" style={{ marginLeft: depth > 0 ? "var(--space-3)" : "0" }}>
+    <div
+      class="collections-group"
+      style={{ marginLeft: depth > 0 ? "var(--space-3)" : "0" }}
+    >
       <div class="collections-group-header">
         <div class="collections-group-toggle" role="group" aria-label="Match">
           <button
@@ -431,7 +498,11 @@ function QueryGroupEditor({ group, onChange, onRemove, depth, propertyKeys }: Qu
           </button>
         </div>
         {onRemove && (
-          <button class="icon-button collections-remove-button" aria-label="Remove group" onClick={onRemove}>
+          <button
+            class="icon-button collections-remove-button"
+            aria-label="Remove group"
+            onClick={onRemove}
+          >
             ×
           </button>
         )}
@@ -439,7 +510,9 @@ function QueryGroupEditor({ group, onChange, onRemove, depth, propertyKeys }: Qu
 
       {group.children.length === 0 && (
         <p class="empty-hint collections-group-empty">
-          {group.operator === "and" ? "Matches every note." : "Matches no notes."}
+          {group.operator === "and"
+            ? "Matches every note."
+            : "Matches no notes."}
         </p>
       )}
 
@@ -495,7 +568,12 @@ export interface CollectionBuilderProps {
   initialView?: CollectionViewV1;
   /** Optional: callback when the view's filter rows change. */
   onViewChange?: (view: CollectionViewV1) => void;
-  onSave: (input: { name: string; description: string; query: QueryGroupV1; view?: CollectionViewV1 }) => void;
+  onSave: (input: {
+    name: string;
+    description: string;
+    query: QueryGroupV1;
+    view?: CollectionViewV1;
+  }) => void;
   onCancel: () => void;
 }
 
@@ -518,17 +596,25 @@ export function CollectionBuilder({
   const [name, setName] = useState(initialName);
   const [description, setDescription] = useState(initialDescription);
   const [query, setQuery] = useState<QueryGroupV1>(initialQuery);
-  const [view, setView] = useState<CollectionViewV1>(initialView ?? { mode: "list" });
+  const [view, setView] = useState<CollectionViewV1>(
+    initialView ?? { mode: "list" },
+  );
 
   const totalClauses = countClauses(query);
   const tooManyClauses = totalClauses > MAX_QUERY_CLAUSES;
   const nameValid = name.trim() !== "";
   const queryValid = isQueryValid(query) && !tooManyClauses;
   const canSave = nameValid && queryValid;
-  const matchCount = queryValid ? notes.filter((note) => evaluateQueryNode(query, note)).length : 0;
+  const matchCount = queryValid
+    ? notes.filter((note) => evaluateQueryNode(query, note)).length
+    : 0;
 
   return (
-    <div class="collections-builder" role="form" aria-label="Collection builder">
+    <div
+      class="collections-builder"
+      role="form"
+      aria-label="Collection builder"
+    >
       <label class="collections-field">
         <span>Name</span>
         <input
@@ -547,7 +633,12 @@ export function CollectionBuilder({
         />
       </label>
 
-      <QueryGroupEditor group={query} onChange={setQuery} depth={0} propertyKeys={propertyKeys} />
+      <QueryGroupEditor
+        group={query}
+        onChange={setQuery}
+        depth={0}
+        propertyKeys={propertyKeys}
+      />
 
       {initialView && (
         <FilterRowsMenu
@@ -575,19 +666,26 @@ export function CollectionBuilder({
 
       {tooManyClauses && (
         <p class="collections-builder-error">
-          This query has {totalClauses} conditions; the limit is {MAX_QUERY_CLAUSES}.
+          This query has {totalClauses} conditions; the limit is{" "}
+          {MAX_QUERY_CLAUSES}.
         </p>
       )}
 
       <p class="collections-live-count">
-        {queryValid ? `${matchCount} note${matchCount === 1 ? "" : "s"} match` : "Fix the highlighted condition to see results"}
+        {queryValid
+          ? `${matchCount} note${matchCount === 1 ? "" : "s"} match`
+          : "Fix the highlighted condition to see results"}
       </p>
 
       <div class="collections-builder-actions">
         <button class="collections-cancel-button" onClick={onCancel}>
           Cancel
         </button>
-        <button class="collections-save-button" disabled={!canSave} onClick={() => onSave({ name, description, query })}>
+        <button
+          class="collections-save-button"
+          disabled={!canSave}
+          onClick={() => onSave({ name, description, query })}
+        >
           Save
         </button>
       </div>

@@ -10,7 +10,9 @@ const { readTextFile, writeTextFile } = vi.hoisted(() => ({
   readTextFile: vi.fn<(path: string) => Promise<string>>(async () => {
     throw new Error("unexpected readTextFile call");
   }),
-  writeTextFile: vi.fn<(path: string, content: string) => Promise<void>>(async () => {}),
+  writeTextFile: vi.fn<(path: string, content: string) => Promise<void>>(
+    async () => {},
+  ),
 }));
 
 vi.mock("../workspace/tauriBridge", () => ({ readTextFile, writeTextFile }));
@@ -30,9 +32,17 @@ function emptyIndex(): LinkIndex {
 /** A one-note-referencing-another fixture, mirroring renamePlan.test.ts's
  * own `fixture` convention (real parseWikiLinks output on the live
  * linkIndex signal, since resolveWikiLinkTarget reads it directly). */
-function indexWithBacklink(referrerPath: string, referrerContent: string): LinkIndex {
-  const wikiLinksByPath = new Map([[referrerPath, parseWikiLinks(referrerContent)]]);
-  const pathsByNoteName = new Map([["target", ["/vault/target.md"]], ["referrer", [referrerPath]]]);
+function indexWithBacklink(
+  referrerPath: string,
+  referrerContent: string,
+): LinkIndex {
+  const wikiLinksByPath = new Map([
+    [referrerPath, parseWikiLinks(referrerContent)],
+  ]);
+  const pathsByNoteName = new Map([
+    ["target", ["/vault/target.md"]],
+    ["referrer", [referrerPath]],
+  ]);
   return { ...emptyIndex(), pathsByNoteName, wikiLinksByPath };
 }
 
@@ -45,12 +55,18 @@ afterEach(() => {
 
 describe("useRenamePreview", () => {
   it("resolves true immediately, with no preview, for a non-note path", async () => {
-    linkIndex.value = indexWithBacklink("/vault/referrer.md", "See [[target]].");
+    linkIndex.value = indexWithBacklink(
+      "/vault/referrer.md",
+      "See [[target]].",
+    );
     const { result } = renderHook(() => useRenamePreview());
 
     let proceed: boolean | undefined;
     await act(async () => {
-      proceed = await result.current.confirmRenameWithPreview("/vault/image.png", "renamed.png");
+      proceed = await result.current.confirmRenameWithPreview(
+        "/vault/image.png",
+        "renamed.png",
+      );
     });
 
     expect(proceed).toBe(true);
@@ -64,7 +80,10 @@ describe("useRenamePreview", () => {
 
     let proceed: boolean | undefined;
     await act(async () => {
-      proceed = await result.current.confirmRenameWithPreview("/vault/target.md", "renamed.md");
+      proceed = await result.current.confirmRenameWithPreview(
+        "/vault/target.md",
+        "renamed.md",
+      );
     });
 
     expect(proceed).toBe(true);
@@ -72,7 +91,10 @@ describe("useRenamePreview", () => {
   });
 
   it("shows a preview with the computed new path and plan when a reference exists, resolving only once continued", async () => {
-    linkIndex.value = indexWithBacklink("/vault/referrer.md", "See [[target]].");
+    linkIndex.value = indexWithBacklink(
+      "/vault/referrer.md",
+      "See [[target]].",
+    );
     readTextFile.mockResolvedValue("See [[target]].");
     const { result } = renderHook(() => useRenamePreview());
 
@@ -96,7 +118,10 @@ describe("useRenamePreview", () => {
   });
 
   it("resolves false and clears the preview when the user cancels", async () => {
-    linkIndex.value = indexWithBacklink("/vault/referrer.md", "See [[target]].");
+    linkIndex.value = indexWithBacklink(
+      "/vault/referrer.md",
+      "See [[target]].",
+    );
     readTextFile.mockResolvedValue("See [[target]].");
     const { result } = renderHook(() => useRenamePreview());
 
@@ -123,7 +148,9 @@ describe("useRenamePreview", () => {
     const referrerContent = "See [[Unrelated]] and [a link](target.md).";
     linkIndex.value = {
       ...emptyIndex(),
-      wikiLinksByPath: new Map([[referrerPath, parseWikiLinks(referrerContent)]]),
+      wikiLinksByPath: new Map([
+        [referrerPath, parseWikiLinks(referrerContent)],
+      ]),
       pathsByNoteName: new Map([
         ["target", ["/vault/target.md"]],
         ["referrer", [referrerPath]],
@@ -150,7 +177,10 @@ describe("useRenamePreview", () => {
   });
 
   it("applies wikilink rewrites via writeTextFile when the user continues", async () => {
-    linkIndex.value = indexWithBacklink("/vault/referrer.md", "See [[target]].");
+    linkIndex.value = indexWithBacklink(
+      "/vault/referrer.md",
+      "See [[target]].",
+    );
     readTextFile.mockResolvedValue("See [[target]].");
     const { result } = renderHook(() => useRenamePreview());
 
@@ -181,7 +211,10 @@ describe("useRenamePreview", () => {
   });
 
   it("resolves false and keeps the dialog open when applyRenamePlan fails", async () => {
-    linkIndex.value = indexWithBacklink("/vault/referrer.md", "See [[target]].");
+    linkIndex.value = indexWithBacklink(
+      "/vault/referrer.md",
+      "See [[target]].",
+    );
     readTextFile.mockResolvedValue("See [[target]].");
     // Make writeTextFile fail to simulate a disk error
     writeTextFile.mockRejectedValueOnce(new Error("disk full"));
@@ -212,7 +245,10 @@ describe("useRenamePreview", () => {
     // up to return content with no reference at all, so this test would
     // fail with 0 edits, not silently pass, if the open tab's own newer
     // content were ever bypassed in favor of a disk read.
-    linkIndex.value = indexWithBacklink("/vault/referrer.md", "See [[target]].");
+    linkIndex.value = indexWithBacklink(
+      "/vault/referrer.md",
+      "See [[target]].",
+    );
     readTextFile.mockResolvedValue("no links here");
     openDocuments.value = [
       {
@@ -228,7 +264,10 @@ describe("useRenamePreview", () => {
     const { result } = renderHook(() => useRenamePreview());
 
     act(() => {
-      void result.current.confirmRenameWithPreview("/vault/target.md", "renamed.md");
+      void result.current.confirmRenameWithPreview(
+        "/vault/target.md",
+        "renamed.md",
+      );
     });
 
     await waitFor(() => expect(result.current.preview).not.toBeNull());

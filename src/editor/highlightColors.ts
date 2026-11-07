@@ -19,7 +19,9 @@ import { HIGHLIGHT_COLOR_EMOJI, HIGHLIGHT_COLORS } from "../markdown/highlight";
  * order the rest of the module (and both CSS surfaces) use. Reversed
  * here because HIGHLIGHT_COLOR_EMOJI is keyed emoji → color name. */
 export function highlightColorEmoji(color: string): string | undefined {
-  const entry = Object.entries(HIGHLIGHT_COLOR_EMOJI).find(([, name]) => name === color);
+  const entry = Object.entries(HIGHLIGHT_COLOR_EMOJI).find(
+    ([, name]) => name === color,
+  );
   return entry?.[0];
 }
 
@@ -54,7 +56,10 @@ export interface HighlightInsertion {
  * case, e.g. a body that is only `🔴`) is left as content, never
  * re-marked twice.
  */
-export function insertHighlightColor(body: string, color?: string): HighlightInsertion {
+export function insertHighlightColor(
+  body: string,
+  color?: string,
+): HighlightInsertion {
   const emoji = color ? highlightColorEmoji(color) : undefined;
 
   // Re-coloring: drop at most one leading emoji (plus the space a prior
@@ -66,8 +71,9 @@ export function insertHighlightColor(body: string, color?: string): HighlightIns
   // syntax markers themselves" rule ../markdown/highlight.ts's own
   // detectHighlightColor follows for the emoji it strips. So `==  text==`
   // recolored red keeps the author's own leading spaces after the emoji.
-  const stripped = body.replace(/^(\p{Extended_Pictographic}) ?/u, (match, lead) =>
-    HIGHLIGHT_COLOR_EMOJI[lead] ? "" : match,
+  const stripped = body.replace(
+    /^(\p{Extended_Pictographic}) ?/u,
+    (match, lead) => (HIGHLIGHT_COLOR_EMOJI[lead] ? "" : match),
   );
   const text = emoji ? `==${emoji} ${stripped}==` : `==${stripped}==`;
   const caretOffset = emoji ? emoji.length + 3 : 2;
@@ -81,6 +87,12 @@ export function insertHighlightColor(body: string, color?: string): HighlightIns
  * stays the plain-string source of truth; this view exists purely so the
  * two UI surfaces name their entries identically.
  */
-export const HIGHLIGHT_COLOR_CHOICES: readonly { color: string; label: string }[] = Object.freeze(
-  HIGHLIGHT_COLORS.map((color) => ({ color, label: color[0].toUpperCase() + color.slice(1) })),
+export const HIGHLIGHT_COLOR_CHOICES: readonly {
+  color: string;
+  label: string;
+}[] = Object.freeze(
+  HIGHLIGHT_COLORS.map((color) => ({
+    color,
+    label: color[0].toUpperCase() + color.slice(1),
+  })),
 );

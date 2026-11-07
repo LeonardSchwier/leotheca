@@ -1,4 +1,9 @@
-import { anyCorrupt, decodeArrayDroppingInvalidEntries, decodeString, decodeStringArray } from "../settings/decode";
+import {
+  anyCorrupt,
+  decodeArrayDroppingInvalidEntries,
+  decodeString,
+  decodeStringArray,
+} from "../settings/decode";
 import {
   MAX_QUERY_CLAUSES,
   MAX_QUERY_DEPTH,
@@ -52,12 +57,19 @@ function isValidQueryValue(raw: unknown): raw is QueryValueV1 {
     case "boolean":
       return typeof value.value === "boolean";
     case "date":
-      return typeof value.value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value.value);
+      return (
+        typeof value.value === "string" &&
+        /^\d{4}-\d{2}-\d{2}$/.test(value.value)
+      );
     case "datetime":
-      return typeof value.value === "string" && !Number.isNaN(Date.parse(value.value));
+      return (
+        typeof value.value === "string" &&
+        !Number.isNaN(Date.parse(value.value))
+      );
     case "string-list":
       return (
-        Array.isArray(value.value) && value.value.every((item) => typeof item === "string")
+        Array.isArray(value.value) &&
+        value.value.every((item) => typeof item === "string")
       );
     default:
       return false;
@@ -68,7 +80,8 @@ function decodeQueryField(raw: unknown): QueryFieldV1 | null {
   if (typeof raw !== "object" || raw === null) return null;
   const record = raw as Record<string, unknown>;
   if (record.kind === "system") {
-    return typeof record.field === "string" && SYSTEM_FIELD_SET.has(record.field)
+    return typeof record.field === "string" &&
+      SYSTEM_FIELD_SET.has(record.field)
       ? { kind: "system", field: record.field as SystemFieldName }
       : null;
   }
@@ -81,7 +94,9 @@ function decodeQueryField(raw: unknown): QueryFieldV1 | null {
 }
 
 function decodeQueryOperator(raw: unknown): QueryOperatorV1 | null {
-  return typeof raw === "string" && QUERY_OPERATOR_SET.has(raw) ? (raw as QueryOperatorV1) : null;
+  return typeof raw === "string" && QUERY_OPERATOR_SET.has(raw)
+    ? (raw as QueryOperatorV1)
+    : null;
 }
 
 function decodeQueryClause(raw: Record<string, unknown>): QueryClauseV1 | null {
@@ -97,7 +112,12 @@ function decodeQueryClause(raw: Record<string, unknown>): QueryClauseV1 | null {
   // no-value operator still rejects a *present but malformed* value.
   const requiresValue = !NO_VALUE_QUERY_OPERATORS.has(operator);
   if (requiresValue && !isValidQueryValue(raw.value)) return null;
-  if (!requiresValue && raw.value !== undefined && !isValidQueryValue(raw.value)) return null;
+  if (
+    !requiresValue &&
+    raw.value !== undefined &&
+    !isValidQueryValue(raw.value)
+  )
+    return null;
   return {
     type: "clause",
     field,
@@ -123,11 +143,13 @@ function decodeQueryNode(
   depth: number,
   counter: { count: number },
 ): QueryDecodeResult {
-  if (typeof raw !== "object" || raw === null) return { node: null, corrupt: true };
+  if (typeof raw !== "object" || raw === null)
+    return { node: null, corrupt: true };
   const record = raw as Record<string, unknown>;
 
   if (record.type === "clause") {
-    if (counter.count >= MAX_QUERY_CLAUSES) return { node: null, corrupt: true };
+    if (counter.count >= MAX_QUERY_CLAUSES)
+      return { node: null, corrupt: true };
     const clause = decodeQueryClause(record);
     if (!clause) return { node: null, corrupt: true };
     counter.count++;
@@ -136,8 +158,12 @@ function decodeQueryNode(
 
   if (record.type === "group") {
     if (depth > MAX_QUERY_DEPTH) return { node: null, corrupt: true };
-    const operator = record.operator === "and" || record.operator === "or" ? record.operator : null;
-    if (!operator || !Array.isArray(record.children)) return { node: null, corrupt: true };
+    const operator =
+      record.operator === "and" || record.operator === "or"
+        ? record.operator
+        : null;
+    if (!operator || !Array.isArray(record.children))
+      return { node: null, corrupt: true };
     const children: QueryNodeV1[] = [];
     let corrupt = false;
     for (const rawChild of record.children) {
@@ -153,41 +179,87 @@ function decodeQueryNode(
 
 function decodeGroupOrder(raw: unknown): string[] | undefined {
   if (!Array.isArray(raw)) return undefined;
-  const valid = raw.filter((v): v is string => typeof v === "string" && v.trim() !== "");
+  const valid = raw.filter(
+    (v): v is string => typeof v === "string" && v.trim() !== "",
+  );
   return valid.length > 0 ? valid : undefined;
 }
 
-function decodeCollectionView(raw: unknown): { value: CollectionViewV1; corrupt: boolean } {
+function decodeCollectionView(raw: unknown): {
+  value: CollectionViewV1;
+  corrupt: boolean;
+} {
   if (raw === undefined) return { value: { mode: "list" }, corrupt: false };
   if (typeof raw === "object" && raw !== null) {
     const record = raw as Record<string, unknown>;
     if (record.mode === "list") {
-      const groupBy = typeof record.groupBy === "string" && record.groupBy.trim() !== "" ? record.groupBy : undefined;
+      const groupBy =
+        typeof record.groupBy === "string" && record.groupBy.trim() !== ""
+          ? record.groupBy
+          : undefined;
       const groupOrder = decodeGroupOrder(record.groupOrder);
-      return { value: { mode: "list", ...(groupBy ? { groupBy } : {}), ...(groupOrder ? { groupOrder } : {}) }, corrupt: false };
+      return {
+        value: {
+          mode: "list",
+          ...(groupBy ? { groupBy } : {}),
+          ...(groupOrder ? { groupOrder } : {}),
+        },
+        corrupt: false,
+      };
     }
     if (record.mode === "table") {
       const columns =
-        Array.isArray(record.columns) && record.columns.every((c) => typeof c === "string")
+        Array.isArray(record.columns) &&
+        record.columns.every((c) => typeof c === "string")
           ? (record.columns as string[])
           : undefined;
-      const groupBy = typeof record.groupBy === "string" && record.groupBy.trim() !== "" ? record.groupBy : undefined;
+      const groupBy =
+        typeof record.groupBy === "string" && record.groupBy.trim() !== ""
+          ? record.groupBy
+          : undefined;
       const groupOrder = decodeGroupOrder(record.groupOrder);
-      return { value: { mode: "table", ...(columns ? { columns } : {}), ...(groupBy ? { groupBy } : {}), ...(groupOrder ? { groupOrder } : {}) }, corrupt: false };
+      return {
+        value: {
+          mode: "table",
+          ...(columns ? { columns } : {}),
+          ...(groupBy ? { groupBy } : {}),
+          ...(groupOrder ? { groupOrder } : {}),
+        },
+        corrupt: false,
+      };
     }
     if (record.mode === "card") {
       const fields =
-        Array.isArray(record.fields) && record.fields.every((f) => typeof f === "string")
+        Array.isArray(record.fields) &&
+        record.fields.every((f) => typeof f === "string")
           ? (record.fields as string[])
           : undefined;
-      const groupBy = typeof record.groupBy === "string" && record.groupBy.trim() !== "" ? record.groupBy : undefined;
+      const groupBy =
+        typeof record.groupBy === "string" && record.groupBy.trim() !== ""
+          ? record.groupBy
+          : undefined;
       const groupOrder = decodeGroupOrder(record.groupOrder);
-      return { value: { mode: "card", ...(fields ? { fields } : {}), ...(groupBy ? { groupBy } : {}), ...(groupOrder ? { groupOrder } : {}) }, corrupt: false };
+      return {
+        value: {
+          mode: "card",
+          ...(fields ? { fields } : {}),
+          ...(groupBy ? { groupBy } : {}),
+          ...(groupOrder ? { groupOrder } : {}),
+        },
+        corrupt: false,
+      };
     }
     if (record.mode === "kanban") {
       if (typeof record.groupBy === "string" && record.groupBy.trim() !== "") {
         const groupOrder = decodeGroupOrder(record.groupOrder);
-        return { value: { mode: "kanban", groupBy: record.groupBy, ...(groupOrder ? { groupOrder } : {}) }, corrupt: false };
+        return {
+          value: {
+            mode: "kanban",
+            groupBy: record.groupBy,
+            ...(groupOrder ? { groupOrder } : {}),
+          },
+          corrupt: false,
+        };
       }
       return { value: { mode: "list" }, corrupt: true };
     }
@@ -199,7 +271,9 @@ function isValidSortField(raw: unknown): raw is SortFieldV1 {
   if (typeof raw !== "object" || raw === null) return false;
   const record = raw as Record<string, unknown>;
   if (record.kind === "system") {
-    return typeof record.field === "string" && SORT_SYSTEM_FIELDS.has(record.field);
+    return (
+      typeof record.field === "string" && SORT_SYSTEM_FIELDS.has(record.field)
+    );
   }
   if (record.kind === "property") {
     return typeof record.key === "string" && record.key.trim() !== "";
@@ -217,8 +291,12 @@ function isValidCollectionSort(raw: unknown): raw is CollectionSortV1 {
   );
 }
 
-function decodeCollection(raw: unknown): { collection: SmartCollectionV1 | null; corrupt: boolean } {
-  if (typeof raw !== "object" || raw === null) return { collection: null, corrupt: true };
+function decodeCollection(raw: unknown): {
+  collection: SmartCollectionV1 | null;
+  corrupt: boolean;
+} {
+  if (typeof raw !== "object" || raw === null)
+    return { collection: null, corrupt: true };
   const record = raw as Record<string, unknown>;
 
   // No sensible default exists for a missing/blank id: it's this
@@ -256,14 +334,15 @@ function decodeCollection(raw: unknown): { collection: SmartCollectionV1 | null;
   };
 
   const corrupt =
-    queryResult.corrupt ||
-    anyCorrupt(name, description, sort) ||
-    view.corrupt;
+    queryResult.corrupt || anyCorrupt(name, description, sort) || view.corrupt;
 
   return { collection, corrupt };
 }
 
-export function decodeCollectionsFile(raw: string): { file: CollectionsFileV1; corrupt: boolean } {
+export function decodeCollectionsFile(raw: string): {
+  file: CollectionsFileV1;
+  corrupt: boolean;
+} {
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
@@ -283,7 +362,9 @@ export function decodeCollectionsFile(raw: string): { file: CollectionsFileV1; c
 
   const collectionsShapeCorrupt =
     record.collections !== undefined && !Array.isArray(record.collections);
-  const rawCollections = Array.isArray(record.collections) ? record.collections : [];
+  const rawCollections = Array.isArray(record.collections)
+    ? record.collections
+    : [];
 
   const seenIds = new Set<string>();
   const collections: SmartCollectionV1[] = [];
@@ -320,6 +401,7 @@ export function decodeCollectionsFile(raw: string): { file: CollectionsFileV1; c
     order: orderedIds,
   } as unknown as CollectionsFileV1;
 
-  const corrupt = versionCorrupt || anyCollectionCorrupt || decodedOrder.corrupt;
+  const corrupt =
+    versionCorrupt || anyCollectionCorrupt || decodedOrder.corrupt;
   return { file, corrupt };
 }

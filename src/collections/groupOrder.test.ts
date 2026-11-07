@@ -132,9 +132,16 @@ describe("groupResults: manual groupOrder override", () => {
   it("preserves note membership in each column regardless of manual order", () => {
     const columns = groupResults(results(), "status", ["done", "active"]);
     const byLabel = new Map(columns.map((c) => [c.label, c]));
-    expect(byLabel.get("done")?.notes.map((n) => n.path).sort()).toEqual(["c.md", "d.md"]);
+    expect(
+      byLabel
+        .get("done")
+        ?.notes.map((n) => n.path)
+        .sort(),
+    ).toEqual(["c.md", "d.md"]);
     expect(byLabel.get("active")?.notes.map((n) => n.path)).toEqual(["a.md"]);
-    expect(byLabel.get("in progress")?.notes.map((n) => n.path)).toEqual(["b.md"]);
+    expect(byLabel.get("in progress")?.notes.map((n) => n.path)).toEqual([
+      "b.md",
+    ]);
   });
 
   it("handles an empty groupOrder as equivalent to undefined", () => {

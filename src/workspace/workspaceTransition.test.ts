@@ -4,7 +4,10 @@ import { createWorkspaceTransitionCoordinator } from "./workspaceTransition";
 function deferred<T>() {
   let resolve!: (value: T | PromiseLike<T>) => void;
   let reject!: (error: unknown) => void;
-  const promise = new Promise<T>((res, rej) => { resolve = res; reject = rej; });
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
   return { promise, resolve, reject };
 }
 
@@ -92,8 +95,12 @@ describe("workspace transition state (F20 Phase 2b-iii-b, spec section 16.1)", (
     record();
     const run = coordinator.run(
       {
-        prepareOutgoing: async () => { record(); },
-        connectIncoming: async () => { record(); },
+        prepareOutgoing: async () => {
+          record();
+        },
+        connectIncoming: async () => {
+          record();
+        },
         loadIncoming: async () => "B",
         publishIncoming: () => {},
       },
@@ -110,8 +117,12 @@ describe("workspace transition state (F20 Phase 2b-iii-b, spec section 16.1)", (
     const observed: string[] = [];
 
     await coordinator.run({
-      prepareOutgoing: async () => { observed.push(coordinator.state.value.status); },
-      connectIncoming: async () => { observed.push(coordinator.state.value.status); },
+      prepareOutgoing: async () => {
+        observed.push(coordinator.state.value.status);
+      },
+      connectIncoming: async () => {
+        observed.push(coordinator.state.value.status);
+      },
       loadIncoming: async () => undefined,
       publishIncoming: () => {},
     });
@@ -162,7 +173,11 @@ describe("workspace transition state (F20 Phase 2b-iii-b, spec section 16.1)", (
       ),
     ).rejects.toThrow("permission denied");
 
-    expect(coordinator.state.value).toMatchObject({ status: "error", phase: "access", targetProfileId: "profile-b" });
+    expect(coordinator.state.value).toMatchObject({
+      status: "error",
+      phase: "access",
+      targetProfileId: "profile-b",
+    });
   });
 
   it("reports the settings phase when loadIncoming rejects", async () => {
@@ -182,7 +197,10 @@ describe("workspace transition state (F20 Phase 2b-iii-b, spec section 16.1)", (
       ),
     ).rejects.toThrow("malformed settings");
 
-    expect(coordinator.state.value).toMatchObject({ status: "error", phase: "settings" });
+    expect(coordinator.state.value).toMatchObject({
+      status: "error",
+      phase: "settings",
+    });
   });
 
   it("reports the global-config phase, without discarding a successful publish, when afterPublish rejects", async () => {
@@ -205,7 +223,10 @@ describe("workspace transition state (F20 Phase 2b-iii-b, spec section 16.1)", (
     ).rejects.toThrow("catalog write failed");
 
     expect(published).toEqual(["B"]);
-    expect(coordinator.state.value).toMatchObject({ status: "error", phase: "global-config" });
+    expect(coordinator.state.value).toMatchObject({
+      status: "error",
+      phase: "global-config",
+    });
   });
 
   it("passes the phase and a live isCurrent check to publishFailure", async () => {

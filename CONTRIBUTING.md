@@ -106,3 +106,7 @@ This repository is run by people and automated agents under one policy, and a hu
 Agents use the shared claim, lease, verification, and direct-main workflow in [AGENTS.md](AGENTS.md). No pull request or human merge is required. Each worker uses an isolated checkout, owns one roadmap item, reviews/tests its changes, and handles available CI results. Limited CI environments follow [the verification decision table](skills/verification-suite.md).
 
 Keep changes focused and update relevant documentation. Do not add telemetry, account requirements, or dependencies that conflict with the product rules. Instruction changes and historic reviews use the same claims as implementation work.
+
+## Reading history
+
+The tree-wide formatting commit is listed in `.git-blame-ignore-revs`. GitHub honors the file automatically; locally run `git config blame.ignoreRevsFile .git-blame-ignore-revs` once so `git blame` skips pure reformatting commits.

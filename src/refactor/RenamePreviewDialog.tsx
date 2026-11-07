@@ -24,10 +24,20 @@ interface RenamePreviewDialogProps {
  * a button that would need to stay disabled, per this feature's own
  * "keep Apply disabled until journal and rollback tests pass" instruction.
  */
-export function RenamePreviewDialog({ oldPath, newPath, plan, applyError, onContinue, onCancel }: RenamePreviewDialogProps) {
+export function RenamePreviewDialog({
+  oldPath,
+  newPath,
+  plan,
+  applyError,
+  onContinue,
+  onCancel,
+}: RenamePreviewDialogProps) {
   return (
     <div class="modal-overlay" onClick={onCancel}>
-      <div class="modal rename-preview-dialog" onClick={(e) => e.stopPropagation()}>
+      <div
+        class="modal rename-preview-dialog"
+        onClick={(e) => e.stopPropagation()}
+      >
         <h2>Review rename</h2>
         <p class="rename-preview-summary">
           Renaming <code>{oldPath}</code> to <code>{newPath}</code>.
@@ -44,16 +54,18 @@ export function RenamePreviewDialog({ oldPath, newPath, plan, applyError, onCont
         {plan.edits.length > 0 && (
           <div class="rename-preview-section">
             <h3>
-              {plan.edits.length} link{plan.edits.length === 1 ? "" : "s"} elsewhere will be updated
+              {plan.edits.length} link{plan.edits.length === 1 ? "" : "s"}{" "}
+              elsewhere will be updated
             </h3>
             <p class="rename-preview-hint">
-              These references will be rewritten automatically when you continue.
+              These references will be rewritten automatically when you
+              continue.
             </p>
             <ul class="rename-preview-list">
               {plan.edits.map((edit, index) => (
                 <li key={`${edit.path}-${index}`}>
-                  <span class="rename-preview-path">{edit.path}</span>: <code>{edit.oldText}</code> →{" "}
-                  <code>{edit.newText}</code>
+                  <span class="rename-preview-path">{edit.path}</span>:{" "}
+                  <code>{edit.oldText}</code> → <code>{edit.newText}</code>
                 </li>
               ))}
             </ul>
@@ -62,12 +74,14 @@ export function RenamePreviewDialog({ oldPath, newPath, plan, applyError, onCont
         {plan.blocked.length > 0 && (
           <div class="rename-preview-section">
             <h3>
-              {plan.blocked.length} link{plan.blocked.length === 1 ? "" : "s"} cannot be safely updated automatically
+              {plan.blocked.length} link{plan.blocked.length === 1 ? "" : "s"}{" "}
+              cannot be safely updated automatically
             </h3>
             <ul class="rename-preview-list">
               {plan.blocked.map((blocked, index) => (
                 <li key={`${blocked.path}-${index}`}>
-                  <span class="rename-preview-path">{blocked.path}</span>: <code>{blocked.oldText}</code>
+                  <span class="rename-preview-path">{blocked.path}</span>:{" "}
+                  <code>{blocked.oldText}</code>
                   <p class="rename-preview-reason">{blocked.reason}</p>
                 </li>
               ))}
@@ -78,17 +92,24 @@ export function RenamePreviewDialog({ oldPath, newPath, plan, applyError, onCont
         {(plan.markdownEdits?.length ?? 0) > 0 && (
           <div class="rename-preview-section">
             <h3>
-              {plan.markdownEdits!.length} Markdown link{plan.markdownEdits!.length === 1 ? "" : "s"} elsewhere will be updated
+              {plan.markdownEdits!.length} Markdown link
+              {plan.markdownEdits!.length === 1 ? "" : "s"} elsewhere will be
+              updated
             </h3>
             <p class="rename-preview-hint">
-              These references will be rewritten automatically when you continue.
+              These references will be rewritten automatically when you
+              continue.
             </p>
             <ul class="rename-preview-list">
               {plan.markdownEdits!.map((edit, index) => (
                 <li key={`md-${edit.path}-${index}`}>
-                  <span class="rename-preview-path">{edit.path}</span>: <code>{edit.oldText}</code> →{" "}
-                  <code>{edit.newText}</code>
-                  {edit.isImage && <span class="rename-preview-image-badge" title="Image link">🖼️</span>}
+                  <span class="rename-preview-path">{edit.path}</span>:{" "}
+                  <code>{edit.oldText}</code> → <code>{edit.newText}</code>
+                  {edit.isImage && (
+                    <span class="rename-preview-image-badge" title="Image link">
+                      🖼️
+                    </span>
+                  )}
                 </li>
               ))}
             </ul>
@@ -98,14 +119,21 @@ export function RenamePreviewDialog({ oldPath, newPath, plan, applyError, onCont
         {(plan.markdownBlocked?.length ?? 0) > 0 && (
           <div class="rename-preview-section">
             <h3>
-              {plan.markdownBlocked!.length} Markdown link{plan.markdownBlocked!.length === 1 ? "" : "s"} cannot be safely updated automatically
+              {plan.markdownBlocked!.length} Markdown link
+              {plan.markdownBlocked!.length === 1 ? "" : "s"} cannot be safely
+              updated automatically
             </h3>
             <ul class="rename-preview-list">
               {plan.markdownBlocked!.map((blocked, index) => (
                 <li key={`md-blocked-${blocked.path}-${index}`}>
-                  <span class="rename-preview-path">{blocked.path}</span>: <code>{blocked.oldText}</code>
+                  <span class="rename-preview-path">{blocked.path}</span>:{" "}
+                  <code>{blocked.oldText}</code>
                   <p class="rename-preview-reason">{blocked.reason}</p>
-                  {blocked.isImage && <span class="rename-preview-image-badge" title="Image link">🖼️</span>}
+                  {blocked.isImage && (
+                    <span class="rename-preview-image-badge" title="Image link">
+                      🖼️
+                    </span>
+                  )}
                 </li>
               ))}
             </ul>

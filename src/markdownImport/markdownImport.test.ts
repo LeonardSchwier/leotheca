@@ -18,7 +18,9 @@ vi.mock("@tauri-apps/api/core", () => ({
 vi.mock("@tauri-apps/api/event", () => ({
   listen: (...args: Parameters<typeof listen>) => listen(...args),
 }));
-vi.mock("@capacitor/core", () => ({ Capacitor: { isNativePlatform: () => native } }));
+vi.mock("@capacitor/core", () => ({
+  Capacitor: { isNativePlatform: () => native },
+}));
 
 import {
   FINDING_TEXT,

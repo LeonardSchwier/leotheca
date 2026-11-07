@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import { memo } from "preact/compat";
-import { HIGHLIGHT_COLOR_CHOICES, highlightColorEmoji, insertHighlightColor } from "../editor/highlightColors";
+import {
+  HIGHLIGHT_COLOR_CHOICES,
+  highlightColorEmoji,
+  insertHighlightColor,
+} from "../editor/highlightColors";
 
 export interface HighlightPickerOnSelect {
   /** Called with the text to insert at the current editor selection/cursor
@@ -27,14 +31,18 @@ export interface HighlightPickerOnSelect {
  * component testable without a live editor and consistent with the rest
  * of the app's "request" pattern.
  */
-export function HighlightColorPicker({ insert, onClose }: HighlightPickerOnSelect & { onClose: () => void }) {
+export function HighlightColorPicker({
+  insert,
+  onClose,
+}: HighlightPickerOnSelect & { onClose: () => void }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
     const onDocClick = (event: MouseEvent) => {
-      if (rootRef.current && !rootRef.current.contains(event.target as Node)) setOpen(false);
+      if (rootRef.current && !rootRef.current.contains(event.target as Node))
+        setOpen(false);
     };
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") setOpen(false);
@@ -81,7 +89,8 @@ export function HighlightColorPicker({ insert, onClose }: HighlightPickerOnSelec
   const colorHandlers = useRef<Record<string, () => void>>({});
   for (const choice of HIGHLIGHT_COLOR_CHOICES) {
     if (!colorHandlers.current[choice.color]) {
-      colorHandlers.current[choice.color] = () => onColorSelectRef.current(choice.color);
+      colorHandlers.current[choice.color] = () =>
+        onColorSelectRef.current(choice.color);
     }
   }
 
@@ -98,7 +107,11 @@ export function HighlightColorPicker({ insert, onClose }: HighlightPickerOnSelec
         <HighlightSwatchIcon />
       </button>
       {open && (
-        <div class="highlight-picker-menu" role="menu" aria-label="Highlight color">
+        <div
+          class="highlight-picker-menu"
+          role="menu"
+          aria-label="Highlight color"
+        >
           <HighlightSwatch
             label="Plain"
             className="lt-highlight-color-plain"
@@ -156,9 +169,29 @@ export const HighlightSwatch = memo(HighlightSwatchComponent);
  * registry: it's used exactly once, in this picker's trigger button. */
 function HighlightSwatchIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <rect x="2" y="6" width="12" height="5" rx="1" class="lt-highlight-color-orange" fill="currentColor" fillOpacity="0.25" />
-      <path d="M4 12 L7 4 M10 12 L13 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+      aria-hidden="true"
+    >
+      <rect
+        x="2"
+        y="6"
+        width="12"
+        height="5"
+        rx="1"
+        class="lt-highlight-color-orange"
+        fill="currentColor"
+        fillOpacity="0.25"
+      />
+      <path
+        d="M4 12 L7 4 M10 12 L13 4"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }

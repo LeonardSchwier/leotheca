@@ -1,14 +1,14 @@
 /**
  * Speech recognition bridge functions for Android (Capacitor)
- * 
+ *
  * Provides Android-specific speech recognition using the platform's
  * built-in SpeechRecognizer API with offline mode.
- * 
+ *
  * This uses android.speech.SpeechRecognizer with EXTRA_PREFER_OFFLINE
  * to ensure fully offline speech recognition as required by CONSTITUTION.
  */
 
-import { registerPlugin } from '@capacitor/core';
+import { registerPlugin } from "@capacitor/core";
 
 /**
  * Capacitor plugin interface for speech recognition
@@ -24,8 +24,13 @@ export interface CapacitorSpeechPlugin {
   startRecognition(options: {
     language?: string;
     preferOffline?: boolean;
-  }): Promise<{ success: boolean; error?: string; text?: string; language?: string }>;
-  
+  }): Promise<{
+    success: boolean;
+    error?: string;
+    text?: string;
+    language?: string;
+  }>;
+
   /**
    * Stop speech recognition
    */
@@ -35,7 +40,7 @@ export interface CapacitorSpeechPlugin {
    * Check if offline speech recognition is supported
    */
   isOfflineSupported(): Promise<{ supported: boolean }>;
-  
+
   /**
    * Get available languages for offline recognition
    */
@@ -45,9 +50,8 @@ export interface CapacitorSpeechPlugin {
 /**
  * Register the speech recognition plugin
  */
-const SpeechRecognitionPlugin = registerPlugin<CapacitorSpeechPlugin>(
-  'SpeechRecognition'
-);
+const SpeechRecognitionPlugin =
+  registerPlugin<CapacitorSpeechPlugin>("SpeechRecognition");
 
 /**
  * Start speech recognition on Android.
@@ -62,8 +66,13 @@ const SpeechRecognitionPlugin = registerPlugin<CapacitorSpeechPlugin>(
  * @returns Promise with the final recognition result
  */
 export async function startAndroidSpeechRecognition(
-  language?: string
-): Promise<{ success: boolean; error?: string; text?: string; language?: string }> {
+  language?: string,
+): Promise<{
+  success: boolean;
+  error?: string;
+  text?: string;
+  language?: string;
+}> {
   try {
     const result = await SpeechRecognitionPlugin.startRecognition({
       language: language,
@@ -73,31 +82,34 @@ export async function startAndroidSpeechRecognition(
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: error instanceof Error ? error.message : "Unknown error",
     };
   }
 }
 
 /**
  * Stop speech recognition on Android
- * 
+ *
  * @returns Promise with result
  */
-export async function stopAndroidSpeechRecognition(): Promise<{ success: boolean; error?: string }> {
+export async function stopAndroidSpeechRecognition(): Promise<{
+  success: boolean;
+  error?: string;
+}> {
   try {
     const result = await SpeechRecognitionPlugin.stopRecognition();
     return result;
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: error instanceof Error ? error.message : "Unknown error",
     };
   }
 }
 
 /**
  * Check if offline speech recognition is available on this Android device
- * 
+ *
  * @returns Promise with support status
  */
 export async function isAndroidOfflineSupported(): Promise<boolean> {
@@ -111,7 +123,7 @@ export async function isAndroidOfflineSupported(): Promise<boolean> {
 
 /**
  * Get available languages for offline speech recognition on Android
- * 
+ *
  * @returns Promise with array of language codes
  */
 export async function getAndroidLanguages(): Promise<string[]> {

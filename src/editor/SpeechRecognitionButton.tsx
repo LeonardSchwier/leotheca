@@ -1,13 +1,20 @@
 /**
  * Speech recognition button component
- * 
+ *
  * Provides a UI button for starting/stopping speech-to-text dictation.
  * Shows visual feedback for recording, transcribing, and error states.
  */
 
-import { useEffect, useRef, useState } from 'preact/hooks';
-import { SpeechController, getGlobalSpeechController } from '../speech/speechController';
-import type { SpeechRecognitionState, SpeechRecognitionResult, SpeechRecognitionError } from '../speech/types';
+import { useEffect, useRef, useState } from "preact/hooks";
+import {
+  SpeechController,
+  getGlobalSpeechController,
+} from "../speech/speechController";
+import type {
+  SpeechRecognitionState,
+  SpeechRecognitionResult,
+  SpeechRecognitionError,
+} from "../speech/types";
 
 // Icon components for different states
 const MicrophoneIcon = () => (
@@ -22,8 +29,6 @@ const RecordingIcon = () => (
     <circle cx="12" cy="12" r="3" fill="#f44336" />
   </svg>
 );
-
-
 
 const ErrorIcon = () => (
   <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
@@ -57,7 +62,7 @@ export function SpeechRecognitionButton({
   onStateChange,
   language,
 }: SpeechRecognitionButtonProps) {
-  const [state, setState] = useState<SpeechRecognitionState>('idle');
+  const [state, setState] = useState<SpeechRecognitionState>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isAvailable, setIsAvailable] = useState<boolean>(false);
   const controllerRef = useRef<SpeechController | null>(null);
@@ -68,7 +73,10 @@ export function SpeechRecognitionButton({
     controllerRef.current = controller;
 
     // Check if speech recognition is available
-    controller.isSpeechRecognitionAvailable().then(setIsAvailable).catch(() => setIsAvailable(false));
+    controller
+      .isSpeechRecognitionAvailable()
+      .then(setIsAvailable)
+      .catch(() => setIsAvailable(false));
 
     // Set up event listeners
     const handleResult = (result: SpeechRecognitionResult) => {
@@ -81,7 +89,7 @@ export function SpeechRecognitionButton({
       setErrorMessage(error.message);
       onError?.(error);
       if (error.isFatal) {
-        setState('error');
+        setState("error");
       }
     };
 
@@ -108,7 +116,7 @@ export function SpeechRecognitionButton({
   useEffect(() => {
     return () => {
       const controller = controllerRef.current;
-      if (controller && state !== 'idle') {
+      if (controller && state !== "idle") {
         controller.stop().catch(console.error);
       }
     };
@@ -118,37 +126,37 @@ export function SpeechRecognitionButton({
     const controller = controllerRef.current;
     if (!controller || readOnly) return;
 
-    if (state === 'idle' || state === 'error') {
+    if (state === "idle" || state === "error") {
       try {
         setErrorMessage(null);
         await controller.start({ language });
       } catch (error) {
-        console.error('Failed to start speech recognition:', error);
+        console.error("Failed to start speech recognition:", error);
       }
-    } else if (state === 'recording' || state === 'transcribing') {
+    } else if (state === "recording" || state === "transcribing") {
       try {
         await controller.stop();
       } catch (error) {
-        console.error('Failed to stop speech recognition:', error);
+        console.error("Failed to stop speech recognition:", error);
       }
     }
   };
 
   const getButtonClass = () => {
-    const baseClass = 'icon-button';
-    
+    const baseClass = "icon-button";
+
     if (readOnly || !isAvailable) {
       return `${baseClass} speech-button disabled`;
     }
-    
+
     switch (state) {
-      case 'recording':
+      case "recording":
         return `${baseClass} speech-button recording`;
-      case 'transcribing':
+      case "transcribing":
         return `${baseClass} speech-button transcribing`;
-      case 'error':
+      case "error":
         return `${baseClass} speech-button error`;
-      case 'starting':
+      case "starting":
         return `${baseClass} speech-button starting`;
       default:
         return `${baseClass} speech-button`;
@@ -158,15 +166,15 @@ export function SpeechRecognitionButton({
   const getIcon = () => {
     if (!isAvailable) return <ErrorIcon />;
     if (readOnly) return <MicrophoneIcon />;
-    
+
     switch (state) {
-      case 'recording':
+      case "recording":
         return <RecordingIcon />;
-      case 'transcribing':
+      case "transcribing":
         return <LoadingIcon />;
-      case 'error':
+      case "error":
         return <ErrorIcon />;
-      case 'starting':
+      case "starting":
         return <LoadingIcon />;
       default:
         return <MicrophoneIcon />;
@@ -174,20 +182,20 @@ export function SpeechRecognitionButton({
   };
 
   const getLabel = () => {
-    if (!isAvailable) return 'Speech recognition not available';
-    if (readOnly) return 'Speech recognition (read-only mode)';
-    
+    if (!isAvailable) return "Speech recognition not available";
+    if (readOnly) return "Speech recognition (read-only mode)";
+
     switch (state) {
-      case 'recording':
-        return 'Stop recording';
-      case 'transcribing':
-        return 'Transcribing...';
-      case 'error':
-        return 'Error - Click to retry';
-      case 'starting':
-        return 'Starting...';
+      case "recording":
+        return "Stop recording";
+      case "transcribing":
+        return "Transcribing...";
+      case "error":
+        return "Error - Click to retry";
+      case "starting":
+        return "Starting...";
       default:
-        return 'Start voice dictation';
+        return "Start voice dictation";
     }
   };
 
@@ -202,10 +210,9 @@ export function SpeechRecognitionButton({
       >
         {getIcon()}
       </button>
-      {errorMessage && state === 'error' && (
+      {errorMessage && state === "error" && (
         <span class="speech-error-message">{errorMessage}</span>
       )}
     </div>
   );
 }
-

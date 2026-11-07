@@ -18,16 +18,27 @@ interface CommandPaletteProps {
 }
 
 const workspaceCommands: Command[] = [
-  { id: "switch-workspace", label: "Switch workspace...", run: requestWorkspaceSwitcherOpen },
+  {
+    id: "switch-workspace",
+    label: "Switch workspace...",
+    run: requestWorkspaceSwitcherOpen,
+  },
   { id: "add-workspace", label: "Add workspace...", run: requestWorkspaceAdd },
-  { id: "manage-workspace-profiles", label: "Manage workspace profiles...", run: requestWorkspaceManage },
+  {
+    id: "manage-workspace-profiles",
+    label: "Manage workspace profiles...",
+    run: requestWorkspaceManage,
+  },
 ];
 
 export function CommandPalette({ commands, onClose }: CommandPaletteProps) {
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
-  const allCommands = useMemo(() => [...commands, ...workspaceCommands], [commands]);
+  const allCommands = useMemo(
+    () => [...commands, ...workspaceCommands],
+    [commands],
+  );
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -77,7 +88,9 @@ export function CommandPalette({ commands, onClose }: CommandPaletteProps) {
           onKeyDown={onKeyDown}
         />
         <ul class="command-palette-list">
-          {filtered.length === 0 && <li class="empty-hint">No matching commands.</li>}
+          {filtered.length === 0 && (
+            <li class="empty-hint">No matching commands.</li>
+          )}
           {filtered.map((command, index) => (
             <li key={command.id}>
               <button

@@ -16,14 +16,24 @@ function stroke(id: string, xs: number[]): InkStroke {
     color: "#000000",
     width: 4,
     opacity: 1,
-    points: xs.map((x, index) => ({ x, y: 0, pressure: 0.5, tiltX: 0, tiltY: 0, time: index })),
+    points: xs.map((x, index) => ({
+      x,
+      y: 0,
+      pressure: 0.5,
+      tiltX: 0,
+      tiltY: 0,
+      time: index,
+    })),
   };
 }
 
 describe("ink editing history", () => {
   it("undoes and redoes committed stroke sets", () => {
     const initial = createInkHistory([stroke("a", [0, 1])]);
-    const edited = commitInkEdit(initial, [stroke("a", [0, 1]), stroke("b", [2, 3])]);
+    const edited = commitInkEdit(initial, [
+      stroke("a", [0, 1]),
+      stroke("b", [2, 3]),
+    ]);
     const undone = undoInkEdit(edited);
     expect(undone.present.map(({ id }) => id)).toEqual(["a"]);
     expect(redoInkEdit(undone).present.map(({ id }) => id)).toEqual(["a", "b"]);
@@ -54,14 +64,23 @@ describe("ink editing history", () => {
 
 describe("partial stroke erasing", () => {
   it("splits a stroke when the eraser removes points from its middle", () => {
-    const result = eraseStrokeParts(stroke("a", [0, 1, 2, 3, 4]), { x: 2, y: 0 }, 0.1);
+    const result = eraseStrokeParts(
+      stroke("a", [0, 1, 2, 3, 4]),
+      { x: 2, y: 0 },
+      0.1,
+    );
     expect(result).toHaveLength(2);
-    expect(result.map((part) => part.points.map(({ x }) => x))).toEqual([[0, 1], [3, 4]]);
+    expect(result.map((part) => part.points.map(({ x }) => x))).toEqual([
+      [0, 1],
+      [3, 4],
+    ]);
     expect(result.map(({ id }) => id)).toEqual(["a:erase:1", "a:erase:2"]);
   });
 
   it("removes a whole stroke only when every sampled point is under the eraser", () => {
-    expect(eraseStrokeParts(stroke("a", [1, 2]), { x: 1.5, y: 0 }, 1)).toEqual([]);
+    expect(eraseStrokeParts(stroke("a", [1, 2]), { x: 1.5, y: 0 }, 1)).toEqual(
+      [],
+    );
   });
 
   it("keeps an untouched stroke and its original id", () => {
@@ -72,12 +91,28 @@ describe("partial stroke erasing", () => {
   });
 
   it("can trim only the beginning or end of a stroke", () => {
-    expect(eraseStrokeParts(stroke("a", [0, 1, 2, 3]), { x: 0, y: 0 }, 0.5)[0].points.map(({ x }) => x)).toEqual([1, 2, 3]);
-    expect(eraseStrokeParts(stroke("a", [0, 1, 2, 3]), { x: 3, y: 0 }, 0.5)[0].points.map(({ x }) => x)).toEqual([0, 1, 2]);
+    expect(
+      eraseStrokeParts(
+        stroke("a", [0, 1, 2, 3]),
+        { x: 0, y: 0 },
+        0.5,
+      )[0].points.map(({ x }) => x),
+    ).toEqual([1, 2, 3]);
+    expect(
+      eraseStrokeParts(
+        stroke("a", [0, 1, 2, 3]),
+        { x: 3, y: 0 },
+        0.5,
+      )[0].points.map(({ x }) => x),
+    ).toEqual([0, 1, 2]);
   });
 
   it("applies a partial erase independently across multiple strokes", () => {
-    const result = eraseInkAtPoint([stroke("a", [0, 1, 2]), stroke("b", [10, 11])], { x: 1, y: 0 }, 0.1);
+    const result = eraseInkAtPoint(
+      [stroke("a", [0, 1, 2]), stroke("b", [10, 11])],
+      { x: 1, y: 0 },
+      0.1,
+    );
     expect(result.map(({ id }) => id)).toEqual(["a:erase:1", "a:erase:2", "b"]);
   });
 

@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { HIGHLIGHT_COLOR_EMOJI } from "../markdown/highlight";
-import { HIGHLIGHT_COLOR_CHOICES, highlightColorEmoji, insertHighlightColor } from "./highlightColors";
+import {
+  HIGHLIGHT_COLOR_CHOICES,
+  highlightColorEmoji,
+  insertHighlightColor,
+} from "./highlightColors";
 
 const RED = "\u{1F534}"; // 🔴
 const ORANGE = "\u{1F7E0}"; // 🟠
@@ -23,8 +27,20 @@ describe("highlightColorEmoji", () => {
 
 describe("HIGHLIGHT_COLOR_CHOICES", () => {
   it("offers exactly the shared color set, red first, labels capitalized", () => {
-    expect(HIGHLIGHT_COLOR_CHOICES.map((c) => c.color)).toEqual(["red", "orange", "green", "blue", "purple"]);
-    expect(HIGHLIGHT_COLOR_CHOICES.map((c) => c.label)).toEqual(["Red", "Orange", "Green", "Blue", "Purple"]);
+    expect(HIGHLIGHT_COLOR_CHOICES.map((c) => c.color)).toEqual([
+      "red",
+      "orange",
+      "green",
+      "blue",
+      "purple",
+    ]);
+    expect(HIGHLIGHT_COLOR_CHOICES.map((c) => c.label)).toEqual([
+      "Red",
+      "Orange",
+      "Green",
+      "Blue",
+      "Purple",
+    ]);
   });
 
   it("is frozen, like the other shared constant sets", () => {
@@ -41,13 +57,18 @@ describe("insertHighlightColor", () => {
   });
 
   it("inserts a plain (uncolored) highlight with the caret right after ==", () => {
-    expect(insertHighlightColor("important")).toEqual({ text: "==important==", caretOffset: 2 });
+    expect(insertHighlightColor("important")).toEqual({
+      text: "==important==",
+      caretOffset: 2,
+    });
   });
 
   it("keeps the user's own leading spaces after the emoji, never trimmed", () => {
     // detectHighlightColor's own doc comment: a space the author typed
     // after the emoji is left in place, not silently eaten.
-    expect(insertHighlightColor("  spaced", "blue").text).toBe(`==${BLUE}   spaced==`);
+    expect(insertHighlightColor("  spaced", "blue").text).toBe(
+      `==${BLUE}   spaced==`,
+    );
   });
 
   it("re-colors an existing emoji prefix in place, never stacking markers", () => {
@@ -58,7 +79,9 @@ describe("insertHighlightColor", () => {
 
   it("re-coloring replaces a previous color emoji but keeps the rest verbatim", () => {
     const body = `${ORANGE} keep  double  spaces`;
-    expect(insertHighlightColor(body, "purple").text).toBe(`==${PURPLE} keep  double  spaces==`);
+    expect(insertHighlightColor(body, "purple").text).toBe(
+      `==${PURPLE} keep  double  spaces==`,
+    );
   });
 
   it("removes the emoji prefix when switching to plain, keeping the body", () => {
@@ -80,7 +103,10 @@ describe("insertHighlightColor", () => {
   });
 
   it("handles an empty body", () => {
-    expect(insertHighlightColor("", "orange")).toEqual({ text: `==${ORANGE} ==`, caretOffset: ORANGE.length + 3 });
+    expect(insertHighlightColor("", "orange")).toEqual({
+      text: `==${ORANGE} ==`,
+      caretOffset: ORANGE.length + 3,
+    });
     expect(insertHighlightColor("")).toEqual({ text: "====", caretOffset: 2 });
   });
 

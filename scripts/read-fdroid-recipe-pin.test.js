@@ -81,7 +81,7 @@ describe("read-fdroid-recipe-pin.sh tracks the recipe file, not a fixed value", 
   it("fails with a clear error when a field is missing from the recipe", () => {
     fixtureDir = mkdtempSync(path.join(tmpdir(), "fdroid-recipe-"));
     const fixture = path.join(fixtureDir, "recipe.yml");
-    writeFileSync(fixture, "Builds:\n  - versionName: \"1.0.0\"\n");
+    writeFileSync(fixture, 'Builds:\n  - versionName: "1.0.0"\n');
 
     expect(readPinExitCode(["commit", fixture])).toBe(1);
     expect(readPinExitCode(["version-code", fixture])).toBe(1);

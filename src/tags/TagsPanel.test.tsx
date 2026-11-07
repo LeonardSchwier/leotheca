@@ -26,7 +26,9 @@ describe("TagsPanel", () => {
     const { getByText, getByRole } = render(<TagsPanel onOpenFile={vi.fn()} />);
     expect(getByText("No tags yet.")).toBeTruthy();
     expect(getByRole("region", { name: "No tags yet." })).toBeTruthy();
-    expect(getByText("Add a #tag or frontmatter tag to a note to organize it here.")).toBeTruthy();
+    expect(
+      getByText("Add a #tag or frontmatter tag to a note to organize it here."),
+    ).toBeTruthy();
   });
 
   it("lists a top-level tag with its note count", () => {
@@ -51,7 +53,9 @@ describe("TagsPanel", () => {
 
   it("clicking a tag's row again hides its notes", () => {
     setPathsByTag(new Map([["work", ["/vault/a.md"]]]));
-    const { getByText, queryByText } = render(<TagsPanel onOpenFile={vi.fn()} />);
+    const { getByText, queryByText } = render(
+      <TagsPanel onOpenFile={vi.fn()} />,
+    );
     fireEvent.click(getByText("work"));
     fireEvent.click(getByText("work"));
     expect(queryByText("a.md")).toBeNull();
@@ -68,14 +72,18 @@ describe("TagsPanel", () => {
 
   it("nests a '/'-separated tag under a collapsed parent by default", () => {
     setPathsByTag(new Map([["work/project", ["/vault/a.md"]]]));
-    const { getByText, queryByText } = render(<TagsPanel onOpenFile={vi.fn()} />);
+    const { getByText, queryByText } = render(
+      <TagsPanel onOpenFile={vi.fn()} />,
+    );
     expect(getByText("work")).toBeTruthy();
     expect(queryByText("project")).toBeNull();
   });
 
   it("expanding a parent tag reveals its child tag", () => {
     setPathsByTag(new Map([["work/project", ["/vault/a.md"]]]));
-    const { getByLabelText, getByText } = render(<TagsPanel onOpenFile={vi.fn()} />);
+    const { getByLabelText, getByText } = render(
+      <TagsPanel onOpenFile={vi.fn()} />,
+    );
     fireEvent.click(getByLabelText("Expand work"));
     expect(getByText("project")).toBeTruthy();
   });
@@ -90,7 +98,9 @@ describe("TagsPanel", () => {
 
   it("clicking a pure grouping node's label expands it instead of doing nothing", () => {
     setPathsByTag(new Map([["work/project", ["/vault/a.md"]]]));
-    const { getByText, queryByText } = render(<TagsPanel onOpenFile={vi.fn()} />);
+    const { getByText, queryByText } = render(
+      <TagsPanel onOpenFile={vi.fn()} />,
+    );
     expect(queryByText("project")).toBeNull();
     fireEvent.click(getByText("work"));
     expect(getByText("project")).toBeTruthy();
@@ -99,7 +109,9 @@ describe("TagsPanel", () => {
   it("shows an inline error when onOpenFile rejects", async () => {
     setPathsByTag(new Map([["work", ["/vault/a.md"]]]));
     const onOpenFile = vi.fn().mockRejectedValue(new Error("ENOENT"));
-    const { getByText, getByRole } = render(<TagsPanel onOpenFile={onOpenFile} />);
+    const { getByText, getByRole } = render(
+      <TagsPanel onOpenFile={onOpenFile} />,
+    );
     fireEvent.click(getByText("work"));
     fireEvent.click(getByText("a.md"));
     // Let the promise rejection propagate
@@ -114,7 +126,9 @@ describe("TagsPanel", () => {
       .fn()
       .mockRejectedValueOnce(new Error("ENOENT"))
       .mockResolvedValueOnce(undefined);
-    const { getByText, queryByRole } = render(<TagsPanel onOpenFile={onOpenFile} />);
+    const { getByText, queryByRole } = render(
+      <TagsPanel onOpenFile={onOpenFile} />,
+    );
     fireEvent.click(getByText("work"));
     // First click fails
     fireEvent.click(getByText("a.md"));

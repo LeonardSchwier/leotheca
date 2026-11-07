@@ -63,52 +63,47 @@ describe("tauri.conf.json — assetProtocol scope (audit S-1)", () => {
     expect(Array.isArray(scope)).toBe(true);
   });
 
-  it(
-    "asset protocol scope is deny-by-default: the match-all `**` pattern is absent",
-    () => {
-      const conf = loadConfig();
-      const rawScope = conf?.app?.security?.assetProtocol?.scope;
-      expect(Array.isArray(rawScope)).toBe(true);
+  it("asset protocol scope is deny-by-default: the match-all `**` pattern is absent", () => {
+    const conf = loadConfig();
+    const rawScope = conf?.app?.security?.assetProtocol?.scope;
+    expect(Array.isArray(rawScope)).toBe(true);
+    const scope = rawScope as unknown[];
+
+    // Also assert no element is a bare glob that would match every
+    // absolute path: `**/*`, `*`, `/**`, or any pattern that is just
+    // `**` with optional path segments on either side.
+    for (const entry of scope) {
+      expect(
+        typeof entry,
+        `scope entry must be a string, got ${typeof entry}`,
+      ).toBe("string");
+      const s = entry as string;
+      // Deny patterns that match-all: "**", "**/*", "*", "/**", "/**/*"
+      expect(
+        !["**", "**/*", "*", "/**", "/**/*"].includes(s),
+        `scope entry "${s}" matches any absolute path: reintroduces S-1`,
+      ).toBe(true);
+    }
+  });
+
+  it("asset protocol scope does not grant $APPDATA or $HOME unconditionally", () => {
+    // A scope entry like "$APPDATA/**" or "$HOME/**" would grant access
+    // to the entire app-data or home directory at every launch, before
+    // any workspace is activated. The only runtime grant must come from
+    // `set_active_workspace_root` (the active workspace directory),
+    // never from a static config pattern.
+    const conf = loadConfig();
+    const rawScope = conf?.app?.security?.assetProtocol?.scope;
+    if (Array.isArray(rawScope)) {
       const scope = rawScope as unknown[];
-
-      // Also assert no element is a bare glob that would match every
-      // absolute path: `**/*`, `*`, `/**`, or any pattern that is just
-      // `**` with optional path segments on either side.
       for (const entry of scope) {
-        expect(typeof entry, `scope entry must be a string, got ${typeof entry}`).toBe(
-          "string"
-        );
+        expect(typeof entry).toBe("string");
         const s = entry as string;
-        // Deny patterns that match-all: "**", "**/*", "*", "/**", "/**/*"
         expect(
-          !["**", "**/*", "*", "/**", "/**/*"].includes(s),
-          `scope entry "${s}" matches any absolute path — reintroduces S-1`
-        ).toBe(true);
+          s,
+          `static grant of "${s}" would bypass runtime workspace scoping`,
+        ).not.toMatch(/^\$(APPDATA|HOME)\b/);
       }
     }
-  );
-
-  it(
-    "asset protocol scope does not grant $APPDATA or $HOME unconditionally",
-    () => {
-      // A scope entry like "$APPDATA/**" or "$HOME/**" would grant access
-      // to the entire app-data or home directory at every launch, before
-      // any workspace is activated. The only runtime grant must come from
-      // `set_active_workspace_root` (the active workspace directory),
-      // never from a static config pattern.
-      const conf = loadConfig();
-      const rawScope = conf?.app?.security?.assetProtocol?.scope;
-      if (Array.isArray(rawScope)) {
-        const scope = rawScope as unknown[];
-        for (const entry of scope) {
-          expect(typeof entry).toBe("string");
-          const s = entry as string;
-          expect(
-            s,
-            `static grant of "${s}" would bypass runtime workspace scoping`
-          ).not.toMatch(/^\$(APPDATA|HOME)\b/);
-        }
-      }
-    }
-  );
+  });
 });

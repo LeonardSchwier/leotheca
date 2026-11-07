@@ -24,7 +24,10 @@ import { requestOutlineInsert } from "./outlineNavigation";
  *   disabled rather than silently copying a link that would resolve
  *   ambiguously.
  */
-export function headingLinkText(heading: HeadingRecord, noteTitle?: string): string {
+export function headingLinkText(
+  heading: HeadingRecord,
+  noteTitle?: string,
+): string {
   return serializeWikiLink({
     noteTarget: noteTitle ?? "",
     fragment: { kind: "heading", value: heading.displayText },
@@ -37,7 +40,10 @@ export function headingLinkText(heading: HeadingRecord, noteTitle?: string): str
  * doesn't know where the result will be pasted, so the link must stay
  * valid outside this note too.
  */
-export async function copyHeadingLink(heading: HeadingRecord, noteTitle: string): Promise<void> {
+export async function copyHeadingLink(
+  heading: HeadingRecord,
+  noteTitle: string,
+): Promise<void> {
   await navigator.clipboard.writeText(headingLinkText(heading, noteTitle));
 }
 
@@ -62,7 +68,10 @@ export function insertHeadingLink(heading: HeadingRecord): void {
  * occurrence, so a link built from it would resolve ambiguously
  * (F06-FR-15) rather than to the specific heading the user picked.
  */
-export function headingLinkDisabledReason(heading: HeadingRecord, duplicate: boolean): string | undefined {
+export function headingLinkDisabledReason(
+  heading: HeadingRecord,
+  duplicate: boolean,
+): string | undefined {
   if (!heading.displayText.trim()) {
     return "This heading has no text to link to.";
   }

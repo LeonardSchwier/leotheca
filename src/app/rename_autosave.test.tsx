@@ -220,7 +220,9 @@ describe("App: rename shows a link-impact preview when a reference exists (F03 P
       pathsByTag: new Map(),
       tagsByPath: new Map(),
       tasksByPath: new Map(),
-      wikiLinksByPath: new Map([["/vault/referrer.md", parseWikiLinks("See [[note]].")]]),
+      wikiLinksByPath: new Map([
+        ["/vault/referrer.md", parseWikiLinks("See [[note]].")],
+      ]),
     };
     readTextFile.mockImplementation(async (path: string) =>
       path === "/vault/referrer.md" ? "See [[note]]." : "",
@@ -235,7 +237,8 @@ describe("App: rename shows a link-impact preview when a reference exists (F03 P
 
     fireEvent.contextMenu(container.querySelector(".tab")!);
     fireEvent.click(getByRole("button", { name: "Rename" }));
-    const nameInput = container.querySelector<HTMLInputElement>(".name-prompt input")!;
+    const nameInput =
+      container.querySelector<HTMLInputElement>(".name-prompt input")!;
     fireEvent.input(nameInput, { target: { value: "renamed.md" } });
     fireEvent.click(getByRole("button", { name: "Rename" }));
 
@@ -246,8 +249,13 @@ describe("App: rename shows a link-impact preview when a reference exists (F03 P
 
     fireEvent.click(getByRole("button", { name: "Continue" }));
 
-    await waitFor(() => expect(renameEntry).toHaveBeenCalledWith("/vault/note.md", "renamed.md"));
-    expect(openTabs.value[0]).toMatchObject({ path: "/vault/renamed.md", name: "renamed.md" });
+    await waitFor(() =>
+      expect(renameEntry).toHaveBeenCalledWith("/vault/note.md", "renamed.md"),
+    );
+    expect(openTabs.value[0]).toMatchObject({
+      path: "/vault/renamed.md",
+      name: "renamed.md",
+    });
   });
 
   it("cancelling the Review dialog renames nothing", async () => {
@@ -257,7 +265,8 @@ describe("App: rename shows a link-impact preview when a reference exists (F03 P
 
     fireEvent.contextMenu(container.querySelector(".tab")!);
     fireEvent.click(getByRole("button", { name: "Rename" }));
-    const nameInput = container.querySelector<HTMLInputElement>(".name-prompt input")!;
+    const nameInput =
+      container.querySelector<HTMLInputElement>(".name-prompt input")!;
     fireEvent.input(nameInput, { target: { value: "renamed.md" } });
     fireEvent.click(getByRole("button", { name: "Rename" }));
 
@@ -266,6 +275,9 @@ describe("App: rename shows a link-impact preview when a reference exists (F03 P
 
     await waitFor(() => expect(queryByText("Review rename")).toBeNull());
     expect(renameEntry).not.toHaveBeenCalled();
-    expect(openTabs.value[0]).toMatchObject({ path: "/vault/note.md", name: "note.md" });
+    expect(openTabs.value[0]).toMatchObject({
+      path: "/vault/note.md",
+      name: "note.md",
+    });
   });
 });

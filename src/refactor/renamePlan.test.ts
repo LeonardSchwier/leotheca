@@ -10,13 +10,18 @@ import { planNoteRename } from "./renamePlan";
  * directly). `liveNotes` defaults to `notes` itself; pass a second,
  * different map to simulate a note that changed on disk since the index
  * was last built (this module's own freshness guarantee). */
-function fixture(notes: Record<string, string>, liveNotes: Record<string, string> = notes) {
+function fixture(
+  notes: Record<string, string>,
+  liveNotes: Record<string, string> = notes,
+) {
   const wikiLinksByPath = new Map<string, ReturnType<typeof parseWikiLinks>>();
   const pathsByNoteName = new Map<string, string[]>();
   for (const [path, content] of Object.entries(notes)) {
     const links = parseWikiLinks(content);
     if (links.length > 0) wikiLinksByPath.set(path, links);
-    const name = (path.split("/").pop() ?? path).replace(/\.md$/i, "").toLocaleLowerCase();
+    const name = (path.split("/").pop() ?? path)
+      .replace(/\.md$/i, "")
+      .toLocaleLowerCase();
     const existing = pathsByNoteName.get(name) ?? [];
     existing.push(path);
     pathsByNoteName.set(name, existing);
@@ -57,7 +62,12 @@ describe("planNoteRename", () => {
       "/vault/Old Name.md": "content",
       "/vault/Referrer.md": "See [[Old Name]] for details.",
     });
-    const plan = await planNoteRename("/vault/Old Name.md", "/vault/New Name.md", index, readNote);
+    const plan = await planNoteRename(
+      "/vault/Old Name.md",
+      "/vault/New Name.md",
+      index,
+      readNote,
+    );
     expect(plan.blocked).toEqual([]);
     expect(plan.edits).toHaveLength(1);
     const [edit] = plan.edits;
@@ -71,7 +81,12 @@ describe("planNoteRename", () => {
       "/vault/Old.md": "## A heading",
       "/vault/Referrer.md": "See [[Old#A heading|a custom label]] above.",
     });
-    const plan = await planNoteRename("/vault/Old.md", "/vault/New.md", index, readNote);
+    const plan = await planNoteRename(
+      "/vault/Old.md",
+      "/vault/New.md",
+      index,
+      readNote,
+    );
     expect(plan.edits[0].newText).toBe("[[New#A heading|a custom label]]");
   });
 
@@ -98,8 +113,16 @@ describe("planNoteRename", () => {
       "/vault/B.md": "Also [[Old]] here.",
       "/vault/C.md": "No reference here.",
     });
-    const plan = await planNoteRename("/vault/Old.md", "/vault/New.md", index, readNote);
-    expect(plan.edits.map((e) => e.path).sort()).toEqual(["/vault/A.md", "/vault/B.md"]);
+    const plan = await planNoteRename(
+      "/vault/Old.md",
+      "/vault/New.md",
+      index,
+      readNote,
+    );
+    expect(plan.edits.map((e) => e.path).sort()).toEqual([
+      "/vault/A.md",
+      "/vault/B.md",
+    ]);
   });
 
   it("does not plan an edit for a reference in a different note that just happens to share syntax", async () => {
@@ -108,7 +131,12 @@ describe("planNoteRename", () => {
       "/vault/Other.md": "content",
       "/vault/Referrer.md": "[[Other]]",
     });
-    const plan = await planNoteRename("/vault/Old.md", "/vault/New.md", index, readNote);
+    const plan = await planNoteRename(
+      "/vault/Old.md",
+      "/vault/New.md",
+      index,
+      readNote,
+    );
     expect(plan.edits).toEqual([]);
   });
 
@@ -116,7 +144,12 @@ describe("planNoteRename", () => {
     const { index, readNote } = fixture({
       "/vault/Old.md": "This note links to [[Old]] itself.",
     });
-    const plan = await planNoteRename("/vault/Old.md", "/vault/New.md", index, readNote);
+    const plan = await planNoteRename(
+      "/vault/Old.md",
+      "/vault/New.md",
+      index,
+      readNote,
+    );
     expect(plan.edits).toEqual([]);
     expect(plan.blocked).toEqual([]);
   });
@@ -127,7 +160,12 @@ describe("planNoteRename", () => {
       "/vault/other/Taken.md": "content",
       "/vault/Referrer.md": "[[Old]]",
     });
-    const plan = await planNoteRename("/vault/Old.md", "/vault/moved/Taken.md", index, readNote);
+    const plan = await planNoteRename(
+      "/vault/Old.md",
+      "/vault/moved/Taken.md",
+      index,
+      readNote,
+    );
     expect(plan.edits).toEqual([]);
     expect(plan.blocked).toHaveLength(1);
     expect(plan.blocked[0].reason).toMatch(/ambiguous/i);
@@ -142,16 +180,32 @@ describe("planNoteRename", () => {
       "/vault/Old.md": "content",
       "/vault/Referrer.md": "[[Old]]",
     });
-    const plan = await planNoteRename("/vault/Old.md", "/vault/Unique New Name.md", index, readNote);
+    const plan = await planNoteRename(
+      "/vault/Old.md",
+      "/vault/Unique New Name.md",
+      index,
+      readNote,
+    );
     expect(plan.blocked).toEqual([]);
     expect(plan.edits).toHaveLength(1);
   });
 
   it("re-reads fresh content and excludes a reference removed since the index was last built", async () => {
-    const stale = { "/vault/Old.md": "content", "/vault/Referrer.md": "[[Old]]" };
-    const live = { "/vault/Old.md": "content", "/vault/Referrer.md": "no longer references it" };
+    const stale = {
+      "/vault/Old.md": "content",
+      "/vault/Referrer.md": "[[Old]]",
+    };
+    const live = {
+      "/vault/Old.md": "content",
+      "/vault/Referrer.md": "no longer references it",
+    };
     const { index, readNote } = fixture(stale, live);
-    const plan = await planNoteRename("/vault/Old.md", "/vault/New.md", index, readNote);
+    const plan = await planNoteRename(
+      "/vault/Old.md",
+      "/vault/New.md",
+      index,
+      readNote,
+    );
     expect(plan.edits).toEqual([]);
   });
 
@@ -165,21 +219,45 @@ describe("planNoteRename", () => {
     // read, deferred to whichever phase wires this into the actual
     // Analyze step (spec 9.2), which can trigger a fresh
     // rebuildLinkIndex first.
-    const stale = { "/vault/Old.md": "content", "/vault/Referrer.md": "no reference yet" };
-    const live = { "/vault/Old.md": "content", "/vault/Referrer.md": "no reference yet, but now [[Old]] does" };
+    const stale = {
+      "/vault/Old.md": "content",
+      "/vault/Referrer.md": "no reference yet",
+    };
+    const live = {
+      "/vault/Old.md": "content",
+      "/vault/Referrer.md": "no reference yet, but now [[Old]] does",
+    };
     const { index, readNote } = fixture(stale, live);
-    const plan = await planNoteRename("/vault/Old.md", "/vault/New.md", index, readNote);
+    const plan = await planNoteRename(
+      "/vault/Old.md",
+      "/vault/New.md",
+      index,
+      readNote,
+    );
     expect(plan.edits).toEqual([]);
   });
 
   it("uses the fresh offset, not a stale cached one, when content shifted since the index was built", async () => {
-    const stale = { "/vault/Old.md": "content", "/vault/Referrer.md": "[[Old]] at the start" };
-    const live = { "/vault/Old.md": "content", "/vault/Referrer.md": "Now with a prefix. [[Old]] at the start" };
+    const stale = {
+      "/vault/Old.md": "content",
+      "/vault/Referrer.md": "[[Old]] at the start",
+    };
+    const live = {
+      "/vault/Old.md": "content",
+      "/vault/Referrer.md": "Now with a prefix. [[Old]] at the start",
+    };
     const { index, readNote } = fixture(stale, live);
-    const plan = await planNoteRename("/vault/Old.md", "/vault/New.md", index, readNote);
+    const plan = await planNoteRename(
+      "/vault/Old.md",
+      "/vault/New.md",
+      index,
+      readNote,
+    );
     expect(plan.edits).toHaveLength(1);
     const [edit] = plan.edits;
-    expect(live["/vault/Referrer.md"].slice(edit.from, edit.to)).toBe("[[Old]]");
+    expect(live["/vault/Referrer.md"].slice(edit.from, edit.to)).toBe(
+      "[[Old]]",
+    );
     expect(edit.from).toBe(live["/vault/Referrer.md"].indexOf("[[Old]]"));
   });
 
@@ -191,7 +269,12 @@ describe("planNoteRename", () => {
     const readNote = async (): Promise<string> => {
       throw new Error("permission denied");
     };
-    const plan = await planNoteRename("/vault/Old.md", "/vault/New.md", index, readNote);
+    const plan = await planNoteRename(
+      "/vault/Old.md",
+      "/vault/New.md",
+      index,
+      readNote,
+    );
     expect(plan.edits).toEqual([]);
     expect(plan.blocked).toEqual([]);
   });
@@ -201,7 +284,12 @@ describe("planNoteRename", () => {
       "/vault/Old.md": "content",
       "/vault/Referrer.md": "[[Old]]",
     });
-    const plan = await planNoteRename("/vault/Old.md", "/vault/Old.md", index, readNote);
+    const plan = await planNoteRename(
+      "/vault/Old.md",
+      "/vault/Old.md",
+      index,
+      readNote,
+    );
     expect(plan.edits).toEqual([]);
     expect(plan.blocked).toEqual([]);
   });
@@ -211,7 +299,12 @@ describe("planNoteRename", () => {
       "/vault/Old.md": "content",
       "/vault/Unrelated.md": "no links here",
     });
-    const plan = await planNoteRename("/vault/Old.md", "/vault/New.md", index, readNote);
+    const plan = await planNoteRename(
+      "/vault/Old.md",
+      "/vault/New.md",
+      index,
+      readNote,
+    );
     expect(plan.edits).toEqual([]);
     expect(plan.blocked).toEqual([]);
   });
@@ -221,7 +314,12 @@ describe("planNoteRename", () => {
       "/vault/Old Name.md": "content",
       "/vault/Referrer.md": "[[old name]]",
     });
-    const plan = await planNoteRename("/vault/Old Name.md", "/vault/New Name.md", index, readNote);
+    const plan = await planNoteRename(
+      "/vault/Old Name.md",
+      "/vault/New Name.md",
+      index,
+      readNote,
+    );
     expect(plan.edits[0].newText).toBe("[[New Name]]");
   });
 });
@@ -238,7 +336,12 @@ describe("planNoteRename Markdown-style link migration (F03 Phase 2b-ii)", () =>
       "/vault/notes.md": "content",
       "/vault/Referrer.md": "[[Unrelated]] and [a link](notes.md).",
     });
-    const plan = await planNoteRename("/vault/notes.md", "/vault/renamed.md", index, readNote);
+    const plan = await planNoteRename(
+      "/vault/notes.md",
+      "/vault/renamed.md",
+      index,
+      readNote,
+    );
     expect(plan.markdownEdits).toHaveLength(1);
     expect(plan.markdownEdits![0].newText).toBe("[a link](renamed.md)");
   });
@@ -248,7 +351,12 @@ describe("planNoteRename Markdown-style link migration (F03 Phase 2b-ii)", () =>
       "/vault/sub/notes.md": "content",
       "/vault/Referrer.md": "[[Unrelated]] and [a link](sub/notes.md).",
     });
-    const plan = await planNoteRename("/vault/sub/notes.md", "/vault/sub/renamed.md", index, readNote);
+    const plan = await planNoteRename(
+      "/vault/sub/notes.md",
+      "/vault/sub/renamed.md",
+      index,
+      readNote,
+    );
     expect(plan.markdownEdits).toHaveLength(1);
     // This exercises the "target is in a subdirectory of the referrer"
     // fast path, which already preserved the extension before the fix;
@@ -261,7 +369,12 @@ describe("planNoteRename Markdown-style link migration (F03 Phase 2b-ii)", () =>
       "/vault/A/notes.md": "content",
       "/vault/B/Referrer.md": "[[Unrelated]] and [a link](../A/notes.md).",
     });
-    const plan = await planNoteRename("/vault/A/notes.md", "/vault/A/renamed.md", index, readNote);
+    const plan = await planNoteRename(
+      "/vault/A/notes.md",
+      "/vault/A/renamed.md",
+      index,
+      readNote,
+    );
     expect(plan.markdownEdits).toHaveLength(1);
     expect(plan.markdownEdits![0].newText).toBe("[a link](../A/renamed.md)");
   });

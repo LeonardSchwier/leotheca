@@ -2,7 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 function deferred<T>() {
   let resolve!: (value: T | PromiseLike<T>) => void;
-  const promise = new Promise<T>((res) => { resolve = res; });
+  const promise = new Promise<T>((res) => {
+    resolve = res;
+  });
   return { promise, resolve };
 }
 
@@ -85,7 +87,9 @@ describe("workspace bridge operation drain", () => {
     const readPromise = listDir("/workspace", "/workspace");
     const writePromise = writeTextFile("/workspace/note.md", "content");
     let drained = false;
-    const drainPromise = drainWorkspaceOperations().then(() => { drained = true; });
+    const drainPromise = drainWorkspaceOperations().then(() => {
+      drained = true;
+    });
 
     await Promise.resolve();
     expect(drained).toBe(false);
@@ -130,9 +134,13 @@ describe("active workspace write capability", () => {
 
   it("clears the previous capability when a later activation fails", async () => {
     await restoreWorkspaceAccess("/workspace", "token-A");
-    restoreWorkspaceAccessImpl.mockRejectedValueOnce(new Error("grant expired"));
+    restoreWorkspaceAccessImpl.mockRejectedValueOnce(
+      new Error("grant expired"),
+    );
 
-    await expect(restoreWorkspaceAccess("/other", "bad-token")).rejects.toThrow("grant expired");
+    await expect(restoreWorkspaceAccess("/other", "bad-token")).rejects.toThrow(
+      "grant expired",
+    );
     await expect(
       writeActiveWorkspaceTextFile("/workspace/note.md", "content"),
     ).rejects.toThrow("No active workspace");
@@ -153,11 +161,13 @@ describe("native active workspace root mirror", () => {
   });
 
   it("never republishes the native mirror when activation itself fails", async () => {
-    restoreWorkspaceAccessImpl.mockRejectedValueOnce(new Error("grant expired"));
-
-    await expect(restoreWorkspaceAccess("/workspace", "bad-token")).rejects.toThrow(
-      "grant expired",
+    restoreWorkspaceAccessImpl.mockRejectedValueOnce(
+      new Error("grant expired"),
     );
+
+    await expect(
+      restoreWorkspaceAccess("/workspace", "bad-token"),
+    ).rejects.toThrow("grant expired");
 
     expect(setActiveWorkspaceRootImpl).toHaveBeenCalledTimes(1);
     expect(setActiveWorkspaceRootImpl).toHaveBeenCalledWith(null);

@@ -39,14 +39,27 @@ describe("decodeCanvas", () => {
   });
 
   it("rejects a present but wrong-typed nodes or edges field", () => {
-    expect(decodeCanvas(JSON.stringify({ nodes: "oops", edges: [] }))).toBeNull();
-    expect(decodeCanvas(JSON.stringify({ nodes: [], edges: "oops" }))).toBeNull();
+    expect(
+      decodeCanvas(JSON.stringify({ nodes: "oops", edges: [] })),
+    ).toBeNull();
+    expect(
+      decodeCanvas(JSON.stringify({ nodes: [], edges: "oops" })),
+    ).toBeNull();
   });
 
   it("treats a missing nodes or edges field as empty, not corrupt", () => {
-    expect(decodeCanvas(JSON.stringify({}))?.document).toEqual({ nodes: [], edges: [] });
-    expect(decodeCanvas(JSON.stringify({ edges: [] }))?.document).toEqual({ nodes: [], edges: [] });
-    expect(decodeCanvas(JSON.stringify({ nodes: [] }))?.document).toEqual({ nodes: [], edges: [] });
+    expect(decodeCanvas(JSON.stringify({}))?.document).toEqual({
+      nodes: [],
+      edges: [],
+    });
+    expect(decodeCanvas(JSON.stringify({ edges: [] }))?.document).toEqual({
+      nodes: [],
+      edges: [],
+    });
+    expect(decodeCanvas(JSON.stringify({ nodes: [] }))?.document).toEqual({
+      nodes: [],
+      edges: [],
+    });
   });
 
   it("drops a self-referential edge", () => {
@@ -71,14 +84,19 @@ describe("decodeCanvas", () => {
   });
 
   it("retains a malformed node record instead of discarding it", () => {
-    const malformed = { id: "b", note: "future field this build doesn't know about" };
+    const malformed = {
+      id: "b",
+      note: "future field this build doesn't know about",
+    };
     const decoded = decodeCanvas(
       JSON.stringify({
         nodes: [{ id: "a", text: "A", x: 1, y: 2 }, malformed],
         edges: [],
       }),
     );
-    expect(decoded?.document.nodes).toEqual([{ id: "a", text: "A", x: 1, y: 2 }]);
+    expect(decoded?.document.nodes).toEqual([
+      { id: "a", text: "A", x: 1, y: 2 },
+    ]);
     expect(decoded?.unknownNodes).toEqual([malformed]);
   });
 
@@ -108,18 +126,31 @@ describe("decodeCanvas", () => {
   it("drops a non-object node or edge entry (nothing recoverable in it)", () => {
     const decoded = decodeCanvas(
       JSON.stringify({
-        nodes: [{ id: "a", text: "A", x: 1, y: 2 }, "garbage", null, 42, ["nested", "array"]],
+        nodes: [
+          { id: "a", text: "A", x: 1, y: 2 },
+          "garbage",
+          null,
+          42,
+          ["nested", "array"],
+        ],
         edges: ["garbage", null],
       }),
     );
-    expect(decoded?.document.nodes).toEqual([{ id: "a", text: "A", x: 1, y: 2 }]);
+    expect(decoded?.document.nodes).toEqual([
+      { id: "a", text: "A", x: 1, y: 2 },
+    ]);
     expect(decoded?.unknownNodes).toEqual([]);
     expect(decoded?.unknownEdges).toEqual([]);
   });
 
   it("preserves an unrecognized top-level field", () => {
     const decoded = decodeCanvas(
-      JSON.stringify({ nodes: [], edges: [], background: "grid", futureFeature: { enabled: true } }),
+      JSON.stringify({
+        nodes: [],
+        edges: [],
+        background: "grid",
+        futureFeature: { enabled: true },
+      }),
     );
     expect(decoded?.extraFields.background).toBe("grid");
     expect(decoded?.extraFields.futureFeature).toEqual({ enabled: true });
@@ -142,7 +173,10 @@ describe("decodeCanvas", () => {
       "report.pdf",
       undefined,
     ]);
-    const reserialized = JSON.parse(serializeCanvas(decoded!)) as { nodes: unknown[]; edges: unknown[] };
+    const reserialized = JSON.parse(serializeCanvas(decoded!)) as {
+      nodes: unknown[];
+      edges: unknown[];
+    };
     expect(reserialized.nodes).toEqual(decoded!.document.nodes);
     expect(reserialized.edges).toEqual(decoded!.document.edges);
   });
@@ -151,9 +185,15 @@ describe("decodeCanvas", () => {
 describe("serializeCanvas", () => {
   it("round-trips valid nodes and edges and stamps the current version", () => {
     const decoded = decodeCanvas(
-      JSON.stringify({ nodes: [{ id: "a", text: "A", x: 1, y: 2 }], edges: [] }),
+      JSON.stringify({
+        nodes: [{ id: "a", text: "A", x: 1, y: 2 }],
+        edges: [],
+      }),
     );
-    const serialized = JSON.parse(serializeCanvas(decoded!)) as Record<string, unknown>;
+    const serialized = JSON.parse(serializeCanvas(decoded!)) as Record<
+      string,
+      unknown
+    >;
     expect(serialized.version).toBe(CANVAS_VERSION);
     expect(serialized.nodes).toEqual([{ id: "a", text: "A", x: 1, y: 2 }]);
   });
@@ -172,18 +212,31 @@ describe("serializeCanvas", () => {
       ...decoded,
       document: {
         ...decoded.document,
-        nodes: decoded.document.nodes.map((n) => (n.id === "a" ? { ...n, text: "Renamed" } : n)),
+        nodes: decoded.document.nodes.map((n) =>
+          n.id === "a" ? { ...n, text: "Renamed" } : n,
+        ),
       },
     };
-    const reserialized = JSON.parse(serializeCanvas(edited)) as Record<string, unknown>;
+    const reserialized = JSON.parse(serializeCanvas(edited)) as Record<
+      string,
+      unknown
+    >;
     expect(reserialized.background).toBe("grid");
-    expect(reserialized.nodes).toEqual([{ id: "a", text: "Renamed", x: 1, y: 2 }, malformedNode]);
+    expect(reserialized.nodes).toEqual([
+      { id: "a", text: "Renamed", x: 1, y: 2 },
+      malformedNode,
+    ]);
     expect(reserialized.edges).toEqual([malformedEdge]);
   });
 
   it("does not downgrade an already-present, newer version marker", () => {
-    const decoded = decodeCanvas(JSON.stringify({ version: 7, nodes: [], edges: [] }))!;
-    const reserialized = JSON.parse(serializeCanvas(decoded)) as Record<string, unknown>;
+    const decoded = decodeCanvas(
+      JSON.stringify({ version: 7, nodes: [], edges: [] }),
+    )!;
+    const reserialized = JSON.parse(serializeCanvas(decoded)) as Record<
+      string,
+      unknown
+    >;
     expect(reserialized.version).toBe(7);
   });
 });
@@ -193,30 +246,54 @@ describe("resolveCanvasFileReference", () => {
   const canvasPath = "/workspace/boards/plan.canvas";
 
   it("resolves a relative path against the canvas file's own directory", () => {
-    expect(resolveCanvasFileReference(workspaceRoot, canvasPath, "note.md")).toBe(
-      "/workspace/boards/note.md",
-    );
-    expect(resolveCanvasFileReference(workspaceRoot, canvasPath, "../attachments/image.png")).toBe(
-      "/workspace/attachments/image.png",
-    );
+    expect(
+      resolveCanvasFileReference(workspaceRoot, canvasPath, "note.md"),
+    ).toBe("/workspace/boards/note.md");
+    expect(
+      resolveCanvasFileReference(
+        workspaceRoot,
+        canvasPath,
+        "../attachments/image.png",
+      ),
+    ).toBe("/workspace/attachments/image.png");
   });
 
   it("rejects a relative path that escapes the workspace", () => {
-    expect(resolveCanvasFileReference(workspaceRoot, canvasPath, "../../../../etc/passwd")).toBeNull();
+    expect(
+      resolveCanvasFileReference(
+        workspaceRoot,
+        canvasPath,
+        "../../../../etc/passwd",
+      ),
+    ).toBeNull();
   });
 
   it("accepts a legacy absolute in-workspace path", () => {
-    expect(resolveCanvasFileReference(workspaceRoot, canvasPath, "/workspace/note.md")).toBe(
-      "/workspace/note.md",
-    );
+    expect(
+      resolveCanvasFileReference(
+        workspaceRoot,
+        canvasPath,
+        "/workspace/note.md",
+      ),
+    ).toBe("/workspace/note.md");
   });
 
   it("rejects an absolute path outside the workspace", () => {
-    expect(resolveCanvasFileReference(workspaceRoot, canvasPath, "/etc/passwd")).toBeNull();
-    expect(resolveCanvasFileReference(workspaceRoot, canvasPath, "/workspace-evil/note.md")).toBeNull();
+    expect(
+      resolveCanvasFileReference(workspaceRoot, canvasPath, "/etc/passwd"),
+    ).toBeNull();
+    expect(
+      resolveCanvasFileReference(
+        workspaceRoot,
+        canvasPath,
+        "/workspace-evil/note.md",
+      ),
+    ).toBeNull();
   });
 
   it("rejects an empty file path", () => {
-    expect(resolveCanvasFileReference(workspaceRoot, canvasPath, "")).toBeNull();
+    expect(
+      resolveCanvasFileReference(workspaceRoot, canvasPath, ""),
+    ).toBeNull();
   });
 });

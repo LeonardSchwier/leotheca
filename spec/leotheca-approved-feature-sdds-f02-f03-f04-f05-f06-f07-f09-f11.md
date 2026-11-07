@@ -23,16 +23,16 @@ The specifications are grounded in the repository state reviewed on 2026-09-01. 
 
 ## 2. Included specifications
 
-| Feature | Specification | Primary outcome |
-|---|---|---|
-| F02 | `f02-workspace-task-hub.md` | Workspace-wide task collection, filtering, navigation, and safe completion toggles |
-| F03 | `f03-link-integrity-refactor-center.md` | Rename-safe links, diagnostics, previewed bulk edits, and recovery |
-| F04 | `f04-heading-block-links-embeds.md` | Heading links, stable block references, and read-only transclusion |
-| F05 | `f05-universal-quick-capture-inbox.md` | In-app capture, local automation, Android sharing, and inbox append flows |
-| F06 | `f06-note-outline-heading-breadcrumbs.md` | Active-note outline, heading ancestry, source navigation, and copy-link actions |
-| F07 | `f07-split-panes-pinned-tabs.md` | Two editor groups, pane-aware tabs, pinning, resizing, and adaptive compact behavior |
-| F09 | `f09-smart-collections-property-views.md` | Saved metadata queries with list, table, and card views |
-| F11 | `f11-visual-markdown-table-editor.md` | Safe visual editing of ordinary GFM pipe tables |
+| Feature | Specification                             | Primary outcome                                                                      |
+| ------- | ----------------------------------------- | ------------------------------------------------------------------------------------ |
+| F02     | `f02-workspace-task-hub.md`               | Workspace-wide task collection, filtering, navigation, and safe completion toggles   |
+| F03     | `f03-link-integrity-refactor-center.md`   | Rename-safe links, diagnostics, previewed bulk edits, and recovery                   |
+| F04     | `f04-heading-block-links-embeds.md`       | Heading links, stable block references, and read-only transclusion                   |
+| F05     | `f05-universal-quick-capture-inbox.md`    | In-app capture, local automation, Android sharing, and inbox append flows            |
+| F06     | `f06-note-outline-heading-breadcrumbs.md` | Active-note outline, heading ancestry, source navigation, and copy-link actions      |
+| F07     | `f07-split-panes-pinned-tabs.md`          | Two editor groups, pane-aware tabs, pinning, resizing, and adaptive compact behavior |
+| F09     | `f09-smart-collections-property-views.md` | Saved metadata queries with list, table, and card views                              |
+| F11     | `f11-visual-markdown-table-editor.md`     | Safe visual editing of ordinary GFM pipe tables                                      |
 
 ## 3. Product boundaries shared by every feature
 
@@ -240,18 +240,18 @@ F07 must not be implemented in parallel with a conflicting `App.tsx`, `TabBar.ts
 
 ## 8. Storage ownership map
 
-| Data | Owner | Storage |
-|---|---|---|
-| Note text, task state, block IDs, tables | User Markdown | Existing `.md` files |
-| Workspace metadata cache | Workspace index | `<workspace>/.leotheca/workspace-index-cache.json` or a migrated equivalent |
-| Collections | F09 | `<workspace>/.leotheca/collections.json` |
-| Pane layout, pinned paths, last active group | F07 | `<workspace>/.leotheca/settings.json` |
-| Task Hub transient filter state | F02 | Workspace settings, only when persistence is useful |
-| Quick Capture configuration | F05 | Workspace settings plus F20 profile preference where profile-scoped |
-| Pending external captures | F05 | App-private, bounded, runtime-decoded queue until committed or discarded |
-| Refactor recovery journals | F03 | Temporary `<workspace>/.leotheca/transactions/` data, removed after commit or rollback |
-| Outline expansion state | F06 | In memory by note; optional bounded workspace setting if later approved |
-| Visual table draft | F11 | In memory only until Apply |
+| Data                                         | Owner           | Storage                                                                                |
+| -------------------------------------------- | --------------- | -------------------------------------------------------------------------------------- |
+| Note text, task state, block IDs, tables     | User Markdown   | Existing `.md` files                                                                   |
+| Workspace metadata cache                     | Workspace index | `<workspace>/.leotheca/workspace-index-cache.json` or a migrated equivalent            |
+| Collections                                  | F09             | `<workspace>/.leotheca/collections.json`                                               |
+| Pane layout, pinned paths, last active group | F07             | `<workspace>/.leotheca/settings.json`                                                  |
+| Task Hub transient filter state              | F02             | Workspace settings, only when persistence is useful                                    |
+| Quick Capture configuration                  | F05             | Workspace settings plus F20 profile preference where profile-scoped                    |
+| Pending external captures                    | F05             | App-private, bounded, runtime-decoded queue until committed or discarded               |
+| Refactor recovery journals                   | F03             | Temporary `<workspace>/.leotheca/transactions/` data, removed after commit or rollback |
+| Outline expansion state                      | F06             | In memory by note; optional bounded workspace setting if later approved                |
+| Visual table draft                           | F11             | In memory only until Apply                                                             |
 
 ## 9. Cross-feature rules
 
@@ -316,7 +316,6 @@ The approved package is complete only when:
 9. Every new persisted file has runtime decoding, forward-compatibility behavior, and corruption tests.
 10. Desktop and Android documentation accurately describe the released behavior and limitations.
 
-
 ---
 
 # F02 Software Design Document: Workspace Task Hub
@@ -380,8 +379,10 @@ A supported task is a list item whose marker is followed by a bracket state:
 ```markdown
 - [ ] Open task
 - [x] Completed task
-* [X] Completed with uppercase marker
-+ [ ] Another open task
+
+* [x] Completed with uppercase marker
+
+- [ ] Another open task
 ```
 
 Rules:
@@ -888,15 +889,15 @@ Test at minimum:
 
 ## 17. Risks and mitigations
 
-| Risk | Impact | Mitigation |
-|---|---|---|
+| Risk                                                | Impact                               | Mitigation                                                                             |
+| --------------------------------------------------- | ------------------------------------ | -------------------------------------------------------------------------------------- |
 | Regex-only task parsing misidentifies code examples | Incorrect tasks or destructive edits | Use the shared structure scanner with excluded-region fixtures and exact source ranges |
-| Indexed location becomes stale | Wrong task is toggled | Re-read or validate canonical open content; fail closed |
-| Autosave overwrites Task Hub mutation | Lost update | One path-specific writer through open-document state and save coordinator |
-| Large workspaces create slow filters | Unresponsive UI | One shared index, memoized selectors, debounce, virtualization |
-| Due syntax surprises users | Misclassified tasks | Explicit ISO-only suffix convention, no natural-language guessing |
-| Completing a filtered row loses focus | Accessibility failure | Defined next, previous, empty-state focus policy |
-| Android grant expires | Capture or toggle failure | Existing workspace recovery actions and no hidden retry loop |
+| Indexed location becomes stale                      | Wrong task is toggled                | Re-read or validate canonical open content; fail closed                                |
+| Autosave overwrites Task Hub mutation               | Lost update                          | One path-specific writer through open-document state and save coordinator              |
+| Large workspaces create slow filters                | Unresponsive UI                      | One shared index, memoized selectors, debounce, virtualization                         |
+| Due syntax surprises users                          | Misclassified tasks                  | Explicit ISO-only suffix convention, no natural-language guessing                      |
+| Completing a filtered row loses focus               | Accessibility failure                | Defined next, previous, empty-state focus policy                                       |
+| Android grant expires                               | Capture or toggle failure            | Existing workspace recovery actions and no hidden retry loop                           |
 
 ## 18. Documentation changes
 
@@ -922,7 +923,6 @@ F02 is done when:
 - settings and caches are runtime-decoded and migration-safe;
 - docs, architecture notes, and tests land with the implementation;
 - no unresolved critical or high-severity defects remain.
-
 
 ---
 
@@ -1104,20 +1104,20 @@ When a path cannot be represented safely in the existing syntax, the affected ed
 
 The first release includes:
 
-| Code | Diagnostic | Default severity |
-|---|---|---|
-| `broken-note` | Note target cannot be resolved | Error |
-| `ambiguous-note` | Note target resolves to multiple candidates | Error |
-| `missing-heading` | Note exists but heading fragment does not | Warning |
-| `ambiguous-heading` | Fragment matches duplicate normalized headings | Warning |
-| `missing-block` | Note exists but block ID does not | Warning |
-| `duplicate-block-id` | Same block ID occurs more than once in a note | Error |
-| `duplicate-note-name` | Multiple notes share a basename | Info or Warning |
-| `duplicate-alias` | Alias resolves to multiple notes | Warning |
-| `case-mismatch` | Reference casing differs from actual target | Info |
-| `missing-attachment` | Local image or attachment target is absent | Warning |
-| `broken-canvas-file` | Supported canvas file reference is absent | Warning |
-| `orphan-note` | Eligible note has no inbound note references | Info |
+| Code                  | Diagnostic                                     | Default severity |
+| --------------------- | ---------------------------------------------- | ---------------- |
+| `broken-note`         | Note target cannot be resolved                 | Error            |
+| `ambiguous-note`      | Note target resolves to multiple candidates    | Error            |
+| `missing-heading`     | Note exists but heading fragment does not      | Warning          |
+| `ambiguous-heading`   | Fragment matches duplicate normalized headings | Warning          |
+| `missing-block`       | Note exists but block ID does not              | Warning          |
+| `duplicate-block-id`  | Same block ID occurs more than once in a note  | Error            |
+| `duplicate-note-name` | Multiple notes share a basename                | Info or Warning  |
+| `duplicate-alias`     | Alias resolves to multiple notes               | Warning          |
+| `case-mismatch`       | Reference casing differs from actual target    | Info             |
+| `missing-attachment`  | Local image or attachment target is absent     | Warning          |
+| `broken-canvas-file`  | Supported canvas file reference is absent      | Warning          |
+| `orphan-note`         | Eligible note has no inbound note references   | Info             |
 
 Self-links do not count as inbound links for orphan detection. Notes in configured template, archive, or generated folders may be excluded through future settings. In the first release, the Templates folder and `.leotheca/` are excluded.
 
@@ -1235,7 +1235,12 @@ No plan may be applied from a stale preview.
 ```typescript
 interface RefactorPlan {
   id: string;
-  kind: "rename-note" | "move-note" | "rename-folder" | "move-folder" | "repair-reference";
+  kind:
+    | "rename-note"
+    | "move-note"
+    | "rename-folder"
+    | "move-folder"
+    | "repair-reference";
   workspaceSession: number;
   indexGeneration: number;
   createdAt: string;
@@ -1603,17 +1608,17 @@ Use workspaces with:
 
 ## 21. Risks and mitigations
 
-| Risk | Impact | Mitigation |
-|---|---|---|
-| Partial multi-file failure | Broken workspace | Durable journal, backups, recorded steps, rollback, startup recovery |
-| Stale preview | User changes lost | Preflight re-read and immutable generation-scoped plan |
-| Parser rewrites false positives | Corrupted prose or code | Rewrite only proven format records with exact ranges |
-| Dirty tab overwritten | Data loss | Flush canonical document and use one mutation lock |
-| Folder move changes relative semantics | Broken links | Resolve against complete post-operation path graph |
-| Platform rename behavior differs | Partial results | Capability-aware adapters, preflight, failure injection on desktop and SAF |
-| Recovery journal itself is malformed | Unsafe writes | Versioned decoder, allowlisted operations, containment revalidation |
-| Huge preview exhausts memory | Unresponsive app | Lazy diffs, bounded concurrency, virtualization, cancellation |
-| Metadata adapter misses a path owner | Stale UI state | Central adapter registry and package-level path-ownership audit |
+| Risk                                   | Impact                  | Mitigation                                                                 |
+| -------------------------------------- | ----------------------- | -------------------------------------------------------------------------- |
+| Partial multi-file failure             | Broken workspace        | Durable journal, backups, recorded steps, rollback, startup recovery       |
+| Stale preview                          | User changes lost       | Preflight re-read and immutable generation-scoped plan                     |
+| Parser rewrites false positives        | Corrupted prose or code | Rewrite only proven format records with exact ranges                       |
+| Dirty tab overwritten                  | Data loss               | Flush canonical document and use one mutation lock                         |
+| Folder move changes relative semantics | Broken links            | Resolve against complete post-operation path graph                         |
+| Platform rename behavior differs       | Partial results         | Capability-aware adapters, preflight, failure injection on desktop and SAF |
+| Recovery journal itself is malformed   | Unsafe writes           | Versioned decoder, allowlisted operations, containment revalidation        |
+| Huge preview exhausts memory           | Unresponsive app        | Lazy diffs, bounded concurrency, virtualization, cancellation              |
+| Metadata adapter misses a path owner   | Stale UI state          | Central adapter registry and package-level path-ownership audit            |
 
 ## 22. Documentation changes
 
@@ -1642,7 +1647,6 @@ F03 is done when:
 - performance and accessibility gates pass;
 - documentation, architecture updates, migration notes, and tests land with the code;
 - no unresolved critical or high-severity data-integrity defect remains.
-
 
 ---
 
@@ -1745,8 +1749,7 @@ interface WikiLinkRecord {
   raw: string;
   noteTarget: string;
   fragment?:
-    | { kind: "heading"; value: string }
-    | { kind: "block"; value: string };
+    { kind: "heading"; value: string } | { kind: "block"; value: string };
   label?: string;
   sourceFrom: number;
   sourceTo: number;
@@ -1827,7 +1830,11 @@ Multiple headings in one note may share a normalized key. Such a fragment is amb
 Rendered headings receive deterministic application-owned attributes:
 
 ```html
-<h2 id="lt-heading-design-system-2" data-lt-heading-key="design system" data-lt-heading-occurrence="2">
+<h2
+  id="lt-heading-design-system-2"
+  data-lt-heading-key="design system"
+  data-lt-heading-occurrence="2"
+></h2>
 ```
 
 The concrete slug algorithm may differ, but it must:
@@ -1908,7 +1915,13 @@ The application never adds IDs merely because a note is indexed or previewed.
 
 ```typescript
 interface ResolvedWikiTarget {
-  status: "resolved" | "missing-note" | "ambiguous-note" | "missing-fragment" | "ambiguous-fragment" | "malformed";
+  status:
+    | "resolved"
+    | "missing-note"
+    | "ambiguous-note"
+    | "missing-fragment"
+    | "ambiguous-fragment"
+    | "malformed";
   notePath?: string;
   heading?: HeadingRecord;
   block?: BlockRecord;
@@ -2322,16 +2335,16 @@ Desktop and Android:
 
 ## 22. Risks and mitigations
 
-| Risk | Impact | Mitigation |
-|---|---|---|
-| New separators reinterpret old filenames | Broken existing links | Unique legacy fallback, repository scan, reviewed F03 conversion |
-| Duplicate headings navigate unpredictably | Wrong context | Treat as ambiguous and offer stable block ID |
-| Block IDs pollute notes | Reduced portability | Insert only on explicit action, simple visible syntax |
-| Nested embeds cause recursion or memory pressure | App instability | Cycle detection and strict depth, count, and byte budgets |
-| Embedded content bypasses sanitizer | Security issue | Sanitize complete assembled output after expansion |
-| Relative links use host context | Wrong targets | Carry source-note context through every nested render node |
-| Stale async result appears | Cross-note or cross-workspace leak | Session and request generations with cancellation |
-| Multiple parsers disagree | Incorrect diagnostics or refactors | One syntax parser, resolver, and serializer used by all features |
+| Risk                                             | Impact                             | Mitigation                                                       |
+| ------------------------------------------------ | ---------------------------------- | ---------------------------------------------------------------- |
+| New separators reinterpret old filenames         | Broken existing links              | Unique legacy fallback, repository scan, reviewed F03 conversion |
+| Duplicate headings navigate unpredictably        | Wrong context                      | Treat as ambiguous and offer stable block ID                     |
+| Block IDs pollute notes                          | Reduced portability                | Insert only on explicit action, simple visible syntax            |
+| Nested embeds cause recursion or memory pressure | App instability                    | Cycle detection and strict depth, count, and byte budgets        |
+| Embedded content bypasses sanitizer              | Security issue                     | Sanitize complete assembled output after expansion               |
+| Relative links use host context                  | Wrong targets                      | Carry source-note context through every nested render node       |
+| Stale async result appears                       | Cross-note or cross-workspace leak | Session and request generations with cancellation                |
+| Multiple parsers disagree                        | Incorrect diagnostics or refactors | One syntax parser, resolver, and serializer used by all features |
 
 ## 23. Documentation changes
 
@@ -2359,7 +2372,6 @@ F04 is done when:
 - accessibility and performance gates pass;
 - documentation, architecture updates, cache migration, and tests land with implementation;
 - no unresolved critical or high-severity security or data-integrity defects remain.
-
 
 ---
 
@@ -2443,14 +2455,14 @@ leotheca://capture
 
 Recognized query parameters:
 
-| Parameter | Meaning |
-|---|---|
-| `text` | UTF-8 capture body |
-| `title` | Suggested title for a new note or capture heading |
-| `url` | Optional source URL, recorded but never fetched |
-| `mode` | `append` or `new` |
-| `profile` | Optional F20 profile UUID |
-| `open` | `true` to open the result after commit |
+| Parameter | Meaning                                           |
+| --------- | ------------------------------------------------- |
+| `text`    | UTF-8 capture body                                |
+| `title`   | Suggested title for a new note or capture heading |
+| `url`     | Optional source URL, recorded but never fetched   |
+| `mode`    | `append` or `new`                                 |
+| `profile` | Optional F20 profile UUID                         |
+| `open`    | `true` to open the result after commit            |
 
 Security and size rules:
 
@@ -2902,18 +2914,18 @@ The desktop scheme registration routes only recognized Leotheca automation URLs.
 
 Required errors and actions:
 
-| Error | Required actions |
-|---|---|
-| No workspace profile | Choose or add workspace, Keep pending |
-| Profile unavailable | Retry, Relink, Choose another profile, Keep pending |
-| Target path invalid | Change destination |
-| Note changed externally | Reload destination and retry, Create new note |
-| Note save failed | Retry, Open destination, Keep pending |
-| Attachment unreadable | Remove attachment, Retry |
-| Attachment limit exceeded | Remove items, Keep text only, Cancel |
-| Workspace storage full | Free space, Retry, Keep pending |
-| Shortcut registration failed | Change shortcut, Disable global shortcut |
-| Pending queue full | Review pending captures, Reject new capture |
+| Error                        | Required actions                                    |
+| ---------------------------- | --------------------------------------------------- |
+| No workspace profile         | Choose or add workspace, Keep pending               |
+| Profile unavailable          | Retry, Relink, Choose another profile, Keep pending |
+| Target path invalid          | Change destination                                  |
+| Note changed externally      | Reload destination and retry, Create new note       |
+| Note save failed             | Retry, Open destination, Keep pending               |
+| Attachment unreadable        | Remove attachment, Retry                            |
+| Attachment limit exceeded    | Remove items, Keep text only, Cancel                |
+| Workspace storage full       | Free space, Retry, Keep pending                     |
+| Shortcut registration failed | Change shortcut, Disable global shortcut            |
+| Pending queue full           | Review pending captures, Reject new capture         |
 
 Errors never discard the original staged content automatically.
 
@@ -3109,16 +3121,16 @@ Errors never discard the original staged content automatically.
 
 ## 23. Risks and mitigations
 
-| Risk | Impact | Mitigation |
-|---|---|---|
-| Direct append races with dirty editor | Lost capture or note edits | Canonical open-document mutation and one save coordinator |
-| External URI permission expires | Lost attachment | Native app-private staging during receipt |
-| Malicious deep link writes content | Unwanted file modification | Review required, bounded parameters, no external target paths |
-| Attachment retry duplicates files | Workspace clutter | Planned names, fingerprints, reuse, never overwrite |
-| Queue grows without bound | Storage exhaustion | Count and byte limits with explicit user action |
-| Profile switch writes to wrong workspace | Data leak | Profile UUID plus workspace session, F20 activation before commit |
-| URL preview performs network access | Privacy violation | Store literal URL only, no fetch code path |
-| Android provider behavior differs | Failed commit | Streamed bridge operations, explicit errors, lifecycle/provider tests |
+| Risk                                     | Impact                     | Mitigation                                                            |
+| ---------------------------------------- | -------------------------- | --------------------------------------------------------------------- |
+| Direct append races with dirty editor    | Lost capture or note edits | Canonical open-document mutation and one save coordinator             |
+| External URI permission expires          | Lost attachment            | Native app-private staging during receipt                             |
+| Malicious deep link writes content       | Unwanted file modification | Review required, bounded parameters, no external target paths         |
+| Attachment retry duplicates files        | Workspace clutter          | Planned names, fingerprints, reuse, never overwrite                   |
+| Queue grows without bound                | Storage exhaustion         | Count and byte limits with explicit user action                       |
+| Profile switch writes to wrong workspace | Data leak                  | Profile UUID plus workspace session, F20 activation before commit     |
+| URL preview performs network access      | Privacy violation          | Store literal URL only, no fetch code path                            |
+| Android provider behavior differs        | Failed commit              | Streamed bridge operations, explicit errors, lifecycle/provider tests |
 
 ## 24. Documentation changes
 
@@ -3147,7 +3159,6 @@ F05 is done when:
 - accessibility, lifecycle, privacy, and performance gates pass;
 - documentation and tests land with the implementation;
 - no unresolved critical or high-severity data-loss or security defect remains.
-
 
 ---
 
@@ -3239,8 +3250,11 @@ Example:
 
 ```markdown
 # Product
+
 ### Constraints
+
 ## Delivery
+
 #### Android
 ```
 
@@ -3389,9 +3403,9 @@ openNote({
   location: {
     kind: "range",
     from: heading.contentFrom,
-    to: heading.contentTo
+    to: heading.contentTo,
   },
-  focus: currentViewMode === "preview" ? "preview" : "source"
+  focus: currentViewMode === "preview" ? "preview" : "source",
 });
 ```
 
@@ -3719,15 +3733,15 @@ Breadcrumbs use a named navigation landmark and ordered list. The current headin
 
 ## 21. Risks and mitigations
 
-| Risk | Impact | Mitigation |
-|---|---|---|
-| Parsing every cursor move is expensive | Typing latency | Scan only on debounced content changes; cursor uses existing records |
-| Preview and Source disagree | Confusing breadcrumbs | One heading model, explicit Split authority, shared anchors |
-| Duplicate heading link is ambiguous | Wrong navigation | Warn and delegate stable block ID creation |
-| Outline steals editor focus | Poor writing experience | Active row follows without focus; explicit focus-transfer command |
-| Large outline renders slowly | Unresponsive panel | Bounded scan, filtering, and virtualization |
-| Persisted collapse state becomes stale | Incorrect presentation | In-memory bounded state first; fingerprinted keys if persistence is later added |
-| Multiple heading parsers diverge | Broken F03/F04 behavior | One shared scanner and normalization contract |
+| Risk                                   | Impact                  | Mitigation                                                                      |
+| -------------------------------------- | ----------------------- | ------------------------------------------------------------------------------- |
+| Parsing every cursor move is expensive | Typing latency          | Scan only on debounced content changes; cursor uses existing records            |
+| Preview and Source disagree            | Confusing breadcrumbs   | One heading model, explicit Split authority, shared anchors                     |
+| Duplicate heading link is ambiguous    | Wrong navigation        | Warn and delegate stable block ID creation                                      |
+| Outline steals editor focus            | Poor writing experience | Active row follows without focus; explicit focus-transfer command               |
+| Large outline renders slowly           | Unresponsive panel      | Bounded scan, filtering, and virtualization                                     |
+| Persisted collapse state becomes stale | Incorrect presentation  | In-memory bounded state first; fingerprinted keys if persistence is later added |
+| Multiple heading parsers diverge       | Broken F03/F04 behavior | One shared scanner and normalization contract                                   |
 
 ## 22. Documentation changes
 
@@ -3753,7 +3767,6 @@ F06 is done when:
 - all functional requirements and acceptance criteria pass on desktop and Android;
 - documentation and tests land with implementation;
 - no unresolved critical or high-severity usability, accessibility, or data-integrity defect remains.
-
 
 ---
 
@@ -4593,16 +4606,16 @@ Both:
 
 ## 24. Risks and mitigations
 
-| Risk | Impact | Mitigation |
-|---|---|---|
-| Two editors write same note | Lost updates | Unique path ownership and one canonical document per path |
-| Store refactor breaks autosave | Data loss | Land single-group compatibility first and test one save authority |
-| Editor remount loses undo or selection | Poor UX | Retained EditorState, view-state snapshots, explicit remount tests |
-| Compact split is unusable | Mobile regression | One visible group with logical group switcher |
-| Restore reads every tab | Slow startup | Lazy active-document-first restore |
-| Pinned tabs become impossible to close | User frustration | Explicit Unpin and close plus confirmed include-pinned action |
-| Feature callers manipulate arrays | State corruption | Central `OpenNoteRequest` and router; no exported raw reducers |
-| F03 rename races with reads | Old content reappears | Mutation lock, path-key migration, generation checks |
+| Risk                                   | Impact                | Mitigation                                                         |
+| -------------------------------------- | --------------------- | ------------------------------------------------------------------ |
+| Two editors write same note            | Lost updates          | Unique path ownership and one canonical document per path          |
+| Store refactor breaks autosave         | Data loss             | Land single-group compatibility first and test one save authority  |
+| Editor remount loses undo or selection | Poor UX               | Retained EditorState, view-state snapshots, explicit remount tests |
+| Compact split is unusable              | Mobile regression     | One visible group with logical group switcher                      |
+| Restore reads every tab                | Slow startup          | Lazy active-document-first restore                                 |
+| Pinned tabs become impossible to close | User frustration      | Explicit Unpin and close plus confirmed include-pinned action      |
+| Feature callers manipulate arrays      | State corruption      | Central `OpenNoteRequest` and router; no exported raw reducers     |
+| F03 rename races with reads            | Old content reappears | Mutation lock, path-key migration, generation checks               |
 
 ## 25. Documentation changes
 
@@ -4631,7 +4644,6 @@ F07 is done when:
 - all functional requirements and acceptance criteria pass;
 - docs, settings schema, migration code, and tests land together;
 - no unresolved critical or high-severity data-loss, lifecycle, or accessibility defect remains.
-
 
 ---
 
@@ -4793,14 +4805,14 @@ A `not` node is not included in the first release. Equivalent common cases are c
 
 System fields:
 
-| Field | Type | Notes |
-|---|---|---|
-| Note name | String | Filename without `.md` |
-| Path | String or path | Normalized workspace-relative path |
-| Folder | Path | Parent folder |
-| Tag | String list | Frontmatter and supported inline tags from shared index |
-| Modified | Date-time | Filesystem modification time when available |
-| Has frontmatter | Boolean | Whether supported frontmatter exists |
+| Field           | Type           | Notes                                                   |
+| --------------- | -------------- | ------------------------------------------------------- |
+| Note name       | String         | Filename without `.md`                                  |
+| Path            | String or path | Normalized workspace-relative path                      |
+| Folder          | Path           | Parent folder                                           |
+| Tag             | String list    | Frontmatter and supported inline tags from shared index |
+| Modified        | Date-time      | Filesystem modification time when available             |
+| Has frontmatter | Boolean        | Whether supported frontmatter exists                    |
 
 Property field:
 
@@ -5191,7 +5203,14 @@ interface IndexedProperty {
   key: string;
   normalizedKey: string;
   exists: true;
-  type: "string" | "number" | "boolean" | "date" | "datetime" | "list" | "unsupported";
+  type:
+    | "string"
+    | "number"
+    | "boolean"
+    | "date"
+    | "datetime"
+    | "list"
+    | "unsupported";
   value?: string | number | boolean | string[];
   rawValue: string;
   editable: boolean;
@@ -5468,16 +5487,16 @@ The query engine is pure and operates on metadata records. UI components do not 
 
 ## 23. Risks and mitigations
 
-| Risk | Impact | Mitigation |
-|---|---|---|
-| Type inference surprises users | Incorrect results | Quoted strings remain strings, mixed-type warnings, explicit typed clause selection |
-| Query engine becomes unsafe or complex | Security and maintenance risk | Typed AST, allowlisted operators, no scripts, regex, or SQL |
-| Inline editing damages frontmatter | Data loss | Reuse lossless parser, exact ranges, conflicts, unsupported values read-only |
-| Collection file corruption loses views | Lost UI metadata | Runtime decoding, valid-sibling preservation, last-known-good backup, no silent reset |
-| Result view loads note bodies | Memory and privacy cost | Metadata-only results and lazy note opening |
-| Path move silently broadens query | Incorrect membership | F03 typed adapter and previewed clause migration |
-| Large collections lag | Poor UX | Shared index, optional postings, debounce, stable selectors, virtualization |
-| Property edit removes focused row | Accessibility issue | Durable-save gate and defined focus movement |
+| Risk                                   | Impact                        | Mitigation                                                                            |
+| -------------------------------------- | ----------------------------- | ------------------------------------------------------------------------------------- |
+| Type inference surprises users         | Incorrect results             | Quoted strings remain strings, mixed-type warnings, explicit typed clause selection   |
+| Query engine becomes unsafe or complex | Security and maintenance risk | Typed AST, allowlisted operators, no scripts, regex, or SQL                           |
+| Inline editing damages frontmatter     | Data loss                     | Reuse lossless parser, exact ranges, conflicts, unsupported values read-only          |
+| Collection file corruption loses views | Lost UI metadata              | Runtime decoding, valid-sibling preservation, last-known-good backup, no silent reset |
+| Result view loads note bodies          | Memory and privacy cost       | Metadata-only results and lazy note opening                                           |
+| Path move silently broadens query      | Incorrect membership          | F03 typed adapter and previewed clause migration                                      |
+| Large collections lag                  | Poor UX                       | Shared index, optional postings, debounce, stable selectors, virtualization           |
+| Property edit removes focused row      | Accessibility issue           | Durable-save gate and defined focus movement                                          |
 
 ## 24. Documentation changes
 
@@ -5506,7 +5525,6 @@ F09 is done when:
 - accessibility, performance, storage, and migration gates pass;
 - documentation and tests land with implementation;
 - no unresolved critical or high-severity data-integrity or query-correctness defect remains.
-
 
 ---
 
@@ -5579,15 +5597,15 @@ A supported table has:
 Examples:
 
 ```markdown
-| Name | Status |
-| --- | :---: |
+| Name  | Status |
+| ----- | :----: |
 | Alpha | Active |
 ```
 
 ```markdown
-Name | Status
---- | ---:
-Alpha | Active
+| Name  | Status |
+| ----- | -----: |
+| Alpha | Active |
 ```
 
 Outer pipes are optional. The delimiter row must contain at least three hyphens per column, with optional leading or trailing colons for alignment.
@@ -5877,8 +5895,8 @@ A later app-private draft recovery file requires separate privacy and lifecycle 
 F11 writes a canonical table with outer pipes:
 
 ```markdown
-| Name | Status |
-| --- | :---: |
+| Name  | Status |
+| ----- | :----: |
 | Alpha | Active |
 ```
 
@@ -6262,16 +6280,16 @@ Property-based or fuzz tests should assert that parser output never produces ove
 
 ## 26. Risks and mitigations
 
-| Risk | Impact | Mitigation |
-|---|---|---|
-| Parser splits pipes incorrectly | Corrupted table | Context-aware tokenizer, exact fixtures, fail closed on ambiguity |
-| Formatter changes unrelated note text | Data loss | Exact range replacement and byte-isolation tests |
-| Source changes while draft is open | Overwritten edits | Note-scoped lock, fingerprint validation, no auto-merge |
-| Large grid freezes mobile | Unusable feature | Hard limits, virtualization, bounded clipboard parsing |
-| Keyboard pattern conflicts with cell editing | Accessibility and input failure | Complete documented pattern and IME-aware handling |
-| Normalization surprises users | Trust loss | Warning summary and exact Markdown preview |
-| Save fails after Apply | False success | Canonical dirty state and existing Retry, never claim Saved early |
-| Visual editor becomes spreadsheet scope | Complexity | Explicit non-goals and raw Markdown cell model |
+| Risk                                         | Impact                          | Mitigation                                                        |
+| -------------------------------------------- | ------------------------------- | ----------------------------------------------------------------- |
+| Parser splits pipes incorrectly              | Corrupted table                 | Context-aware tokenizer, exact fixtures, fail closed on ambiguity |
+| Formatter changes unrelated note text        | Data loss                       | Exact range replacement and byte-isolation tests                  |
+| Source changes while draft is open           | Overwritten edits               | Note-scoped lock, fingerprint validation, no auto-merge           |
+| Large grid freezes mobile                    | Unusable feature                | Hard limits, virtualization, bounded clipboard parsing            |
+| Keyboard pattern conflicts with cell editing | Accessibility and input failure | Complete documented pattern and IME-aware handling                |
+| Normalization surprises users                | Trust loss                      | Warning summary and exact Markdown preview                        |
+| Save fails after Apply                       | False success                   | Canonical dirty state and existing Retry, never claim Saved early |
+| Visual editor becomes spreadsheet scope      | Complexity                      | Explicit non-goals and raw Markdown cell model                    |
 
 ## 27. Documentation changes
 

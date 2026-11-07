@@ -60,10 +60,7 @@ import type { HeadingRecord } from "../markdown/headings";
  */
 
 export type LinkDiagnosisStatus =
-  | "resolved"
-  | "broken"
-  | "missing-heading"
-  | "ambiguous-heading";
+  "resolved" | "broken" | "missing-heading" | "ambiguous-heading";
 
 export interface LinkDiagnosis {
   status: LinkDiagnosisStatus;
@@ -100,8 +97,13 @@ export function classifyWikiLink(
 ): LinkDiagnosis {
   if (record.parseStatus === "malformed") return { status: "broken" };
 
-  const preliminary = resolveWikiLinkTarget(record, { currentNotePath: sourcePath });
-  if (preliminary.status === "missing-note" || preliminary.status === "malformed") {
+  const preliminary = resolveWikiLinkTarget(record, {
+    currentNotePath: sourcePath,
+  });
+  if (
+    preliminary.status === "missing-note" ||
+    preliminary.status === "malformed"
+  ) {
     return { status: "broken" };
   }
 
@@ -121,7 +123,8 @@ export function classifyWikiLink(
     targetHeadings,
   });
 
-  if (final.status === "resolved") return { status: "resolved", notePath: final.notePath };
+  if (final.status === "resolved")
+    return { status: "resolved", notePath: final.notePath };
   if (final.status === "missing-fragment") {
     return { status: "missing-heading", notePath: final.notePath };
   }
@@ -167,9 +170,12 @@ export interface WorkspaceLinkDiagnostic {
  * own Diagnostics Center follows (section 8.1's table only lists
  * diagnostic types, not a "no issue" entry).
  */
-export function computeWorkspaceLinkDiagnostics(index: LinkIndex): WorkspaceLinkDiagnostic[] {
+export function computeWorkspaceLinkDiagnostics(
+  index: LinkIndex,
+): WorkspaceLinkDiagnostic[] {
   const diagnostics: WorkspaceLinkDiagnostic[] = [];
-  const wikiLinksByPath = index.wikiLinksByPath ?? new Map<string, WikiLinkRecord[]>();
+  const wikiLinksByPath =
+    index.wikiLinksByPath ?? new Map<string, WikiLinkRecord[]>();
   for (const [sourcePath, records] of wikiLinksByPath) {
     for (const record of records) {
       const diagnosis = classifyWikiLink(record, sourcePath, index);
@@ -187,6 +193,7 @@ export function computeWorkspaceLinkDiagnostics(index: LinkIndex): WorkspaceLink
     }
   }
   return diagnostics.sort(
-    (a, b) => a.sourcePath.localeCompare(b.sourcePath) || a.sourceFrom - b.sourceFrom,
+    (a, b) =>
+      a.sourcePath.localeCompare(b.sourcePath) || a.sourceFrom - b.sourceFrom,
   );
 }

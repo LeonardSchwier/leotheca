@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { classifyTransitionErrorKind, recoveryActionsFor } from "./workspaceTransitionRecovery";
+import {
+  classifyTransitionErrorKind,
+  recoveryActionsFor,
+} from "./workspaceTransitionRecovery";
 
 describe("classifyTransitionErrorKind", () => {
   it("classifies the save phase as save_failed on every platform", () => {
@@ -8,16 +11,24 @@ describe("classifyTransitionErrorKind", () => {
   });
 
   it("classifies the access phase as permission_missing on Android", () => {
-    expect(classifyTransitionErrorKind("access", true)).toBe("permission_missing");
+    expect(classifyTransitionErrorKind("access", true)).toBe(
+      "permission_missing",
+    );
   });
 
   it("classifies the access phase as workspace_missing on Desktop", () => {
-    expect(classifyTransitionErrorKind("access", false)).toBe("workspace_missing");
+    expect(classifyTransitionErrorKind("access", false)).toBe(
+      "workspace_missing",
+    );
   });
 
   it("classifies the global-config phase as global_config_save_failed regardless of platform", () => {
-    expect(classifyTransitionErrorKind("global-config", false)).toBe("global_config_save_failed");
-    expect(classifyTransitionErrorKind("global-config", true)).toBe("global_config_save_failed");
+    expect(classifyTransitionErrorKind("global-config", false)).toBe(
+      "global_config_save_failed",
+    );
+    expect(classifyTransitionErrorKind("global-config", true)).toBe(
+      "global_config_save_failed",
+    );
   });
 
   it("classifies the settings phase as unknown (settings_corrupt never throws, see this module's own doc comment)", () => {
@@ -27,7 +38,10 @@ describe("classifyTransitionErrorKind", () => {
 
 describe("recoveryActionsFor", () => {
   it("offers retry and a destructive discard for save_failed, matching spec 16.6", () => {
-    expect(recoveryActionsFor("save_failed").map((a) => a.id)).toEqual(["retry", "discard"]);
+    expect(recoveryActionsFor("save_failed").map((a) => a.id)).toEqual([
+      "retry",
+      "discard",
+    ]);
   });
 
   it("offers grant-access, open-another, and forget for permission_missing, matching spec 23 exactly (no bare retry)", () => {
@@ -48,7 +62,9 @@ describe("recoveryActionsFor", () => {
   });
 
   it("offers only retry for a non-blocking global_config_save_failed, matching spec 16.5's 'Retry. Do not imply recency survives restart until persistence succeeds'", () => {
-    expect(recoveryActionsFor("global_config_save_failed").map((a) => a.id)).toEqual(["retry"]);
+    expect(
+      recoveryActionsFor("global_config_save_failed").map((a) => a.id),
+    ).toEqual(["retry"]);
   });
 
   it("falls back to a bare retry for an unclassified failure", () => {

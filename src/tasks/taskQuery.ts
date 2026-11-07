@@ -79,7 +79,9 @@ function noteTitleFromPath(path: string): string {
  * grouping, and sort below never reorder a note's tasks relative to each
  * other except when `sortBy` explicitly asks for that (spec section 6.3's
  * "note path and source order" stays the implicit tie-break even then). */
-export function flattenTasks(tasksByPath: Map<string, TaskRecord[]>): TaskEntry[] {
+export function flattenTasks(
+  tasksByPath: Map<string, TaskRecord[]>,
+): TaskEntry[] {
   const entries: TaskEntry[] = [];
   for (const path of Array.from(tasksByPath.keys()).sort()) {
     const noteTitle = noteTitleFromPath(path);
@@ -118,13 +120,17 @@ export function matchesTaskQuery(
   }
 
   if (query.tags.length > 0) {
-    const noteTags = new Set((tagsByPath.get(entry.path) ?? []).map((tag) => tag.toLowerCase()));
-    if (!query.tags.every((tag) => noteTags.has(tag.toLowerCase()))) return false;
+    const noteTags = new Set(
+      (tagsByPath.get(entry.path) ?? []).map((tag) => tag.toLowerCase()),
+    );
+    if (!query.tags.every((tag) => noteTags.has(tag.toLowerCase())))
+      return false;
   }
 
   const needle = query.text.trim().toLowerCase();
   if (needle !== "") {
-    const haystack = `${entry.task.text} ${entry.noteTitle} ${entry.path}`.toLowerCase();
+    const haystack =
+      `${entry.task.text} ${entry.noteTitle} ${entry.path}`.toLowerCase();
     if (!haystack.includes(needle)) return false;
   }
 
@@ -135,10 +141,15 @@ export function matchesTaskQuery(
  * order (a no-op copy), `sortBy: "text"` orders by each task's display
  * text case-insensitively, falling back to path and source order to keep
  * results deterministic when two tasks share the same text. */
-export function sortTaskEntries(entries: TaskEntry[], sortBy: TaskHubSortBy): TaskEntry[] {
+export function sortTaskEntries(
+  entries: TaskEntry[],
+  sortBy: TaskHubSortBy,
+): TaskEntry[] {
   if (sortBy === "note") return entries;
   return [...entries].sort((a, b) => {
-    const byText = a.task.displayText.toLowerCase().localeCompare(b.task.displayText.toLowerCase());
+    const byText = a.task.displayText
+      .toLowerCase()
+      .localeCompare(b.task.displayText.toLowerCase());
     if (byText !== 0) return byText;
     const byPath = a.path.localeCompare(b.path);
     if (byPath !== 0) return byPath;
@@ -156,7 +167,10 @@ function folderOfPath(path: string): string {
  * yields a single group (or none, for an empty result) so a host can
  * always render `TaskGroup[]` uniformly rather than special-casing the
  * ungrouped case. */
-export function groupTaskEntries(entries: TaskEntry[], groupBy: TaskHubGroupBy): TaskGroup[] {
+export function groupTaskEntries(
+  entries: TaskEntry[],
+  groupBy: TaskHubGroupBy,
+): TaskGroup[] {
   if (groupBy === "none") {
     return entries.length === 0 ? [] : [{ key: "", label: "", entries }];
   }
@@ -165,7 +179,12 @@ export function groupTaskEntries(entries: TaskEntry[], groupBy: TaskHubGroupBy):
   for (const entry of entries) {
     const key = groupBy === "note" ? entry.path : folderOfPath(entry.path);
     if (!groups.has(key)) {
-      const label = groupBy === "note" ? entry.noteTitle : key === "" ? "(Workspace root)" : key;
+      const label =
+        groupBy === "note"
+          ? entry.noteTitle
+          : key === ""
+            ? "(Workspace root)"
+            : key;
       groups.set(key, { key, label, entries: [] });
     }
     groups.get(key)!.entries.push(entry);
@@ -185,7 +204,9 @@ export function queryTasks(
   query: TaskHubQuery,
 ): TaskGroup[] {
   const all = flattenTasks(tasksByPath);
-  const filtered = all.filter((entry) => matchesTaskQuery(entry, query, tagsByPath));
+  const filtered = all.filter((entry) =>
+    matchesTaskQuery(entry, query, tagsByPath),
+  );
   const sorted = sortTaskEntries(filtered, query.sortBy);
   return groupTaskEntries(sorted, query.groupBy);
 }

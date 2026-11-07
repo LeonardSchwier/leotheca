@@ -60,7 +60,7 @@ describe("highlightColorCompletions (typing `==` suggests colors)", () => {
   });
 
   it("does not trigger at the very start of the document", async () => {
-    const doc = "==" ;
+    const doc = "==";
     const result = await run(contextAt(doc, 0));
     // Cursor at 0: no text before it, matchBefore finds nothing.
     expect(result).toBeNull();
@@ -78,14 +78,16 @@ describe("highlightColorCompletions (typing `==` suggests colors)", () => {
     const doc = "note ==hi";
     const r = (await run(contextAt(doc, doc.length)))!;
     for (const choice of HIGHLIGHT_COLOR_CHOICES) {
-      const option = r.options.find((o) => o.label === `Highlight (${choice.label})`)!;
+      const option = r.options.find(
+        (o) => o.label === `Highlight (${choice.label})`,
+      )!;
       const apply = typeof option.apply === "string" ? option.apply : "";
       expect(apply.endsWith("hi==")).toBe(true);
       expect(apply.length > "hi==".length).toBe(true);
     }
   });
 
-  it('plain option strips a previously-typed color emoji back to plain', async () => {
+  it("plain option strips a previously-typed color emoji back to plain", async () => {
     // The author has already colored the in-progress `==` — the emoji is
     // right after `==`, the suggestion is still open. Choosing "Highlight
     // (plain)" must undo the color, not re-emit the emoji on top of it.

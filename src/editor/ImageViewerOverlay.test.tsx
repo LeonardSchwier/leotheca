@@ -18,12 +18,16 @@ describe("ImageViewerOverlay", () => {
   it("resolves a leotheca: image src to its asset URL", async () => {
     vi.mocked(fileSrc).mockResolvedValue("asset://localhost/vault/a.png");
     const { container } = render(
-      <ImageViewerOverlay src="leotheca://vault/a.png" alt="a" onClose={() => {}} />,
+      <ImageViewerOverlay
+        src="leotheca://vault/a.png"
+        alt="a"
+        onClose={() => {}}
+      />,
     );
     await waitFor(() => expect(container.querySelector("img")).not.toBeNull());
-    expect((container.querySelector("img") as HTMLImageElement).getAttribute("src")).toBe(
-      "asset://localhost/vault/a.png",
-    );
+    expect(
+      (container.querySelector("img") as HTMLImageElement).getAttribute("src"),
+    ).toBe("asset://localhost/vault/a.png");
     // The leotheca: scheme is stripped, leaving the (absolute) path portion.
     expect(fileSrc).toHaveBeenCalledWith("//vault/a.png");
   });
@@ -34,7 +38,11 @@ describe("ImageViewerOverlay", () => {
     window.addEventListener("unhandledrejection", unhandled);
 
     const { container } = render(
-      <ImageViewerOverlay src="leotheca://vault/missing.png" alt="missing" onClose={() => {}} />,
+      <ImageViewerOverlay
+        src="leotheca://vault/missing.png"
+        alt="missing"
+        onClose={() => {}}
+      />,
     );
 
     await act(async () => {
@@ -47,6 +55,8 @@ describe("ImageViewerOverlay", () => {
 
     // The overlay must not hang on "Loading..." — surface an error state.
     expect(container.textContent).not.toContain("Loading...");
-    expect(container.querySelector("button[aria-label=\"Close\"]")).not.toBeNull();
+    expect(
+      container.querySelector('button[aria-label="Close"]'),
+    ).not.toBeNull();
   });
 });

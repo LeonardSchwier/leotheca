@@ -3,15 +3,22 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { signal } from "@preact/signals";
 import { cleanup, fireEvent, render } from "@testing-library/preact";
 import { linkIndex } from "../linking/store";
-import type { GraphColorGroup, WorkspaceSettings } from "../settings/workspaceSettings";
+import type {
+  GraphColorGroup,
+  WorkspaceSettings,
+} from "../settings/workspaceSettings";
 
 // vi.mock factories run lazily, after this file's own top-level imports and
 // consts are initialized (see workspace/Sidebar.test.tsx's identical note),
 // so plain module-scope consts closed over below are safe.
-const mockWorkspaceSettings = signal<Partial<WorkspaceSettings>>({ graphColorGroups: [] });
-const mockUpdateWorkspaceSettings = vi.fn(async (patch: Partial<WorkspaceSettings>) => {
-  mockWorkspaceSettings.value = { ...mockWorkspaceSettings.value, ...patch };
+const mockWorkspaceSettings = signal<Partial<WorkspaceSettings>>({
+  graphColorGroups: [],
 });
+const mockUpdateWorkspaceSettings = vi.fn(
+  async (patch: Partial<WorkspaceSettings>) => {
+    mockWorkspaceSettings.value = { ...mockWorkspaceSettings.value, ...patch };
+  },
+);
 
 vi.mock("../settings/store", () => ({
   workspaceSettings: mockWorkspaceSettings,
@@ -31,13 +38,25 @@ class StubResizeObserver {
   disconnect() {}
 }
 
-const originalClientWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "clientWidth");
-const originalClientHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "clientHeight");
+const originalClientWidth = Object.getOwnPropertyDescriptor(
+  HTMLElement.prototype,
+  "clientWidth",
+);
+const originalClientHeight = Object.getOwnPropertyDescriptor(
+  HTMLElement.prototype,
+  "clientHeight",
+);
 
 beforeEach(() => {
   vi.stubGlobal("ResizeObserver", StubResizeObserver);
-  Object.defineProperty(HTMLElement.prototype, "clientWidth", { configurable: true, value: 400 });
-  Object.defineProperty(HTMLElement.prototype, "clientHeight", { configurable: true, value: 400 });
+  Object.defineProperty(HTMLElement.prototype, "clientWidth", {
+    configurable: true,
+    value: 400,
+  });
+  Object.defineProperty(HTMLElement.prototype, "clientHeight", {
+    configurable: true,
+    value: 400,
+  });
   // jsdom doesn't implement the Pointer Capture APIs either.
   HTMLCanvasElement.prototype.setPointerCapture = vi.fn();
   HTMLCanvasElement.prototype.releasePointerCapture = vi.fn();
@@ -47,8 +66,18 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
-  if (originalClientWidth) Object.defineProperty(HTMLElement.prototype, "clientWidth", originalClientWidth);
-  if (originalClientHeight) Object.defineProperty(HTMLElement.prototype, "clientHeight", originalClientHeight);
+  if (originalClientWidth)
+    Object.defineProperty(
+      HTMLElement.prototype,
+      "clientWidth",
+      originalClientWidth,
+    );
+  if (originalClientHeight)
+    Object.defineProperty(
+      HTMLElement.prototype,
+      "clientHeight",
+      originalClientHeight,
+    );
   linkIndex.value = {
     backlinksByPath: new Map(),
     pathsByNoteName: new Map(),
@@ -101,20 +130,26 @@ function withOneNode() {
 
 describe("GraphView", () => {
   it("shows a placeholder instead of a canvas when there's nothing to graph", () => {
-    const { getByText, container } = render(<GraphView onOpenFile={vi.fn()} onClose={vi.fn()} />);
+    const { getByText, container } = render(
+      <GraphView onOpenFile={vi.fn()} onClose={vi.fn()} />,
+    );
     expect(getByText("No notes to graph yet.")).toBeTruthy();
     expect(container.querySelector("canvas")).toBeNull();
   });
 
   it("renders a canvas once there are notes to graph", () => {
     withOneNode();
-    const { container } = render(<GraphView onOpenFile={vi.fn()} onClose={vi.fn()} />);
+    const { container } = render(
+      <GraphView onOpenFile={vi.fn()} onClose={vi.fn()} />,
+    );
     expect(container.querySelector("canvas")).toBeTruthy();
   });
 
   it("the close button calls onClose", () => {
     const onClose = vi.fn();
-    const { getByLabelText } = render(<GraphView onOpenFile={vi.fn()} onClose={onClose} />);
+    const { getByLabelText } = render(
+      <GraphView onOpenFile={vi.fn()} onClose={onClose} />,
+    );
     fireEvent.click(getByLabelText("Close graph"));
     expect(onClose).toHaveBeenCalledTimes(1);
   });
@@ -122,7 +157,9 @@ describe("GraphView", () => {
   it("a single tap on a node opens it", () => {
     withOneNode();
     const onOpenFile = vi.fn();
-    const { container } = render(<GraphView onOpenFile={onOpenFile} onClose={vi.fn()} />);
+    const { container } = render(
+      <GraphView onOpenFile={onOpenFile} onClose={vi.fn()} />,
+    );
     const canvas = container.querySelector("canvas")!;
 
     // The mocked layout puts the node at world (100, 100); with the
@@ -136,7 +173,9 @@ describe("GraphView", () => {
   it("tapping empty space (no node nearby) does not open anything", () => {
     withOneNode();
     const onOpenFile = vi.fn();
-    const { container } = render(<GraphView onOpenFile={onOpenFile} onClose={vi.fn()} />);
+    const { container } = render(
+      <GraphView onOpenFile={onOpenFile} onClose={vi.fn()} />,
+    );
     const canvas = container.querySelector("canvas")!;
 
     // Far from the mocked node at (100, 100).
@@ -151,7 +190,9 @@ describe("GraphView", () => {
     const onOpenFile = vi.fn(async () => {
       throw new Error("not found");
     });
-    const { container, findByRole } = render(<GraphView onOpenFile={onOpenFile} onClose={vi.fn()} />);
+    const { container, findByRole } = render(
+      <GraphView onOpenFile={onOpenFile} onClose={vi.fn()} />,
+    );
     const canvas = container.querySelector("canvas")!;
 
     fireEvent.pointerDown(canvas, { pointerId: 1, clientX: 100, clientY: 100 });
@@ -177,7 +218,6 @@ describe("GraphView", () => {
     fireEvent.pointerDown(canvas, { pointerId: 1, clientX: 100, clientY: 100 });
     await vi.waitFor(() => expect(queryByRole("alert")).toBeNull());
   });
-
 });
 
 describe("computeConnectedPaths", () => {
@@ -244,21 +284,29 @@ describe("GraphView: hides unconnected notes by default", () => {
       tagsByPath: new Map(),
       tasksByPath: new Map(),
     };
-    const { getByText, container } = render(<GraphView onOpenFile={vi.fn()} onClose={vi.fn()} />);
+    const { getByText, container } = render(
+      <GraphView onOpenFile={vi.fn()} onClose={vi.fn()} />,
+    );
     expect(getByText(/No connected notes yet/)).toBeTruthy();
     expect(container.querySelector("canvas")).toBeNull();
   });
 
   it("renders the canvas by default when at least one note is connected, even with isolated notes present", () => {
     withMixedNodes();
-    const { container } = render(<GraphView onOpenFile={vi.fn()} onClose={vi.fn()} />);
+    const { container } = render(
+      <GraphView onOpenFile={vi.fn()} onClose={vi.fn()} />,
+    );
     expect(container.querySelector("canvas")).toBeTruthy();
   });
 
   it("the Show all notes checkbox starts unchecked", () => {
     withMixedNodes();
-    const { getByLabelText } = render(<GraphView onOpenFile={vi.fn()} onClose={vi.fn()} />);
-    expect((getByLabelText("Show all notes") as HTMLInputElement).checked).toBe(false);
+    const { getByLabelText } = render(
+      <GraphView onOpenFile={vi.fn()} onClose={vi.fn()} />,
+    );
+    expect((getByLabelText("Show all notes") as HTMLInputElement).checked).toBe(
+      false,
+    );
   });
 
   it("checking Show all notes reveals the canvas even when every note is isolated", () => {
@@ -288,7 +336,10 @@ describe("GraphView: hides unconnected notes by default", () => {
 
 describe("computeLocalGraph", () => {
   it("always includes the focus note itself, even with zero connections", () => {
-    const local = computeLocalGraph("/vault/lonely.md", new Map([["/vault/lonely.md", []]]));
+    const local = computeLocalGraph(
+      "/vault/lonely.md",
+      new Map([["/vault/lonely.md", []]]),
+    );
     expect(local.nodes).toEqual(new Set(["/vault/lonely.md"]));
     expect(local.edges).toEqual([]);
   });
@@ -338,7 +389,9 @@ describe("computeLocalGraph", () => {
         ["/vault/out.md", ["/vault/hub.md"]],
       ]),
     );
-    expect(local.nodes).toEqual(new Set(["/vault/hub.md", "/vault/in.md", "/vault/out.md"]));
+    expect(local.nodes).toEqual(
+      new Set(["/vault/hub.md", "/vault/in.md", "/vault/out.md"]),
+    );
     expect(local.edges).toEqual([
       ["/vault/in.md", "/vault/hub.md"],
       ["/vault/hub.md", "/vault/out.md"],
@@ -365,14 +418,20 @@ describe("GraphView: local (per-note) graph mode", () => {
 
   it("does not show the mode switch when no note is open", () => {
     withThreeNotes();
-    const { queryByText } = render(<GraphView onOpenFile={vi.fn()} onClose={vi.fn()} />);
+    const { queryByText } = render(
+      <GraphView onOpenFile={vi.fn()} onClose={vi.fn()} />,
+    );
     expect(queryByText("This note")).toBeNull();
   });
 
   it("shows the mode switch, defaulted to Workspace, when a note is open", () => {
     withThreeNotes();
     const { getByText } = render(
-      <GraphView onOpenFile={vi.fn()} onClose={vi.fn()} focusPath="/vault/a.md" />,
+      <GraphView
+        onOpenFile={vi.fn()}
+        onClose={vi.fn()}
+        focusPath="/vault/a.md"
+      />,
     );
     expect(getByText("Workspace").className).toContain("active");
     expect(getByText("This note").className).not.toContain("active");
@@ -381,7 +440,11 @@ describe("GraphView: local (per-note) graph mode", () => {
   it("switching to This note updates the title and hides the Show all notes toggle", () => {
     withThreeNotes();
     const { getByText, queryByLabelText } = render(
-      <GraphView onOpenFile={vi.fn()} onClose={vi.fn()} focusPath="/vault/a.md" />,
+      <GraphView
+        onOpenFile={vi.fn()}
+        onClose={vi.fn()}
+        focusPath="/vault/a.md"
+      />,
     );
 
     fireEvent.click(getByText("This note"));
@@ -393,7 +456,11 @@ describe("GraphView: local (per-note) graph mode", () => {
   it("switching back to Workspace restores the whole-graph title", () => {
     withThreeNotes();
     const { getByText } = render(
-      <GraphView onOpenFile={vi.fn()} onClose={vi.fn()} focusPath="/vault/a.md" />,
+      <GraphView
+        onOpenFile={vi.fn()}
+        onClose={vi.fn()}
+        focusPath="/vault/a.md"
+      />,
     );
 
     fireEvent.click(getByText("This note"));
@@ -405,7 +472,11 @@ describe("GraphView: local (per-note) graph mode", () => {
   it("renders the canvas in local mode even when the focus note is otherwise isolated (Show all notes would be needed in Workspace mode)", () => {
     withThreeNotes();
     const { getByText, container } = render(
-      <GraphView onOpenFile={vi.fn()} onClose={vi.fn()} focusPath="/vault/c.md" />,
+      <GraphView
+        onOpenFile={vi.fn()}
+        onClose={vi.fn()}
+        focusPath="/vault/c.md"
+      />,
     );
 
     fireEvent.click(getByText("This note"));
@@ -441,14 +512,19 @@ describe("filterGraphByQuery", () => {
     // Both display names ("apple", "application") contain "app", unlike
     // the "keeps only edges..." case above where only one endpoint matches.
     const wideNodes = ["/vault/apple.md", "/vault/application.md"];
-    const wideEdges: [string, string][] = [["/vault/apple.md", "/vault/application.md"]];
+    const wideEdges: [string, string][] = [
+      ["/vault/apple.md", "/vault/application.md"],
+    ];
     const result = filterGraphByQuery(wideNodes, wideEdges, "app");
     expect(result.nodes).toEqual(wideNodes);
     expect(result.edges).toEqual(wideEdges);
   });
 
   it("returns no nodes when nothing matches", () => {
-    expect(filterGraphByQuery(nodes, edges, "nonexistent")).toEqual({ nodes: [], edges: [] });
+    expect(filterGraphByQuery(nodes, edges, "nonexistent")).toEqual({
+      nodes: [],
+      edges: [],
+    });
   });
 });
 
@@ -460,17 +536,27 @@ describe("colorForPath", () => {
   });
 
   it("returns a matching group's color, matched case-insensitively", () => {
-    const groups: GraphColorGroup[] = [{ id: "1", query: "PROJECT", color: "#123456" }];
-    expect(colorForPath("/vault/project-plan.md", groups, FALLBACK)).toBe("#123456");
+    const groups: GraphColorGroup[] = [
+      { id: "1", query: "PROJECT", color: "#123456" },
+    ];
+    expect(colorForPath("/vault/project-plan.md", groups, FALLBACK)).toBe(
+      "#123456",
+    );
   });
 
   it("returns the fallback when no group matches", () => {
-    const groups: GraphColorGroup[] = [{ id: "1", query: "journal", color: "#123456" }];
-    expect(colorForPath("/vault/project-plan.md", groups, FALLBACK)).toBe(FALLBACK);
+    const groups: GraphColorGroup[] = [
+      { id: "1", query: "journal", color: "#123456" },
+    ];
+    expect(colorForPath("/vault/project-plan.md", groups, FALLBACK)).toBe(
+      FALLBACK,
+    );
   });
 
   it("a group with a blank query never matches", () => {
-    const groups: GraphColorGroup[] = [{ id: "1", query: "   ", color: "#123456" }];
+    const groups: GraphColorGroup[] = [
+      { id: "1", query: "   ", color: "#123456" },
+    ];
     expect(colorForPath("/vault/anything.md", groups, FALLBACK)).toBe(FALLBACK);
   });
 
@@ -479,7 +565,9 @@ describe("colorForPath", () => {
       { id: "1", query: "project", color: "#111111" },
       { id: "2", query: "plan", color: "#222222" },
     ];
-    expect(colorForPath("/vault/project-plan.md", groups, FALLBACK)).toBe("#111111");
+    expect(colorForPath("/vault/project-plan.md", groups, FALLBACK)).toBe(
+      "#111111",
+    );
   });
 });
 
@@ -496,7 +584,9 @@ describe("computeVisibleGraph", () => {
       showAll: false,
       filterQuery: "",
     });
-    expect(new Set(result.nodes)).toEqual(new Set(["/vault/a.md", "/vault/b.md"]));
+    expect(new Set(result.nodes)).toEqual(
+      new Set(["/vault/a.md", "/vault/b.md"]),
+    );
   });
 
   it("workspace mode, showAll on, includes unconnected notes", () => {
@@ -505,7 +595,9 @@ describe("computeVisibleGraph", () => {
       showAll: true,
       filterQuery: "",
     });
-    expect(new Set(result.nodes)).toEqual(new Set(["/vault/a.md", "/vault/b.md", "/vault/lonely.md"]));
+    expect(new Set(result.nodes)).toEqual(
+      new Set(["/vault/a.md", "/vault/b.md", "/vault/lonely.md"]),
+    );
   });
 
   it("local mode uses computeLocalGraph instead of the workspace/showAll logic", () => {
@@ -555,8 +647,12 @@ describe("GraphView: filtering", () => {
 
   it("does not filter until the debounce elapses", () => {
     withThreeNodes();
-    const { getByLabelText, container } = render(<GraphView onOpenFile={vi.fn()} onClose={vi.fn()} />);
-    fireEvent.input(getByLabelText("Filter graph notes"), { target: { value: "project" } });
+    const { getByLabelText, container } = render(
+      <GraphView onOpenFile={vi.fn()} onClose={vi.fn()} />,
+    );
+    fireEvent.input(getByLabelText("Filter graph notes"), {
+      target: { value: "project" },
+    });
 
     // Still showing the unfiltered graph (3 connected notes), not yet
     // narrowed down, since the 200ms debounce hasn't elapsed.
@@ -566,8 +662,12 @@ describe("GraphView: filtering", () => {
 
   it("filters nodes by name after the debounce elapses", async () => {
     withThreeNodes();
-    const { getByLabelText, container } = render(<GraphView onOpenFile={vi.fn()} onClose={vi.fn()} />);
-    fireEvent.input(getByLabelText("Filter graph notes"), { target: { value: "nonexistent-note" } });
+    const { getByLabelText, container } = render(
+      <GraphView onOpenFile={vi.fn()} onClose={vi.fn()} />,
+    );
+    fireEvent.input(getByLabelText("Filter graph notes"), {
+      target: { value: "nonexistent-note" },
+    });
 
     // advanceTimersByTimeAsync (not the sync advanceTimersByTime) also
     // flushes the microtask Preact schedules its re-render on, so the
@@ -580,8 +680,12 @@ describe("GraphView: filtering", () => {
 
   it("shows a filter-specific empty message, not the generic connected-notes one", async () => {
     withThreeNodes();
-    const { getByLabelText, getByText } = render(<GraphView onOpenFile={vi.fn()} onClose={vi.fn()} />);
-    fireEvent.input(getByLabelText("Filter graph notes"), { target: { value: "nonexistent-note" } });
+    const { getByLabelText, getByText } = render(
+      <GraphView onOpenFile={vi.fn()} onClose={vi.fn()} />,
+    );
+    fireEvent.input(getByLabelText("Filter graph notes"), {
+      target: { value: "nonexistent-note" },
+    });
 
     await vi.advanceTimersByTimeAsync(200);
 
@@ -590,7 +694,9 @@ describe("GraphView: filtering", () => {
 
   it("clearing the filter restores the full graph", async () => {
     withThreeNodes();
-    const { getByLabelText, container } = render(<GraphView onOpenFile={vi.fn()} onClose={vi.fn()} />);
+    const { getByLabelText, container } = render(
+      <GraphView onOpenFile={vi.fn()} onClose={vi.fn()} />,
+    );
     const input = getByLabelText("Filter graph notes");
 
     fireEvent.input(input, { target: { value: "nonexistent-note" } });
@@ -621,13 +727,17 @@ describe("GraphView: color groups panel", () => {
 
   it("the panel is closed by default", () => {
     withOneConnectedNode();
-    const { queryByText } = render(<GraphView onOpenFile={vi.fn()} onClose={vi.fn()} />);
+    const { queryByText } = render(
+      <GraphView onOpenFile={vi.fn()} onClose={vi.fn()} />,
+    );
     expect(queryByText("+ Add color group")).toBeNull();
   });
 
   it("the Colors button opens and closes the panel", () => {
     withOneConnectedNode();
-    const { getByLabelText, queryByText } = render(<GraphView onOpenFile={vi.fn()} onClose={vi.fn()} />);
+    const { getByLabelText, queryByText } = render(
+      <GraphView onOpenFile={vi.fn()} onClose={vi.fn()} />,
+    );
 
     fireEvent.click(getByLabelText("Color groups"));
     expect(queryByText("+ Add color group")).toBeTruthy();
@@ -638,7 +748,9 @@ describe("GraphView: color groups panel", () => {
 
   it("adding a group persists it via updateWorkspaceSettings with an empty query", () => {
     withOneConnectedNode();
-    const { getByLabelText, getByText } = render(<GraphView onOpenFile={vi.fn()} onClose={vi.fn()} />);
+    const { getByLabelText, getByText } = render(
+      <GraphView onOpenFile={vi.fn()} onClose={vi.fn()} />,
+    );
 
     fireEvent.click(getByLabelText("Color groups"));
     fireEvent.click(getByText("+ Add color group"));
@@ -661,10 +773,16 @@ describe("GraphView: color groups panel", () => {
     fireEvent.click(getByLabelText("Color groups"));
     expect(getByDisplayValue("journal")).toBeTruthy();
 
-    fireEvent.input(getByDisplayValue("journal"), { target: { value: "meeting" } });
+    fireEvent.input(getByDisplayValue("journal"), {
+      target: { value: "meeting" },
+    });
 
     const patch = mockUpdateWorkspaceSettings.mock.calls.at(-1)![0];
-    expect(patch.graphColorGroups![0]).toMatchObject({ id: "g1", query: "meeting", color: "#123456" });
+    expect(patch.graphColorGroups![0]).toMatchObject({
+      id: "g1",
+      query: "meeting",
+      color: "#123456",
+    });
   });
 
   it("removing a group drops it from the persisted list", () => {
@@ -672,7 +790,9 @@ describe("GraphView: color groups panel", () => {
     mockWorkspaceSettings.value = {
       graphColorGroups: [{ id: "g1", query: "journal", color: "#123456" }],
     };
-    const { getByLabelText } = render(<GraphView onOpenFile={vi.fn()} onClose={vi.fn()} />);
+    const { getByLabelText } = render(
+      <GraphView onOpenFile={vi.fn()} onClose={vi.fn()} />,
+    );
 
     fireEvent.click(getByLabelText("Color groups"));
     fireEvent.click(getByLabelText("Remove color group"));

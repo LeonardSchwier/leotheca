@@ -15,7 +15,10 @@ import {
   type SmartCollectionV1,
 } from "./collectionTypes";
 
-function makeClause(field: "name" | "tag" | "modified" = "name", operator: "contains" | "is" = "contains"): QueryClauseV1 {
+function makeClause(
+  field: "name" | "tag" | "modified" = "name",
+  operator: "contains" | "is" = "contains",
+): QueryClauseV1 {
   return {
     type: "clause",
     field: { kind: "system", field },
@@ -24,7 +27,9 @@ function makeClause(field: "name" | "tag" | "modified" = "name", operator: "cont
   };
 }
 
-function makeCollection(overrides?: Partial<SmartCollectionV1>): SmartCollectionV1 {
+function makeCollection(
+  overrides?: Partial<SmartCollectionV1>,
+): SmartCollectionV1 {
   return {
     id: "test-id",
     name: "Test Collection",
@@ -48,10 +53,7 @@ describe("extractAllViewClauses", () => {
     const group: QueryGroupV1 = {
       type: "group",
       operator: "and",
-      children: [
-        clause,
-        { type: "group", operator: "or", children: [] },
-      ],
+      children: [clause, { type: "group", operator: "or", children: [] }],
     };
     const result = extractAllViewClauses(group);
     expect(result).toHaveLength(1);
@@ -121,7 +123,11 @@ describe("removeFilterRow", () => {
 
   it("preserves non-clause children when removing from scope=all", () => {
     const clause = makeClause();
-    const innerGroup: QueryGroupV1 = { type: "group", operator: "or", children: [] };
+    const innerGroup: QueryGroupV1 = {
+      type: "group",
+      operator: "or",
+      children: [],
+    };
     const collection = makeCollection({
       query: { type: "group", operator: "and", children: [innerGroup, clause] },
     });

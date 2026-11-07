@@ -25,7 +25,9 @@ function makeCommands(): Command[] {
 
 describe("CommandPalette", () => {
   it("lists app commands plus the three workspace-profile commands", () => {
-    const { getAllByRole, getByText } = render(<CommandPalette commands={makeCommands()} onClose={vi.fn()} />);
+    const { getAllByRole, getByText } = render(
+      <CommandPalette commands={makeCommands()} onClose={vi.fn()} />,
+    );
     expect(getAllByRole("listitem")).toHaveLength(6);
     expect(getByText("Switch workspace...")).toBeTruthy();
     expect(getByText("Add workspace...")).toBeTruthy();
@@ -36,7 +38,9 @@ describe("CommandPalette", () => {
     const { getByPlaceholderText, getAllByRole } = render(
       <CommandPalette commands={makeCommands()} onClose={vi.fn()} />,
     );
-    fireEvent.input(getByPlaceholderText("Type a command..."), { target: { value: "NEW" } });
+    fireEvent.input(getByPlaceholderText("Type a command..."), {
+      target: { value: "NEW" },
+    });
     const items = getAllByRole("listitem").map((li) => li.textContent);
     // "New note" and "New folder" match via word-start; "Manage workspace profiles..."
     // also matches via subsequence (n in Manage, e in Manage, w in workspace)
@@ -49,22 +53,30 @@ describe("CommandPalette", () => {
     const { getByPlaceholderText, getByText } = render(
       <CommandPalette commands={makeCommands()} onClose={vi.fn()} />,
     );
-    fireEvent.input(getByPlaceholderText("Type a command..."), { target: { value: "zzz" } });
+    fireEvent.input(getByPlaceholderText("Type a command..."), {
+      target: { value: "zzz" },
+    });
     expect(getByText("No matching commands.")).toBeTruthy();
   });
 
   it("pressing Enter runs the first (default-selected) command and closes", () => {
     const commands = makeCommands();
     const onClose = vi.fn();
-    const { getByPlaceholderText } = render(<CommandPalette commands={commands} onClose={onClose} />);
-    fireEvent.keyDown(getByPlaceholderText("Type a command..."), { key: "Enter" });
+    const { getByPlaceholderText } = render(
+      <CommandPalette commands={commands} onClose={onClose} />,
+    );
+    fireEvent.keyDown(getByPlaceholderText("Type a command..."), {
+      key: "Enter",
+    });
     expect(commands[0].run).toHaveBeenCalledTimes(1);
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   it("ArrowDown moves the selection before Enter runs it", () => {
     const commands = makeCommands();
-    const { getByPlaceholderText } = render(<CommandPalette commands={commands} onClose={vi.fn()} />);
+    const { getByPlaceholderText } = render(
+      <CommandPalette commands={commands} onClose={vi.fn()} />,
+    );
     const input = getByPlaceholderText("Type a command...");
     fireEvent.keyDown(input, { key: "ArrowDown" });
     fireEvent.keyDown(input, { key: "Enter" });
@@ -74,7 +86,9 @@ describe("CommandPalette", () => {
 
   it("can reach the last provided app command before the workspace commands", () => {
     const commands = makeCommands();
-    const { getByPlaceholderText } = render(<CommandPalette commands={commands} onClose={vi.fn()} />);
+    const { getByPlaceholderText } = render(
+      <CommandPalette commands={commands} onClose={vi.fn()} />,
+    );
     const input = getByPlaceholderText("Type a command...");
     fireEvent.keyDown(input, { key: "ArrowDown" });
     fireEvent.keyDown(input, { key: "ArrowDown" });
@@ -84,7 +98,9 @@ describe("CommandPalette", () => {
 
   it("ArrowUp does not move before the first command", () => {
     const commands = makeCommands();
-    const { getByPlaceholderText } = render(<CommandPalette commands={commands} onClose={vi.fn()} />);
+    const { getByPlaceholderText } = render(
+      <CommandPalette commands={commands} onClose={vi.fn()} />,
+    );
     const input = getByPlaceholderText("Type a command...");
     fireEvent.keyDown(input, { key: "ArrowUp" });
     fireEvent.keyDown(input, { key: "Enter" });
@@ -93,7 +109,9 @@ describe("CommandPalette", () => {
 
   it("typing resets the selection back to the top of the filtered list", () => {
     const commands = makeCommands();
-    const { getByPlaceholderText } = render(<CommandPalette commands={commands} onClose={vi.fn()} />);
+    const { getByPlaceholderText } = render(
+      <CommandPalette commands={commands} onClose={vi.fn()} />,
+    );
     const input = getByPlaceholderText("Type a command...");
     fireEvent.keyDown(input, { key: "ArrowDown" });
     fireEvent.keyDown(input, { key: "ArrowDown" });
@@ -105,8 +123,12 @@ describe("CommandPalette", () => {
   it("Escape closes without running anything", () => {
     const commands = makeCommands();
     const onClose = vi.fn();
-    const { getByPlaceholderText } = render(<CommandPalette commands={commands} onClose={onClose} />);
-    fireEvent.keyDown(getByPlaceholderText("Type a command..."), { key: "Escape" });
+    const { getByPlaceholderText } = render(
+      <CommandPalette commands={commands} onClose={onClose} />,
+    );
+    fireEvent.keyDown(getByPlaceholderText("Type a command..."), {
+      key: "Escape",
+    });
     expect(onClose).toHaveBeenCalledTimes(1);
     for (const c of commands) expect(c.run).not.toHaveBeenCalled();
     expect(workspaceSwitcherOpenRequest.value).toBe(0);
@@ -116,7 +138,9 @@ describe("CommandPalette", () => {
 
   it("workspace commands publish their request and close the palette", () => {
     const onClose = vi.fn();
-    const { getByText } = render(<CommandPalette commands={makeCommands()} onClose={onClose} />);
+    const { getByText } = render(
+      <CommandPalette commands={makeCommands()} onClose={onClose} />,
+    );
     fireEvent.click(getByText("Switch workspace..."));
     expect(workspaceSwitcherOpenRequest.value).toBe(1);
     expect(onClose).toHaveBeenCalledTimes(1);
@@ -125,7 +149,9 @@ describe("CommandPalette", () => {
   it("clicking a command runs that one specifically, not whatever was keyboard-selected", () => {
     const commands = makeCommands();
     const onClose = vi.fn();
-    const { getByText } = render(<CommandPalette commands={commands} onClose={onClose} />);
+    const { getByText } = render(
+      <CommandPalette commands={commands} onClose={onClose} />,
+    );
     fireEvent.click(getByText("Open Settings"));
     expect(commands[2].run).toHaveBeenCalledTimes(1);
     expect(commands[0].run).not.toHaveBeenCalled();
@@ -135,7 +161,9 @@ describe("CommandPalette", () => {
   it("clicking the backdrop closes without running anything", () => {
     const commands = makeCommands();
     const onClose = vi.fn();
-    const { container } = render(<CommandPalette commands={commands} onClose={onClose} />);
+    const { container } = render(
+      <CommandPalette commands={commands} onClose={onClose} />,
+    );
     fireEvent.click(container.querySelector(".command-palette-overlay")!);
     expect(onClose).toHaveBeenCalledTimes(1);
     for (const c of commands) expect(c.run).not.toHaveBeenCalled();
@@ -144,7 +172,9 @@ describe("CommandPalette", () => {
   it("clicking inside the palette itself does not close it", () => {
     const commands = makeCommands();
     const onClose = vi.fn();
-    const { container } = render(<CommandPalette commands={commands} onClose={onClose} />);
+    const { container } = render(
+      <CommandPalette commands={commands} onClose={onClose} />,
+    );
     fireEvent.click(container.querySelector(".command-palette")!);
     expect(onClose).not.toHaveBeenCalled();
   });

@@ -10,9 +10,11 @@ describe("parseSnippets", () => {
   });
 
   it("ignores blank, malformed, duplicate, and unsafe triggers", () => {
-    expect(parseSnippets("\nmissing\ndupe\tfirst\ndupe\tsecond\nnot valid\ttext\nempty\t")).toEqual([
-      { trigger: "dupe", replacement: "first" },
-    ]);
+    expect(
+      parseSnippets(
+        "\nmissing\ndupe\tfirst\ndupe\tsecond\nnot valid\ttext\nempty\t",
+      ),
+    ).toEqual([{ trigger: "dupe", replacement: "first" }]);
   });
 });
 
@@ -20,7 +22,10 @@ describe("snippetExpansion", () => {
   const snippets = [{ trigger: "todo", replacement: "- [ ] " }];
 
   it("replaces only a complete trigger immediately before the cursor", () => {
-    expect(snippetExpansion("plan ;todo", snippets)).toEqual({ from: 5, replacement: "- [ ] " });
+    expect(snippetExpansion("plan ;todo", snippets)).toEqual({
+      from: 5,
+      replacement: "- [ ] ",
+    });
   });
 
   it("does not expand an unknown or partial trigger", () => {

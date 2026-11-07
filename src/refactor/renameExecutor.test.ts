@@ -1,6 +1,6 @@
 /**
  * Tests for F03 Phase 3: Transaction executor and recovery
- * Covers mutation lock, preflight validation, journal entries, 
+ * Covers mutation lock, preflight validation, journal entries,
  * execution flow, rollback capability, and startup recovery
  */
 
@@ -24,11 +24,18 @@ import {
 import type { EditorLayoutState } from "../workspace/types";
 import type { WorkspaceSettings } from "../settings/workspaceSettings";
 import { DEFAULT_WORKSPACE_SETTINGS } from "../settings/workspaceSettings";
-import type { RenamePlan, PlannedWikiLinkEdit, BlockedWikiLinkEdit } from "./renamePlan";
+import type {
+  RenamePlan,
+  PlannedWikiLinkEdit,
+  BlockedWikiLinkEdit,
+} from "./renamePlan";
 import type { Bookmark } from "../bookmarks/types";
 
 // Helper to create a basic editor layout state
-function createEditorLayout(tabPaths: string[] = [], activePath: string | null = null): EditorLayoutState {
+function createEditorLayout(
+  tabPaths: string[] = [],
+  activePath: string | null = null,
+): EditorLayoutState {
   return {
     activeGroupId: "primary",
     splitEnabled: false,
@@ -47,7 +54,10 @@ function createEditorLayout(tabPaths: string[] = [], activePath: string | null =
 }
 
 // Helper to create basic workspace settings
-function createWorkspaceSettings(lastOpenPaths: string[] = [], lastActivePath: string | null = null): WorkspaceSettings {
+function createWorkspaceSettings(
+  lastOpenPaths: string[] = [],
+  lastActivePath: string | null = null,
+): WorkspaceSettings {
   return {
     ...DEFAULT_WORKSPACE_SETTINGS,
     lastOpenPaths,
@@ -56,7 +66,12 @@ function createWorkspaceSettings(lastOpenPaths: string[] = [], lastActivePath: s
 }
 
 // Helper to create a mock RenamePlan
-function createMockRenamePlan(oldPath: string, newPath: string, edits: PlannedWikiLinkEdit[] = [], blocked: BlockedWikiLinkEdit[] = []): RenamePlan {
+function createMockRenamePlan(
+  oldPath: string,
+  newPath: string,
+  edits: PlannedWikiLinkEdit[] = [],
+  blocked: BlockedWikiLinkEdit[] = [],
+): RenamePlan {
   return {
     oldPath,
     newPath,
@@ -120,7 +135,7 @@ describe("renameExecutor - Journal Management", () => {
 
   it("should start rename operation and create journal entry", () => {
     const entry = startRenameOperation("old.md", "new.md");
-    
+
     expect(entry.operationId).toBeDefined();
     expect(entry.oldPath).toBe("old.md");
     expect(entry.newPath).toBe("new.md");
@@ -134,7 +149,7 @@ describe("renameExecutor - Journal Management", () => {
   it("should get current operation", () => {
     startRenameOperation("old.md", "new.md");
     const current = getCurrentOperation();
-    
+
     expect(current).not.toBeNull();
     expect(current?.oldPath).toBe("old.md");
     expect(current?.newPath).toBe("new.md");
@@ -148,7 +163,7 @@ describe("renameExecutor - Journal Management", () => {
   it("should get all journal entries", () => {
     startRenameOperation("old1.md", "new1.md");
     startRenameOperation("old2.md", "new2.md");
-    
+
     const journal = getRenameJournal();
     expect(journal).toHaveLength(2);
     expect(journal[0].oldPath).toBe("old1.md");
@@ -165,9 +180,9 @@ describe("renameExecutor - Journal Management", () => {
   it("should reset rename executor completely", () => {
     acquireMutationLock();
     startRenameOperation("old.md", "new.md");
-    
+
     resetRenameExecutor();
-    
+
     expect(renameMutationLock.value).toBe(false);
     expect(getCurrentOperation()).toBeNull();
     expect(getRenameJournal()).toHaveLength(0);
@@ -181,32 +196,53 @@ describe("renameExecutor - Preflight Validation", () => {
 
   it("should fail preflight when oldPath equals newPath", async () => {
     const result = await preflightRename(
-      "same.md", "same.md", 
+      "same.md",
+      "same.md",
       createMockRenamePlan("same.md", "same.md"),
-      { editorLayout: createEditorLayout(), bookmarks: [], workspaceSettings: createWorkspaceSettings() },
-      createEditorLayout(), [], createWorkspaceSettings()
+      {
+        editorLayout: createEditorLayout(),
+        bookmarks: [],
+        workspaceSettings: createWorkspaceSettings(),
+      },
+      createEditorLayout(),
+      [],
+      createWorkspaceSettings(),
     );
-    
+
     expect(result.success).toBe(false);
     expect(result.error).toContain("same");
   });
 
   it("should fail preflight when there are blocked references", async () => {
-    const blockedEdit = { path: "some.md", from: 0, to: 5, oldText: "[[old]]", reason: "ambiguous" };
+    const blockedEdit = {
+      path: "some.md",
+      from: 0,
+      to: 5,
+      oldText: "[[old]]",
+      reason: "ambiguous",
+    };
     const result = await preflightRename(
-      "old.md", "new.md", 
+      "old.md",
+      "new.md",
       createMockRenamePlan("old.md", "new.md", [], [blockedEdit]),
-      { editorLayout: createEditorLayout(), bookmarks: [], workspaceSettings: createWorkspaceSettings() },
-      createEditorLayout(), [], createWorkspaceSettings()
+      {
+        editorLayout: createEditorLayout(),
+        bookmarks: [],
+        workspaceSettings: createWorkspaceSettings(),
+      },
+      createEditorLayout(),
+      [],
+      createWorkspaceSettings(),
     );
-    
+
     expect(result.success).toBe(false);
     expect(result.error).toContain("ambiguous");
   });
 
   it("should fail preflight when there are no changes to apply", async () => {
     const result = await preflightRename(
-      "old.md", "new.md", 
+      "old.md",
+      "new.md",
       createMockRenamePlan("old.md", "new.md", [], []), // renamePlan - no edits, no blocks
       {
         editorLayout: createEditorLayout(),
@@ -214,36 +250,44 @@ describe("renameExecutor - Preflight Validation", () => {
         workspaceSettings: createWorkspaceSettings(),
       }, // metadataMigrationPlan - same as current state
       createEditorLayout(), // currentEditorLayout
-      [], // currentBookmarks  
-      createWorkspaceSettings() // currentWorkspaceSettings
+      [], // currentBookmarks
+      createWorkspaceSettings(), // currentWorkspaceSettings
     );
-    
+
     expect(result.success).toBe(false);
     expect(result.error).toContain("No changes");
   });
 
   it("should pass preflight when there are valid wikilink edits", async () => {
-    const wikilinkEdit = { 
-      path: "note.md", 
-      from: 0, 
-      to: 10, 
-      oldText: "[[old]]", 
-      newText: "[[new]]" 
+    const wikilinkEdit = {
+      path: "note.md",
+      from: 0,
+      to: 10,
+      oldText: "[[old]]",
+      newText: "[[new]]",
     };
     const result = await preflightRename(
-      "old.md", "new.md", 
+      "old.md",
+      "new.md",
       createMockRenamePlan("old.md", "new.md", [wikilinkEdit], []),
-      { editorLayout: createEditorLayout(), bookmarks: [], workspaceSettings: createWorkspaceSettings() },
-      createEditorLayout(), [], createWorkspaceSettings()
+      {
+        editorLayout: createEditorLayout(),
+        bookmarks: [],
+        workspaceSettings: createWorkspaceSettings(),
+      },
+      createEditorLayout(),
+      [],
+      createWorkspaceSettings(),
     );
-    
+
     expect(result.success).toBe(true);
   });
 
   it("should pass preflight when there are metadata changes", async () => {
     const layout = createEditorLayout(["old.md"], "old.md");
     const result = await preflightRename(
-      "old.md", "new.md", 
+      "old.md",
+      "new.md",
       createMockRenamePlan("old.md", "new.md", [], []),
       {
         editorLayout: createEditorLayout(["new.md"], "new.md"), // migrated layout
@@ -252,9 +296,9 @@ describe("renameExecutor - Preflight Validation", () => {
       },
       layout,
       [{ id: "1", kind: "file", label: "test", path: "old.md" }],
-      createWorkspaceSettings(["old.md"], "old.md")
+      createWorkspaceSettings(["old.md"], "old.md"),
     );
-    
+
     expect(result.success).toBe(true);
   });
 });
@@ -265,14 +309,14 @@ describe("renameExecutor - Complete Execution Flow", () => {
   });
 
   it("should execute complete rename operation successfully", async () => {
-    const wikilinkEdit = { 
-      path: "note.md", 
-      from: 0, 
-      to: 6, 
-      oldText: "[[old]]", 
-      newText: "[[new]]" 
+    const wikilinkEdit = {
+      path: "note.md",
+      from: 0,
+      to: 6,
+      oldText: "[[old]]",
+      newText: "[[new]]",
     };
-    
+
     const mockOptions = createMockOptions({
       readNote: vi.fn().mockResolvedValue("[[old]] rest"),
       writeNote: vi.fn().mockResolvedValue(undefined),
@@ -289,9 +333,9 @@ describe("renameExecutor - Complete Execution Flow", () => {
       createEditorLayout(["old.md"], "old.md"),
       [],
       createWorkspaceSettings(["old.md"], "old.md"),
-      mockOptions
+      mockOptions,
     );
-    
+
     expect(result.success).toBe(true);
     expect(result.journalEntry).toBeDefined();
     expect(result.journalEntry?.completed).toBe(true);
@@ -312,8 +356,20 @@ describe("renameExecutor - Complete Execution Flow", () => {
     // the file instead of accidentally landing in the right place.
     const newText = "[[much-longer-new-name]]";
     const edits: PlannedWikiLinkEdit[] = [
-      { path: "note.md", from: firstFrom, to: firstTo, oldText: "[[old]]", newText },
-      { path: "note.md", from: secondFrom, to: secondTo, oldText: "[[old]]", newText },
+      {
+        path: "note.md",
+        from: firstFrom,
+        to: firstTo,
+        oldText: "[[old]]",
+        newText,
+      },
+      {
+        path: "note.md",
+        from: secondFrom,
+        to: secondTo,
+        oldText: "[[old]]",
+        newText,
+      },
     ];
 
     let stored = originalContent;
@@ -331,17 +387,19 @@ describe("renameExecutor - Complete Execution Flow", () => {
       createEditorLayout(),
       [],
       createWorkspaceSettings(),
-      mockOptions
+      mockOptions,
     );
 
     expect(result.success).toBe(true);
-    expect(stored).toBe("[[much-longer-new-name]] and again [[much-longer-new-name]] end");
+    expect(stored).toBe(
+      "[[much-longer-new-name]] and again [[much-longer-new-name]] end",
+    );
   });
 
   it("should fail when mutation lock cannot be acquired", async () => {
     // First, acquire the lock
     acquireMutationLock();
-    
+
     const mockOptions = createMockOptions();
     const result = await executeRenameOperation(
       "old.md",
@@ -350,9 +408,9 @@ describe("renameExecutor - Complete Execution Flow", () => {
       createEditorLayout(),
       [],
       createWorkspaceSettings(),
-      mockOptions
+      mockOptions,
     );
-    
+
     expect(result.success).toBe(false);
     expect(result.error).toContain("already in progress");
   });
@@ -366,9 +424,9 @@ describe("renameExecutor - Complete Execution Flow", () => {
       createEditorLayout(),
       [],
       createWorkspaceSettings(),
-      mockOptions
+      mockOptions,
     );
-    
+
     expect(result.success).toBe(false);
     expect(result.error).toContain("same");
   });
@@ -382,7 +440,7 @@ describe("renameExecutor - Rollback Capability", () => {
   it("should detect incomplete operations", async () => {
     // Start an operation but don't complete it
     startRenameOperation("old.md", "new.md");
-    
+
     expect(hasIncompleteOperations()).toBe(true);
     expect(getIncompleteOperation()).not.toBeNull();
   });
@@ -395,7 +453,7 @@ describe("renameExecutor - Rollback Capability", () => {
   it("should rollback incomplete operations on startup recovery", async () => {
     // Start an operation
     const entry = startRenameOperation("old.md", "new.md");
-    
+
     // Simulate some state changes that would need rollback
     const mockOptions = createMockOptions({
       renameFile: vi.fn().mockResolvedValue(undefined),
@@ -407,13 +465,15 @@ describe("renameExecutor - Rollback Capability", () => {
     });
 
     // Add some original state for rollback
-    entry.originalWikilinks = [{
-      path: "note.md",
-      from: 0,
-      to: 6,
-      oldText: "[[old]]",
-      newText: "[[new]]",
-    }];
+    entry.originalWikilinks = [
+      {
+        path: "note.md",
+        from: 0,
+        to: 6,
+        oldText: "[[old]]",
+        newText: "[[new]]",
+      },
+    ];
     entry.originalMetadata = {
       editorLayout: createEditorLayout(["old.md"], "old.md"),
       bookmarks: [{ id: "1", kind: "file", label: "test", path: "old.md" }],
@@ -422,9 +482,9 @@ describe("renameExecutor - Rollback Capability", () => {
 
     // Mark as incomplete
     entry.completed = false;
-    
+
     const result = await recoverFromIncompleteOperations(mockOptions);
-    
+
     expect(result.recovered).toBe(true);
     expect(result.operations).toHaveLength(1);
   });
@@ -438,7 +498,7 @@ describe("renameExecutor - State Isolation", () => {
   it("should maintain separate journal entries for different operations", () => {
     startRenameOperation("old1.md", "new1.md");
     startRenameOperation("old2.md", "new2.md");
-    
+
     const journal = getRenameJournal();
     expect(journal).toHaveLength(2);
     expect(journal[0].operationId).not.toBe(journal[1].operationId);
@@ -449,7 +509,7 @@ describe("renameExecutor - State Isolation", () => {
   it("should only have one current operation at a time", () => {
     startRenameOperation("old1.md", "new1.md");
     const entry2 = startRenameOperation("old2.md", "new2.md");
-    
+
     const current = getCurrentOperation();
     expect(current?.operationId).toBe(entry2.operationId);
     expect(current?.oldPath).toBe("old2.md");
@@ -462,14 +522,14 @@ describe("renameExecutor - Error Handling", () => {
   });
 
   it("should handle file rename failure with rollback", async () => {
-    const wikilinkEdit = { 
-      path: "note.md", 
-      from: 0, 
-      to: 6, 
-      oldText: "[[old]]", 
-      newText: "[[new]]" 
+    const wikilinkEdit = {
+      path: "note.md",
+      from: 0,
+      to: 6,
+      oldText: "[[old]]",
+      newText: "[[new]]",
     };
-    
+
     const mockOptions = createMockOptions({
       readNote: vi.fn().mockResolvedValue("[[old]] rest"),
       writeNote: vi.fn().mockResolvedValue(undefined),
@@ -486,9 +546,9 @@ describe("renameExecutor - Error Handling", () => {
       createEditorLayout(),
       [],
       createWorkspaceSettings(),
-      mockOptions
+      mockOptions,
     );
-    
+
     expect(result.success).toBe(false);
     expect(result.error).toContain("File rename failed");
     expect(result.journalEntry?.step).toBe("failed");
@@ -526,7 +586,7 @@ describe("renameExecutor - Error Handling", () => {
       createEditorLayout(),
       [],
       createWorkspaceSettings(),
-      mockOptions
+      mockOptions,
     );
 
     expect(result.success).toBe(false);
@@ -555,7 +615,10 @@ describe("renameExecutor - Error Handling", () => {
       { path: "b.md", from: fromB, to: toB, oldText: "[[old]]", newText },
     ];
 
-    const store: Record<string, string> = { "a.md": contentA, "b.md": contentB };
+    const store: Record<string, string> = {
+      "a.md": contentA,
+      "b.md": contentB,
+    };
     let bWriteAttempts = 0;
     const mockOptions = createMockOptions({
       readNote: vi.fn(async (path: string) => store[path]),
@@ -575,7 +638,7 @@ describe("renameExecutor - Error Handling", () => {
       createEditorLayout(),
       [],
       createWorkspaceSettings(),
-      mockOptions
+      mockOptions,
     );
 
     expect(result.success).toBe(false);
@@ -606,8 +669,20 @@ describe("renameExecutor - Error Handling", () => {
     const secondTo = secondFrom + "[[old]]".length;
     const newText = "[[much-longer-new-name]]";
     const edits: PlannedWikiLinkEdit[] = [
-      { path: "note.md", from: firstFrom, to: firstTo, oldText: "[[old]]", newText },
-      { path: "note.md", from: secondFrom, to: secondTo, oldText: "[[old]]", newText },
+      {
+        path: "note.md",
+        from: firstFrom,
+        to: firstTo,
+        oldText: "[[old]]",
+        newText,
+      },
+      {
+        path: "note.md",
+        from: secondFrom,
+        to: secondTo,
+        oldText: "[[old]]",
+        newText,
+      },
     ];
 
     let stored = originalContent;
@@ -628,7 +703,7 @@ describe("renameExecutor - Error Handling", () => {
       createEditorLayout(),
       [],
       createWorkspaceSettings(),
-      mockOptions
+      mockOptions,
     );
 
     expect(result.success).toBe(false);
@@ -647,22 +722,22 @@ describe("renameExecutor - Error Handling", () => {
       createEditorLayout(["old.md"], "old.md"),
       [],
       createWorkspaceSettings(["old.md"], "old.md"),
-      mockOptions
+      mockOptions,
     );
-    
+
     expect(result.success).toBe(false);
     expect(result.error).toContain("Metadata migration failed");
   });
 
   it("should handle wikilink update failure with rollback", async () => {
-    const wikilinkEdit = { 
-      path: "note.md", 
-      from: 0, 
-      to: 6, 
-      oldText: "[[old]]", 
-      newText: "[[new]]" 
+    const wikilinkEdit = {
+      path: "note.md",
+      from: 0,
+      to: 6,
+      oldText: "[[old]]",
+      newText: "[[new]]",
     };
-    
+
     const mockOptions = createMockOptions({
       readNote: vi.fn().mockResolvedValue("[[old]] rest"),
       writeNote: vi.fn().mockRejectedValue(new Error("Write error")),
@@ -675,9 +750,9 @@ describe("renameExecutor - Error Handling", () => {
       createEditorLayout(),
       [],
       createWorkspaceSettings(),
-      mockOptions
+      mockOptions,
     );
-    
+
     expect(result.success).toBe(false);
     expect(result.error).toContain("Wikilink updates failed");
   });
@@ -706,7 +781,9 @@ describe("renameExecutor - Error Handling", () => {
         store[path] = content;
       }),
       // File rename fails — this is the critical failure point
-      renameFile: vi.fn().mockRejectedValue(new Error("ENOSPC: no space left on device")),
+      renameFile: vi
+        .fn()
+        .mockRejectedValue(new Error("ENOSPC: no space left on device")),
       saveEditorLayout: vi.fn(async (layout: unknown) => {
         metadataStore.editorLayout = layout;
       }),
@@ -725,7 +802,7 @@ describe("renameExecutor - Error Handling", () => {
       createEditorLayout(["old.md"], "old.md"),
       [{ id: "1", kind: "file", label: "test", path: "old.md" }],
       createWorkspaceSettings(["old.md"], "old.md"),
-      mockOptions
+      mockOptions,
     );
 
     expect(result.success).toBe(false);
@@ -751,11 +828,19 @@ describe("renameExecutor - Error Handling", () => {
     // pre-rename state, not left in the half-migrated state.
 
     const originalLayout = createEditorLayout(["old.md"], "old.md");
-    const originalBookmarks: Bookmark[] = [{ id: "1", kind: "file", label: "test", path: "old.md" }];
+    const originalBookmarks: Bookmark[] = [
+      { id: "1", kind: "file", label: "test", path: "old.md" },
+    ];
     const originalSettings = createWorkspaceSettings(["old.md"], "old.md");
 
     const edits: PlannedWikiLinkEdit[] = [
-      { path: "note.md", from: 0, to: 6, oldText: "[[old]]", newText: "[[new]]" },
+      {
+        path: "note.md",
+        from: 0,
+        to: 6,
+        oldText: "[[old]]",
+        newText: "[[new]]",
+      },
     ];
 
     let metadataWriteCount = 0;
@@ -763,9 +848,15 @@ describe("renameExecutor - Error Handling", () => {
       readNote: vi.fn().mockResolvedValue("[[old]] rest"),
       writeNote: vi.fn().mockResolvedValue(undefined),
       renameFile: vi.fn().mockRejectedValue(new Error("connection reset")),
-      saveEditorLayout: vi.fn(async () => { metadataWriteCount++; }),
-      saveBookmarks: vi.fn(async () => { metadataWriteCount++; }),
-      saveWorkspaceSettings: vi.fn(async () => { metadataWriteCount++; }),
+      saveEditorLayout: vi.fn(async () => {
+        metadataWriteCount++;
+      }),
+      saveBookmarks: vi.fn(async () => {
+        metadataWriteCount++;
+      }),
+      saveWorkspaceSettings: vi.fn(async () => {
+        metadataWriteCount++;
+      }),
     });
 
     // First attempt fails
@@ -776,7 +867,7 @@ describe("renameExecutor - Error Handling", () => {
       originalLayout,
       originalBookmarks,
       originalSettings,
-      mockOptions
+      mockOptions,
     );
 
     expect(firstResult.success).toBe(false);
@@ -802,7 +893,7 @@ describe("renameExecutor - Error Handling", () => {
       originalLayout,
       originalBookmarks,
       originalSettings,
-      retryOptions
+      retryOptions,
     );
 
     // The retry should succeed if the filesystem is available,
@@ -838,12 +929,27 @@ describe("applyRenamePlan - Rollback", () => {
     const toB = fromB + "[[old]]".length;
 
     const edits: PlannedWikiLinkEdit[] = [
-      { path: "a.md", from: firstFrom, to: firstTo, oldText: "[[old]]", newText },
-      { path: "a.md", from: secondFrom, to: secondTo, oldText: "[[old]]", newText },
+      {
+        path: "a.md",
+        from: firstFrom,
+        to: firstTo,
+        oldText: "[[old]]",
+        newText,
+      },
+      {
+        path: "a.md",
+        from: secondFrom,
+        to: secondTo,
+        oldText: "[[old]]",
+        newText,
+      },
       { path: "b.md", from: fromB, to: toB, oldText: "[[old]]", newText },
     ];
 
-    const store: Record<string, string> = { "a.md": contentA, "b.md": contentB };
+    const store: Record<string, string> = {
+      "a.md": contentA,
+      "b.md": contentB,
+    };
     const mockOptions = {
       readNote: vi.fn(async (path: string) => store[path]),
       writeNote: vi.fn(async (path: string, content: string) => {
@@ -854,7 +960,7 @@ describe("applyRenamePlan - Rollback", () => {
 
     const result = await applyRenamePlan(
       createMockRenamePlan("old.md", "new.md", edits, []),
-      mockOptions
+      mockOptions,
     );
 
     expect(result.success).toBe(false);

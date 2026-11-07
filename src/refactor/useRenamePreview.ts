@@ -38,7 +38,10 @@ export interface RenamePreviewController {
    * the apply step fails (in which case `preview.applyError` carries the
    * message to surface to the user).
    */
-  confirmRenameWithPreview: (oldPath: string, newName: string) => Promise<boolean>;
+  confirmRenameWithPreview: (
+    oldPath: string,
+    newName: string,
+  ) => Promise<boolean>;
   continueRename: () => void;
   cancelRename: () => void;
 }
@@ -57,25 +60,33 @@ export function useRenamePreview(): RenamePreviewController {
   const [preview, setPreview] = useState<RenamePreviewState | null>(null);
   const resolverRef = useRef<((proceed: boolean) => void) | null>(null);
 
-  const confirmRenameWithPreview = useCallback(async (oldPath: string, newName: string): Promise<boolean> => {
-    // Only a text note's basename can ever be a wikilink target; skip the
-    // read/plan work entirely for anything else (an image, a canvas...).
-    if (!oldPath.toLowerCase().endsWith(".md")) return true;
+  const confirmRenameWithPreview = useCallback(
+    async (oldPath: string, newName: string): Promise<boolean> => {
+      // Only a text note's basename can ever be a wikilink target; skip the
+      // read/plan work entirely for anything else (an image, a canvas...).
+      if (!oldPath.toLowerCase().endsWith(".md")) return true;
 
-    const newPath = `${dirname(oldPath)}/${newName}`;
-    const plan = await planNoteRename(oldPath, newPath, linkIndex.value, readFreshestNote);
-    const hasNothingToReview =
-      plan.edits.length === 0 &&
-      plan.blocked.length === 0 &&
-      (plan.markdownEdits?.length ?? 0) === 0 &&
-      (plan.markdownBlocked?.length ?? 0) === 0;
-    if (hasNothingToReview) return true;
+      const newPath = `${dirname(oldPath)}/${newName}`;
+      const plan = await planNoteRename(
+        oldPath,
+        newPath,
+        linkIndex.value,
+        readFreshestNote,
+      );
+      const hasNothingToReview =
+        plan.edits.length === 0 &&
+        plan.blocked.length === 0 &&
+        (plan.markdownEdits?.length ?? 0) === 0 &&
+        (plan.markdownBlocked?.length ?? 0) === 0;
+      if (hasNothingToReview) return true;
 
-    return new Promise<boolean>((resolve) => {
-      resolverRef.current = resolve;
-      setPreview({ oldPath, newPath, plan, applied: false });
-    });
-  }, []);
+      return new Promise<boolean>((resolve) => {
+        resolverRef.current = resolve;
+        setPreview({ oldPath, newPath, plan, applied: false });
+      });
+    },
+    [],
+  );
 
   const continueRename = useCallback(() => {
     const current = preview;
@@ -84,14 +95,17 @@ export function useRenamePreview(): RenamePreviewController {
       void (async () => {
         const result = await applyRenamePlan(current.plan, {
           readNote: readFreshestNote,
-          writeNote: (path: string, content: string) => writeTextFile(path, content),
+          writeNote: (path: string, content: string) =>
+            writeTextFile(path, content),
         });
         if (result.success) {
           setPreview(null);
           resolverRef.current?.(true);
         } else {
           // Keep the dialog open so the user sees the error and can retry or cancel.
-          setPreview((prev) => (prev ? { ...prev, applyError: result.error } : null));
+          setPreview((prev) =>
+            prev ? { ...prev, applyError: result.error } : null,
+          );
           resolverRef.current?.(false);
         }
         resolverRef.current = null;

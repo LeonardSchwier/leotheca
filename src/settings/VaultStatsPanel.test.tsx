@@ -24,7 +24,10 @@ describe("VaultStatsPanel", () => {
 
   it("shows a loading placeholder while stats are pending", () => {
     const { getByText } = render(
-      <VaultStatsPanel rootPath="/vault" loadStats={() => new Promise(() => {})} />,
+      <VaultStatsPanel
+        rootPath="/vault"
+        loadStats={() => new Promise(() => {})}
+      />,
     );
     expect(getByText("Loading workspace statistics...")).toBeTruthy();
   });
@@ -54,11 +57,15 @@ describe("VaultStatsPanel", () => {
     await waitFor(() => expect(getAllByText("No notes yet")).toHaveLength(2));
   });
 
-  it("shows a platform-limitation message (not \"No notes yet\") when notes exist but dates aren't null reported, e.g. Android", async () => {
+  it('shows a platform-limitation message (not "No notes yet") when notes exist but dates aren\'t null reported, e.g. Android', async () => {
     const { getAllByText, queryByText } = render(
       <VaultStatsPanel
         rootPath="/vault"
-        loadStats={async () => ({ ...fullStats, oldestNoteDate: null, newestNoteDate: null })}
+        loadStats={async () => ({
+          ...fullStats,
+          oldestNoteDate: null,
+          newestNoteDate: null,
+        })}
       />,
     );
     await waitFor(() =>
@@ -77,7 +84,9 @@ describe("VaultStatsPanel", () => {
       />,
     );
     await waitFor(() =>
-      expect(getByText("Could not load workspace statistics: workspace unreadable")).toBeTruthy(),
+      expect(
+        getByText("Could not load workspace statistics: workspace unreadable"),
+      ).toBeTruthy(),
     );
   });
 
@@ -90,9 +99,14 @@ describe("VaultStatsPanel", () => {
     const second = new Promise<WorkspaceStats>((r) => {
       resolveSecond = r;
     });
-    const loadStats = vi.fn().mockReturnValueOnce(first).mockReturnValueOnce(second);
+    const loadStats = vi
+      .fn()
+      .mockReturnValueOnce(first)
+      .mockReturnValueOnce(second);
 
-    const { getByText, rerender } = render(<VaultStatsPanel rootPath="/vault-a" loadStats={loadStats} />);
+    const { getByText, rerender } = render(
+      <VaultStatsPanel rootPath="/vault-a" loadStats={loadStats} />,
+    );
     rerender(<VaultStatsPanel rootPath="/vault-b" loadStats={loadStats} />);
 
     await act(async () => {

@@ -18,7 +18,8 @@ async function responseToDataUrl(response: Response): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(reader.error ?? new Error("Could not read image data"));
+    reader.onerror = () =>
+      reject(reader.error ?? new Error("Could not read image data"));
     reader.readAsDataURL(blob);
   });
 }
@@ -42,7 +43,10 @@ export interface InlineLocalImagesDeps {
  * won't display when the exported file is opened standalone, the same
  * way a broken image behaves anywhere else.
  */
-export async function inlineLocalImages(html: string, deps: InlineLocalImagesDeps = {}): Promise<string> {
+export async function inlineLocalImages(
+  html: string,
+  deps: InlineLocalImagesDeps = {},
+): Promise<string> {
   const { fetchImpl = fetch, parser = new DOMParser() } = deps;
 
   // Parse the fragment ONLY to enumerate which `<img src>` values exist and
@@ -74,7 +78,10 @@ export async function inlineLocalImages(html: string, deps: InlineLocalImagesDep
     new Set(
       Array.from(parsed.querySelectorAll("img"))
         .map((img) => img.getAttribute("src"))
-        .filter((src): src is string => !!src && !src.startsWith("data:") && isAllowedSrc(src)),
+        .filter(
+          (src): src is string =>
+            !!src && !src.startsWith("data:") && isAllowedSrc(src),
+        ),
     ),
   );
 
@@ -142,7 +149,9 @@ export async function inlineLocalImages(html: string, deps: InlineLocalImagesDep
     // earlier inside another attribute's value, which is exactly the
     // class of bug `String.prototype.replace`'s from-position-0 search
     // would suffer.
-    const valueOffset = (srcMatch.index as number) + (srcMatch[0].length - valueWithQuotes.length);
+    const valueOffset =
+      (srcMatch.index as number) +
+      (srcMatch[0].length - valueWithQuotes.length);
     return (
       tag.slice(0, valueOffset) +
       `${quote}${replacement}${quote}` +

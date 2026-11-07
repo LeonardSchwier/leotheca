@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { normalizeHeadingKey, scanHeadings, stripInlineMarkdownFormatting } from "./headings";
+import {
+  normalizeHeadingKey,
+  scanHeadings,
+  stripInlineMarkdownFormatting,
+} from "./headings";
 
 describe("scanHeadings", () => {
   it("returns an empty array for a note with no headings", () => {
@@ -7,7 +11,8 @@ describe("scanHeadings", () => {
   });
 
   it("recognizes ATX headings of every level in source order", () => {
-    const source = "# One\n## Two\n### Three\n#### Four\n##### Five\n###### Six\n";
+    const source =
+      "# One\n## Two\n### Three\n#### Four\n##### Five\n###### Six\n";
     const headings = scanHeadings(source);
     expect(headings.map((h) => [h.level, h.displayText])).toEqual([
       [1, "One"],
@@ -23,8 +28,12 @@ describe("scanHeadings", () => {
   it("reports the exact source line for each ATX heading", () => {
     const source = "Intro\n\n## Section\n\nBody.";
     const [heading] = scanHeadings(source);
-    expect(source.slice(heading.sourceFrom, heading.sourceTo)).toBe("## Section");
-    expect(source.slice(heading.contentFrom, heading.contentTo)).toBe("Section");
+    expect(source.slice(heading.sourceFrom, heading.sourceTo)).toBe(
+      "## Section",
+    );
+    expect(source.slice(heading.contentFrom, heading.contentTo)).toBe(
+      "Section",
+    );
   });
 
   it("does not treat a hash run with no following space as a heading", () => {
@@ -55,8 +64,12 @@ describe("scanHeadings", () => {
       [1, "Title"],
       [2, "Subtitle"],
     ]);
-    expect(source.slice(headings[0].sourceFrom, headings[0].sourceTo)).toBe("Title\n=====");
-    expect(source.slice(headings[0].contentFrom, headings[0].contentTo)).toBe("Title");
+    expect(source.slice(headings[0].sourceFrom, headings[0].sourceTo)).toBe(
+      "Title\n=====",
+    );
+    expect(source.slice(headings[0].contentFrom, headings[0].contentTo)).toBe(
+      "Title",
+    );
   });
 
   it("does not reinterpret an ATX heading's own line as setext text for a following underline-like line", () => {
@@ -85,7 +98,10 @@ describe("scanHeadings", () => {
     expect(constraints.parentIndex).toBe(headings.indexOf(product));
     expect(delivery.parentIndex).toBe(headings.indexOf(product));
     expect(android.parentIndex).toBe(headings.indexOf(delivery));
-    expect(product.childIndexes).toEqual([headings.indexOf(constraints), headings.indexOf(delivery)]);
+    expect(product.childIndexes).toEqual([
+      headings.indexOf(constraints),
+      headings.indexOf(delivery),
+    ]);
     expect(delivery.childIndexes).toEqual([headings.indexOf(android)]);
     expect(constraints.childIndexes).toEqual([]);
   });
@@ -94,9 +110,15 @@ describe("scanHeadings", () => {
     const source = "# A\ntext a\n## B\ntext b\n### C\ntext c\n# D\ntext d";
     const headings = scanHeadings(source);
     const [a, b, c, d] = headings;
-    expect(source.slice(a.sectionFrom, a.sectionTo)).toBe(source.slice(a.sourceFrom, source.indexOf("# D")));
-    expect(source.slice(b.sectionFrom, b.sectionTo)).toBe(source.slice(b.sourceFrom, source.indexOf("# D")));
-    expect(source.slice(c.sectionFrom, c.sectionTo)).toBe(source.slice(c.sourceFrom, source.indexOf("# D")));
+    expect(source.slice(a.sectionFrom, a.sectionTo)).toBe(
+      source.slice(a.sourceFrom, source.indexOf("# D")),
+    );
+    expect(source.slice(b.sectionFrom, b.sectionTo)).toBe(
+      source.slice(b.sourceFrom, source.indexOf("# D")),
+    );
+    expect(source.slice(c.sectionFrom, c.sectionTo)).toBe(
+      source.slice(c.sourceFrom, source.indexOf("# D")),
+    );
     expect(d.sectionTo).toBe(source.length);
   });
 
@@ -115,7 +137,9 @@ describe("scanHeadings", () => {
   });
 
   it("unescapes backslash-escaped Markdown punctuation", () => {
-    expect(scanHeadings("# Escaped \\# hash")[0].displayText).toBe("Escaped # hash");
+    expect(scanHeadings("# Escaped \\# hash")[0].displayText).toBe(
+      "Escaped # hash",
+    );
   });
 
   it("decodes common HTML entities", () => {
@@ -124,26 +148,39 @@ describe("scanHeadings", () => {
   });
 
   it("resolves wikilinks in heading text to their label or target", () => {
-    expect(scanHeadings("# See [[Other Note|Alias]]")[0].displayText).toBe("See Alias");
-    expect(scanHeadings("# See [[Other Note]]")[0].displayText).toBe("See Other Note");
+    expect(scanHeadings("# See [[Other Note|Alias]]")[0].displayText).toBe(
+      "See Alias",
+    );
+    expect(scanHeadings("# See [[Other Note]]")[0].displayText).toBe(
+      "See Other Note",
+    );
   });
 
   it("resolves a Markdown link in heading text to its link text", () => {
-    expect(scanHeadings("# See [the docs](https://example.com)")[0].displayText).toBe("See the docs");
+    expect(
+      scanHeadings("# See [the docs](https://example.com)")[0].displayText,
+    ).toBe("See the docs");
   });
 
   it("preserves unicode text, including surrogate-pair emoji, in heading text", () => {
-    expect(scanHeadings("# Emoji \u{1F600} heading")[0].displayText).toBe("Emoji \u{1F600} heading");
+    expect(scanHeadings("# Emoji \u{1F600} heading")[0].displayText).toBe(
+      "Emoji \u{1F600} heading",
+    );
   });
 
   it("collapses internal whitespace runs in display text", () => {
-    expect(scanHeadings("#    Extra   spaces   here")[0].displayText).toBe("Extra spaces here");
+    expect(scanHeadings("#    Extra   spaces   here")[0].displayText).toBe(
+      "Extra spaces here",
+    );
   });
 
   it("ignores heading-like lines inside a fenced code block", () => {
     const source = "# Real heading\n```\n# Not a heading\n```\n## Also real\n";
     const headings = scanHeadings(source);
-    expect(headings.map((h) => h.displayText)).toEqual(["Real heading", "Also real"]);
+    expect(headings.map((h) => h.displayText)).toEqual([
+      "Real heading",
+      "Also real",
+    ]);
   });
 
   it("ignores heading-like lines inside a tilde-fenced code block", () => {
@@ -158,12 +195,19 @@ describe("scanHeadings", () => {
 
   it("ignores heading-like lines inside a single-line HTML comment", () => {
     const source = "# Real\n<!-- # Not a heading -->\n## Also real\n";
-    expect(scanHeadings(source).map((h) => h.displayText)).toEqual(["Real", "Also real"]);
+    expect(scanHeadings(source).map((h) => h.displayText)).toEqual([
+      "Real",
+      "Also real",
+    ]);
   });
 
   it("ignores heading-like lines inside a multi-line HTML comment", () => {
-    const source = "# Real\n<!--\n# Not a heading\n## Also not\n-->\n### Still real\n";
-    expect(scanHeadings(source).map((h) => h.displayText)).toEqual(["Real", "Still real"]);
+    const source =
+      "# Real\n<!--\n# Not a heading\n## Also not\n-->\n### Still real\n";
+    expect(scanHeadings(source).map((h) => h.displayText)).toEqual([
+      "Real",
+      "Still real",
+    ]);
   });
 
   it("still recognizes a heading with a trailing inline HTML comment", () => {
@@ -177,9 +221,13 @@ describe("scanHeadings", () => {
     const crlf = lf.replace(/\n/g, "\r\n");
     const lfHeadings = scanHeadings(lf);
     const crlfHeadings = scanHeadings(crlf);
-    expect(crlfHeadings.map((h) => h.displayText)).toEqual(lfHeadings.map((h) => h.displayText));
+    expect(crlfHeadings.map((h) => h.displayText)).toEqual(
+      lfHeadings.map((h) => h.displayText),
+    );
     for (const heading of crlfHeadings) {
-      expect(crlf.slice(heading.sourceFrom, heading.sourceTo).replace(/\r\n/g, "\n")).toBe(
+      expect(
+        crlf.slice(heading.sourceFrom, heading.sourceTo).replace(/\r\n/g, "\n"),
+      ).toBe(
         lf.slice(
           lfHeadings[crlfHeadings.indexOf(heading)].sourceFrom,
           lfHeadings[crlfHeadings.indexOf(heading)].sourceTo,
@@ -203,7 +251,9 @@ describe("scanHeadings", () => {
 describe("normalizeHeadingKey", () => {
   it("case-folds and collapses whitespace", () => {
     expect(normalizeHeadingKey("  Design   System  ")).toBe("design system");
-    expect(normalizeHeadingKey("DESIGN SYSTEM")).toBe(normalizeHeadingKey("design system"));
+    expect(normalizeHeadingKey("DESIGN SYSTEM")).toBe(
+      normalizeHeadingKey("design system"),
+    );
   });
 
   it("retains punctuation and diacritics", () => {
@@ -213,11 +263,15 @@ describe("normalizeHeadingKey", () => {
 
 describe("stripInlineMarkdownFormatting", () => {
   it("removes inline code span backticks but keeps their content", () => {
-    expect(stripInlineMarkdownFormatting("Use `npm install` here")).toBe("Use npm install here");
+    expect(stripInlineMarkdownFormatting("Use `npm install` here")).toBe(
+      "Use npm install here",
+    );
   });
 
   it("removes image markup, keeping only the alt text", () => {
-    expect(stripInlineMarkdownFormatting("![alt text](image.png)")).toBe("alt text");
+    expect(stripInlineMarkdownFormatting("![alt text](image.png)")).toBe(
+      "alt text",
+    );
   });
 
   it("removes strikethrough markup", () => {

@@ -9,7 +9,8 @@ const request = (name: string) => ({
   height: 600,
 });
 
-const positions = (name: string) => new Map<string, Point>([[name, { x: 1, y: 1 }]]);
+const positions = (name: string) =>
+  new Map<string, Point>([[name, { x: 1, y: 1 }]]);
 
 describe("graph layout request coordinator", () => {
   it("coalesces same-turn requests so only the newest graph computes and publishes", async () => {
@@ -17,8 +18,12 @@ describe("graph layout request coordinator", () => {
     const coordinator = createGraphLayoutCoordinator(compute);
     const published: string[] = [];
 
-    coordinator.request(request("old"), (result) => published.push([...result.keys()][0]));
-    coordinator.request(request("new"), (result) => published.push([...result.keys()][0]));
+    coordinator.request(request("old"), (result) =>
+      published.push([...result.keys()][0]),
+    );
+    coordinator.request(request("new"), (result) =>
+      published.push([...result.keys()][0]),
+    );
     await Promise.resolve();
 
     expect(compute).toHaveBeenCalledTimes(1);
@@ -30,13 +35,17 @@ describe("graph layout request coordinator", () => {
     const published: string[] = [];
     const compute = vi.fn((nodes: string[]) => {
       if (nodes[0] === "old") {
-        coordinator.request(request("new"), (result) => published.push([...result.keys()][0]));
+        coordinator.request(request("new"), (result) =>
+          published.push([...result.keys()][0]),
+        );
       }
       return positions(nodes[0]);
     });
     const coordinator = createGraphLayoutCoordinator(compute);
 
-    coordinator.request(request("old"), (result) => published.push([...result.keys()][0]));
+    coordinator.request(request("old"), (result) =>
+      published.push([...result.keys()][0]),
+    );
     await Promise.resolve();
     await Promise.resolve();
 

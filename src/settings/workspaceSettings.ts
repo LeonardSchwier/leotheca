@@ -16,13 +16,21 @@ import type { EditorLayoutState, ViewMode } from "../workspace/types";
 
 export type { ViewMode };
 export type SortOrder = "name-asc" | "name-desc" | "modified-desc";
-const SORT_ORDERS: readonly SortOrder[] = ["name-asc", "name-desc", "modified-desc"];
+const SORT_ORDERS: readonly SortOrder[] = [
+  "name-asc",
+  "name-desc",
+  "modified-desc",
+];
 /** How sidebar search results are ordered. "relevance" sorts by match
  * quality (name matches score higher than content-only matches, ties
  * broken by recency); "name" and "modified" reuse the workspace's
  * existing sortOrder conventions for a predictable, non-scored order. */
 export type SearchSortMode = "relevance" | "name" | "modified";
-const SEARCH_SORT_MODES: readonly SearchSortMode[] = ["relevance", "name", "modified"];
+const SEARCH_SORT_MODES: readonly SearchSortMode[] = [
+  "relevance",
+  "name",
+  "modified",
+];
 const VIEW_MODES: readonly ViewMode[] = ["source", "split", "preview"];
 /** "project-trash" moves a deleted entry into `<workspace>/.trash` (the
  * only behavior before this setting existed); "permanent" deletes it
@@ -351,42 +359,66 @@ export function isValidEditorLayoutState(
   value: unknown,
   _workspaceRoot: string,
 ): value is EditorLayoutState {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
+  if (typeof value !== "object" || value === null || Array.isArray(value))
+    return false;
   const layout = value as Record<string, unknown>;
-  
+
   // Check required fields per spec 9.1 interface - these must be present and valid
   if (typeof layout.splitEnabled !== "boolean") return false;
-  if (typeof layout.preferredRatio !== "number" || !Number.isFinite(layout.preferredRatio)) return false;
+  if (
+    typeof layout.preferredRatio !== "number" ||
+    !Number.isFinite(layout.preferredRatio)
+  )
+    return false;
   // Spec 6.6: ratio clamped to [0.30, 0.70] for persistence; runtime may temporarily clamp tighter
-  if (layout.preferredRatio < 0.30 || layout.preferredRatio > 0.70) return false;
-  if (layout.activeGroupId !== "primary" && layout.activeGroupId !== "secondary") return false;
-  if (layout.compactVisibleGroupId !== "primary" && layout.compactVisibleGroupId !== "secondary") return false;
-  
+  if (layout.preferredRatio < 0.3 || layout.preferredRatio > 0.7) return false;
+  if (
+    layout.activeGroupId !== "primary" &&
+    layout.activeGroupId !== "secondary"
+  )
+    return false;
+  if (
+    layout.compactVisibleGroupId !== "primary" &&
+    layout.compactVisibleGroupId !== "secondary"
+  )
+    return false;
+
   // Check groups structure
   if (typeof layout.groups !== "object" || layout.groups === null) return false;
   const groups = layout.groups as Record<string, unknown>;
-  
+
   // Invariant: primary always exists
   if (!groups.primary || typeof groups.primary !== "object") return false;
   const primary = groups.primary as Record<string, unknown>;
   if (primary.id !== "primary") return false;
-  
+
   // Check primary group structure
   if (!Array.isArray(primary.tabPaths)) return false;
   if (!Array.isArray(primary.pinnedPaths)) return false;
-  if (primary.activePath !== undefined && primary.activePath !== null && typeof primary.activePath !== "string") return false;
+  if (
+    primary.activePath !== undefined &&
+    primary.activePath !== null &&
+    typeof primary.activePath !== "string"
+  )
+    return false;
   // Spec 5.4: viewMode is required on new layouts, but a v2 editorLayout
   // written before this field existed has no viewMode at all. Treating that
   // as invalid would fall through neither the valid-v2 nor legacy-migration
   // branch in decodeWorkspaceSettings, flag a perfectly good file as
   // corrupt, and silently discard the user's real open/pinned tabs. Missing
   // stays accepted; only a present-and-wrong value is rejected.
-  if (primary.viewMode !== undefined && primary.viewMode !== "source" && primary.viewMode !== "split" && primary.viewMode !== "preview") return false;
-  
+  if (
+    primary.viewMode !== undefined &&
+    primary.viewMode !== "source" &&
+    primary.viewMode !== "split" &&
+    primary.viewMode !== "preview"
+  )
+    return false;
+
   // Invariant: all paths are normalized contained workspace-relative strings
   const allPaths: string[] = [];
   const primaryTabPaths = primary.tabPaths as string[];
-  
+
   // Validate all paths in primary
   for (const path of primaryTabPaths) {
     if (typeof path !== "string") return false;
@@ -397,10 +429,11 @@ export function isValidEditorLayoutState(
     // Reject empty paths (they should not appear in tab arrays)
     if (path === "") return false;
     // For absolute paths, check they are within workspace; for relative paths, accept as-is
-    if (path.startsWith("/") && !isPathWithinWorkspace(_workspaceRoot, path)) return false;
+    if (path.startsWith("/") && !isPathWithinWorkspace(_workspaceRoot, path))
+      return false;
     allPaths.push(path);
   }
-  
+
   // Check optional secondary group
   if (groups.secondary !== undefined) {
     const secondary = groups.secondary as Record<string, unknown>;
@@ -408,12 +441,23 @@ export function isValidEditorLayoutState(
     if (secondary.id !== "secondary") return false;
     if (!Array.isArray(secondary.tabPaths)) return false;
     if (!Array.isArray(secondary.pinnedPaths)) return false;
-    if (secondary.activePath !== undefined && secondary.activePath !== null && typeof secondary.activePath !== "string") return false;
+    if (
+      secondary.activePath !== undefined &&
+      secondary.activePath !== null &&
+      typeof secondary.activePath !== "string"
+    )
+      return false;
     // Spec 5.4: viewMode is required on new layouts; see the primary-group
     // comment above for why a pre-existing v2 file without it must still
     // validate rather than be treated as corrupt.
-    if (secondary.viewMode !== undefined && secondary.viewMode !== "source" && secondary.viewMode !== "split" && secondary.viewMode !== "preview") return false;
-    
+    if (
+      secondary.viewMode !== undefined &&
+      secondary.viewMode !== "source" &&
+      secondary.viewMode !== "split" &&
+      secondary.viewMode !== "preview"
+    )
+      return false;
+
     const secondaryTabPaths = secondary.tabPaths as string[];
     // Validate all paths in secondary
     for (const path of secondaryTabPaths) {
@@ -425,18 +469,19 @@ export function isValidEditorLayoutState(
       // Reject empty paths (they should not appear in tab arrays)
       if (path === "") return false;
       // For absolute paths, check they are within workspace; for relative paths, accept as-is
-      if (path.startsWith("/") && !isPathWithinWorkspace(_workspaceRoot, path)) return false;
+      if (path.startsWith("/") && !isPathWithinWorkspace(_workspaceRoot, path))
+        return false;
       allPaths.push(path);
     }
   }
-  
+
   // Invariant: path occurs in at most one tabPaths array (uniqueness)
   const seenPaths = new Set<string>();
   for (const path of allPaths) {
     if (seenPaths.has(path)) return false;
     seenPaths.add(path);
   }
-  
+
   // Invariant: every pinned path occurs in its group's tabPaths
   const primaryPinnedPaths = primary.pinnedPaths as unknown[];
   if (!Array.isArray(primaryPinnedPaths)) return false;
@@ -444,12 +489,21 @@ export function isValidEditorLayoutState(
   for (const pinnedPath of primaryPinnedPaths) {
     if (typeof pinnedPath !== "string") return false;
     // Pinned paths must also be valid paths (no null bytes, traversal, etc.)
-    if (pinnedPath.includes("\u0000") || pinnedPath.includes("..") || pinnedPath.includes("\\")) return false;
+    if (
+      pinnedPath.includes("\u0000") ||
+      pinnedPath.includes("..") ||
+      pinnedPath.includes("\\")
+    )
+      return false;
     // For absolute paths, check they are within workspace
-    if (pinnedPath.startsWith("/") && !isPathWithinWorkspace(_workspaceRoot, pinnedPath)) return false;
+    if (
+      pinnedPath.startsWith("/") &&
+      !isPathWithinWorkspace(_workspaceRoot, pinnedPath)
+    )
+      return false;
     if (!primaryTabSet.has(pinnedPath)) return false;
   }
-  
+
   if (groups.secondary !== undefined) {
     const secondary = groups.secondary as Record<string, unknown>;
     const secondaryPinnedPaths = secondary.pinnedPaths as unknown[];
@@ -459,29 +513,40 @@ export function isValidEditorLayoutState(
     for (const pinnedPath of secondaryPinnedPaths) {
       if (typeof pinnedPath !== "string") return false;
       // Pinned paths must also be valid paths (no null bytes, traversal, etc.)
-      if (pinnedPath.includes("\u0000") || pinnedPath.includes("..") || pinnedPath.includes("\\")) return false;
+      if (
+        pinnedPath.includes("\u0000") ||
+        pinnedPath.includes("..") ||
+        pinnedPath.includes("\\")
+      )
+        return false;
       // For absolute paths, check they are within workspace
-      if (pinnedPath.startsWith("/") && !isPathWithinWorkspace(_workspaceRoot, pinnedPath)) return false;
+      if (
+        pinnedPath.startsWith("/") &&
+        !isPathWithinWorkspace(_workspaceRoot, pinnedPath)
+      )
+        return false;
       if (!secondaryTabSet.has(pinnedPath)) return false;
     }
   }
-  
+
   // Invariant: active path is absent only when the group has no tabs; active path belongs to its group
   if (primaryTabPaths.length === 0) {
-    if (primary.activePath !== undefined && primary.activePath !== null) return false;
+    if (primary.activePath !== undefined && primary.activePath !== null)
+      return false;
   } else {
     if (primary.activePath !== undefined && primary.activePath !== null) {
       if (typeof primary.activePath !== "string") return false;
       if (!primaryTabSet.has(primary.activePath)) return false;
     }
   }
-  
+
   if (groups.secondary !== undefined) {
     const secondary = groups.secondary as Record<string, unknown>;
     const secondaryTabPaths = secondary.tabPaths as string[];
     const secondaryTabSet = new Set(secondaryTabPaths);
     if (secondaryTabPaths.length === 0) {
-      if (secondary.activePath !== undefined && secondary.activePath !== null) return false;
+      if (secondary.activePath !== undefined && secondary.activePath !== null)
+        return false;
     } else {
       if (secondary.activePath !== undefined && secondary.activePath !== null) {
         if (typeof secondary.activePath !== "string") return false;
@@ -489,13 +554,18 @@ export function isValidEditorLayoutState(
       }
     }
   }
-  
+
   // Invariant: activeGroupId must reference an existing group
-  if (layout.activeGroupId === "secondary" && groups.secondary === undefined) return false;
-  
+  if (layout.activeGroupId === "secondary" && groups.secondary === undefined)
+    return false;
+
   // Invariant: compactVisibleGroupId must reference an existing group (though secondary can exist but be hidden)
-  if (layout.compactVisibleGroupId === "secondary" && groups.secondary === undefined) return false;
-  
+  if (
+    layout.compactVisibleGroupId === "secondary" &&
+    groups.secondary === undefined
+  )
+    return false;
+
   return true;
 }
 
@@ -516,12 +586,15 @@ export function migrateLegacyToEditorLayout(
       uniquePaths.push(path);
     }
   }
-  
+
   // Determine active path: use lastActivePath if it's in the unique set, otherwise last path or null
-  const activePath = lastActivePath !== null && seen.has(lastActivePath)
-    ? lastActivePath
-    : (uniquePaths.length > 0 ? uniquePaths[uniquePaths.length - 1] : null);
-  
+  const activePath =
+    lastActivePath !== null && seen.has(lastActivePath)
+      ? lastActivePath
+      : uniquePaths.length > 0
+        ? uniquePaths[uniquePaths.length - 1]
+        : null;
+
   return {
     activeGroupId: "primary",
     splitEnabled: false,
@@ -541,8 +614,10 @@ export function migrateLegacyToEditorLayout(
 
 // F07 Phase 2b: Check if this is a v1 workspace (no editorLayout field).
 export function isLegacyWorkspace(record: Record<string, unknown>): boolean {
-  return record.editorLayout === undefined &&
-         (Array.isArray(record.lastOpenPaths) || record.lastActivePath !== undefined);
+  return (
+    record.editorLayout === undefined &&
+    (Array.isArray(record.lastOpenPaths) || record.lastActivePath !== undefined)
+  );
 }
 
 /** `isValidEditorLayoutState` deliberately accepts a primary/secondary group
@@ -561,7 +636,8 @@ export function isLegacyWorkspace(record: Record<string, unknown>): boolean {
 function withDefaultedViewModes(layout: EditorLayoutState): EditorLayoutState {
   const primaryNeedsDefault = layout.groups.primary.viewMode === undefined;
   const secondaryNeedsDefault =
-    layout.groups.secondary !== undefined && layout.groups.secondary.viewMode === undefined;
+    layout.groups.secondary !== undefined &&
+    layout.groups.secondary.viewMode === undefined;
   if (!primaryNeedsDefault && !secondaryNeedsDefault) return layout;
   return {
     ...layout,
@@ -762,13 +838,15 @@ export function decodeWorkspaceSettings(
     DEFAULT_WORKSPACE_SETTINGS.spellcheckEnabled,
   );
 
-
   // F07 Phase 2b: decode editorLayout with legacy migration
   // Priority: 1) valid v2 editorLayout, 2) migrate from v1 legacy, 3) default
   const editorLayoutRaw = record.editorLayout;
   let editorLayout: EditorLayoutState | undefined;
-  
-  if (editorLayoutRaw !== undefined && isValidEditorLayoutState(editorLayoutRaw, workspaceRoot)) {
+
+  if (
+    editorLayoutRaw !== undefined &&
+    isValidEditorLayoutState(editorLayoutRaw, workspaceRoot)
+  ) {
     // Valid v2 layout. See withDefaultedViewModes's own comment: a real v2
     // file written before `viewMode` existed validates here with that field
     // missing, so it must be defaulted before this value is trusted as a
@@ -788,16 +866,26 @@ export function decodeWorkspaceSettings(
     editorLayout = DEFAULT_WORKSPACE_SETTINGS.editorLayout;
   }
 
-// Only versions 1 and 2 are supported. An unrecognized version is flagged as
+  // Only versions 1 and 2 are supported. An unrecognized version is flagged as
   // corrupt (so it is never silently persisted back over) but its actual
   // value in `record` is left untouched by the spread below, rather than
   // forced to current, so a genuinely newer file's version marker survives a
   // round trip through an older app build instead of being downgraded.
-  const versionCorrupt = record.version !== undefined && record.version !== 1 && record.version !== 2;
+  const versionCorrupt =
+    record.version !== undefined &&
+    record.version !== 1 &&
+    record.version !== 2;
 
   // F07 Phase 2b: Bump version to 2 when migrating from v1 legacy format
-  const isMigrated = editorLayoutRaw === undefined && isLegacyWorkspace(record) && editorLayout !== undefined;
-  const versionValue = isMigrated ? 2 : (record.version === undefined ? 1 : record.version);
+  const isMigrated =
+    editorLayoutRaw === undefined &&
+    isLegacyWorkspace(record) &&
+    editorLayout !== undefined;
+  const versionValue = isMigrated
+    ? 2
+    : record.version === undefined
+      ? 1
+      : record.version;
 
   const settings = {
     ...record,
@@ -840,7 +928,8 @@ export function decodeWorkspaceSettings(
   } as unknown as WorkspaceSettings;
 
   // F07 Phase 2b: Corruption only when editorLayout is invalid AND cannot be migrated from legacy
-  const editorLayoutCorrupt = editorLayoutRaw !== undefined && 
+  const editorLayoutCorrupt =
+    editorLayoutRaw !== undefined &&
     !isValidEditorLayoutState(editorLayoutRaw, workspaceRoot) &&
     !isLegacyWorkspace(record);
 

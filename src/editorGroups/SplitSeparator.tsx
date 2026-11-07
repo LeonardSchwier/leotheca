@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef } from "preact/hooks";
 
 const STEP = 0.02;
-const BIG_STEP = 0.10;
-const MIN_RATIO = 0.30;
-const MAX_RATIO = 0.70;
+const BIG_STEP = 0.1;
+const MIN_RATIO = 0.3;
+const MAX_RATIO = 0.7;
 
 interface SplitSeparatorProps {
   /** The primary group's share of the split shell's width, 0.30-0.70. */
@@ -20,15 +20,23 @@ interface SplitSeparatorProps {
  * groups (spec 6.6, 18.3). A plain `separator` role with an explicit
  * accessible value, not a slider or scrollbar: it moves the boundary
  * between two panes, not a single bounded value on its own. */
-export function SplitSeparator({ ratio, containerRef, onChange, onReset }: SplitSeparatorProps) {
+export function SplitSeparator({
+  ratio,
+  containerRef,
+  onChange,
+  onReset,
+}: SplitSeparatorProps) {
   const dragging = useRef(false);
 
-  const ratioFromClientX = useCallback((clientX: number) => {
-    const rect = containerRef.current?.getBoundingClientRect();
-    if (!rect || rect.width === 0) return null;
-    const raw = (clientX - rect.left) / rect.width;
-    return Math.max(MIN_RATIO, Math.min(MAX_RATIO, raw));
-  }, [containerRef]);
+  const ratioFromClientX = useCallback(
+    (clientX: number) => {
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (!rect || rect.width === 0) return null;
+      const raw = (clientX - rect.left) / rect.width;
+      return Math.max(MIN_RATIO, Math.min(MAX_RATIO, raw));
+    },
+    [containerRef],
+  );
 
   useEffect(() => {
     function onPointerMove(event: PointerEvent) {
@@ -75,10 +83,14 @@ export function SplitSeparator({ ratio, containerRef, onChange, onReset }: Split
       onDblClick={onReset}
       onKeyDown={(event) => {
         if (event.key === "ArrowLeft") {
-          onChange(Math.max(MIN_RATIO, ratio - (event.shiftKey ? BIG_STEP : STEP)));
+          onChange(
+            Math.max(MIN_RATIO, ratio - (event.shiftKey ? BIG_STEP : STEP)),
+          );
           event.preventDefault();
         } else if (event.key === "ArrowRight") {
-          onChange(Math.min(MAX_RATIO, ratio + (event.shiftKey ? BIG_STEP : STEP)));
+          onChange(
+            Math.min(MAX_RATIO, ratio + (event.shiftKey ? BIG_STEP : STEP)),
+          );
           event.preventDefault();
         } else if (event.key === "Home") {
           onChange(MIN_RATIO);

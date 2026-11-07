@@ -36,7 +36,7 @@ describe("source-preserving frontmatter property edits", () => {
       "---",
       "flag: true",
       "count: 42",
-      '# keep this comment exactly here',
+      "# keep this comment exactly here",
       'title: "Old"',
       'aliases: ["Last, First", Simple]',
       "custom:",
@@ -49,14 +49,19 @@ describe("source-preserving frontmatter property edits", () => {
     ].join("\r\n");
 
     const parsed = parseFrontmatterProperties(source);
-    const title = parsed.properties.find((property) => property.key === "title");
+    const title = parsed.properties.find(
+      (property) => property.key === "title",
+    );
     expect(title?.kind).toBe("scalar");
-    if (!title || title.kind !== "scalar") throw new Error("title should be editable");
+    if (!title || title.kind !== "scalar")
+      throw new Error("title should be editable");
 
     const result = updateFrontmatterProperty(source, title, "New");
     expect(result).toBe(source.replace('title: "Old"', 'title: "New"'));
     expect(result).toContain("flag: true\r\ncount: 42");
-    expect(result).toContain('# keep this comment exactly here\r\ntitle: "New"');
+    expect(result).toContain(
+      '# keep this comment exactly here\r\ntitle: "New"',
+    );
   });
 
   it("shows quoted-comma lists, nested maps, and multiline values as read-only properties", () => {
@@ -72,16 +77,24 @@ describe("source-preserving frontmatter property edits", () => {
       "Body",
     ].join("\n");
     const properties = parseFrontmatterProperties(source).properties;
-    expect(properties.find((property) => property.key === "aliases")?.kind).toBe("readonly");
-    expect(properties.find((property) => property.key === "custom")?.kind).toBe("readonly");
-    expect(properties.find((property) => property.key === "summary")?.kind).toBe("readonly");
+    expect(
+      properties.find((property) => property.key === "aliases")?.kind,
+    ).toBe("readonly");
+    expect(properties.find((property) => property.key === "custom")?.kind).toBe(
+      "readonly",
+    );
+    expect(
+      properties.find((property) => property.key === "summary")?.kind,
+    ).toBe("readonly");
   });
 
   it("preserves plain boolean and numeric scalar style when those selected values are edited", () => {
     const source = "---\nflag: false\ncount: 41\n---\nBody";
     const parsed = parseFrontmatterProperties(source);
     const flag = parsed.properties.find((property) => property.key === "flag");
-    const count = parsed.properties.find((property) => property.key === "count");
+    const count = parsed.properties.find(
+      (property) => property.key === "count",
+    );
     if (!flag || flag.kind !== "scalar" || !count || count.kind !== "scalar") {
       throw new Error("expected editable scalar fields");
     }
@@ -90,7 +103,8 @@ describe("source-preserving frontmatter property edits", () => {
     const reparsedCount = parseFrontmatterProperties(withFlag).properties.find(
       (property) => property.key === "count",
     );
-    if (!reparsedCount || reparsedCount.kind !== "scalar") throw new Error("count missing");
+    if (!reparsedCount || reparsedCount.kind !== "scalar")
+      throw new Error("count missing");
     expect(updateFrontmatterProperty(withFlag, reparsedCount, "42")).toBe(
       "---\nflag: true\ncount: 42\n---\nBody",
     );
@@ -101,11 +115,20 @@ describe("source-preserving frontmatter property edits", () => {
     const properties = parseFrontmatterProperties(source).properties;
     const double = properties.find((property) => property.key === "double");
     const single = properties.find((property) => property.key === "single");
-    if (!double || double.kind !== "scalar" || !single || single.kind !== "scalar") {
+    if (
+      !double ||
+      double.kind !== "scalar" ||
+      !single ||
+      single.kind !== "scalar"
+    ) {
       throw new Error("expected editable scalars");
     }
-    expect(updateFrontmatterProperty(source, double, "New")).toContain('double: "New"');
-    expect(updateFrontmatterProperty(source, single, "New")).toContain("single: 'New'");
+    expect(updateFrontmatterProperty(source, double, "New")).toContain(
+      'double: "New"',
+    );
+    expect(updateFrontmatterProperty(source, single, "New")).toContain(
+      "single: 'New'",
+    );
   });
 
   it("inserts a separating space when filling in a bare empty scalar (`key:` with nothing after)", () => {
@@ -116,7 +139,8 @@ describe("source-preserving frontmatter property edits", () => {
     const description = parseFrontmatterProperties(source).properties.find(
       (property) => property.key === "description",
     );
-    if (!description || description.kind !== "scalar") throw new Error("expected editable scalar");
+    if (!description || description.kind !== "scalar")
+      throw new Error("expected editable scalar");
     expect(updateFrontmatterProperty(source, description, "Hello world")).toBe(
       "---\ndescription: Hello world\ntitle: My Note\n---\nBody text.",
     );
@@ -130,14 +154,16 @@ describe("source-preserving frontmatter property edits", () => {
     const description = parseFrontmatterProperties(source).properties.find(
       (property) => property.key === "description",
     );
-    if (!description || description.kind !== "scalar") throw new Error("expected editable scalar");
+    if (!description || description.kind !== "scalar")
+      throw new Error("expected editable scalar");
     expect(updateFrontmatterProperty(source, description, "Hello world")).toBe(
       "---\ndescription: Hello world\ntitle: My Note\n---\nBody text.",
     );
   });
 
   it("removes only the selected field without moving neighboring raw content", () => {
-    const source = "---\n# before\ntitle: Old\ncustom:\n  nested: value\n---\nBody";
+    const source =
+      "---\n# before\ntitle: Old\ncustom:\n  nested: value\n---\nBody";
     const title = parseFrontmatterProperties(source).properties.find(
       (property) => property.key === "title",
     );

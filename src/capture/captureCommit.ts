@@ -3,7 +3,15 @@
  * Handles appending to inbox note and creating new notes with proper formatting
  */
 
-import { readTextFile, writeTextFile, listDir, createWorkspaceTextFileNew, writeWorkspaceBinaryFile, readBinaryFile, deleteWorkspacePathPermanent } from "../workspace/tauriBridge";
+import {
+  readTextFile,
+  writeTextFile,
+  listDir,
+  createWorkspaceTextFileNew,
+  writeWorkspaceBinaryFile,
+  readBinaryFile,
+  deleteWorkspacePathPermanent,
+} from "../workspace/tauriBridge";
 import { resolvePathWithinWorkspace } from "../workspace/paths";
 import { PendingAttachment } from "./pendingCaptures";
 import { rebuildLinkIndex } from "../linking/store";
@@ -19,10 +27,14 @@ function validatePathNotInLeotheca(path: string, workspaceRoot: string): void {
   const relativePath = path.startsWith(workspaceRoot)
     ? path.slice(workspaceRoot.length)
     : path;
-  
-  if (relativePath.startsWith(PROHIBITED_PATH_PREFIX) || 
-      relativePath.includes("/" + PROHIBITED_PATH_PREFIX)) {
-    throw new Error(`Capture destination cannot be under .leotheca/ directory: ${path}`);
+
+  if (
+    relativePath.startsWith(PROHIBITED_PATH_PREFIX) ||
+    relativePath.includes("/" + PROHIBITED_PATH_PREFIX)
+  ) {
+    throw new Error(
+      `Capture destination cannot be under .leotheca/ directory: ${path}`,
+    );
   }
 }
 
@@ -45,21 +57,32 @@ export interface CaptureAppendOptions {
  * Preserves existing line ending conventions (LF or CRLF).
  * Adds proper spacing between existing content and new content.
  */
-export async function appendToInboxNote(options: CaptureAppendOptions): Promise<{ path: string; name: string }> {
-  const { inboxNotePath, content, title, sourceUrl, workspaceRoot, attachments = [], attachmentsFolder, verbatim = false } = options;
-  
+export async function appendToInboxNote(
+  options: CaptureAppendOptions,
+): Promise<{ path: string; name: string }> {
+  const {
+    inboxNotePath,
+    content,
+    title,
+    sourceUrl,
+    workspaceRoot,
+    attachments = [],
+    attachmentsFolder,
+    verbatim = false,
+  } = options;
+
   // F05-FR-07: Validate destination path is not under .leotheca/
   if (workspaceRoot) {
     validatePathNotInLeotheca(inboxNotePath, workspaceRoot);
   }
-  
+
   // F05-FR-15/F05-FR-16/F05-FR-17: Handle attachments with proper paths and fingerprinting
   const attachmentPaths = await copyAttachmentsToWorkspace(
-    attachments, 
+    attachments,
     workspaceRoot || inboxNotePath.split("/").slice(0, -1).join("/"),
-    attachmentsFolder
+    attachmentsFolder,
   );
-  
+
   // F05-FR-19: For closed target note, re-read and conflict-check before append.
   // Only a failed *read* means the file genuinely doesn't exist yet and should
   // fall back to create-fresh-file. Detection is kept strictly separate from
@@ -84,7 +107,8 @@ export async function appendToInboxNote(options: CaptureAppendOptions): Promise<
     const lineEnding = hasCRLF ? "\r\n" : hasLF ? "\n" : "\n";
 
     // Append with proper spacing
-    const separator = existingContent.trim() === "" ? "" : lineEnding + lineEnding;
+    const separator =
+      existingContent.trim() === "" ? "" : lineEnding + lineEnding;
     newContent = existingContent + separator + formattedContent;
   } else {
     newContent = formattedContent;
@@ -102,7 +126,10 @@ export async function appendToInboxNote(options: CaptureAppendOptions): Promise<
         rebuildLinkIndex(workspaceRoot).catch(console.warn);
       }, 50);
     } catch (refreshError) {
-      console.warn("F05-FR-22: Failed to refresh workspace metadata:", refreshError);
+      console.warn(
+        "F05-FR-22: Failed to refresh workspace metadata:",
+        refreshError,
+      );
       // Non-fatal: the file watcher will eventually pick up the change
     }
   }
@@ -129,12 +156,12 @@ function generateAttachmentFilename(safeName: string): string {
   const pad = (n: number) => n.toString().padStart(2, "0");
   const date = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}-${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`;
   const randomId = Math.random().toString(36).substring(2, 8);
-  
+
   // Extract extension if present
   const lastDot = safeName.lastIndexOf(".");
   const baseName = lastDot > 0 ? safeName.substring(0, lastDot) : safeName;
   const extension = lastDot > 0 ? safeName.substring(lastDot) : ".jpg";
-  
+
   return `capture-${date}-${randomId}-${baseName}${extension}`;
 }
 
@@ -145,40 +172,48 @@ function generateAttachmentFilename(safeName: string): string {
  * F05-FR-17: Fingerprint-based retry reuse
  */
 async function copyAttachmentsToWorkspace(
-  attachments: PendingAttachment[], 
+  attachments: PendingAttachment[],
   workspaceRoot: string,
-  attachmentsFolder?: string
+  attachmentsFolder?: string,
 ): Promise<string[]> {
   const attachmentPaths: string[] = [];
-  
+
   // F05: Use workspace's attachment folder setting if available, otherwise use workspace root
-  const attachmentFolder = attachmentsFolder 
-    ? resolvePathWithinWorkspace(workspaceRoot, workspaceRoot, attachmentsFolder) || workspaceRoot
+  const attachmentFolder = attachmentsFolder
+    ? resolvePathWithinWorkspace(
+        workspaceRoot,
+        workspaceRoot,
+        attachmentsFolder,
+      ) || workspaceRoot
     : workspaceRoot;
-  
+
   for (const attachment of attachments) {
     try {
       // Generate unique filename
       const uniqueFilename = generateAttachmentFilename(attachment.fileName);
       const destinationPath = `${attachmentFolder}/${uniqueFilename}`;
-      
+
       // F05-FR-17: Check for existing file with same fingerprint before copying
       // This allows reusing already-copied attachments on retry
       let finalPath = destinationPath;
-      
+
       try {
-        const sourceFingerprint = await generateFingerprintForFile(attachment.filePath);
+        const sourceFingerprint = await generateFingerprintForFile(
+          attachment.filePath,
+        );
         const existingFiles = await listDir(workspaceRoot, attachmentFolder);
-        
+
         // Look for an existing file with the same fingerprint
         let existingMatch: { path: string } | undefined;
-        
+
         for (const f of existingFiles) {
           // Skip the destination path itself
           if (f.path === destinationPath) continue;
-          
+
           try {
-            const existingFingerprint = await generateFingerprintForFile(f.path);
+            const existingFingerprint = await generateFingerprintForFile(
+              f.path,
+            );
             if (existingFingerprint === sourceFingerprint) {
               existingMatch = f;
               break;
@@ -188,7 +223,7 @@ async function copyAttachmentsToWorkspace(
             continue;
           }
         }
-        
+
         if (existingMatch) {
           // Reuse the existing file instead of copying
           finalPath = existingMatch.path;
@@ -196,15 +231,19 @@ async function copyAttachmentsToWorkspace(
       } catch (fingerprintError) {
         // F05-AC-25: Don't log raw errors that may contain sensitive data
         void fingerprintError;
-        console.warn("F05-FR-17: Could not check for existing fingerprint match");
+        console.warn(
+          "F05-FR-17: Could not check for existing fingerprint match",
+        );
         // Continue with normal copy flow
       }
-      
+
       // Check if destination exists
       try {
         const existingFiles = await listDir(workspaceRoot, attachmentFolder);
-        const destinationExists = existingFiles.some(f => f.path === destinationPath);
-        
+        const destinationExists = existingFiles.some(
+          (f) => f.path === destinationPath,
+        );
+
         if (destinationExists) {
           // Generate new unique path with collision suffix
           let collisionSuffix = 2;
@@ -212,11 +251,14 @@ async function copyAttachmentsToWorkspace(
           do {
             // Split the filename and extension, insert suffix before extension
             const lastDot = uniqueFilename.lastIndexOf(".");
-            const base = lastDot > 0 ? uniqueFilename.substring(0, lastDot) : uniqueFilename;
+            const base =
+              lastDot > 0
+                ? uniqueFilename.substring(0, lastDot)
+                : uniqueFilename;
             const ext = lastDot > 0 ? uniqueFilename.substring(lastDot) : "";
             newPath = `${attachmentFolder}/${base}-${collisionSuffix}${ext}`;
             collisionSuffix++;
-          } while (existingFiles.some(f => f.path === newPath));
+          } while (existingFiles.some((f) => f.path === newPath));
           finalPath = newPath;
         }
       } catch (error) {
@@ -225,20 +267,29 @@ async function copyAttachmentsToWorkspace(
         void error;
         console.warn("F05: Could not check for existing attachments");
       }
-      
+
       // Copy the file from staging to workspace
-      await copyFile(attachment.filePath, workspaceRoot, relativePath(workspaceRoot, finalPath));
-      
+      await copyFile(
+        attachment.filePath,
+        workspaceRoot,
+        relativePath(workspaceRoot, finalPath),
+      );
+
       // Verify the copy was successful by checking fingerprint
-      const sourceFingerprint = await generateFingerprintForFile(attachment.filePath);
+      const sourceFingerprint = await generateFingerprintForFile(
+        attachment.filePath,
+      );
       const destFingerprint = await generateFingerprintForFile(finalPath);
-      
+
       if (sourceFingerprint !== destFingerprint) {
         console.warn("F05: Attachment fingerprint mismatch after copy");
         // Clean up the corrupted destination file so it doesn't linger in
         // the workspace, unreferenced by any note.
         try {
-          await deleteWorkspacePathPermanent(workspaceRoot, relativePath(workspaceRoot, finalPath));
+          await deleteWorkspacePathPermanent(
+            workspaceRoot,
+            relativePath(workspaceRoot, finalPath),
+          );
         } catch (cleanupError) {
           // F05-AC-25: Don't log raw errors that may contain sensitive data
           void cleanupError;
@@ -246,11 +297,10 @@ async function copyAttachmentsToWorkspace(
         }
         continue;
       }
-      
+
       // Calculate relative path for markdown reference (from note to attachment)
       const relativeFromNote = relativePath(workspaceRoot, finalPath);
       attachmentPaths.push(relativeFromNote);
-      
     } catch (error) {
       // F05-AC-25: Don't log raw errors that may contain sensitive data
       void error;
@@ -258,7 +308,7 @@ async function copyAttachmentsToWorkspace(
       // Continue with other attachments
     }
   }
-  
+
   return attachmentPaths;
 }
 
@@ -272,7 +322,11 @@ async function copyAttachmentsToWorkspace(
  * on one.
  * F05-FR-15/F05-FR-16: Copy attachments to workspace
  */
-async function copyFile(sourcePath: string, workspaceRoot: string, relativeDestPath: string): Promise<void> {
+async function copyFile(
+  sourcePath: string,
+  workspaceRoot: string,
+  relativeDestPath: string,
+): Promise<void> {
   try {
     const bytes = await readBinaryFile(sourcePath);
     await writeWorkspaceBinaryFile(workspaceRoot, relativeDestPath, bytes);
@@ -293,9 +347,9 @@ async function generateFingerprintForFile(filePath: string): Promise<string> {
     const bytes = await readBinaryFile(filePath);
     const size = bytes.length;
     const header = bytes.subarray(0, 16);
-    const headerHex = Array.from(header).map((byte) =>
-      byte.toString(16).padStart(2, "0")
-    ).join("");
+    const headerHex = Array.from(header)
+      .map((byte) => byte.toString(16).padStart(2, "0"))
+      .join("");
     return `${size}-${headerHex}`;
   } catch (error) {
     // F05-AC-25: Don't log raw errors that may contain sensitive data
@@ -316,21 +370,21 @@ export async function createNoteWithTitle(
   workspaceRoot?: string,
   attachments?: PendingAttachment[],
   attachmentsFolder?: string,
-  options: { verbatim?: boolean } = {}
+  options: { verbatim?: boolean } = {},
 ): Promise<{ path: string; name: string }> {
   const root = workspaceRoot;
   if (!root) {
     throw new Error("No workspace is open.");
   }
-  
+
   // F05-FR-07: Validate destination path is not under .leotheca/
   validatePathNotInLeotheca(dirPath, root);
-  
+
   // F05-FR-19: For closed target note, re-read and conflict-check before append
   // Since this is a new note, we only need to check for filename conflicts
   const existing = await listDir(root, dirPath);
   const existingNames = new Set(existing.map((e) => e.name));
-  
+
   // Generate filename from title or use timestamp
   let baseName: string;
   if (title && title.trim()) {
@@ -342,10 +396,10 @@ export async function createNoteWithTitle(
     const timestamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}-${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`;
     baseName = timestamp;
   }
-  
+
   // Sanitize filename by removing markdown extension and adding it back
   baseName = baseName.replace(/\.md$/i, "");
-  
+
   // Generate unique filename (F05-FR-20: New-note creation shall fail rather than overwrite)
   let name = `${baseName}.md`;
   let n = 2;
@@ -353,22 +407,27 @@ export async function createNoteWithTitle(
     name = `${baseName} ${n}.md`;
     n++;
   }
-  
+
   const path = `${dirPath}/${name}`;
   const relative = relativePath(root, path);
-  
+
   // F05-FR-15/F05-FR-16/F05-FR-17: Handle attachments for new notes
-  const attachmentPaths = attachments && attachments.length > 0 
-    ? await copyAttachmentsToWorkspace(attachments, root || dirPath, attachmentsFolder)
-    : [];
-  
+  const attachmentPaths =
+    attachments && attachments.length > 0
+      ? await copyAttachmentsToWorkspace(
+          attachments,
+          root || dirPath,
+          attachmentsFolder,
+        )
+      : [];
+
   // Format content for new note (per F05 spec section 8.2)
   const formattedContent = options.verbatim
     ? formatVerbatimContent(content, attachmentPaths)
     : formatNewNoteContent(content, title, attachmentPaths);
-  
+
   await createWorkspaceTextFileNew(root, relative, formattedContent);
-  
+
   return { path, name };
 }
 
@@ -378,28 +437,33 @@ export async function createNoteWithTitle(
  * F05-FR-12: Markdown output shall use the versioned local serializer and contain no hidden capture ID
  * F05-FR-26: Uses local attachment syntax
  */
-function formatCaptureContent(content: string, title?: string, sourceUrl?: string, attachmentPaths?: string[]): string {
+function formatCaptureContent(
+  content: string,
+  title?: string,
+  sourceUrl?: string,
+  attachmentPaths?: string[],
+): string {
   const timestamp = new Date().toISOString().replace("T", " ").slice(0, 19);
   const datePart = timestamp.split(" ")[0];
   const timePart = timestamp.split(" ")[1];
-  
+
   // Build the header - use title if provided, otherwise use timestamp
   const header = title ? `# ${title}` : `### ${datePart} ${timePart}`;
-  
+
   // Build content lines
   const contentLines = [header];
-  
+
   // Add timestamp on next line if title is provided (per spec section 8.1 rule 2)
   if (title) {
     contentLines.push(`*${datePart} ${timePart}*`);
   }
-  
+
   // Add empty line after header
   contentLines.push("");
-  
+
   // Add the actual content
   contentLines.push(content.trim());
-  
+
   // Add attachments if provided (F05-FR-26: uses local attachment syntax)
   if (attachmentPaths && attachmentPaths.length > 0) {
     contentLines.push("");
@@ -408,13 +472,13 @@ function formatCaptureContent(content: string, title?: string, sourceUrl?: strin
       contentLines.push(`![[${attachmentPath}]]`);
     }
   }
-  
+
   // Add source URL if provided
   if (sourceUrl) {
     contentLines.push("");
     contentLines.push(`Source: <${sourceUrl}>`);
   }
-  
+
   return contentLines.join("\n");
 }
 
@@ -423,18 +487,22 @@ function formatCaptureContent(content: string, title?: string, sourceUrl?: strin
  * Creates a new note with optional title, source URL, and attachments.
  * F05-FR-12: Markdown output shall use the versioned local serializer and contain no hidden capture ID
  */
-function formatNewNoteContent(content: string, title?: string, attachmentPaths?: string[]): string {
+function formatNewNoteContent(
+  content: string,
+  title?: string,
+  attachmentPaths?: string[],
+): string {
   const contentLines = [];
-  
+
   // Add title as heading if provided
   if (title && title.trim()) {
     contentLines.push(`# ${title.trim()}`);
     contentLines.push("");
   }
-  
+
   // Add the content
   contentLines.push(content.trim());
-  
+
   // Add attachments if provided
   if (attachmentPaths && attachmentPaths.length > 0) {
     contentLines.push("");
@@ -443,7 +511,7 @@ function formatNewNoteContent(content: string, title?: string, attachmentPaths?:
       contentLines.push(`![[${attachmentPath}]]`);
     }
   }
-  
+
   return contentLines.join("\n");
 }
 
@@ -451,7 +519,10 @@ function formatNewNoteContent(content: string, title?: string, attachmentPaths?:
  * Content that a capture template has already shaped: written as-is (trimmed of
  * trailing blank lines) plus any attachment embeds.
  */
-function formatVerbatimContent(content: string, attachmentPaths?: string[]): string {
+function formatVerbatimContent(
+  content: string,
+  attachmentPaths?: string[],
+): string {
   const lines = [content.replace(/(\r?\n)+$/, "")];
   if (attachmentPaths && attachmentPaths.length > 0) {
     lines.push("");

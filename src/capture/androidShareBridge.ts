@@ -11,30 +11,32 @@ import type { AndroidStagedAttachment } from "../workspace/capacitorBridgeImpl";
  * Map Android staged attachment to pending capture attachment format
  * Returns null if attachment data is malformed or incomplete
  */
-function mapAndroidAttachment(androidAtt: AndroidStagedAttachment): PendingAttachment | null {
+function mapAndroidAttachment(
+  androidAtt: AndroidStagedAttachment,
+): PendingAttachment | null {
   // F05: Validate required fields - filePath, fileName, and fileSize are essential
   if (!androidAtt.filePath || androidAtt.filePath.trim() === "") {
     console.warn("F05: Skipping Android attachment with empty filePath");
     return null;
   }
-  
+
   if (!androidAtt.fileName || androidAtt.fileName.trim() === "") {
     console.warn("F05: Skipping Android attachment with empty fileName");
     return null;
   }
-  
+
   if (typeof androidAtt.fileSize !== "number" || androidAtt.fileSize <= 0) {
     console.warn("F05: Skipping Android attachment with invalid fileSize");
     return null;
   }
-  
+
   return {
     id: `android-att-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     filePath: androidAtt.filePath,
     fileName: androidAtt.fileName,
     fileSize: androidAtt.fileSize,
     fingerprint: androidAtt.fingerprint || "unknown",
-    mimeType: androidAtt.mimeType || "application/octet-stream"
+    mimeType: androidAtt.mimeType || "application/octet-stream",
   };
 }
 
@@ -46,17 +48,20 @@ function mapAndroidAttachment(androidAtt: AndroidStagedAttachment): PendingAttac
 export async function processAndroidPendingShareData(): Promise<void> {
   try {
     const result = await getPendingShareData();
-    
+
     if (result.data && result.timestamp > 0) {
       // Map Android staged attachments to pending capture attachments
       // Filter out any malformed attachments (null from mapAndroidAttachment)
-      const attachments = result.data.attachments && result.data.attachments.length > 0
-        ? result.data.attachments.map(mapAndroidAttachment).filter((a): a is PendingAttachment => a !== null)
-        : undefined;
-      
+      const attachments =
+        result.data.attachments && result.data.attachments.length > 0
+          ? result.data.attachments
+              .map(mapAndroidAttachment)
+              .filter((a): a is PendingAttachment => a !== null)
+          : undefined;
+
       // Android share intent successfully transferred to pending captures
       // Attachments processed successfully (empty blocks removed)
-      
+
       // Transfer the Android share data to pending captures
       addPendingCapture({
         source: "android-share",

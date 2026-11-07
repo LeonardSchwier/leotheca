@@ -133,11 +133,19 @@ describe("matchesSettingsSearch", () => {
   });
 
   it("matches against a hint even when the label itself doesn't match", () => {
-    expect(matchesSettingsSearch("clipboard", "Copy link", "Copies the link to your clipboard")).toBe(true);
+    expect(
+      matchesSettingsSearch(
+        "clipboard",
+        "Copy link",
+        "Copies the link to your clipboard",
+      ),
+    ).toBe(true);
   });
 
   it("returns false when none of the given texts contain the query", () => {
-    expect(matchesSettingsSearch("nonexistent", "Theme", "Follow your OS")).toBe(false);
+    expect(
+      matchesSettingsSearch("nonexistent", "Theme", "Follow your OS"),
+    ).toBe(false);
   });
 });
 
@@ -149,7 +157,9 @@ describe("SettingsPanel", () => {
   });
 
   it("shows the workspace path, or a placeholder when none is set", () => {
-    const { getByText, rerender } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+    const { getByText, rerender } = render(
+      <SettingsPanel onOpenFile={vi.fn()} />,
+    );
     expect(getByText("Not set")).toBeTruthy();
 
     workspacePath.value = "/home/user/vault";
@@ -245,7 +255,9 @@ describe("SettingsPanel", () => {
   });
 
   it("theme switch is always visible and calls setTheme with the clicked option", () => {
-    const { getByText, getByRole } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+    const { getByText, getByRole } = render(
+      <SettingsPanel onOpenFile={vi.fn()} />,
+    );
     openCategory(getByRole, "Appearance");
     expect(getByText("Follow System").className).toContain("active");
     fireEvent.click(getByText("Dark"));
@@ -254,7 +266,9 @@ describe("SettingsPanel", () => {
 
   it("clamps an out-of-range font size before saving it", () => {
     workspacePath.value = "/vault";
-    const { container, getByRole } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+    const { container, getByRole } = render(
+      <SettingsPanel onOpenFile={vi.fn()} />,
+    );
     openCategory(getByRole, "Appearance");
     const inputs = container.querySelectorAll('input[type="number"]');
     const fontInput = inputs[0] as HTMLInputElement;
@@ -264,7 +278,9 @@ describe("SettingsPanel", () => {
 
   it("clamps an out-of-range zoom value before saving it", () => {
     workspacePath.value = "/vault";
-    const { container, getByRole } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+    const { container, getByRole } = render(
+      <SettingsPanel onOpenFile={vi.fn()} />,
+    );
     openCategory(getByRole, "Appearance");
     const inputs = container.querySelectorAll('input[type="number"]');
     const zoomInput = inputs[1] as HTMLInputElement;
@@ -296,7 +312,9 @@ describe("SettingsPanel", () => {
       headingLinksEnabled: true,
     };
     const { getByText } = render(<SettingsPanel onOpenFile={vi.fn()} />);
-    const row = getByText("Heading links").closest(".settings-row") as HTMLElement;
+    const row = getByText("Heading links").closest(
+      ".settings-row",
+    ) as HTMLElement;
     expect(within(row).getByText("On").className).toContain("active");
     fireEvent.click(within(row).getByText("Off"));
     expect(updateWorkspaceSettings).toHaveBeenCalledWith({
@@ -306,7 +324,9 @@ describe("SettingsPanel", () => {
 
   it("wires the attachments folder text input", () => {
     workspacePath.value = "/vault";
-    const { getByPlaceholderText } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+    const { getByPlaceholderText } = render(
+      <SettingsPanel onOpenFile={vi.fn()} />,
+    );
     const input = getByPlaceholderText("next to the note") as HTMLInputElement;
     fireEvent.input(input, { target: { value: "attachments" } });
     expect(updateWorkspaceSettings).toHaveBeenCalledWith({
@@ -316,7 +336,9 @@ describe("SettingsPanel", () => {
 
   it("wires the capture inbox folder text input", () => {
     workspacePath.value = "/vault";
-    const { getByPlaceholderText } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+    const { getByPlaceholderText } = render(
+      <SettingsPanel onOpenFile={vi.fn()} />,
+    );
     const input = getByPlaceholderText("Inbox folder") as HTMLInputElement;
     fireEvent.input(input, { target: { value: "Captures" } });
     expect(updateWorkspaceSettings).toHaveBeenCalledWith({
@@ -326,7 +348,9 @@ describe("SettingsPanel", () => {
 
   it("wires the capture inbox note text input", () => {
     workspacePath.value = "/vault";
-    const { getByPlaceholderText } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+    const { getByPlaceholderText } = render(
+      <SettingsPanel onOpenFile={vi.fn()} />,
+    );
     const input = getByPlaceholderText("Inbox note path") as HTMLInputElement;
     fireEvent.input(input, { target: { value: "Notes/Inbox.md" } });
     expect(updateWorkspaceSettings).toHaveBeenCalledWith({
@@ -357,7 +381,9 @@ describe("SettingsPanel", () => {
       ...DEFAULT_WORKSPACE_SETTINGS,
       tagsEnabled: true,
     };
-    const { getByText, getByRole } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+    const { getByText, getByRole } = render(
+      <SettingsPanel onOpenFile={vi.fn()} />,
+    );
     openCategory(getByRole, "Features");
     const row = getByText("Tags").closest(".settings-row") as HTMLElement;
     expect(within(row).getByText("On").className).toContain("active");
@@ -373,7 +399,9 @@ describe("SettingsPanel", () => {
       ...DEFAULT_WORKSPACE_SETTINGS,
       templatesEnabled: true,
     };
-    const { getByText, getByRole } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+    const { getByText, getByRole } = render(
+      <SettingsPanel onOpenFile={vi.fn()} />,
+    );
     openCategory(getByRole, "Features");
     const row = getByText("Templates").closest(".settings-row") as HTMLElement;
     expect(within(row).getByText("On").className).toContain("active");
@@ -385,7 +413,9 @@ describe("SettingsPanel", () => {
 
   it("wires the templates folder text input", () => {
     workspacePath.value = "/vault";
-    const { getByPlaceholderText } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+    const { getByPlaceholderText } = render(
+      <SettingsPanel onOpenFile={vi.fn()} />,
+    );
     const input = getByPlaceholderText("Templates") as HTMLInputElement;
     fireEvent.input(input, { target: { value: "Notes/Templates" } });
     expect(updateWorkspaceSettings).toHaveBeenCalledWith({
@@ -396,10 +426,21 @@ describe("SettingsPanel", () => {
   describe("Feature selection (Collections off by default, 2026-09-03)", () => {
     it("groups Accent themes, Editor snippets, Canvas, Tags, Templates, and Collections under their own section, not General", () => {
       workspacePath.value = "/vault";
-      const { getByText, getByRole, queryByText } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+      const { getByText, getByRole, queryByText } = render(
+        <SettingsPanel onOpenFile={vi.fn()} />,
+      );
       openCategory(getByRole, "Features");
-      const featureSection = getByText("Feature selection").closest(".settings-section") as HTMLElement;
-      for (const label of ["Accent themes", "Editor snippets", "Canvas", "Tags", "Templates", "Collections"]) {
+      const featureSection = getByText("Feature selection").closest(
+        ".settings-section",
+      ) as HTMLElement;
+      for (const label of [
+        "Accent themes",
+        "Editor snippets",
+        "Canvas",
+        "Tags",
+        "Templates",
+        "Collections",
+      ]) {
         expect(within(featureSection).getByText(label)).toBeTruthy();
       }
       // Switching to General (Features' own section, and everything in it,
@@ -414,10 +455,17 @@ describe("SettingsPanel", () => {
 
     it("shows and wires the collections switch, off by default", () => {
       workspacePath.value = "/vault";
-      workspaceSettings.value = { ...DEFAULT_WORKSPACE_SETTINGS, collectionsEnabled: false };
-      const { getByText, getByRole } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+      workspaceSettings.value = {
+        ...DEFAULT_WORKSPACE_SETTINGS,
+        collectionsEnabled: false,
+      };
+      const { getByText, getByRole } = render(
+        <SettingsPanel onOpenFile={vi.fn()} />,
+      );
       openCategory(getByRole, "Features");
-      const row = getByText("Collections").closest(".settings-row") as HTMLElement;
+      const row = getByText("Collections").closest(
+        ".settings-row",
+      ) as HTMLElement;
       expect(within(row).getByText("Off").className).toContain("active");
       fireEvent.click(within(row).getByText("On"));
       expect(updateWorkspaceSettings).toHaveBeenCalledWith({
@@ -431,9 +479,13 @@ describe("SettingsPanel", () => {
 
     it("gives each Feature selection row's description the italic hint class", () => {
       workspacePath.value = "/vault";
-      const { getByText, getByRole } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+      const { getByText, getByRole } = render(
+        <SettingsPanel onOpenFile={vi.fn()} />,
+      );
       openCategory(getByRole, "Features");
-      const hint = getByText("Group notes by a saved search or a manual list, in their own panel. Off by default");
+      const hint = getByText(
+        "Group notes by a saved search or a manual list, in their own panel. Off by default",
+      );
       expect(hint.className).toContain("settings-hint-italic");
     });
   });
@@ -445,9 +497,14 @@ describe("SettingsPanel", () => {
 
     it("shows and wires the speech-to-text switch, off by default", () => {
       workspacePath.value = "/vault";
-      workspaceSettings.value = { ...DEFAULT_WORKSPACE_SETTINGS, speechToTextEnabled: false };
+      workspaceSettings.value = {
+        ...DEFAULT_WORKSPACE_SETTINGS,
+        speechToTextEnabled: false,
+      };
       const { getByText } = render(<SettingsPanel onOpenFile={vi.fn()} />);
-      const row = getByText("Speech-to-text dictation").closest(".settings-row") as HTMLElement;
+      const row = getByText("Speech-to-text dictation").closest(
+        ".settings-row",
+      ) as HTMLElement;
       expect(within(row).getByText("Off").className).toContain("active");
       fireEvent.click(within(row).getByText("On"));
       expect(updateWorkspaceSettings).toHaveBeenCalledWith({
@@ -457,9 +514,14 @@ describe("SettingsPanel", () => {
 
     it("marks On active once the setting is enabled", () => {
       workspacePath.value = "/vault";
-      workspaceSettings.value = { ...DEFAULT_WORKSPACE_SETTINGS, speechToTextEnabled: true };
+      workspaceSettings.value = {
+        ...DEFAULT_WORKSPACE_SETTINGS,
+        speechToTextEnabled: true,
+      };
       const { getByText } = render(<SettingsPanel onOpenFile={vi.fn()} />);
-      const row = getByText("Speech-to-text dictation").closest(".settings-row") as HTMLElement;
+      const row = getByText("Speech-to-text dictation").closest(
+        ".settings-row",
+      ) as HTMLElement;
       expect(within(row).getByText("On").className).toContain("active");
     });
   });
@@ -469,9 +531,9 @@ describe("SettingsPanel", () => {
       workspacePath.value = null;
       externalFileOpenEnabled.value = true;
       const { getByText } = render(<SettingsPanel onOpenFile={vi.fn()} />);
-      const row = getByText("Open Markdown files from outside your workspace").closest(
-        ".settings-row",
-      ) as HTMLElement;
+      const row = getByText(
+        "Open Markdown files from outside your workspace",
+      ).closest(".settings-row") as HTMLElement;
       expect(within(row).getByText("On").className).toContain("active");
       fireEvent.click(within(row).getByText("Off"));
       expect(setExternalFileOpenEnabled).toHaveBeenCalledWith(false);
@@ -480,9 +542,9 @@ describe("SettingsPanel", () => {
     it("marks Off active once the setting is disabled", () => {
       externalFileOpenEnabled.value = false;
       const { getByText } = render(<SettingsPanel onOpenFile={vi.fn()} />);
-      const row = getByText("Open Markdown files from outside your workspace").closest(
-        ".settings-row",
-      ) as HTMLElement;
+      const row = getByText(
+        "Open Markdown files from outside your workspace",
+      ).closest(".settings-row") as HTMLElement;
       expect(within(row).getByText("Off").className).toContain("active");
     });
   });
@@ -493,7 +555,9 @@ describe("SettingsPanel", () => {
       ...DEFAULT_WORKSPACE_SETTINGS,
       defaultViewMode: "split",
     };
-    const { getByText, getByRole } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+    const { getByText, getByRole } = render(
+      <SettingsPanel onOpenFile={vi.fn()} />,
+    );
     openCategory(getByRole, "Appearance");
     expect(getByText("Split").className).toContain("active");
     fireEvent.click(getByText("Preview"));
@@ -503,7 +567,9 @@ describe("SettingsPanel", () => {
   });
 
   it("lists the keyboard shortcuts, always, regardless of whether a workspace is open", () => {
-    const { getByText, getByRole } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+    const { getByText, getByRole } = render(
+      <SettingsPanel onOpenFile={vi.fn()} />,
+    );
     openCategory(getByRole, "Shortcuts");
     expect(getByText("Ctrl+K")).toBeTruthy();
     expect(getByText("Command palette")).toBeTruthy();
@@ -511,7 +577,9 @@ describe("SettingsPanel", () => {
   });
 
   it("shows the app version, or a placeholder while it's still loading", () => {
-    const { getByText, getByRole, rerender } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+    const { getByText, getByRole, rerender } = render(
+      <SettingsPanel onOpenFile={vi.fn()} />,
+    );
     openCategory(getByRole, "About");
     expect(getByText("...")).toBeTruthy();
 
@@ -521,7 +589,9 @@ describe("SettingsPanel", () => {
   });
 
   it("opens the license view and closes it independently of the settings panel", () => {
-    const { getByText, getByRole, container } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+    const { getByText, getByRole, container } = render(
+      <SettingsPanel onOpenFile={vi.fn()} />,
+    );
     openCategory(getByRole, "About");
     fireEvent.click(getByText("View License"));
     expect(container.querySelector(".license-viewer")).toBeTruthy();
@@ -534,7 +604,9 @@ describe("SettingsPanel", () => {
   });
 
   it("clicking the license dialog's own backdrop closes only the license view, not the whole settings panel", () => {
-    const { getByText, getByRole, container } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+    const { getByText, getByRole, container } = render(
+      <SettingsPanel onOpenFile={vi.fn()} />,
+    );
     openCategory(getByRole, "About");
     fireEvent.click(getByText("View License"));
 
@@ -549,7 +621,9 @@ describe("SettingsPanel", () => {
 
   describe("search (competitor-queued 2026-09-03)", () => {
     it("shows only the active category (General) when the search box is empty", () => {
-      const { getByText, queryByText } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+      const { getByText, queryByText } = render(
+        <SettingsPanel onOpenFile={vi.fn()} />,
+      );
       expect(getByText("Root folder")).toBeTruthy();
       // UX-01 spec 16.1: categorized Settings shows one category at a
       // time by default now; Theme/Version live in Appearance/About, not
@@ -560,14 +634,18 @@ describe("SettingsPanel", () => {
     });
 
     it("a non-empty search overrides category selection and shows matches from every category", () => {
-      const { getByLabelText, getByText } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+      const { getByLabelText, getByText } = render(
+        <SettingsPanel onOpenFile={vi.fn()} />,
+      );
       const search = getByLabelText("Search settings") as HTMLInputElement;
       fireEvent.input(search, { target: { value: "version" } });
       expect(getByText("Version")).toBeTruthy();
     });
 
     it("filters rows by label text as the user types", () => {
-      const { getByLabelText, getByText, queryByText } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+      const { getByLabelText, getByText, queryByText } = render(
+        <SettingsPanel onOpenFile={vi.fn()} />,
+      );
       const search = getByLabelText("Search settings") as HTMLInputElement;
       fireEvent.input(search, { target: { value: "theme" } });
       expect(getByText("Theme")).toBeTruthy();
@@ -577,7 +655,9 @@ describe("SettingsPanel", () => {
 
     it("matches a row by its hint text even when the label itself doesn't match", () => {
       workspacePath.value = "/vault";
-      const { getByLabelText, getByText } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+      const { getByLabelText, getByText } = render(
+        <SettingsPanel onOpenFile={vi.fn()} />,
+      );
       const search = getByLabelText("Search settings") as HTMLInputElement;
       // "Heading links"'s own hint text mentions "click navigation", which
       // doesn't appear in its label at all.
@@ -586,7 +666,9 @@ describe("SettingsPanel", () => {
     });
 
     it("filters keyboard shortcuts by description", () => {
-      const { getByLabelText, getByText, queryByText } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+      const { getByLabelText, getByText, queryByText } = render(
+        <SettingsPanel onOpenFile={vi.fn()} />,
+      );
       const search = getByLabelText("Search settings") as HTMLInputElement;
       fireEvent.input(search, { target: { value: "command palette" } });
       expect(getByText("Command palette")).toBeTruthy();
@@ -594,7 +676,9 @@ describe("SettingsPanel", () => {
     });
 
     it("hides a section's own header once none of its rows match", () => {
-      const { getByLabelText, queryByText } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+      const { getByLabelText, queryByText } = render(
+        <SettingsPanel onOpenFile={vi.fn()} />,
+      );
       const search = getByLabelText("Search settings") as HTMLInputElement;
       fireEvent.input(search, { target: { value: "theme" } });
       // Only "Appearance" (Theme) should remain; "About" has no match.
@@ -602,7 +686,9 @@ describe("SettingsPanel", () => {
     });
 
     it("shows a 'no settings match' message when the query matches nothing at all", () => {
-      const { getByLabelText, getByText } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+      const { getByLabelText, getByText } = render(
+        <SettingsPanel onOpenFile={vi.fn()} />,
+      );
       const search = getByLabelText("Search settings") as HTMLInputElement;
       fireEvent.input(search, { target: { value: "xyznonexistent" } });
       expect(getByText('No settings match "xyznonexistent".')).toBeTruthy();
@@ -610,7 +696,9 @@ describe("SettingsPanel", () => {
 
     it("never hides an active save-error or corrupted-settings alert, regardless of the search query", () => {
       workspaceSettingsSaveError.value = "Could not save settings.";
-      const { getByLabelText, getByText } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+      const { getByLabelText, getByText } = render(
+        <SettingsPanel onOpenFile={vi.fn()} />,
+      );
       const search = getByLabelText("Search settings") as HTMLInputElement;
       fireEvent.input(search, { target: { value: "xyznonexistent" } });
       expect(getByText("Could not save settings.")).toBeTruthy();
@@ -627,7 +715,9 @@ describe("SettingsPanel", () => {
   describe("Health section: Link Diagnostics, moved off the main screen (2026-09-03)", () => {
     it("shows a Health section with Link Diagnostics once a workspace is open", () => {
       workspacePath.value = "/vault";
-      const { getByText, getByRole } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+      const { getByText, getByRole } = render(
+        <SettingsPanel onOpenFile={vi.fn()} />,
+      );
       expect(getByText("Health")).toBeTruthy();
       openCategory(getByRole, "Health");
       expect(getByText("Mock diagnostic row")).toBeTruthy();
@@ -642,7 +732,9 @@ describe("SettingsPanel", () => {
       workspacePath.value = "/vault";
       viewMode.value = "preview";
       const onOpenFile = vi.fn();
-      const { getByText, getByRole } = render(<SettingsPanel onOpenFile={onOpenFile} />);
+      const { getByText, getByRole } = render(
+        <SettingsPanel onOpenFile={onOpenFile} />,
+      );
       openCategory(getByRole, "Health");
 
       fireEvent.click(getByText("Mock diagnostic row"));
@@ -657,7 +749,9 @@ describe("SettingsPanel", () => {
   describe("UX-01 spec section 16.1: categorized left-nav Settings", () => {
     it("shows General by default and nothing from other categories", () => {
       workspacePath.value = "/vault";
-      const { getByText, queryByText } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+      const { getByText, queryByText } = render(
+        <SettingsPanel onOpenFile={vi.fn()} />,
+      );
       expect(getByText("Root folder")).toBeTruthy();
       expect(queryByText("Feature selection")).toBeNull();
       expect(queryByText("Keyboard shortcuts")).toBeNull();
@@ -676,26 +770,38 @@ describe("SettingsPanel", () => {
 
     it("switches the visible section when a different category is selected, and marks it current", () => {
       workspacePath.value = "/vault";
-      const { getByText, getByRole, queryByText } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+      const { getByText, getByRole, queryByText } = render(
+        <SettingsPanel onOpenFile={vi.fn()} />,
+      );
 
       openCategory(getByRole, "Shortcuts");
 
       expect(queryByText("Root folder")).toBeNull();
       expect(getByText("Keyboard shortcuts")).toBeTruthy();
-      expect(getByRole("button", { name: "Shortcuts" }).getAttribute("aria-current")).toBe("true");
-      expect(getByRole("button", { name: "General" }).getAttribute("aria-current")).toBeNull();
+      expect(
+        getByRole("button", { name: "Shortcuts" }).getAttribute("aria-current"),
+      ).toBe("true");
+      expect(
+        getByRole("button", { name: "General" }).getAttribute("aria-current"),
+      ).toBeNull();
     });
 
     it("keeps only one category's nav button marked active at a time", () => {
       workspacePath.value = "/vault";
       const { getByRole } = render(<SettingsPanel onOpenFile={vi.fn()} />);
 
-      expect(getByRole("button", { name: "General" }).className).toContain("active");
+      expect(getByRole("button", { name: "General" }).className).toContain(
+        "active",
+      );
 
       openCategory(getByRole, "Appearance");
 
-      expect(getByRole("button", { name: "Appearance" }).className).toContain("active");
-      expect(getByRole("button", { name: "General" }).className).not.toContain("active");
+      expect(getByRole("button", { name: "Appearance" }).className).toContain(
+        "active",
+      );
+      expect(getByRole("button", { name: "General" }).className).not.toContain(
+        "active",
+      );
     });
   });
 
@@ -710,14 +816,16 @@ describe("SettingsPanel", () => {
       workspacePath.value = "/vault";
       const { container } = render(<SettingsPanel onOpenFile={vi.fn()} />);
 
-      expect(container.querySelector(".settings-body")?.className).not.toContain(
-        "settings-body--compact-detail",
-      );
+      expect(
+        container.querySelector(".settings-body")?.className,
+      ).not.toContain("settings-body--compact-detail");
     });
 
     it("selecting a category switches to the compact-detail state", () => {
       workspacePath.value = "/vault";
-      const { container, getByRole } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+      const { container, getByRole } = render(
+        <SettingsPanel onOpenFile={vi.fn()} />,
+      );
 
       openCategory(getByRole, "Appearance");
 
@@ -732,22 +840,28 @@ describe("SettingsPanel", () => {
         <SettingsPanel onOpenFile={vi.fn()} />,
       );
       openCategory(getByRole, "Appearance");
-      const searchInput = getByPlaceholderText("Search settings…") as HTMLInputElement;
+      const searchInput = getByPlaceholderText(
+        "Search settings…",
+      ) as HTMLInputElement;
       fireEvent.input(searchInput, { target: { value: "theme" } });
 
       fireEvent.click(container.querySelector(".settings-compact-back")!);
 
-      expect(container.querySelector(".settings-body")?.className).not.toContain(
-        "settings-body--compact-detail",
-      );
+      expect(
+        container.querySelector(".settings-body")?.className,
+      ).not.toContain("settings-body--compact-detail");
       expect(searchInput.value).toBe("");
     });
 
     it("typing a search query switches to the compact-detail state without selecting a category first", () => {
       workspacePath.value = "/vault";
-      const { container, getByPlaceholderText } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+      const { container, getByPlaceholderText } = render(
+        <SettingsPanel onOpenFile={vi.fn()} />,
+      );
 
-      fireEvent.input(getByPlaceholderText("Search settings…"), { target: { value: "theme" } });
+      fireEvent.input(getByPlaceholderText("Search settings…"), {
+        target: { value: "theme" },
+      });
 
       expect(container.querySelector(".settings-body")?.className).toContain(
         "settings-body--compact-detail",
@@ -756,7 +870,9 @@ describe("SettingsPanel", () => {
 
     it("resets to the landing page the next time Settings is reopened", () => {
       workspacePath.value = "/vault";
-      const { container, getByRole, rerender } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+      const { container, getByRole, rerender } = render(
+        <SettingsPanel onOpenFile={vi.fn()} />,
+      );
       openCategory(getByRole, "Appearance");
       expect(container.querySelector(".settings-body")?.className).toContain(
         "settings-body--compact-detail",
@@ -767,9 +883,9 @@ describe("SettingsPanel", () => {
       settingsPanelOpen.value = true;
       rerender(<SettingsPanel onOpenFile={vi.fn()} />);
 
-      expect(container.querySelector(".settings-body")?.className).not.toContain(
-        "settings-body--compact-detail",
-      );
+      expect(
+        container.querySelector(".settings-body")?.className,
+      ).not.toContain("settings-body--compact-detail");
     });
   });
 
@@ -792,9 +908,7 @@ describe("SettingsPanel", () => {
   describe("Export settings", () => {
     it("renders an Export as JSON button in the About section", () => {
       workspacePath.value = "/vault";
-      const { getByRole } = render(
-        <SettingsPanel onOpenFile={vi.fn()} />
-      );
+      const { getByRole } = render(<SettingsPanel onOpenFile={vi.fn()} />);
       // Open the About category via the category nav
       const aboutBtn = getByRole("button", { name: /about/i });
       fireEvent.click(aboutBtn);
@@ -805,15 +919,22 @@ describe("SettingsPanel", () => {
     it("exports a JSON payload with exportedAt, appVersion, and workspaceSettings", async () => {
       workspacePath.value = "/vault";
       appVersion.value = "1.2.3-test";
-      workspaceSettings.value = { ...DEFAULT_WORKSPACE_SETTINGS, accentColor: "ocean" as const };
-      const exportFn = (await import("../workspace/tauriBridgeImpl")).exportTextFileViaDialog as ReturnType<typeof vi.fn>;
+      workspaceSettings.value = {
+        ...DEFAULT_WORKSPACE_SETTINGS,
+        accentColor: "ocean" as const,
+      };
+      const exportFn = (await import("../workspace/tauriBridgeImpl"))
+        .exportTextFileViaDialog as ReturnType<typeof vi.fn>;
       exportFn.mockClear();
       const { getByRole } = render(<SettingsPanel onOpenFile={vi.fn()} />);
       fireEvent.click(getByRole("button", { name: /about/i }));
       const btn = getByRole("button", { name: /export as json/i });
       fireEvent.click(btn);
       await vi.waitFor(() => expect(exportFn).toHaveBeenCalledTimes(1));
-      const [filename, content] = exportFn.mock.calls[0] as unknown as [string, string];
+      const [filename, content] = exportFn.mock.calls[0] as unknown as [
+        string,
+        string,
+      ];
       expect(filename).toBe("leotheca-settings.json");
       const payload = JSON.parse(content);
       expect(payload).toHaveProperty("exportedAt");
@@ -825,14 +946,17 @@ describe("SettingsPanel", () => {
     it("uses 'unknown' when appVersion is empty", async () => {
       workspacePath.value = "/vault";
       appVersion.value = "";
-      const exportFn = (await import("../workspace/tauriBridgeImpl")).exportTextFileViaDialog as ReturnType<typeof vi.fn>;
+      const exportFn = (await import("../workspace/tauriBridgeImpl"))
+        .exportTextFileViaDialog as ReturnType<typeof vi.fn>;
       exportFn.mockClear();
       const { getByRole } = render(<SettingsPanel onOpenFile={vi.fn()} />);
       fireEvent.click(getByRole("button", { name: /about/i }));
       const btn = getByRole("button", { name: /export as json/i });
       fireEvent.click(btn);
       await vi.waitFor(() => expect(exportFn).toHaveBeenCalledTimes(1));
-      const payload = JSON.parse((exportFn.mock.calls[0] as unknown as [string, string])[1]);
+      const payload = JSON.parse(
+        (exportFn.mock.calls[0] as unknown as [string, string])[1],
+      );
       expect(payload.appVersion).toBe("unknown");
     });
   });

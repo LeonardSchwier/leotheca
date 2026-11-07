@@ -36,12 +36,15 @@ afterEach(() => {
 });
 
 describe("resolveHeadingFragment", () => {
-  const headings = scanHeadings("# Intro\n\n## Design\n\ntext\n\n## Design\n\nmore text");
+  const headings = scanHeadings(
+    "# Intro\n\n## Design\n\ntext\n\n## Design\n\nmore text",
+  );
 
   it("resolves a unique heading by its normalized key", () => {
     const result = resolveHeadingFragment(headings, "Intro");
     expect(result.status).toBe("resolved");
-    if (result.status === "resolved") expect(result.heading.rawText).toBe("Intro");
+    if (result.status === "resolved")
+      expect(result.heading.rawText).toBe("Intro");
   });
 
   it("is case-insensitive and collapses whitespace, per the shared normalization contract", () => {
@@ -50,18 +53,23 @@ describe("resolveHeadingFragment", () => {
   });
 
   it("reports missing-fragment for a heading that doesn't exist", () => {
-    expect(resolveHeadingFragment(headings, "Nonexistent").status).toBe("missing-fragment");
+    expect(resolveHeadingFragment(headings, "Nonexistent").status).toBe(
+      "missing-fragment",
+    );
   });
 
   it("reports ambiguous-fragment, not the first match, for duplicate headings", () => {
     const result = resolveHeadingFragment(headings, "Design");
     expect(result.status).toBe("ambiguous-fragment");
-    if (result.status === "ambiguous-fragment") expect(result.candidates).toHaveLength(2);
+    if (result.status === "ambiguous-fragment")
+      expect(result.candidates).toHaveLength(2);
   });
 });
 
 describe("resolveBlockFragment", () => {
-  const blocks = scanBlockIds("First paragraph. ^first-id\n\nSecond. ^dup\n\nThird. ^dup");
+  const blocks = scanBlockIds(
+    "First paragraph. ^first-id\n\nSecond. ^dup\n\nThird. ^dup",
+  );
 
   it("resolves a unique block id", () => {
     const result = resolveBlockFragment(blocks, "first-id");
@@ -75,13 +83,16 @@ describe("resolveBlockFragment", () => {
   });
 
   it("reports missing-fragment for a block id that doesn't exist", () => {
-    expect(resolveBlockFragment(blocks, "nonexistent").status).toBe("missing-fragment");
+    expect(resolveBlockFragment(blocks, "nonexistent").status).toBe(
+      "missing-fragment",
+    );
   });
 
   it("reports ambiguous-fragment, not the first match, for duplicate ids", () => {
     const result = resolveBlockFragment(blocks, "dup");
     expect(result.status).toBe("ambiguous-fragment");
-    if (result.status === "ambiguous-fragment") expect(result.candidates).toHaveLength(2);
+    if (result.status === "ambiguous-fragment")
+      expect(result.candidates).toHaveLength(2);
   });
 });
 
@@ -95,7 +106,10 @@ describe("resolveWikiLinkTarget", () => {
     setNotes({ "project plan": ["/vault/project-plan.md"] });
     const [record] = parseWikiLinks("[[Project Plan]]");
     const result = resolveWikiLinkTarget(record, {});
-    expect(result).toEqual({ status: "resolved", notePath: "/vault/project-plan.md" });
+    expect(result).toEqual({
+      status: "resolved",
+      notePath: "/vault/project-plan.md",
+    });
   });
 
   it("reports missing-note for a note target that doesn't resolve", () => {
@@ -151,7 +165,9 @@ describe("resolveWikiLinkTarget", () => {
   it("reports ambiguous-fragment, never silently picking the first occurrence, for duplicate headings", () => {
     setNotes({ "project plan": ["/vault/project-plan.md"] });
     const [record] = parseWikiLinks("[[Project Plan#Design]]");
-    const targetHeadings = scanHeadings("## Design\n\ntext\n\n## Design\n\nmore");
+    const targetHeadings = scanHeadings(
+      "## Design\n\ntext\n\n## Design\n\nmore",
+    );
     const result = resolveWikiLinkTarget(record, { targetHeadings });
     expect(result.status).toBe("ambiguous-fragment");
     expect(result.candidateHeadings).toHaveLength(2);
@@ -167,7 +183,9 @@ describe("resolveWikiLinkTarget", () => {
   it("resolves a cross-note block link once the target note's blocks are supplied", () => {
     setNotes({ note: ["/vault/note.md"] });
     const [record] = parseWikiLinks("[[Note#^release-decision]]");
-    const targetBlocks = scanBlockIds("This decision is final. ^release-decision");
+    const targetBlocks = scanBlockIds(
+      "This decision is final. ^release-decision",
+    );
     const result = resolveWikiLinkTarget(record, { targetBlocks });
     expect(result.status).toBe("resolved");
     expect(result.notePath).toBe("/vault/note.md");
@@ -209,14 +227,22 @@ describe("resolveWikiLinkTarget", () => {
       setNotes({ "foo#1": ["/vault/foo#1.md"] });
       const [record] = parseWikiLinks("[[Foo#1]]");
       const result = resolveWikiLinkTarget(record, {});
-      expect(result).toEqual({ status: "resolved", notePath: "/vault/foo#1.md", legacyFallback: true });
+      expect(result).toEqual({
+        status: "resolved",
+        notePath: "/vault/foo#1.md",
+        legacyFallback: true,
+      });
     });
 
     it("falls back to a literal filename containing a raw | when the structured note portion doesn't resolve", () => {
       setNotes({ "foo|bar": ["/vault/foo|bar.md"] });
       const [record] = parseWikiLinks("[[Foo|Bar]]");
       const result = resolveWikiLinkTarget(record, {});
-      expect(result).toEqual({ status: "resolved", notePath: "/vault/foo|bar.md", legacyFallback: true });
+      expect(result).toEqual({
+        status: "resolved",
+        notePath: "/vault/foo|bar.md",
+        legacyFallback: true,
+      });
     });
 
     it("prefers structured resolution over the legacy fallback when the structured note target itself resolves", () => {
@@ -268,7 +294,9 @@ describe("crossNoteHeadingsFor (F04 Phase 5a)", () => {
     setNotes({ "project plan": ["/vault/project-plan.md"] });
     linkIndex.value = {
       ...linkIndex.value,
-      headingsByPath: new Map([["/vault/project-plan.md", scanHeadings("# Milestones\n\ntext")]]),
+      headingsByPath: new Map([
+        ["/vault/project-plan.md", scanHeadings("# Milestones\n\ntext")],
+      ]),
     };
     const [record] = parseWikiLinks("[[Project Plan#Milestones]]");
     const headings = crossNoteHeadingsFor(record);
@@ -286,10 +314,14 @@ describe("crossNoteHeadingsFor (F04 Phase 5a)", () => {
     setNotes({ "project plan": ["/vault/project-plan.md"] });
     linkIndex.value = {
       ...linkIndex.value,
-      headingsByPath: new Map([["/vault/project-plan.md", scanHeadings("# Milestones\n\ntext")]]),
+      headingsByPath: new Map([
+        ["/vault/project-plan.md", scanHeadings("# Milestones\n\ntext")],
+      ]),
     };
     const [record] = parseWikiLinks("[[Project Plan#Nonexistent]]");
-    const result = resolveWikiLinkTarget(record, { targetHeadings: crossNoteHeadingsFor(record) });
+    const result = resolveWikiLinkTarget(record, {
+      targetHeadings: crossNoteHeadingsFor(record),
+    });
     expect(result.status).toBe("missing-fragment");
     expect(result.notePath).toBe("/vault/project-plan.md");
   });
@@ -298,10 +330,17 @@ describe("crossNoteHeadingsFor (F04 Phase 5a)", () => {
     setNotes({ "project plan": ["/vault/project-plan.md"] });
     linkIndex.value = {
       ...linkIndex.value,
-      headingsByPath: new Map([["/vault/project-plan.md", scanHeadings("## Design\n\ntext\n\n## Design\n\nmore")]]),
+      headingsByPath: new Map([
+        [
+          "/vault/project-plan.md",
+          scanHeadings("## Design\n\ntext\n\n## Design\n\nmore"),
+        ],
+      ]),
     };
     const [record] = parseWikiLinks("[[Project Plan#Design]]");
-    const result = resolveWikiLinkTarget(record, { targetHeadings: crossNoteHeadingsFor(record) });
+    const result = resolveWikiLinkTarget(record, {
+      targetHeadings: crossNoteHeadingsFor(record),
+    });
     expect(result.status).toBe("ambiguous-fragment");
     expect(result.candidateHeadings).toHaveLength(2);
   });
@@ -334,7 +373,9 @@ describe("crossNoteBlocksFor (F04 Phase 5c)", () => {
     setNotes({ "project plan": ["/vault/project-plan.md"] });
     linkIndex.value = {
       ...linkIndex.value,
-      blocksByPath: new Map([["/vault/project-plan.md", scanBlockIds("A key decision. ^decision-1")]]),
+      blocksByPath: new Map([
+        ["/vault/project-plan.md", scanBlockIds("A key decision. ^decision-1")],
+      ]),
     };
     const [record] = parseWikiLinks("[[Project Plan#^decision-1]]");
     const blocks = crossNoteBlocksFor(record);
@@ -352,10 +393,14 @@ describe("crossNoteBlocksFor (F04 Phase 5c)", () => {
     setNotes({ "project plan": ["/vault/project-plan.md"] });
     linkIndex.value = {
       ...linkIndex.value,
-      blocksByPath: new Map([["/vault/project-plan.md", scanBlockIds("A key decision. ^decision-1")]]),
+      blocksByPath: new Map([
+        ["/vault/project-plan.md", scanBlockIds("A key decision. ^decision-1")],
+      ]),
     };
     const [record] = parseWikiLinks("[[Project Plan#^nonexistent]]");
-    const result = resolveWikiLinkTarget(record, { targetBlocks: crossNoteBlocksFor(record) });
+    const result = resolveWikiLinkTarget(record, {
+      targetBlocks: crossNoteBlocksFor(record),
+    });
     expect(result.status).toBe("missing-fragment");
     expect(result.notePath).toBe("/vault/project-plan.md");
   });
@@ -369,7 +414,9 @@ describe("crossNoteBlocksFor (F04 Phase 5c)", () => {
       ]),
     };
     const [record] = parseWikiLinks("[[Project Plan#^dup]]");
-    const result = resolveWikiLinkTarget(record, { targetBlocks: crossNoteBlocksFor(record) });
+    const result = resolveWikiLinkTarget(record, {
+      targetBlocks: crossNoteBlocksFor(record),
+    });
     expect(result.status).toBe("ambiguous-fragment");
     expect(result.candidateBlocks).toHaveLength(2);
   });

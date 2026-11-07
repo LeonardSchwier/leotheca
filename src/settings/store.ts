@@ -156,7 +156,8 @@ export interface WorkspaceTransitionRecoveryInfo {
   forget?: () => Promise<unknown>;
 }
 
-export const workspaceTransitionRecovery = signal<WorkspaceTransitionRecoveryInfo | null>(null);
+export const workspaceTransitionRecovery =
+  signal<WorkspaceTransitionRecoveryInfo | null>(null);
 
 effect(() => {
   const transition = workspaceTransitions.state.value;
@@ -170,9 +171,13 @@ effect(() => {
     workspaceTransitionRecovery.value = null;
     return;
   }
-  const kind = classifyTransitionErrorKind(transition.phase, isNativePlatform());
+  const kind = classifyTransitionErrorKind(
+    transition.phase,
+    isNativePlatform(),
+  );
   const actions = recoveryActionsFor(kind);
-  const has = (id: WorkspaceTransitionRecoveryAction["id"]) => actions.some((action) => action.id === id);
+  const has = (id: WorkspaceTransitionRecoveryAction["id"]) =>
+    actions.some((action) => action.id === id);
   workspaceTransitionRecovery.value = {
     targetProfileId,
     targetProfileName: profile.name,
@@ -181,23 +186,39 @@ effect(() => {
     actions,
     retry: () => activateWorkspaceProfile(targetProfileId),
     discard: has("discard")
-      ? () => setWorkspacePath(profile.path, profile.token, profile, { discardUnsaved: true })
+      ? () =>
+          setWorkspacePath(profile.path, profile.token, profile, {
+            discardUnsaved: true,
+          })
       : undefined,
-    relink: has("relink") || has("grant-access") ? () => relinkWorkspaceProfile(targetProfileId) : undefined,
-    openAnother: has("open-another") ? () => addWorkspaceFromPicker() : undefined,
-    forget: has("forget") ? () => forgetWorkspaceProfile(targetProfileId) : undefined,
+    relink:
+      has("relink") || has("grant-access")
+        ? () => relinkWorkspaceProfile(targetProfileId)
+        : undefined,
+    openAnother: has("open-another")
+      ? () => addWorkspaceFromPicker()
+      : undefined,
+    forget: has("forget")
+      ? () => forgetWorkspaceProfile(targetProfileId)
+      : undefined,
   };
 });
 
 if (typeof document !== "undefined") {
   effect(() => {
-    document.documentElement.style.setProperty("--content-font-size", `${workspaceSettings.value.fontSize}px`);
+    document.documentElement.style.setProperty(
+      "--content-font-size",
+      `${workspaceSettings.value.fontSize}px`,
+    );
   });
 }
 
 if (typeof document !== "undefined") {
   effect(() => {
-    document.documentElement.style.setProperty("--ui-zoom", `${workspaceSettings.value.uiZoom / 100}`);
+    document.documentElement.style.setProperty(
+      "--ui-zoom",
+      `${workspaceSettings.value.uiZoom / 100}`,
+    );
   });
 }
 
@@ -227,8 +248,14 @@ let lastPersistedTabsKey = "";
 /** Restores remembered tabs only while the caller still owns the workspace
  * transition. Reads may finish after another folder has been selected, so the
  * authority check is repeated after every await and before every mutation. */
-export async function restoreLastOpenTabs(isCurrent: () => boolean = () => true): Promise<void> {
-  const { lastOpenPaths, lastActivePath, editorLayout: persistedLayout } = workspaceSettings.value;
+export async function restoreLastOpenTabs(
+  isCurrent: () => boolean = () => true,
+): Promise<void> {
+  const {
+    lastOpenPaths,
+    lastActivePath,
+    editorLayout: persistedLayout,
+  } = workspaceSettings.value;
   isRestoringTabs = true;
   try {
     for (const path of lastOpenPaths) {
@@ -245,9 +272,10 @@ export async function restoreLastOpenTabs(isCurrent: () => boolean = () => true)
     }
     if (!isCurrent()) return;
     const restoredPaths = new Set(openTabs.value.map((tab) => tab.path));
-    const restoredActivePath = lastActivePath && restoredPaths.has(lastActivePath)
-      ? lastActivePath
-      : (openTabs.value.at(-1)?.path ?? null);
+    const restoredActivePath =
+      lastActivePath && restoredPaths.has(lastActivePath)
+        ? lastActivePath
+        : (openTabs.value.at(-1)?.path ?? null);
     if (restoredActivePath) focusTab(restoredActivePath);
     if (persistedLayout) {
       restoreEditorLayout({
@@ -271,7 +299,12 @@ effect(() => {
   const paths = openTabs.value.map((t) => t.path);
   const pinnedPaths = editorLayout.value.groups.primary.pinnedPaths;
   const groupViewMode = editorLayout.value.groups.primary.viewMode;
-  const key = JSON.stringify([paths, activeTabPath.value, pinnedPaths, groupViewMode]);
+  const key = JSON.stringify([
+    paths,
+    activeTabPath.value,
+    pinnedPaths,
+    groupViewMode,
+  ]);
   if (isRestoringTabs || key === lastPersistedTabsKey) return;
   lastPersistedTabsKey = key;
   void updateWorkspaceSettings({
@@ -360,7 +393,9 @@ function saveGlobalConfigOrdered(
  * `activeWorkspaceId` currently resolves to, not tracked as separate
  * signal state that could drift from it. `onFailure`, when supplied by an
  * optimistic profile edit, runs before the next queued write reads state. */
-function persistGlobalConfig(onFailure?: GlobalConfigWriteFailureHandler): Promise<void> {
+function persistGlobalConfig(
+  onFailure?: GlobalConfigWriteFailureHandler,
+): Promise<void> {
   if (globalConfigCorrupted.value) return Promise.resolve();
   return saveGlobalConfigOrdered(readCurrentGlobalConfig, onFailure);
 }
@@ -408,7 +443,11 @@ export async function initSettings(): Promise<void> {
       // on startup by avoiding one unnecessary SAF round trip.
       const { settings: loadedWorkspaceSettings, corrupt } =
         await loadWorkspaceSettings(activeProfile.path);
-      const { lastOpenPaths, lastActivePath, editorLayout: persistedLayout } = loadedWorkspaceSettings;
+      const {
+        lastOpenPaths,
+        lastActivePath,
+        editorLayout: persistedLayout,
+      } = loadedWorkspaceSettings;
       lastPersistedTabsKey = JSON.stringify([lastOpenPaths, lastActivePath]);
       isRestoringTabs = true;
       try {
@@ -423,7 +462,10 @@ export async function initSettings(): Promise<void> {
         });
         // Apply custom CSS if enabled.
         if (loadedWorkspaceSettings.customCssEnabled) {
-          void applyCustomCss(activeProfile.path, loadedWorkspaceSettings.customCssPath);
+          void applyCustomCss(
+            activeProfile.path,
+            loadedWorkspaceSettings.customCssPath,
+          );
         }
         const active = lastActivePath ?? lastOpenPaths[0] ?? null;
         if (active) {
@@ -450,7 +492,8 @@ export async function initSettings(): Promise<void> {
             // restoreLastOpenTabs's tolerant handling of a missing path.
           }
         }
-        if (active && openTabs.value.some((tab) => tab.path === active)) focusTab(active);
+        if (active && openTabs.value.some((tab) => tab.path === active))
+          focusTab(active);
         if (persistedLayout) {
           restoreEditorLayout({
             pinnedPaths,
@@ -578,7 +621,8 @@ export async function setWorkspacePath(
         // pickWorkspaceFolder() currently activates its picked SAF token before
         // returning. Rebind the old grant immediately so pending old-session
         // work cannot resolve against the newly picked tree while it drains.
-        if (outgoingPath) await restoreWorkspaceAccess(outgoingPath, outgoingToken);
+        if (outgoingPath)
+          await restoreWorkspaceAccess(outgoingPath, outgoingToken);
         await Promise.all([
           workspaceSaves.prepareForTransition(outgoingSession, { discard }),
           drainWorkspaceSettingsWrites(),
@@ -592,7 +636,12 @@ export async function setWorkspacePath(
         // preserves it), so the preseeded key must reflect its current value,
         // not a hardcoded default, or this internal clear would look like a
         // real change.
-        lastPersistedTabsKey = JSON.stringify([[], null, [], editorLayout.value.groups.primary.viewMode]);
+        lastPersistedTabsKey = JSON.stringify([
+          [],
+          null,
+          [],
+          editorLayout.value.groups.primary.viewMode,
+        ]);
         closeAllTabs();
       },
       connectIncoming: async () => {
@@ -631,7 +680,12 @@ export async function setWorkspacePath(
           return;
         }
         // Preseed for the same reason as prepareOutgoing above.
-        lastPersistedTabsKey = JSON.stringify([[], null, [], editorLayout.value.groups.primary.viewMode]);
+        lastPersistedTabsKey = JSON.stringify([
+          [],
+          null,
+          [],
+          editorLayout.value.groups.primary.viewMode,
+        ]);
         closeAllTabs();
         batch(() => {
           workspaceSettings.value = DEFAULT_WORKSPACE_SETTINGS;
@@ -700,7 +754,11 @@ async function addOrActivateWorkspaceFolder(folder: {
   token?: string;
   name?: string;
 }): Promise<void> {
-  const existing = findProfileByLocator(workspaceProfiles.value, folder.path, folder.token);
+  const existing = findProfileByLocator(
+    workspaceProfiles.value,
+    folder.path,
+    folder.token,
+  );
   if (existing) {
     await activateWorkspaceProfile(existing.id);
     return;
@@ -740,10 +798,15 @@ export async function addWorkspaceFromPath(path: string): Promise<void> {
  * persistence failure restores only this action's optimistic name if it
  * still owns that field. The compensation runs within the global write
  * queue before any later write reads the canonical profile catalog. */
-export async function renameWorkspaceProfile(id: string, rawName: string): Promise<boolean> {
+export async function renameWorkspaceProfile(
+  id: string,
+  rawName: string,
+): Promise<boolean> {
   const name = normalizeProfileName(rawName);
   if (!name) return false;
-  const index = workspaceProfiles.value.findIndex((profile) => profile.id === id);
+  const index = workspaceProfiles.value.findIndex(
+    (profile) => profile.id === id,
+  );
   if (index < 0) return false;
   const current = workspaceProfiles.value[index];
   if (current.name === name) return true;
@@ -766,9 +829,14 @@ export async function renameWorkspaceProfile(id: string, rawName: string): Promi
  * newly persisted through this UI action. Recency and activation are untouched.
  * A failed persistence restores only this action's optimistic icon when
  * that value is still current, before any later queued write reads state. */
-export async function setWorkspaceProfileIcon(id: string, icon: WorkspaceIcon): Promise<boolean> {
+export async function setWorkspaceProfileIcon(
+  id: string,
+  icon: WorkspaceIcon,
+): Promise<boolean> {
   if (!isKnownWorkspaceIcon(icon)) return false;
-  const index = workspaceProfiles.value.findIndex((profile) => profile.id === id);
+  const index = workspaceProfiles.value.findIndex(
+    (profile) => profile.id === id,
+  );
   if (index < 0) return false;
   const current = workspaceProfiles.value[index];
   if (current.icon === icon) return true;
@@ -831,17 +899,27 @@ export async function forgetWorkspaceProfile(
   options?: { discardUnsaved?: boolean },
 ): Promise<void> {
   if (id !== activeWorkspaceId.value) {
-    const removed = workspaceProfiles.value.find((profile) => profile.id === id);
+    const removed = workspaceProfiles.value.find(
+      (profile) => profile.id === id,
+    );
     if (!removed) return;
-    workspaceProfiles.value = workspaceProfiles.value.filter((profile) => profile.id !== id);
+    workspaceProfiles.value = workspaceProfiles.value.filter(
+      (profile) => profile.id !== id,
+    );
     await persistGlobalConfig(() => {
       if (workspaceProfiles.value.some((profile) => profile.id === id)) return;
-      workspaceProfiles.value = sortWorkspaceProfiles([...workspaceProfiles.value, removed]);
+      workspaceProfiles.value = sortWorkspaceProfiles([
+        ...workspaceProfiles.value,
+        removed,
+      ]);
     });
     return;
   }
 
-  if (!options?.discardUnsaved && workspaceSaves.hasUnsavedWork(workspaceSession.value)) {
+  if (
+    !options?.discardUnsaved &&
+    workspaceSaves.hasUnsavedWork(workspaceSession.value)
+  ) {
     throw new WorkspaceForgetUnsavedWorkError();
   }
 
@@ -856,7 +934,12 @@ export async function forgetWorkspaceProfile(
       // View mode itself is unaffected by closing tabs (synchronizePrimaryEditorLayout
       // preserves it), so the preseeded key must reflect its current value, not a
       // hardcoded default, or this internal clear would look like a real change.
-      lastPersistedTabsKey = JSON.stringify([[], null, [], editorLayout.value.groups.primary.viewMode]);
+      lastPersistedTabsKey = JSON.stringify([
+        [],
+        null,
+        [],
+        editorLayout.value.groups.primary.viewMode,
+      ]);
       closeAllTabs();
     },
     connectIncoming: async () => {},
@@ -870,7 +953,9 @@ export async function forgetWorkspaceProfile(
         workspaceToken.value = undefined;
         workspaceSession.value++;
         activeWorkspaceId.value = null;
-        workspaceProfiles.value = workspaceProfiles.value.filter((profile) => profile.id !== id);
+        workspaceProfiles.value = workspaceProfiles.value.filter(
+          (profile) => profile.id !== id,
+        );
       });
     },
     afterPublish: async () => {
@@ -886,7 +971,9 @@ export async function forgetWorkspaceProfile(
  * belongs to instead of a generic failure message. */
 export class WorkspaceRelinkConflictError extends Error {
   constructor(public readonly conflictingProfileName: string) {
-    super(`This folder is already used by workspace "${conflictingProfileName}".`);
+    super(
+      `This folder is already used by workspace "${conflictingProfileName}".`,
+    );
     this.name = "WorkspaceRelinkConflictError";
   }
 }
@@ -931,11 +1018,16 @@ export class WorkspaceRelinkConflictError extends Error {
  * will need a real per-tree probe primitive to close it.
  */
 export async function relinkWorkspaceProfile(id: string): Promise<boolean> {
-  if (!workspaceProfiles.value.some((profile) => profile.id === id)) return false;
+  if (!workspaceProfiles.value.some((profile) => profile.id === id))
+    return false;
   const folder = await pickWorkspaceFolder();
   if (!folder) return false;
 
-  const conflict = findProfileByLocator(workspaceProfiles.value, folder.path, folder.token);
+  const conflict = findProfileByLocator(
+    workspaceProfiles.value,
+    folder.path,
+    folder.token,
+  );
   if (conflict && conflict.id !== id) {
     throw new WorkspaceRelinkConflictError(conflict.name);
   }
@@ -961,14 +1053,19 @@ export async function relinkWorkspaceProfile(id: string): Promise<boolean> {
     await loadWorkspaceSettings(folder.path);
   }
 
-  const relinked: WorkspaceProfile = { ...current, path: folder.path, token: folder.token };
+  const relinked: WorkspaceProfile = {
+    ...current,
+    path: folder.path,
+    token: folder.token,
+  };
   workspaceProfiles.value = sortWorkspaceProfiles([
     ...workspaceProfiles.value.filter((profile) => profile.id !== id),
     relinked,
   ]);
   await persistGlobalConfig(() => {
     const latest = workspaceProfiles.value.find((profile) => profile.id === id);
-    if (latest?.path !== relinked.path || latest.token !== relinked.token) return;
+    if (latest?.path !== relinked.path || latest.token !== relinked.token)
+      return;
     workspaceProfiles.value = sortWorkspaceProfiles([
       ...workspaceProfiles.value.filter((profile) => profile.id !== id),
       { ...latest, path: current.path, token: current.token },
@@ -995,7 +1092,8 @@ function resolveWorkspaceSettingsDrainWaiters(): void {
 }
 
 function drainWorkspaceSettingsWrites(): Promise<void> {
-  if (!workspaceSettingsWriteInFlight && !pendingWorkspaceSettingsWrite) return Promise.resolve();
+  if (!workspaceSettingsWriteInFlight && !pendingWorkspaceSettingsWrite)
+    return Promise.resolve();
   return new Promise((resolve) => workspaceSettingsDrainWaiters.add(resolve));
 }
 
@@ -1033,7 +1131,11 @@ function queueWorkspaceSettingsWrite(
       pendingWorkspaceSettingsWrite.resolvers.push({ resolve, reject });
       return;
     }
-    pendingWorkspaceSettingsWrite = { path, settings, resolvers: [{ resolve, reject }] };
+    pendingWorkspaceSettingsWrite = {
+      path,
+      settings,
+      resolvers: [{ resolve, reject }],
+    };
     flushWorkspaceSettingsWrites();
   });
 }
@@ -1053,7 +1155,7 @@ export async function updateWorkspaceSettings(
   if (!workspacePath.value) return;
   const prev = workspaceSettings.value;
   workspaceSettings.value = { ...prev, ...patch };
-  
+
   // Apply or remove custom CSS when the setting changes.
   if (
     patch.customCssEnabled !== undefined ||
@@ -1066,7 +1168,7 @@ export async function updateWorkspaceSettings(
       removeCustomCss();
     }
   }
-  
+
   if (workspaceSettingsCorrupted.value) return;
   const path = workspacePath.value;
   try {

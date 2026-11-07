@@ -5,7 +5,11 @@ import { InkView } from "./InkView";
 
 afterEach(cleanup);
 
-const EMPTY_SOURCE = JSON.stringify({ version: 1, strokes: [], viewport: { x: 0, y: 0, zoom: 1 } });
+const EMPTY_SOURCE = JSON.stringify({
+  version: 1,
+  strokes: [],
+  viewport: { x: 0, y: 0, zoom: 1 },
+});
 
 function mockBounds(surface: SVGSVGElement) {
   surface.getBoundingClientRect = () => new DOMRect(0, 0, 400, 300);
@@ -15,14 +19,37 @@ function mockBounds(surface: SVGSVGElement) {
 }
 
 function drawOneStroke(getByLabelText: (label: string) => HTMLElement) {
-  const surface = getByLabelText("Ink drawing surface") as unknown as SVGSVGElement;
+  const surface = getByLabelText(
+    "Ink drawing surface",
+  ) as unknown as SVGSVGElement;
   mockBounds(surface);
-  fireEvent.pointerDown(surface, { pointerId: 1, pointerType: "mouse", button: 0, clientX: 10, clientY: 10 });
-  fireEvent.pointerMove(surface, { pointerId: 1, pointerType: "mouse", button: 0, clientX: 20, clientY: 20 });
-  fireEvent.pointerUp(surface, { pointerId: 1, pointerType: "mouse", button: 0, clientX: 30, clientY: 30 });
+  fireEvent.pointerDown(surface, {
+    pointerId: 1,
+    pointerType: "mouse",
+    button: 0,
+    clientX: 10,
+    clientY: 10,
+  });
+  fireEvent.pointerMove(surface, {
+    pointerId: 1,
+    pointerType: "mouse",
+    button: 0,
+    clientX: 20,
+    clientY: 20,
+  });
+  fireEvent.pointerUp(surface, {
+    pointerId: 1,
+    pointerType: "mouse",
+    button: 0,
+    clientX: 30,
+    clientY: 30,
+  });
 }
 
-function strokesFromChange(onChange: ReturnType<typeof vi.fn>, callIndex: number): unknown[] {
+function strokesFromChange(
+  onChange: ReturnType<typeof vi.fn>,
+  callIndex: number,
+): unknown[] {
   const source = onChange.mock.calls[callIndex][0] as string;
   return (JSON.parse(source) as { strokes: unknown[] }).strokes;
 }
@@ -30,7 +57,9 @@ function strokesFromChange(onChange: ReturnType<typeof vi.fn>, callIndex: number
 describe("InkView undo/redo persistence (maintenance review: rm-a28bbd97a6233ac4)", () => {
   it("persists the reverted document through onChange when Undo is clicked", () => {
     const onChange = vi.fn();
-    const { getByLabelText } = render(<InkView path="note.ink" source={EMPTY_SOURCE} onChange={onChange} />);
+    const { getByLabelText } = render(
+      <InkView path="note.ink" source={EMPTY_SOURCE} onChange={onChange} />,
+    );
 
     drawOneStroke(getByLabelText);
     expect(onChange).toHaveBeenCalledTimes(1);
@@ -50,7 +79,9 @@ describe("InkView undo/redo persistence (maintenance review: rm-a28bbd97a6233ac4
 
   it("persists the reapplied document through onChange when Redo is clicked", () => {
     const onChange = vi.fn();
-    const { getByLabelText } = render(<InkView path="note.ink" source={EMPTY_SOURCE} onChange={onChange} />);
+    const { getByLabelText } = render(
+      <InkView path="note.ink" source={EMPTY_SOURCE} onChange={onChange} />,
+    );
 
     drawOneStroke(getByLabelText);
     fireEvent.click(getByLabelText("Undo"));
@@ -65,7 +96,9 @@ describe("InkView undo/redo persistence (maintenance review: rm-a28bbd97a6233ac4
 
   it("does not call onChange when Undo/Redo are clicked with nothing to undo/redo", () => {
     const onChange = vi.fn();
-    const { getByLabelText } = render(<InkView path="note.ink" source={EMPTY_SOURCE} onChange={onChange} />);
+    const { getByLabelText } = render(
+      <InkView path="note.ink" source={EMPTY_SOURCE} onChange={onChange} />,
+    );
 
     // Buttons are disabled, but exercise the handlers directly against the
     // no-op case regardless of the disabled attribute.
@@ -99,12 +132,18 @@ describe("InkView tolerant decoding (maintenance review: local decoder discarded
 
     const onChange = vi.fn();
     const { getByLabelText } = render(
-      <InkView path="note.ink" source={sourceMissingViewport} onChange={onChange} />
+      <InkView
+        path="note.ink"
+        source={sourceMissingViewport}
+        onChange={onChange}
+      />,
     );
 
     // The pre-existing stroke must still be rendered, not silently dropped.
     const surface = getByLabelText("Ink drawing surface");
-    expect(surface.querySelectorAll("line, polyline").length).toBeGreaterThan(0);
+    expect(surface.querySelectorAll("line, polyline").length).toBeGreaterThan(
+      0,
+    );
 
     // Drawing a new stroke must persist alongside the original one, not
     // overwrite it: this is the actual on-disk data-loss scenario the
@@ -124,12 +163,21 @@ describe("InkView tolerant decoding (maintenance review: local decoder discarded
 
     const onChange = vi.fn();
     const { getByLabelText } = render(
-      <InkView path="note.ink" source={sourceWithExtraField} onChange={onChange} />
+      <InkView
+        path="note.ink"
+        source={sourceWithExtraField}
+        onChange={onChange}
+      />,
     );
 
     drawOneStroke(getByLabelText);
     expect(onChange).toHaveBeenCalledTimes(1);
-    const written = JSON.parse(onChange.mock.calls[0][0] as string) as Record<string, unknown>;
-    expect(written.futureWriterField).toBe("must survive a round trip through an older build");
+    const written = JSON.parse(onChange.mock.calls[0][0] as string) as Record<
+      string,
+      unknown
+    >;
+    expect(written.futureWriterField).toBe(
+      "must survive a round trip through an older build",
+    );
   });
 });

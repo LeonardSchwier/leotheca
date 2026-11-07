@@ -834,16 +834,16 @@ Both:
 
 ## 24. Risks and mitigations
 
-| Risk | Impact | Mitigation |
-|---|---|---|
-| Two editors write same note | Lost updates | Unique path ownership and one canonical document per path |
-| Store refactor breaks autosave | Data loss | Land single-group compatibility first and test one save authority |
-| Editor remount loses undo or selection | Poor UX | Retained EditorState, view-state snapshots, explicit remount tests |
-| Compact split is unusable | Mobile regression | One visible group with logical group switcher |
-| Restore reads every tab | Slow startup | Lazy active-document-first restore |
-| Pinned tabs become impossible to close | User frustration | Explicit Unpin and close plus confirmed include-pinned action |
-| Feature callers manipulate arrays | State corruption | Central `OpenNoteRequest` and router; no exported raw reducers |
-| F03 rename races with reads | Old content reappears | Mutation lock, path-key migration, generation checks |
+| Risk                                   | Impact                | Mitigation                                                         |
+| -------------------------------------- | --------------------- | ------------------------------------------------------------------ |
+| Two editors write same note            | Lost updates          | Unique path ownership and one canonical document per path          |
+| Store refactor breaks autosave         | Data loss             | Land single-group compatibility first and test one save authority  |
+| Editor remount loses undo or selection | Poor UX               | Retained EditorState, view-state snapshots, explicit remount tests |
+| Compact split is unusable              | Mobile regression     | One visible group with logical group switcher                      |
+| Restore reads every tab                | Slow startup          | Lazy active-document-first restore                                 |
+| Pinned tabs become impossible to close | User frustration      | Explicit Unpin and close plus confirmed include-pinned action      |
+| Feature callers manipulate arrays      | State corruption      | Central `OpenNoteRequest` and router; no exported raw reducers     |
+| F03 rename races with reads            | Old content reappears | Mutation lock, path-key migration, generation checks               |
 
 ## 25. Documentation changes
 

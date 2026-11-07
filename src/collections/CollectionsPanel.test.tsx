@@ -33,8 +33,10 @@ window.matchMedia = vi.fn().mockImplementation((query: string) => ({
 })) as unknown as typeof window.matchMedia;
 
 const { CollectionsPanel } = await import("./CollectionsPanel");
-const { collectionsFile, collectionsFileCorrupt } = await import("./collectionStore");
-const { emptyCollectionsFile, emptyQueryGroup } = await import("./collectionTypes");
+const { collectionsFile, collectionsFileCorrupt } =
+  await import("./collectionStore");
+const { emptyCollectionsFile, emptyQueryGroup } =
+  await import("./collectionTypes");
 const { linkIndex } = await import("../linking/store");
 const { workspacePath } = await import("../settings/store");
 
@@ -88,7 +90,9 @@ afterEach(() => {
 describe("CollectionsPanel", () => {
   it("shows a placeholder when there are no saved collections", () => {
     const { getByText } = render(<CollectionsPanel onOpenFile={vi.fn()} />);
-    expect(getByText("Create a collection to build a reusable note view.")).toBeTruthy();
+    expect(
+      getByText("Create a collection to build a reusable note view."),
+    ).toBeTruthy();
   });
 
   it("lists a saved collection with its live match count", () => {
@@ -138,7 +142,10 @@ describe("CollectionsPanel", () => {
     const { getByText } = render(<CollectionsPanel onOpenFile={onOpenFile} />);
     fireEvent.click(getByText("Everything"));
     fireEvent.click(getByText("My Note"));
-    expect(onOpenFile).toHaveBeenCalledWith("Projects/My Note.md", "My Note.md");
+    expect(onOpenFile).toHaveBeenCalledWith(
+      "Projects/My Note.md",
+      "My Note.md",
+    );
   });
 
   it("updates results live when the underlying index changes, with no re-fetch or remount", async () => {
@@ -148,7 +155,9 @@ describe("CollectionsPanel", () => {
       collections: [matchAllCollection("c1", "Everything")],
       order: ["c1"],
     };
-    const { getByText, queryByText } = render(<CollectionsPanel onOpenFile={vi.fn()} />);
+    const { getByText, queryByText } = render(
+      <CollectionsPanel onOpenFile={vi.fn()} />,
+    );
     fireEvent.click(getByText("Everything"));
     expect(getByText("Alpha")).toBeTruthy();
 
@@ -169,7 +178,9 @@ describe("CollectionsPanel", () => {
   it("creating a collection through the builder saves it and shows it in the list", async () => {
     workspacePath.value = "/workspace";
     setNotes(["Alpha.md"]);
-    const { getByText, getByLabelText } = render(<CollectionsPanel onOpenFile={vi.fn()} />);
+    const { getByText, getByLabelText } = render(
+      <CollectionsPanel onOpenFile={vi.fn()} />,
+    );
     fireEvent.click(getByText("+ New collection"));
     fireEvent.input(getByLabelText("Name") as HTMLInputElement, {
       target: { value: "My collection" },
@@ -190,7 +201,9 @@ describe("CollectionsPanel", () => {
       collections: [matchAllCollection("c1", "Everything")],
       order: ["c1"],
     };
-    const { getByLabelText, queryByText } = render(<CollectionsPanel onOpenFile={vi.fn()} />);
+    const { getByLabelText, queryByText } = render(
+      <CollectionsPanel onOpenFile={vi.fn()} />,
+    );
     fireEvent.click(getByLabelText("Delete Everything"));
     await waitFor(() => expect(queryByText("Everything")).toBeNull());
     const written = JSON.parse(writeWorkspaceTextFile.mock.calls.at(-1)![2]);

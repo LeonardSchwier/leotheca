@@ -78,14 +78,14 @@ leotheca://capture
 
 Recognized query parameters:
 
-| Parameter | Meaning |
-|---|---|
-| `text` | UTF-8 capture body |
-| `title` | Suggested title for a new note or capture heading |
-| `url` | Optional source URL, recorded but never fetched |
-| `mode` | `append` or `new` |
-| `profile` | Optional F20 profile UUID |
-| `open` | `true` to open the result after commit |
+| Parameter | Meaning                                           |
+| --------- | ------------------------------------------------- |
+| `text`    | UTF-8 capture body                                |
+| `title`   | Suggested title for a new note or capture heading |
+| `url`     | Optional source URL, recorded but never fetched   |
+| `mode`    | `append` or `new`                                 |
+| `profile` | Optional F20 profile UUID                         |
+| `open`    | `true` to open the result after commit            |
 
 Security and size rules:
 
@@ -537,18 +537,18 @@ The desktop scheme registration routes only recognized Leotheca automation URLs.
 
 Required errors and actions:
 
-| Error | Required actions |
-|---|---|
-| No workspace profile | Choose or add workspace, Keep pending |
-| Profile unavailable | Retry, Relink, Choose another profile, Keep pending |
-| Target path invalid | Change destination |
-| Note changed externally | Reload destination and retry, Create new note |
-| Note save failed | Retry, Open destination, Keep pending |
-| Attachment unreadable | Remove attachment, Retry |
-| Attachment limit exceeded | Remove items, Keep text only, Cancel |
-| Workspace storage full | Free space, Retry, Keep pending |
-| Shortcut registration failed | Change shortcut, Disable global shortcut |
-| Pending queue full | Review pending captures, Reject new capture |
+| Error                        | Required actions                                    |
+| ---------------------------- | --------------------------------------------------- |
+| No workspace profile         | Choose or add workspace, Keep pending               |
+| Profile unavailable          | Retry, Relink, Choose another profile, Keep pending |
+| Target path invalid          | Change destination                                  |
+| Note changed externally      | Reload destination and retry, Create new note       |
+| Note save failed             | Retry, Open destination, Keep pending               |
+| Attachment unreadable        | Remove attachment, Retry                            |
+| Attachment limit exceeded    | Remove items, Keep text only, Cancel                |
+| Workspace storage full       | Free space, Retry, Keep pending                     |
+| Shortcut registration failed | Change shortcut, Disable global shortcut            |
+| Pending queue full           | Review pending captures, Reject new capture         |
 
 Errors never discard the original staged content automatically.
 
@@ -744,16 +744,16 @@ Errors never discard the original staged content automatically.
 
 ## 23. Risks and mitigations
 
-| Risk | Impact | Mitigation |
-|---|---|---|
-| Direct append races with dirty editor | Lost capture or note edits | Canonical open-document mutation and one save coordinator |
-| External URI permission expires | Lost attachment | Native app-private staging during receipt |
-| Malicious deep link writes content | Unwanted file modification | Review required, bounded parameters, no external target paths |
-| Attachment retry duplicates files | Workspace clutter | Planned names, fingerprints, reuse, never overwrite |
-| Queue grows without bound | Storage exhaustion | Count and byte limits with explicit user action |
-| Profile switch writes to wrong workspace | Data leak | Profile UUID plus workspace session, F20 activation before commit |
-| URL preview performs network access | Privacy violation | Store literal URL only, no fetch code path |
-| Android provider behavior differs | Failed commit | Streamed bridge operations, explicit errors, lifecycle/provider tests |
+| Risk                                     | Impact                     | Mitigation                                                            |
+| ---------------------------------------- | -------------------------- | --------------------------------------------------------------------- |
+| Direct append races with dirty editor    | Lost capture or note edits | Canonical open-document mutation and one save coordinator             |
+| External URI permission expires          | Lost attachment            | Native app-private staging during receipt                             |
+| Malicious deep link writes content       | Unwanted file modification | Review required, bounded parameters, no external target paths         |
+| Attachment retry duplicates files        | Workspace clutter          | Planned names, fingerprints, reuse, never overwrite                   |
+| Queue grows without bound                | Storage exhaustion         | Count and byte limits with explicit user action                       |
+| Profile switch writes to wrong workspace | Data leak                  | Profile UUID plus workspace session, F20 activation before commit     |
+| URL preview performs network access      | Privacy violation          | Store literal URL only, no fetch code path                            |
+| Android provider behavior differs        | Failed commit              | Streamed bridge operations, explicit errors, lifecycle/provider tests |
 
 ## 24. Documentation changes
 

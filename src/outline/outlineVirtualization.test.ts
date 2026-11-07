@@ -27,16 +27,24 @@ describe("flattenVisibleRows", () => {
   });
 
   it("assigns increasing depth to nested headings", () => {
-    const headings = scanHeadings("# Product\n## Delivery\n### Android\n## Web");
+    const headings = scanHeadings(
+      "# Product\n## Delivery\n### Android\n## Web",
+    );
     const rows = flattenVisibleRows(headings, new Set(), false, null);
     expect(rows.map((r) => r.depth)).toEqual([0, 1, 2, 1]);
   });
 
   it("omits a collapsed heading's descendants but keeps the heading itself", () => {
-    const headings = scanHeadings("# Product\n## Delivery\n### Android\n## Web");
+    const headings = scanHeadings(
+      "# Product\n## Delivery\n### Android\n## Web",
+    );
     const collapsed = new Set([headingKeyId(headings[1])]); // collapse "Delivery"
     const rows = flattenVisibleRows(headings, collapsed, false, null);
-    expect(rows.map((r) => headings[r.index].displayText)).toEqual(["Product", "Delivery", "Web"]);
+    expect(rows.map((r) => headings[r.index].displayText)).toEqual([
+      "Product",
+      "Delivery",
+      "Web",
+    ]);
   });
 
   it("ignores collapse state entirely while filtering, matching OutlineRow's own rule", () => {
@@ -45,14 +53,21 @@ describe("flattenVisibleRows", () => {
     // Filter matches "Android" only, but its ancestor chain must stay reachable.
     const visibleIndexes = new Set([2, 1, 0]);
     const rows = flattenVisibleRows(headings, collapsed, true, visibleIndexes);
-    expect(rows.map((r) => headings[r.index].displayText)).toEqual(["Product", "Delivery", "Android"]);
+    expect(rows.map((r) => headings[r.index].displayText)).toEqual([
+      "Product",
+      "Delivery",
+      "Android",
+    ]);
   });
 
   it("excludes a heading the filter does not match and is not an ancestor of a match", () => {
     const headings = scanHeadings("# Product\n## Delivery\n## Marketing");
     const visibleIndexes = new Set([0, 1]); // "Delivery" and its ancestor match; "Marketing" doesn't
     const rows = flattenVisibleRows(headings, new Set(), true, visibleIndexes);
-    expect(rows.map((r) => headings[r.index].displayText)).toEqual(["Product", "Delivery"]);
+    expect(rows.map((r) => headings[r.index].displayText)).toEqual([
+      "Product",
+      "Delivery",
+    ]);
   });
 
   it("produces the same order the existing nested renderer would, for a realistic mixed-depth document", () => {
@@ -81,7 +96,15 @@ describe("flattenVisibleRows", () => {
 
 describe("computeVirtualWindow", () => {
   it("returns an empty window for zero rows", () => {
-    expect(computeVirtualWindow(0, VIRTUAL_ROW_HEIGHT_PX, 0, 300, VIRTUAL_OVERSCAN_ROWS)).toEqual({
+    expect(
+      computeVirtualWindow(
+        0,
+        VIRTUAL_ROW_HEIGHT_PX,
+        0,
+        300,
+        VIRTUAL_OVERSCAN_ROWS,
+      ),
+    ).toEqual({
       startIndex: 0,
       endIndex: 0,
       topSpacerHeight: 0,
@@ -130,7 +153,13 @@ describe("computeVirtualWindow", () => {
     const totalHeight = rowCount * rowHeight;
     const seen = new Set<number>();
     for (let scrollTop = 0; scrollTop <= totalHeight; scrollTop += 40) {
-      const window = computeVirtualWindow(rowCount, rowHeight, scrollTop, viewportHeight, 8);
+      const window = computeVirtualWindow(
+        rowCount,
+        rowHeight,
+        scrollTop,
+        viewportHeight,
+        8,
+      );
       for (let i = window.startIndex; i < window.endIndex; i++) seen.add(i);
     }
     for (let i = 0; i < rowCount; i++) expect(seen.has(i)).toBe(true);
@@ -143,7 +172,9 @@ describe("LARGE_OUTLINE_THRESHOLD", () => {
   });
 
   it("a fixture at exactly the threshold plus one produces more headings than the threshold", () => {
-    const headings = scanHeadings(makeLargeOutline(LARGE_OUTLINE_THRESHOLD + 1));
+    const headings = scanHeadings(
+      makeLargeOutline(LARGE_OUTLINE_THRESHOLD + 1),
+    );
     expect(headings.length).toBeGreaterThan(LARGE_OUTLINE_THRESHOLD);
   });
 });

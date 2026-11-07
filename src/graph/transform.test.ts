@@ -1,17 +1,27 @@
 import { describe, expect, it } from "vitest";
-import { computeZoomTransform, findNodeAtWorld, screenToWorld } from "./transform";
+import {
+  computeZoomTransform,
+  findNodeAtWorld,
+  screenToWorld,
+} from "./transform";
 
 describe("screenToWorld", () => {
   it("returns the same point unchanged for the identity transform", () => {
-    expect(screenToWorld(50, 80, { offsetX: 0, offsetY: 0, scale: 1 })).toEqual({ x: 50, y: 80 });
+    expect(screenToWorld(50, 80, { offsetX: 0, offsetY: 0, scale: 1 })).toEqual(
+      { x: 50, y: 80 },
+    );
   });
 
   it("undoes the pan offset", () => {
-    expect(screenToWorld(50, 80, { offsetX: 10, offsetY: 20, scale: 1 })).toEqual({ x: 40, y: 60 });
+    expect(
+      screenToWorld(50, 80, { offsetX: 10, offsetY: 20, scale: 1 }),
+    ).toEqual({ x: 40, y: 60 });
   });
 
   it("undoes the zoom scale", () => {
-    expect(screenToWorld(100, 100, { offsetX: 0, offsetY: 0, scale: 2 })).toEqual({ x: 50, y: 50 });
+    expect(
+      screenToWorld(100, 100, { offsetX: 0, offsetY: 0, scale: 2 }),
+    ).toEqual({ x: 50, y: 50 });
   });
 });
 

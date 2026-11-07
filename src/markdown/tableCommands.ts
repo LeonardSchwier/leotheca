@@ -5,10 +5,7 @@ import {
 } from "./tables";
 
 export type MarkdownTableCommand =
-  | "add-row-below"
-  | "delete-row"
-  | "add-column-right"
-  | "delete-column";
+  "add-row-below" | "delete-row" | "add-column-right" | "delete-column";
 
 export interface MarkdownTableEdit {
   from: number;
@@ -31,7 +28,8 @@ function columnAt(table: MarkdownTableRecord, cursor: number): number | null {
       // a cell's trailing padding. Adjacent cells can never collide under a
       // closed interval on both ends: their trimmed spans are always
       // separated by at least the delimiter pipe character itself.
-      if (cursor >= (cell.sourceFrom ?? 0) && cursor <= (cell.sourceTo ?? 0)) return index;
+      if (cursor >= (cell.sourceFrom ?? 0) && cursor <= (cell.sourceTo ?? 0))
+        return index;
     }
   }
   // Return null if cursor is not in any cell, rather than defaulting to last column
@@ -51,12 +49,22 @@ function bodyRowAt(table: MarkdownTableRecord, cursor: number): number | null {
     // fell through to `(row ?? -1) + 1`, splicing the new blank row in at
     // index 0 (the very top of the table body) instead of below the row the
     // cursor is actually in.
-    if (first !== undefined && last !== undefined && cursor >= first && cursor <= last) return index;
+    if (
+      first !== undefined &&
+      last !== undefined &&
+      cursor >= first &&
+      cursor <= last
+    )
+      return index;
   }
   return null;
 }
 
-function edit(table: MarkdownTableRecord, command: MarkdownTableCommand, cursor: number): string | null {
+function edit(
+  table: MarkdownTableRecord,
+  command: MarkdownTableCommand,
+  cursor: number,
+): string | null {
   const columns = [...table.columns];
   const header = table.header.map((cell) => cell.rawMarkdown);
   const rows = table.rows.map((row) => row.map((cell) => cell.rawMarkdown));
@@ -65,7 +73,11 @@ function edit(table: MarkdownTableRecord, command: MarkdownTableCommand, cursor:
   switch (command) {
     case "add-row-below": {
       const row = bodyRowAt(table, cursor);
-      rows.splice((row ?? -1) + 1, 0, Array.from({ length: columns.length }, () => ""));
+      rows.splice(
+        (row ?? -1) + 1,
+        0,
+        Array.from({ length: columns.length }, () => ""),
+      );
       break;
     }
     case "delete-row": {
@@ -90,7 +102,12 @@ function edit(table: MarkdownTableRecord, command: MarkdownTableCommand, cursor:
       break;
   }
 
-  return serializeMarkdownTable({ columns, header, rows, lineEnding: table.lineEnding });
+  return serializeMarkdownTable({
+    columns,
+    header,
+    rows,
+    lineEnding: table.lineEnding,
+  });
 }
 
 /** Resolves a table command against the scanner-confirmed table at `cursor`.
@@ -104,5 +121,7 @@ export function tableEditAtCursor(
   const table = findMarkdownTableAt(source, cursor);
   if (!table) return null;
   const insert = edit(table, command, cursor);
-  return insert === null ? null : { from: table.sourceFrom, to: table.sourceTo, insert };
+  return insert === null
+    ? null
+    : { from: table.sourceFrom, to: table.sourceTo, insert };
 }

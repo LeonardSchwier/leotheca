@@ -10,11 +10,28 @@ afterEach(() => {
 function renderSeparator(ratio = 0.5) {
   const containerRef = { current: document.createElement("div") };
   Object.defineProperty(containerRef.current, "getBoundingClientRect", {
-    value: () => ({ left: 0, width: 1000, top: 0, height: 0, right: 1000, bottom: 0, x: 0, y: 0, toJSON() {} }),
+    value: () => ({
+      left: 0,
+      width: 1000,
+      top: 0,
+      height: 0,
+      right: 1000,
+      bottom: 0,
+      x: 0,
+      y: 0,
+      toJSON() {},
+    }),
   });
   const onChange = vi.fn<(r: number) => void>();
   const onReset = vi.fn<() => void>();
-  const result = render(<SplitSeparator ratio={ratio} containerRef={containerRef} onChange={onChange} onReset={onReset} />);
+  const result = render(
+    <SplitSeparator
+      ratio={ratio}
+      containerRef={containerRef}
+      onChange={onChange}
+      onReset={onReset}
+    />,
+  );
   return { ...result, onChange, onReset };
 }
 
@@ -40,22 +57,25 @@ describe("SplitSeparator", () => {
     expect(onChange).toHaveBeenLastCalledWith(0.48);
 
     fireEvent.keyDown(separator, { key: "ArrowRight", shiftKey: true });
-    expect(onChange).toHaveBeenLastCalledWith(0.60);
+    expect(onChange).toHaveBeenLastCalledWith(0.6);
   });
 
   it("clamps Arrow adjustment to the 30-70 range", () => {
     const { getByRole, onChange } = renderSeparator(0.31);
-    fireEvent.keyDown(getByRole("separator"), { key: "ArrowLeft", shiftKey: true });
-    expect(onChange).toHaveBeenLastCalledWith(0.30);
+    fireEvent.keyDown(getByRole("separator"), {
+      key: "ArrowLeft",
+      shiftKey: true,
+    });
+    expect(onChange).toHaveBeenLastCalledWith(0.3);
   });
 
   it("Home/End jump to the minimum/maximum", () => {
     const { getByRole, onChange } = renderSeparator(0.5);
     const separator = getByRole("separator");
     fireEvent.keyDown(separator, { key: "Home" });
-    expect(onChange).toHaveBeenLastCalledWith(0.30);
+    expect(onChange).toHaveBeenLastCalledWith(0.3);
     fireEvent.keyDown(separator, { key: "End" });
-    expect(onChange).toHaveBeenLastCalledWith(0.70);
+    expect(onChange).toHaveBeenLastCalledWith(0.7);
   });
 
   it("Enter, Space, and a double-click all reset the ratio", () => {
@@ -72,9 +92,9 @@ describe("SplitSeparator", () => {
     const separator = getByRole("separator");
     fireEvent.pointerDown(separator);
     fireEvent.pointerMove(window, { clientX: 800 }); // 800/1000 = 0.8, clamps to 0.70
-    expect(onChange).toHaveBeenLastCalledWith(0.70);
+    expect(onChange).toHaveBeenLastCalledWith(0.7);
     fireEvent.pointerMove(window, { clientX: 100 }); // 100/1000 = 0.10, clamps to 0.30
-    expect(onChange).toHaveBeenLastCalledWith(0.30);
+    expect(onChange).toHaveBeenLastCalledWith(0.3);
     fireEvent.pointerUp(window);
     onChange.mockClear();
     fireEvent.pointerMove(window, { clientX: 500 }); // no longer dragging after pointerup
@@ -86,7 +106,7 @@ describe("SplitSeparator", () => {
     const separator = getByRole("separator");
     fireEvent.pointerDown(separator);
     fireEvent.pointerMove(window, { clientX: 800 });
-    expect(onChange).toHaveBeenLastCalledWith(0.70);
+    expect(onChange).toHaveBeenLastCalledWith(0.7);
 
     // A drag interrupted by an OS/browser context switch, a multi-touch
     // conflict, or the tab losing focus delivers pointercancel instead

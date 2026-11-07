@@ -142,17 +142,27 @@ function evaluatePathLike(
     case "is":
       return target !== undefined && folded === fold(trimSlashes(target));
     case "is-under-folder":
-      return target !== undefined && isUnderFolder(folded, fold(trimSlashes(target)));
+      return (
+        target !== undefined && isUnderFolder(folded, fold(trimSlashes(target)))
+      );
     case "is-not-under-folder":
-      return target !== undefined && !isUnderFolder(folded, fold(trimSlashes(target)));
+      return (
+        target !== undefined &&
+        !isUnderFolder(folded, fold(trimSlashes(target)))
+      );
     case "contains-segment":
-      return target !== undefined && folded.split("/").some((segment) => segment === fold(target));
+      return (
+        target !== undefined &&
+        folded.split("/").some((segment) => segment === fold(target))
+      );
     default:
       return false;
   }
 }
 
-function stringListValueOf(value: QueryValueV1 | undefined): string[] | undefined {
+function stringListValueOf(
+  value: QueryValueV1 | undefined,
+): string[] | undefined {
   if (value?.type === "string-list") return value.value;
   return undefined;
 }
@@ -224,7 +234,8 @@ function evaluateDateLike(
 ): boolean {
   if (operator === "exists") return true;
   if (operator === "does-not-exist") return false;
-  if (!value || (value.type !== "date" && value.type !== "datetime")) return false;
+  if (!value || (value.type !== "date" && value.type !== "datetime"))
+    return false;
 
   if (value.type === "date") {
     const fieldCalendarDate =
@@ -279,7 +290,8 @@ function evaluatePropertyClause(
   operator: QueryOperatorV1,
   value: QueryValueV1 | undefined,
 ): boolean {
-  if (property.kind === "list") return evaluateListLike(property.value, operator, value);
+  if (property.kind === "list")
+    return evaluateListLike(property.value, operator, value);
   if (property.kind === "readonly") return false;
 
   const inferred = inferScalar(property.value, property.style);
@@ -310,9 +322,17 @@ function evaluatePropertyClause(
       }
     }
     case "date":
-      return evaluateDateLike({ iso: inferred.value, kind: "date" }, operator, value);
+      return evaluateDateLike(
+        { iso: inferred.value, kind: "date" },
+        operator,
+        value,
+      );
     case "datetime":
-      return evaluateDateLike({ iso: inferred.value, kind: "datetime" }, operator, value);
+      return evaluateDateLike(
+        { iso: inferred.value, kind: "datetime" },
+        operator,
+        value,
+      );
     default:
       return false;
   }
@@ -354,7 +374,10 @@ function evaluateClause(clause: QueryClauseV1, note: NoteRecord): boolean {
   }
 }
 
-export function evaluateQueryNode(node: QueryNodeV1, note: NoteRecord): boolean {
+export function evaluateQueryNode(
+  node: QueryNodeV1,
+  note: NoteRecord,
+): boolean {
   if (node.type === "clause") return evaluateClause(node, note);
   if (node.children.length === 0) return node.operator === "and";
   return node.operator === "and"
@@ -362,10 +385,14 @@ export function evaluateQueryNode(node: QueryNodeV1, note: NoteRecord): boolean 
     : node.children.some((child) => evaluateQueryNode(child, note));
 }
 
-function propertySortValue(note: NoteRecord, key: string): string | number | undefined {
+function propertySortValue(
+  note: NoteRecord,
+  key: string,
+): string | number | undefined {
   const property = note.properties.get(normalizeKey(key));
   if (!property || property.kind === "readonly") return undefined;
-  if (property.kind === "list") return property.value.join("\u0000").toLocaleLowerCase();
+  if (property.kind === "list")
+    return property.value.join("\u0000").toLocaleLowerCase();
   const inferred = inferScalar(property.value, property.style);
   if (inferred.type === "number") return inferred.value;
   if (inferred.type === "boolean") return inferred.value ? 1 : 0;
@@ -376,8 +403,12 @@ function propertySortValue(note: NoteRecord, key: string): string | number | und
   return inferred.value.toLocaleLowerCase();
 }
 
-function sortValue(note: NoteRecord, sort: CollectionSortV1): string | number | undefined {
-  if (sort.field.kind === "property") return propertySortValue(note, sort.field.key);
+function sortValue(
+  note: NoteRecord,
+  sort: CollectionSortV1,
+): string | number | undefined {
+  if (sort.field.kind === "property")
+    return propertySortValue(note, sort.field.key);
   switch (sort.field.field) {
     case "name":
       return note.noteName.toLocaleLowerCase();
@@ -397,30 +428,49 @@ function compareSortValue(
 ): number {
   if (a === undefined || b === undefined) {
     if (a === b) return 0;
-    return a === undefined ? (sort.missing === "first" ? -1 : 1) : sort.missing === "first" ? 1 : -1;
+    return a === undefined
+      ? sort.missing === "first"
+        ? -1
+        : 1
+      : sort.missing === "first"
+        ? 1
+        : -1;
   }
   const comparison =
     typeof a === "number" && typeof b === "number"
       ? a - b
-      : String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: "base" });
+      : String(a).localeCompare(String(b), undefined, {
+          numeric: true,
+          sensitivity: "base",
+        });
   return sort.direction === "desc" ? -comparison : comparison;
 }
 
 /** Stable multi-key ordering with normalized path as the final tie-breaker.
  * Only the first three persisted sort keys are considered, matching the
  * SDD's explicit maximum. */
-export function sortCollectionResults(notes: NoteRecord[], sorts: CollectionSortV1[]): NoteRecord[] {
+export function sortCollectionResults(
+  notes: NoteRecord[],
+  sorts: CollectionSortV1[],
+): NoteRecord[] {
   const effectiveSorts = sorts.slice(0, 3);
   return notes.slice().sort((a, b) => {
     for (const sort of effectiveSorts) {
-      const comparison = compareSortValue(sortValue(a, sort), sortValue(b, sort), sort);
+      const comparison = compareSortValue(
+        sortValue(a, sort),
+        sortValue(b, sort),
+        sort,
+      );
       if (comparison !== 0) return comparison;
     }
     return a.path.localeCompare(b.path, undefined, { sensitivity: "base" });
   });
 }
 
-export function evaluateCollection(collection: SmartCollectionV1, notes: NoteRecord[]): NoteRecord[] {
+export function evaluateCollection(
+  collection: SmartCollectionV1,
+  notes: NoteRecord[],
+): NoteRecord[] {
   return sortCollectionResults(
     notes.filter((note) => evaluateQueryNode(collection.query, note)),
     collection.sort,

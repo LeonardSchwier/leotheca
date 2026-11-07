@@ -9,7 +9,15 @@ afterEach(() => {
 });
 
 function tab(path: string, name: string, dirty = false): OpenTab {
-  return { path, name, content: "", kind: "text", dirty, saving: false, saveError: null };
+  return {
+    path,
+    name,
+    content: "",
+    kind: "text",
+    dirty,
+    saving: false,
+    saveError: null,
+  };
 }
 
 function noop() {}
@@ -136,7 +144,9 @@ describe("TabBar", () => {
       />,
     );
     fireEvent.contextMenu(getByText("a.md"));
-    expect((getByText("Close Others") as HTMLButtonElement).disabled).toBe(true);
+    expect((getByText("Close Others") as HTMLButtonElement).disabled).toBe(
+      true,
+    );
   });
 
   it("enables Close Others with more than one tab open, and wires it to the right-clicked path", () => {
@@ -220,7 +230,11 @@ function fakeDataTransfer() {
 describe("TabBar: reordering (F07 Phase 3 follow-up)", () => {
   it("dragging a tab and dropping it on another calls onReorder(dragged, target)", () => {
     const onReorder = vi.fn();
-    const tabs = [tab("/a.md", "a.md"), tab("/b.md", "b.md"), tab("/c.md", "c.md")];
+    const tabs = [
+      tab("/a.md", "a.md"),
+      tab("/b.md", "b.md"),
+      tab("/c.md", "c.md"),
+    ];
     const { getByText } = render(
       <TabBar
         tabs={tabs}
@@ -296,7 +310,9 @@ describe("TabBar: reordering (F07 Phase 3 follow-up)", () => {
         onRename={noop}
       />,
     );
-    expect(getByText("a.md").closest(".tab")?.getAttribute("draggable")).toBe("false");
+    expect(getByText("a.md").closest(".tab")?.getAttribute("draggable")).toBe(
+      "false",
+    );
   });
 
   it("the context menu's Move left/Move right call onMoveLeft/onMoveRight with the right-clicked path", () => {

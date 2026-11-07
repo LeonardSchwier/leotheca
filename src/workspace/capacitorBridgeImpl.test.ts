@@ -27,7 +27,8 @@ const { folderAccess, printExport } = vi.hoisted(() => ({
 }));
 
 vi.mock("@capacitor/core", () => ({
-  registerPlugin: (name: string) => (name === "PrintExport" ? printExport : folderAccess),
+  registerPlugin: (name: string) =>
+    name === "PrintExport" ? printExport : folderAccess,
 }));
 
 import {
@@ -353,7 +354,9 @@ describe("base64ToBytes (the real export, decoding side of readBinaryFile)", () 
   it("round-trips arbitrary non-UTF-8 bytes through the real bytesToBase64", () => {
     // Includes byte values (0x80-0xff) that are not valid standalone UTF-8,
     // the exact class of content a text-decode round trip would corrupt.
-    const bytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0xff, 0xfe, 0x00, 0x7f, 0x80]);
+    const bytes = new Uint8Array([
+      0x89, 0x50, 0x4e, 0x47, 0xff, 0xfe, 0x00, 0x7f, 0x80,
+    ]);
     expect(realBase64ToBytes(bytesToBase64(bytes))).toEqual(bytes);
   });
 });
@@ -609,7 +612,9 @@ describe("printNote (Android)", () => {
   });
 
   it("propagates a native rejection (e.g. no PrintManager on this device)", async () => {
-    printExport.printHtml.mockRejectedValue(new Error("Printing is not available on this device."));
+    printExport.printHtml.mockRejectedValue(
+      new Error("Printing is not available on this device."),
+    );
 
     await expect(printNote("My Note", "<p>Hello</p>")).rejects.toThrow(
       "Printing is not available on this device.",
@@ -621,7 +626,11 @@ describe("exportNoteHtml (Android)", () => {
   it("builds the standalone export document and resolves true when the native Save As succeeds", async () => {
     printExport.exportHtml.mockResolvedValue({ saved: true });
 
-    const result = await exportNoteHtml("My Note", "<p>Hello</p>", "My Note.html");
+    const result = await exportNoteHtml(
+      "My Note",
+      "<p>Hello</p>",
+      "My Note.html",
+    );
 
     expect(result).toBe(true);
     expect(printExport.exportHtml).toHaveBeenCalledTimes(1);
@@ -634,7 +643,9 @@ describe("exportNoteHtml (Android)", () => {
   it("resolves false, not an error, when the user cancels the native Save As picker", async () => {
     printExport.exportHtml.mockResolvedValue({ saved: false });
 
-    await expect(exportNoteHtml("My Note", "<p>Hello</p>", "My Note.html")).resolves.toBe(false);
+    await expect(
+      exportNoteHtml("My Note", "<p>Hello</p>", "My Note.html"),
+    ).resolves.toBe(false);
   });
 
   it("does not fetch/inline images: bodyHtml already contains data: URIs from fileSrc", async () => {

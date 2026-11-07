@@ -72,7 +72,9 @@ describe("HeadingBreadcrumbs", () => {
         onSelectHeading={vi.fn()}
       />,
     );
-    expect(getByText("Only heading").getAttribute("aria-current")).toBe("location");
+    expect(getByText("Only heading").getAttribute("aria-current")).toBe(
+      "location",
+    );
     expect(getByText("Note").getAttribute("aria-current")).toBeNull();
   });
 
@@ -177,7 +179,9 @@ describe("HeadingBreadcrumbs", () => {
         onSelectHeading={vi.fn()}
       />,
     );
-    expect(getByRole("navigation", { name: "Breadcrumb (following Source)" })).toBeTruthy();
+    expect(
+      getByRole("navigation", { name: "Breadcrumb (following Source)" }),
+    ).toBeTruthy();
   });
 
   it("names the active source in the nav's accessible label for a previewIndex source", () => {
@@ -190,7 +194,9 @@ describe("HeadingBreadcrumbs", () => {
         onSelectHeading={vi.fn()}
       />,
     );
-    expect(getByRole("navigation", { name: "Breadcrumb (following Preview)" })).toBeTruthy();
+    expect(
+      getByRole("navigation", { name: "Breadcrumb (following Preview)" }),
+    ).toBeTruthy();
   });
 
   it("falls back to a plain label when no active source is tracked yet", () => {
@@ -242,7 +248,9 @@ describe("HeadingBreadcrumbs: copy and insert heading-link actions (F06 Phase 3)
       />,
     );
     await act(async () => {
-      fireEvent.click(getByRole("button", { name: "Copy link to Section one" }));
+      fireEvent.click(
+        getByRole("button", { name: "Copy link to Section one" }),
+      );
       await Promise.resolve();
       await Promise.resolve();
     });
@@ -261,7 +269,9 @@ describe("HeadingBreadcrumbs: copy and insert heading-link actions (F06 Phase 3)
         onSelectHeading={vi.fn()}
       />,
     );
-    fireEvent.click(getByRole("button", { name: "Insert link to Section one at the cursor" }));
+    fireEvent.click(
+      getByRole("button", { name: "Insert link to Section one at the cursor" }),
+    );
     expect(outlineInsertRequest.value?.text).toBe("[[#Section one]]");
   });
 
@@ -278,7 +288,9 @@ describe("HeadingBreadcrumbs: copy and insert heading-link actions (F06 Phase 3)
         onSelectHeading={vi.fn()}
       />,
     );
-    fireEvent.click(getByRole("button", { name: "Insert link to Android at the cursor" }));
+    fireEvent.click(
+      getByRole("button", { name: "Insert link to Android at the cursor" }),
+    );
     expect(outlineInsertRequest.value?.text).toBe("[[#Android]]");
   });
 
@@ -319,10 +331,18 @@ describe("HeadingBreadcrumbs: copy and insert heading-link actions (F06 Phase 3)
       />,
     );
     expect(
-      (getByRole("button", { name: "Copy link to Section one" }) as HTMLButtonElement).disabled,
+      (
+        getByRole("button", {
+          name: "Copy link to Section one",
+        }) as HTMLButtonElement
+      ).disabled,
     ).toBe(false);
     expect(
-      (getByRole("button", { name: /Insert link to Section one/ }) as HTMLButtonElement).disabled,
+      (
+        getByRole("button", {
+          name: /Insert link to Section one/,
+        }) as HTMLButtonElement
+      ).disabled,
     ).toBe(true);
   });
 });

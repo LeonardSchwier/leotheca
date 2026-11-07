@@ -26,8 +26,7 @@
  */
 
 export type WikiLinkFragment =
-  | { kind: "heading"; value: string }
-  | { kind: "block"; value: string };
+  { kind: "heading"; value: string } | { kind: "block"; value: string };
 
 export interface WikiLinkRecord {
   kind: "link" | "embed";
@@ -134,10 +133,13 @@ export function serializeWikiLink(target: WikiLinkTarget): string {
   let inner = escapeWikiLinkText(target.noteTarget);
   if (target.fragment) {
     const fragmentRaw =
-      target.fragment.kind === "block" ? `^${target.fragment.value}` : target.fragment.value;
+      target.fragment.kind === "block"
+        ? `^${target.fragment.value}`
+        : target.fragment.value;
     inner += `#${escapeWikiLinkText(fragmentRaw)}`;
   }
-  if (target.label !== undefined) inner += `|${escapeWikiLinkText(target.label)}`;
+  if (target.label !== undefined)
+    inner += `|${escapeWikiLinkText(target.label)}`;
   return `[[${inner}]]`;
 }
 
@@ -223,7 +225,9 @@ export function parseWikiLinks(source: string): WikiLinkRecord[] {
     if (hashIndex !== -1) {
       fragmentFrom = hashIndex + 1;
       fragmentTo = targetExprEnd;
-      const fragmentRaw = unescapeWikiLinkText(source.slice(fragmentFrom, fragmentTo)).trim();
+      const fragmentRaw = unescapeWikiLinkText(
+        source.slice(fragmentFrom, fragmentTo),
+      ).trim();
       if (fragmentRaw.startsWith("^")) {
         const blockValue = fragmentRaw.slice(1).trim();
         if (blockValue === "") malformed = true;

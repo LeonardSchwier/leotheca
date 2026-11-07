@@ -94,8 +94,14 @@ const {
   WorkspaceForgetUnsavedWorkError,
   WorkspaceRelinkConflictError,
 } = await import("./store");
-const { activeTabPath, closeAllTabs, editorLayout, openOrFocusTab, openTabs, pinTab } =
-  await import("../workspace/store");
+const {
+  activeTabPath,
+  closeAllTabs,
+  editorLayout,
+  openOrFocusTab,
+  openTabs,
+  pinTab,
+} = await import("../workspace/store");
 const { DEFAULT_WORKSPACE_SETTINGS } = await import("./workspaceSettings");
 
 function writesTo(path: string): unknown[] {
@@ -108,7 +114,13 @@ interface GlobalConfigWrite {
   version: 2;
   theme: string;
   activeWorkspaceId: string | null;
-  workspaceProfiles: Array<{ id: string; name: string; path: string; token?: string; lastOpenedAt: number }>;
+  workspaceProfiles: Array<{
+    id: string;
+    name: string;
+    path: string;
+    token?: string;
+    lastOpenedAt: number;
+  }>;
   lastWorkspacePath: string | null;
   workspaceToken?: string;
 }
@@ -195,7 +207,9 @@ describe("editor-layout persistence", () => {
 
     const writes = writesTo("/workspaceA/.leotheca/settings.json");
     expect(writes.length).toBeGreaterThan(0);
-    const written = writes.at(-1) as { editorLayout: { groups: { primary: { pinnedPaths: string[] } } } };
+    const written = writes.at(-1) as {
+      editorLayout: { groups: { primary: { pinnedPaths: string[] } } };
+    };
     expect(written.editorLayout.groups.primary.pinnedPaths).toEqual([
       "/workspaceA/note1.md",
     ]);
@@ -414,7 +428,10 @@ describe("global configuration corruption recovery", () => {
 
     expect(globalConfigCorrupted.value).toBe(false);
     expect(globalConfigWrites()).toHaveLength(1);
-    expect(globalConfigWrites()[0]).toMatchObject({ version: 2, theme: "system" });
+    expect(globalConfigWrites()[0]).toMatchObject({
+      version: 2,
+      theme: "system",
+    });
 
     await setTheme("dark");
     await flushSettingsWrites();
@@ -449,7 +466,9 @@ describe("setExternalFileOpenEnabled", () => {
     await flushSettingsWrites();
 
     expect(externalFileOpenEnabled.value).toBe(false);
-    expect(globalConfigWrites().at(-1)).toMatchObject({ externalFileOpenEnabled: false });
+    expect(globalConfigWrites().at(-1)).toMatchObject({
+      externalFileOpenEnabled: false,
+    });
   });
 
   it("hydrates from a loaded config on initSettings", async () => {
@@ -481,7 +500,13 @@ describe("F20 Phase 1: workspace profile catalog", () => {
   describe("activateWorkspaceProfile", () => {
     it("activates a known profile, bumping lastOpenedAt and persisting the full catalog", async () => {
       workspaceProfiles.value = [
-        { id: "p1", name: "Vault", icon: "folder", path: "/vaultA", lastOpenedAt: 1 },
+        {
+          id: "p1",
+          name: "Vault",
+          icon: "folder",
+          path: "/vaultA",
+          lastOpenedAt: 1,
+        },
       ];
 
       await activateWorkspaceProfile("p1");
@@ -497,7 +522,13 @@ describe("F20 Phase 1: workspace profile catalog", () => {
 
     it("is a no-op when the profile is already active: no filesystem work, no recency change", async () => {
       workspaceProfiles.value = [
-        { id: "p1", name: "Vault", icon: "folder", path: "/vaultA", lastOpenedAt: 42 },
+        {
+          id: "p1",
+          name: "Vault",
+          icon: "folder",
+          path: "/vaultA",
+          lastOpenedAt: 42,
+        },
       ];
       activeWorkspaceId.value = "p1";
       workspacePath.value = "/vaultA";
@@ -518,7 +549,13 @@ describe("F20 Phase 1: workspace profile catalog", () => {
 
     it("F20 Phase 2b-iii-a: retries (not a no-op) when activeWorkspaceId matches but no workspace is actually open", async () => {
       workspaceProfiles.value = [
-        { id: "p1", name: "Vault", icon: "folder", path: "/vaultA", lastOpenedAt: 1 },
+        {
+          id: "p1",
+          name: "Vault",
+          icon: "folder",
+          path: "/vaultA",
+          lastOpenedAt: 1,
+        },
       ];
       activeWorkspaceId.value = "p1";
       workspacePath.value = null;
@@ -582,7 +619,13 @@ describe("F20 Phase 1: workspace profile catalog", () => {
 
     it("activates an existing profile instead of creating a duplicate when the locator matches", async () => {
       workspaceProfiles.value = [
-        { id: "p1", name: "Vault", icon: "folder", path: "/vaultA", lastOpenedAt: 1 },
+        {
+          id: "p1",
+          name: "Vault",
+          icon: "folder",
+          path: "/vaultA",
+          lastOpenedAt: 1,
+        },
       ];
       pickWorkspaceFolder.mockResolvedValue({ path: "/vaultA" });
 
@@ -619,7 +662,13 @@ describe("F20 Phase 1: workspace profile catalog", () => {
 
     it("activates an existing profile instead of creating a duplicate when the path matches", async () => {
       workspaceProfiles.value = [
-        { id: "p1", name: "Vault", icon: "folder", path: "/vaultA", lastOpenedAt: 1 },
+        {
+          id: "p1",
+          name: "Vault",
+          icon: "folder",
+          path: "/vaultA",
+          lastOpenedAt: 1,
+        },
       ];
 
       await addWorkspaceFromPath("/vaultA");
@@ -632,19 +681,43 @@ describe("F20 Phase 1: workspace profile catalog", () => {
   describe("forgetWorkspaceProfile", () => {
     it("removes a non-active profile from the catalog and persists", async () => {
       workspaceProfiles.value = [
-        { id: "p1", name: "Active", icon: "folder", path: "/a", lastOpenedAt: 2 },
-        { id: "p2", name: "Other", icon: "folder", path: "/b", lastOpenedAt: 1 },
+        {
+          id: "p1",
+          name: "Active",
+          icon: "folder",
+          path: "/a",
+          lastOpenedAt: 2,
+        },
+        {
+          id: "p2",
+          name: "Other",
+          icon: "folder",
+          path: "/b",
+          lastOpenedAt: 1,
+        },
       ];
       activeWorkspaceId.value = "p1";
 
       await forgetWorkspaceProfile("p2");
 
       expect(workspaceProfiles.value.map((p) => p.id)).toEqual(["p1"]);
-      expect(globalConfigWrites().at(-1)?.workspaceProfiles.map((p) => p.id)).toEqual(["p1"]);
+      expect(
+        globalConfigWrites()
+          .at(-1)
+          ?.workspaceProfiles.map((p) => p.id),
+      ).toEqual(["p1"]);
     });
 
     it("is a no-op for an unknown profile id", async () => {
-      workspaceProfiles.value = [{ id: "p1", name: "Active", icon: "folder", path: "/a", lastOpenedAt: 1 }];
+      workspaceProfiles.value = [
+        {
+          id: "p1",
+          name: "Active",
+          icon: "folder",
+          path: "/a",
+          lastOpenedAt: 1,
+        },
+      ];
 
       await forgetWorkspaceProfile("does-not-exist");
 
@@ -654,7 +727,15 @@ describe("F20 Phase 1: workspace profile catalog", () => {
 
     describe("forgetting the active profile (F20 Phase 2b-ii)", () => {
       it("transitions to no workspace and removes the profile when there is nothing unsaved", async () => {
-        workspaceProfiles.value = [{ id: "p1", name: "Active", icon: "folder", path: "/a", lastOpenedAt: 1 }];
+        workspaceProfiles.value = [
+          {
+            id: "p1",
+            name: "Active",
+            icon: "folder",
+            path: "/a",
+            lastOpenedAt: 1,
+          },
+        ];
         activeWorkspaceId.value = "p1";
         workspacePath.value = "/a";
         hasUnsavedWork.mockReturnValueOnce(false);
@@ -669,7 +750,15 @@ describe("F20 Phase 1: workspace profile catalog", () => {
       });
 
       it("clears open tabs as part of the transition", async () => {
-        workspaceProfiles.value = [{ id: "p1", name: "Active", icon: "folder", path: "/a", lastOpenedAt: 1 }];
+        workspaceProfiles.value = [
+          {
+            id: "p1",
+            name: "Active",
+            icon: "folder",
+            path: "/a",
+            lastOpenedAt: 1,
+          },
+        ];
         activeWorkspaceId.value = "p1";
         workspacePath.value = "/a";
         openOrFocusTab("/a/note.md", "note.md", "content", "text");
@@ -681,7 +770,15 @@ describe("F20 Phase 1: workspace profile catalog", () => {
       });
 
       it("aborts by default, leaving the catalog and workspace untouched, when there is unsaved work", async () => {
-        workspaceProfiles.value = [{ id: "p1", name: "Active", icon: "folder", path: "/a", lastOpenedAt: 1 }];
+        workspaceProfiles.value = [
+          {
+            id: "p1",
+            name: "Active",
+            icon: "folder",
+            path: "/a",
+            lastOpenedAt: 1,
+          },
+        ];
         activeWorkspaceId.value = "p1";
         workspacePath.value = "/a";
         hasUnsavedWork.mockReturnValueOnce(true);
@@ -698,7 +795,15 @@ describe("F20 Phase 1: workspace profile catalog", () => {
       });
 
       it("proceeds despite unsaved work when discardUnsaved is explicitly passed", async () => {
-        workspaceProfiles.value = [{ id: "p1", name: "Active", icon: "folder", path: "/a", lastOpenedAt: 1 }];
+        workspaceProfiles.value = [
+          {
+            id: "p1",
+            name: "Active",
+            icon: "folder",
+            path: "/a",
+            lastOpenedAt: 1,
+          },
+        ];
         activeWorkspaceId.value = "p1";
         workspacePath.value = "/a";
         // discardUnsaved short-circuits the hasUnsavedWork check entirely
@@ -724,11 +829,20 @@ describe("F20 Phase 1: workspace profile catalog", () => {
             version: 2,
             theme: "system",
             activeWorkspaceId: "p1",
-            workspaceProfiles: [{ id: "p1", name: "Vault", icon: "folder", path: "/vaultA", lastOpenedAt: 1 }],
+            workspaceProfiles: [
+              {
+                id: "p1",
+                name: "Vault",
+                icon: "folder",
+                path: "/vaultA",
+                lastOpenedAt: 1,
+              },
+            ],
             lastWorkspacePath: "/vaultA",
           });
         }
-        if (path === "/vaultA/.leotheca/settings.json") return JSON.stringify(DEFAULT_WORKSPACE_SETTINGS);
+        if (path === "/vaultA/.leotheca/settings.json")
+          return JSON.stringify(DEFAULT_WORKSPACE_SETTINGS);
         throw new Error("not found");
       });
       settingsLoaded.value = false;
@@ -747,7 +861,15 @@ describe("F20 Phase 1: workspace profile catalog", () => {
           return JSON.stringify({
             version: 2,
             activeWorkspaceId: "p1",
-            workspaceProfiles: [{ id: "p1", name: "Vault", icon: "folder", path: "/gone", lastOpenedAt: 1 }],
+            workspaceProfiles: [
+              {
+                id: "p1",
+                name: "Vault",
+                icon: "folder",
+                path: "/gone",
+                lastOpenedAt: 1,
+              },
+            ],
           });
         }
         throw new Error("not found");
@@ -766,9 +888,13 @@ describe("F20 Phase 1: workspace profile catalog", () => {
     it("migrates a legacy config on startup and persists the migration only after successful activation", async () => {
       readTextFile.mockImplementation(async (path) => {
         if (path === "/config/config.json") {
-          return JSON.stringify({ lastWorkspacePath: "/legacyVault", theme: "dark" });
+          return JSON.stringify({
+            lastWorkspacePath: "/legacyVault",
+            theme: "dark",
+          });
         }
-        if (path === "/legacyVault/.leotheca/settings.json") return JSON.stringify(DEFAULT_WORKSPACE_SETTINGS);
+        if (path === "/legacyVault/.leotheca/settings.json")
+          return JSON.stringify(DEFAULT_WORKSPACE_SETTINGS);
         throw new Error("not found");
       });
       settingsLoaded.value = false;
@@ -807,7 +933,13 @@ describe("F20 Phase 2b-i: relinkWorkspaceProfile", () => {
 
   it("does nothing when the picker is cancelled", async () => {
     workspaceProfiles.value = [
-      { id: "p1", name: "Vault", icon: "folder", path: "/vaultA", lastOpenedAt: 1 },
+      {
+        id: "p1",
+        name: "Vault",
+        icon: "folder",
+        path: "/vaultA",
+        lastOpenedAt: 1,
+      },
     ];
     pickWorkspaceFolder.mockResolvedValue(null);
 
@@ -820,8 +952,20 @@ describe("F20 Phase 2b-i: relinkWorkspaceProfile", () => {
 
   it("rejects a folder already owned by a different profile, naming it, and changes nothing", async () => {
     workspaceProfiles.value = [
-      { id: "p1", name: "Vault", icon: "folder", path: "/vaultA", lastOpenedAt: 1 },
-      { id: "p2", name: "Other", icon: "folder", path: "/vaultB", lastOpenedAt: 2 },
+      {
+        id: "p1",
+        name: "Vault",
+        icon: "folder",
+        path: "/vaultA",
+        lastOpenedAt: 1,
+      },
+      {
+        id: "p2",
+        name: "Other",
+        icon: "folder",
+        path: "/vaultB",
+        lastOpenedAt: 2,
+      },
     ];
     pickWorkspaceFolder.mockResolvedValue({ path: "/vaultB" });
 
@@ -833,14 +977,25 @@ describe("F20 Phase 2b-i: relinkWorkspaceProfile", () => {
     }
 
     expect(caught).toBeInstanceOf(WorkspaceRelinkConflictError);
-    expect((caught as InstanceType<typeof WorkspaceRelinkConflictError>).conflictingProfileName).toBe("Other");
-    expect(workspaceProfiles.value.find((p) => p.id === "p1")?.path).toBe("/vaultA");
+    expect(
+      (caught as InstanceType<typeof WorkspaceRelinkConflictError>)
+        .conflictingProfileName,
+    ).toBe("Other");
+    expect(workspaceProfiles.value.find((p) => p.id === "p1")?.path).toBe(
+      "/vaultA",
+    );
     expect(globalConfigWrites()).toEqual([]);
   });
 
   it("allows relinking a profile to the folder it already owns itself", async () => {
     workspaceProfiles.value = [
-      { id: "p1", name: "Vault", icon: "folder", path: "/vaultA", lastOpenedAt: 1 },
+      {
+        id: "p1",
+        name: "Vault",
+        icon: "folder",
+        path: "/vaultA",
+        lastOpenedAt: 1,
+      },
     ];
     pickWorkspaceFolder.mockResolvedValue({ path: "/vaultA" });
 
@@ -852,8 +1007,20 @@ describe("F20 Phase 2b-i: relinkWorkspaceProfile", () => {
   describe("inactive profile", () => {
     it("validates the new folder, commits only path/token, and preserves id/name/icon/recency", async () => {
       workspaceProfiles.value = [
-        { id: "p1", name: "Active", icon: "folder", path: "/active", lastOpenedAt: 5 },
-        { id: "p2", name: "Vault", icon: "book", path: "/oldPath", lastOpenedAt: 2 },
+        {
+          id: "p1",
+          name: "Active",
+          icon: "folder",
+          path: "/active",
+          lastOpenedAt: 5,
+        },
+        {
+          id: "p2",
+          name: "Vault",
+          icon: "book",
+          path: "/oldPath",
+          lastOpenedAt: 2,
+        },
       ];
       activeWorkspaceId.value = "p1";
       pickWorkspaceFolder.mockResolvedValue({ path: "/newPath" });
@@ -874,19 +1041,29 @@ describe("F20 Phase 2b-i: relinkWorkspaceProfile", () => {
       expect(workspacePath.value).toBeNull();
       expect(activeWorkspaceId.value).toBe("p1");
       expect(restoreWorkspaceAccess).not.toHaveBeenCalled();
-      expect(globalConfigWrites().at(-1)?.workspaceProfiles.find(
-        (p: { id: string }) => p.id === "p2",
-      )?.path).toBe("/newPath");
+      expect(
+        globalConfigWrites()
+          .at(-1)
+          ?.workspaceProfiles.find((p: { id: string }) => p.id === "p2")?.path,
+      ).toBe("/newPath");
     });
 
     it("leaves the old locator unchanged when validation fails", async () => {
       workspaceProfiles.value = [
-        { id: "p1", name: "Vault", icon: "folder", path: "/oldPath", lastOpenedAt: 2 },
+        {
+          id: "p1",
+          name: "Vault",
+          icon: "folder",
+          path: "/oldPath",
+          lastOpenedAt: 2,
+        },
       ];
       pickWorkspaceFolder.mockResolvedValue({ path: "/badPath" });
       listDir.mockRejectedValueOnce(new Error("permission denied"));
 
-      await expect(relinkWorkspaceProfile("p1")).rejects.toThrow("permission denied");
+      await expect(relinkWorkspaceProfile("p1")).rejects.toThrow(
+        "permission denied",
+      );
 
       expect(workspaceProfiles.value[0].path).toBe("/oldPath");
       expect(globalConfigWrites()).toEqual([]);
@@ -895,9 +1072,19 @@ describe("F20 Phase 2b-i: relinkWorkspaceProfile", () => {
     it("on a native (Android) platform, skips the shared-cache validation probe and trusts the picker grant", async () => {
       isNativePlatform.mockReturnValue(true);
       workspaceProfiles.value = [
-        { id: "p1", name: "Phone A", icon: "folder", path: "/workspace", token: "uri-old", lastOpenedAt: 2 },
+        {
+          id: "p1",
+          name: "Phone A",
+          icon: "folder",
+          path: "/workspace",
+          token: "uri-old",
+          lastOpenedAt: 2,
+        },
       ];
-      pickWorkspaceFolder.mockResolvedValue({ path: "/workspace", token: "uri-new" });
+      pickWorkspaceFolder.mockResolvedValue({
+        path: "/workspace",
+        token: "uri-new",
+      });
 
       const result = await relinkWorkspaceProfile("p1");
 
@@ -910,7 +1097,13 @@ describe("F20 Phase 2b-i: relinkWorkspaceProfile", () => {
   describe("active profile", () => {
     it("routes through the ordinary transition, preserving id/name/icon", async () => {
       workspaceProfiles.value = [
-        { id: "p1", name: "Vault", icon: "book", path: "/oldPath", lastOpenedAt: 3 },
+        {
+          id: "p1",
+          name: "Vault",
+          icon: "book",
+          path: "/oldPath",
+          lastOpenedAt: 3,
+        },
       ];
       activeWorkspaceId.value = "p1";
       pickWorkspaceFolder.mockResolvedValue({ path: "/newPath" });
@@ -921,12 +1114,23 @@ describe("F20 Phase 2b-i: relinkWorkspaceProfile", () => {
       expect(workspacePath.value).toBe("/newPath");
       expect(activeWorkspaceId.value).toBe("p1");
       const relinked = workspaceProfiles.value.find((p) => p.id === "p1");
-      expect(relinked).toMatchObject({ id: "p1", name: "Vault", icon: "book", path: "/newPath" });
+      expect(relinked).toMatchObject({
+        id: "p1",
+        name: "Vault",
+        icon: "book",
+        path: "/newPath",
+      });
     });
 
     it("leaves the old locator in place and surfaces workspaceSelectionError when the new folder fails to open", async () => {
       workspaceProfiles.value = [
-        { id: "p1", name: "Vault", icon: "folder", path: "/oldPath", lastOpenedAt: 3 },
+        {
+          id: "p1",
+          name: "Vault",
+          icon: "folder",
+          path: "/oldPath",
+          lastOpenedAt: 3,
+        },
       ];
       activeWorkspaceId.value = "p1";
       workspacePath.value = "/oldPath";
@@ -935,7 +1139,9 @@ describe("F20 Phase 2b-i: relinkWorkspaceProfile", () => {
 
       await expect(relinkWorkspaceProfile("p1")).rejects.toThrow();
 
-      expect(workspaceSelectionError.value).toContain("Could not open that workspace");
+      expect(workspaceSelectionError.value).toContain(
+        "Could not open that workspace",
+      );
       expect(workspaceProfiles.value[0].path).toBe("/oldPath");
     });
   });
@@ -1173,9 +1379,7 @@ describe("workspace settings corruption recovery", () => {
     expect(writesTo("/workspaceA/.leotheca/settings.json")).toEqual([]);
     // The in-memory session still reflects the change, so the app stays
     // usable while the corrupted file awaits an explicit repair.
-    expect(workspaceSettings.value.lastActivePath).toBe(
-      "/workspaceA/note.md",
-    );
+    expect(workspaceSettings.value.lastActivePath).toBe("/workspaceA/note.md");
     expect(workspaceSettings.value.fontSize).toBe(18);
     expect(workspaceSettingsCorrupted.value).toBe(true);
   });
@@ -1197,9 +1401,11 @@ describe("workspace settings corruption recovery", () => {
     await flushSettingsWrites();
 
     expect(
-      (writesTo("/workspaceA/.leotheca/settings.json").at(-1) as {
-        fontSize: number;
-      }).fontSize,
+      (
+        writesTo("/workspaceA/.leotheca/settings.json").at(-1) as {
+          fontSize: number;
+        }
+      ).fontSize,
     ).toBe(20);
   });
 });

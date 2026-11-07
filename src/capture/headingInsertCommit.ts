@@ -33,7 +33,14 @@ export interface HeadingInsertCommitOptions {
 export async function headingInsertCommit(
   options: HeadingInsertCommitOptions,
 ): Promise<{ path: string; name: string }> {
-  const { path, heading, content, position = "append", exactLevel, workspaceRoot } = options;
+  const {
+    path,
+    heading,
+    content,
+    position = "append",
+    exactLevel,
+    workspaceRoot,
+  } = options;
 
   // Read the existing note. A failed read means the file is genuinely
   // missing — we cannot insert into a note that doesn't exist.

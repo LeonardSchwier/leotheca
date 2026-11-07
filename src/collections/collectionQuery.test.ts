@@ -7,7 +7,11 @@ import {
   evaluateQueryNode,
   type NoteRecord,
 } from "./collectionQuery";
-import type { QueryClauseV1, QueryGroupV1, SmartCollectionV1 } from "./collectionTypes";
+import type {
+  QueryClauseV1,
+  QueryGroupV1,
+  SmartCollectionV1,
+} from "./collectionTypes";
 
 function emptyIndex(): LinkIndex {
   return {
@@ -32,7 +36,10 @@ function clause(
   return { type: "clause", field, operator, value };
 }
 
-function group(operator: "and" | "or", children: (QueryGroupV1 | QueryClauseV1)[]): QueryGroupV1 {
+function group(
+  operator: "and" | "or",
+  children: (QueryGroupV1 | QueryClauseV1)[],
+): QueryGroupV1 {
   return { type: "group", operator, children };
 }
 
@@ -85,23 +92,35 @@ describe("evaluateQueryNode: system fields", () => {
     const n = note({ noteName: "Weekly Review" });
     expect(
       evaluateQueryNode(
-        clause({ kind: "system", field: "name" }, "contains", { type: "string", value: "weekly" }),
+        clause({ kind: "system", field: "name" }, "contains", {
+          type: "string",
+          value: "weekly",
+        }),
         n,
       ),
     ).toBe(true);
   });
 
   it("matches path 'is-under-folder'", () => {
-    const n = note({ path: "Projects/Alpha/Note.md", folder: "Projects/Alpha" });
+    const n = note({
+      path: "Projects/Alpha/Note.md",
+      folder: "Projects/Alpha",
+    });
     expect(
       evaluateQueryNode(
-        clause({ kind: "system", field: "path" }, "is-under-folder", { type: "path", value: "Projects" }),
+        clause({ kind: "system", field: "path" }, "is-under-folder", {
+          type: "path",
+          value: "Projects",
+        }),
         n,
       ),
     ).toBe(true);
     expect(
       evaluateQueryNode(
-        clause({ kind: "system", field: "path" }, "is-under-folder", { type: "path", value: "Other" }),
+        clause({ kind: "system", field: "path" }, "is-under-folder", {
+          type: "path",
+          value: "Other",
+        }),
         n,
       ),
     ).toBe(false);
@@ -111,7 +130,10 @@ describe("evaluateQueryNode: system fields", () => {
     const n = note({ folder: "Projects/Alpha" });
     expect(
       evaluateQueryNode(
-        clause({ kind: "system", field: "folder" }, "is", { type: "path", value: "projects/alpha" }),
+        clause({ kind: "system", field: "folder" }, "is", {
+          type: "path",
+          value: "projects/alpha",
+        }),
         n,
       ),
     ).toBe(true);
@@ -133,13 +155,19 @@ describe("evaluateQueryNode: system fields", () => {
     for (const n of [direct, nested]) {
       expect(
         evaluateQueryNode(
-          clause({ kind: "system", field: "folder" }, "is-under-folder", { type: "path", value: "Projects" }),
+          clause({ kind: "system", field: "folder" }, "is-under-folder", {
+            type: "path",
+            value: "Projects",
+          }),
           n,
         ),
       ).toBe(true);
       expect(
         evaluateQueryNode(
-          clause({ kind: "system", field: "folder" }, "is-not-under-folder", { type: "path", value: "Projects" }),
+          clause({ kind: "system", field: "folder" }, "is-not-under-folder", {
+            type: "path",
+            value: "Projects",
+          }),
           n,
         ),
       ).toBe(false);
@@ -147,13 +175,19 @@ describe("evaluateQueryNode: system fields", () => {
 
     expect(
       evaluateQueryNode(
-        clause({ kind: "system", field: "folder" }, "is-under-folder", { type: "path", value: "Projects" }),
+        clause({ kind: "system", field: "folder" }, "is-under-folder", {
+          type: "path",
+          value: "Projects",
+        }),
         unrelated,
       ),
     ).toBe(false);
     expect(
       evaluateQueryNode(
-        clause({ kind: "system", field: "folder" }, "is-not-under-folder", { type: "path", value: "Projects" }),
+        clause({ kind: "system", field: "folder" }, "is-not-under-folder", {
+          type: "path",
+          value: "Projects",
+        }),
         unrelated,
       ),
     ).toBe(true);
@@ -163,13 +197,19 @@ describe("evaluateQueryNode: system fields", () => {
     const n = note({ path: "Projects/Note.md", folder: "Projects" });
     expect(
       evaluateQueryNode(
-        clause({ kind: "system", field: "path" }, "is-under-folder", { type: "path", value: "Projects" }),
+        clause({ kind: "system", field: "path" }, "is-under-folder", {
+          type: "path",
+          value: "Projects",
+        }),
         n,
       ),
     ).toBe(true);
     expect(
       evaluateQueryNode(
-        clause({ kind: "system", field: "path" }, "is-not-under-folder", { type: "path", value: "Projects" }),
+        clause({ kind: "system", field: "path" }, "is-not-under-folder", {
+          type: "path",
+          value: "Projects",
+        }),
         n,
       ),
     ).toBe(false);
@@ -179,13 +219,19 @@ describe("evaluateQueryNode: system fields", () => {
     const n = note({ tags: ["work", "urgent"] });
     expect(
       evaluateQueryNode(
-        clause({ kind: "system", field: "tag" }, "contains-item", { type: "string", value: "Work" }),
+        clause({ kind: "system", field: "tag" }, "contains-item", {
+          type: "string",
+          value: "Work",
+        }),
         n,
       ),
     ).toBe(true);
     expect(
       evaluateQueryNode(
-        clause({ kind: "system", field: "tag" }, "contains-item", { type: "string", value: "missing" }),
+        clause({ kind: "system", field: "tag" }, "contains-item", {
+          type: "string",
+          value: "missing",
+        }),
         n,
       ),
     ).toBe(false);
@@ -193,7 +239,10 @@ describe("evaluateQueryNode: system fields", () => {
 
   it("evaluates tag 'is-empty'/'is-not-empty'", () => {
     expect(
-      evaluateQueryNode(clause({ kind: "system", field: "tag" }, "is-empty"), note({ tags: [] })),
+      evaluateQueryNode(
+        clause({ kind: "system", field: "tag" }, "is-empty"),
+        note({ tags: [] }),
+      ),
     ).toBe(true);
     expect(
       evaluateQueryNode(
@@ -208,19 +257,28 @@ describe("evaluateQueryNode: system fields", () => {
     const n = note({ modified: new Date(2026, 8, 2, 12, 0, 0).getTime() });
     expect(
       evaluateQueryNode(
-        clause({ kind: "system", field: "modified" }, "is", { type: "date", value: "2026-09-02" }),
+        clause({ kind: "system", field: "modified" }, "is", {
+          type: "date",
+          value: "2026-09-02",
+        }),
         n,
       ),
     ).toBe(true);
     expect(
       evaluateQueryNode(
-        clause({ kind: "system", field: "modified" }, "before", { type: "date", value: "2026-09-02" }),
+        clause({ kind: "system", field: "modified" }, "before", {
+          type: "date",
+          value: "2026-09-02",
+        }),
         n,
       ),
     ).toBe(false);
     expect(
       evaluateQueryNode(
-        clause({ kind: "system", field: "modified" }, "after", { type: "date", value: "2026-09-01" }),
+        clause({ kind: "system", field: "modified" }, "after", {
+          type: "date",
+          value: "2026-09-01",
+        }),
         n,
       ),
     ).toBe(true);
@@ -228,7 +286,10 @@ describe("evaluateQueryNode: system fields", () => {
 
   it("'modified' exists/does-not-exist reflect whether the index had an mtime at all", () => {
     expect(
-      evaluateQueryNode(clause({ kind: "system", field: "modified" }, "exists"), note({ modified: 1 })),
+      evaluateQueryNode(
+        clause({ kind: "system", field: "modified" }, "exists"),
+        note({ modified: 1 }),
+      ),
     ).toBe(true);
     expect(
       evaluateQueryNode(
@@ -256,7 +317,10 @@ describe("evaluateQueryNode: system fields", () => {
 
 function propNote(frontmatter: string): NoteRecord {
   const properties = new Map(
-    parseFrontmatterProperties(frontmatter).properties.map((p) => [p.key.toLowerCase(), p]),
+    parseFrontmatterProperties(frontmatter).properties.map((p) => [
+      p.key.toLowerCase(),
+      p,
+    ]),
   );
   return note({ hasFrontmatter: true, properties });
 }
@@ -265,20 +329,34 @@ describe("evaluateQueryNode: property fields", () => {
   it("'exists'/'does-not-exist' match presence regardless of type, including unsupported YAML", () => {
     const n = propNote("---\nrating: 4\nnested:\n  a: 1\n---\n");
     expect(
-      evaluateQueryNode(clause({ kind: "property", key: "rating" }, "exists"), n),
+      evaluateQueryNode(
+        clause({ kind: "property", key: "rating" }, "exists"),
+        n,
+      ),
     ).toBe(true);
     expect(
-      evaluateQueryNode(clause({ kind: "property", key: "missing" }, "does-not-exist"), n),
+      evaluateQueryNode(
+        clause({ kind: "property", key: "missing" }, "does-not-exist"),
+        n,
+      ),
     ).toBe(true);
     // Unsupported nested YAML: exists matches, but a typed comparison never does.
-    expect(evaluateQueryNode(clause({ kind: "property", key: "nested" }, "exists"), n)).toBe(true);
+    expect(
+      evaluateQueryNode(
+        clause({ kind: "property", key: "nested" }, "exists"),
+        n,
+      ),
+    ).toBe(true);
   });
 
   it("property lookup is case-insensitive per spec section 6.2", () => {
     const n = propNote("---\nStatus: active\n---\n");
     expect(
       evaluateQueryNode(
-        clause({ kind: "property", key: "status" }, "is", { type: "string", value: "active" }),
+        clause({ kind: "property", key: "status" }, "is", {
+          type: "string",
+          value: "active",
+        }),
         n,
       ),
     ).toBe(true);
@@ -288,7 +366,10 @@ describe("evaluateQueryNode: property fields", () => {
     const n = propNote('---\nrating: 4\nname: "5"\n---\n');
     expect(
       evaluateQueryNode(
-        clause({ kind: "property", key: "rating" }, "greater-than", { type: "number", value: 3 }),
+        clause({ kind: "property", key: "rating" }, "greater-than", {
+          type: "number",
+          value: 3,
+        }),
         n,
       ),
     ).toBe(true);
@@ -297,7 +378,10 @@ describe("evaluateQueryNode: property fields", () => {
     // clause"), even though its text looks numeric.
     expect(
       evaluateQueryNode(
-        clause({ kind: "property", key: "name" }, "equals", { type: "number", value: 5 }),
+        clause({ kind: "property", key: "name" }, "equals", {
+          type: "number",
+          value: 5,
+        }),
         n,
       ),
     ).toBe(false);
@@ -305,15 +389,28 @@ describe("evaluateQueryNode: property fields", () => {
 
   it("a boolean-family clause only matches a property that infers as boolean", () => {
     const n = propNote("---\ndone: true\ncount: 1\n---\n");
-    expect(evaluateQueryNode(clause({ kind: "property", key: "done" }, "is-true"), n)).toBe(true);
-    expect(evaluateQueryNode(clause({ kind: "property", key: "count" }, "is-true"), n)).toBe(false);
+    expect(
+      evaluateQueryNode(
+        clause({ kind: "property", key: "done" }, "is-true"),
+        n,
+      ),
+    ).toBe(true);
+    expect(
+      evaluateQueryNode(
+        clause({ kind: "property", key: "count" }, "is-true"),
+        n,
+      ),
+    ).toBe(false);
   });
 
   it("a date-family clause matches a property that infers as a date", () => {
     const n = propNote("---\nreview: 2026-01-15\n---\n");
     expect(
       evaluateQueryNode(
-        clause({ kind: "property", key: "review" }, "before", { type: "date", value: "2026-02-01" }),
+        clause({ kind: "property", key: "review" }, "before", {
+          type: "date",
+          value: "2026-02-01",
+        }),
         n,
       ),
     ).toBe(true);
@@ -323,7 +420,10 @@ describe("evaluateQueryNode: property fields", () => {
     const n = propNote("---\ncategories: [alpha, beta]\n---\n");
     expect(
       evaluateQueryNode(
-        clause({ kind: "property", key: "categories" }, "contains-item", { type: "string", value: "Beta" }),
+        clause({ kind: "property", key: "categories" }, "contains-item", {
+          type: "string",
+          value: "Beta",
+        }),
         n,
       ),
     ).toBe(true);
@@ -342,7 +442,10 @@ describe("evaluateQueryNode: property fields", () => {
     const n = propNote("---\nnested:\n  a: 1\n---\n");
     expect(
       evaluateQueryNode(
-        clause({ kind: "property", key: "nested" }, "is", { type: "string", value: "anything" }),
+        clause({ kind: "property", key: "nested" }, "is", {
+          type: "string",
+          value: "anything",
+        }),
         n,
       ),
     ).toBe(false);
@@ -361,13 +464,25 @@ describe("evaluateQueryNode: groups", () => {
   it("an AND group requires every child to match", () => {
     const n = note({ noteName: "Alpha", tags: ["work"] });
     const q = group("and", [
-      clause({ kind: "system", field: "name" }, "contains", { type: "string", value: "alpha" }),
-      clause({ kind: "system", field: "tag" }, "contains-item", { type: "string", value: "work" }),
+      clause({ kind: "system", field: "name" }, "contains", {
+        type: "string",
+        value: "alpha",
+      }),
+      clause({ kind: "system", field: "tag" }, "contains-item", {
+        type: "string",
+        value: "work",
+      }),
     ]);
     expect(evaluateQueryNode(q, n)).toBe(true);
     const failing = group("and", [
-      clause({ kind: "system", field: "name" }, "contains", { type: "string", value: "alpha" }),
-      clause({ kind: "system", field: "tag" }, "contains-item", { type: "string", value: "missing" }),
+      clause({ kind: "system", field: "name" }, "contains", {
+        type: "string",
+        value: "alpha",
+      }),
+      clause({ kind: "system", field: "tag" }, "contains-item", {
+        type: "string",
+        value: "missing",
+      }),
     ]);
     expect(evaluateQueryNode(failing, n)).toBe(false);
   });
@@ -375,8 +490,14 @@ describe("evaluateQueryNode: groups", () => {
   it("an OR group requires only one child to match", () => {
     const n = note({ noteName: "Alpha", tags: [] });
     const q = group("or", [
-      clause({ kind: "system", field: "tag" }, "contains-item", { type: "string", value: "missing" }),
-      clause({ kind: "system", field: "name" }, "is", { type: "string", value: "alpha" }),
+      clause({ kind: "system", field: "tag" }, "contains-item", {
+        type: "string",
+        value: "missing",
+      }),
+      clause({ kind: "system", field: "name" }, "is", {
+        type: "string",
+        value: "alpha",
+      }),
     ]);
     expect(evaluateQueryNode(q, n)).toBe(true);
   });
@@ -384,10 +505,19 @@ describe("evaluateQueryNode: groups", () => {
   it("evaluates a group nested inside a group", () => {
     const n = note({ noteName: "Alpha", tags: ["work"] });
     const nested = group("and", [
-      clause({ kind: "system", field: "name" }, "is", { type: "string", value: "alpha" }),
+      clause({ kind: "system", field: "name" }, "is", {
+        type: "string",
+        value: "alpha",
+      }),
       group("or", [
-        clause({ kind: "system", field: "tag" }, "contains-item", { type: "string", value: "missing" }),
-        clause({ kind: "system", field: "tag" }, "contains-item", { type: "string", value: "work" }),
+        clause({ kind: "system", field: "tag" }, "contains-item", {
+          type: "string",
+          value: "missing",
+        }),
+        clause({ kind: "system", field: "tag" }, "contains-item", {
+          type: "string",
+          value: "work",
+        }),
       ]),
     ]);
     expect(evaluateQueryNode(nested, n)).toBe(true);
@@ -414,7 +544,12 @@ describe("evaluateCollection", () => {
       note({ path: "Excluded.md", noteName: "Excluded", tags: [] }),
     ];
     const collection = makeCollection(
-      group("and", [clause({ kind: "system", field: "tag" }, "contains-item", { type: "string", value: "work" })]),
+      group("and", [
+        clause({ kind: "system", field: "tag" }, "contains-item", {
+          type: "string",
+          value: "work",
+        }),
+      ]),
     );
     const results = evaluateCollection(collection, notes);
     expect(results.map((r) => r.path)).toEqual(["Alpha.md", "Zeta.md"]);
@@ -433,7 +568,10 @@ describe("evaluateQueryNode: negation operators with no comparison value fail cl
     ).toBe(false);
     expect(
       evaluateQueryNode(
-        clause({ kind: "system", field: "name" }, "is-not", { type: "string", value: "something else" }),
+        clause({ kind: "system", field: "name" }, "is-not", {
+          type: "string",
+          value: "something else",
+        }),
         n,
       ),
     ).toBe(true);
@@ -442,21 +580,33 @@ describe("evaluateQueryNode: negation operators with no comparison value fail cl
   it("'does-not-contain' with no value never matches", () => {
     const n = note({ noteName: "Weekly Review" });
     expect(
-      evaluateQueryNode(clause({ kind: "system", field: "name" }, "does-not-contain"), n),
+      evaluateQueryNode(
+        clause({ kind: "system", field: "name" }, "does-not-contain"),
+        n,
+      ),
     ).toBe(false);
   });
 
   it("'is-not-under-folder' with no value never matches", () => {
-    const n = note({ path: "Projects/Alpha/Note.md", folder: "Projects/Alpha" });
+    const n = note({
+      path: "Projects/Alpha/Note.md",
+      folder: "Projects/Alpha",
+    });
     expect(
-      evaluateQueryNode(clause({ kind: "system", field: "path" }, "is-not-under-folder"), n),
+      evaluateQueryNode(
+        clause({ kind: "system", field: "path" }, "is-not-under-folder"),
+        n,
+      ),
     ).toBe(false);
   });
 
   it("the list-negation 'contains-no-item' already fails closed with no value (unchanged reference behavior)", () => {
     const n = note({ tags: ["work"] });
     expect(
-      evaluateQueryNode(clause({ kind: "system", field: "tag" }, "contains-no-item"), n),
+      evaluateQueryNode(
+        clause({ kind: "system", field: "tag" }, "contains-no-item"),
+        n,
+      ),
     ).toBe(false);
   });
 });

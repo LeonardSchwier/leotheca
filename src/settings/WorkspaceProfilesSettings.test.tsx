@@ -4,11 +4,16 @@ import { cleanup, fireEvent, render } from "@testing-library/preact";
 import { signal } from "@preact/signals";
 import type { WorkspaceProfile } from "./globalConfig";
 
-const { MockWorkspaceForgetUnsavedWorkError, MockWorkspaceRelinkConflictError } = vi.hoisted(() => ({
+const {
+  MockWorkspaceForgetUnsavedWorkError,
+  MockWorkspaceRelinkConflictError,
+} = vi.hoisted(() => ({
   MockWorkspaceForgetUnsavedWorkError: class extends Error {},
   MockWorkspaceRelinkConflictError: class extends Error {
     constructor(public readonly conflictingProfileName: string) {
-      super(`This folder is already used by workspace "${conflictingProfileName}".`);
+      super(
+        `This folder is already used by workspace "${conflictingProfileName}".`,
+      );
       this.name = "WorkspaceRelinkConflictError";
     }
   },
@@ -72,7 +77,9 @@ describe("WorkspaceProfilesSettings", () => {
   it("shows desktop locator text but never exposes an Android token or synthetic root", () => {
     workspaceProfiles.value = [DESKTOP, ANDROID];
     activeWorkspaceId.value = "desktop";
-    const { getByText, queryByText, container } = render(<WorkspaceProfilesSettings />);
+    const { getByText, queryByText, container } = render(
+      <WorkspaceProfilesSettings />,
+    );
     expect(getByText("/home/me/Research")).toBeTruthy();
     expect(queryByText("/workspace")).toBeNull();
     expect(container.textContent).not.toContain("content://");
@@ -85,9 +92,14 @@ describe("WorkspaceProfilesSettings", () => {
     const { getByText, getByLabelText } = render(<WorkspaceProfilesSettings />);
     fireEvent.click(getByText("Rename"));
     await Promise.resolve();
-    expect(renameWorkspaceProfile).toHaveBeenCalledWith("desktop", "  New Research  ");
+    expect(renameWorkspaceProfile).toHaveBeenCalledWith(
+      "desktop",
+      "  New Research  ",
+    );
 
-    fireEvent.change(getByLabelText("Icon for Research"), { target: { value: "archive" } });
+    fireEvent.change(getByLabelText("Icon for Research"), {
+      target: { value: "archive" },
+    });
     expect(setWorkspaceProfileIcon).toHaveBeenCalledWith("desktop", "archive");
   });
 
@@ -96,19 +108,29 @@ describe("WorkspaceProfilesSettings", () => {
     activeWorkspaceId.value = "desktop";
     vi.spyOn(window, "prompt").mockReturnValue("New Research");
     const alert = vi.spyOn(window, "alert").mockImplementation(() => {});
-    vi.mocked(renameWorkspaceProfile).mockRejectedValueOnce(new Error("disk full"));
-    vi.mocked(setWorkspaceProfileIcon).mockRejectedValueOnce(new Error("disk full"));
+    vi.mocked(renameWorkspaceProfile).mockRejectedValueOnce(
+      new Error("disk full"),
+    );
+    vi.mocked(setWorkspaceProfileIcon).mockRejectedValueOnce(
+      new Error("disk full"),
+    );
 
     const { getByText, getByLabelText } = render(<WorkspaceProfilesSettings />);
     fireEvent.click(getByText("Rename"));
     await Promise.resolve();
     await Promise.resolve();
-    expect(alert).toHaveBeenCalledWith("Could not rename workspace profile. Try again.");
+    expect(alert).toHaveBeenCalledWith(
+      "Could not rename workspace profile. Try again.",
+    );
 
-    fireEvent.change(getByLabelText("Icon for Research"), { target: { value: "archive" } });
+    fireEvent.change(getByLabelText("Icon for Research"), {
+      target: { value: "archive" },
+    });
     await Promise.resolve();
     await Promise.resolve();
-    expect(alert).toHaveBeenCalledWith("Could not update workspace profile. Try again.");
+    expect(alert).toHaveBeenCalledWith(
+      "Could not update workspace profile. Try again.",
+    );
   });
 
   it("offers Forget for both the active and an inactive profile", () => {
@@ -150,7 +172,9 @@ describe("WorkspaceProfilesSettings", () => {
     fireEvent.click(getByRole("button", { name: "Forget anyway" }));
     await Promise.resolve();
 
-    expect(forgetWorkspaceProfile).toHaveBeenNthCalledWith(2, "desktop", { discardUnsaved: true });
+    expect(forgetWorkspaceProfile).toHaveBeenNthCalledWith(2, "desktop", {
+      discardUnsaved: true,
+    });
   });
 
   it("does not retry forgetting the active profile when the unsaved-work confirmation is declined", async () => {
@@ -180,14 +204,20 @@ describe("WorkspaceProfilesSettings", () => {
     workspaceProfiles.value = [DESKTOP, ANDROID];
     activeWorkspaceId.value = "desktop";
     const alert = vi.spyOn(window, "alert").mockImplementation(() => {});
-    vi.mocked(forgetWorkspaceProfile).mockRejectedValueOnce(new Error("disk full"));
-    vi.mocked(addWorkspaceFromPicker).mockRejectedValueOnce(new Error("picker failure"));
+    vi.mocked(forgetWorkspaceProfile).mockRejectedValueOnce(
+      new Error("disk full"),
+    );
+    vi.mocked(addWorkspaceFromPicker).mockRejectedValueOnce(
+      new Error("picker failure"),
+    );
 
     const { getAllByText, getByText } = render(<WorkspaceProfilesSettings />);
     fireEvent.click(getAllByText("Forget")[1]);
     await Promise.resolve();
     await Promise.resolve();
-    expect(alert).toHaveBeenCalledWith("Could not forget workspace. Try again.");
+    expect(alert).toHaveBeenCalledWith(
+      "Could not forget workspace. Try again.",
+    );
 
     fireEvent.click(getByText("Add workspace"));
     await Promise.resolve();
@@ -239,13 +269,17 @@ describe("WorkspaceProfilesSettings", () => {
     workspaceProfiles.value = [DESKTOP];
     activeWorkspaceId.value = "desktop";
     const alert = vi.spyOn(window, "alert").mockImplementation(() => {});
-    vi.mocked(relinkWorkspaceProfile).mockRejectedValueOnce(new Error("denied"));
+    vi.mocked(relinkWorkspaceProfile).mockRejectedValueOnce(
+      new Error("denied"),
+    );
 
     const { getByText } = render(<WorkspaceProfilesSettings />);
     fireEvent.click(getByText("Relink"));
     await Promise.resolve();
     await Promise.resolve();
 
-    expect(alert).toHaveBeenCalledWith("Could not relink workspace. Try again.");
+    expect(alert).toHaveBeenCalledWith(
+      "Could not relink workspace. Try again.",
+    );
   });
 });

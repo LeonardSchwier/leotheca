@@ -7,7 +7,8 @@ export type WorkspaceReset = () => void;
  * `loadIncoming` (and the synchronous `publishIncoming` right after it) is
  * "settings", and the post-publish `afterPublish` step that persists the
  * catalog is "global-config". */
-export type WorkspaceTransitionPhase = "save" | "access" | "settings" | "global-config";
+export type WorkspaceTransitionPhase =
+  "save" | "access" | "settings" | "global-config";
 
 /** Section 16.1's typed transition state, verbatim. `targetProfileId` is
  * `null` for a transition with no incoming profile at all (forgetting the
@@ -39,7 +40,11 @@ export interface WorkspaceTransitionSteps<T> {
    * 16.1's own `error.phase`), and `isCurrent` lets a caller doing further
    * async recovery work (e.g. re-populating outgoing UI state) stop if a
    * newer transition has since taken over. */
-  publishFailure?: (error: unknown, phase: WorkspaceTransitionPhase, isCurrent: () => boolean) => void;
+  publishFailure?: (
+    error: unknown,
+    phase: WorkspaceTransitionPhase,
+    isCurrent: () => boolean,
+  ) => void;
   /** Optional post-publication restoration. It receives an authority check and
    * must stop mutating state once it becomes false. */
   afterPublish?: (isCurrent: () => boolean) => Promise<void>;
@@ -99,7 +104,8 @@ export function createWorkspaceTransitionCoordinator() {
       // A transition with no real target (forget-active) never has
       // anything to "open"; connectIncoming/loadIncoming are no-ops for it,
       // so skip announcing a spinner state with nothing behind it.
-      if (targetProfileId !== null) state.value = { status: "opening", targetProfileId };
+      if (targetProfileId !== null)
+        state.value = { status: "opening", targetProfileId };
       await steps.connectIncoming();
       if (!isCurrent()) return false;
 
@@ -119,7 +125,12 @@ export function createWorkspaceTransitionCoordinator() {
     } catch (error) {
       if (!isCurrent()) return false;
       for (const reset of resets) reset();
-      state.value = { status: "error", targetProfileId, phase, message: errorMessage(error) };
+      state.value = {
+        status: "error",
+        targetProfileId,
+        phase,
+        message: errorMessage(error),
+      };
       steps.publishFailure?.(error, phase, isCurrent);
       throw error;
     }

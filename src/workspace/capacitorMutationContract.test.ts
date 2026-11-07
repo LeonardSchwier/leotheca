@@ -71,7 +71,9 @@ describe("Android workspace mutation capability contract", () => {
   });
 
   it("creates a directory through the provider no-replace method, not the idempotent ensure-directory path", async () => {
-    folderAccess.createDirNew.mockResolvedValue({ uri: "content://new-folder" });
+    folderAccess.createDirNew.mockResolvedValue({
+      uri: "content://new-folder",
+    });
 
     await createWorkspaceDirNew(WORKSPACE_ROOT, "New Folder");
 
@@ -108,7 +110,9 @@ describe("Android workspace mutation capability contract", () => {
         entries: [{ name: "note.md", uri: "content://old-note", isDir: false }],
       })
       .mockResolvedValueOnce({
-        entries: [{ name: "note.md", uri: "content://current-note", isDir: false }],
+        entries: [
+          { name: "note.md", uri: "content://current-note", isDir: false },
+        ],
       });
     folderAccess.renamePathNoReplace.mockRejectedValue(
       new Error("permission_denied: denied"),

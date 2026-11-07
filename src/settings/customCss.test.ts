@@ -34,7 +34,9 @@ describe("applyCustomCss", () => {
     const style = document.getElementById("leotheca-custom-css");
     expect(style).not.toBeNull();
     expect(style?.textContent).toBe("body { background: #fff; }");
-    expect(readTextFile).toHaveBeenCalledWith("/workspace/.leotheca/custom.css");
+    expect(readTextFile).toHaveBeenCalledWith(
+      "/workspace/.leotheca/custom.css",
+    );
   });
 
   it("returns false when the file is outside the workspace", async () => {
@@ -58,7 +60,9 @@ describe("applyCustomCss", () => {
     expect(result).toBe(true);
     // The relative path must be resolved to an absolute path before being
     // passed to readTextFile (and isPathWithinWorkspace).
-    expect(readTextFile).toHaveBeenCalledWith("/workspace/.leotheca/custom.css");
+    expect(readTextFile).toHaveBeenCalledWith(
+      "/workspace/.leotheca/custom.css",
+    );
   });
 
   it("returns false when the file is missing", async () => {

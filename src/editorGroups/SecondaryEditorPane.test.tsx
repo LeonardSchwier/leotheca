@@ -9,8 +9,18 @@ afterEach(() => {
 });
 
 vi.mock("../editor/MarkdownEditor", () => ({
-  MarkdownEditor: ({ value, onChange }: { value: string; onChange: (v: string) => void }) => (
-    <textarea data-testid="mock-editor" value={value} onInput={(e) => onChange((e.target as HTMLTextAreaElement).value)} />
+  MarkdownEditor: ({
+    value,
+    onChange,
+  }: {
+    value: string;
+    onChange: (v: string) => void;
+  }) => (
+    <textarea
+      data-testid="mock-editor"
+      value={value}
+      onInput={(e) => onChange((e.target as HTMLTextAreaElement).value)}
+    />
   ),
 }));
 
@@ -31,7 +41,16 @@ window.matchMedia = vi.fn().mockImplementation((query: string) => ({
 const { SecondaryEditorPane } = await import("./SecondaryEditorPane");
 
 function tab(overrides: Partial<OpenTab> = {}): OpenTab {
-  return { path: "/a.md", name: "a.md", content: "hello", kind: "text", dirty: false, saving: false, saveError: null, ...overrides };
+  return {
+    path: "/a.md",
+    name: "a.md",
+    content: "hello",
+    kind: "text",
+    dirty: false,
+    saving: false,
+    saveError: null,
+    ...overrides,
+  };
 }
 
 const noop = () => {};
@@ -48,7 +67,9 @@ const noSave: SaveCoordinator = {
   debugEntries: vi.fn(() => []),
 };
 
-function baseProps(overrides: Partial<Parameters<typeof SecondaryEditorPane>[0]> = {}) {
+function baseProps(
+  overrides: Partial<Parameters<typeof SecondaryEditorPane>[0]> = {},
+) {
   return {
     tabs: [],
     pinnedPaths: [],
@@ -89,13 +110,17 @@ describe("SecondaryEditorPane", () => {
   it("shows an empty state with a disabled 'Move current tab here' button when primary has no active tab", () => {
     const { getByText } = render(<SecondaryEditorPane {...baseProps()} />);
     expect(getByText("No note open in this group.")).toBeTruthy();
-    expect((getByText("Move current tab here") as HTMLButtonElement).disabled).toBe(true);
+    expect(
+      (getByText("Move current tab here") as HTMLButtonElement).disabled,
+    ).toBe(true);
   });
 
   it("enables 'Move current tab here' once primary has an active tab, and it calls onMoveActiveTabHere", () => {
     const onMoveActiveTabHere = vi.fn();
     const { getByText } = render(
-      <SecondaryEditorPane {...baseProps({ hasPrimaryActiveTab: true, onMoveActiveTabHere })} />,
+      <SecondaryEditorPane
+        {...baseProps({ hasPrimaryActiveTab: true, onMoveActiveTabHere })}
+      />,
     );
     const button = getByText("Move current tab here") as HTMLButtonElement;
     expect(button.disabled).toBe(false);
@@ -105,7 +130,9 @@ describe("SecondaryEditorPane", () => {
 
   it("'Close group' in the empty state calls onClosePane", () => {
     const onClosePane = vi.fn();
-    const { getByText } = render(<SecondaryEditorPane {...baseProps({ onClosePane })} />);
+    const { getByText } = render(
+      <SecondaryEditorPane {...baseProps({ onClosePane })} />,
+    );
     fireEvent.click(getByText("Close group"));
     expect(onClosePane).toHaveBeenCalledTimes(1);
   });
@@ -113,7 +140,14 @@ describe("SecondaryEditorPane", () => {
   it("renders the tab bar and the editor for a text note, split mode showing both panes", () => {
     const t = tab();
     const { container, getByTestId } = render(
-      <SecondaryEditorPane {...baseProps({ tabs: [t], activePath: t.path, current: t, viewMode: "split" })} />,
+      <SecondaryEditorPane
+        {...baseProps({
+          tabs: [t],
+          activePath: t.path,
+          current: t,
+          viewMode: "split",
+        })}
+      />,
     );
     expect(container.querySelector(".tab-bar")).toBeTruthy();
     expect(getByTestId("mock-editor")).toBeTruthy();
@@ -123,14 +157,28 @@ describe("SecondaryEditorPane", () => {
   it("source mode hides the preview, preview mode hides the editor", () => {
     const t = tab();
     const source = render(
-      <SecondaryEditorPane {...baseProps({ tabs: [t], activePath: t.path, current: t, viewMode: "source" })} />,
+      <SecondaryEditorPane
+        {...baseProps({
+          tabs: [t],
+          activePath: t.path,
+          current: t,
+          viewMode: "source",
+        })}
+      />,
     );
     expect(source.queryByTestId("mock-editor")).toBeTruthy();
     expect(source.container.querySelector(".markdown-preview")).toBeNull();
     cleanup();
 
     const preview = render(
-      <SecondaryEditorPane {...baseProps({ tabs: [t], activePath: t.path, current: t, viewMode: "preview" })} />,
+      <SecondaryEditorPane
+        {...baseProps({
+          tabs: [t],
+          activePath: t.path,
+          current: t,
+          viewMode: "preview",
+        })}
+      />,
     );
     expect(preview.queryByTestId("mock-editor")).toBeNull();
     expect(preview.container.querySelector(".markdown-preview")).toBeTruthy();
@@ -140,7 +188,15 @@ describe("SecondaryEditorPane", () => {
     const t = tab();
     const onViewModeChange = vi.fn();
     const { getByTitle } = render(
-      <SecondaryEditorPane {...baseProps({ tabs: [t], activePath: t.path, current: t, viewMode: "split", onViewModeChange })} />,
+      <SecondaryEditorPane
+        {...baseProps({
+          tabs: [t],
+          activePath: t.path,
+          current: t,
+          viewMode: "split",
+          onViewModeChange,
+        })}
+      />,
     );
     fireEvent.click(getByTitle("Preview"));
     expect(onViewModeChange).toHaveBeenCalledWith("preview");
@@ -150,7 +206,14 @@ describe("SecondaryEditorPane", () => {
     const t = tab({ kind: "canvas" });
     const onMoveActiveTabHere = vi.fn();
     const { getByText } = render(
-      <SecondaryEditorPane {...baseProps({ tabs: [t], activePath: t.path, current: t, onMoveActiveTabHere })} />,
+      <SecondaryEditorPane
+        {...baseProps({
+          tabs: [t],
+          activePath: t.path,
+          current: t,
+          onMoveActiveTabHere,
+        })}
+      />,
     );
     expect(getByText(/Canvas notes aren't supported/)).toBeTruthy();
     fireEvent.click(getByText("Move to primary group"));
@@ -162,12 +225,16 @@ describe("SecondaryEditorPane", () => {
     const retry = vi.fn(async () => {});
     const { getByText } = render(
       <SecondaryEditorPane
-        {...baseProps({ tabs: [t], activePath: t.path, current: t, save: { ...noSave, retry } })}
+        {...baseProps({
+          tabs: [t],
+          activePath: t.path,
+          current: t,
+          save: { ...noSave, retry },
+        })}
       />,
     );
     expect(getByText(/Couldn't save "a.md": disk full/)).toBeTruthy();
     fireEvent.click(getByText("Retry"));
     expect(retry).toHaveBeenCalledTimes(1);
   });
-
 });

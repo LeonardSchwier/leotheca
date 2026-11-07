@@ -76,12 +76,22 @@ function splitLines(content: string): LineInfo[] {
   while (pos < content.length) {
     const newlineIndex = content.indexOf("\n", pos);
     if (newlineIndex === -1) {
-      lines.push({ text: content.slice(pos), start: pos, end: content.length, lineNumber });
+      lines.push({
+        text: content.slice(pos),
+        start: pos,
+        end: content.length,
+        lineNumber,
+      });
       break;
     }
     let lineEnd = newlineIndex;
     if (lineEnd > pos && content[lineEnd - 1] === "\r") lineEnd -= 1;
-    lines.push({ text: content.slice(pos, lineEnd), start: pos, end: lineEnd, lineNumber });
+    lines.push({
+      text: content.slice(pos, lineEnd),
+      start: pos,
+      end: lineEnd,
+      lineNumber,
+    });
     pos = newlineIndex + 1;
     lineNumber += 1;
   }
@@ -130,7 +140,9 @@ function decodeEntitiesAndEscapes(text: string): string {
       }
     })
     .replace(/&([a-zA-Z]+);/g, (full: string, name: string) =>
-      Object.prototype.hasOwnProperty.call(HTML_ENTITIES, name) ? HTML_ENTITIES[name] : full,
+      Object.prototype.hasOwnProperty.call(HTML_ENTITIES, name)
+        ? HTML_ENTITIES[name]
+        : full,
     );
 }
 
@@ -144,7 +156,10 @@ function decodeEntitiesAndEscapes(text: string): string {
  */
 export function stripInlineMarkdownFormatting(text: string): string {
   let result = decodeEntitiesAndEscapes(text);
-  result = result.replace(/(`+)([\s\S]*?)\1/g, (_, _ticks: string, inner: string) => inner.trim());
+  result = result.replace(
+    /(`+)([\s\S]*?)\1/g,
+    (_, _ticks: string, inner: string) => inner.trim(),
+  );
   result = result.replace(/!\[([^\]]*)\]\([^)]*\)/g, "$1");
   result = result.replace(/\[\[([^[\]|]+)\|([^[\]]+)\]\]/g, "$2");
   result = result.replace(/\[\[([^[\]]+)\]\]/g, "$1");
@@ -189,12 +204,24 @@ interface RawHeading {
   blockId?: { id: string; idFrom: number; idTo: number };
 }
 
-function extractHeadingBlockId(rawText: string, absoluteContentStart: number): { rawText: string; contentTo: number; blockId?: { id: string; idFrom: number; idTo: number } } {
+function extractHeadingBlockId(
+  rawText: string,
+  absoluteContentStart: number,
+): {
+  rawText: string;
+  contentTo: number;
+  blockId?: { id: string; idFrom: number; idTo: number };
+} {
   const match = HEADING_BLOCK_ID_RE.exec(rawText);
-  if (!match) return { rawText, contentTo: absoluteContentStart + rawText.length };
+  if (!match)
+    return { rawText, contentTo: absoluteContentStart + rawText.length };
   const id = match[1];
   const idFrom = absoluteContentStart + match.index + match[0].indexOf("^");
-  return { rawText: rawText.slice(0, match.index), contentTo: absoluteContentStart + match.index, blockId: { id, idFrom, idTo: idFrom + 1 + id.length } };
+  return {
+    rawText: rawText.slice(0, match.index),
+    contentTo: absoluteContentStart + match.index,
+    blockId: { id, idFrom, idTo: idFrom + 1 + id.length },
+  };
 }
 
 function tryParseAtx(line: LineInfo): RawHeading | null {
@@ -217,11 +244,17 @@ function tryParseAtx(line: LineInfo): RawHeading | null {
   const sep = line.text[afterHashes];
   if (sep !== " " && sep !== "\t") return null;
   let contentStart = afterHashes;
-  while (contentStart < line.text.length && (line.text[contentStart] === " " || line.text[contentStart] === "\t")) {
+  while (
+    contentStart < line.text.length &&
+    (line.text[contentStart] === " " || line.text[contentStart] === "\t")
+  ) {
     contentStart += 1;
   }
   let contentEnd = line.text.length;
-  while (contentEnd > contentStart && (line.text[contentEnd - 1] === " " || line.text[contentEnd - 1] === "\t")) {
+  while (
+    contentEnd > contentStart &&
+    (line.text[contentEnd - 1] === " " || line.text[contentEnd - 1] === "\t")
+  ) {
     contentEnd -= 1;
   }
   let raw = line.text.slice(contentStart, contentEnd);
@@ -273,7 +306,12 @@ export function scanHeadings(content: string): HeadingRecord[] {
 
     if (inFence) {
       const close = FENCE_RE.exec(line.text);
-      if (close && close[1][0] === fenceChar && close[1].length >= fenceLength && line.text.trim() === close[1]) {
+      if (
+        close &&
+        close[1][0] === fenceChar &&
+        close[1].length >= fenceLength &&
+        line.text.trim() === close[1]
+      ) {
         inFence = false;
       }
       continue;
@@ -292,7 +330,10 @@ export function scanHeadings(content: string): HeadingRecord[] {
     }
     const commentStartMatch = COMMENT_START_RE.exec(line.text);
     if (commentStartMatch) {
-      const closeOnSameLine = line.text.indexOf("-->", commentStartMatch[0].length);
+      const closeOnSameLine = line.text.indexOf(
+        "-->",
+        commentStartMatch[0].length,
+      );
       if (closeOnSameLine === -1) inComment = true;
       continue;
     }
@@ -309,19 +350,24 @@ export function scanHeadings(content: string): HeadingRecord[] {
     const setextLevel = trySetextLevel(line);
     if (setextLevel !== null) {
       const textLine = lines[i - 1];
-      const textIsUsable = textLine !== undefined && textLine.text.trim() !== "" && !consumedLines.has(i - 1);
+      const textIsUsable =
+        textLine !== undefined &&
+        textLine.text.trim() !== "" &&
+        !consumedLines.has(i - 1);
       if (textIsUsable) {
         let contentStart = 0;
         while (
           contentStart < textLine.text.length &&
-          (textLine.text[contentStart] === " " || textLine.text[contentStart] === "\t")
+          (textLine.text[contentStart] === " " ||
+            textLine.text[contentStart] === "\t")
         ) {
           contentStart += 1;
         }
         let contentEnd = textLine.text.length;
         while (
           contentEnd > contentStart &&
-          (textLine.text[contentEnd - 1] === " " || textLine.text[contentEnd - 1] === "\t")
+          (textLine.text[contentEnd - 1] === " " ||
+            textLine.text[contentEnd - 1] === "\t")
         ) {
           contentEnd -= 1;
         }
@@ -375,7 +421,10 @@ export function scanHeadings(content: string): HeadingRecord[] {
 
   const stack: number[] = [];
   for (let i = 0; i < headings.length; i++) {
-    while (stack.length > 0 && headings[stack[stack.length - 1]].level >= headings[i].level) {
+    while (
+      stack.length > 0 &&
+      headings[stack[stack.length - 1]].level >= headings[i].level
+    ) {
       stack.pop();
     }
     if (stack.length > 0) {

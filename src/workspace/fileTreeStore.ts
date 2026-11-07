@@ -22,7 +22,13 @@ import {
 } from "../settings/store";
 import type { SortOrder, SearchSortMode } from "../settings/workspaceSettings";
 import { linkIndex } from "../linking/store";
-import { isExcludedDir, matchesSearchQuery, parseSearchQuery, queryNeedsContentForScoring, scoreSearchResult } from "./searchQuery";
+import {
+  isExcludedDir,
+  matchesSearchQuery,
+  parseSearchQuery,
+  queryNeedsContentForScoring,
+  scoreSearchResult,
+} from "./searchQuery";
 import { mapWithConcurrency } from "./concurrency";
 import {
   updateRecentNotesWidget,
@@ -162,7 +168,10 @@ export function sortEntries(entries: FsEntry[]): FsEntry[] {
 // previous string-keyed Map here serialized every entry's path+isDir into a
 // cache key and never evicted anything, growing without bound for the
 // app's entire lifetime.
-const sortEntriesCache = new WeakMap<FsEntry[], { order: SortOrder; result: FsEntry[] }>();
+const sortEntriesCache = new WeakMap<
+  FsEntry[],
+  { order: SortOrder; result: FsEntry[] }
+>();
 
 export function memoizedSortEntries(entries: FsEntry[]): FsEntry[] {
   const order = workspaceSettings.value.sortOrder;
@@ -282,7 +291,10 @@ export async function expandFirstLevel(rootPath: string): Promise<void> {
   } catch (error) {
     // FileTree's mount effect fires this without a catch; an unreadable root
     // (revoked folder, workspace switched mid-flight) must not reject.
-    console.warn("Could not expand the first level", error instanceof Error ? error.name : "error");
+    console.warn(
+      "Could not expand the first level",
+      error instanceof Error ? error.name : "error",
+    );
     return;
   }
   const dirs = entries.filter((entry) => entry.isDir);
@@ -461,7 +473,11 @@ async function createAutoNamedTextFile(
     const name = nextName(existingNames);
     const path = `${dirPath}/${name}`;
     try {
-      await createWorkspaceTextFileNew(root, relativePath(root, path), contents);
+      await createWorkspaceTextFileNew(
+        root,
+        relativePath(root, path),
+        contents,
+      );
       return { path, name };
     } catch (error) {
       if (!isWorkspaceMutationError(error, "already_exists")) throw error;
@@ -500,11 +516,15 @@ export async function createInkQuick(
     dirPath,
     existingNames,
     uniqueInkName,
-    JSON.stringify({
-      version: 1,
-      strokes: [],
-      viewport: { x: 0, y: 0, zoom: 1 }
-    }, null, 2),
+    JSON.stringify(
+      {
+        version: 1,
+        strokes: [],
+        viewport: { x: 0, y: 0, zoom: 1 },
+      },
+      null,
+      2,
+    ),
   );
   await loadChildren(dirPath);
   return created;
@@ -904,7 +924,10 @@ export async function runSearch(rootPath: string, query: string) {
     // Every caller is fire-and-forget (debounce timer, Enter, refresh), so a
     // rejected native walk would surface as an unhandled promise rejection.
     // Drop the now-stale results instead; the busy flag is reset below.
-    console.warn("Workspace search failed", error instanceof Error ? error.name : "error");
+    console.warn(
+      "Workspace search failed",
+      error instanceof Error ? error.name : "error",
+    );
     if (isCurrent()) searchResults.value = null;
   } finally {
     if (isCurrent()) searchInProgress.value = false;

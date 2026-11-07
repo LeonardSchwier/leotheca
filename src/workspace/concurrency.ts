@@ -23,6 +23,8 @@ export async function mapWithConcurrency<T, R>(
       results[index] = await task(items[index]);
     }
   }
-  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  await Promise.all(
+    Array.from({ length: Math.min(limit, items.length) }, worker),
+  );
   return results;
 }

@@ -23,7 +23,11 @@ export function minimalChange(oldText: string, newText: string): TextChange {
 
   let oldEnd = oldText.length;
   let newEnd = newText.length;
-  while (oldEnd > start && newEnd > start && oldText[oldEnd - 1] === newText[newEnd - 1]) {
+  while (
+    oldEnd > start &&
+    newEnd > start &&
+    oldText[oldEnd - 1] === newText[newEnd - 1]
+  ) {
     oldEnd--;
     newEnd--;
   }

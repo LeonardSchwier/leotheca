@@ -23,8 +23,18 @@ interface CanvasViewProps {
 }
 
 /** File-backed spatial cards, links, and local file references. */
-export function CanvasView({ path, source, onChange, onOpenFile }: CanvasViewProps) {
-  const [drag, setDrag] = useState<{ id: string; pointerId: number; offsetX: number; offsetY: number } | null>(null);
+export function CanvasView({
+  path,
+  source,
+  onChange,
+  onOpenFile,
+}: CanvasViewProps) {
+  const [drag, setDrag] = useState<{
+    id: string;
+    pointerId: number;
+    offsetX: number;
+    offsetY: number;
+  } | null>(null);
   const [connectionStart, setConnectionStart] = useState<string | null>(null);
   // A card's filePath can point at a note that was deleted, renamed, or
   // moved outside the app since the canvas was last saved; `resolved`
@@ -45,7 +55,8 @@ export function CanvasView({ path, source, onChange, onOpenFile }: CanvasViewPro
   }
   const document = decoded.document;
 
-  const save = (next: CanvasDocument) => onChange(serializeCanvas({ ...decoded, document: next }));
+  const save = (next: CanvasDocument) =>
+    onChange(serializeCanvas({ ...decoded, document: next }));
   const updateNodes = (nodes: CanvasNode[]) => save({ ...document, nodes });
   const addCard = (x?: number, y?: number) =>
     updateNodes([
@@ -75,14 +86,21 @@ export function CanvasView({ path, source, onChange, onOpenFile }: CanvasViewPro
     }
     if (
       connectionStart !== id &&
-      !document.edges.some((edge) => edge.from === connectionStart && edge.to === id)
+      !document.edges.some(
+        (edge) => edge.from === connectionStart && edge.to === id,
+      )
     ) {
-      save({ ...document, edges: [...document.edges, { from: connectionStart, to: id }] });
+      save({
+        ...document,
+        edges: [...document.edges, { from: connectionStart, to: id }],
+      });
     }
     setConnectionStart(null);
   };
   const resolvedFilePath = (filePath: string) =>
-    workspacePath.value ? resolveCanvasFileReference(workspacePath.value, path, filePath) : null;
+    workspacePath.value
+      ? resolveCanvasFileReference(workspacePath.value, path, filePath)
+      : null;
   async function handleOpen(nodeId: string, resolvedPath: string) {
     setOpenErrorId(null);
     try {
@@ -97,11 +115,17 @@ export function CanvasView({ path, source, onChange, onOpenFile }: CanvasViewPro
       <div class="canvas-toolbar">
         <button onClick={() => addCard()}>New card</button>
         <button onClick={() => addFileCard("")}>Link file</button>
-        {connectionStart && <span class="canvas-connect-hint">Choose another card to connect</span>}
+        {connectionStart && (
+          <span class="canvas-connect-hint">
+            Choose another card to connect
+          </span>
+        )}
       </div>
       <div
         class="canvas-viewport"
-        onDblClick={(event: import("preact").TargetedMouseEvent<HTMLDivElement>) => {
+        onDblClick={(
+          event: import("preact").TargetedMouseEvent<HTMLDivElement>,
+        ) => {
           // Double-click on the canvas background creates a new note card
           // at the click position (the standard canvas interaction
           // pattern). Double-clicking a card, its inputs, or any other
@@ -119,7 +143,11 @@ export function CanvasView({ path, source, onChange, onOpenFile }: CanvasViewPro
           updateNodes(
             document.nodes.map((node) =>
               node.id === drag.id
-                ? { ...node, x: event.clientX - rect.left - drag.offsetX, y: event.clientY - rect.top - drag.offsetY }
+                ? {
+                    ...node,
+                    x: event.clientX - rect.left - drag.offsetX,
+                    y: event.clientY - rect.top - drag.offsetY,
+                  }
                 : node,
             ),
           );
@@ -140,12 +168,16 @@ export function CanvasView({ path, source, onChange, onOpenFile }: CanvasViewPro
         <svg class="canvas-edges" aria-hidden="true">
           {document.edges
             .filter((edge) => {
-              const fromNode = document.nodes.find((node) => node.id === edge.from);
+              const fromNode = document.nodes.find(
+                (node) => node.id === edge.from,
+              );
               const toNode = document.nodes.find((node) => node.id === edge.to);
               return fromNode !== undefined && toNode !== undefined;
             })
             .map((edge) => {
-              const from = document.nodes.find((node) => node.id === edge.from)!;
+              const from = document.nodes.find(
+                (node) => node.id === edge.from,
+              )!;
               const to = document.nodes.find((node) => node.id === edge.to)!;
               return (
                 <line
@@ -162,13 +194,20 @@ export function CanvasView({ path, source, onChange, onOpenFile }: CanvasViewPro
           <p class="canvas-empty-hint">Create a card to begin.</p>
         ) : (
           document.nodes.map((node) => {
-            const resolved = node.filePath ? resolvedFilePath(node.filePath) : null;
+            const resolved = node.filePath
+              ? resolvedFilePath(node.filePath)
+              : null;
             return (
-              <article key={node.id} class="canvas-card" style={{ left: `${node.x}px`, top: `${node.y}px` }}>
+              <article
+                key={node.id}
+                class="canvas-card"
+                style={{ left: `${node.x}px`, top: `${node.y}px` }}
+              >
                 <div
                   class="canvas-card-actions"
                   onPointerDown={(event) => {
-                    const rect = event.currentTarget.parentElement!.getBoundingClientRect();
+                    const rect =
+                      event.currentTarget.parentElement!.getBoundingClientRect();
                     event.currentTarget.setPointerCapture(event.pointerId);
                     setDrag({
                       id: node.id,
@@ -189,8 +228,14 @@ export function CanvasView({ path, source, onChange, onOpenFile }: CanvasViewPro
                   {node.filePath && (
                     <button
                       disabled={!resolved}
-                      title={resolved ? undefined : "This path doesn't resolve to a file inside the workspace"}
-                      onClick={() => resolved && void handleOpen(node.id, resolved)}
+                      title={
+                        resolved
+                          ? undefined
+                          : "This path doesn't resolve to a file inside the workspace"
+                      }
+                      onClick={() =>
+                        resolved && void handleOpen(node.id, resolved)
+                      }
                     >
                       Open
                     </button>
@@ -198,7 +243,8 @@ export function CanvasView({ path, source, onChange, onOpenFile }: CanvasViewPro
                 </div>
                 {openErrorId === node.id && (
                   <p class="canvas-open-error" role="alert">
-                    Couldn't open this file — it may have been moved, renamed, or deleted.
+                    Couldn't open this file: it may have been moved, renamed, or
+                    deleted.
                   </p>
                 )}
                 {node.filePath !== undefined && (
@@ -209,7 +255,9 @@ export function CanvasView({ path, source, onChange, onOpenFile }: CanvasViewPro
                     onInput={(event) =>
                       updateNodes(
                         document.nodes.map((item) =>
-                          item.id === node.id ? { ...item, filePath: event.currentTarget.value } : item,
+                          item.id === node.id
+                            ? { ...item, filePath: event.currentTarget.value }
+                            : item,
                         ),
                       )
                     }
@@ -221,7 +269,9 @@ export function CanvasView({ path, source, onChange, onOpenFile }: CanvasViewPro
                   onInput={(event) =>
                     updateNodes(
                       document.nodes.map((item) =>
-                        item.id === node.id ? { ...item, text: event.currentTarget.value } : item,
+                        item.id === node.id
+                          ? { ...item, text: event.currentTarget.value }
+                          : item,
                       ),
                     )
                   }

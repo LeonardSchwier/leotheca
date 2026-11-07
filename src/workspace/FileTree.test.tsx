@@ -10,9 +10,9 @@ import type { SortOrder } from "../settings/workspaceSettings";
 // selectedDir signals this test drives directly — running for real.
 // `vi.hoisted` runs before the vi.mock factory (which is itself hoisted), so
 // `mockWorkspaceSettings` is defined by the time the factory body executes.
-const mockWorkspaceSettings = vi.hoisted<{ sortOrder: SortOrder }>(
-  () => ({ sortOrder: "name-asc" })
-);
+const mockWorkspaceSettings = vi.hoisted<{ sortOrder: SortOrder }>(() => ({
+  sortOrder: "name-asc",
+}));
 vi.mock("../settings/store", () => ({
   workspaceSettings: { value: mockWorkspaceSettings },
   workspaceSession: { value: 0 },
@@ -79,8 +79,9 @@ describe("FileTree", () => {
   });
 
   it("renders the loaded, sorted entries once the root listing resolves", async () => {
-    vi.mocked(listDir).mockImplementation(async (_workspaceRoot: string, path: string) =>
-      path === "/vault" ? [note, folder] : [],
+    vi.mocked(listDir).mockImplementation(
+      async (_workspaceRoot: string, path: string) =>
+        path === "/vault" ? [note, folder] : [],
     );
     const { getByText } = render(
       <FileTree rootPath="/vault" onOpenFile={vi.fn()} />,
@@ -106,7 +107,9 @@ describe("FileTree", () => {
 
   it("shows an inline error instead of silently doing nothing when onOpenFile rejects", async () => {
     vi.mocked(listDir).mockResolvedValue([note]);
-    const onOpenFile = vi.fn().mockRejectedValue(new Error("stale file handle"));
+    const onOpenFile = vi
+      .fn()
+      .mockRejectedValue(new Error("stale file handle"));
     const { getByText, findByRole } = render(
       <FileTree rootPath="/vault" onOpenFile={onOpenFile} />,
     );
@@ -119,7 +122,10 @@ describe("FileTree", () => {
 
   it("clears a prior open error and re-attempts when the entry is clicked again", async () => {
     vi.mocked(listDir).mockResolvedValue([note]);
-    const onOpenFile = vi.fn().mockRejectedValueOnce(new Error("stale file handle")).mockResolvedValueOnce(undefined);
+    const onOpenFile = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("stale file handle"))
+      .mockResolvedValueOnce(undefined);
     const { getByText, findByRole, queryByRole } = render(
       <FileTree rootPath="/vault" onOpenFile={onOpenFile} />,
     );
@@ -134,8 +140,9 @@ describe("FileTree", () => {
   });
 
   it("auto-expands the root's immediate subdirectories once it loads, without a click", async () => {
-    vi.mocked(listDir).mockImplementation(async (_workspaceRoot: string, path: string) =>
-      path === "/vault" ? [folder] : path === "/vault/folder" ? [nested] : [],
+    vi.mocked(listDir).mockImplementation(
+      async (_workspaceRoot: string, path: string) =>
+        path === "/vault" ? [folder] : path === "/vault/folder" ? [nested] : [],
     );
     const { getByText } = render(
       <FileTree rootPath="/vault" onOpenFile={vi.fn()} />,
@@ -145,12 +152,14 @@ describe("FileTree", () => {
   });
 
   it("does not auto-expand a second level: clicking a nested folder loads its children and expands it", async () => {
-    vi.mocked(listDir).mockImplementation(async (_workspaceRoot: string, path: string) => {
-      if (path === "/vault") return [folder];
-      if (path === "/vault/folder") return [subfolder];
-      if (path === "/vault/folder/subfolder") return [deep];
-      return [];
-    });
+    vi.mocked(listDir).mockImplementation(
+      async (_workspaceRoot: string, path: string) => {
+        if (path === "/vault") return [folder];
+        if (path === "/vault/folder") return [subfolder];
+        if (path === "/vault/folder/subfolder") return [deep];
+        return [];
+      },
+    );
     const { getByText, queryByText } = render(
       <FileTree rootPath="/vault" onOpenFile={vi.fn()} />,
     );
@@ -166,8 +175,9 @@ describe("FileTree", () => {
   });
 
   it("clicking an already-expanded folder collapses it again", async () => {
-    vi.mocked(listDir).mockImplementation(async (_workspaceRoot: string, path: string) =>
-      path === "/vault" ? [folder] : path === "/vault/folder" ? [nested] : [],
+    vi.mocked(listDir).mockImplementation(
+      async (_workspaceRoot: string, path: string) =>
+        path === "/vault" ? [folder] : path === "/vault/folder" ? [nested] : [],
     );
     const { getByText, queryByText } = render(
       <FileTree rootPath="/vault" onOpenFile={vi.fn()} />,
@@ -180,8 +190,9 @@ describe("FileTree", () => {
   });
 
   it("does not re-fetch a folder's children on re-expand once they're cached", async () => {
-    vi.mocked(listDir).mockImplementation(async (_workspaceRoot: string, path: string) =>
-      path === "/vault" ? [folder] : path === "/vault/folder" ? [nested] : [],
+    vi.mocked(listDir).mockImplementation(
+      async (_workspaceRoot: string, path: string) =>
+        path === "/vault" ? [folder] : path === "/vault/folder" ? [nested] : [],
     );
     const { getByText } = render(
       <FileTree rootPath="/vault" onOpenFile={vi.fn()} />,
@@ -195,8 +206,9 @@ describe("FileTree", () => {
   });
 
   it("marks the selected entry, and only that one, as selected", async () => {
-    vi.mocked(listDir).mockImplementation(async (_workspaceRoot: string, path: string) =>
-      path === "/vault" ? [note, folder] : [],
+    vi.mocked(listDir).mockImplementation(
+      async (_workspaceRoot: string, path: string) =>
+        path === "/vault" ? [note, folder] : [],
     );
     const { getByText } = render(
       <FileTree rootPath="/vault" onOpenFile={vi.fn()} />,
@@ -214,8 +226,9 @@ describe("FileTree", () => {
     // tree's own visual highlight (selectedPath). If FileTree's "selected"
     // class were ever driven by selectedDir again, clicking a file would
     // wrongly highlight its parent folder's row instead of the file itself.
-    vi.mocked(listDir).mockImplementation(async (_workspaceRoot: string, path: string) =>
-      path === "/vault" ? [folder] : path === "/vault/folder" ? [nested] : [],
+    vi.mocked(listDir).mockImplementation(
+      async (_workspaceRoot: string, path: string) =>
+        path === "/vault" ? [folder] : path === "/vault/folder" ? [nested] : [],
     );
     const { getByText } = render(
       <FileTree rootPath="/vault" onOpenFile={vi.fn()} />,
@@ -243,8 +256,9 @@ describe("FileTree", () => {
   // ─── Keyboard navigation tests ───────────────────────────────────────────
 
   it("renders with role=tree and role=treeitem on entries", async () => {
-    vi.mocked(listDir).mockImplementation(async (_workspaceRoot: string, path: string) =>
-      path === "/vault" ? [note, folder] : [],
+    vi.mocked(listDir).mockImplementation(
+      async (_workspaceRoot: string, path: string) =>
+        path === "/vault" ? [note, folder] : [],
     );
     const { getByText } = render(
       <FileTree rootPath="/vault" onOpenFile={vi.fn()} />,
@@ -266,8 +280,13 @@ describe("FileTree", () => {
   });
 
   it("ArrowDown moves focus to the next treeitem, ArrowUp to the previous", async () => {
-    vi.mocked(listDir).mockImplementation(async (_workspaceRoot: string, path: string) =>
-      path === "/vault" ? [folder, note] : path === "/vault/folder" ? [nested] : [],
+    vi.mocked(listDir).mockImplementation(
+      async (_workspaceRoot: string, path: string) =>
+        path === "/vault"
+          ? [folder, note]
+          : path === "/vault/folder"
+            ? [nested]
+            : [],
     );
     const { getByText } = render(
       <FileTree rootPath="/vault" onOpenFile={vi.fn()} />,
@@ -298,8 +317,9 @@ describe("FileTree", () => {
   });
 
   it("ArrowRight on a collapsed folder expands it", async () => {
-    vi.mocked(listDir).mockImplementation(async (_workspaceRoot: string, path: string) =>
-      path === "/vault" ? [folder] : path === "/vault/folder" ? [nested] : [],
+    vi.mocked(listDir).mockImplementation(
+      async (_workspaceRoot: string, path: string) =>
+        path === "/vault" ? [folder] : path === "/vault/folder" ? [nested] : [],
     );
     const { getByText } = render(
       <FileTree rootPath="/vault" onOpenFile={vi.fn()} />,
@@ -324,8 +344,9 @@ describe("FileTree", () => {
   });
 
   it("ArrowLeft on an expanded folder collapses it", async () => {
-    vi.mocked(listDir).mockImplementation(async (_workspaceRoot: string, path: string) =>
-      path === "/vault" ? [folder] : path === "/vault/folder" ? [nested] : [],
+    vi.mocked(listDir).mockImplementation(
+      async (_workspaceRoot: string, path: string) =>
+        path === "/vault" ? [folder] : path === "/vault/folder" ? [nested] : [],
     );
     const { getByText, queryByText } = render(
       <FileTree rootPath="/vault" onOpenFile={vi.fn()} />,
@@ -372,8 +393,13 @@ describe("FileTree", () => {
   });
 
   it("Home key moves focus to the first treeitem, End to the last", async () => {
-    vi.mocked(listDir).mockImplementation(async (_workspaceRoot: string, path: string) =>
-      path === "/vault" ? [folder, note] : path === "/vault/folder" ? [nested] : [],
+    vi.mocked(listDir).mockImplementation(
+      async (_workspaceRoot: string, path: string) =>
+        path === "/vault"
+          ? [folder, note]
+          : path === "/vault/folder"
+            ? [nested]
+            : [],
     );
     const { getByText } = render(
       <FileTree rootPath="/vault" onOpenFile={vi.fn()} />,
@@ -420,9 +446,23 @@ describe("FileTree", () => {
 });
 
 describe("sortEntries", () => {
-  const old: FsEntry = { name: "old.md", path: "/vault/old.md", isDir: false, mtime: 1000 };
-  const recent: FsEntry = { name: "recent.md", path: "/vault/recent.md", isDir: false, mtime: 999999 };
-  const noMtime: FsEntry = { name: "no-mtime.md", path: "/vault/no-mtime.md", isDir: false };
+  const old: FsEntry = {
+    name: "old.md",
+    path: "/vault/old.md",
+    isDir: false,
+    mtime: 1000,
+  };
+  const recent: FsEntry = {
+    name: "recent.md",
+    path: "/vault/recent.md",
+    isDir: false,
+    mtime: 999999,
+  };
+  const noMtime: FsEntry = {
+    name: "no-mtime.md",
+    path: "/vault/no-mtime.md",
+    isDir: false,
+  };
   const dirA: FsEntry = { name: "zdir", path: "/vault/zdir", isDir: true };
   const dirB: FsEntry = { name: "adir", path: "/vault/adir", isDir: true };
 
@@ -436,7 +476,13 @@ describe("sortEntries", () => {
     const entries = [dirA, old, noMtime, dirB, recent];
     const result = sortEntries(entries);
     // Dirs first (alphabetical): adir, zdir; then files by mtime desc: recent, old, no-mtime
-    expect(result.map((e) => e.name)).toEqual(["adir", "zdir", "recent.md", "old.md", "no-mtime.md"]);
+    expect(result.map((e) => e.name)).toEqual([
+      "adir",
+      "zdir",
+      "recent.md",
+      "old.md",
+      "no-mtime.md",
+    ]);
   });
 
   it("modified-desc: files without mtime fall to the bottom, alphabetically", () => {
@@ -455,13 +501,23 @@ describe("sortEntries", () => {
     mockWorkspaceSettings.sortOrder = "name-asc";
     const entries = [recent, old, dirB, dirA];
     const result = sortEntries(entries);
-    expect(result.map((e) => e.name)).toEqual(["adir", "zdir", "old.md", "recent.md"]);
+    expect(result.map((e) => e.name)).toEqual([
+      "adir",
+      "zdir",
+      "old.md",
+      "recent.md",
+    ]);
   });
 
   it("name-desc: alphabetical descending, dirs before files", () => {
     mockWorkspaceSettings.sortOrder = "name-desc";
     const entries = [recent, old, dirB, dirA];
     const result = sortEntries(entries);
-    expect(result.map((e) => e.name)).toEqual(["zdir", "adir", "recent.md", "old.md"]);
+    expect(result.map((e) => e.name)).toEqual([
+      "zdir",
+      "adir",
+      "recent.md",
+      "old.md",
+    ]);
   });
 });

@@ -24,7 +24,10 @@ const MAX_LAYOUT_INTERACTIONS = 500_000;
 const MAX_SAMPLED_NEIGHBORS = 24;
 const MAX_ATTRACTION_EDGES_PER_ITERATION = 20_000;
 
-export function layoutWorkBudget(nodeCount: number, edgeCount = 0): LayoutWorkBudget {
+export function layoutWorkBudget(
+  nodeCount: number,
+  edgeCount = 0,
+): LayoutWorkBudget {
   if (nodeCount <= 1) {
     return {
       mode: "exhaustive",
@@ -52,17 +55,33 @@ export function layoutWorkBudget(nodeCount: number, edgeCount = 0): LayoutWorkBu
     };
   }
 
-  const sampledAttraction = Math.min(edgeCount, MAX_ATTRACTION_EDGES_PER_ITERATION);
+  const sampledAttraction = Math.min(
+    edgeCount,
+    MAX_ATTRACTION_EDGES_PER_ITERATION,
+  );
   const repulsionRoom = MAX_LAYOUT_INTERACTIONS - sampledAttraction;
   const initialSources = Math.min(nodeCount, repulsionRoom);
   const sampledNeighbors = Math.max(
     1,
-    Math.min(MAX_SAMPLED_NEIGHBORS, nodeCount - 1, Math.floor(repulsionRoom / initialSources)),
+    Math.min(
+      MAX_SAMPLED_NEIGHBORS,
+      nodeCount - 1,
+      Math.floor(repulsionRoom / initialSources),
+    ),
   );
-  const sampledSources = Math.min(initialSources, Math.floor(repulsionRoom / sampledNeighbors));
+  const sampledSources = Math.min(
+    initialSources,
+    Math.floor(repulsionRoom / sampledNeighbors),
+  );
   const sampledRepulsion = sampledSources * sampledNeighbors;
   const perIteration = Math.max(1, sampledRepulsion + sampledAttraction);
-  const iterations = Math.max(1, Math.min(baseIterations, Math.floor(MAX_LAYOUT_INTERACTIONS / perIteration)));
+  const iterations = Math.max(
+    1,
+    Math.min(
+      baseIterations,
+      Math.floor(MAX_LAYOUT_INTERACTIONS / perIteration),
+    ),
+  );
   return {
     mode: "sampled",
     iterations,
@@ -100,7 +119,10 @@ export function computeLayout(
   const indexByPath = new Map(nodePaths.map((path, index) => [path, index]));
   const validEdges = edges
     .map(([a, b]) => [indexByPath.get(a), indexByPath.get(b)] as const)
-    .filter((edge): edge is readonly [number, number] => edge[0] !== undefined && edge[1] !== undefined);
+    .filter(
+      (edge): edge is readonly [number, number] =>
+        edge[0] !== undefined && edge[1] !== undefined,
+    );
   const budget = layoutWorkBudget(n, validEdges.length);
   const area = width * height;
   const k = Math.sqrt(area / n) * 0.6;
@@ -134,7 +156,10 @@ export function computeLayout(
       for (let source = 0; source < sourceCount; source++) {
         const i = (sourceStart + source) % n;
         for (let sample = 1; sample <= neighbors; sample++) {
-          const offset = Math.max(1, Math.floor((sample * n) / (neighbors + 1)));
+          const offset = Math.max(
+            1,
+            Math.floor((sample * n) / (neighbors + 1)),
+          );
           const j = (i + offset) % n;
           if (j !== i) applyRepulsion(disp, i, j);
         }
@@ -142,7 +167,10 @@ export function computeLayout(
     }
 
     const edgeCount = validEdges.length;
-    const attractionCount = Math.min(edgeCount, budget.attractionEdgesPerIteration);
+    const attractionCount = Math.min(
+      edgeCount,
+      budget.attractionEdgesPerIteration,
+    );
     const start = edgeCount === 0 ? 0 : (iter * attractionCount) % edgeCount;
     for (let e = 0; e < attractionCount; e++) {
       const [a, b] = validEdges[(start + e) % edgeCount];

@@ -8,7 +8,13 @@ platforms: [linux, macos, windows]
 metadata:
   hermes:
     tags: [reliability, crash, testing, leotheca]
-    related_skills: [maintenance-review, change-quality-gates, verification-suite, pre-push-verification]
+    related_skills:
+      [
+        maintenance-review,
+        change-quality-gates,
+        verification-suite,
+        pre-push-verification,
+      ]
 ---
 
 <!--
@@ -23,12 +29,12 @@ The owner does not report crashes one by one; the owner holds the standing expec
 
 ## The mindset shift
 
-| Last year (reactive) | Now (ownership) |
-| --- | --- |
-| Owner reports crash → agent fixes that one | Agent hunts for what *could* crash in this area, fixes all of them |
-| Fix the reported line | Find the root class (e.g. "unbounded read", "unhandled rejection") and fix every instance |
-| Done when the reported case passes | Done when the whole class is covered by a regression test |
-| Idle = wait for a ticket | Idle = crash-hunt the highest-risk area |
+| Last year (reactive)                       | Now (ownership)                                                                           |
+| ------------------------------------------ | ----------------------------------------------------------------------------------------- |
+| Owner reports crash → agent fixes that one | Agent hunts for what _could_ crash in this area, fixes all of them                        |
+| Fix the reported line                      | Find the root class (e.g. "unbounded read", "unhandled rejection") and fix every instance |
+| Done when the reported case passes         | Done when the whole class is covered by a regression test                                 |
+| Idle = wait for a ticket                   | Idle = crash-hunt the highest-risk area                                                   |
 
 A single reported crash is a symptom. Your job is to treat it as a sample of a class, then reduce that class's size.
 
@@ -38,14 +44,14 @@ A single reported crash is a symptom. Your job is to treat it as a sample of a c
 2. **Enumerate, don't spot-check.** List every public entrypoint in the area (command registrations, exported plugin methods, IPC handlers, effects/teardown, timers). For each, ask the crash-freedom checklist questions from CONSTITUTION.md. A fix to one command is the moment to check its siblings — the cheapest time to catch the class.
 3. **Prove it, don't assume it.** For each suspected defect: reproduce on current main with a concrete input/state, or write the test that would have caught it. A hunch is not a bug. Keep proof small: one failing test or one concrete source contradiction.
 4. **Fix the class, not the instance.** Apply the fix to every instance you found. Land the fix and the regression test in the same claimed change.
-5. **Record coverage.** In the handoff, note the area, the entrypoints enumerated, the classes you covered, and the *next* unreviewed high-risk area, so the next worker advances instead of re-auditing.
+5. **Record coverage.** In the handoff, note the area, the entrypoints enumerated, the classes you covered, and the _next_ unreviewed high-risk area, so the next worker advances instead of re-auditing.
 
 ## Reactive path (reported crash / CI failure)
 
 1. Reproduce on current main with the minimal failing input. If you cannot reproduce, that is the first bug to fix — a non-reproducible report is a testability gap.
 2. Classify the root cause as a **class** (unhandled rejection, unbounded buffer, lifecycle leak, race, no-op throw, partial write) before touching the line.
 3. Fix every instance of that class you can find in the same area. Ship regression tests for each.
-4. Run the crash-freedom checklist on the *adjacent* paths — the same owner action that hit one line usually can hit others.
+4. Run the crash-freedom checklist on the _adjacent_ paths: the same owner action that hit one line usually can hit others.
 5. Drive the affected CI green and inspect the exact landed SHA. Do not move on while a known crash remains on main.
 
 ## Completion rule

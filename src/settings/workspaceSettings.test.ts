@@ -84,8 +84,16 @@ describe("DEFAULT_WORKSPACE_SETTINGS", () => {
 
   it("defaults Markdown vault import to on, and decodes a malformed value to the default", () => {
     expect(DEFAULT_WORKSPACE_SETTINGS.markdownImportEnabled).toBe(true);
-    expect(decodeWorkspaceSettings(JSON.stringify({ markdownImportEnabled: false }), "/w").settings.markdownImportEnabled).toBe(false);
-    const bad = decodeWorkspaceSettings(JSON.stringify({ markdownImportEnabled: "no" }), "/w");
+    expect(
+      decodeWorkspaceSettings(
+        JSON.stringify({ markdownImportEnabled: false }),
+        "/w",
+      ).settings.markdownImportEnabled,
+    ).toBe(false);
+    const bad = decodeWorkspaceSettings(
+      JSON.stringify({ markdownImportEnabled: "no" }),
+      "/w",
+    );
     expect(bad.settings.markdownImportEnabled).toBe(true);
   });
 
@@ -135,7 +143,10 @@ describe("loadWorkspaceSettings", () => {
 
   it("respects an explicitly set mathRenderingEnabled: false from the settings file", async () => {
     readTextFile.mockResolvedValueOnce(
-      JSON.stringify({ ...DEFAULT_WORKSPACE_SETTINGS, mathRenderingEnabled: false }),
+      JSON.stringify({
+        ...DEFAULT_WORKSPACE_SETTINGS,
+        mathRenderingEnabled: false,
+      }),
     );
     const { settings, corrupt } = await loadWorkspaceSettings(ROOT);
     expect(settings.mathRenderingEnabled).toBe(false);
@@ -144,7 +155,10 @@ describe("loadWorkspaceSettings", () => {
 
   it("respects an explicitly set speechToTextEnabled: true from the settings file", async () => {
     readTextFile.mockResolvedValueOnce(
-      JSON.stringify({ ...DEFAULT_WORKSPACE_SETTINGS, speechToTextEnabled: true }),
+      JSON.stringify({
+        ...DEFAULT_WORKSPACE_SETTINGS,
+        speechToTextEnabled: true,
+      }),
     );
     const { settings, corrupt } = await loadWorkspaceSettings(ROOT);
     expect(settings.speechToTextEnabled).toBe(true);
@@ -153,13 +167,15 @@ describe("loadWorkspaceSettings", () => {
 
   it("falls back speechToTextEnabled to its off default and flags corruption when the stored value isn't a boolean", async () => {
     readTextFile.mockResolvedValueOnce(
-      JSON.stringify({ ...DEFAULT_WORKSPACE_SETTINGS, speechToTextEnabled: "yes" }),
+      JSON.stringify({
+        ...DEFAULT_WORKSPACE_SETTINGS,
+        speechToTextEnabled: "yes",
+      }),
     );
     const { settings, corrupt } = await loadWorkspaceSettings(ROOT);
     expect(settings.speechToTextEnabled).toBe(false);
     expect(corrupt).toBe(true);
   });
-
 });
 
 describe("saveWorkspaceSettings", () => {
@@ -246,7 +262,10 @@ describe("decodeWorkspaceSettings", () => {
 
   it("falls back readingFont to sans for an unrecognized value and flags corruption", () => {
     const { settings, corrupt } = decodeWorkspaceSettings(
-      JSON.stringify({ ...DEFAULT_WORKSPACE_SETTINGS, readingFont: "comic-sans" }),
+      JSON.stringify({
+        ...DEFAULT_WORKSPACE_SETTINGS,
+        readingFont: "comic-sans",
+      }),
       ROOT,
     );
     expect(settings.readingFont).toBe("sans");
@@ -387,7 +406,20 @@ describe("decodeWorkspaceSettings", () => {
       JSON.stringify({
         ...DEFAULT_WORKSPACE_SETTINGS,
         version: 2,
-        editorLayout: { activeGroupId: "primary", splitEnabled: false, preferredRatio: 0.5, compactVisibleGroupId: "primary", groups: { primary: { id: "primary", tabPaths: [], pinnedPaths: [], activePath: null } } },
+        editorLayout: {
+          activeGroupId: "primary",
+          splitEnabled: false,
+          preferredRatio: 0.5,
+          compactVisibleGroupId: "primary",
+          groups: {
+            primary: {
+              id: "primary",
+              tabPaths: [],
+              pinnedPaths: [],
+              activePath: null,
+            },
+          },
+        },
       }),
       ROOT,
     );
@@ -406,7 +438,10 @@ describe("decodeWorkspaceSettings", () => {
 
   it("fills in searchSortMode when a settings file predates the field, not corrupt", () => {
     const { settings, corrupt } = decodeWorkspaceSettings(
-      JSON.stringify({ ...DEFAULT_WORKSPACE_SETTINGS, searchSortMode: undefined }),
+      JSON.stringify({
+        ...DEFAULT_WORKSPACE_SETTINGS,
+        searchSortMode: undefined,
+      }),
       ROOT,
     );
     expect(corrupt).toBe(false);
@@ -424,7 +459,10 @@ describe("decodeWorkspaceSettings", () => {
 
   it("defaults an unknown searchSortMode value to relevance and marks the settings corrupt", () => {
     const { settings, corrupt } = decodeWorkspaceSettings(
-      JSON.stringify({ ...DEFAULT_WORKSPACE_SETTINGS, searchSortMode: "random" }),
+      JSON.stringify({
+        ...DEFAULT_WORKSPACE_SETTINGS,
+        searchSortMode: "random",
+      }),
       ROOT,
     );
     expect(settings.searchSortMode).toBe("relevance");
@@ -504,7 +542,7 @@ describe("isValidEditorLayoutState", () => {
       const layoutWithMinRatio = {
         activeGroupId: "primary",
         splitEnabled: true,
-        preferredRatio: 0.30,
+        preferredRatio: 0.3,
         compactVisibleGroupId: "primary",
         groups: {
           primary: {
@@ -517,10 +555,14 @@ describe("isValidEditorLayoutState", () => {
       };
       const layoutWithMaxRatio = {
         ...layoutWithMinRatio,
-        preferredRatio: 0.70,
+        preferredRatio: 0.7,
       };
-      expect(isValidEditorLayoutState(layoutWithMinRatio, WORKSPACE_ROOT)).toBe(true);
-      expect(isValidEditorLayoutState(layoutWithMaxRatio, WORKSPACE_ROOT)).toBe(true);
+      expect(isValidEditorLayoutState(layoutWithMinRatio, WORKSPACE_ROOT)).toBe(
+        true,
+      );
+      expect(isValidEditorLayoutState(layoutWithMaxRatio, WORKSPACE_ROOT)).toBe(
+        true,
+      );
     });
 
     it("accepts empty tab arrays with null activePath", () => {
@@ -557,7 +599,9 @@ describe("isValidEditorLayoutState", () => {
           },
         },
       };
-      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(
+        false,
+      );
     });
 
     it("rejects missing preferredRatio", () => {
@@ -574,7 +618,9 @@ describe("isValidEditorLayoutState", () => {
           },
         },
       };
-      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(
+        false,
+      );
     });
 
     it("rejects missing activeGroupId", () => {
@@ -591,7 +637,9 @@ describe("isValidEditorLayoutState", () => {
           },
         },
       };
-      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(
+        false,
+      );
     });
 
     it("rejects missing compactVisibleGroupId", () => {
@@ -608,7 +656,9 @@ describe("isValidEditorLayoutState", () => {
           },
         },
       };
-      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(
+        false,
+      );
     });
 
     it("rejects missing groups", () => {
@@ -618,7 +668,9 @@ describe("isValidEditorLayoutState", () => {
         preferredRatio: 0.5,
         compactVisibleGroupId: "primary",
       };
-      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(
+        false,
+      );
     });
 
     it("rejects missing primary group", () => {
@@ -629,7 +681,9 @@ describe("isValidEditorLayoutState", () => {
         compactVisibleGroupId: "primary",
         groups: {},
       };
-      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(
+        false,
+      );
     });
   });
 
@@ -657,7 +711,9 @@ describe("isValidEditorLayoutState", () => {
           },
         },
       };
-      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(
+        false,
+      );
     });
 
     it("rejects wrong type for preferredRatio", () => {
@@ -675,7 +731,9 @@ describe("isValidEditorLayoutState", () => {
           },
         },
       };
-      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(
+        false,
+      );
     });
 
     it("rejects NaN and Infinity for preferredRatio", () => {
@@ -716,7 +774,9 @@ describe("isValidEditorLayoutState", () => {
           },
         },
       };
-      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(
+        false,
+      );
     });
 
     it("rejects invalid compactVisibleGroupId values", () => {
@@ -734,7 +794,9 @@ describe("isValidEditorLayoutState", () => {
           },
         },
       };
-      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(
+        false,
+      );
     });
   });
 
@@ -754,7 +816,9 @@ describe("isValidEditorLayoutState", () => {
           },
         },
       };
-      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(
+        false,
+      );
     });
 
     it("rejects preferredRatio above 0.70", () => {
@@ -772,7 +836,9 @@ describe("isValidEditorLayoutState", () => {
           },
         },
       };
-      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(
+        false,
+      );
     });
 
     it("rejects preferredRatio at 0.29 (below minimum)", () => {
@@ -790,7 +856,9 @@ describe("isValidEditorLayoutState", () => {
           },
         },
       };
-      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(
+        false,
+      );
     });
 
     it("rejects preferredRatio at 0.71 (above maximum)", () => {
@@ -808,7 +876,9 @@ describe("isValidEditorLayoutState", () => {
           },
         },
       };
-      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(
+        false,
+      );
     });
   });
 
@@ -828,7 +898,9 @@ describe("isValidEditorLayoutState", () => {
           },
         },
       };
-      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(
+        false,
+      );
     });
 
     it("rejects null in tabPaths", () => {
@@ -846,7 +918,9 @@ describe("isValidEditorLayoutState", () => {
           },
         },
       };
-      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(
+        false,
+      );
     });
 
     it("rejects paths with null bytes", () => {
@@ -864,7 +938,9 @@ describe("isValidEditorLayoutState", () => {
           },
         },
       };
-      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(
+        false,
+      );
     });
 
     it("rejects workspace-escaping paths with ..", () => {
@@ -882,7 +958,9 @@ describe("isValidEditorLayoutState", () => {
           },
         },
       };
-      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(
+        false,
+      );
     });
 
     it("rejects absolute paths starting with /", () => {
@@ -900,7 +978,9 @@ describe("isValidEditorLayoutState", () => {
           },
         },
       };
-      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(
+        false,
+      );
     });
 
     it("rejects paths with backslashes", () => {
@@ -918,7 +998,9 @@ describe("isValidEditorLayoutState", () => {
           },
         },
       };
-      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(
+        false,
+      );
     });
 
     it("rejects empty string paths", () => {
@@ -936,7 +1018,9 @@ describe("isValidEditorLayoutState", () => {
           },
         },
       };
-      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(
+        false,
+      );
     });
 
     it("rejects non-string pinned paths", () => {
@@ -954,7 +1038,9 @@ describe("isValidEditorLayoutState", () => {
           },
         },
       };
-      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(
+        false,
+      );
     });
 
     it("rejects pinned paths that are not in tabPaths", () => {
@@ -972,7 +1058,9 @@ describe("isValidEditorLayoutState", () => {
           },
         },
       };
-      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(
+        false,
+      );
     });
 
     it("rejects pinned paths with traversal", () => {
@@ -990,7 +1078,9 @@ describe("isValidEditorLayoutState", () => {
           },
         },
       };
-      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(
+        false,
+      );
     });
   });
 
@@ -1010,7 +1100,9 @@ describe("isValidEditorLayoutState", () => {
           },
         },
       };
-      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(
+        false,
+      );
     });
 
     it("rejects same path in both primary and secondary", () => {
@@ -1034,7 +1126,9 @@ describe("isValidEditorLayoutState", () => {
           },
         },
       };
-      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(
+        false,
+      );
     });
   });
 
@@ -1054,7 +1148,9 @@ describe("isValidEditorLayoutState", () => {
           },
         },
       };
-      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(
+        false,
+      );
     });
 
     it("rejects activePath not in tabPaths", () => {
@@ -1072,7 +1168,9 @@ describe("isValidEditorLayoutState", () => {
           },
         },
       };
-      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(
+        false,
+      );
     });
 
     it("rejects non-string activePath", () => {
@@ -1090,7 +1188,9 @@ describe("isValidEditorLayoutState", () => {
           },
         },
       };
-      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(
+        false,
+      );
     });
   });
 
@@ -1110,7 +1210,9 @@ describe("isValidEditorLayoutState", () => {
           },
         },
       };
-      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(
+        false,
+      );
     });
 
     it("rejects compactVisibleGroupId=secondary when no secondary group exists", () => {
@@ -1128,7 +1230,9 @@ describe("isValidEditorLayoutState", () => {
           },
         },
       };
-      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(
+        false,
+      );
     });
 
     it("rejects wrong id for secondary group", () => {
@@ -1152,7 +1256,9 @@ describe("isValidEditorLayoutState", () => {
           },
         },
       };
-      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(
+        false,
+      );
     });
 
     it("accepts valid secondary group with correct id", () => {
@@ -1189,7 +1295,9 @@ describe("isValidEditorLayoutState", () => {
         compactVisibleGroupId: "primary",
         groups: "not an object",
       };
-      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(
+        false,
+      );
     });
 
     it("rejects primary group not being an object", () => {
@@ -1202,7 +1310,9 @@ describe("isValidEditorLayoutState", () => {
           primary: "not an object",
         },
       };
-      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(
+        false,
+      );
     });
 
     it("rejects missing id field in primary group", () => {
@@ -1220,7 +1330,9 @@ describe("isValidEditorLayoutState", () => {
           },
         },
       };
-      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(
+        false,
+      );
     });
 
     it("rejects wrong id in primary group", () => {
@@ -1238,7 +1350,9 @@ describe("isValidEditorLayoutState", () => {
           },
         },
       };
-      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(
+        false,
+      );
     });
 
     it("rejects non-array tabPaths in primary", () => {
@@ -1256,7 +1370,9 @@ describe("isValidEditorLayoutState", () => {
           },
         },
       };
-      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(
+        false,
+      );
     });
 
     it("rejects non-array pinnedPaths in primary", () => {
@@ -1274,7 +1390,9 @@ describe("isValidEditorLayoutState", () => {
           },
         },
       };
-      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(false);
+      expect(isValidEditorLayoutState(invalidLayout, WORKSPACE_ROOT)).toBe(
+        false,
+      );
     });
   });
 });
@@ -1353,7 +1471,12 @@ describe("migrateLegacyToEditorLayout", () => {
   describe("deduplication", () => {
     it("removes duplicate paths while preserving order", () => {
       const result = migrateLegacyToEditorLayout(
-        ["/workspace/first.md", "/workspace/second.md", "/workspace/first.md", "/workspace/third.md"],
+        [
+          "/workspace/first.md",
+          "/workspace/second.md",
+          "/workspace/first.md",
+          "/workspace/third.md",
+        ],
         null,
       );
       expect(result.groups.primary.tabPaths).toEqual([
@@ -1373,33 +1496,34 @@ describe("migrateLegacyToEditorLayout", () => {
         "/workspace/other.md",
       ]);
     });
-
-
   });
 
   describe("deterministic and idempotent behavior", () => {
     it("produces same output for same input (deterministic)", () => {
       const inputPaths = ["/workspace/first.md", "/workspace/second.md"];
       const inputActive = "/workspace/first.md";
-      
+
       const result1 = migrateLegacyToEditorLayout(inputPaths, inputActive);
       const result2 = migrateLegacyToEditorLayout(inputPaths, inputActive);
-      
+
       expect(result1).toEqual(result2);
     });
 
     it("running migration on already-migrated data produces same result (idempotent)", () => {
       const legacyPaths = ["/workspace/note.md"];
       const legacyActive = "/workspace/note.md";
-      
-      const migratedOnce = migrateLegacyToEditorLayout(legacyPaths, legacyActive);
-      
+
+      const migratedOnce = migrateLegacyToEditorLayout(
+        legacyPaths,
+        legacyActive,
+      );
+
       // Simulate running migration again on the migrated result's tabPaths/activePath
       const migratedAgain = migrateLegacyToEditorLayout(
         migratedOnce.groups.primary.tabPaths,
         migratedOnce.groups.primary.activePath,
       );
-      
+
       expect(migratedAgain).toEqual(migratedOnce);
     });
   });
@@ -1517,12 +1641,12 @@ describe("decodeWorkspaceSettings with legacy migration", () => {
         lastOpenPaths: ["/workspace/note1.md", "/workspace/note2.md"],
         lastActivePath: "/workspace/note1.md",
       };
-      
+
       const { settings, corrupt } = decodeWorkspaceSettings(
         JSON.stringify(v1Settings),
         ROOT,
       );
-      
+
       expect(corrupt).toBe(false);
       expect(settings.version).toBe(2); // Bumped to v2
       expect(settings.editorLayout).toBeDefined();
@@ -1530,22 +1654,28 @@ describe("decodeWorkspaceSettings with legacy migration", () => {
         "/workspace/note1.md",
         "/workspace/note2.md",
       ]);
-      expect(settings.editorLayout?.groups.primary.activePath).toBe("/workspace/note1.md");
+      expect(settings.editorLayout?.groups.primary.activePath).toBe(
+        "/workspace/note1.md",
+      );
       expect(settings.editorLayout?.splitEnabled).toBe(false);
     });
 
     it("migrates v1 workspace with deduplication of lastOpenPaths", () => {
       const v1Settings = {
         version: 1,
-        lastOpenPaths: ["/workspace/note1.md", "/workspace/note2.md", "/workspace/note1.md"],
+        lastOpenPaths: [
+          "/workspace/note1.md",
+          "/workspace/note2.md",
+          "/workspace/note1.md",
+        ],
         lastActivePath: null,
       };
-      
+
       const { settings, corrupt } = decodeWorkspaceSettings(
         JSON.stringify(v1Settings),
         ROOT,
       );
-      
+
       expect(corrupt).toBe(false);
       expect(settings.version).toBe(2);
       expect(settings.editorLayout?.groups.primary.tabPaths).toEqual([
@@ -1563,12 +1693,12 @@ describe("decodeWorkspaceSettings with legacy migration", () => {
         lastOpenPaths: ["/workspace/note.md"],
         lastActivePath: "/workspace/note.md",
       };
-      
+
       const { settings, corrupt } = decodeWorkspaceSettings(
         JSON.stringify(v1Settings),
         ROOT,
       );
-      
+
       expect(corrupt).toBe(false);
       expect(settings.version).toBe(2);
       expect(settings.sortOrder).toBe("name-desc");
@@ -1591,7 +1721,9 @@ describe("decodeWorkspaceSettings with legacy migration", () => {
       );
 
       expect(corrupt).toBe(false);
-      expect(settings.searchSortMode).toBe(DEFAULT_WORKSPACE_SETTINGS.searchSortMode);
+      expect(settings.searchSortMode).toBe(
+        DEFAULT_WORKSPACE_SETTINGS.searchSortMode,
+      );
     });
 
     it("migrates v1 workspace with paths escaping workspace", () => {
@@ -1600,18 +1732,22 @@ describe("decodeWorkspaceSettings with legacy migration", () => {
         lastOpenPaths: ["/workspace/note.md", "/etc/passwd"],
         lastActivePath: "/etc/passwd",
       };
-      
+
       const { settings, corrupt } = decodeWorkspaceSettings(
         JSON.stringify(v1Settings),
         ROOT,
       );
-      
+
       // Paths escaping workspace are filtered out, so only valid paths are migrated
       expect(corrupt).toBe(true); // Should be corrupt because of the escaping path
       expect(settings.version).toBe(2);
-      expect(settings.editorLayout?.groups.primary.tabPaths).toEqual(["/workspace/note.md"]);
+      expect(settings.editorLayout?.groups.primary.tabPaths).toEqual([
+        "/workspace/note.md",
+      ]);
       // lastActivePath was escaping, so it becomes null, migration uses last valid path
-      expect(settings.editorLayout?.groups.primary.activePath).toBe("/workspace/note.md");
+      expect(settings.editorLayout?.groups.primary.activePath).toBe(
+        "/workspace/note.md",
+      );
     });
   });
 
@@ -1622,12 +1758,12 @@ describe("decodeWorkspaceSettings with legacy migration", () => {
         lastOpenPaths: ["/workspace/note.md"],
         lastActivePath: null,
       };
-      
+
       const { settings } = decodeWorkspaceSettings(
         JSON.stringify(v1Settings),
         ROOT,
       );
-      
+
       expect(settings.version).toBe(2);
     });
 
@@ -1649,12 +1785,12 @@ describe("decodeWorkspaceSettings with legacy migration", () => {
           },
         },
       };
-      
+
       const { settings } = decodeWorkspaceSettings(
         JSON.stringify(v2Settings),
         ROOT,
       );
-      
+
       expect(settings.version).toBe(2);
     });
 
@@ -1663,12 +1799,12 @@ describe("decodeWorkspaceSettings with legacy migration", () => {
         sortOrder: "name-asc",
         fontSize: 15,
       };
-      
+
       const { settings } = decodeWorkspaceSettings(
         JSON.stringify(settingsWithoutVersion),
         ROOT,
       );
-      
+
       expect(settings.version).toBe(1);
     });
   });
@@ -1692,12 +1828,12 @@ describe("decodeWorkspaceSettings with legacy migration", () => {
           },
         },
       };
-      
+
       const { corrupt } = decodeWorkspaceSettings(
         JSON.stringify(v2Settings),
         ROOT,
       );
-      
+
       expect(corrupt).toBe(false);
     });
 
@@ -1711,12 +1847,12 @@ describe("decodeWorkspaceSettings with legacy migration", () => {
           // Missing preferredRatio, compactVisibleGroupId, groups
         },
       };
-      
+
       const { corrupt } = decodeWorkspaceSettings(
         JSON.stringify(invalidV2Settings),
         ROOT,
       );
-      
+
       expect(corrupt).toBe(true);
     });
 
@@ -1752,16 +1888,18 @@ describe("decodeWorkspaceSettings with legacy migration", () => {
         headingLinksEnabled: true,
         collectionsEnabled: false,
       };
-      
+
       const { settings, corrupt } = decodeWorkspaceSettings(
         JSON.stringify(mixedSettings),
         ROOT,
       );
-      
+
       // With invalid editorLayout present and no legacy to migrate to, flags corruption
       expect(corrupt).toBe(true);
       expect(settings.version).toBe(1); // Version not bumped since no migration occurred
-      expect(settings.editorLayout).toEqual(DEFAULT_WORKSPACE_SETTINGS.editorLayout);
+      expect(settings.editorLayout).toEqual(
+        DEFAULT_WORKSPACE_SETTINGS.editorLayout,
+      );
     });
   });
 });
@@ -1793,13 +1931,13 @@ describe("round-trip encode/decode", () => {
           },
         },
       };
-      
+
       // Encode: serialize to JSON
       const encoded = JSON.stringify(originalLayout);
-      
+
       // Decode: parse and validate
       const { settings, corrupt } = decodeWorkspaceSettings(encoded, ROOT);
-      
+
       expect(corrupt).toBe(false);
       expect(settings.version).toBe(2);
       // A missing viewMode on either group is filled in with the same
@@ -1809,8 +1947,14 @@ describe("round-trip encode/decode", () => {
       expect(settings.editorLayout).toEqual({
         ...originalLayout.editorLayout,
         groups: {
-          primary: { ...originalLayout.editorLayout.groups.primary, viewMode: "source" },
-          secondary: { ...originalLayout.editorLayout.groups.secondary, viewMode: "preview" },
+          primary: {
+            ...originalLayout.editorLayout.groups.primary,
+            viewMode: "source",
+          },
+          secondary: {
+            ...originalLayout.editorLayout.groups.secondary,
+            viewMode: "preview",
+          },
         },
       });
     });
@@ -1837,10 +1981,10 @@ describe("round-trip encode/decode", () => {
           },
         },
       };
-      
+
       const encoded = JSON.stringify(originalSettings);
       const { settings, corrupt } = decodeWorkspaceSettings(encoded, ROOT);
-      
+
       expect(corrupt).toBe(false);
       expect(settings.fontSize).toBe(18);
       expect(settings.sortOrder).toBe("name-desc");
@@ -1850,7 +1994,10 @@ describe("round-trip encode/decode", () => {
       expect(settings.editorLayout).toEqual({
         ...originalSettings.editorLayout,
         groups: {
-          primary: { ...originalSettings.editorLayout.groups.primary, viewMode: "source" },
+          primary: {
+            ...originalSettings.editorLayout.groups.primary,
+            viewMode: "source",
+          },
         },
       });
     });
@@ -1876,10 +2023,10 @@ describe("round-trip encode/decode", () => {
           },
         },
       };
-      
+
       const encoded = JSON.stringify(settingsWithFutureFields);
       const { settings } = decodeWorkspaceSettings(encoded, ROOT);
-      
+
       const result = settings as unknown as Record<string, unknown>;
       expect(result.aFutureFieldThisVersionDoesNotKnow).toBe("keep-me");
       expect(result.anotherFutureField).toEqual({ nested: "data" });
@@ -1896,28 +2043,30 @@ describe("round-trip encode/decode", () => {
         lastOpenPaths: ["/workspace/note1.md", "/workspace/note2.md"],
         lastActivePath: "/workspace/note1.md",
       };
-      
+
       // Simulate loading and migrating
       const { settings: migratedSettings } = decodeWorkspaceSettings(
         JSON.stringify(v1Settings),
         ROOT,
       );
-      
+
       expect(migratedSettings.version).toBe(2);
       expect(migratedSettings.editorLayout).toBeDefined();
-      
+
       // Simulate saving the migrated settings
       const savedContent = JSON.stringify(migratedSettings, null, 2);
-      
+
       // Simulate reloading from saved content
       const { settings: reloadedSettings, corrupt } = decodeWorkspaceSettings(
         savedContent,
         ROOT,
       );
-      
+
       expect(corrupt).toBe(false);
       expect(reloadedSettings.version).toBe(2);
-      expect(reloadedSettings.editorLayout).toEqual(migratedSettings.editorLayout);
+      expect(reloadedSettings.editorLayout).toEqual(
+        migratedSettings.editorLayout,
+      );
       expect(reloadedSettings.sortOrder).toBe("name-asc");
       expect(reloadedSettings.fontSize).toBe(15);
     });
@@ -1925,21 +2074,25 @@ describe("round-trip encode/decode", () => {
     it("migrated settings with deduplicated paths maintain deduplication after save/reload", async () => {
       const v1Settings = {
         version: 1,
-        lastOpenPaths: ["/workspace/note.md", "/workspace/note.md", "/workspace/other.md"],
+        lastOpenPaths: [
+          "/workspace/note.md",
+          "/workspace/note.md",
+          "/workspace/other.md",
+        ],
         lastActivePath: null,
       };
-      
+
       const { settings: migratedSettings } = decodeWorkspaceSettings(
         JSON.stringify(v1Settings),
         ROOT,
       );
-      
+
       const savedContent = JSON.stringify(migratedSettings, null, 2);
       const { settings: reloadedSettings } = decodeWorkspaceSettings(
         savedContent,
         ROOT,
       );
-      
+
       expect(reloadedSettings.editorLayout?.groups.primary.tabPaths).toEqual([
         "/workspace/note.md",
         "/workspace/other.md",
@@ -1972,35 +2125,31 @@ describe("full lifecycle: write -> read -> use -> save -> reload", () => {
           },
         },
       };
-      
+
       // Simulate saving
       const savedContent = JSON.stringify(v2Settings, null, 2);
-      
+
       // 2. Read: Load from disk
-      const { settings: loadedSettings, corrupt: initialCorrupt } = decodeWorkspaceSettings(
-        savedContent,
-        ROOT,
-      );
-      
+      const { settings: loadedSettings, corrupt: initialCorrupt } =
+        decodeWorkspaceSettings(savedContent, ROOT);
+
       expect(initialCorrupt).toBe(false);
       expect(loadedSettings.version).toBe(2);
       expect(loadedSettings.fontSize).toBe(18);
-      
+
       // 3. Use: Modify settings (e.g., user changes font size)
       const modifiedSettings = {
         ...loadedSettings,
         fontSize: 20,
       };
-      
+
       // 4. Save: Persist modified settings
       const modifiedContent = JSON.stringify(modifiedSettings, null, 2);
-      
+
       // 5. Reload: Load modified settings
-      const { settings: reloadedSettings, corrupt: finalCorrupt } = decodeWorkspaceSettings(
-        modifiedContent,
-        ROOT,
-      );
-      
+      const { settings: reloadedSettings, corrupt: finalCorrupt } =
+        decodeWorkspaceSettings(modifiedContent, ROOT);
+
       expect(finalCorrupt).toBe(false);
       expect(reloadedSettings.version).toBe(2);
       expect(reloadedSettings.fontSize).toBe(20);
@@ -2009,7 +2158,10 @@ describe("full lifecycle: write -> read -> use -> save -> reload", () => {
       expect(reloadedSettings.editorLayout).toEqual({
         ...v2Settings.editorLayout,
         groups: {
-          primary: { ...v2Settings.editorLayout.groups.primary, viewMode: "source" },
+          primary: {
+            ...v2Settings.editorLayout.groups.primary,
+            viewMode: "source",
+          },
         },
       });
     });
@@ -2041,15 +2193,13 @@ describe("full lifecycle: write -> read -> use -> save -> reload", () => {
         headingLinksEnabled: true,
         collectionsEnabled: false,
       };
-      
+
       const v1Content = JSON.stringify(v1Settings, null, 2);
-      
+
       // 2. Read: Load v1 settings (should trigger migration)
-      const { settings: migratedSettings, corrupt: migrationCorrupt } = decodeWorkspaceSettings(
-        v1Content,
-        ROOT,
-      );
-      
+      const { settings: migratedSettings, corrupt: migrationCorrupt } =
+        decodeWorkspaceSettings(v1Content, ROOT);
+
       expect(migrationCorrupt).toBe(false);
       expect(migratedSettings.version).toBe(2);
       expect(migratedSettings.fontSize).toBe(16);
@@ -2058,28 +2208,31 @@ describe("full lifecycle: write -> read -> use -> save -> reload", () => {
         "/workspace/note1.md",
         "/workspace/note2.md",
       ]);
-      
+
       // 3. Use: Modify settings after migration
       const modifiedSettings = {
         ...migratedSettings,
         fontSize: 18,
       };
-      
+
       // 4. Save: Persist migrated and modified settings
       const modifiedContent = JSON.stringify(modifiedSettings, null, 2);
-      
+
       // 5. Reload: Load saved v2 settings
-      const { settings: reloadedSettings, corrupt: reloadCorrupt } = decodeWorkspaceSettings(
-        modifiedContent,
-        ROOT,
-      );
-      
+      const { settings: reloadedSettings, corrupt: reloadCorrupt } =
+        decodeWorkspaceSettings(modifiedContent, ROOT);
+
       expect(reloadCorrupt).toBe(false);
       expect(reloadedSettings.version).toBe(2);
       expect(reloadedSettings.fontSize).toBe(18);
-      expect(reloadedSettings.editorLayout).toEqual(modifiedSettings.editorLayout);
+      expect(reloadedSettings.editorLayout).toEqual(
+        modifiedSettings.editorLayout,
+      );
       // Legacy fields are preserved for backward compatibility
-      expect(reloadedSettings.lastOpenPaths).toEqual(["/workspace/note1.md", "/workspace/note2.md"]);
+      expect(reloadedSettings.lastOpenPaths).toEqual([
+        "/workspace/note1.md",
+        "/workspace/note2.md",
+      ]);
       expect(reloadedSettings.lastActivePath).toBe("/workspace/note1.md");
     });
   });
@@ -2087,9 +2240,12 @@ describe("full lifecycle: write -> read -> use -> save -> reload", () => {
   describe("error handling", () => {
     it("handles malformed JSON during read phase", () => {
       const malformedJson = "{ invalid json";
-      
-      const { settings, corrupt } = decodeWorkspaceSettings(malformedJson, ROOT);
-      
+
+      const { settings, corrupt } = decodeWorkspaceSettings(
+        malformedJson,
+        ROOT,
+      );
+
       expect(corrupt).toBe(true);
       expect(settings).toEqual(DEFAULT_WORKSPACE_SETTINGS);
     });
@@ -2102,14 +2258,16 @@ describe("full lifecycle: write -> read -> use -> save -> reload", () => {
           activeGroupId: "primary",
         },
       };
-      
+
       const { settings, corrupt } = decodeWorkspaceSettings(
         JSON.stringify(invalidSettings),
         ROOT,
       );
-      
+
       expect(corrupt).toBe(true);
-      expect(settings.editorLayout).toEqual(DEFAULT_WORKSPACE_SETTINGS.editorLayout);
+      expect(settings.editorLayout).toEqual(
+        DEFAULT_WORKSPACE_SETTINGS.editorLayout,
+      );
     });
 
     it("handles unknown future version without corrupting data", () => {
@@ -2131,15 +2289,17 @@ describe("full lifecycle: write -> read -> use -> save -> reload", () => {
           },
         },
       };
-      
+
       const { settings, corrupt } = decodeWorkspaceSettings(
         JSON.stringify(futureSettings),
         ROOT,
       );
-      
+
       expect(corrupt).toBe(true); // Unknown version is corrupt
       expect(settings.version).toBe(3); // But version is preserved
-      expect((settings as unknown as Record<string, unknown>).someFutureField).toBe("data"); // Future fields preserved
+      expect(
+        (settings as unknown as Record<string, unknown>).someFutureField,
+      ).toBe("data"); // Future fields preserved
     });
   });
 });
@@ -2165,16 +2325,16 @@ describe("migration edge cases and boundary conditions", () => {
     });
 
     it("handles lastActivePath pointing to non-existent path in empty list", () => {
-      const result = migrateLegacyToEditorLayout([], "/workspace/nonexistent.md");
+      const result = migrateLegacyToEditorLayout(
+        [],
+        "/workspace/nonexistent.md",
+      );
       expect(result.groups.primary.tabPaths).toEqual([]);
       expect(result.groups.primary.activePath).toBeNull();
     });
 
     it("handles lastActivePath as empty string", () => {
-      const result = migrateLegacyToEditorLayout(
-        ["/workspace/note.md"],
-        "",
-      );
+      const result = migrateLegacyToEditorLayout(["/workspace/note.md"], "");
       expect(result.groups.primary.tabPaths).toEqual(["/workspace/note.md"]);
       expect(result.groups.primary.activePath).toBe("/workspace/note.md"); // Falls back to last path
     });
@@ -2242,7 +2402,7 @@ describe("decodeWorkspaceSettings legacy integration", () => {
         },
       },
     };
-    
+
     const { settings, corrupt } = decodeWorkspaceSettings(
       JSON.stringify(v2Settings),
       ROOT,
@@ -2256,7 +2416,10 @@ describe("decodeWorkspaceSettings legacy integration", () => {
       editorLayout: {
         ...v2Settings.editorLayout,
         groups: {
-          primary: { ...v2Settings.editorLayout.groups.primary, viewMode: "source" },
+          primary: {
+            ...v2Settings.editorLayout.groups.primary,
+            viewMode: "source",
+          },
         },
       },
     });
@@ -2302,8 +2465,12 @@ describe("decodeWorkspaceSettings legacy integration", () => {
     expect(settings.editorLayout?.groups.primary.viewMode).toBe("source");
     expect(settings.editorLayout?.groups.secondary?.viewMode).toBe("preview");
     // Every other field survives untouched.
-    expect(settings.editorLayout?.groups.primary.tabPaths).toEqual(["/workspace/note.md"]);
-    expect(settings.editorLayout?.groups.secondary?.tabPaths).toEqual(["/workspace/other.md"]);
+    expect(settings.editorLayout?.groups.primary.tabPaths).toEqual([
+      "/workspace/note.md",
+    ]);
+    expect(settings.editorLayout?.groups.secondary?.tabPaths).toEqual([
+      "/workspace/other.md",
+    ]);
   });
 
   it("leaves an already-present viewMode untouched", () => {
@@ -2357,15 +2524,17 @@ describe("decodeWorkspaceSettings legacy integration", () => {
         },
       },
     };
-    
+
     const { settings, corrupt } = decodeWorkspaceSettings(
       JSON.stringify(mixedSettings),
       ROOT,
     );
-    
+
     expect(corrupt).toBe(false);
     // Should use the valid v2 editorLayout, not migrate from legacy
-    expect(settings.editorLayout?.groups.primary.tabPaths).toEqual(["/workspace/v2.md"]);
+    expect(settings.editorLayout?.groups.primary.tabPaths).toEqual([
+      "/workspace/v2.md",
+    ]);
     expect(settings.version).toBe(1); // Version not bumped since no migration occurred
   });
 
@@ -2403,16 +2572,18 @@ describe("decodeWorkspaceSettings legacy integration", () => {
       headingLinksEnabled: true,
       collectionsEnabled: false,
     };
-    
+
     const { settings, corrupt } = decodeWorkspaceSettings(
       JSON.stringify(invalidEditorLayoutSettings),
       ROOT,
     );
-    
+
     // Since editorLayout exists (even if invalid), isLegacyWorkspace returns false
     // So it uses default editorLayout and flags corruption
     expect(corrupt).toBe(true);
     expect(settings.version).toBe(1); // Version not bumped since no migration occurred
-    expect(settings.editorLayout).toEqual(DEFAULT_WORKSPACE_SETTINGS.editorLayout);
+    expect(settings.editorLayout).toEqual(
+      DEFAULT_WORKSPACE_SETTINGS.editorLayout,
+    );
   });
 });

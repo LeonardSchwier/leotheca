@@ -47,6 +47,10 @@ export function lineNumberAt(content: string, offset: number): number {
  * destination heading and line" (section 15.2), used identically by
  * OutlinePanel's row selection and the breadcrumbs' segment clicks so the
  * two surfaces the spec groups together never announce differently. */
-export function headingNavigationAnnouncement(label: string, content: string, offset: number): string {
+export function headingNavigationAnnouncement(
+  label: string,
+  content: string,
+  offset: number,
+): string {
   return `Navigated to ${label}, line ${lineNumberAt(content, offset)}.`;
 }

@@ -15,7 +15,8 @@
  * Both sides are pure and fully unit-testable on any platform.
  */
 
-export type Platform = "windows" | "macos" | "linux" | "ios" | "android" | "other";
+export type Platform =
+  "windows" | "macos" | "linux" | "ios" | "android" | "other";
 
 export interface MarkdownAssociation {
   ext: string;
@@ -76,7 +77,11 @@ export function detectPlatform(platformOrUa: string): Platform {
     return "macos";
   }
   if (lower.includes("android")) return "android";
-  if (lower.includes("linux") || lower.includes("x11") || lower.includes("gtk")) {
+  if (
+    lower.includes("linux") ||
+    lower.includes("x11") ||
+    lower.includes("gtk")
+  ) {
     return "linux";
   }
   return "other";
@@ -87,7 +92,9 @@ export function detectPlatform(platformOrUa: string): Platform {
  * contract. Tests and the Settings panel both call this; the Rust
  * `default_handler_for_platform` command returns the same shape.
  */
-export function defaultHandlerForPlatform(platform: Platform): DefaultHandlerContract {
+export function defaultHandlerForPlatform(
+  platform: Platform,
+): DefaultHandlerContract {
   switch (platform) {
     case "windows":
       return {
@@ -150,8 +157,7 @@ export function defaultHandlerForPlatform(platform: Platform): DefaultHandlerCon
           },
           {
             target: "xdg-mime (terminal)",
-            summary:
-              'Run `xdg-mime default <leotheca>.desktop text/markdown`.',
+            summary: "Run `xdg-mime default <leotheca>.desktop text/markdown`.",
           },
         ],
         isSettable: true,
@@ -180,8 +186,7 @@ export function defaultHandlerForPlatform(platform: Platform): DefaultHandlerCon
           {
             target: "File manager",
             summary:
-              "Tap a `.md` file → Open with → Leotheca → tap " +
-              '"Always".',
+              "Tap a `.md` file → Open with → Leotheca → tap " + '"Always".',
           },
         ],
         isSettable: false,

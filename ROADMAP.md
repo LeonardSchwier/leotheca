@@ -70,16 +70,6 @@ Items nobody owns. Take the first one that fits.
   Found by the security-audit skill in guidance mode (source trace; severity low, needs_validation for the merged manifest on a device). A sending app could name a path under the provider's roots with an image extension and have it staged as a capture. Fix: remove the provider and file_paths.xml if no caller exists (confirm with a repo-wide search), and add a pure NativeBoundaryPolicy check that only accepts content scheme URIs whose authority is not the app's own, wired into stageSingleUri, with JVM unit tests. Touches android/app/src/main, android/app/src/test and master-spec.md.
 
   </details>
-- 🚧 **Bind the active workspace root to a native folder grant**: `set_active_workspace_root(path)` accepts any string from the webview and then widens both the unscoped-path allow-list and the asset protocol scope to it, so the per-command containment checks only hold while the webview is trusted.
-  <!-- agent-state: {"schema":1,"id":"rm-c3bdf7e55130df3a","state":"claimed","touch":["CHANGELOG.md","master-spec.md","spec","src-tauri/Cargo.toml","src-tauri/src","src/settings","src/workspace"],"resources":["workspace-lifecycle","workspace-root-grant"],"owner":"claude-code-sec2-20261107T163030Z-64c6b6fd","token":"fd610f611e594098571172f976c16c53","branch":"agent/rm-c3bdf7e55130df3a/fd610f611e59","claimed_at":"2026-11-07T16:31:21Z","heartbeat_at":"2026-11-07T16:38:17Z","lease_until":"2026-11-07T18:08:17Z"} -->
-  Agent: claude-code-sec2-20261107T163030Z-64c6b6fd | item: rm-c3bdf7e55130df3a | lease until: 2026-11-07T18:08:17Z
-
-  <details>
-  <summary>Evidence and validation plan</summary>
-
-  Found by the security-audit skill in guidance mode (design gap, severity needs_validation: exploiting it needs script execution in the webview, and the CSP is script-src self with no remote content). Direction: accept only a root produced by the native folder dialog or already persisted in the app's own workspace list, and reject other values; needs a spec with rulings because the frontend restores roots on start. Validation: Rust test that an arbitrary path is rejected while a dialog-granted or persisted root is accepted.
-
-  </details>
 - ⬜ **Restrict the speech model path and model directory commands**: `init_speech_recognition(model_path)` passes a webview-supplied path to the whisper FFI loader and `check_whisper_models(app_dir)` probes file existence in any directory.
 
   <details>
@@ -105,6 +95,18 @@ Items that wait for access or a decision outside the repository.
 - ⏸ **Compatibility layer**: Load community extension manifests; gated on maintainer approval of the third-party-code security model.
 
 ## Implemented
+
+- ✅ **Bind the active workspace root to a native folder grant**: `set_active_workspace_root(path)` accepts any string from the webview and then widens both the unscoped-path allow-list and the asset protocol scope to it, so the per-command containment checks only hold while the webview is trusted.
+  <!-- agent-state: {"schema":1,"id":"rm-c3bdf7e55130df3a","state":"done","touch":["CHANGELOG.md","master-spec.md","spec","src-tauri/Cargo.toml","src-tauri/src","src/settings","src/workspace"],"resources":["workspace-lifecycle","workspace-root-grant"],"note":"Implemented native workspace grant registry; landed f8891d6; local gates green (cargo test/clippy/fmt, tsc, eslint, vitest); hosted CI pending (runs 42392463898, 42392463927, 42392463954)","completed_at":"2026-11-07T16:42:48Z","completed_by":"claude-code-sec2-20261107T163030Z-64c6b6fd","branch":"agent/rm-c3bdf7e55130df3a/fd610f611e59"} -->
+  Agent: completed by claude-code-sec2-20261107T163030Z-64c6b6fd | item: rm-c3bdf7e55130df3a
+
+  <details>
+  <summary>Evidence and validation plan</summary>
+
+  Found by the security-audit skill in guidance mode (design gap, severity needs_validation: exploiting it needs script execution in the webview, and the CSP is script-src self with no remote content). Direction: accept only a root produced by the native folder dialog or already persisted in the app's own workspace list, and reject other values; needs a spec with rulings because the frontend restores roots on start. Validation: Rust test that an arbitrary path is rejected while a dialog-granted or persisted root is accepted.
+
+  </details>
+
 
 - ✅ **Correct stale documentation claims (CHANGELOG, packaging status, F-Droid README, Obtainium)**: CHANGELOG.md lists Android camera capture and macOS Quick Look as shipped features although no camera code exists and Quick Look is only unbuilt source; packaging/STATUS.md is German and dated 2026-10-01; packaging/f-droid/README.md cites 0.1.0 while VERSION is 1.0.0; Obtainium tracking is unverified. Verify each claim against code and git history, then correct the text.
   <!-- agent-state: {"schema":1,"id":"rm-f8470885b4cb4a0e","state":"done","touch":["CHANGELOG.md","README.md","master-spec.md","packaging/STATUS.md","packaging/f-droid/README.md"],"resources":[],"note":"Corrected stale docs; landed 74c41dc on main; prettier and verify-fast (vitest 3280) green locally; hosted CI pending (runs 42392067995 CI, 42392068077 Rules, 42392068113 Agent policy, 42392068039 Release)","completed_at":"2026-11-07T16:38:41Z","completed_by":"claude-code-docs-20261107T163306Z-a738dbcf","branch":"agent/rm-f8470885b4cb4a0e/c65fb78244d3"} -->

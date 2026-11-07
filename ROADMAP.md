@@ -38,9 +38,6 @@ Items with an owner. An expired lease means the item can be recovered.
 
 Items nobody owns. Take the first one that fits.
 
-- 🚧 **Record the merge_group triggers in the master specification**: CI, Rules and Agent policy now also run on `merge_group`, and Agent policy runs on every pull request. The master-spec CI rule requires the CI table and change log to say so.
-  <!-- agent-state: {"schema":1,"id":"rm-3fcd297d9abb1177","state":"claimed","touch":[".agents/handoffs","master-spec.md"],"resources":[],"owner":"claude-code-pdlc-20261106T231246Z-fcf4c9d1","token":"baa4e69a22d5e9d084f5b435ef06b38c","branch":"agent/rm-3fcd297d9abb1177/baa4e69a22d5","claimed_at":"2026-11-07T14:53:21Z","heartbeat_at":"2026-11-07T14:53:21Z","lease_until":"2026-11-07T16:23:21Z"} -->
-  Agent: claude-code-pdlc-20261106T231246Z-fcf4c9d1 | item: rm-3fcd297d9abb1177 | lease until: 2026-11-07T16:23:21Z
 - ⬜ **Move the ownership ledger to a ledger branch**: Phase 2 of `documentation/BRANCH_MODEL.md`. `agent_ledger.py`, the roadmap and handoff skills and the agent-policy workflow work against `origin/ledger`; `ROADMAP.md` on main becomes a generated snapshot written by the integrator. Must land before the owner enables the main ruleset, because claims and heartbeats may no longer push to main.
 - ⬜ **Switch the delivery protocol to pull requests and the merge queue**: Phase 4 of `documentation/BRANCH_MODEL.md`. Rewrite the constitution, AGENTS.md, roadmap-workflow, autonomous-roadmap-delivery, pre-push-verification and verification-suite skills and the pre-push hook so a finished item is a merged PR (auto-merge, `gh pr create`, queue), not a push to main. Depends on the ledger branch item and on the owner enabling the ruleset.
 - ⬜ **Add the scheduled integrator agent**: Phase 5 of `documentation/BRANCH_MODEL.md`. A scheduled agent that finds PRs that are red or conflicting, repairs them on the PR branch under a fresh claim of the same item, and re-queues. It never merges by hand and never bypasses a check. Depends on the pull request protocol item.
@@ -105,6 +102,11 @@ Items that wait for access or a decision outside the repository.
 - ⏸ **Compatibility layer**: Load community extension manifests; gated on maintainer approval of the third-party-code security model.
 
 ## Implemented
+
+- ✅ **Record the merge_group triggers in the master specification**: CI, Rules and Agent policy now also run on `merge_group`, and Agent policy runs on every pull request. The master-spec CI rule requires the CI table and change log to say so.
+  <!-- agent-state: {"schema":1,"id":"rm-3fcd297d9abb1177","state":"done","touch":[".agents/handoffs","master-spec.md"],"resources":[],"note":"Landed 893b203: master-spec CI table and change log record the merge_group triggers; hosted CI pending, run ids in handoff","completed_at":"2026-11-07T14:54:14Z","completed_by":"claude-code-pdlc-20261106T231246Z-fcf4c9d1","branch":"agent/rm-3fcd297d9abb1177/baa4e69a22d5"} -->
+  Agent: completed by claude-code-pdlc-20261106T231246Z-fcf4c9d1 | item: rm-3fcd297d9abb1177
+
 
 - ✅ **Protected main with merge queue and a ledger branch**: Owner decision 2026-11-07: every item works on its own branch, GitHub merges after the required checks pass (auto-merge or merge queue), a scheduled integrator agent resolves conflicts, and the ownership ledger moves to its own branch with direct pushes. Adapt the constitution, AGENTS.md, the roadmap and verification skills, the hooks and the workflows (`merge_group` trigger). The owner enables branch protection and the merge queue in GitHub settings; agents never change hosting settings.
   <!-- agent-state: {"schema":1,"id":"rm-2bd7c66596f17ee0","state":"done","touch":[".agents/handoffs",".github/workflows","AGENTS.md","CONSTITUTION.md","documentation/BRANCH_MODEL.md","hooks","skills","spec/protected-main-merge-queue.md"],"resources":[],"note":"Phase 1 landed bf4c9a7 (merge_group triggers, required-check paths, BRANCH_MODEL.md); hosted CI pending, run ids in handoff; phases 2, 4, 5 seeded","completed_at":"2026-11-07T14:52:39Z","completed_by":"claude-code-pdlc-20261106T231246Z-fcf4c9d1","branch":"agent/rm-2bd7c66596f17ee0/7561d91a3570"} -->

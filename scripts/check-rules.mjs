@@ -428,6 +428,10 @@ function checkDeps([base, head]) {
 // the matching trailer in a commit message of the pushed range, like
 // "Dependency-intake:". It proves the author recorded the result, not that the
 // result is right; "Review: self-review: <reason>" stays allowed and visible.
+// Only added, copied, modified and renamed paths count (a deleted file has no
+// text left to check). Dependency manifests (package.json, lockfiles, Cargo
+// files) are deliberately not legal paths: the "Dependency-intake:" line and
+// the licenses job in rules.yml already record and verify the license decision.
 const LEGAL_PATHS = [
   /^README\.md$/,
   /^CHANGELOG\.md$/,
@@ -438,8 +442,6 @@ const LEGAL_PATHS = [
   /^public\/(?!pdfjs\/)/,
   /^packaging\//,
   /^extensions\/.*\.(md|json|html)$/,
-  /^package(-lock)?\.json$/,
-  /^src-tauri\/Cargo\.(toml|lock)$/,
   /^flatpak\/.*\.xml$/,
 ];
 const DB_PATHS = [/\.sql$/i, /(^|\/)migrations\//];
@@ -461,30 +463,42 @@ export function requiredTrailers(paths) {
   };
 }
 
+const matching = (paths, res) =>
+  paths.filter((p) => res.some((re) => re.test(p)));
+const listed = (found) =>
+  found.slice(0, 3).join(", ") + (found.length > 3 ? ", ..." : "");
+
 export function trailerProblems(paths, messages) {
-  const need = requiredTrailers(paths);
+  const legal = matching(paths, LEGAL_PATHS);
+  const database = matching(paths, DB_PATHS);
+  const review = matching(paths, REVIEW_PATHS);
   const problems = [];
   if (
-    need.legal &&
+    legal.length &&
     !/^Legal-Check: \d+ verified, \d+ fixed, 0 open\b/m.test(messages)
   )
     problems.push(
-      'text, asset, doc or dependency files changed without a "Legal-Check: N verified, M fixed, 0 open" line (skills/text-rights-and-legal-check.md; 0 open is the only landable result)',
+      `text, asset or doc files changed (${listed(legal)}) without a Legal-Check line (skills/text-rights-and-legal-check.md; 0 open is the only landable result). Add to a commit message: Legal-Check: ${legal.length} verified, 0 fixed, 0 open (what you checked)`,
     );
-  if (need.database && !/^Database-Review: \S.{20,}/m.test(messages))
+  if (database.length && !/^Database-Review: \S.{20,}/m.test(messages))
     problems.push(
-      'schema or migration files changed without a "Database-Review: <keys, normal form, migration safety>" line (skills/database-best-practices.md)',
+      `schema or migration files changed (${listed(database)}) without a Database-Review line (skills/database-best-practices.md). Add: Database-Review: <keys, normal form, migration safety>`,
     );
-  if (need.review && !/^Review: \S.{9,}/m.test(messages))
+  if (review.length && !/^Review: \S.{9,}/m.test(messages))
     problems.push(
-      'trust-boundary, workflow, hook or constitution files changed without a "Review: <reviewer model or tool>: <result>" or "Review: self-review: <why no second model>" line (skills/pdlc-playbook.md stage 6)',
+      `trust-boundary, workflow, hook or constitution files changed (${listed(review)}) without a Review line (skills/pdlc-playbook.md stage 6). Add: Review: self-review: <why no second model> or Review: <reviewer model or tool>: <result>`,
     );
   return problems;
 }
 
 function checkTrailers([base, head]) {
   const baseRev = /^0+$/.test(base) || !isValidRev(base) ? `${head}~1` : base;
-  const paths = git(["diff", "--name-only", `${baseRev}..${head}`])
+  const paths = git([
+    "diff",
+    "--name-only",
+    "--diff-filter=ACMR",
+    `${baseRev}..${head}`,
+  ])
     .split("\n")
     .filter(Boolean);
   const messages = git(["log", "--format=%B", `${baseRev}..${head}`]);

@@ -242,11 +242,32 @@ describe("evidence trailers", () => {
       "README.md",
       "documentation/X.md",
       "assets/a.png",
-      "package.json",
-      "package-lock.json",
       "docs/guide.md",
     ])
       expect(requiredTrailers([p]).legal, p).toBe(true);
+  });
+  it("does not require it for dependency manifests, which Dependency-intake and the licenses job cover", () => {
+    for (const p of [
+      "package.json",
+      "package-lock.json",
+      "src-tauri/Cargo.toml",
+      "src-tauri/Cargo.lock",
+    ])
+      expect(requiredTrailers([p]).legal, p).toBe(false);
+  });
+  it("lists up to three matching paths and a ready line to paste", () => {
+    const found = trailerProblems(
+      ["README.md", "documentation/a.md", "documentation/b.md", "assets/c.png"],
+      "feat: x\n",
+    );
+    expect(found).toHaveLength(1);
+    expect(found[0]).toContain(
+      "README.md, documentation/a.md, documentation/b.md",
+    );
+    expect(found[0]).not.toContain("assets/c.png");
+    expect(found[0]).toContain(
+      "Legal-Check: 4 verified, 0 fixed, 0 open (what you checked)",
+    );
   });
   it("does not require it for vendored pdfjs or the ledger", () => {
     expect(

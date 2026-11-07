@@ -38,7 +38,9 @@ Items with an owner. An expired lease means the item can be recovered.
 
 Items nobody owns. Take the first one that fits.
 
-- ⬜ **Confirm the local model name in the docs**: The owner confirmed on 2026-11-07 that the local model is Qwen 3.8 27B. Remove the "unverified" hedges in `CONSTITUTION.md` and `documentation/AGENTIC_PDLC.md`.
+- 🚧 **Confirm the local model name in the docs**: The owner confirmed on 2026-11-07 that the local model is Qwen 3.8 27B. Remove the "unverified" hedges in `CONSTITUTION.md` and `documentation/AGENTIC_PDLC.md`.
+  <!-- agent-state: {"schema":1,"id":"rm-8a50a5cd2f6b3a5c","state":"claimed","touch":[".agents/handoffs","CONSTITUTION.md","documentation/AGENTIC_PDLC.md"],"resources":[],"owner":"claude-code-pdlc-20261106T231246Z-fcf4c9d1","token":"2841542a4b7670203731cd7cba1c65ef","branch":"agent/rm-8a50a5cd2f6b3a5c/2841542a4b76","claimed_at":"2026-11-07T19:40:24Z","heartbeat_at":"2026-11-07T19:40:24Z","lease_until":"2026-11-07T21:10:24Z"} -->
+  Agent: claude-code-pdlc-20261106T231246Z-fcf4c9d1 | item: rm-8a50a5cd2f6b3a5c | lease until: 2026-11-07T21:10:24Z
 - ⬜ **Android camera capture**: Take a photo directly from the "Insert attachment" toolbar. Status: open.
   <!-- agent-state: {"schema":1,"id":"rm-5fc96a0db16f2169","state":"open","touch":[],"resources":["triage-recovery"],"note":"Triage 2026-11-06T23:25Z by claude-code-triage: previous owner hermes-20261030T080439Z-0fdb1a0c lease expired 2026-10-30. No remote or local branch and no handoff exist. Main has no cameraCapture.ts or CameraCapturePlugin; the WIP the 2026-11-01 weekly review saw was uncommitted and is not recoverable. Restart from main. Device-side testing needs an Android device or emulator with camera; split JS bridge and unit tests from device verification.","released_at":"2026-11-06T23:22:16Z"} -->
   Agent: unclaimed | item: rm-5fc96a0db16f2169

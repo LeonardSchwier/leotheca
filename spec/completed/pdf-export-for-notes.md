@@ -54,4 +54,20 @@ No new UI surface beyond one palette entry that reuses the existing command list
 
 ## Evidence
 
-(filled at archive)
+| Claim                                                | Evidence                                                                                                                   | Result                              |
+| ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| 1 command exists, Android unchanged                  | `tests/e2e/tests/pdfExport.e2e.ts` (palette "Export note to PDF", print captured); diff touches only the non-native branch | pass, e2e 15/15 local and in CI     |
+| 2, 3 page rules, wrapped code, scaled media, details | `src/export/pdfExport.test.ts` buildPdfDocument cases, `printNote.test.ts` pagination                                      | pass, vitest 3307 passed on 51b164e |
+| 4 math and diagrams as rendered                      | pdfExport test (KaTeX CSS present), e2e asserts 2 `.katex` nodes and `.katex` CSS in the printed document                  | pass                                |
+| 5 images inlined, wait for assets                    | `exportNotePdf` and `waitForPrintAssets` cases (load, error, timeout, no fonts API)                                        | pass                                |
+| 6 safe file name                                     | `pdfFileName` cases                                                                                                        | pass                                |
+| 7 failure paths                                      | inline throws, print rejects, wait rejects tests; App catch alerts                                                         | pass                                |
+| 8 existing print and HTML export                     | existing printNote and exportNoteHtml tests unchanged and green                                                            | pass                                |
+| review                                               | self-review from this spec (no separate agent), 1 round, nothing open                                                      | closed                              |
+| e2e smoke / security                                 | Playwright suite 15 passed; no Rust, capability, IPC or dependency change, so the security gate is not triggered           | pass                                |
+| legal/text check                                     | Legal/text check: 5 verified, 0 fixed, 0 open                                                                              | recorded                            |
+| hosted CI                                            | PR 76 all required checks green; merged as 4e7694a                                                                         | pass                                |
+
+Not verifiable without a desktop session: the real OS print dialog and its "Save as PDF" output in WebKitGTK, WKWebView and WebView2 (page breaks and KaTeX fonts in the produced file). Headless Chromium only proves the document handed to print().
+
+Reflection: the hardest part was proving the output without a print dialog; capturing what the throwaway iframe hands to print() in a real browser is a cheap, honest e2e seam worth reusing for the Print command. The claim protocol blocked on the parent `spec` prefix held by another agent, so the spec file was left out of the touch list.

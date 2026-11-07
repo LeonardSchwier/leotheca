@@ -149,8 +149,8 @@ Only Linux CI builds and launches a desktop artifact as a smoke test. macOS and 
 | `src/editorGroups/` | Split pane UI and per-document view state. |
 | `src/export/` | Print and HTML export. |
 | `src/speech/`, `src/spellcheck/` | Optional input aids. |
-| `src/ui/` | Primitives: `Button`, `Dialog`, `Sheet`, `Menu`, `Tooltip`, `SegmentedControl`, overlay stack. |
-| `src/styles/theme.css` | Design tokens. |
+| `src/ui/` | App-local primitives: `Sheet`, `EmptyState`, `StatusIndicator`, icon registry, and `overlayBackButton` (Capacitor back button wired into Leoforma's overlay stack). `Button`, `IconButton`, `Dialog`, `Menu`, `Tooltip`, `SegmentedControl`, `Spinner` and the overlay stack come from `@leonardschwier/leoforma`. |
+| `src/styles/theme.css` | Maps the app's token names onto Leoforma's `--ds-*` tokens; keeps highlight, mark, accent-choice, reading-font and zoom variables. |
 | `src-tauri/src/` | `commands.rs`, `workspace_mutations.rs`, `external_open.rs`, `default_handler.rs`, `speech_commands.rs`, `lib.rs`. |
 | `android/app/src/main/java/.../` | `MainActivity`, `FolderAccessPlugin`, `WorkspaceMutationPlugin`, `PrintExportPlugin`, `SpeechRecognitionPlugin`, `CaptureIntentHandler`, widget providers. |
 | `extensions/web-clipper/` | Standalone WebExtension for Chrome and Firefox (Manifest V3, install notes in its README). It does not communicate with the app. |
@@ -813,8 +813,8 @@ The URL parser is not the security boundary. The native gate on the eventual rea
 | FR-UI-002 | Fuzzy matching MUST be case-insensitive and rank word-start matches higher. | Given a word-start and a mid match, When scored, Then word-start wins. | `src/fuzzyMatch.test.ts` |
 | FR-UI-003 | Layout classes MUST be compact under 720, medium 720-1099, wide 1100-1279, expanded 1280+. | Given 719, When classified, Then compact. | `src/app/layout/adaptiveLayout.test.ts` |
 | FR-UI-004 | The activity rail MUST appear at 720 px and above; medium MUST overlay the navigation panel. | Given medium, When queried, Then overlay is true. | `src/app/layout/adaptiveLayout.test.ts` |
-| FR-UI-005 | Dialogs and sheets MUST trap focus and close via Escape or the hardware back through one overlay stack. | Given two overlays, When Escape is pressed, Then only the topmost closes. | `src/ui/overlayStack.test.ts` |
-| FR-UI-006 | Menus MUST support arrow navigation and Escape. | Given an open menu, When ArrowDown is pressed, Then focus moves. | `src/ui/Menu.test.tsx` |
+| FR-UI-005 | Dialogs and sheets MUST trap focus and close via Escape or the hardware back through one overlay stack. | Given two overlays, When Escape is pressed, Then only the topmost closes. Stack and focus trap live in Leoforma and are tested there; the app tests the Android back wiring. | `src/ui/overlayBackButton.test.ts`, `src/ui/Sheet.test.tsx` |
+| FR-UI-006 | Menus MUST support arrow navigation and Escape. | Given an open menu, When ArrowDown is pressed, Then focus moves. Menu behavior is tested in Leoforma; the app tests its overflow menu items. | `src/app/layout/DocumentHeader.test.tsx` |
 | FR-UI-007 | The sidebar width MUST stay within 180 to 480 px, default 260. | Given a drag past 480, When resized, Then the width is clamped. | `src/app/useResizableSidebar.test.ts` |
 | FR-UI-008 | The file tree MUST be keyboard navigable. | Given focus in the tree, When ArrowDown is pressed, Then the next row is focused. | `src/workspace/FileTree.test.tsx` |
 | FR-UI-009 | With no open note, the editor area MUST show an empty state with a local quote. | Given no tab, When rendered, Then a quote shows. | `src/app/EmptyEditorState.test.tsx` |
@@ -870,11 +870,9 @@ Sections are General, Feature selection, Appearance, Keyboard shortcuts, Health 
 
 `src/styles/theme.css` defines tokens on `:root`, redefined under `@media (prefers-color-scheme: dark)` guarded by `:root:not([data-theme="light"])`, and for `data-theme="dark"`.
 
-Light base values: canvas `#f6f5f2`, panel `#fcfbf9`, raised `#ffffff`, text `#25231f`, secondary `#68635b`, muted `#756f66`, border `#d8d4cb`, accent `#725331`, success `#2f6b4f`, warning `#8b6116`, danger `#a43d35`, focus `#28647a`.
+Tokens, bundled fonts and shared primitives come from the public package `@leonardschwier/leoforma` (tag v0.1.0), imported in `src/main.tsx` before `theme.css`. Leoforma owns the light and dark palettes, selected by `data-theme` on the root or the OS preference. Light base values: canvas `#f5efe3`, panel `#faf6ec`, raised `#fffdf7`, text `#1a2830`, secondary `#4a5559`, muted `#59625f`, border `#dcd3bf`, accent `#785618`, success `#2a6346`, warning `#75510c`, danger `#9c352c`, focus `#1c5a74`. Dark base values: canvas `#131e25`, panel `#18252c`, raised `#1f2d35`, text `#f2ebdd`, secondary `#c4bdae`, muted `#aca89b`, border `#2d3c44`.
 
-Dark base values: canvas `#171815`, panel `#1e201c`, raised `#262824`, text `#f0eee7`, secondary `#b8b4aa`, muted `#918c82`, border `#3b3d37`.
-
-Radii are 4, 6, 10, 14 and 999 px. Motion durations are 100, 160, 200 and 1500 ms. Fonts are the system UI stack, a serif reading stack, and a mono stack naming Source Code Pro with a `ui-monospace` fallback. No font file for it was found in `src/` or `public/`, so availability depends on the system. `theme.css` is the source of truth for values not listed here.
+Radii are 4, 6, 10, 14 and 999 px. Motion durations are 100, 160, 200 and 1500 ms. Fonts are bundled by Leoforma: Figtree (interface and sans reading), Literata (serif reading) and Source Code Pro (source editor and code), so no font depends on the system. `theme.css` keeps the app-only values: search highlight, the six `==mark==` colors, the Ocean, Forest and Plum accent choices, `--font-reading`, `--content-font-size` and `--ui-zoom`.
 
 ### 9.6 Accessibility
 
@@ -917,7 +915,7 @@ Only numbers that exist in code, configuration or an observed run appear here. N
 | NFR-LIM-002 | Search batch 8 MiB, per-file cap 50 MiB, unknown size assumed 4 MiB, concurrency 40. | Traced | `src/workspace/fileTreeStore.test.ts` |
 | NFR-LIM-003 | Walks depth 40. Embeds 3 levels, 25 instances, 1 MiB. Capture 32 KiB. | Traced | `src/editor/MarkdownPreview.test.tsx` |
 | NFR-LIM-004 | Graph layout work budget as FR-GRAPH-001. | Observed passing | `src/graph/layoutBudget.test.ts` |
-| NFR-A11Y-001 | Both themes and keyboard navigation for shell surfaces. | Partial, by component tests | `src/ui/Menu.test.tsx` |
+| NFR-A11Y-001 | Both themes and keyboard navigation for shell surfaces. | Partial, by component tests (Leoforma's suite includes axe checks) | `src/app/layout/DocumentHeader.test.tsx` |
 | NFR-CRASH-001 | Main MUST launch on the Linux AppImage smoke and install on an API 35 emulator. | CI | `.github/workflows/ci.yml` |
 | NFR-CRASH-002 | Tests MUST fail on unhandled errors in jsdom, using the polyfills in `src/test/setup-jsdom.ts`. | Observed | `vitest.config.ts` |
 | NFR-CRASH-003 | A Markdown parser failure on pathological input (for example deeply nested blockquotes) MUST NOT blank the app; the Preview MUST show the text escaped in a `<pre>` and recover on the next edit. | Observed passing | `src/editor/MarkdownPreview.test.tsx` |
@@ -1029,7 +1027,7 @@ Generated from section 8 by `python3 scripts/check_master_spec.py --update-trace
 | FR-SPELL | Spell check | 1 | 1 | 0 | `src/spellcheck/spellCheck.test.ts` |
 | FR-WID | Android widgets | 3 | 3 | 0 | `android/app/src/test/java/com/getcapacitor/myapp/WidgetResourcesUnitTest.java`, `android/app/src/test/java/com/leonardschwier/leotheca/NewNoteColdStartTrackerTest.java`, `src/workspace/fileTreeStore.test.ts` |
 | FR-CLIP | Web clipper extension | 3 | 3 | 0 | `extensions/web-clipper/clipperCore.test.js`, `extensions/web-clipper/messaging.test.js` |
-| FR-UI | Shell, UI primitives and accessibility | 12 | 10 | 2 | `src/app/App.test.tsx`, `src/app/CommandPalette.test.tsx`, `src/app/EmptyEditorState.test.tsx`, `src/app/layout/adaptiveLayout.test.ts`, `src/app/useResizableSidebar.test.ts`, `src/fuzzyMatch.test.ts`, `src/ui/Menu.test.tsx`, `src/ui/overlayStack.test.ts`, `src/workspace/FileTree.test.tsx` |
+| FR-UI | Shell, UI primitives and accessibility | 12 | 10 | 2 | `src/app/App.test.tsx`, `src/app/CommandPalette.test.tsx`, `src/app/EmptyEditorState.test.tsx`, `src/app/layout/DocumentHeader.test.tsx`, `src/app/layout/adaptiveLayout.test.ts`, `src/app/useResizableSidebar.test.ts`, `src/fuzzyMatch.test.ts`, `src/ui/Sheet.test.tsx`, `src/ui/overlayBackButton.test.ts`, `src/workspace/FileTree.test.tsx` |
 | **Total** | | **194** | **185** | **9** | |
 <!-- traceability:end -->
 
@@ -1095,6 +1093,7 @@ These are current behavior, recorded honestly. None was fixed by the change that
 Newest first. Each entry is `YYYY-MM-DD: what changed in behavior, contracts, formats, build or release`. See `skills/master-spec-maintenance.md`.
 
 <!-- change-log:start -->
+- 2026-11-07: Appearance: the app's tokens, fonts and shared controls now come from Leoforma. The palette is Leoforma's Folio theme (warm paper light, deep teal dark) instead of the earlier neutral one; the interface and reading fonts are bundled Figtree and Literata. Button, IconButton, Dialog, Menu, Tooltip, SegmentedControl, Spinner and the overlay stack are Leoforma components; the Android back button is wired to its overlay stack by `src/ui/overlayBackButton.ts`. No data, setting or command changed.
 - 2026-11-07: Build: the app depends on `@leonardschwier/leoforma` (public design system, tag v0.1.0, `git+https`, commit pinned by `package-lock.json`, `allow-git=root` in `.npmrc`; builds offline from the npm cache). Not yet imported by any source file. No application behavior changed.
 - 2026-11-07: Web clipper now works in Chrome (listeners reply through `sendResponse`, scripts fall back from `browser` to `chrome`, Firefox manifest keys added, FR-CLIP-002/003); install and test notes added. The website uses relative URLs so it works under the project Pages path, its feature list is now a short code-checked list, and unverified claims (store availability, dictation, counts) were narrowed.
 - 2026-11-07: Build and process: Playwright end-to-end smoke suite (`tests/e2e`, 14 journeys) and a required `e2e` job in `ci.yml` that uploads traces on failure. No application behavior changed.

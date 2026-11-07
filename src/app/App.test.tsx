@@ -1,16 +1,26 @@
 /** @vitest-environment jsdom */
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/preact";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  waitFor,
+} from "@testing-library/preact";
 import { effect, signal } from "@preact/signals";
 import { DEFAULT_WORKSPACE_SETTINGS } from "../settings/workspaceSettings";
 import { scanTasks, type TaskRecord } from "../markdown/tasks";
-import { pendingCapturesStore, addPendingCapture } from "../capture/pendingCaptures";
+import {
+  pendingCapturesStore,
+  addPendingCapture,
+} from "../capture/pendingCaptures";
 
-const { updateWorkspaceSettingsSpy, initSettings, addWorkspaceFromPathSpy } = vi.hoisted(() => ({
-  updateWorkspaceSettingsSpy: vi.fn(),
-  initSettings: vi.fn(),
-  addWorkspaceFromPathSpy: vi.fn(async () => {}),
-}));
+const { updateWorkspaceSettingsSpy, initSettings, addWorkspaceFromPathSpy } =
+  vi.hoisted(() => ({
+    updateWorkspaceSettingsSpy: vi.fn(),
+    initSettings: vi.fn(),
+    addWorkspaceFromPathSpy: vi.fn(async () => {}),
+  }));
 
 vi.mock("../settings/store", () => {
   const workspacePath = signal<string | null>(null);
@@ -55,19 +65,26 @@ vi.mock("../settings/store", () => {
   };
 });
 
-const { readTextFile, writeTextFile, takePendingExternalFile, externalFileOpenListeners } =
-  vi.hoisted(() => ({
-    readTextFile: vi.fn<(path: string) => Promise<string>>(() =>
-      Promise.resolve(""),
-    ),
-    writeTextFile: vi.fn<(path: string, content: string) => Promise<void>>(() =>
-      Promise.resolve(),
-    ),
-    takePendingExternalFile: vi.fn<() => Promise<{ path: string; content: string } | null>>(
-      async () => null,
-    ),
-    externalFileOpenListeners: [] as ((file: { path: string; content: string }) => void)[],
-  }));
+const {
+  readTextFile,
+  writeTextFile,
+  takePendingExternalFile,
+  externalFileOpenListeners,
+} = vi.hoisted(() => ({
+  readTextFile: vi.fn<(path: string) => Promise<string>>(() =>
+    Promise.resolve(""),
+  ),
+  writeTextFile: vi.fn<(path: string, content: string) => Promise<void>>(() =>
+    Promise.resolve(),
+  ),
+  takePendingExternalFile: vi.fn<
+    () => Promise<{ path: string; content: string } | null>
+  >(async () => null),
+  externalFileOpenListeners: [] as ((file: {
+    path: string;
+    content: string;
+  }) => void)[],
+}));
 
 vi.mock("../workspace/tauriBridge", () => ({
   readTextFile,
@@ -87,17 +104,26 @@ vi.mock("../workspace/tauriBridge", () => ({
   setStatusBarAppearance: vi.fn(),
   updateFavoritesWidget: vi.fn(async () => {}),
   takePendingExternalFile,
-  onExternalFileOpen: vi.fn((listener: (file: { path: string; content: string }) => void) => {
-    externalFileOpenListeners.push(listener);
-    return () => {};
-  }),
+  onExternalFileOpen: vi.fn(
+    (listener: (file: { path: string; content: string }) => void) => {
+      externalFileOpenListeners.push(listener);
+      return () => {};
+    },
+  ),
 }));
 
 const { renameEntry, createNoteQuick, deleteEntry } = vi.hoisted(() => ({
   renameEntry: vi.fn<(oldPath: string, newName: string) => Promise<string>>(),
   createNoteQuick:
-    vi.fn<(dirPath: string, content?: string) => Promise<{ path: string; name: string }>>(),
-  deleteEntry: vi.fn<(rootPath: string, path: string) => Promise<void>>(async () => {}),
+    vi.fn<
+      (
+        dirPath: string,
+        content?: string,
+      ) => Promise<{ path: string; name: string }>
+    >(),
+  deleteEntry: vi.fn<(rootPath: string, path: string) => Promise<void>>(
+    async () => {},
+  ),
 }));
 
 vi.mock("../workspace/fileTreeStore", () => ({
@@ -115,7 +141,9 @@ vi.mock("../workspace/fileTreeStore", () => ({
   // the Document Header overflow menu's "Copy Relative Path" action (and
   // FileContextMenu.tsx, elsewhere) actually calls at runtime.
   relativePath: (rootPath: string, path: string): string =>
-    path.startsWith(rootPath) ? path.slice(rootPath.length).replace(/^\//, "") : path,
+    path.startsWith(rootPath)
+      ? path.slice(rootPath.length).replace(/^\//, "")
+      : path,
 }));
 
 const { openUrlListeners } = vi.hoisted(() => ({
@@ -139,9 +167,9 @@ vi.mock("@tauri-apps/plugin-clipboard-manager", () => ({
 }));
 
 const { pickMarkdownFileToOpen } = vi.hoisted(() => ({
-  pickMarkdownFileToOpen: vi.fn<() => Promise<{ path: string; content: string } | null>>(
-    async () => null,
-  ),
+  pickMarkdownFileToOpen: vi.fn<
+    () => Promise<{ path: string; content: string } | null>
+  >(async () => null),
 }));
 
 vi.mock("../workspace/tauriBridgeImpl", () => ({
@@ -223,12 +251,20 @@ const {
   openTabs,
   secondaryOpenTabs,
 } = await import("../workspace/store");
-const { settingsLoaded, settingsPanelOpen, workspacePath, workspaceSettings, viewMode, externalFileOpenEnabled } =
-  await import("../settings/store");
-const { linkIndex, linkIndexBuilding, linkIndexUnreadablePaths } = await import("../linking/store");
+const {
+  settingsLoaded,
+  settingsPanelOpen,
+  workspacePath,
+  workspaceSettings,
+  viewMode,
+  externalFileOpenEnabled,
+} = await import("../settings/store");
+const { linkIndex, linkIndexBuilding, linkIndexUnreadablePaths } =
+  await import("../linking/store");
 const { outlineRevealRequest } = await import("../outline/outlineNavigation");
 const { outlineAnnouncement } = await import("../outline/outlineAnnouncements");
-const { workspaceTransitions } = await import("../workspace/workspaceTransition");
+const { workspaceTransitions } =
+  await import("../workspace/workspaceTransition");
 const defaultViewportWidth = window.innerWidth;
 
 const emptyLinkIndex = () => ({
@@ -292,7 +328,9 @@ describe("App: shared indexing status (UX-01 STATE-003)", () => {
       linkIndexBuilding.value = false;
       linkIndexUnreadablePaths.value = ["/vault/locked.md"];
     });
-    const warning = getByText("1 note couldn't be indexed").closest('[role="status"]');
+    const warning = getByText("1 note couldn't be indexed").closest(
+      '[role="status"]',
+    );
     expect(warning?.className).toContain("status-indicator-warning");
     expect(warning?.getAttribute("title")).toContain("/vault/locked.md");
   });
@@ -315,7 +353,9 @@ describe("App: keyboard shortcuts", () => {
     render(<App />);
 
     fireEvent.keyDown(window, { key: "p", ctrlKey: true, shiftKey: true });
-    expect(editorLayout.value.groups.primary.pinnedPaths).toEqual(["/vault/b.md"]);
+    expect(editorLayout.value.groups.primary.pinnedPaths).toEqual([
+      "/vault/b.md",
+    ]);
 
     fireEvent.keyDown(window, { key: "u", ctrlKey: true, shiftKey: true });
     expect(editorLayout.value.groups.primary.pinnedPaths).toEqual([]);
@@ -445,7 +485,9 @@ describe("App: keyboard shortcuts", () => {
     const { getByPlaceholderText, getAllByText } = render(<App />);
 
     const openCommandPalette = async () => {
-      fireEvent.click(document.querySelector('[aria-label="Command palette"]')!);
+      fireEvent.click(
+        document.querySelector('[aria-label="Command palette"]')!,
+      );
       await Promise.resolve();
     };
 
@@ -462,7 +504,9 @@ describe("App: keyboard shortcuts", () => {
       await Promise.resolve();
       await Promise.resolve();
     });
-    expect(updateWorkspaceSettingsSpy).toHaveBeenLastCalledWith({ fontSize: 16 });
+    expect(updateWorkspaceSettingsSpy).toHaveBeenLastCalledWith({
+      fontSize: 16,
+    });
 
     await act(async () => {
       await openCommandPalette();
@@ -476,7 +520,9 @@ describe("App: keyboard shortcuts", () => {
       await Promise.resolve();
       await Promise.resolve();
     });
-    expect(updateWorkspaceSettingsSpy).toHaveBeenLastCalledWith({ fontSize: 15 });
+    expect(updateWorkspaceSettingsSpy).toHaveBeenLastCalledWith({
+      fontSize: 15,
+    });
   });
 
   it("toolbar font size buttons increase and decrease the persisted font size", async () => {
@@ -488,12 +534,16 @@ describe("App: keyboard shortcuts", () => {
     const increaseBtn = getByRole("button", { name: "Increase font size" });
     fireEvent.click(increaseBtn);
     await Promise.resolve();
-    expect(updateWorkspaceSettingsSpy).toHaveBeenLastCalledWith({ fontSize: 16 });
+    expect(updateWorkspaceSettingsSpy).toHaveBeenLastCalledWith({
+      fontSize: 16,
+    });
 
     const decreaseBtn = getByRole("button", { name: "Decrease font size" });
     fireEvent.click(decreaseBtn);
     await Promise.resolve();
-    expect(updateWorkspaceSettingsSpy).toHaveBeenLastCalledWith({ fontSize: 15 });
+    expect(updateWorkspaceSettingsSpy).toHaveBeenLastCalledWith({
+      fontSize: 15,
+    });
   });
 
   it("toolbar font size buttons clamp at minimum", async () => {
@@ -506,7 +556,9 @@ describe("App: keyboard shortcuts", () => {
     fireEvent.click(decreaseBtn);
     await Promise.resolve();
     // Should not call updateWorkspaceSettings since 12 - 1 would be 11 < MIN
-    expect(updateWorkspaceSettingsSpy).not.toHaveBeenLastCalledWith({ fontSize: 11 });
+    expect(updateWorkspaceSettingsSpy).not.toHaveBeenLastCalledWith({
+      fontSize: 11,
+    });
   });
 
   it("toolbar font size buttons clamp at maximum", async () => {
@@ -519,7 +571,9 @@ describe("App: keyboard shortcuts", () => {
     fireEvent.click(increaseBtn);
     await Promise.resolve();
     // Should not call updateWorkspaceSettings since 24 + 1 would be 25 > MAX
-    expect(updateWorkspaceSettingsSpy).not.toHaveBeenLastCalledWith({ fontSize: 25 });
+    expect(updateWorkspaceSettingsSpy).not.toHaveBeenLastCalledWith({
+      fontSize: 25,
+    });
   });
 });
 
@@ -611,23 +665,39 @@ describe("App: breadcrumb navigation announcements (spec section 15.2)", () => {
     // The heading starts at offset 0 so the mock editor's cursor stand-in
     // (which always reports position 0, see the MarkdownEditor mock above)
     // lands exactly on it, making it the Source-tracked active heading.
-    openOrFocusTab("/vault/note.md", "note.md", "## Section one\n\nBody.", "text");
+    openOrFocusTab(
+      "/vault/note.md",
+      "note.md",
+      "## Section one\n\nBody.",
+      "text",
+    );
     const { getByRole, container } = render(<App />);
-    fireEvent.click(container.querySelector('[data-testid="mock-editor-cursor-move"]')!);
+    fireEvent.click(
+      container.querySelector('[data-testid="mock-editor-cursor-move"]')!,
+    );
 
     fireEvent.click(getByRole("button", { name: "Section one" }));
 
-    expect(outlineAnnouncement.value?.message).toBe("Navigated to Section one, line 1.");
+    expect(outlineAnnouncement.value?.message).toBe(
+      "Navigated to Section one, line 1.",
+    );
   });
 
   it("announces the note title and line 1 when the breadcrumb root segment is clicked", () => {
     viewMode.value = "split";
-    openOrFocusTab("/vault/note.md", "note.md", "Intro\n\n## Section one\n\nBody.", "text");
+    openOrFocusTab(
+      "/vault/note.md",
+      "note.md",
+      "Intro\n\n## Section one\n\nBody.",
+      "text",
+    );
     const { getByRole } = render(<App />);
 
     fireEvent.click(getByRole("button", { name: "note.md" }));
 
-    expect(outlineAnnouncement.value?.message).toBe("Navigated to note.md, line 1.");
+    expect(outlineAnnouncement.value?.message).toBe(
+      "Navigated to note.md, line 1.",
+    );
   });
 });
 
@@ -641,7 +711,12 @@ describe("App: F04 Phase 1 cross-note heading-link navigation", () => {
     workspacePath.value = "/vault";
     const targetContent = "# Intro\n\n## Target\n\ntext";
     readTextFile.mockResolvedValue(targetContent);
-    openOrFocusTab("/vault/first.md", "first.md", "See [[Second#Target]] over there.", "text");
+    openOrFocusTab(
+      "/vault/first.md",
+      "first.md",
+      "See [[Second#Target]] over there.",
+      "text",
+    );
     const { container } = render(<App />);
 
     const anchor = container.querySelector(
@@ -656,7 +731,9 @@ describe("App: F04 Phase 1 cross-note heading-link navigation", () => {
     });
 
     expect(activeTabPath.value).toBe("/vault/second.md");
-    expect(outlineRevealRequest.value?.from).toBe(targetContent.indexOf("Target"));
+    expect(outlineRevealRequest.value?.from).toBe(
+      targetContent.indexOf("Target"),
+    );
     expect(outlineRevealRequest.value?.to).toBe(
       targetContent.indexOf("Target") + "Target".length,
     );
@@ -670,7 +747,12 @@ describe("App: F04 Phase 1 cross-note heading-link navigation", () => {
     viewMode.value = "split";
     workspacePath.value = "/vault";
     readTextFile.mockResolvedValue("# Intro\n\nno such heading here");
-    openOrFocusTab("/vault/first.md", "first.md", "See [[Second#Target]] over there.", "text");
+    openOrFocusTab(
+      "/vault/first.md",
+      "first.md",
+      "See [[Second#Target]] over there.",
+      "text",
+    );
     const { container } = render(<App />);
 
     const anchor = container.querySelector(
@@ -696,9 +778,15 @@ describe("App: F04 Phase 3a cross-note block-link navigation", () => {
     };
     viewMode.value = "split";
     workspacePath.value = "/vault";
-    const targetContent = "Intro text.\n\nThe target block. ^target-block\n\nmore text";
+    const targetContent =
+      "Intro text.\n\nThe target block. ^target-block\n\nmore text";
     readTextFile.mockResolvedValue(targetContent);
-    openOrFocusTab("/vault/first.md", "first.md", "See [[Second#^target-block]] over there.", "text");
+    openOrFocusTab(
+      "/vault/first.md",
+      "first.md",
+      "See [[Second#^target-block]] over there.",
+      "text",
+    );
     const { container } = render(<App />);
 
     const anchor = container.querySelector(
@@ -713,7 +801,9 @@ describe("App: F04 Phase 3a cross-note block-link navigation", () => {
     });
 
     expect(activeTabPath.value).toBe("/vault/second.md");
-    expect(outlineRevealRequest.value?.from).toBe(targetContent.indexOf("The target block."));
+    expect(outlineRevealRequest.value?.from).toBe(
+      targetContent.indexOf("The target block."),
+    );
     expect(outlineRevealRequest.value?.to).toBe(
       targetContent.indexOf("The target block.") + "The target block.".length,
     );
@@ -727,7 +817,12 @@ describe("App: F04 Phase 3a cross-note block-link navigation", () => {
     viewMode.value = "split";
     workspacePath.value = "/vault";
     readTextFile.mockResolvedValue("No block ids here at all.");
-    openOrFocusTab("/vault/first.md", "first.md", "See [[Second#^target-block]] over there.", "text");
+    openOrFocusTab(
+      "/vault/first.md",
+      "first.md",
+      "See [[Second#^target-block]] over there.",
+      "text",
+    );
     const { container } = render(<App />);
 
     const anchor = container.querySelector(
@@ -889,7 +984,10 @@ describe("App: Collections gated by collectionsEnabled, off by default (2026-09-
 
   it("shows the Collections toolbar button once collectionsEnabled is turned on", () => {
     workspacePath.value = "/vault";
-    workspaceSettings.value = { ...DEFAULT_WORKSPACE_SETTINGS, collectionsEnabled: true };
+    workspaceSettings.value = {
+      ...DEFAULT_WORKSPACE_SETTINGS,
+      collectionsEnabled: true,
+    };
     const { queryByLabelText } = render(<App />);
     expect(queryByLabelText("Open Collections")).toBeTruthy();
   });
@@ -905,7 +1003,10 @@ describe("App: speech-to-text dictation gated by speechToTextEnabled, off by def
 
   it("mounts SpeechRecognitionButton for an open note once speechToTextEnabled is turned on", () => {
     workspacePath.value = "/vault";
-    workspaceSettings.value = { ...DEFAULT_WORKSPACE_SETTINGS, speechToTextEnabled: true };
+    workspaceSettings.value = {
+      ...DEFAULT_WORKSPACE_SETTINGS,
+      speechToTextEnabled: true,
+    };
     openOrFocusTab("/vault/a.md", "a.md", "", "text");
     const { queryByTestId } = render(<App />);
     expect(queryByTestId("mock-speech-button")).toBeTruthy();
@@ -918,7 +1019,10 @@ describe("App: accent color applies live (2026-09-04 repro)", () => {
     render(<App />);
     expect(document.documentElement.getAttribute("data-accent")).toBe("warm");
 
-    workspaceSettings.value = { ...workspaceSettings.value, accentColor: "ocean" };
+    workspaceSettings.value = {
+      ...workspaceSettings.value,
+      accentColor: "ocean",
+    };
 
     expect(document.documentElement.getAttribute("data-accent")).toBe("ocean");
   });
@@ -930,7 +1034,10 @@ describe("App: Tags toolbar button gated by tagsEnabled (2026-09-04)", () => {
     // used here) the Activity Rail now takes over Tags navigation (spec
     // 13.2's "720px and above"), hiding this toolbar button in favor of
     // the rail's own -- this test is specifically about the toolbar one.
-    Object.defineProperty(window, "innerWidth", { configurable: true, value: 600 });
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 600,
+    });
     workspacePath.value = "/vault";
     const { queryByLabelText } = render(<App />);
     expect(queryByLabelText("View tags")).toBeTruthy();
@@ -938,7 +1045,10 @@ describe("App: Tags toolbar button gated by tagsEnabled (2026-09-04)", () => {
 
   it("hides the Tags toolbar button once a workspace has tagsEnabled turned off", () => {
     workspacePath.value = "/vault";
-    workspaceSettings.value = { ...DEFAULT_WORKSPACE_SETTINGS, tagsEnabled: false };
+    workspaceSettings.value = {
+      ...DEFAULT_WORKSPACE_SETTINGS,
+      tagsEnabled: false,
+    };
     const { queryByLabelText } = render(<App />);
     expect(queryByLabelText("View tags")).toBeNull();
   });
@@ -965,7 +1075,10 @@ describe("App: Task Hub index stays fresh after an ordinary editor save (2026-09
       await Promise.resolve();
     });
 
-    expect(writeTextFile).toHaveBeenCalledWith("/vault/note.md", "- [x] Buy milk\n");
+    expect(writeTextFile).toHaveBeenCalledWith(
+      "/vault/note.md",
+      "- [x] Buy milk\n",
+    );
     const tasks = linkIndex.value.tasksByPath.get("/vault/note.md");
     expect(tasks?.[0].checked).toBe(true);
   });
@@ -1004,7 +1117,10 @@ describe("App: a failed autosave shows a visible error and lets the user retry (
     // Document Header save-state area instead (spec 13.6), not this
     // detailed classic bar -- this test is specifically about that bar's
     // own full message.
-    Object.defineProperty(window, "innerWidth", { configurable: true, value: 600 });
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 600,
+    });
     vi.useFakeTimers();
     writeTextFile.mockRejectedValueOnce(new Error("disk full"));
     openOrFocusTab("/vault/note.md", "note.md", "hello", "text");
@@ -1063,7 +1179,9 @@ describe("App: open-note automation command (Android favorites-list widget)", ()
     render(<App />);
 
     await act(async () => {
-      openUrlListeners.at(-1)?.(["leotheca://open-note?path=%2Fvault%2Fnote.md"]);
+      openUrlListeners.at(-1)?.([
+        "leotheca://open-note?path=%2Fvault%2Fnote.md",
+      ]);
       await Promise.resolve();
       await Promise.resolve();
     });
@@ -1078,7 +1196,9 @@ describe("App: open-note automation command (Android favorites-list widget)", ()
     render(<App />);
 
     await act(async () => {
-      openUrlListeners.at(-1)?.(["leotheca://open-note?path=%2Fother-vault%2Fnote.md"]);
+      openUrlListeners.at(-1)?.([
+        "leotheca://open-note?path=%2Fother-vault%2Fnote.md",
+      ]);
       await Promise.resolve();
     });
 
@@ -1111,7 +1231,9 @@ describe("App: open-note automation command (Android favorites-list widget)", ()
     render(<App />);
 
     await act(async () => {
-      openUrlListeners.at(-1)?.(["leotheca://open-note?path=%2Fvault%2Fnote.md"]);
+      openUrlListeners.at(-1)?.([
+        "leotheca://open-note?path=%2Fvault%2Fnote.md",
+      ]);
       await Promise.resolve();
     });
 
@@ -1124,7 +1246,9 @@ describe("App: open-note automation command (Android favorites-list widget)", ()
     render(<App />);
 
     await act(async () => {
-      openUrlListeners.at(-1)?.(["leotheca://open-note?path=%2Fvault%2F..%2Fsecret.md"]);
+      openUrlListeners.at(-1)?.([
+        "leotheca://open-note?path=%2Fvault%2F..%2Fsecret.md",
+      ]);
       await Promise.resolve();
     });
 
@@ -1137,7 +1261,9 @@ describe("App: open-note automation command (Android favorites-list widget)", ()
     render(<App />);
 
     await act(async () => {
-      openUrlListeners.at(-1)?.(["leotheca://open-note?path=%2Fvault%5C..%5Csecret.md"]);
+      openUrlListeners.at(-1)?.([
+        "leotheca://open-note?path=%2Fvault%5C..%5Csecret.md",
+      ]);
       await Promise.resolve();
     });
 
@@ -1150,7 +1276,9 @@ describe("App: open-note automation command (Android favorites-list widget)", ()
     render(<App />);
 
     await act(async () => {
-      openUrlListeners.at(-1)?.(["leotheca://open-note?path=%2Fvault-backdoor%2Fnote.md"]);
+      openUrlListeners.at(-1)?.([
+        "leotheca://open-note?path=%2Fvault-backdoor%2Fnote.md",
+      ]);
       await Promise.resolve();
     });
 
@@ -1184,7 +1312,8 @@ describe("App: open-favorites automation command (Android favorites widget)", ()
     // trigger the loadBookmarks effect (see the ensureFilesActive pattern
     // used elsewhere in this file for the same class of leak).
     await act(async () => {
-      const btn = queryByLabelText("View bookmarks") ?? queryByLabelText("Bookmarks");
+      const btn =
+        queryByLabelText("View bookmarks") ?? queryByLabelText("Bookmarks");
       if (btn) fireEvent.click(btn);
       await Promise.resolve();
     });
@@ -1206,7 +1335,9 @@ describe("App: open-note automation command (Android favorites-list widget cold 
     render(<App />);
 
     await act(async () => {
-      openUrlListeners.at(-1)?.(["leotheca://open-note?path=%2Fvault%2Fnote.md"]);
+      openUrlListeners.at(-1)?.([
+        "leotheca://open-note?path=%2Fvault%2Fnote.md",
+      ]);
       await Promise.resolve();
       await Promise.resolve();
     });
@@ -1230,7 +1361,9 @@ describe("App: open-note automation command (Android favorites-list widget cold 
     render(<App />);
 
     await act(async () => {
-      openUrlListeners.at(-1)?.(["leotheca://open-note?path=%2Fvault%2Fnote.md"]);
+      openUrlListeners.at(-1)?.([
+        "leotheca://open-note?path=%2Fvault%2Fnote.md",
+      ]);
       await Promise.resolve();
     });
 
@@ -1308,7 +1441,10 @@ describe("App: OS file-association external file open (ROADMAP.md desktop-only f
     render(<App />);
 
     await act(async () => {
-      externalFileOpenListeners.at(-1)?.({ path: "/vault/note.md", content: "unused" });
+      externalFileOpenListeners.at(-1)?.({
+        path: "/vault/note.md",
+        content: "unused",
+      });
       await Promise.resolve();
       await Promise.resolve();
     });
@@ -1324,7 +1460,10 @@ describe("App: OS file-association external file open (ROADMAP.md desktop-only f
     const { findByText, getByText } = render(<App />);
 
     await act(async () => {
-      externalFileOpenListeners.at(-1)?.({ path: "/elsewhere/other.md", content: "external content" });
+      externalFileOpenListeners.at(-1)?.({
+        path: "/elsewhere/other.md",
+        content: "external content",
+      });
       await Promise.resolve();
       await Promise.resolve();
     });
@@ -1349,7 +1488,10 @@ describe("App: OS file-association external file open (ROADMAP.md desktop-only f
     const { findByText } = render(<App />);
 
     await act(async () => {
-      externalFileOpenListeners.at(-1)?.({ path: "/notes/orphan.md", content: "orphan content" });
+      externalFileOpenListeners.at(-1)?.({
+        path: "/notes/orphan.md",
+        content: "orphan content",
+      });
       await Promise.resolve();
       await Promise.resolve();
     });
@@ -1364,7 +1506,10 @@ describe("App: OS file-association external file open (ROADMAP.md desktop-only f
     render(<App />);
 
     await act(async () => {
-      externalFileOpenListeners.at(-1)?.({ path: "/vault/note.md", content: "note content" });
+      externalFileOpenListeners.at(-1)?.({
+        path: "/vault/note.md",
+        content: "note content",
+      });
       await Promise.resolve();
       await Promise.resolve();
     });
@@ -1378,7 +1523,10 @@ describe("App: OS file-association external file open (ROADMAP.md desktop-only f
     render(<App />);
 
     await act(async () => {
-      externalFileOpenListeners.at(-1)?.({ path: "/vault/image.png", content: "not markdown" });
+      externalFileOpenListeners.at(-1)?.({
+        path: "/vault/image.png",
+        content: "not markdown",
+      });
       await Promise.resolve();
     });
 
@@ -1388,7 +1536,10 @@ describe("App: OS file-association external file open (ROADMAP.md desktop-only f
   it("opens a cold-start pending file (fresh launch via OS file association) once settings finish loading", async () => {
     workspacePath.value = "/vault";
     readTextFile.mockResolvedValueOnce("note content");
-    takePendingExternalFile.mockResolvedValueOnce({ path: "/vault/note.md", content: "unused" });
+    takePendingExternalFile.mockResolvedValueOnce({
+      path: "/vault/note.md",
+      content: "unused",
+    });
     render(<App />);
 
     await act(async () => {
@@ -1421,7 +1572,10 @@ describe("App: OS file-association external file open (ROADMAP.md desktop-only f
     const { findByText, getByText, queryByText } = render(<App />);
 
     await act(async () => {
-      externalFileOpenListeners.at(-1)?.({ path: "/elsewhere/notes/other.md", content: "external content" });
+      externalFileOpenListeners.at(-1)?.({
+        path: "/elsewhere/notes/other.md",
+        content: "external content",
+      });
       await Promise.resolve();
       await Promise.resolve();
     });
@@ -1439,11 +1593,16 @@ describe("App: OS file-association external file open (ROADMAP.md desktop-only f
 
   it("shows an error and keeps the scratch view open when 'Open containing folder as a workspace' fails", async () => {
     workspacePath.value = "/vault";
-    addWorkspaceFromPathSpy.mockRejectedValueOnce(new Error("permission denied"));
+    addWorkspaceFromPathSpy.mockRejectedValueOnce(
+      new Error("permission denied"),
+    );
     const { findByText, getByText, queryByText } = render(<App />);
 
     await act(async () => {
-      externalFileOpenListeners.at(-1)?.({ path: "/elsewhere/notes/other.md", content: "external content" });
+      externalFileOpenListeners.at(-1)?.({
+        path: "/elsewhere/notes/other.md",
+        content: "external content",
+      });
       await Promise.resolve();
       await Promise.resolve();
     });
@@ -1484,7 +1643,10 @@ describe("App: 'Open file from outside the vault...' in-app command (ROADMAP.md 
     await Promise.resolve();
   };
 
-  const runOpenFromOutsideVaultCommand = async (getByPlaceholderText: (t: string) => HTMLElement, getByText: (t: string) => HTMLElement) => {
+  const runOpenFromOutsideVaultCommand = async (
+    getByPlaceholderText: (t: string) => HTMLElement,
+    getByText: (t: string) => HTMLElement,
+  ) => {
     await act(async () => {
       await openCommandPalette();
     });
@@ -1501,7 +1663,10 @@ describe("App: 'Open file from outside the vault...' in-app command (ROADMAP.md 
   it("reuses the ordinary tab machinery when the picked file is inside the current workspace", async () => {
     workspacePath.value = "/vault";
     readTextFile.mockResolvedValueOnce("note content");
-    pickMarkdownFileToOpen.mockResolvedValueOnce({ path: "/vault/note.md", content: "unused" });
+    pickMarkdownFileToOpen.mockResolvedValueOnce({
+      path: "/vault/note.md",
+      content: "unused",
+    });
     const { getByPlaceholderText, getByText } = render(<App />);
 
     await runOpenFromOutsideVaultCommand(getByPlaceholderText, getByText);
@@ -1577,7 +1742,9 @@ describe("App: pending captures require explicit review before writing (spec F05
     // what this regression is about.
     expect(writeTextFile).not.toHaveBeenCalledWith(
       expect.anything(),
-      expect.stringContaining("Secret draft captured before any workspace was open")
+      expect.stringContaining(
+        "Secret draft captured before any workspace was open",
+      ),
     );
     expect(pendingCapturesStore.value).toHaveLength(1);
     expect(pendingCapturesStore.value[0].status).toBe("pending");
@@ -1602,7 +1769,9 @@ describe("App: pending captures require explicit review before writing (spec F05
 
     expect(writeTextFile).not.toHaveBeenCalledWith(
       expect.anything(),
-      expect.stringContaining("Shared text staged before the app finished starting")
+      expect.stringContaining(
+        "Shared text staged before the app finished starting",
+      ),
     );
     expect(pendingCapturesStore.value).toHaveLength(1);
     expect(pendingCapturesStore.value[0].status).toBe("pending");
@@ -1636,7 +1805,9 @@ describe("App: F07 Phase 3 split pane", () => {
     const { container, getByRole } = render(<App />);
 
     fireEvent.click(getByRole("button", { name: "Split right" }));
-    fireEvent.click(getByRole("button", { name: "Move active tab to the other group" }));
+    fireEvent.click(
+      getByRole("button", { name: "Move active tab to the other group" }),
+    );
 
     expect(openTabs.value).toEqual([]);
     expect(secondaryOpenTabs.value.map((t) => t.path)).toEqual(["/vault/a.md"]);
@@ -1651,11 +1822,17 @@ describe("App: F07 Phase 3 split pane", () => {
     const { container, getByRole } = render(<App />);
 
     fireEvent.click(getByRole("button", { name: "Split right" }));
-    fireEvent.click(getByRole("button", { name: "Move active tab to the other group" }));
+    fireEvent.click(
+      getByRole("button", { name: "Move active tab to the other group" }),
+    );
     // "/vault/b.md" (the active tab at split time) is now secondary's only tab.
 
-    const secondary = container.querySelector(".secondary-group") as HTMLElement;
-    const previewButton = secondary.querySelector('button[title="Preview"]') as HTMLButtonElement;
+    const secondary = container.querySelector(
+      ".secondary-group",
+    ) as HTMLElement;
+    const previewButton = secondary.querySelector(
+      'button[title="Preview"]',
+    ) as HTMLButtonElement;
     fireEvent.click(previewButton);
 
     expect(editorLayout.value.groups.secondary?.viewMode).toBe("preview");
@@ -1674,9 +1851,9 @@ describe("App: F07 Phase 3 split pane", () => {
 
     expect(openTabs.value).toEqual([]);
     expect(secondaryOpenTabs.value.map((t) => t.path)).toEqual(["/vault/a.md"]);
-    expect(container.querySelector(".secondary-group")?.textContent).not.toContain(
-      "No note open in this group.",
-    );
+    expect(
+      container.querySelector(".secondary-group")?.textContent,
+    ).not.toContain("No note open in this group.");
   });
 });
 
@@ -1688,7 +1865,9 @@ describe("App: F07 Phase 3 close blocks on an unresolved save error", () => {
     const { getByRole } = render(<App />);
 
     fireEvent.click(getByRole("button", { name: "Split right" }));
-    fireEvent.click(getByRole("button", { name: "Move active tab to the other group" }));
+    fireEvent.click(
+      getByRole("button", { name: "Move active tab to the other group" }),
+    );
     expect(secondaryOpenTabs.value.map((t) => t.path)).toEqual(["/vault/a.md"]);
 
     // Simulate a failed save on the note now sitting in the secondary
@@ -1704,7 +1883,9 @@ describe("App: F07 Phase 3 close blocks on an unresolved save error", () => {
     expect(editorLayout.value.splitEnabled).toBe(true); // still open, not closed
     expect(secondaryOpenTabs.value.map((t) => t.path)).toEqual(["/vault/a.md"]);
 
-    openDocuments.value = openDocuments.value.map((d) => (d.path === "/vault/a.md" ? { ...d, saveError: null } : d));
+    openDocuments.value = openDocuments.value.map((d) =>
+      d.path === "/vault/a.md" ? { ...d, saveError: null } : d,
+    );
     fireEvent.click(getByRole("button", { name: "Close reference group" }));
 
     expect(editorLayout.value.splitEnabled).toBe(false);
@@ -1722,11 +1903,15 @@ describe("App: F07 Phase 3 follow-up -- tab reordering", () => {
     fireEvent.contextMenu(getByText("a.md"));
     fireEvent.click(getByText("Move right"));
 
-    expect(openTabs.value.map((t) => t.path)).toEqual(["/vault/b.md", "/vault/a.md"]);
-    const names = Array.from(container.querySelectorAll(".tab-name")).map((el) => el.textContent);
+    expect(openTabs.value.map((t) => t.path)).toEqual([
+      "/vault/b.md",
+      "/vault/a.md",
+    ]);
+    const names = Array.from(container.querySelectorAll(".tab-name")).map(
+      (el) => el.textContent,
+    );
     expect(names).toEqual(["b.md", "a.md"]);
   });
-
 });
 
 describe("App: F07 Phase 5 -- Ctrl/Cmd-click opens a wikilink in the other group", () => {
@@ -1738,10 +1923,17 @@ describe("App: F07 Phase 5 -- Ctrl/Cmd-click opens a wikilink in the other group
     viewMode.value = "split";
     workspacePath.value = "/vault";
     readTextFile.mockResolvedValue("second file content");
-    openOrFocusTab("/vault/first.md", "first.md", "See [[Second]] over there.", "text");
+    openOrFocusTab(
+      "/vault/first.md",
+      "first.md",
+      "See [[Second]] over there.",
+      "text",
+    );
     const { container } = render(<App />);
 
-    const anchor = container.querySelector('a[href^="#leotheca-wikilink="]') as HTMLAnchorElement;
+    const anchor = container.querySelector(
+      'a[href^="#leotheca-wikilink="]',
+    ) as HTMLAnchorElement;
     expect(anchor).toBeTruthy();
 
     await act(async () => {
@@ -1751,12 +1943,17 @@ describe("App: F07 Phase 5 -- Ctrl/Cmd-click opens a wikilink in the other group
     });
 
     expect(editorLayout.value.splitEnabled).toBe(true);
-    expect(secondaryOpenTabs.value.map((t) => t.path)).toEqual(["/vault/second.md"]);
+    expect(secondaryOpenTabs.value.map((t) => t.path)).toEqual([
+      "/vault/second.md",
+    ]);
     expect(openTabs.value.map((t) => t.path)).toEqual(["/vault/first.md"]);
   });
 
   it("at a narrow viewport, shows the secondary pane (not primary) for the note it just opened there (regression)", async () => {
-    Object.defineProperty(window, "innerWidth", { configurable: true, value: 600 });
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 600,
+    });
     linkIndex.value = {
       ...emptyLinkIndex(),
       pathsByNoteName: new Map([["second", ["/vault/second.md"]]]),
@@ -1764,10 +1961,17 @@ describe("App: F07 Phase 5 -- Ctrl/Cmd-click opens a wikilink in the other group
     viewMode.value = "split";
     workspacePath.value = "/vault";
     readTextFile.mockResolvedValue("second file content");
-    openOrFocusTab("/vault/first.md", "first.md", "See [[Second]] over there.", "text");
+    openOrFocusTab(
+      "/vault/first.md",
+      "first.md",
+      "See [[Second]] over there.",
+      "text",
+    );
     const { container } = render(<App />);
 
-    const anchor = container.querySelector('a[href^="#leotheca-wikilink="]') as HTMLAnchorElement;
+    const anchor = container.querySelector(
+      'a[href^="#leotheca-wikilink="]',
+    ) as HTMLAnchorElement;
     expect(anchor).toBeTruthy();
 
     await act(async () => {
@@ -1782,7 +1986,9 @@ describe("App: F07 Phase 5 -- Ctrl/Cmd-click opens a wikilink in the other group
     // switcher.
     expect(editorLayout.value.compactVisibleGroupId).toBe("secondary");
     expect(container.querySelector(".secondary-group")).toBeTruthy();
-    expect(container.querySelector(".editor-area:not(.secondary-group)")).toBeNull();
+    expect(
+      container.querySelector(".editor-area:not(.secondary-group)"),
+    ).toBeNull();
   });
 
   it("targets primary for an image link Ctrl/Cmd-clicked in the secondary pane while primary is still the active group (regression)", async () => {
@@ -1797,7 +2003,12 @@ describe("App: F07 Phase 5 -- Ctrl/Cmd-click opens a wikilink in the other group
     };
     workspacePath.value = "/vault";
     openOrFocusTab("/vault/first.md", "first.md", "Working note.", "text");
-    openInOtherGroup("/vault/second.md", "second.md", "See [[Photo]] over there.", "text");
+    openInOtherGroup(
+      "/vault/second.md",
+      "second.md",
+      "See [[Photo]] over there.",
+      "text",
+    );
     // Realistic sequence this regression needs: the user opened a
     // reference note into secondary, then went back to working in
     // primary -- activeGroupId is "primary" again by the time they
@@ -1816,14 +2027,22 @@ describe("App: F07 Phase 5 -- Ctrl/Cmd-click opens a wikilink in the other group
       await Promise.resolve();
     });
 
-    expect(openTabs.value.map((t) => t.path)).toEqual(["/vault/first.md", "/vault/photo.png"]);
-    expect(secondaryOpenTabs.value.map((t) => t.path)).toEqual(["/vault/second.md"]);
+    expect(openTabs.value.map((t) => t.path)).toEqual([
+      "/vault/first.md",
+      "/vault/photo.png",
+    ]);
+    expect(secondaryOpenTabs.value.map((t) => t.path)).toEqual([
+      "/vault/second.md",
+    ]);
   });
 });
 
 describe("App: F07 Phase 4 -- compact layout and group switching", () => {
   it("shows only the primary pane and no switcher when unsplit, even at a narrow width", () => {
-    Object.defineProperty(window, "innerWidth", { configurable: true, value: 600 });
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 600,
+    });
     workspacePath.value = "/vault";
     openOrFocusTab("/vault/a.md", "a.md", "hello", "text");
     const { container } = render(<App />);
@@ -1839,7 +2058,10 @@ describe("App: F07 Phase 4 -- compact layout and group switching", () => {
 
     fireEvent.click(getByRole("button", { name: "Split right" }));
 
-    Object.defineProperty(window, "innerWidth", { configurable: true, value: 600 });
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 600,
+    });
     fireEvent(window, new Event("resize"));
 
     const switcher = container.querySelector(".compact-group-switcher");
@@ -1852,7 +2074,10 @@ describe("App: F07 Phase 4 -- compact layout and group switching", () => {
   it("switching groups from the compact switcher swaps the visible pane without touching activeGroupId", () => {
     workspacePath.value = "/vault";
     openOrFocusTab("/vault/a.md", "a.md", "hello", "text");
-    Object.defineProperty(window, "innerWidth", { configurable: true, value: 600 });
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 600,
+    });
     const { container, getByRole } = render(<App />);
 
     fireEvent.click(getByRole("button", { name: "Split right" }));
@@ -1864,7 +2089,9 @@ describe("App: F07 Phase 4 -- compact layout and group switching", () => {
     expect(editorLayout.value.compactVisibleGroupId).toBe("secondary");
     expect(editorLayout.value.activeGroupId).toBe(activeGroupBefore);
     expect(container.querySelector(".secondary-group")).toBeTruthy();
-    expect(container.querySelector(".editor-area:not(.secondary-group)")).toBeNull();
+    expect(
+      container.querySelector(".editor-area:not(.secondary-group)"),
+    ).toBeNull();
   });
 
   it("rotating back to a wide viewport shows both panes again without altering editorLayout state", () => {
@@ -1874,11 +2101,17 @@ describe("App: F07 Phase 4 -- compact layout and group switching", () => {
 
     fireEvent.click(getByRole("button", { name: "Split right" }));
 
-    Object.defineProperty(window, "innerWidth", { configurable: true, value: 600 });
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 600,
+    });
     fireEvent(window, new Event("resize"));
     expect(container.querySelector(".secondary-group")).toBeNull();
 
-    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1200 });
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 1200,
+    });
     fireEvent(window, new Event("resize"));
 
     expect(container.querySelector(".compact-group-switcher")).toBeNull();
@@ -1897,7 +2130,9 @@ describe("App: F07 Phase 4 -- compact layout and group switching", () => {
  * where it closes the panel instead, so one conditional click reaches a
  * known baseline regardless of what an earlier test in this file left
  * behind. */
-function ensureFilesActive(getByLabelText: (text: string) => HTMLElement): void {
+function ensureFilesActive(
+  getByLabelText: (text: string) => HTMLElement,
+): void {
   if (getByLabelText("Files").getAttribute("aria-current") !== "true") {
     fireEvent.click(getByLabelText("Files"));
   }
@@ -1921,7 +2156,10 @@ function ensureInspectorClosed(
 
 describe("App: UX-01 Activity Rail (Medium+ layout)", () => {
   it("shows the Activity Rail and hides its now-duplicated toolbar buttons at Wide width", () => {
-    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1200 });
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 1200,
+    });
     workspacePath.value = "/vault";
     const { container, getByLabelText, queryByLabelText } = render(<App />);
 
@@ -1941,7 +2179,10 @@ describe("App: UX-01 Activity Rail (Medium+ layout)", () => {
   });
 
   it("keeps the pre-existing toolbar (no rail) below the Medium threshold, e.g. at Compact width", () => {
-    Object.defineProperty(window, "innerWidth", { configurable: true, value: 600 });
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 600,
+    });
     workspacePath.value = "/vault";
     const { container, getByLabelText, queryByLabelText } = render(<App />);
 
@@ -1953,7 +2194,10 @@ describe("App: UX-01 Activity Rail (Medium+ layout)", () => {
   });
 
   it("shows the Activity Rail at Medium width too, per spec 13.2's '720px and above'", () => {
-    Object.defineProperty(window, "innerWidth", { configurable: true, value: 900 });
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 900,
+    });
     workspacePath.value = "/vault";
     const { container, queryByLabelText } = render(<App />);
 
@@ -1962,24 +2206,36 @@ describe("App: UX-01 Activity Rail (Medium+ layout)", () => {
   });
 
   it("crossing the Medium boundary on resize swaps between the two without losing the open note", () => {
-    Object.defineProperty(window, "innerWidth", { configurable: true, value: 600 });
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 600,
+    });
     workspacePath.value = "/vault";
     openOrFocusTab("/vault/a.md", "a.md", "hello", "text");
     const { container } = render(<App />);
 
-    Object.defineProperty(window, "innerWidth", { configurable: true, value: 900 });
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 900,
+    });
     fireEvent(window, new Event("resize"));
     expect(container.querySelector(".activity-rail")).toBeTruthy();
     expect(openTabs.value.map((t) => t.path)).toEqual(["/vault/a.md"]);
 
-    Object.defineProperty(window, "innerWidth", { configurable: true, value: 600 });
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 600,
+    });
     fireEvent(window, new Event("resize"));
     expect(container.querySelector(".activity-rail")).toBeNull();
     expect(openTabs.value.map((t) => t.path)).toEqual(["/vault/a.md"]);
   });
 
   it("selecting Bookmarks from the rail swaps the Navigation Panel content and marks Bookmarks active", () => {
-    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1200 });
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 1200,
+    });
     workspacePath.value = "/vault";
     const { getByLabelText, getByText } = render(<App />);
     ensureFilesActive(getByLabelText);
@@ -1991,12 +2247,17 @@ describe("App: UX-01 Activity Rail (Medium+ layout)", () => {
     // is still an unambiguous signal that BookmarksPanel, not the file
     // tree, is what the Navigation Panel is now showing.
     expect(getByText("No bookmarks yet.")).toBeTruthy();
-    expect(getByLabelText("Bookmarks").getAttribute("aria-current")).toBe("true");
+    expect(getByLabelText("Bookmarks").getAttribute("aria-current")).toBe(
+      "true",
+    );
     expect(getByLabelText("Files").getAttribute("aria-current")).toBeNull();
   });
 
   it("re-selecting the already-active Files destination closes the Navigation Panel", () => {
-    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1200 });
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 1200,
+    });
     workspacePath.value = "/vault";
     const { container, getByLabelText } = render(<App />);
     ensureFilesActive(getByLabelText);
@@ -2010,9 +2271,14 @@ describe("App: UX-01 Activity Rail (Medium+ layout)", () => {
   });
 
   it("selecting Files after Bookmarks switches the panel back rather than closing it", () => {
-    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1200 });
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 1200,
+    });
     workspacePath.value = "/vault";
-    const { container, getByLabelText, getByText, queryByText } = render(<App />);
+    const { container, getByLabelText, getByText, queryByText } = render(
+      <App />,
+    );
     ensureFilesActive(getByLabelText);
 
     fireEvent.click(getByLabelText("Bookmarks"));
@@ -2028,7 +2294,10 @@ describe("App: UX-01 Activity Rail (Medium+ layout)", () => {
 
 describe("App: UX-01 Medium width Navigation Panel overlay (spec 12.1/12.4)", () => {
   it("renders the Navigation Panel as an overlay with a backdrop at Medium width", () => {
-    Object.defineProperty(window, "innerWidth", { configurable: true, value: 900 });
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 900,
+    });
     workspacePath.value = "/vault";
     const { container, getByLabelText } = render(<App />);
     ensureFilesActive(getByLabelText);
@@ -2038,7 +2307,10 @@ describe("App: UX-01 Medium width Navigation Panel overlay (spec 12.1/12.4)", ()
   });
 
   it("stays docked, with no overlay backdrop, at Wide width", () => {
-    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1200 });
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 1200,
+    });
     workspacePath.value = "/vault";
     const { container, getByLabelText } = render(<App />);
     ensureFilesActive(getByLabelText);
@@ -2049,7 +2321,10 @@ describe("App: UX-01 Medium width Navigation Panel overlay (spec 12.1/12.4)", ()
   });
 
   it("clicking the backdrop closes the overlay Navigation Panel", () => {
-    Object.defineProperty(window, "innerWidth", { configurable: true, value: 900 });
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 900,
+    });
     workspacePath.value = "/vault";
     const { container, getByLabelText } = render(<App />);
     ensureFilesActive(getByLabelText);
@@ -2061,7 +2336,10 @@ describe("App: UX-01 Medium width Navigation Panel overlay (spec 12.1/12.4)", ()
   });
 
   it("pressing Escape closes the overlay Navigation Panel", () => {
-    Object.defineProperty(window, "innerWidth", { configurable: true, value: 900 });
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 900,
+    });
     workspacePath.value = "/vault";
     const { container, getByLabelText } = render(<App />);
     ensureFilesActive(getByLabelText);
@@ -2073,7 +2351,10 @@ describe("App: UX-01 Medium width Navigation Panel overlay (spec 12.1/12.4)", ()
   });
 
   it("does not react to Escape when the Navigation Panel is already closed", () => {
-    Object.defineProperty(window, "innerWidth", { configurable: true, value: 900 });
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 900,
+    });
     workspacePath.value = "/vault";
     const { container } = render(<App />);
     expect(container.querySelector(".sidebar")).toBeNull();
@@ -2086,22 +2367,32 @@ describe("App: UX-01 Medium width Navigation Panel overlay (spec 12.1/12.4)", ()
 
 describe("App: UX-01 Document Header (Medium+ layout)", () => {
   it("shows the Document Header for an open note at Wide width, with the toolbar's own view-mode/bookmark buttons hidden", () => {
-    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1200 });
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 1200,
+    });
     workspacePath.value = "/vault";
     openOrFocusTab("/vault/a.md", "a.md", "hello", "text");
     const { container } = render(<App />);
 
     expect(container.querySelector(".document-header")).toBeTruthy();
-    expect(container.querySelector(".document-header-title")?.textContent).toBe("a.md");
+    expect(container.querySelector(".document-header-title")?.textContent).toBe(
+      "a.md",
+    );
     // Exactly one Source/Split/Preview switch should exist (inside the
     // header, now DocumentHeader's SegmentedControl), not a second copy
     // left behind in the toolbar (still the old .view-mode-switch markup).
     expect(container.querySelectorAll(".view-mode-switch").length).toBe(0);
-    expect(container.querySelector(".document-header .segmented")).toBeTruthy();
+    expect(
+      container.querySelector(".document-header .ds-segmented"),
+    ).toBeTruthy();
   });
 
   it("has no Document Header at Compact width; the toolbar keeps its own view-mode switch instead", () => {
-    Object.defineProperty(window, "innerWidth", { configurable: true, value: 600 });
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 600,
+    });
     workspacePath.value = "/vault";
     openOrFocusTab("/vault/a.md", "a.md", "hello", "text");
     const { container } = render(<App />);
@@ -2112,7 +2403,10 @@ describe("App: UX-01 Document Header (Medium+ layout)", () => {
   });
 
   it("shows the Document Header at Medium width too, per spec 13.2's '720px and above'", () => {
-    Object.defineProperty(window, "innerWidth", { configurable: true, value: 900 });
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 900,
+    });
     workspacePath.value = "/vault";
     openOrFocusTab("/vault/a.md", "a.md", "hello", "text");
     const { container } = render(<App />);
@@ -2121,20 +2415,26 @@ describe("App: UX-01 Document Header (Medium+ layout)", () => {
   });
 
   it("switching view mode from the Document Header updates the rendered pane", () => {
-    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1200 });
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 1200,
+    });
     workspacePath.value = "/vault";
     openOrFocusTab("/vault/a.md", "a.md", "hello", "text");
-    const { container, getByLabelText } = render(<App />);
+    const { container, getByRole } = render(<App />);
 
     expect(viewMode.value).toBe("source");
-    fireEvent.click(getByLabelText("Preview"));
+    fireEvent.click(getByRole("radio", { name: "Preview" }));
 
     expect(viewMode.value).toBe("preview");
     expect(container.querySelector(".markdown-preview")).toBeTruthy();
   });
 
   it("does not show the Document Header when no note is open, even at Wide width", () => {
-    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1200 });
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 1200,
+    });
     workspacePath.value = "/vault";
     const { container } = render(<App />);
 
@@ -2142,18 +2442,24 @@ describe("App: UX-01 Document Header (Medium+ layout)", () => {
   });
 
   it("shows the full path as the title's tooltip", () => {
-    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1200 });
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 1200,
+    });
     workspacePath.value = "/vault";
     openOrFocusTab("/vault/notes/a.md", "a.md", "hello", "text");
     const { container } = render(<App />);
 
-    expect(container.querySelector(".document-header-path")?.getAttribute("title")).toBe(
-      "/vault/notes/a.md",
-    );
+    expect(
+      container.querySelector(".document-header-path")?.getAttribute("title"),
+    ).toBe("/vault/notes/a.md");
   });
 
   it("surfaces a save error through the Document Header's own save-state area instead of the classic save-error-bar", () => {
-    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1200 });
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 1200,
+    });
     workspacePath.value = "/vault";
     openOrFocusTab("/vault/a.md", "a.md", "hello", "text");
     openDocuments.value = openDocuments.value.map((d) =>
@@ -2161,15 +2467,18 @@ describe("App: UX-01 Document Header (Medium+ layout)", () => {
     );
     const { container, getByText } = render(<App />);
 
-    expect(container.querySelector(".document-header-savestate")?.textContent).toContain(
-      "Save failed",
-    );
+    expect(
+      container.querySelector(".document-header-savestate")?.textContent,
+    ).toContain("Save failed");
     expect(container.querySelector(".save-error-bar")).toBeNull();
     expect(getByText("Save failed")).toBeTruthy();
   });
 
   it("keeps the classic save-error-bar at Compact width, where there is no Document Header", () => {
-    Object.defineProperty(window, "innerWidth", { configurable: true, value: 600 });
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 600,
+    });
     workspacePath.value = "/vault";
     openOrFocusTab("/vault/a.md", "a.md", "hello", "text");
     openDocuments.value = openDocuments.value.map((d) =>
@@ -2181,7 +2490,10 @@ describe("App: UX-01 Document Header (Medium+ layout)", () => {
   });
 
   it("shows a dirty indicator in the Document Header for unsaved changes", () => {
-    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1200 });
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 1200,
+    });
     workspacePath.value = "/vault";
     openOrFocusTab("/vault/a.md", "a.md", "hello", "text");
     openDocuments.value = openDocuments.value.map((d) =>
@@ -2194,7 +2506,10 @@ describe("App: UX-01 Document Header (Medium+ layout)", () => {
 
   describe("overflow menu (spec 13.5: 'lower-frequency current-note actions and Help entries')", () => {
     it("opens Rename with the current note's name pre-filled", () => {
-      Object.defineProperty(window, "innerWidth", { configurable: true, value: 1200 });
+      Object.defineProperty(window, "innerWidth", {
+        configurable: true,
+        value: 1200,
+      });
       workspacePath.value = "/vault";
       openOrFocusTab("/vault/notes/a.md", "a.md", "hello", "text");
       const { getByLabelText, getByText, container } = render(<App />);
@@ -2205,11 +2520,16 @@ describe("App: UX-01 Document Header (Medium+ layout)", () => {
       const dialog = container.querySelector(".name-prompt");
       expect(dialog).toBeTruthy();
       expect(dialog?.querySelector("h2")?.textContent).toBe("Rename");
-      expect((dialog?.querySelector("input") as HTMLInputElement | null)?.value).toBe("a.md");
+      expect(
+        (dialog?.querySelector("input") as HTMLInputElement | null)?.value,
+      ).toBe("a.md");
     });
 
     it("copies the note's path relative to the workspace root, not the absolute path", async () => {
-      Object.defineProperty(window, "innerWidth", { configurable: true, value: 1200 });
+      Object.defineProperty(window, "innerWidth", {
+        configurable: true,
+        value: 1200,
+      });
       const writeText = vi.fn(async () => {});
       Object.assign(navigator, { clipboard: { writeText } });
       workspacePath.value = "/vault";
@@ -2223,7 +2543,10 @@ describe("App: UX-01 Document Header (Medium+ layout)", () => {
     });
 
     it("opens Markdown Help", () => {
-      Object.defineProperty(window, "innerWidth", { configurable: true, value: 1200 });
+      Object.defineProperty(window, "innerWidth", {
+        configurable: true,
+        value: 1200,
+      });
       workspacePath.value = "/vault";
       openOrFocusTab("/vault/a.md", "a.md", "hello", "text");
       const { getByLabelText, getByText, container } = render(<App />);
@@ -2236,29 +2559,45 @@ describe("App: UX-01 Document Header (Medium+ layout)", () => {
       // markdownHelpOpen is a module-level signal App.tsx never exports, so
       // there is no afterEach hook that can reset it for us: leaving this
       // dialog open here would leak into every later test in this file
-      // (its own ".modal" node would then coexist with any dialog a later
-      // test opens, breaking a plain ".modal" query/waitFor there).
+      // (its own ".ds-dialog" node would then coexist with any dialog a later
+      // test opens, breaking a plain ".ds-dialog" query/waitFor there).
       fireEvent.click(container.querySelector(".modal-close")!);
     });
 
     it("deletes the note and closes its tab without a confirmation prompt when trashing (the default deleteBehavior)", async () => {
-      Object.defineProperty(window, "innerWidth", { configurable: true, value: 1200 });
+      Object.defineProperty(window, "innerWidth", {
+        configurable: true,
+        value: 1200,
+      });
       workspacePath.value = "/vault";
-      workspaceSettings.value = { ...DEFAULT_WORKSPACE_SETTINGS, deleteBehavior: "project-trash" };
+      workspaceSettings.value = {
+        ...DEFAULT_WORKSPACE_SETTINGS,
+        deleteBehavior: "project-trash",
+      };
       openOrFocusTab("/vault/a.md", "a.md", "hello", "text");
       const { getByLabelText, getByText, container } = render(<App />);
 
       fireEvent.click(getByLabelText("More note actions"));
       fireEvent.click(getByText("Delete"));
 
-      await waitFor(() => expect(deleteEntry).toHaveBeenCalledWith("/vault", "/vault/a.md"));
-      await waitFor(() => expect(container.querySelector(".document-header")).toBeNull());
+      await waitFor(() =>
+        expect(deleteEntry).toHaveBeenCalledWith("/vault", "/vault/a.md"),
+      );
+      await waitFor(() =>
+        expect(container.querySelector(".document-header")).toBeNull(),
+      );
     });
 
     it("asks for confirmation before a permanent delete, and does not delete on Cancel", async () => {
-      Object.defineProperty(window, "innerWidth", { configurable: true, value: 1200 });
+      Object.defineProperty(window, "innerWidth", {
+        configurable: true,
+        value: 1200,
+      });
       workspacePath.value = "/vault";
-      workspaceSettings.value = { ...DEFAULT_WORKSPACE_SETTINGS, deleteBehavior: "permanent" };
+      workspaceSettings.value = {
+        ...DEFAULT_WORKSPACE_SETTINGS,
+        deleteBehavior: "permanent",
+      };
       openOrFocusTab("/vault/a.md", "a.md", "hello", "text");
       deleteEntry.mockClear();
       const { getByLabelText, getByText, container } = render(<App />);
@@ -2266,18 +2605,28 @@ describe("App: UX-01 Document Header (Medium+ layout)", () => {
       fireEvent.click(getByLabelText("More note actions"));
       fireEvent.click(getByText("Delete"));
 
-      await waitFor(() => expect(container.querySelector(".modal")).toBeTruthy());
+      await waitFor(() =>
+        expect(container.querySelector(".ds-dialog")).toBeTruthy(),
+      );
       fireEvent.click(getByText("Cancel"));
-      await waitFor(() => expect(container.querySelector(".modal")).toBeNull());
+      await waitFor(() =>
+        expect(container.querySelector(".ds-dialog")).toBeNull(),
+      );
 
       expect(deleteEntry).not.toHaveBeenCalled();
       expect(container.querySelector(".document-header")).toBeTruthy();
     });
 
     it("surfaces a delete failure instead of leaving it silent", async () => {
-      Object.defineProperty(window, "innerWidth", { configurable: true, value: 1200 });
+      Object.defineProperty(window, "innerWidth", {
+        configurable: true,
+        value: 1200,
+      });
       workspacePath.value = "/vault";
-      workspaceSettings.value = { ...DEFAULT_WORKSPACE_SETTINGS, deleteBehavior: "project-trash" };
+      workspaceSettings.value = {
+        ...DEFAULT_WORKSPACE_SETTINGS,
+        deleteBehavior: "project-trash",
+      };
       openOrFocusTab("/vault/a.md", "a.md", "hello", "text");
       deleteEntry.mockRejectedValueOnce(new Error("disk full"));
       const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => {});
@@ -2286,7 +2635,11 @@ describe("App: UX-01 Document Header (Medium+ layout)", () => {
       fireEvent.click(getByLabelText("More note actions"));
       fireEvent.click(getByText("Delete"));
 
-      await waitFor(() => expect(alertSpy).toHaveBeenCalledWith(expect.stringContaining("disk full")));
+      await waitFor(() =>
+        expect(alertSpy).toHaveBeenCalledWith(
+          expect.stringContaining("disk full"),
+        ),
+      );
       // The tab must still be open: a failed delete must not silently
       // close the note out from under the user.
       expect(container.querySelector(".document-header")).toBeTruthy();
@@ -2297,10 +2650,21 @@ describe("App: UX-01 Document Header (Medium+ layout)", () => {
 
 describe("App: UX-01 Inspector (Medium+ layout, spec 13.7)", () => {
   it("moves Properties/Backlinks out of their old always-visible spots at Medium+", () => {
-    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1200 });
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 1200,
+    });
     workspacePath.value = "/vault";
-    workspaceSettings.value = { ...DEFAULT_WORKSPACE_SETTINGS, frontmatterPropertiesEnabled: true };
-    openOrFocusTab("/vault/a.md", "a.md", "---\ntitle: Hello\n---\nBody", "text");
+    workspaceSettings.value = {
+      ...DEFAULT_WORKSPACE_SETTINGS,
+      frontmatterPropertiesEnabled: true,
+    };
+    openOrFocusTab(
+      "/vault/a.md",
+      "a.md",
+      "---\ntitle: Hello\n---\nBody",
+      "text",
+    );
     const { container, getByLabelText } = render(<App />);
     ensureInspectorClosed(container, getByLabelText);
 
@@ -2312,10 +2676,21 @@ describe("App: UX-01 Inspector (Medium+ layout, spec 13.7)", () => {
   });
 
   it("keeps the pre-Inspector inline Properties and sidebar Backlinks at Compact width", () => {
-    Object.defineProperty(window, "innerWidth", { configurable: true, value: 600 });
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 600,
+    });
     workspacePath.value = "/vault";
-    workspaceSettings.value = { ...DEFAULT_WORKSPACE_SETTINGS, frontmatterPropertiesEnabled: true };
-    openOrFocusTab("/vault/a.md", "a.md", "---\ntitle: Hello\n---\nBody", "text");
+    workspaceSettings.value = {
+      ...DEFAULT_WORKSPACE_SETTINGS,
+      frontmatterPropertiesEnabled: true,
+    };
+    openOrFocusTab(
+      "/vault/a.md",
+      "a.md",
+      "---\ntitle: Hello\n---\nBody",
+      "text",
+    );
     const { container, getByLabelText } = render(<App />);
     // sidebarOpen (BacklinksPanel's own ancestor) is another not-reset
     // module-level signal; a Medium-width test earlier in this file may
@@ -2334,22 +2709,40 @@ describe("App: UX-01 Inspector (Medium+ layout, spec 13.7)", () => {
   });
 
   it("opens the Inspector via the Document Header trigger, defaulting to Properties", () => {
-    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1200 });
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 1200,
+    });
     workspacePath.value = "/vault";
-    workspaceSettings.value = { ...DEFAULT_WORKSPACE_SETTINGS, frontmatterPropertiesEnabled: true };
-    openOrFocusTab("/vault/a.md", "a.md", "---\ntitle: Hello\n---\nBody", "text");
+    workspaceSettings.value = {
+      ...DEFAULT_WORKSPACE_SETTINGS,
+      frontmatterPropertiesEnabled: true,
+    };
+    openOrFocusTab(
+      "/vault/a.md",
+      "a.md",
+      "---\ntitle: Hello\n---\nBody",
+      "text",
+    );
     const { container, getByLabelText, getByRole } = render(<App />);
     ensureInspectorClosed(container, getByLabelText);
 
     fireEvent.click(getByLabelText("Inspector"));
 
     expect(container.querySelector(".inspector")).toBeTruthy();
-    expect(getByRole("tab", { name: "Properties" }).getAttribute("aria-selected")).toBe("true");
-    expect(getByLabelText("Inspector").getAttribute("aria-pressed")).toBe("true");
+    expect(
+      getByRole("tab", { name: "Properties" }).getAttribute("aria-selected"),
+    ).toBe("true");
+    expect(getByLabelText("Inspector").getAttribute("aria-pressed")).toBe(
+      "true",
+    );
   });
 
   it("switches to the Backlinks tab and shows real backlink data", () => {
-    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1200 });
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 1200,
+    });
     workspacePath.value = "/vault";
     linkIndex.value = {
       ...emptyLinkIndex(),
@@ -2366,7 +2759,10 @@ describe("App: UX-01 Inspector (Medium+ layout, spec 13.7)", () => {
   });
 
   it("closes via its own close button", () => {
-    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1200 });
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 1200,
+    });
     workspacePath.value = "/vault";
     openOrFocusTab("/vault/a.md", "a.md", "hello", "text");
     const { container, getByLabelText } = render(<App />);
@@ -2380,7 +2776,10 @@ describe("App: UX-01 Inspector (Medium+ layout, spec 13.7)", () => {
   });
 
   it("closes on Escape", () => {
-    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1200 });
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 1200,
+    });
     workspacePath.value = "/vault";
     openOrFocusTab("/vault/a.md", "a.md", "hello", "text");
     const { container, getByLabelText } = render(<App />);
@@ -2394,7 +2793,10 @@ describe("App: UX-01 Inspector (Medium+ layout, spec 13.7)", () => {
   });
 
   it("closes when clicking its own backdrop", () => {
-    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1200 });
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 1200,
+    });
     workspacePath.value = "/vault";
     openOrFocusTab("/vault/a.md", "a.md", "hello", "text");
     const { container, getByLabelText } = render(<App />);
@@ -2407,21 +2809,34 @@ describe("App: UX-01 Inspector (Medium+ layout, spec 13.7)", () => {
   });
 
   it("hides the Properties tab and defaults to Backlinks when frontmatterPropertiesEnabled is off", () => {
-    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1200 });
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 1200,
+    });
     workspacePath.value = "/vault";
-    workspaceSettings.value = { ...DEFAULT_WORKSPACE_SETTINGS, frontmatterPropertiesEnabled: false };
+    workspaceSettings.value = {
+      ...DEFAULT_WORKSPACE_SETTINGS,
+      frontmatterPropertiesEnabled: false,
+    };
     openOrFocusTab("/vault/a.md", "a.md", "hello", "text");
-    const { container, getByLabelText, getByRole, queryByRole } = render(<App />);
+    const { container, getByLabelText, getByRole, queryByRole } = render(
+      <App />,
+    );
     ensureInspectorClosed(container, getByLabelText);
 
     fireEvent.click(getByLabelText("Inspector"));
 
     expect(queryByRole("tab", { name: "Properties" })).toBeNull();
-    expect(getByRole("tab", { name: "Backlinks" }).getAttribute("aria-selected")).toBe("true");
+    expect(
+      getByRole("tab", { name: "Backlinks" }).getAttribute("aria-selected"),
+    ).toBe("true");
   });
 
   it("at Wide width, opening the Inspector leaves an open Navigation Panel untouched", () => {
-    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1200 });
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 1200,
+    });
     workspacePath.value = "/vault";
     openOrFocusTab("/vault/a.md", "a.md", "hello", "text");
     const { container, getByLabelText } = render(<App />);
@@ -2436,7 +2851,10 @@ describe("App: UX-01 Inspector (Medium+ layout, spec 13.7)", () => {
   });
 
   it("at Medium width, opening the Inspector and the Navigation Panel are mutually exclusive (spec 12.4)", () => {
-    Object.defineProperty(window, "innerWidth", { configurable: true, value: 900 });
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 900,
+    });
     workspacePath.value = "/vault";
     openOrFocusTab("/vault/a.md", "a.md", "hello", "text");
     const { container, getByLabelText } = render(<App />);

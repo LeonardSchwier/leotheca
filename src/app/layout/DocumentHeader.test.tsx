@@ -31,44 +31,56 @@ describe("DocumentHeader", () => {
   });
 
   it("marks exactly the current view mode active", () => {
-    const { getByLabelText } = render(<DocumentHeader {...BASE_PROPS} viewMode="split" />);
-    expect(getByLabelText("Split").className).toContain("active");
-    expect(getByLabelText("Source").className).not.toContain("active");
-    expect(getByLabelText("Preview").className).not.toContain("active");
+    const { getByRole } = render(
+      <DocumentHeader {...BASE_PROPS} viewMode="split" />,
+    );
+    const checked = (name: string) =>
+      getByRole("radio", { name }).getAttribute("aria-checked");
+    expect(checked("Split")).toBe("true");
+    expect(checked("Source")).toBe("false");
+    expect(checked("Preview")).toBe("false");
   });
 
   it("invokes onSetViewMode with the clicked mode", () => {
     const onSetViewMode = vi.fn();
-    const { getByLabelText } = render(<DocumentHeader {...BASE_PROPS} onSetViewMode={onSetViewMode} />);
-    fireEvent.click(getByLabelText("Preview"));
+    const { getByRole } = render(
+      <DocumentHeader {...BASE_PROPS} onSetViewMode={onSetViewMode} />,
+    );
+    fireEvent.click(getByRole("radio", { name: "Preview" }));
     expect(onSetViewMode).toHaveBeenCalledWith("preview");
   });
 
   it("renders visible text labels for every view mode (spec 13.5: text labels at Wide and Expanded)", () => {
     const { container, getByRole } = render(<DocumentHeader {...BASE_PROPS} />);
-    const group = container.querySelector(".document-header .segmented");
+    const group = container.querySelector(".document-header .ds-segmented");
     expect(group).toBeTruthy();
     // Each option shows its text label next to (or instead of) its icon.
     // These are the only three options, so a simple text scan over the
     // group's buttons is the honest way to confirm the labels are present.
     const optionTexts = Array.from(
-      group!.querySelectorAll(".segmented-option"),
+      group!.querySelectorAll(".ds-segmented-option"),
     ).map((el) => el.textContent?.trim() ?? "");
     expect(optionTexts).toEqual(["Source", "Split", "Preview"]);
     // The group is still the section 20 primitive (radiogroup), and each
     // option still carries its icon (icon+label, not icon-only).
-    expect(getByRole("radiogroup").getAttribute("aria-label")).toBe("View mode");
-    expect(group!.querySelectorAll(".segmented-option svg").length).toBe(3);
+    expect(getByRole("radiogroup").getAttribute("aria-label")).toBe(
+      "View mode",
+    );
+    expect(group!.querySelectorAll(".ds-segmented-option svg").length).toBe(3);
   });
 
   it("shows the outline bookmark icon and 'Bookmark this note' label when not bookmarked", () => {
-    const { getByLabelText } = render(<DocumentHeader {...BASE_PROPS} bookmarked={false} />);
+    const { getByLabelText } = render(
+      <DocumentHeader {...BASE_PROPS} bookmarked={false} />,
+    );
     const button = getByLabelText("Bookmark this note");
     expect(button.className).not.toContain("active");
   });
 
   it("shows 'Remove bookmark' and the active state when bookmarked", () => {
-    const { getByLabelText } = render(<DocumentHeader {...BASE_PROPS} bookmarked={true} />);
+    const { getByLabelText } = render(
+      <DocumentHeader {...BASE_PROPS} bookmarked={true} />,
+    );
     const button = getByLabelText("Remove bookmark");
     expect(button.className).toContain("active");
   });
@@ -94,21 +106,28 @@ describe("DocumentHeader", () => {
 
   it("omits the breadcrumb for a note at the workspace root", () => {
     const { queryByLabelText } = render(
-      <DocumentHeader {...BASE_PROPS} workspaceRelativePath="Meeting notes.md" />,
+      <DocumentHeader
+        {...BASE_PROPS}
+        workspaceRelativePath="Meeting notes.md"
+      />,
     );
     expect(queryByLabelText("Path: Meeting notes.md")).toBeNull();
   });
 
   describe("Inspector trigger (spec 13.5)", () => {
     it("is not marked active when the Inspector is closed", () => {
-      const { getByLabelText } = render(<DocumentHeader {...BASE_PROPS} inspectorOpen={false} />);
+      const { getByLabelText } = render(
+        <DocumentHeader {...BASE_PROPS} inspectorOpen={false} />,
+      );
       const button = getByLabelText("Inspector");
       expect(button.className).not.toContain("active");
       expect(button.getAttribute("aria-pressed")).toBe("false");
     });
 
     it("is marked active when the Inspector is open", () => {
-      const { getByLabelText } = render(<DocumentHeader {...BASE_PROPS} inspectorOpen={true} />);
+      const { getByLabelText } = render(
+        <DocumentHeader {...BASE_PROPS} inspectorOpen={true} />,
+      );
       const button = getByLabelText("Inspector");
       expect(button.className).toContain("active");
       expect(button.getAttribute("aria-pressed")).toBe("true");
@@ -117,7 +136,10 @@ describe("DocumentHeader", () => {
     it("invokes onToggleInspector when clicked", () => {
       const onToggleInspector = vi.fn();
       const { getByLabelText } = render(
-        <DocumentHeader {...BASE_PROPS} onToggleInspector={onToggleInspector} />,
+        <DocumentHeader
+          {...BASE_PROPS}
+          onToggleInspector={onToggleInspector}
+        />,
       );
       fireEvent.click(getByLabelText("Inspector"));
       expect(onToggleInspector).toHaveBeenCalledTimes(1);
@@ -134,7 +156,9 @@ describe("DocumentHeader", () => {
     });
 
     it("shows a dirty indicator with an accessible 'Unsaved changes' label when dirty", () => {
-      const { getByLabelText } = render(<DocumentHeader {...BASE_PROPS} dirty={true} />);
+      const { getByLabelText } = render(
+        <DocumentHeader {...BASE_PROPS} dirty={true} />,
+      );
       expect(getByLabelText("Unsaved changes")).toBeTruthy();
     });
 
@@ -150,7 +174,12 @@ describe("DocumentHeader", () => {
     it("shows Save failed with a working Retry button when saveError is set, even while dirty", () => {
       const onRetrySave = vi.fn();
       const { getByText, getByRole } = render(
-        <DocumentHeader {...BASE_PROPS} dirty={true} saveError="disk full" onRetrySave={onRetrySave} />,
+        <DocumentHeader
+          {...BASE_PROPS}
+          dirty={true}
+          saveError="disk full"
+          onRetrySave={onRetrySave}
+        />,
       );
       expect(getByText("Save failed")).toBeTruthy();
       expect(getByRole("alert")).toBeTruthy();
@@ -164,8 +193,8 @@ describe("DocumentHeader", () => {
       );
       const retry = getByRole("button", { name: "Retry" });
       expect(retry.className).toContain("btn");
-      expect(retry.className).toContain("btn-ghost");
-      expect(retry.className).toContain("btn-sm");
+      expect(retry.className).toContain("ds-btn-ghost");
+      expect(retry.className).toContain("ds-btn-sm");
       expect(retry.className).toContain("document-header-savestate-retry");
     });
 
@@ -187,8 +216,12 @@ describe("DocumentHeader", () => {
     });
 
     it("does not show a Saved pulse when a save failed instead of completing", () => {
-      const { rerender, queryByText } = render(<DocumentHeader {...BASE_PROPS} saving={true} />);
-      rerender(<DocumentHeader {...BASE_PROPS} saving={false} saveError="disk full" />);
+      const { rerender, queryByText } = render(
+        <DocumentHeader {...BASE_PROPS} saving={true} />,
+      );
+      rerender(
+        <DocumentHeader {...BASE_PROPS} saving={false} saveError="disk full" />,
+      );
       expect(queryByText("Saved")).toBeNull();
     });
   });
@@ -200,7 +233,9 @@ describe("DocumentHeader", () => {
     });
 
     it("opens on click and reflects the state via aria-expanded", () => {
-      const { getByLabelText, getByRole } = render(<DocumentHeader {...BASE_PROPS} />);
+      const { getByLabelText, getByRole } = render(
+        <DocumentHeader {...BASE_PROPS} />,
+      );
       const trigger = getByLabelText("More note actions");
       expect(trigger.getAttribute("aria-expanded")).toBe("false");
 
@@ -211,7 +246,9 @@ describe("DocumentHeader", () => {
     });
 
     it("toggles closed when the trigger is clicked again", () => {
-      const { getByLabelText, queryByRole } = render(<DocumentHeader {...BASE_PROPS} />);
+      const { getByLabelText, queryByRole } = render(
+        <DocumentHeader {...BASE_PROPS} />,
+      );
       const trigger = getByLabelText("More note actions");
       fireEvent.click(trigger);
       fireEvent.click(trigger);
@@ -219,7 +256,9 @@ describe("DocumentHeader", () => {
     });
 
     it("closes on an outside pointer interaction without requiring an action", () => {
-      const { getByLabelText, queryByRole } = render(<DocumentHeader {...BASE_PROPS} />);
+      const { getByLabelText, queryByRole } = render(
+        <DocumentHeader {...BASE_PROPS} />,
+      );
       fireEvent.click(getByLabelText("More note actions"));
       expect(queryByRole("menu")).toBeTruthy();
 
@@ -229,7 +268,9 @@ describe("DocumentHeader", () => {
     });
 
     it("closes on Escape", () => {
-      const { getByLabelText, queryByRole } = render(<DocumentHeader {...BASE_PROPS} />);
+      const { getByLabelText, queryByRole } = render(
+        <DocumentHeader {...BASE_PROPS} />,
+      );
       fireEvent.click(getByLabelText("More note actions"));
       expect(queryByRole("menu")).toBeTruthy();
 
@@ -253,7 +294,10 @@ describe("DocumentHeader", () => {
     it("invokes onCopyRelativePath and closes the menu", () => {
       const onCopyRelativePath = vi.fn();
       const { getByLabelText, getByText, queryByRole } = render(
-        <DocumentHeader {...BASE_PROPS} onCopyRelativePath={onCopyRelativePath} />,
+        <DocumentHeader
+          {...BASE_PROPS}
+          onCopyRelativePath={onCopyRelativePath}
+        />,
       );
       fireEvent.click(getByLabelText("More note actions"));
       fireEvent.click(getByText("Copy Relative Path"));
@@ -270,7 +314,7 @@ describe("DocumentHeader", () => {
       fireEvent.click(getByLabelText("More note actions"));
       const deleteItem = getByText("Delete");
       expect(deleteItem.closest("button")?.className).toContain(
-        "menu-item-danger",
+        "ds-menu-item-danger",
       );
 
       fireEvent.click(deleteItem);

@@ -14,8 +14,9 @@ vi.mock("@capacitor/app", () => ({
 }));
 
 const { Sheet } = await import("./Sheet");
-const { Dialog } = await import("./Dialog");
-const { resetOverlayStackForTests } = await import("./overlayStack");
+const { Dialog, resetOverlayStackForTests } =
+  await import("@leonardschwier/leoforma");
+const { resetOverlayBackButtonForTests } = await import("./overlayBackButton");
 
 beforeEach(() => {
   addListener.mockReset();
@@ -26,6 +27,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   resetOverlayStackForTests();
+  resetOverlayBackButtonForTests();
   document.body.style.overflow = "";
 });
 

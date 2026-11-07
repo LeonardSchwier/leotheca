@@ -543,7 +543,7 @@ button.icon-button.active {
 
 /* The Retry control is now the section 20 `Button` primitive (variant
    ghost, size sm, see DocumentHeader.tsx) -- its base appearance comes
-   from src/ui/primitives.css. `.btn-sm` is 28px tall, which is a poor
+   from Leoforma. `.ds-btn-sm` is 28px tall, which is a poor
    inline fit inside the 12px-tall StatusIndicator label, so this
    call-site override keeps the button as a true inline text action
    (the `Button` contract -- size, token colors, hover, focus ring --
@@ -562,7 +562,7 @@ button.icon-button.active {
   flex-shrink: 0;
 }
 
-/* The view-mode switch is the section 20 `SegmentedControl` primitive
+/* The view-mode switch is the section 20 Leoforma `SegmentedControl`
    (see DocumentHeader.tsx). 13.5 requires visible text labels at Wide and
    Expanded widths -- the only widths this header renders at -- so the
    call site passes icon+label options; the primitive already renders
@@ -573,7 +573,7 @@ button.icon-button.active {
    option reads as one labeled control. Everything else -- border, radius,
    colors, hover, focus ring, active state -- stays the primitive's, per
    the section 20 contract. */
-.document-header-viewmode .segmented-option {
+.document-header-viewmode .ds-segmented-option {
   min-width: 0;
   column-gap: var(--space-1-5);
 }
@@ -1073,8 +1073,13 @@ button.icon-button.active {
 }
 
 @keyframes expand-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
 }
 
 .sidebar-search {
@@ -2247,13 +2252,22 @@ button.icon-button.active {
 }
 
 @keyframes speech-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.6; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
 }
 
 @keyframes speech-spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

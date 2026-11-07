@@ -1,40 +1,30 @@
-/* Bundled, not a system font: relying on a font simply being "probably
-   installed" (as the previous stack did) silently falls all the way back
-   to the platform's generic serif on any machine that doesn't have it,
-   which read as an unintended Times New Roman. Source Code Pro is
-   SIL OFL 1.1 licensed, see assets/fonts/SourceCodePro-LICENSE.md. */
-@font-face {
-  font-family: "Source Code Pro";
-  src: url("../../assets/fonts/SourceCodePro-Regular.otf") format("opentype");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
+/* Design tokens, fonts and shared primitives come from Leoforma
+   (@leonardschwier/leoforma, imported in main.tsx before this file): the
+   single source of colors, spacing, radii, shadows, motion and the bundled
+   Figtree, Literata and Source Code Pro faces. Leoforma also owns the light and
+   dark palettes (data-theme on the root, or the OS preference) and the
+   reduced-motion collapse of its motion tokens.
 
-@font-face {
-  font-family: "Source Code Pro";
-  src: url("../../assets/fonts/SourceCodePro-Semibold.otf") format("opentype");
-  font-weight: 600;
-  font-style: normal;
-  font-display: swap;
-}
-
+   This file keeps only what is specific to Leotheca: the app's historical
+   token names, mapped onto Leoforma's --ds-* tokens so the ~16 feature
+   stylesheets read them unchanged; the search and ==mark== highlight colors;
+   the per-workspace accent choices; the reading font and zoom variables that
+   settings/store.ts drives; and app-wide base rules. A missing token or
+   component is added in Leoforma and the pinned version bumped, never
+   defined here. */
 :root {
-  --font-ui: -apple-system, "Segoe UI", "Inter", "Noto Sans", sans-serif;
-  /* UX-01 spec section 9.5/19.4/READ-001: rendered-preview prose uses a
-     proportional local font by default, independent of the source editor
-     and code blocks (both always stay on --font-mono). All three reading
-     stacks below are local system fonts; none ever triggers a network
-     request. */
-  --font-reading-sans: -apple-system, "Segoe UI", "Inter", "Noto Sans", sans-serif;
-  --font-reading-serif: ui-serif, Georgia, Cambria, "Times New Roman", serif;
-  --font-mono: "Source Code Pro", ui-monospace, monospace;
+  --font-ui: var(--ds-font-sans);
+  /* Rendered-preview prose uses a proportional bundled font by default,
+     independent of the source editor and code blocks (both always stay on
+     --font-mono). */
+  --font-reading-sans: var(--ds-font-sans);
+  --font-reading-serif: var(--ds-font-serif);
+  --font-mono: var(--ds-font-mono);
   --font-reading-mono: var(--font-mono);
   /* .markdown-preview (App.css) reads this variable; settings/store.ts
-     keeps it in sync with the open workspace's readingFont setting (an
-     effect, same pattern as --content-font-size/--ui-zoom below). This
-     default only applies before that effect has run (no workspace open
-     yet), and matches readingFont's own "sans" default. */
+     keeps it in sync with the open workspace's readingFont setting. This
+     default only applies before that effect has run, and matches
+     readingFont's own "sans" default. */
   --font-reading: var(--font-reading-sans);
 
   /* Default before any workspace is open or its settings have loaded;
@@ -42,97 +32,65 @@
      see the effect in settings/store.ts. */
   --content-font-size: 15px;
   /* Same idea, default before a workspace's uiZoom setting loads. A plain
-     multiplier, not a px/percent value: consumed by the CSS `zoom`
-     property on .app-shell (see App.css). */
+     multiplier consumed by the CSS `zoom` property on .app-shell. */
   --ui-zoom: 1;
 
-  /* UX-01 spec section 19.5 reference spacing scale. --space-1/2/3/4/6
-     predate this and every existing consumer keeps working unchanged;
-     the rest fill in the scale's remaining steps for new code. */
-  --space-0-5: 2px;
-  --space-1: 4px;
-  --space-1-5: 6px;
-  --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 16px;
-  --space-5: 20px;
-  --space-6: 24px;
-  --space-8: 32px;
-  --space-10: 40px;
-  --space-12: 48px;
+  --space-0-5: var(--ds-space-0-5);
+  --space-1: var(--ds-space-1);
+  --space-1-5: var(--ds-space-1-5);
+  --space-2: var(--ds-space-2);
+  --space-3: var(--ds-space-3);
+  --space-4: var(--ds-space-4);
+  --space-5: var(--ds-space-5);
+  --space-6: var(--ds-space-6);
+  --space-8: var(--ds-space-8);
+  --space-10: var(--ds-space-10);
+  --space-12: var(--ds-space-12);
 
-  /* UX-01 spec section 19.6 reference corner-radius scale. --radius-sm
-     keeps its pre-existing 4px value; --radius-md moves from 8px to the
-     spec's 6px "standard control" step (a deliberate, purely-visual
-     tightening -- every existing `var(--radius-md)` consumer picks this
-     up automatically) so it no longer overlaps --radius-lg's new
-     10px "menus/popovers/compact panels" step. --radius-xl (14px,
-     dialogs/sheets) and --radius-full (true pills) are net new.
-     Per 19.6: large surfaces (editor, navigation panel, settings
-     content) intentionally stay unrounded, not part of this scale. */
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 10px;
-  --radius-xl: 14px;
-  --radius-full: 999px;
+  --radius-sm: var(--ds-radius-sm);
+  --radius-md: var(--ds-radius-md);
+  --radius-lg: var(--ds-radius-lg);
+  --radius-xl: var(--ds-radius-xl);
+  --radius-full: var(--ds-radius-full);
 
-  /* UX-01 spec section 19.3: floating surfaces (menus, dialogs) may use
-     one low-elevation shadow; docked panels and application canvas use
-     borders, not shadows, so no token exists for those. Values match
-     this app's own pre-existing .context-menu/.modal shadows exactly
-     (see App.css), just promoted to reusable tokens. */
-  --shadow-low: 0 8px 24px rgba(0, 0, 0, 0.2);
-  --shadow-high: 0 16px 48px rgba(0, 0, 0, 0.3);
+  --shadow-low: var(--ds-shadow-low);
+  --shadow-high: var(--ds-shadow-high);
 
-  /* UX-01 spec section 21.1 reference motion durations. The
-     prefers-reduced-motion block below collapses all four to near-instant
-     per section 21.2/22.6. */
-  --motion-fast: 100ms;
-  --motion-popover: 160ms;
-  --motion-sheet: 200ms;
-  --motion-saved: 1500ms;
+  --motion-fast: var(--ds-motion-fast);
+  --motion-popover: var(--ds-motion-popover);
+  --motion-sheet: var(--ds-motion-sheet);
+  --motion-saved: var(--ds-motion-saved);
 
-  /* UX-01 spec section 19.2: semantic "Quiet Library" theme tokens, light
-     theme initial values. Component aliases (--bg-raised, --text-primary,
-     etc.) follow below so the app's ~16 existing feature stylesheets pick
-     this palette up without a mechanical rename pass across every one of
-     them; new code should prefer these --color-* names directly. */
-  --color-canvas: #f6f5f2;
-  --color-panel: #fcfbf9;
-  --color-raised: #ffffff;
-  --color-muted-surface: #efeeea;
-  --color-hover: #e9e7e1;
-  --color-selected: #e8e0d3;
-  --color-text: #25231f;
-  --color-text-secondary: #68635b;
-  --color-text-muted: #756f66;
-  --color-border: #d8d4cb;
-  --color-border-strong: #beb8ad;
-  --color-accent: #725331;
-  --color-accent-hover: #5e4328;
-  --color-accent-soft: #ede3d5;
-  --color-on-accent: #ffffff;
-  --color-success: #2f6b4f;
-  --color-warning: #8b6116;
-  --color-danger: #a43d35;
-  --color-focus: #28647a;
+  --color-canvas: var(--ds-color-canvas);
+  --color-panel: var(--ds-color-panel);
+  --color-raised: var(--ds-color-raised);
+  --color-muted-surface: var(--ds-color-sunken);
+  --color-hover: var(--ds-color-hover);
+  --color-selected: var(--ds-color-selected);
+  --color-text: var(--ds-color-text);
+  --color-text-secondary: var(--ds-color-text-secondary);
+  --color-text-muted: var(--ds-color-text-muted);
+  --color-border: var(--ds-color-border);
+  --color-border-strong: var(--ds-color-border-strong);
+  --color-accent: var(--ds-color-accent);
+  --color-accent-hover: var(--ds-color-accent-hover);
+  --color-accent-soft: var(--ds-color-accent-soft);
+  --color-on-accent: var(--ds-color-on-accent);
+  --color-success: var(--ds-color-success);
+  --color-warning: var(--ds-color-warning);
+  --color-danger: var(--ds-color-danger);
+  --color-focus: var(--ds-color-focus);
+
   /* Search-match highlight: a warm yellow that is visible on both light
-     and dark surfaces without overwhelming the surrounding prose.
-     Distinct from --color-accent (the interactive accent) to avoid
-     conflating "selected/interactive" with "matched text". */
+     and dark surfaces. Distinct from --color-accent (the interactive
+     accent) so "selected/interactive" is not conflated with "matched". */
   --color-highlight: #f5d678;
   --color-highlight-text: #25231f;
 
-  /* ROADMAP.md rm-c2a2c2d840b60a2e: `==text==` -> <mark> color tokens.
-     --color-mark-default is the uncolored case (plain `==text==`, no
-     emoji prefix); the five named ones back the
-     emoji-color convention (see markdown/highlight.ts). Deliberately
-     separate from --color-highlight/--color-highlight-text above: those
-     back the unrelated search-match highlight (.search-highlight), a
-     different feature that happens to share the word "highlight" but
-     must stay independently themeable from user-authored ==marks==. Each
-     background is chosen to keep --color-mark-text (near-black, same
-     token for every color) comfortably readable on top of it. */
+  /* `==text==` -> <mark> colors (see markdown/highlight.ts).
+     --color-mark-default is the plain case; the five named ones back the
+     emoji-color convention. Independent of --color-highlight above, which
+     backs the unrelated search-match highlight. */
   --color-mark-default: #f5e08a;
   --color-mark-red: #f3a6a0;
   --color-mark-orange: #f5c08a;
@@ -141,9 +99,8 @@
   --color-mark-purple: #d0b3ea;
   --color-mark-text: #25231f;
 
-  /* Back-compat aliases: every existing component still reads these
-     names across ~16 feature stylesheets, so the whole app picks up the
-     palette above without a mechanical rename pass through all of them. */
+  /* Back-compat aliases: existing components read these names across ~16
+     feature stylesheets. */
   --bg-base: var(--color-canvas);
   --bg-raised: var(--color-raised);
   --bg-sunken: var(--color-muted-surface);
@@ -157,35 +114,12 @@
   --accent-strong: var(--color-accent-hover);
 }
 
+/* Dark values for the highlight and mark colors: one step darker or more
+   saturated so each stays distinguishable on the dark canvas while the dark
+   text stays readable on it. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --color-canvas: #171815;
-    --color-panel: #1e201c;
-    --color-raised: #262824;
-    --color-muted-surface: #2b2d28;
-    --color-hover: #31332e;
-    --color-selected: #3a342b;
-    --color-text: #f0eee7;
-    --color-text-secondary: #b8b4aa;
-    --color-text-muted: #918c82;
-    --color-border: #3b3d37;
-    --color-border-strong: #55574f;
-    --color-accent: #d1ad77;
-    --color-accent-hover: #e1c18d;
-    --color-accent-soft: #3a3125;
-    --color-on-accent: #1b1712;
-    --color-success: #78b994;
-    --color-warning: #d5a350;
-    --color-danger: #e07a70;
-    --color-focus: #70b6cf;
-    /* Highlight tokens: slightly brighter in dark mode for contrast against
-       the dark surface; text stays dark since the highlight bg is light. */
     --color-highlight: #e8c96a;
-    --color-highlight-text: #25231f;
-    /* ==text== mark tokens: same "stay light enough for dark text" idea as
-       --color-highlight above, one step darker/more saturated per color
-       than the light-mode values so each stays distinguishable against the
-       dark canvas without turning into an eye-straining neon block. */
     --color-mark-default: #d9b84f;
     --color-mark-red: #d9776f;
     --color-mark-orange: #d99a54;
@@ -197,27 +131,7 @@
 }
 
 :root[data-theme="dark"] {
-  --color-canvas: #171815;
-  --color-panel: #1e201c;
-  --color-raised: #262824;
-  --color-muted-surface: #2b2d28;
-  --color-hover: #31332e;
-  --color-selected: #3a342b;
-  --color-text: #f0eee7;
-  --color-text-secondary: #b8b4aa;
-  --color-text-muted: #918c82;
-  --color-border: #3b3d37;
-  --color-border-strong: #55574f;
-  --color-accent: #d1ad77;
-  --color-accent-hover: #e1c18d;
-  --color-accent-soft: #3a3125;
-  --color-on-accent: #1b1712;
-  --color-success: #78b994;
-  --color-warning: #d5a350;
-  --color-danger: #e07a70;
-  --color-focus: #70b6cf;
   --color-highlight: #e8c96a;
-  --color-highlight-text: #25231f;
   --color-mark-default: #d9b84f;
   --color-mark-red: #d9776f;
   --color-mark-orange: #d99a54;
@@ -296,20 +210,6 @@
   --color-accent-hover: #dbb4d5;
   --color-accent-soft: #362b34;
   --color-on-accent: #1d161c;
-}
-
-/* UX-01 spec section 21.2/22.6: reduced-motion disables non-essential
-   entrance/selection animation and shortens required transitions to
-   near-instant, expressed here as a blanket collapse of the motion
-   tokens above so any component that consumes them (present or future)
-   gets this for free without its own media query. */
-@media (prefers-reduced-motion: reduce) {
-  :root {
-    --motion-fast: 1ms;
-    --motion-popover: 1ms;
-    --motion-sheet: 1ms;
-    --motion-saved: 1ms;
-  }
 }
 
 * {

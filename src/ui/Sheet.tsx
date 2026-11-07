@@ -18,15 +18,17 @@
 import type { ComponentChildren, JSX } from "preact";
 import { useEffect, useLayoutEffect, useRef } from "preact/hooks";
 import "./primitives.css";
-import { IconButton } from "./IconButton";
 import {
+  IconButton,
   acquireScrollLock,
   focusableElements,
   isTopmostOverlay,
   nextOverlayId,
   pushOverlay,
   type OverlayDismissReason,
-} from "./overlayStack";
+} from "@leonardschwier/leoforma";
+import { Icon } from "./icons";
+import "./overlayBackButton";
 
 export type SheetDismissReason = OverlayDismissReason;
 
@@ -167,7 +169,7 @@ export function Sheet({
           <h2 id={titleId}>{title}</h2>
           {showCloseButton && (
             <IconButton
-              icon="close"
+              icon={<Icon name="close" size={20} />}
               label="Close"
               size="md"
               onClick={() => dismissRef.current("close-button")}

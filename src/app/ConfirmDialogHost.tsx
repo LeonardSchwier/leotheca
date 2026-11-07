@@ -1,5 +1,5 @@
-import { Button } from "../ui/Button";
-import { Dialog } from "../ui/Dialog";
+import { Button, Dialog } from "@leonardschwier/leoforma";
+import "../ui/overlayBackButton";
 import { confirmRequest } from "./confirmDialog";
 
 /** Renders the pending request from confirmDialog.ts, if any. Mounted once

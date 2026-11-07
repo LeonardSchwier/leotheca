@@ -1,7 +1,6 @@
 import "./markdownImport.css";
-import { Button } from "../ui/Button";
-import { Dialog } from "../ui/Dialog";
-import { Spinner } from "../ui/Spinner";
+import { Button, Dialog, Spinner } from "@leonardschwier/leoforma";
+import "../ui/overlayBackButton";
 import {
   FINDING_TEXT,
   formatBytes,

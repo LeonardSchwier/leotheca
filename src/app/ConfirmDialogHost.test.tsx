@@ -57,7 +57,7 @@ describe("ConfirmDialogHost", () => {
 
     const backdropResolve = openRequest();
     rerender(<ConfirmDialogHost />);
-    fireEvent.mouseDown(container.querySelector(".dialog-backdrop")!);
+    fireEvent.mouseDown(container.querySelector(".ds-dialog-backdrop")!);
     expect(backdropResolve).toHaveBeenCalledWith(false);
   });
 
@@ -65,12 +65,12 @@ describe("ConfirmDialogHost", () => {
     openRequest();
     const { getByText, rerender } = render(<ConfirmDialogHost />);
     const danger = getByText("Delete");
-    expect(danger.className).toContain("btn-danger");
+    expect(danger.className).toContain("ds-btn-danger");
     expect(danger.textContent).toBe("Delete");
 
     openRequest({ danger: false, confirmLabel: "Continue" });
     rerender(<ConfirmDialogHost />);
-    expect(getByText("Continue").className).toContain("btn-primary");
+    expect(getByText("Continue").className).toContain("ds-btn-primary");
   });
 
   it("restores focus to the opener after settlement", () => {

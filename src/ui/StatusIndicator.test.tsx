@@ -7,7 +7,9 @@ afterEach(cleanup);
 
 describe("StatusIndicator", () => {
   it("keeps a neutral non-live state quiet", () => {
-    const { getByText, queryByRole } = render(<StatusIndicator>Unsaved</StatusIndicator>);
+    const { getByText, queryByRole } = render(
+      <StatusIndicator>Unsaved</StatusIndicator>,
+    );
     expect(getByText("Unsaved")).toBeTruthy();
     expect(queryByRole("status")).toBeNull();
     expect(queryByRole("alert")).toBeNull();
@@ -23,7 +25,7 @@ describe("StatusIndicator", () => {
     expect(status.getAttribute("aria-busy")).toBe("true");
     expect(status.getAttribute("aria-live")).toBe("polite");
     expect(status.textContent).toContain("Indexing…");
-    expect(status.querySelector(".spinner")).toBeTruthy();
+    expect(status.querySelector(".ds-spinner")).toBeTruthy();
   });
 
   it("uses an assertive alert only when requested", () => {
@@ -41,7 +43,9 @@ describe("StatusIndicator", () => {
       const { container, getByText } = render(
         <StatusIndicator variant={variant}>{variant}</StatusIndicator>,
       );
-      expect(container.querySelector(`.status-indicator-${variant}`)).toBeTruthy();
+      expect(
+        container.querySelector(`.status-indicator-${variant}`),
+      ).toBeTruthy();
       expect(container.querySelector("svg")).toBeTruthy();
       expect(getByText(variant)).toBeTruthy();
     },

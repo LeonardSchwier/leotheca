@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import type { ViewMode } from "../../settings/workspaceSettings";
-import { Button } from "../../ui/Button";
+import {
+  Button,
+  IconButton,
+  Menu,
+  SegmentedControl,
+} from "@leonardschwier/leoforma";
 import { Icon as RegistryIcon, type IconName } from "../../ui/icons";
-import { IconButton } from "../../ui/IconButton";
-import { Menu } from "../../ui/Menu";
-import { SegmentedControl } from "../../ui/SegmentedControl";
 import { StatusIndicator } from "../../ui/StatusIndicator";
 
 /** UX-01 spec section 13.5/UX-005: "Note-specific view, bookmark,
@@ -149,12 +151,20 @@ export function DocumentHeader({
       <div class="document-header-title">
         {workspaceRelativePath && (
           <span class="document-header-path" title={notePath}>
-            <RegistryIcon name="folder" size={16} className="document-header-icon" />
-            <span class="document-header-path-text">{workspaceRelativePath}</span>
+            <RegistryIcon
+              name="folder"
+              size={16}
+              className="document-header-icon"
+            />
+            <span class="document-header-path-text">
+              {workspaceRelativePath}
+            </span>
           </span>
         )}
         <span class="document-header-savestate-wrapper" aria-hidden="true">
-          {saveState === "dirty" && <span class="document-header-dirty-dot" title="Unsaved changes" />}
+          {saveState === "dirty" && (
+            <span class="document-header-dirty-dot" title="Unsaved changes" />
+          )}
         </span>
       </div>
       <div
@@ -191,25 +201,33 @@ export function DocumentHeader({
       </div>
       <div class="document-header-actions">
         <SegmentedControl
-          aria-label="View mode"
+          label="View mode"
           value={viewMode}
           onChange={onSetViewMode}
-          size="sm"
           options={VIEW_MODES.map((mode) => ({
             value: mode,
-            label: mode[0].toUpperCase() + mode.slice(1),
-            icon: VIEW_MODE_ICONS[mode],
+            label: (
+              <>
+                <RegistryIcon name={VIEW_MODE_ICONS[mode]} size={16} />
+                {mode[0].toUpperCase() + mode.slice(1)}
+              </>
+            ),
           }))}
           className="document-header-viewmode"
         />
         <IconButton
-          icon={bookmarked ? "bookmarkFilled" : "bookmark"}
+          icon={
+            <RegistryIcon
+              name={bookmarked ? "bookmarkFilled" : "bookmark"}
+              size={16}
+            />
+          }
           label={bookmarked ? "Remove bookmark" : "Bookmark this note"}
           active={bookmarked}
           onClick={onToggleBookmark}
         />
         <IconButton
-          icon="panelRight"
+          icon={<RegistryIcon name="panelRight" size={16} />}
           label="Inspector"
           active={inspectorOpen}
           onClick={onToggleInspector}
@@ -229,14 +247,14 @@ export function DocumentHeader({
             {
               id: "delete",
               label: "Delete",
-              icon: "warningTriangle",
+              icon: <RegistryIcon name="warningTriangle" size={16} />,
               variant: "danger",
               onSelect: onDelete,
             },
             {
               id: "help",
               label: "Markdown Help",
-              icon: "helpCircle",
+              icon: <RegistryIcon name="helpCircle" size={16} />,
               onSelect: onShowHelp,
             },
           ]}

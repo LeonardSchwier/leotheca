@@ -1,6 +1,6 @@
 import type { ComponentChildren } from "preact";
 import { Icon as RegistryIcon } from "../../ui/icons";
-import { Tooltip } from "../../ui/Tooltip";
+import { Tooltip } from "@leonardschwier/leoforma";
 
 /** UX-01 spec section 13.2: "a fixed navigation strip" for Files,
  * Bookmarks, Tags, and Graph, with Settings pinned at the bottom.

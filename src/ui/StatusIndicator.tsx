@@ -4,10 +4,11 @@
  */
 import type { ComponentChildren, JSX } from "preact";
 import { Icon, type IconName } from "./icons";
-import { Spinner } from "./Spinner";
+import { Spinner } from "@leonardschwier/leoforma";
 import "./primitives.css";
 
-export type StatusIndicatorVariant = "neutral" | "progress" | "success" | "warning" | "danger";
+export type StatusIndicatorVariant =
+  "neutral" | "progress" | "success" | "warning" | "danger";
 export type StatusIndicatorSize = "sm" | "md";
 export type StatusIndicatorLive = "off" | "polite" | "assertive";
 
@@ -38,8 +39,10 @@ export function StatusIndicator({
   title,
   className,
 }: StatusIndicatorProps): JSX.Element {
-  const resolvedIcon = icon === false ? undefined : (icon ?? DEFAULT_ICONS[variant]);
-  const role = live === "assertive" ? "alert" : live === "polite" ? "status" : undefined;
+  const resolvedIcon =
+    icon === false ? undefined : (icon ?? DEFAULT_ICONS[variant]);
+  const role =
+    live === "assertive" ? "alert" : live === "polite" ? "status" : undefined;
 
   return (
     <span
@@ -61,7 +64,9 @@ export function StatusIndicator({
       {variant === "progress" ? (
         <Spinner size={size === "sm" ? 16 : 20} />
       ) : (
-        resolvedIcon && <Icon name={resolvedIcon} size={size === "sm" ? 16 : 20} />
+        resolvedIcon && (
+          <Icon name={resolvedIcon} size={size === "sm" ? 16 : 20} />
+        )
       )}
       <span class="status-indicator-label">{children}</span>
     </span>

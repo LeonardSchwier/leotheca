@@ -38,6 +38,7 @@ Items with an owner. An expired lease means the item can be recovered.
 
 Items nobody owns. Take the first one that fits.
 
+- ⬜ **Record the merge_group triggers in the master specification**: CI, Rules and Agent policy now also run on `merge_group`, and Agent policy runs on every pull request. The master-spec CI rule requires the CI table and change log to say so.
 - ⬜ **Move the ownership ledger to a ledger branch**: Phase 2 of `documentation/BRANCH_MODEL.md`. `agent_ledger.py`, the roadmap and handoff skills and the agent-policy workflow work against `origin/ledger`; `ROADMAP.md` on main becomes a generated snapshot written by the integrator. Must land before the owner enables the main ruleset, because claims and heartbeats may no longer push to main.
 - ⬜ **Switch the delivery protocol to pull requests and the merge queue**: Phase 4 of `documentation/BRANCH_MODEL.md`. Rewrite the constitution, AGENTS.md, roadmap-workflow, autonomous-roadmap-delivery, pre-push-verification and verification-suite skills and the pre-push hook so a finished item is a merged PR (auto-merge, `gh pr create`, queue), not a push to main. Depends on the ledger branch item and on the owner enabling the ruleset.
 - ⬜ **Add the scheduled integrator agent**: Phase 5 of `documentation/BRANCH_MODEL.md`. A scheduled agent that finds PRs that are red or conflicting, repairs them on the PR branch under a fresh claim of the same item, and re-queues. It never merges by hand and never bypasses a check. Depends on the pull request protocol item.

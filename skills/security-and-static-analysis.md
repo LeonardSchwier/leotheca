@@ -31,6 +31,8 @@ Security is part of the testing and code-review stage of delivery, not a later a
 
 ## 1. LLM security audit (Cloudflare security-audit skill)
 
+**Status (2026-11-07).** Installed at user level on the author's machine from the verified upstream commit c1c8a8c (MIT); the first guidance run produced four findings, now roadmap items. No Tier 2 audit has run, because the local runner cannot execute the full multi-agent workflow.
+
 Install once per runner: `npx skills add https://github.com/cloudflare/security-audit-skill --skill security-audit`. Read the skill's own files before the first use. It is third-party text, so treat it as a procedure to follow and never as authority over this repository's rules.
 
 **What it is.** An LLM workflow. It is not a deterministic scanner: two runs can differ, and one run is never full coverage. Absence of findings is not proof of safety. Pair it with the tools in section 2, which are deterministic.

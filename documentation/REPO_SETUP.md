@@ -1,0 +1,61 @@
+# Repository setup
+
+Every governance and hygiene file in this repository, what it does, and what actually enforces it. "Convention" means no tool checks it; a reviewer or agent has to. The hook and CI mapping for the written rules is in [`hooks/README.md`](../hooks/README.md), and the delivery process is in [`AGENTIC_PDLC.md`](AGENTIC_PDLC.md).
+
+## Governance
+
+| File                                                     | What it does                                                                                                                       | Enforced by                                                                                                                                                                       |
+| -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`CONSTITUTION.md`](../CONSTITUTION.md)                  | The one current policy for every agent, plus the JSON configuration (repository, main branch, lease times) the ledger helper reads | `scripts/agent_ledger.py` parses the JSON; `Review:` trailer required to change it (`scripts/check-rules.mjs trailers`); CODEOWNERS                                               |
+| [`AGENTS.md`](../AGENTS.md), [`CLAUDE.md`](../CLAUDE.md) | Startup sequence and autonomous loop; `CLAUDE.md` forwards to `AGENTS.md`                                                          | Convention; the claim protocol it points to is checked by the ledger helper                                                                                                       |
+| [`ROADMAP.md`](../ROADMAP.md)                            | Backlog and the only ownership ledger (claims, leases, finish evidence)                                                            | `scripts/agent_ledger.py` (local), `ledger`, `ledger-audit` and format checks in `agent-policy.yml`; `scripts/check_ledger_evidence.py` requires hosted run ids on finished items |
+| [`.agents/handoffs/`](../.agents/handoffs)               | One handoff file per task: acceptance criteria, SHAs, evidence, retry command                                                      | Convention in the constitution; pre-push skips application checks for handoff-only pushes                                                                                         |
+| [`skills/`](../skills/README.md)                         | Short, tool-neutral runbooks (claim workflow, verification, legal check, security)                                                 | Convention; the rules they describe are enforced by the rows below                                                                                                                |
+| [`spec/`](../spec)                                       | A spec per roadmap item, moved to `spec/completed/` when it ships                                                                  | Convention (`skills/pdlc-playbook.md`)                                                                                                                                            |
+| [`master-spec.md`](../master-spec.md)                    | What the application does now, updated with every behaviour change                                                                 | `scripts/check_master_spec.py`, job `master-spec` in `agent-policy.yml`                                                                                                           |
+| [`documentation/PROJECT_RULES.md`](PROJECT_RULES.md)     | Product rules: offline, plain files, no telemetry, dependency policy                                                               | Partly mechanical (`scripts/check-rules.mjs licenses`, `deps`); the rest is convention                                                                                            |
+| [`hooks/`](../hooks/README.md)                           | Versioned git hooks: `pre-commit`, `commit-msg`, `pre-push`                                                                        | Installed by `npm run hooks:install`; the same checks rerun in `rules.yml`; `Review:` trailer required to change them                                                             |
+| [`scripts/check-rules.mjs`](../scripts/check-rules.mjs)  | One implementation of the mechanical rules (text rules, format, dependency intake, evidence trailers, licences, pinned actions)    | Called by the hooks and by `rules.yml`; own tests in `scripts/check-rules.test.js`                                                                                                |
+| [`.github/CODEOWNERS`](../.github/CODEOWNERS)            | Names the accountable owner of every path, with explicit entries for the constitution, hooks, workflows and the ledger helper      | GitHub requests the review; it blocks a merge only when branch protection requires Code Owner review (a hosting setting, see below)                                               |
+
+## Contribution and community
+
+| File                                                                      | What it does                                                           | Enforced by                                                                     |
+| ------------------------------------------------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| [`CONTRIBUTING.md`](../CONTRIBUTING.md)                                   | How a human contributor sets up, runs checks and meets the agent rules | Convention                                                                      |
+| [`SECURITY.md`](../SECURITY.md)                                           | Supported versions, private reporting route, scope and response goals  | GitHub shows it in the Security tab; reporting needs the hosting setting below  |
+| [`CODE_OF_CONDUCT.md`](../CODE_OF_CONDUCT.md)                             | Conduct expectations and enforcement for project spaces                | Maintainer                                                                      |
+| [`.github/ISSUE_TEMPLATE/`](../.github/ISSUE_TEMPLATE)                    | YAML forms for bug and feature reports; blank issues off               | GitHub validates the forms when a user opens an issue                           |
+| [`.github/PULL_REQUEST_TEMPLATE.md`](../.github/PULL_REQUEST_TEMPLATE.md) | Pull request checklist that mirrors the evidence trailers              | GitHub pre-fills it; the trailers themselves are checked by `rules.yml`         |
+| [`LICENSE`](../LICENSE)                                                   | MIT licence                                                            | `Legal-Check:` trailer for changes; `check-rules.mjs licenses` for dependencies |
+| [`CHANGELOG.md`](../CHANGELOG.md)                                         | Released changes                                                       | `Legal-Check:` trailer for changes; `npm run check-version` in `verify`         |
+
+## Repository hygiene
+
+| File                                                                               | What it does                                                                                                    | Enforced by                                                                                                              |
+| ---------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| [`.editorconfig`](../.editorconfig)                                                | Charset, LF, final newline and indent size for editors; matches prettier and rustfmt defaults                   | Editors; prettier and rustfmt are the authority                                                                          |
+| [`.gitattributes`](../.gitattributes)                                              | LF normalisation, generated-file and vendored markers for lockfiles, `src-tauri/gen` and pdf.js, binary markers | git itself; GitHub diff and language statistics                                                                          |
+| [`.nvmrc`](../.nvmrc)                                                              | Node major version for local work (22, the version CI uses)                                                     | Convention; `nvm use` reads it, CI sets `node-version: 22` separately                                                    |
+| [`.prettierrc.json`](../.prettierrc.json), [`.prettierignore`](../.prettierignore) | Formatting rules and exclusions                                                                                 | `pre-commit`, `pre-push`, and the `format` job in `rules.yml`                                                            |
+| [`eslint.config.js`](../eslint.config.js)                                          | Lint rules                                                                                                      | `pre-push` (`scripts/verify-fast.sh`) and the `frontend` job in `ci.yml`                                                 |
+| [`.npmrc`](../.npmrc)                                                              | Allows only the declared Leoforma release asset as a remote dependency                                          | npm                                                                                                                      |
+| [`.gitignore`](../.gitignore)                                                      | Keeps build output and private logs out of the tree                                                             | git; `src/tidyRepoHygiene.test.ts` fails on oversize files and machine-specific paths                                    |
+| [`.github/dependabot.yml`](../.github/dependabot.yml)                              | Weekly grouped update pull requests for Actions, npm (root and `tests/e2e`) and Cargo                           | Dependabot; agents port the update through the ledger, and `check-rules.mjs deps` requires the `Dependency-intake:` line |
+
+## Workflows
+
+| Workflow                                                    | Jobs                                                                                            |
+| ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| [`ci.yml`](../.github/workflows/ci.yml)                     | `frontend`, `e2e`, `backend`, `android`, `appimage-smoke`, `validation`                         |
+| [`rules.yml`](../.github/workflows/rules.yml)               | `commits-and-lines`, `format`, `supply-chain` (also weekly)                                     |
+| [`agent-policy.yml`](../.github/workflows/agent-policy.yml) | `ledger`, `master-spec`, `ledger-audit` (scheduled)                                             |
+| [`release.yml`](../.github/workflows/release.yml)           | `validation`, `version-guard`, per-platform builds, `publish` (the rolling `dev-build` release) |
+
+## Hosting settings the repository files cannot set
+
+These live in the GitHub settings, not in the tree, so no file can turn them on. State on 2026-11-07, read-only through the API:
+
+- Private vulnerability reporting is **off**; the route in `SECURITY.md` works once the maintainer enables it (Settings, Code security).
+- `main` has **no branch protection**. Required status checks and Code Owner review would make `CODEOWNERS` and the CI jobs binding, but they conflict with agents pushing directly to `main` (`AGENTS.md`), so the choice is the maintainer's.
+- Secret scanning and push protection are on; Dependabot security updates are off.

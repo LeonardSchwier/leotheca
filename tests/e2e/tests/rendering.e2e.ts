@@ -18,7 +18,7 @@ test("preview renders the markdown features a note uses", async ({ app }) => {
   await expect(preview.locator("table th")).toHaveText(["Col1", "Col2"]);
   await expect(preview.locator(".katex")).toHaveCount(2);
   await expect(preview.locator(".katex-display")).toHaveCount(1);
-  await expect(preview.getByRole("link", { name: "Project Plan" })).toBeVisible();
+  await expect(preview.getByRole("link", { name: "plan", exact: true })).toBeVisible();
 });
 
 test("a wikilink in the preview opens the linked note", async ({ app }) => {
@@ -28,7 +28,7 @@ test("a wikilink in the preview opens the linked note", async ({ app }) => {
   await openNote(page, "welcome.md");
   await setViewMode(page, "Preview");
 
-  await page.locator(".markdown-preview").getByRole("link", { name: "Project Plan" }).click();
+  await page.locator(".markdown-preview").getByRole("link", { name: "plan", exact: true }).click();
   await expect(page.locator(".tab-active .tab-name")).toHaveText("plan.md");
   await expect(page.locator(".markdown-preview h1")).toHaveText("Project Plan");
 });

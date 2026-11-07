@@ -33,6 +33,36 @@ jobs:
       - name: Build frontend
         run: npm run build
 
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install build essentials
+        run: sudo apt-get update && sudo apt-get install -y build-essential
+      - run: npm ci
+      - name: Install e2e dependencies
+        working-directory: tests/e2e
+        run: npm ci
+      - name: Install Chromium
+        working-directory: tests/e2e
+        run: npx playwright install --with-deps chromium
+      - name: Run end-to-end smoke tests
+        working-directory: tests/e2e
+        run: npm test
+      - name: Upload traces and report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: |
+            tests/e2e/playwright-report
+            tests/e2e/test-results
+          retention-days: 14
+
   backend:
     runs-on: ubuntu-latest
     steps:
@@ -150,17 +180,19 @@ jobs:
 
   validation:
     if: always()
-    needs: [frontend, backend, android, appimage-smoke]
+    needs: [frontend, e2e, backend, android, appimage-smoke]
     runs-on: ubuntu-latest
     steps:
       - name: Require every validation job to succeed
         env:
           FRONTEND_RESULT: ${{ needs.frontend.result }}
+          E2E_RESULT: ${{ needs.e2e.result }}
           BACKEND_RESULT: ${{ needs.backend.result }}
           ANDROID_RESULT: ${{ needs.android.result }}
           APPIMAGE_RESULT: ${{ needs.appimage-smoke.result }}
         run: |
           test "$FRONTEND_RESULT" = success
+          test "$E2E_RESULT" = success
           test "$BACKEND_RESULT" = success
           test "$ANDROID_RESULT" = success
           test "$APPIMAGE_RESULT" = success

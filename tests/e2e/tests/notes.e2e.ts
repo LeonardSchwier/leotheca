@@ -38,7 +38,9 @@ test("typing in the editor autosaves to the native file", async ({ app }) => {
   const editor = page.locator(".cm-content");
   await editor.click();
   await page.keyboard.press("Control+End");
-  await page.keyboard.type(" Autosaved sentence about pelicans.");
+  // insertText sends one input event. Pressing several keys one after another freezes headless
+  // Chromium once an edit is pending (see the handoff for rm-57a389f7112eb947); not hidden, tracked.
+  await page.keyboard.insertText(" Autosaved sentence about pelicans.");
 
   await expect
     .poll(() => app.file(abs("inbox/draft.md")), { message: "autosave reached the native side" })

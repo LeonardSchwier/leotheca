@@ -1,5 +1,5 @@
 import { expect, test } from "../support/fixtures.js";
-import { buildIndexViaTagsPanel, openNote, searchBox, searchResultNames, treeItem } from "../support/helpers.js";
+import { buildIndexViaTagsPanel, searchBox, searchResultNames, treeItem } from "../support/helpers.js";
 
 /** Types a query, then waits for the debounced search to settle on `names`. */
 async function expectResults(app: { page: import("@playwright/test").Page }, query: string, names: string[]) {
@@ -38,5 +38,4 @@ test("clicking a search result opens that note", async ({ app }) => {
   // Opening it read the real file from the mocked workspace.
   const reads = await app.calls("read_text_file");
   expect(reads.some((c) => c.args.path === "/e2e/notes/research/walrus.md")).toBe(true);
-  await openNote(page, "welcome.md");
 });

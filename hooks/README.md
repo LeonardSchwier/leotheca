@@ -14,7 +14,7 @@ Because git config is shared by every worktree of a clone, the hooks apply to al
 
 `PREPUSH_FULL=1 git push` or `npm run ci` runs the slow full pipeline (Rust, Android, AppImage, Flatpak). `npm run verify` runs the fast gate by hand.
 
-Nothing is skipped silently. When a tool is missing the hook prints a `SKIPPED` or `skipping` line naming it. Today that includes gitleaks (not installed on every machine) and the e2e smoke (suite not on main yet).
+Nothing is skipped silently. When a tool is missing the hook prints a `SKIPPED` or `skipping` line naming it. Today that includes gitleaks (not installed on every machine). The e2e suite is on main (`tests/e2e`, required CI job `e2e`); the pre-push hook runs it only when the root `package.json` has a `test:e2e` script and a browser is installed, and prints `SKIPPED` otherwise.
 
 ## Rule to enforcement map
 

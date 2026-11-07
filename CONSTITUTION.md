@@ -85,7 +85,11 @@ Legacy `🚧` entries without leases must be inspected and given one finite `leg
 
 ## Spec-first delivery
 
-Every claimed implementation item follows `skills/pdlc-playbook.md`: (1) roadmap item, (2) spec at `spec/<slug>.md`, (3) grill: the agent interrogates the spec and records rulings (decision, why, cost if wrong), (4) design-system check recorded in the spec, (5) implementation, test first, (6) unit tests, independent review with a crafted brief, Playwright e2e smoke and the security gate, (7) spec moved to `spec/completed/` with evidence in the finish commit. Do not edit implementation files before stages 2-4 are written, and do not `finish` without stage 6 evidence or an honestly recorded deferral. The LLM judge makes the final call on whether and how to build, including declining; it never waits for a human. Coordination-only transactions and typo fixes are exempt. The playbook sets the details, not this file.
+Every claimed implementation item follows `skills/pdlc-playbook.md`: (1) roadmap item, (2) spec at `spec/<slug>.md`, (3) grill: the agent interrogates the spec and records rulings (decision, why, cost if wrong), (4) design-system check recorded in the spec, (5) implementation, test first, (6) unit tests, independent review with a crafted brief, Playwright e2e smoke and the security gate, (7) spec moved to `spec/completed/` with evidence in the finish commit. Do not edit implementation files before stages 2-4 are written, and do not `finish` without stage 6 evidence or an honestly recorded deferral. The LLM judge makes the final call on whether and how to build, including declining; it never waits for a human. Coordination-only transactions and typo fixes are exempt. The playbook sets the details, not this file. Every change also passes `skills/text-rights-and-legal-check.md` in stage 6, and schema or migration work follows `skills/database-best-practices.md`.
+
+## Master specification rule
+
+`master-spec.md` states what the application does now. Every implementation push that changes application behavior, a format, a bridge command, a setting or the build updates `master-spec.md` in the same push, with a new change log line. CI enforces it with `scripts/check_master_spec.py` (job `master-spec` in `.github/workflows/agent-policy.yml`). Follow `skills/master-spec-maintenance.md`. Tests, the roadmap ledger, handoffs, specs and docs are exempt.
 
 ## Author environment and runners
 

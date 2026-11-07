@@ -1,0 +1,16 @@
+# Code owners. GitHub requests a review from the owner of every changed path
+# when branch protection enables "Require review from Code Owners". Later
+# patterns win. Agents push to main directly (AGENTS.md), so this file records
+# who is accountable for each sensitive area; it is not a merge gate by itself.
+
+*                          @LeonardSchwier
+
+# The agent rules and the tools that enforce them.
+/CONSTITUTION.md           @LeonardSchwier
+/AGENTS.md                 @LeonardSchwier
+/hooks/                    @LeonardSchwier
+/.github/workflows/        @LeonardSchwier
+/scripts/agent_ledger.py   @LeonardSchwier
+/scripts/check-rules.mjs   @LeonardSchwier
+/.github/CODEOWNERS        @LeonardSchwier
+/.github/dependabot.yml    @LeonardSchwier

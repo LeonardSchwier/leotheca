@@ -1,0 +1,34 @@
+# Normalise line endings to LF in the repository and the working tree, so a
+# contributor's autocrlf setting cannot create whitespace-only diffs.
+* text=auto eol=lf
+
+# Windows batch files need CRLF to run.
+*.bat text eol=crlf
+
+# Generated files: collapsed in GitHub diffs and excluded from language stats.
+package-lock.json linguist-generated=true
+tests/e2e/package-lock.json linguist-generated=true
+src-tauri/Cargo.lock linguist-generated=true
+src-tauri/native/whisper/Cargo.lock linguist-generated=true
+flatpak/node-sources.json linguist-generated=true
+flatpak/cargo-sources.json linguist-generated=true
+src-tauri/gen/** linguist-generated=true
+
+# Vendored third-party data.
+public/pdfjs/** linguist-vendored=true
+
+# Binary files: never touched by line-ending conversion or text diff.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.icns binary
+*.ico binary
+*.mp4 binary
+*.ttf binary
+*.otf binary
+*.pfb binary
+*.bcmap binary
+*.wasm binary
+*.jar binary
+*.keystore binary

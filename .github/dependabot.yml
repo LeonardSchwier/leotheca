@@ -1,0 +1,65 @@
+# Dependabot version updates, weekly and grouped.
+#
+# Agents, not the bot, land dependency changes: they port an update through the
+# roadmap ledger (ROADMAP.md) and add the "Dependency-intake:" line that
+# scripts/check-rules.mjs deps requires. Treat a Dependabot pull request as a
+# suggestion to port, never as something to merge as it stands.
+#
+# Never let a bot change these (hence the ignore entries and the omitted
+# directories below):
+#   - the @leonardschwier/leoforma entry in package.json and package-lock.json.
+#     It is installed from a release asset whose integrity hash is pinned by hand
+#     (see "Install Leoforma from its release asset" in ROADMAP.md).
+#   - flatpak/node-sources.json and flatpak/cargo-sources.json. They are
+#     generated from the lockfiles (scripts/flatpakSources.test.js checks the npm one);
+#     regenerate them as flatpak/README.md describes.
+# Major updates of the Tauri and Capacitor stacks change native APIs and
+# permissions, so they are ported by hand as their own roadmap items.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+    groups:
+      actions:
+        patterns: ["*"]
+
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+    ignore:
+      - dependency-name: "@leonardschwier/leoforma"
+      - dependency-name: "@tauri-apps/*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@capacitor/*"
+        update-types: ["version-update:semver-major"]
+    groups:
+      npm-minor-and-patch:
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: npm
+    directory: /tests/e2e
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 2
+    groups:
+      e2e-minor-and-patch:
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: cargo
+    directory: /src-tauri
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+    ignore:
+      - dependency-name: "tauri"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "tauri-*"
+        update-types: ["version-update:semver-major"]
+    groups:
+      cargo-minor-and-patch:
+        update-types: ["minor", "patch"]

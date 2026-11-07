@@ -38,9 +38,6 @@ Items with an owner. An expired lease means the item can be recovered.
 
 Items nobody owns. Take the first one that fits.
 
-- 🚧 **Add the scheduled integrator agent**: Phase 5 of `documentation/BRANCH_MODEL.md`. A scheduled agent that finds PRs that are red or conflicting, repairs them on the PR branch under a fresh claim of the same item, and re-queues. It never merges by hand and never bypasses a check. Depends on the pull request protocol item.
-  <!-- agent-state: {"schema":1,"id":"rm-146c8931c9e05baa","state":"claimed","touch":[".agents/handoffs","documentation/AGENTIC_PDLC.md","documentation/BRANCH_MODEL.md","scripts/integrator_report.py","scripts/test_integrator_report.py","skills/README.md","skills/integrator.md"],"resources":[],"owner":"claude-code-pdlc-20261106T231246Z-fcf4c9d1","token":"461acbcd36e0eb1fad4c3d94b03bace6","branch":"agent/rm-146c8931c9e05baa/461acbcd36e0","claimed_at":"2026-11-07T18:28:22Z","heartbeat_at":"2026-11-07T18:28:22Z","lease_until":"2026-11-07T19:58:22Z"} -->
-  Agent: claude-code-pdlc-20261106T231246Z-fcf4c9d1 | item: rm-146c8931c9e05baa | lease until: 2026-11-07T19:58:22Z
 - ⬜ **Android camera capture**: Take a photo directly from the "Insert attachment" toolbar. Status: open.
   <!-- agent-state: {"schema":1,"id":"rm-5fc96a0db16f2169","state":"open","touch":[],"resources":["triage-recovery"],"note":"Triage 2026-11-06T23:25Z by claude-code-triage: previous owner hermes-20261030T080439Z-0fdb1a0c lease expired 2026-10-30. No remote or local branch and no handoff exist. Main has no cameraCapture.ts or CameraCapturePlugin; the WIP the 2026-11-01 weekly review saw was uncommitted and is not recoverable. Restart from main. Device-side testing needs an Android device or emulator with camera; split JS bridge and unit tests from device verification.","released_at":"2026-11-06T23:22:16Z"} -->
   Agent: unclaimed | item: rm-5fc96a0db16f2169
@@ -86,6 +83,11 @@ Items that wait for access or a decision outside the repository.
 - ⏸ **Compatibility layer**: Load community extension manifests; gated on maintainer approval of the third-party-code security model.
 
 ## Implemented
+
+- ✅ **Add the scheduled integrator agent**: Phase 5 of `documentation/BRANCH_MODEL.md`. A scheduled agent that finds PRs that are red or conflicting, repairs them on the PR branch under a fresh claim of the same item, and re-queues. It never merges by hand and never bypasses a check. Depends on the pull request protocol item.
+  <!-- agent-state: {"schema":1,"id":"rm-146c8931c9e05baa","state":"done","touch":[".agents/handoffs","documentation/AGENTIC_PDLC.md","documentation/BRANCH_MODEL.md","scripts/integrator_report.py","scripts/test_integrator_report.py","skills/README.md","skills/integrator.md"],"resources":[],"note":"Merged as PR 67 (39230f1): integrator skill and read-only report script with tests; 22 required PR checks green; hosted CI pending for post-merge runs, ids in handoff","completed_at":"2026-11-07T18:38:36Z","completed_by":"claude-code-pdlc-20261106T231246Z-fcf4c9d1","branch":"agent/rm-146c8931c9e05baa/461acbcd36e0"} -->
+  Agent: completed by claude-code-pdlc-20261106T231246Z-fcf4c9d1 | item: rm-146c8931c9e05baa
+
 
 - ✅ **Restrict the speech model path and model directory commands**: `init_speech_recognition(model_path)` passes a webview-supplied path to the whisper FFI loader and `check_whisper_models(app_dir)` probes file existence in any directory.
   <!-- agent-state: {"schema":1,"id":"rm-cc7afa94052b442d","state":"done","touch":[".agents/handoffs","master-spec.md","spec/restrict-speech-model-paths.md","src-tauri/src/lib.rs","src-tauri/src/speech_commands.rs","src/workspace/speechBridge.ts","src/workspace/speechBridgeImpl.ts"],"resources":[],"note":"Merged as PR 66 (bab275f): speech model names resolved natively from an allow-list; 22 required PR checks green; hosted CI pending for post-merge runs, ids in handoff","completed_at":"2026-11-07T17:53:54Z","completed_by":"claude-code-pdlc-20261106T231246Z-fcf4c9d1","branch":"agent/rm-cc7afa94052b442d/ed141ba0a740"} -->

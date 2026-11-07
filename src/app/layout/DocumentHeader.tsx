@@ -5,9 +5,9 @@ import {
   IconButton,
   Menu,
   SegmentedControl,
+  StatusIndicator,
 } from "@leonardschwier/leoforma";
 import { Icon as RegistryIcon, type IconName } from "../../ui/icons";
-import { StatusIndicator } from "../../ui/StatusIndicator";
 
 /** UX-01 spec section 13.5/UX-005: "Note-specific view, bookmark,
  * Inspector, and overflow actions shall appear in the Document Header or
@@ -194,9 +194,11 @@ export function DocumentHeader({
           </StatusIndicator>
         )}
         {saveState === "dirty" && (
-          <StatusIndicator size="sm" icon={false} ariaLabel="Unsaved changes">
-            <span aria-hidden="true">•</span> Unsaved
-          </StatusIndicator>
+          <span role="group" aria-label="Unsaved changes">
+            <StatusIndicator size="sm" icon={false}>
+              <span aria-hidden="true">•</span> Unsaved
+            </StatusIndicator>
+          </span>
         )}
       </div>
       <div class="document-header-actions">

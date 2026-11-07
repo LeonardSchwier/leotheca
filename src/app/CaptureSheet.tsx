@@ -20,7 +20,8 @@ import {
   listTemplates,
   type NoteTemplate,
 } from "../workspace/fileTreeStore";
-import { Sheet } from "../ui/Sheet";
+import { Sheet } from "@leonardschwier/leoforma";
+import "../ui/overlayBackButton";
 import { appendTranscript, useCaptureVoice } from "../capture/captureVoice";
 import {
   loadCaptureTemplate,

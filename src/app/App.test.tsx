@@ -331,7 +331,7 @@ describe("App: shared indexing status (UX-01 STATE-003)", () => {
     const warning = getByText("1 note couldn't be indexed").closest(
       '[role="status"]',
     );
-    expect(warning?.className).toContain("status-indicator-warning");
+    expect(warning?.className).toContain("ds-status-warning");
     expect(warning?.getAttribute("title")).toContain("/vault/locked.md");
   });
 });

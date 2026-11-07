@@ -86,7 +86,7 @@ import {
 } from "../workspace/store";
 import { SplitSeparator } from "../editorGroups/SplitSeparator";
 import { SecondaryEditorPane } from "../editorGroups/SecondaryEditorPane";
-import { StatusIndicator } from "../ui/StatusIndicator";
+import { StatusIndicator } from "@leonardschwier/leoforma";
 import { CompactGroupSwitcher } from "../editorGroups/CompactGroupSwitcher";
 import {
   onExternalFileOpen,

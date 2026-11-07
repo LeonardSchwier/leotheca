@@ -2063,7 +2063,7 @@ button.icon-button.active {
   }
 
   /* F05: Capture Sheet. Its own backdrop/surface sizing now comes from
-     the shared Sheet primitive (primitives.css's .sheet-surface), which
+     the shared Sheet from @leonardschwier/leoforma (.ds-sheet), which
      already governs width responsively at every viewport size -- this
      compact-only override predates that migration and would otherwise
      fight the primitive's own max-width. Only the field/textarea-level

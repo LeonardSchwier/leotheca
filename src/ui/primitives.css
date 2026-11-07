@@ -1,46 +1,10 @@
 /* Styles for the app-local primitives that Leoforma does not provide yet
- * (StatusIndicator, EmptyState, Sheet). Button, IconButton, Spinner,
+ * (EmptyState). Button, IconButton, Spinner,
  * SegmentedControl, Tooltip, Menu and Dialog, with their styles, come from
  * @leonardschwier/leoforma (imported in main.tsx).
  *
  * All colors, spacing, radii and motion consume the semantic tokens in
  * theme.css, so these follow theme, accent and reduced-motion switches. */
-
-.status-indicator {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1-5);
-  min-width: 0;
-  color: var(--color-text-muted);
-  white-space: nowrap;
-}
-
-.status-indicator-sm {
-  font-size: 0.8125rem;
-}
-
-.status-indicator-md {
-  font-size: 0.875rem;
-}
-
-.status-indicator-success {
-  color: var(--color-success);
-}
-
-.status-indicator-warning {
-  color: var(--color-warning);
-}
-
-.status-indicator-danger {
-  color: var(--color-danger);
-}
-
-.status-indicator-label {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1-5);
-  min-width: 0;
-}
 
 /* EmptyState (spec 18.3/20). It stays intentionally quiet and compact:
  * no remote illustration, one primary and one secondary action slot. */
@@ -91,83 +55,4 @@
   justify-content: center;
   gap: var(--space-2);
   margin-top: var(--space-1);
-}
-
-/* IconButton: a square, icon-only control. Deliberately not shared class
- * names with the legacy ad hoc `.icon-button` selectors elsewhere in the
- * app (App.css and friends) -- those remain unmigrated call sites outside
- * this slice's claimed scope; this is a separate, self-contained
- * component so adopting it incrementally elsewhere never risks an
- * unrelated cascade collision with the old class. */
-.sheet-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 1150;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.35);
-}
-
-.sheet-surface {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  max-width: 640px;
-  max-height: min(85vh, 720px);
-  overflow: hidden;
-  border: 1px solid var(--color-border);
-  border-bottom: none;
-  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
-  background: var(--color-raised);
-  color: var(--color-text);
-  box-shadow: var(--shadow-high);
-  animation: sheet-slide-in var(--motion-sheet) ease;
-}
-
-.sheet-header {
-  flex: none;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  padding: var(--space-5) var(--space-3) var(--space-3) var(--space-6);
-}
-
-.sheet-header h2 {
-  margin: 0;
-  font-size: 16px;
-}
-
-.sheet-content {
-  min-height: 0;
-  overflow-y: auto;
-  /* Bottom padding covers the home-indicator safe area directly: when no
-   * `actions` footer follows, this is the sheet's own trailing edge. */
-  padding: 0 var(--space-6) max(var(--space-6), env(safe-area-inset-bottom));
-}
-
-.sheet-description {
-  color: var(--color-text-secondary);
-}
-
-.sheet-actions {
-  flex: none;
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--space-2);
-  padding: var(--space-3) var(--space-6)
-    max(var(--space-6), env(safe-area-inset-bottom));
-  border-top: 1px solid var(--color-border);
-}
-
-@keyframes sheet-slide-in {
-  from {
-    opacity: 0;
-    transform: translateY(16px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }

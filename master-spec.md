@@ -149,7 +149,7 @@ Only Linux CI builds and launches a desktop artifact as a smoke test. macOS and 
 | `src/editorGroups/` | Split pane UI and per-document view state. |
 | `src/export/` | Print and HTML export. |
 | `src/speech/`, `src/spellcheck/` | Optional input aids. |
-| `src/ui/` | App-local primitives: `Sheet`, `EmptyState`, `StatusIndicator`, icon registry, and `overlayBackButton` (Capacitor back button wired into Leoforma's overlay stack). `Button`, `IconButton`, `Dialog`, `Menu`, `Tooltip`, `SegmentedControl`, `Spinner` and the overlay stack come from `@leonardschwier/leoforma`. |
+| `src/ui/` | App-local primitives: `EmptyState`, icon registry, and `overlayBackButton` (Capacitor back button wired into Leoforma's overlay stack). `Button`, `IconButton`, `Dialog`, `Sheet`, `StatusIndicator`, `Menu`, `Tooltip`, `SegmentedControl`, `Spinner` and the overlay stack come from `@leonardschwier/leoforma`. |
 | `src/styles/theme.css` | Maps the app's token names onto Leoforma's `--ds-*` tokens; keeps highlight, mark, accent-choice, reading-font and zoom variables. |
 | `src-tauri/src/` | `commands.rs`, `workspace_mutations.rs`, `external_open.rs`, `default_handler.rs`, `speech_commands.rs`, `lib.rs`. |
 | `android/app/src/main/java/.../` | `MainActivity`, `FolderAccessPlugin`, `WorkspaceMutationPlugin`, `PrintExportPlugin`, `SpeechRecognitionPlugin`, `CaptureIntentHandler`, widget providers. |
@@ -813,7 +813,7 @@ The URL parser is not the security boundary. The native gate on the eventual rea
 | FR-UI-002 | Fuzzy matching MUST be case-insensitive and rank word-start matches higher. | Given a word-start and a mid match, When scored, Then word-start wins. | `src/fuzzyMatch.test.ts` |
 | FR-UI-003 | Layout classes MUST be compact under 720, medium 720-1099, wide 1100-1279, expanded 1280+. | Given 719, When classified, Then compact. | `src/app/layout/adaptiveLayout.test.ts` |
 | FR-UI-004 | The activity rail MUST appear at 720 px and above; medium MUST overlay the navigation panel. | Given medium, When queried, Then overlay is true. | `src/app/layout/adaptiveLayout.test.ts` |
-| FR-UI-005 | Dialogs and sheets MUST trap focus and close via Escape or the hardware back through one overlay stack. | Given two overlays, When Escape is pressed, Then only the topmost closes. Stack and focus trap live in Leoforma and are tested there; the app tests the Android back wiring. | `src/ui/overlayBackButton.test.ts`, `src/ui/Sheet.test.tsx` |
+| FR-UI-005 | Dialogs and sheets MUST trap focus and close via Escape or the hardware back through one overlay stack. | Given two overlays, When Escape is pressed, Then only the topmost closes. Stack and focus trap live in Leoforma and are tested there; the app tests the Android back wiring. | `src/ui/overlayBackButton.test.ts`, `src/ui/overlayBackButton.sheet.test.tsx` |
 | FR-UI-006 | Menus MUST support arrow navigation and Escape. | Given an open menu, When ArrowDown is pressed, Then focus moves. Menu behavior is tested in Leoforma; the app tests its overflow menu items. | `src/app/layout/DocumentHeader.test.tsx` |
 | FR-UI-007 | The sidebar width MUST stay within 180 to 480 px, default 260. | Given a drag past 480, When resized, Then the width is clamped. | `src/app/useResizableSidebar.test.ts` |
 | FR-UI-008 | The file tree MUST be keyboard navigable. | Given focus in the tree, When ArrowDown is pressed, Then the next row is focused. | `src/workspace/FileTree.test.tsx` |
@@ -1026,7 +1026,7 @@ Generated from section 8 by `python3 scripts/check_master_spec.py --update-trace
 | FR-SPELL | Spell check | 1 | 1 | 0 | `src/spellcheck/spellCheck.test.ts` |
 | FR-WID | Android widgets | 3 | 3 | 0 | `android/app/src/test/java/com/getcapacitor/myapp/WidgetResourcesUnitTest.java`, `android/app/src/test/java/com/leonardschwier/leotheca/NewNoteColdStartTrackerTest.java`, `src/workspace/fileTreeStore.test.ts` |
 | FR-CLIP | Web clipper extension | 3 | 3 | 0 | `extensions/web-clipper/clipperCore.test.js`, `extensions/web-clipper/messaging.test.js` |
-| FR-UI | Shell, UI primitives and accessibility | 12 | 10 | 2 | `src/app/App.test.tsx`, `src/app/CommandPalette.test.tsx`, `src/app/EmptyEditorState.test.tsx`, `src/app/layout/DocumentHeader.test.tsx`, `src/app/layout/adaptiveLayout.test.ts`, `src/app/useResizableSidebar.test.ts`, `src/fuzzyMatch.test.ts`, `src/ui/Sheet.test.tsx`, `src/ui/overlayBackButton.test.ts`, `src/workspace/FileTree.test.tsx` |
+| FR-UI | Shell, UI primitives and accessibility | 12 | 10 | 2 | `src/app/App.test.tsx`, `src/app/CommandPalette.test.tsx`, `src/app/EmptyEditorState.test.tsx`, `src/app/layout/DocumentHeader.test.tsx`, `src/app/layout/adaptiveLayout.test.ts`, `src/app/useResizableSidebar.test.ts`, `src/fuzzyMatch.test.ts`, `src/ui/overlayBackButton.sheet.test.tsx`, `src/ui/overlayBackButton.test.ts`, `src/workspace/FileTree.test.tsx` |
 | **Total** | | **194** | **185** | **9** | |
 <!-- traceability:end -->
 
@@ -1092,6 +1092,7 @@ These are current behavior, recorded honestly. None was fixed by the change that
 Newest first. Each entry is `YYYY-MM-DD: what changed in behavior, contracts, formats, build or release`. See `skills/master-spec-maintenance.md`.
 
 <!-- change-log:start -->
+- 2026-11-07: UI: `Sheet` and `StatusIndicator` now come from `@leonardschwier/leoforma` (the app copies and their CSS are removed). The "Unsaved" indicator keeps its accessible name "Unsaved changes" through a `role="group"` wrapper, and `CaptureSheet` imports `overlayBackButton` itself so the Android back button still dismisses the topmost overlay. App.tsx and CaptureSheet.tsx were also formatted with prettier (no behavior change).
 - 2026-11-07: Removed the never-published `website/` directory and the `gh-pages.yml` workflow; the README is the project's front page. Vitest and ESLint now skip `.claude/` (Claude Code worktrees), so a local run no longer executes copies of the tests. No application behavior changed.
 - 2026-11-07: Build: `@leonardschwier/leoforma` is now installed from the 0.2.0 release asset (`leonardschwier-leoforma-0.2.0.tgz`) instead of a GitHub tag archive, so the lockfile integrity no longer depends on archive bytes. The two Flatpak offline-cache entries were replaced, and `scripts/flatpakSources.js` now also checks every cache index entry (path, sha1 prefix, and a matching file entry with the same integrity). No application behavior changed.
 - 2026-11-07: Process: `scripts/check-rules.mjs trailers` (pre-push and the Rules workflow) requires `Legal-Check: N verified, M fixed, 0 open` when text, asset, doc or dependency files change, `Database-Review:` for schema or migration files, and `Review:` (reviewer model or `self-review` with a reason) for trust-boundary, workflow, hook or constitution files. No application behavior changed.

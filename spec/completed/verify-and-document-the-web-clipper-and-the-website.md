@@ -57,4 +57,8 @@ Enabling Pages, a signed Firefox build or store listings, regenerating screensho
 
 ## Evidence
 
-Filled at finish.
+Landed 385d9e0 on main. Hosted runs for that SHA: CI 42355407172 success (frontend, e2e, backend, android, appimage-smoke, validation), Agent policy 42355407143 success, Rules 42355407138 success. Release 42355407233: windows and flatpak failed at `npm ci` (git dependency `@leonardschwier/leoforma` prepare step, from another claim, unrelated to these files); validation, linux, android, macos, publish succeeded. Deploy to GitHub Pages failed at Setup Pages as expected (Pages not enabled).
+
+Local: `npx vitest run extensions website` 18 passed; `npm test` 3365 passed in 181 files; `tsc --noEmit` 0; `eslint` 0 errors; prettier clean on changed files; `check_master_spec` OK. Playwright Chromium: popup flow produced the Markdown file, zero off-page requests; local site under `/leotheca/`: 0 failed requests after fix (8 before). `web-ext lint`: 0 errors; `web-ext run` in Firefox 156 installed the temporary add-on.
+
+Review (self, separate pass): traced content script -> popup -> background -> downloads for success, empty selection, refused download and keyboard command; the only network surface is none. Security gate: no `src-tauri`, capability or IPC change, not applicable.

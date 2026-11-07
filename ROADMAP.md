@@ -38,16 +38,6 @@ Significant missing features users expect.
 
 Minor bugs, UX improvements, and performance.
 
-- 🚧 **Verify and document the web clipper and the website**: Neither `extensions/web-clipper` nor `website/` has ever been run. The clipper uses the Firefox-only `browser` global, and the Pages site has never deployed (Pages is not enabled) and uses root-absolute asset paths. Test both for real, fix what breaks, narrow unverified claims, and document install and deploy steps.
-  <!-- agent-state: {"schema":1,"id":"rm-b02ec2c20b433f2c","state":"claimed","touch":[".agents/handoffs/rm-clipsite.md",".github/workflows/gh-pages.yml","README.md","documentation/ARCHITECTURE.md","extensions/web-clipper","website"],"resources":["web-clipper","website"],"owner":"claude-code-clipsite-20261107T081220Z-18c11a28","token":"d252789027478d93263bdc675df16257","branch":"agent/rm-b02ec2c20b433f2c/d25278902747","claimed_at":"2026-11-07T08:13:45Z","heartbeat_at":"2026-11-07T08:13:45Z","lease_until":"2026-11-07T09:43:45Z"} -->
-  Agent: claude-code-clipsite-20261107T081220Z-18c11a28 | item: rm-b02ec2c20b433f2c | lease until: 2026-11-07T09:43:45Z
-
-  <details>
-  <summary>Scope and evidence plan</summary>
-
-  Load the extension in Playwright Chromium and run a real clip; run its unit tests; check it sends nothing anywhere. Serve `website/` locally under a sub-path, open both pages, check links and every claim against the app, and record rulings in `spec/verify-and-document-the-web-clipper-and-the-website.md`.
-
-  </details>
 - ✅ **Recent-notes widget performance** (done 2026-10-11, `579d804`):
   Fixed two bugs in `syncRecentNotesWidget` (fileTreeStore.ts):
   1. **Burst-coalescing bug**: `pendingRecentNotesSync` held a single `resolve` ref; when
@@ -383,6 +373,18 @@ _Review only — no fixes implemented this pass._
   - ✅ Completed 2026-11-06 — commit c137d45. New sixth widget in the family that DISPLAYS one chosen note's title + markdown-stripped content preview on the home screen. `LeothecaViewNoteWidgetProvider.java` (renders stored `{title, path}`, capped dependency-free `stripMarkdownForWidget` preview, deep-links a tap to `leotheca://select-widget-note`, degrades to a "tap to choose a note" prompt when nothing chosen/unreadable); `FolderAccessPlugin.setViewNote` (stores the note + nudges all placed instances, same division of labour as the favorites/recent widgets); `capacitorBridgeImpl.setViewNoteWidget` (best-effort TS wrapper); new `leotheca_widget_view_note` layout + `leotheca_widget_view_note_info` (110×90 content widget); receiver registered in AndroidManifest. Tests (TDD, written first): 5 new resource-contract tests in WidgetResourcesUnitTest. Gates: Android `:app:testDebugUnitTest` green, `npx tsc --noEmit` clean, `npx vitest run` 3221/3221 (171 files), `npx vite build` OK.
 
 ## Implemented
+
+- ✅ **Verify and document the web clipper and the website**: Neither `extensions/web-clipper` nor `website/` has ever been run. The clipper uses the Firefox-only `browser` global, and the Pages site has never deployed (Pages is not enabled) and uses root-absolute asset paths. Test both for real, fix what breaks, narrow unverified claims, and document install and deploy steps.
+  <!-- agent-state: {"schema":1,"id":"rm-b02ec2c20b433f2c","state":"done","touch":[".agents/handoffs/rm-clipsite.md",".github/workflows/gh-pages.yml","README.md","documentation/ARCHITECTURE.md","extensions/web-clipper","website"],"resources":["web-clipper","website"],"note":"Landed 385d9e0. Hosted on 385d9e0: CI 42355407172 success, Agent policy 42355407143 success, Rules 42355407138 success; Release 42355407233 failed only in windows and flatpak jobs at npm ci (git dependency leoforma prepare, another claim), publish success. Local: vitest extensions+website 18 passed, full npm test 3365 passed, tsc/eslint clean, prettier clean, Playwright Chromium clip and local site run, Firefox 156 temporary add-on install. Pages not enabled (owner command in website/README.md).","completed_at":"2026-11-07T08:42:35Z","completed_by":"claude-code-clipsite-20261107T081220Z-18c11a28","branch":"agent/rm-b02ec2c20b433f2c/d25278902747"} -->
+  Agent: completed by claude-code-clipsite-20261107T081220Z-18c11a28 | item: rm-b02ec2c20b433f2c
+
+  <details>
+  <summary>Scope and evidence plan</summary>
+
+  Load the extension in Playwright Chromium and run a real clip; run its unit tests; check it sends nothing anywhere. Serve `website/` locally under a sub-path, open both pages, check links and every claim against the app, and record rulings in `spec/verify-and-document-the-web-clipper-and-the-website.md`.
+
+  </details>
+
 
 - ✅ **Install and use the Cloudflare security audit skill**: Install the security-audit skill from the Cloudflare skill repository after reading its SKILL.md and license, then run guidance mode once on the Tauri commands and capabilities, the Capacitor plugin and AndroidManifest. Each confirmed finding becomes its own roadmap seed with a validation plan, and the clear ones are fixed under their own claim with regression tests.
   <!-- agent-state: {"schema":1,"id":"rm-102d06409c10e22f","state":"done","touch":[".agents/handoffs/security-audit-skill.md","skills/security-and-static-analysis.md"],"resources":["security-audit"],"note":"Landed 871b439: verified MIT upstream c1c8a8c installed user-level, one Tier 1 guidance run, four findings seeded, docs updated. Local: prettier and check-rules clean; hosted Rules and Agent policy success on 871b439; CI/Release queued (docs only). No full Tier 2 audit; see handoff.","completed_at":"2026-11-07T08:27:38Z","completed_by":"claude-code-pointers-20261107T081216Z-830cdb5e","branch":"agent/rm-102d06409c10e22f/4084a150af9a"} -->

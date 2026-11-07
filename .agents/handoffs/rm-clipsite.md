@@ -6,3 +6,6 @@
 - Pages is NOT enabled (`gh api repos/LeonardSchwier/leotheca/pages` is 404), so the site is not live and gh-pages runs fail at Setup Pages. Owner/admin action, deliberately not taken: `gh api -X POST repos/LeonardSchwier/leotheca/pages -f build_type=workflow && gh workflow run gh-pages.yml`.
 - Leftovers: a clipper e2e in the CI e2e suite (needs a persistent headless context); screenshots dated 2026-09-25; `scripts/check-rules.mjs` secret scan flags the `"token"` field in a claim or renew line of `ROADMAP.md` as a hard-coded credential, so control-worktree claim and renew commits fail pre-commit once hooks are installed (claim commits only passed here because they were made before `npm run hooks:install`; this needs its own claim).
 - Touched ROADMAP-adjacent shared files without a claim: `master-spec.md` and the new spec file (another live claim covered `spec` and `master-spec.md`; the edits are small, per-section additions merged by git).
+
+## Completion evidence
+Landed 385d9e0; CI, Agent policy and Rules green on that SHA. Release windows and flatpak jobs failed at npm ci on the leoforma git dependency (not this change). Pages still needs the owner command above.

@@ -490,39 +490,12 @@ describe("SettingsPanel", () => {
     });
   });
 
-  describe("Speech-to-text dictation (off by default, 2026-09-15)", () => {
-    it("DEFAULT_WORKSPACE_SETTINGS defaults speechToTextEnabled to false, so no native speech API is touched until opted in", () => {
-      expect(DEFAULT_WORKSPACE_SETTINGS.speechToTextEnabled).toBe(false);
-    });
-
-    it("shows and wires the speech-to-text switch, off by default", () => {
+  describe("No voice dictation (removed 2026-11-07)", () => {
+    it("shows no speech-to-text switch", () => {
       workspacePath.value = "/vault";
-      workspaceSettings.value = {
-        ...DEFAULT_WORKSPACE_SETTINGS,
-        speechToTextEnabled: false,
-      };
-      const { getByText } = render(<SettingsPanel onOpenFile={vi.fn()} />);
-      const row = getByText("Speech-to-text dictation").closest(
-        ".settings-row",
-      ) as HTMLElement;
-      expect(within(row).getByText("Off").className).toContain("active");
-      fireEvent.click(within(row).getByText("On"));
-      expect(updateWorkspaceSettings).toHaveBeenCalledWith({
-        speechToTextEnabled: true,
-      });
-    });
-
-    it("marks On active once the setting is enabled", () => {
-      workspacePath.value = "/vault";
-      workspaceSettings.value = {
-        ...DEFAULT_WORKSPACE_SETTINGS,
-        speechToTextEnabled: true,
-      };
-      const { getByText } = render(<SettingsPanel onOpenFile={vi.fn()} />);
-      const row = getByText("Speech-to-text dictation").closest(
-        ".settings-row",
-      ) as HTMLElement;
-      expect(within(row).getByText("On").className).toContain("active");
+      workspaceSettings.value = { ...DEFAULT_WORKSPACE_SETTINGS };
+      const { queryByText } = render(<SettingsPanel onOpenFile={vi.fn()} />);
+      expect(queryByText("Speech-to-text dictation")).toBeNull();
     });
   });
 

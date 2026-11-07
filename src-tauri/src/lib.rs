@@ -2,7 +2,6 @@ mod commands;
 mod default_handler;
 mod external_open;
 mod markdown_import;
-mod speech_commands;
 mod workspace_grants;
 mod workspace_mutations;
 
@@ -61,9 +60,6 @@ pub fn run() {
             }
         }));
     }
-
-    // Initialize whisper model state for speech recognition
-    builder = builder.manage(speech_commands::WhisperState::default());
 
     // Server-side mirror of the frontend's own active workspace root (see
     // `commands::ActiveWorkspaceRoot`), the containment gate every unscoped
@@ -141,12 +137,6 @@ pub fn run() {
             commands::workspace_stats,
             markdown_import::import_markdown_vault,
             markdown_import::cancel_markdown_import,
-            // Speech recognition commands
-            speech_commands::init_speech_recognition,
-            speech_commands::transcribe_audio,
-            speech_commands::get_speech_status,
-            speech_commands::get_whisper_models,
-            speech_commands::check_whisper_models,
             external_open::take_pending_open_file,
             external_open::pick_and_read_external_markdown_file,
             // OS "Open with" / default `.md` handler contract (ROADMAP.md's

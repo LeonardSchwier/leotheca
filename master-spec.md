@@ -67,6 +67,7 @@ Principles, in priority order (`PHILOSOPHY.md`): free and open source without co
 | HC-07 | Any feature queued through a competitor scan MUST have a setting to turn it off. |
 | HC-08 | Dependencies MUST be license-compatible and free of undeclared proprietary blobs, and source builds reproducible. |
 | HC-09 | Competitor names MUST NOT appear in code, comments, commits or docs; use "Market Solution #1/#2". |
+| HC-10 | The app MUST NOT use the camera or the microphone: no photo, video or audio capture and no voice dictation, because that access can invade privacy. The Android manifest MUST NOT request `RECORD_AUDIO`, `MODIFY_AUDIO_SETTINGS` or `CAMERA`. |
 
 ## 3. Glossary
 
@@ -111,7 +112,6 @@ Principles, in priority order (`PHILOSOPHY.md`): free and open source without co
 | HTML export | Save dialog command | Save dialog command | Save dialog command | `PrintExport` plugin |
 | OS file open | argv, single instance | `RunEvent::Opened` | argv, single instance | No-op on this path |
 | Share target, widgets | No-op | No-op | No-op | Yes |
-| Speech | Unavailable, see KG-002 | Unavailable | Unavailable | Platform recognizer |
 | Channels | AppImage, Flatpak | Homebrew Cask (draft) | Repository release | F-Droid, Obtainium |
 
 Only Linux CI builds and launches a desktop artifact as a smoke test. macOS and Windows artifacts are built in the release workflow. Physical-device behavior was not verified while writing this document.
@@ -149,11 +149,11 @@ Only Linux CI builds and launches a desktop artifact as a smoke test. macOS and 
 | `src/graph/`, `src/canvas/`, `src/ink/`, `src/pdf/` | Non-text surfaces. |
 | `src/editorGroups/` | Split pane UI and per-document view state. |
 | `src/export/` | Print and HTML export. |
-| `src/speech/`, `src/spellcheck/` | Optional input aids. |
+| `src/spellcheck/` | Optional input aids. |
 | `src/ui/` | The Android back button wiring, `overlayBackButton` (Capacitor back button wired into Leoforma's overlay stack); no UI component lives here any more. `Button`, `IconButton`, `Dialog`, `Sheet`, `StatusIndicator`, `EmptyState`, `Icon` and its 28 icons, `Menu`, `Tooltip`, `SegmentedControl`, `Spinner` and the overlay stack come from `@leonardschwier/leoforma`. |
 | `src/styles/theme.css` | Maps the app's token names onto Leoforma's `--ds-*` tokens; keeps highlight, mark, accent-choice, reading-font and zoom variables. |
-| `src-tauri/src/` | `commands.rs`, `workspace_mutations.rs`, `external_open.rs`, `default_handler.rs`, `speech_commands.rs`, `lib.rs`. |
-| `android/app/src/main/java/.../` | `MainActivity`, `FolderAccessPlugin`, `WorkspaceMutationPlugin`, `PrintExportPlugin`, `SpeechRecognitionPlugin`, `CaptureIntentHandler`, widget providers. |
+| `src-tauri/src/` | `commands.rs`, `workspace_mutations.rs`, `external_open.rs`, `default_handler.rs`, `lib.rs`. |
+| `android/app/src/main/java/.../` | `MainActivity`, `FolderAccessPlugin`, `WorkspaceMutationPlugin`, `PrintExportPlugin`, `CaptureIntentHandler`, widget providers. |
 | `extensions/web-clipper/` | Standalone WebExtension for Chrome and Firefox (Manifest V3, install notes in its README). It does not communicate with the app. |
 
 **Startup sequence (Traced).**
@@ -231,7 +231,6 @@ UTF-8, pretty-printed with 2 spaces. `version` is 1 by default, or 2 once a lega
 | `markdownImportEnabled` | boolean | true | Offers the "Import Markdown vault..." command (desktop). |
 | `collectionsEnabled` | boolean | false | |
 | `rtlWorkspaceEnabled` | boolean | false | |
-| `speechToTextEnabled` | boolean | false | |
 | `spellcheckEnabled` | boolean | false | |
 | `captureInboxFolder` | relative folder | `""` | As `attachmentsFolder` |
 | `captureInboxNote` | string | `Inbox.md` | |
@@ -409,11 +408,6 @@ All return `Result<T, String>` unless noted. `FsEntry` is `{ name, path, isDir, 
 | `pick_and_read_external_markdown_file` | none | `{path, content}\|null` | User picks | `.md` filter. |
 | `detect_platform` | `userAgent` | `Platform` | None | Pure. |
 | `default_handler_for_platform` | `platform` | Contract | None | Pure. |
-| `init_speech_recognition` | `model` (`tiny`, `base`, `small`, `medium`) | `()` | Name allow-list; the file is `<app_data_dir>/whisper-models/ggml-<model>.bin`, a path is refused | See KG-002. |
-| `transcribe_audio` | `audioData: f32[], language?` | `string` | None | Empty audio gives `""`. See KG-002. |
-| `get_speech_status` | none | Status | None | See KG-002. |
-| `get_whisper_models` | none | `WhisperModelInfo[]` | None | tiny 39, base 75, small 244, medium 769 MB. |
-| `check_whisper_models` | none | `WhisperModelFile[]` | Fixed directory `<app_data_dir>/whisper-models` | Existence probe for `ggml-*.bin`. |
 
 Event: `open-external-file` carrying `{path, content}`.
 
@@ -421,7 +415,7 @@ Event: `open-external-file` carrying `{path, content}`.
 
 ### 7.3 Capacitor plugins
 
-Registered in `MainActivity`: `WorkspaceMutationPlugin` (subclass of `FolderAccessPlugin`, exposed under the plugin name `FolderAccess`), `PrintExportPlugin`, `SpeechRecognitionPlugin`. Rejections are `call.reject(message)`, with a coded prefix for no-replace mutations.
+Registered in `MainActivity`: `WorkspaceMutationPlugin` (subclass of `FolderAccessPlugin`, exposed under the plugin name `FolderAccess`) and `PrintExportPlugin`. Rejections are `call.reject(message)`, with a coded prefix for no-replace mutations.
 
 **`FolderAccess`**
 
@@ -453,9 +447,7 @@ Registered in `MainActivity`: `WorkspaceMutationPlugin` (subclass of `FolderAcce
 
 **`PrintExport`**: `printHtml({html,title?})` rejects when printing is unavailable or the page fails; `exportHtml({html,defaultFileName?})` returns `{saved}`.
 
-**`SpeechRecognition`**: `startRecognition({language?="en",preferOffline?=true})` returns `{success,error?,text?,language?}`, and resolves only on a final result or error; `stopRecognition()`; `isOfflineSupported()` returns `{supported}`; `getAvailableLanguages()` returns `{languages}`. Requires `RECORD_AUDIO`.
-
-**Android manifest.** Permissions are `RECORD_AUDIO` and `MODIFY_AUDIO_SETTINGS`. `MainActivity` is `singleTask`, with intent filters for launcher, `VIEW` on scheme `leotheca`, `SEND` for `text/plain`, `text/uri-list`, `image/*`, and `SEND_MULTIPLE` for `image/*`. There are six non-exported widget receivers and two `RemoteViews` services; there is no `FileProvider`. A shared `EXTRA_STREAM` is staged only when it is another app's `content://` URI: `file://` URIs and URIs of the app's own authority (with or without a user id prefix) are dropped (`NativeBoundaryPolicy.isAcceptableShareUri`). `android:allowBackup` is `true` and `largeHeap` is `true`.
+**Android manifest.** The manifest declares no `uses-permission` at all: no audio, camera or network access (FR-PRIV-001). `MainActivity` is `singleTask`, with intent filters for launcher, `VIEW` on scheme `leotheca`, `SEND` for `text/plain`, `text/uri-list`, `image/*`, and `SEND_MULTIPLE` for `image/*`. There are six non-exported widget receivers and two `RemoteViews` services; there is no `FileProvider`. A shared `EXTRA_STREAM` is staged only when it is another app's `content://` URI: `file://` URIs and URIs of the app's own authority (with or without a user id prefix) are dropped (`NativeBoundaryPolicy.isAcceptableShareUri`). `android:allowBackup` is `true` and `largeHeap` is `true`.
 
 **Share limits (native).** 10 attachments, 25 MiB each, 100 MiB per share, 250 MiB queue, matching the JS constants.
 
@@ -783,14 +775,13 @@ The URL parser is not the security boundary. The native gate on the eventual rea
 | FR-IMPORT-005 | Only attachment embeds and links, nested heading links and %%comments%% MUST be rewritten; code, front matter and already supported syntax MUST stay byte-identical; non-UTF-8 notes MUST be copied unchanged and reported. | Given a note with each syntax, When imported, Then only the three kinds change and the report counts each finding. | `src-tauri/src/markdown_import.rs` (cargo test) |
 | FR-IMPORT-006 | The dialog MUST show progress with Cancel, then a report with exact counts and capped lists; a native failure MUST show an error dialog and the tree MUST refresh after files were written. | Given a finished import, When the dialog shows, Then converted, unsupported, renamed, skipped and failed items are listed. | `src/markdownImport/importStore.test.tsx` |
 
-### Speech to text (FR-SPEECH)
+### Privacy boundary: no camera, no microphone (FR-PRIV)
 
 | ID | Requirement | Acceptance | Test |
 | --- | --- | --- | --- |
-| FR-SPEECH-001 | Speech MUST default off and be offline only. | Given defaults, When read, Then speechToTextEnabled is false. | `src/settings/workspaceSettings.test.ts` |
-| FR-SPEECH-002 | Android MUST use the platform recognizer with preferOffline true by default, resolving only on final result or error. | Given a start call, When recognized, Then the long-lived promise resolves. | `src/speech/speechController.test.ts` |
-| FR-SPEECH-003 | Desktop MUST report offlineSupported only when a model is actually loaded and MUST NOT fabricate text. No whisper backend is compiled by default. | Given modelLoaded false, When status is read, Then offlineSupported is false. | `src/workspace/speechBridgeImpl.test.ts` |
-| FR-SPEECH-004 | Empty audio MUST return an empty string. | No test confirmed for the Tauri command path; see KG-002. | NONE |
+| FR-PRIV-001 | The app MUST NOT access the camera or the microphone on any platform: no audio or video capture API, no speech engine, no `RECORD_AUDIO`, `MODIFY_AUDIO_SETTINGS` or `CAMERA` permission. | Given the sources and the Android manifest, When scanned, Then none of those appear. | `scripts/noMicrophone.test.js` |
+| FR-PRIV-002 | A settings file written by an older version that still carries `speechToTextEnabled` MUST load without corruption and the key MUST be dropped. | Given a stored `speechToTextEnabled`, When loaded, Then corrupt is false and the key is absent. | `src/settings/workspaceSettings.test.ts` |
+| FR-PRIV-003 | The settings panel MUST NOT offer a dictation switch. | Given the panel, When rendered, Then no speech-to-text row exists. | `src/settings/SettingsPanelCurrentTests.tsx` |
 
 ### Spell check (FR-SPELL)
 
@@ -1035,12 +1026,12 @@ Generated from section 8 by `python3 scripts/check_master_spec.py --update-trace
 | FR-EXP | Print and export | 6 | 6 | 0 | `src/export/exportNoteHtml.test.ts`, `src/export/pdfExport.test.ts`, `src/export/printNote.test.ts`, `src/workspace/tauriBridgeImpl.test.ts` |
 | FR-EXT | External file open | 3 | 3 | 0 | `src-tauri/src/external_open.rs`, `src/app/ExternalFileView.test.tsx`, `src/settings/globalConfig.test.ts` |
 | FR-IMPORT | Markdown vault import | 6 | 6 | 0 | `src-tauri/src/markdown_import.rs`, `src/markdownImport/importStore.test.tsx`, `src/markdownImport/markdownImport.test.ts` |
-| FR-SPEECH | Speech to text | 4 | 3 | 1 | `src/settings/workspaceSettings.test.ts`, `src/speech/speechController.test.ts`, `src/workspace/speechBridgeImpl.test.ts` |
+| FR-PRIV | Privacy boundary: no camera, no microphone | 3 | 3 | 0 | `scripts/noMicrophone.test.js`, `src/settings/SettingsPanelCurrentTests.tsx`, `src/settings/workspaceSettings.test.ts` |
 | FR-SPELL | Spell check | 1 | 1 | 0 | `src/spellcheck/spellCheck.test.ts` |
 | FR-WID | Android widgets | 3 | 3 | 0 | `android/app/src/test/java/com/getcapacitor/myapp/WidgetResourcesUnitTest.java`, `android/app/src/test/java/com/leonardschwier/leotheca/NewNoteColdStartTrackerTest.java`, `src/workspace/fileTreeStore.test.ts` |
 | FR-CLIP | Web clipper extension | 3 | 3 | 0 | `extensions/web-clipper/clipperCore.test.js`, `extensions/web-clipper/messaging.test.js` |
 | FR-UI | Shell, UI primitives and accessibility | 12 | 10 | 2 | `src/app/App.test.tsx`, `src/app/CommandPalette.test.tsx`, `src/app/EmptyEditorState.test.tsx`, `src/app/layout/DocumentHeader.test.tsx`, `src/app/layout/adaptiveLayout.test.ts`, `src/app/useResizableSidebar.test.ts`, `src/fuzzyMatch.test.ts`, `src/ui/overlayBackButton.sheet.test.tsx`, `src/ui/overlayBackButton.test.ts`, `src/workspace/FileTree.test.tsx` |
-| **Total** | | **199** | **190** | **9** | |
+| **Total** | | **198** | **190** | **8** | |
 <!-- traceability:end -->
 
 ## 15. Coverage gaps
@@ -1054,7 +1045,6 @@ Requirements with `NONE` in the Test column, listed so they are not mistaken for
 - FR-REN-006
 - FR-CANVAS-003
 - FR-SET-008
-- FR-SPEECH-004
 - FR-UI-010
 - FR-UI-011
 <!-- coverage-gaps:end -->
@@ -1072,8 +1062,7 @@ These are current behavior, recorded honestly. None was fixed by the change that
 
 | ID | Finding | Evidence | Severity |
 | --- | --- | --- | --- |
-| KG-001 | Scoped desktop commands trust the frontend-supplied `workspace_root` and do not compare it with `ActiveWorkspaceRoot`. `init_speech_recognition` and `check_whisper_models` no longer take paths (model name allow-list, fixed directory); only the workspace-root part remains. | Traced in `commands.rs`, `workspace_mutations.rs`, `speech_commands.rs` | Medium |
-| KG-002 | `lib.rs` manages `WhisperState`, but speech commands request `State<Arc<Mutex<WhisperState>>>`. Those are different types, so Tauri cannot supply the state. Desktop speech is unavailable regardless, since no whisper backend is compiled by default. | Traced. Runtime invoke result Unverified. | Medium |
+| KG-001 | Scoped desktop commands trust the frontend-supplied `workspace_root` and do not compare it with `ActiveWorkspaceRoot`. | Traced in `commands.rs`, `workspace_mutations.rs` | Medium |
 | KG-003 | Android native plugin methods accept any URI string with no allow-list. Protection is the OS grant and the JS layer. | Traced | Medium |
 | KG-004 | `applyCustomCss` calls `resolvePath(customCssPath, workspacePath)` and `isPathWithinWorkspace(absolutePath, workspacePath)`, reversing both signatures. It tries to read the workspace folder itself, so with a real filesystem custom CSS never applies. | Observed: a probe with real path functions read `/ws`. | High for that feature |
 | KG-005 | `decodeWorkspaceSettings` omits `mermaidRenderingEnabled` from its normalized object. A missing key stays `undefined`, so Settings highlights neither option, and a bad value such as `"yes"` stays in memory, though corrupt is set. Preview treats `undefined` as on. | Observed by probe | Low |
@@ -1094,7 +1083,6 @@ These are current behavior, recorded honestly. None was fixed by the change that
 | DD-02 | `documentation/TESTING.md`: about 2,933 tests in 152 files. | Observed 3221 tests in 171 files. |
 | DD-03 | `packaging/STATUS.md` says `VERSION` is 0.1.0, and it is in German. | `VERSION` is 1.0.0. |
 | DD-04 | `src/refactor/renameExecutor.ts` header and F03 spec: durable journal. | In-memory only (KG-006). |
-| DD-05 | `src/speech/speechController.ts` header: uses whisper.cpp on desktop. | No backend compiled by default; see `speechBridgeImpl.ts` and KG-002. |
 | DD-06 | Code comments cite CONSTITUTION.md's "Offline by design" and "Technology stack" sections. | No such headings in `CONSTITUTION.md`. The rules live in `documentation/PROJECT_RULES.md`. |
 | DD-07 | `src/app/shortcuts.ts` omits pin and unpin. | `App.tsx` handles `Ctrl+Shift+P` and `U`. |
 | DD-08 | `spec/*.md` documents are design documents with phases. | Parts are narrowed or unimplemented. This document, not `spec/`, describes what shipped. Individual differences were not enumerated. |
@@ -1105,6 +1093,7 @@ These are current behavior, recorded honestly. None was fixed by the change that
 Newest first. Each entry is `YYYY-MM-DD: what changed in behavior, contracts, formats, build or release`. See `skills/master-spec-maintenance.md`.
 
 <!-- change-log:start -->
+- 2026-11-08: Privacy: voice dictation and all microphone access are removed (owner decision: no camera, no microphone). Deleted `src/speech/`, the speech bridges, `SpeechRecognitionButton`, Quick Capture voice input, the desktop commands `init_speech_recognition`, `transcribe_audio`, `get_speech_status`, `get_whisper_models`, `check_whisper_models`, the `whisper-ffi` crate (and its `bindgen`, `cc` and `libc` build tree from `Cargo.lock` and `flatpak/cargo-sources.json`), the Android `SpeechRecognitionPlugin`, and the `RECORD_AUDIO` and `MODIFY_AUDIO_SETTINGS` permissions. The `speechToTextEnabled` setting and its settings row are gone; an old stored value is dropped on load. New HC-10 and FR-PRIV-001..003; KG-002 and DD-05 closed with the code they described.
 - 2026-11-07: Preview: Mermaid diagrams follow the app theme (light or dark, redrawn when it flips), fill the note width, and have zoom, pan and full-screen controls (`src/markdown/mermaidFigure.ts`, `src/styles/mermaid.css`); a diagram that fails to render shows an error notice with the reason above its source instead of a bare code block.
 - 2026-11-07: CI: new workflow `.github/workflows/gitleaks.yml` (pinned gitleaks 8.30.1 release binary, SHA-256 verified) scans the tree and the commits of each pull request or push, and the whole history weekly, with rules and narrow allowlists in `.gitleaks.toml`; `.github/workflows/audit.yml` gains a `cargo-audit` job (pinned 0.22.2 binary, checksum verified) for `src-tauri/Cargo.lock` that fails on RustSec vulnerabilities. Neither is a required check. No application behavior changed.
 - 2026-11-07: UI: `EmptyState` and the `Icon` set now come from `@leonardschwier/leoforma`; `src/ui/` keeps only the Android back-button wiring and `primitives.css` is gone. The empty states in the Bookmarks and Tags panels pass their icon as an element, and the "Couldn't open ..." error messages use a colon instead of an em dash. A small app-level `.ds-icon` rule keeps the old icon alignment. Inspector, BookmarksPanel and TagsPanel were also formatted with prettier.

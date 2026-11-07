@@ -51,6 +51,23 @@ export function checkCommitMessage(message) {
   return problems;
 }
 
+/**
+ * A warning (not an error) when a commit that names an agent as co-author is
+ * authored under the owner's GitHub noreply address. Agents commit as
+ * "Claude Code (agent) <noreply@anthropic.com>" (scripts/agent-git-env.sh), so
+ * history shows who wrote what. A human pairing with an agent is legitimate,
+ * hence a warning.
+ */
+export function identityWarning(message, authorIdent) {
+  const agentTrailer =
+    /^Co-Authored-By: .*(Claude|Codex|Hermes|Mistral|opencode|GPT)/im;
+  const humanTrailer = /^Authored-By: human\s*$/im;
+  if (!agentTrailer.test(message) || humanTrailer.test(message)) return null;
+  return /users\.noreply\.github\.com>/.test(authorIdent ?? "")
+    ? "authored under a personal GitHub noreply address although an agent is named as co-author; agents commit with: source scripts/agent-git-env.sh"
+    : null;
+}
+
 async function cli() {
   const { findCompetitor } = await import("./check-rules.mjs");
   const msg = readFileSync(process.argv[2], "utf8");
@@ -63,6 +80,17 @@ async function cli() {
   );
   if (hit)
     problems.push('contains a competitor name (use "Market Solution #1/#2")');
+  try {
+    const { execFileSync } = await import("node:child_process");
+    const ident = execFileSync("git", ["var", "GIT_AUTHOR_IDENT"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    });
+    const warning = identityWarning(msg, ident);
+    if (warning) console.error(`commit-msg warning: ${warning}`);
+  } catch {
+    // No identity configured: git itself will refuse the commit.
+  }
   if (problems.length === 0) return 0;
   console.error("Commit message rejected:");
   for (const p of problems) console.error(`  ${p}`);

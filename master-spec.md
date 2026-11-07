@@ -107,6 +107,7 @@ Principles, in priority order (`PHILOSOPHY.md`): free and open source without co
 | Atomic overwrite | Yes, temp and rename | Yes | Yes | Not atomic (provider stream) |
 | No-replace rename | `renameat2` | `renamex_np` | `MoveFileExW` flags 0 | Provider rename, checked |
 | Print | Webview print | Webview print | Webview print | `PrintExport` plugin |
+| PDF export | Webview print dialog, "Save as PDF" | Webview print dialog, "Save as PDF" | Webview print dialog, "Save as PDF" | Not yet (device-bound item) |
 | HTML export | Save dialog command | Save dialog command | Save dialog command | `PrintExport` plugin |
 | OS file open | argv, single instance | `RunEvent::Opened` | argv, single instance | No-op on this path |
 | Share target, widgets | No-op | No-op | No-op | Yes |
@@ -759,6 +760,9 @@ The URL parser is not the security boundary. The native gate on the eventual rea
 | FR-EXP-001 | Print MUST wrap the rendered preview HTML in a standalone print document. | Given body HTML, When built, Then a full document with print CSS results. | `src/export/printNote.test.ts` |
 | FR-EXP-002 | HTML export MUST inline local images as data so the file is portable. | Given a local image, When exported, Then its src is a data URI. | `src/export/exportNoteHtml.test.ts` |
 | FR-EXP-003 | A cancelled save dialog MUST resolve as not saved, not as an error. | Given a cancelled dialog, When export runs, Then the result is false. | `src/workspace/tauriBridgeImpl.test.ts` |
+| FR-EXP-004 | On desktop, "Export note to PDF…" MUST print the rendered note through a paginated document: A4 page rules, headings kept with the next block, code, table rows, images and diagrams not split, long code lines wrapped, images and SVG scaled to the page, KaTeX styles included. | Given body HTML, When the PDF document is built, Then those rules are present. | `src/export/pdfExport.test.ts` |
+| FR-EXP-005 | The PDF export MUST inline local images and wait for images and fonts (at most 5 seconds) before opening the print dialog, and MUST still print when either step fails. | Given a pending image, When exporting, Then print runs after it loads, after an error, or after the timeout. | `src/export/pdfExport.test.ts`, `src/export/printNote.test.ts` |
+| FR-EXP-006 | The proposed PDF file name MUST be the note name with path separators, reserved and control characters replaced, at most 120 characters, and `note` when nothing is left. | Given `a/b:c`, When named, Then `a b c`. | `src/export/pdfExport.test.ts` |
 
 ### External file open (FR-EXT)
 
@@ -844,7 +848,7 @@ Navigation panels are mutually exclusive. Loading, error and empty states are re
 
 ### 9.2 Commands
 
-Palette commands (conditional ones in parentheses): Switch workspace, Add workspace, Manage workspace profiles, toggle sidebar, toggle bookmarks, (toggle tags), toggle task hub, (toggle collections), Markdown formatting help, Open Settings, Quick Capture, (Open file from outside the vault, desktop with the feature on), (New note from template), New note, (New canvas), New drawing, Increase font size, Decrease font size, Open graph view, Switch to Source, Split and Preview view; for an active note (Print note, Export note to HTML, bookmark toggle, Copy block link, Create block link, table add and delete row or column), Rename current note, Close current tab, (Pin, Unpin, Unpin and close), Close all unpinned tabs. This list was extracted from `App.tsx` and is not exhaustive for split-group commands.
+Palette commands (conditional ones in parentheses): Switch workspace, Add workspace, Manage workspace profiles, toggle sidebar, toggle bookmarks, (toggle tags), toggle task hub, (toggle collections), Markdown formatting help, Open Settings, Quick Capture, (Open file from outside the vault, desktop with the feature on), (New note from template), New note, (New canvas), New drawing, Increase font size, Decrease font size, Open graph view, Switch to Source, Split and Preview view; for an active note (Print note, Export note to HTML, Export note to PDF, bookmark toggle, Copy block link, Create block link, table add and delete row or column), Rename current note, Close current tab, (Pin, Unpin, Unpin and close), Close all unpinned tabs. This list was extracted from `App.tsx` and is not exhaustive for split-group commands.
 
 ### 9.3 Keyboard shortcuts
 
@@ -1025,7 +1029,7 @@ Generated from section 8 by `python3 scripts/check_master_spec.py --update-trace
 | FR-TAB | Tabs and split groups | 7 | 7 | 0 | `src/editorGroups/SecondaryEditorPane.test.tsx`, `src/settings/workspaceSettings.test.ts`, `src/workspace/documentGroups.test.ts`, `src/workspace/store.test.ts` |
 | FR-SET | Settings persistence | 10 | 9 | 1 | `src/settings/VaultStatsPanel.test.tsx`, `src/settings/defaultHandler.test.ts`, `src/settings/globalConfig.test.ts`, `src/settings/store.test.ts`, `src/settings/workspaceSettings.test.ts` |
 | FR-THEME | Themes and appearance | 4 | 4 | 0 | `src/app/zoomControls.test.ts`, `src/settings/customCss.test.ts`, `src/settings/store.test.ts`, `src/settings/workspaceSettings.test.ts` |
-| FR-EXP | Print and export | 3 | 3 | 0 | `src/export/exportNoteHtml.test.ts`, `src/export/printNote.test.ts`, `src/workspace/tauriBridgeImpl.test.ts` |
+| FR-EXP | Print and export | 6 | 6 | 0 | `src/export/exportNoteHtml.test.ts`, `src/export/pdfExport.test.ts`, `src/export/printNote.test.ts`, `src/workspace/tauriBridgeImpl.test.ts` |
 | FR-EXT | External file open | 3 | 3 | 0 | `src-tauri/src/external_open.rs`, `src/app/ExternalFileView.test.tsx`, `src/settings/globalConfig.test.ts` |
 | FR-IMPORT | Markdown vault import | 6 | 6 | 0 | `src-tauri/src/markdown_import.rs`, `src/markdownImport/importStore.test.tsx`, `src/markdownImport/markdownImport.test.ts` |
 | FR-SPEECH | Speech to text | 4 | 3 | 1 | `src/settings/workspaceSettings.test.ts`, `src/speech/speechController.test.ts`, `src/workspace/speechBridgeImpl.test.ts` |
@@ -1033,7 +1037,7 @@ Generated from section 8 by `python3 scripts/check_master_spec.py --update-trace
 | FR-WID | Android widgets | 3 | 3 | 0 | `android/app/src/test/java/com/getcapacitor/myapp/WidgetResourcesUnitTest.java`, `android/app/src/test/java/com/leonardschwier/leotheca/NewNoteColdStartTrackerTest.java`, `src/workspace/fileTreeStore.test.ts` |
 | FR-CLIP | Web clipper extension | 3 | 3 | 0 | `extensions/web-clipper/clipperCore.test.js`, `extensions/web-clipper/messaging.test.js` |
 | FR-UI | Shell, UI primitives and accessibility | 12 | 10 | 2 | `src/app/App.test.tsx`, `src/app/CommandPalette.test.tsx`, `src/app/EmptyEditorState.test.tsx`, `src/app/layout/DocumentHeader.test.tsx`, `src/app/layout/adaptiveLayout.test.ts`, `src/app/useResizableSidebar.test.ts`, `src/fuzzyMatch.test.ts`, `src/ui/overlayBackButton.sheet.test.tsx`, `src/ui/overlayBackButton.test.ts`, `src/workspace/FileTree.test.tsx` |
-| **Total** | | **196** | **187** | **9** | |
+| **Total** | | **199** | **190** | **9** | |
 <!-- traceability:end -->
 
 ## 15. Coverage gaps
@@ -1132,4 +1136,5 @@ Newest first. Each entry is `YYYY-MM-DD: what changed in behavior, contracts, fo
 - 2026-11-07: Security: `npm audit fix --omit=dev` cleared all 8 known vulnerabilities in the production dependencies (2 critical: `dompurify` 3.4.17, `@capacitor/android` 7.6.10; `mermaid` 12.3.0 with `chevrotain` 13.2.0 and `lodash-es` 4.18.1; `katex`). `flatpak/node-sources.json` was regenerated. New workflow `audit.yml` fails on high or critical advisories. Mermaid rendering is unchanged by design; the 3282 tests and the build pass.
 - 2026-11-07: Packaging: `snap/snapcraft.yaml` and the draft Homebrew cask now declare version 1.0.0 like `VERSION`; the Flatpak README no longer refers to a `v0.1.0` tag that was never cut. No application behavior changed.
 - 2026-11-07: Dependencies: 20 minor and patch updates within their declared ranges (CodeMirror, Capacitor core, cli and filesystem, pdfjs-dist, katex, vite, vitest, eslint, prettier and others) and two in `tests/e2e`; the Tauri JavaScript packages stay pinned to their Rust crate versions and all major versions are left alone. No application behavior changed; 3283 tests and the build pass.
+- 2026-11-07: Desktop: new palette command "Export note to PDF…" opens the print dialog on a paginated A4 document (page-break rules, wrapped code, scaled images and diagrams, KaTeX styles, images inlined, waits for images and fonts) named after the note; the shared print stylesheet also gained the page-break rules. Android is unchanged.
 <!-- change-log:end -->

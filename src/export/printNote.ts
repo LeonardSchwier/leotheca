@@ -57,19 +57,29 @@ const PRINT_STYLESHEET = `
     @page { margin: 2cm; }
     body { margin: 0; padding: 0; max-width: none; }
     a { color: inherit; text-decoration: none; }
+    /* Pagination: a heading never ends a page, and blocks that are
+       unreadable when cut in half stay on one page. */
+    h1, h2, h3, h4, h5, h6 { break-after: avoid; page-break-after: avoid; }
+    pre, blockquote, tr, img, figure { break-inside: avoid; page-break-inside: avoid; }
+    thead { display: table-header-group; }
+    p, li { orphans: 3; widows: 3; }
   }
 `;
 
 /** Pure: builds the full standalone HTML document a note is printed
  * from. Exported mainly so it can be unit tested directly, without the
  * browser-only iframe/print orchestration below. */
-export function buildPrintDocument(title: string, bodyHtml: string): string {
+export function buildPrintDocument(
+  title: string,
+  bodyHtml: string,
+  options: { extraCss?: string } = {},
+): string {
   return `<!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
 <title>${escapeHtml(title)}</title>
-<style>${PRINT_STYLESHEET}</style>
+<style>${PRINT_STYLESHEET}${options.extraCss ?? ""}</style>
 </head>
 <body>
 <article>${bodyHtml}</article>
@@ -89,6 +99,12 @@ export interface PrintNoteDeps {
    * synchronously inside `print()`) still has it available. Overridable
    * so tests don't need a real timer. */
   cleanupDelayMs?: number;
+  /** Builds the document written into the iframe. Defaults to
+   * `buildPrintDocument`; the PDF export passes its own. */
+  buildDocument?: (title: string, bodyHtml: string) => string;
+  /** Awaited after the document is written and before print is
+   * triggered (images and fonts). A rejection never blocks printing. */
+  waitForAssets?: (win: Window) => Promise<void>;
 }
 
 /**
@@ -103,8 +119,14 @@ export function printNoteHtml(
   title: string,
   bodyHtml: string,
   deps: PrintNoteDeps = {},
-): void {
-  const { doc = document, triggerPrint, cleanupDelayMs = 1000 } = deps;
+): Promise<void> {
+  const {
+    doc = document,
+    triggerPrint,
+    cleanupDelayMs = 1000,
+    buildDocument = buildPrintDocument,
+    waitForAssets,
+  } = deps;
 
   const iframe = doc.createElement("iframe");
   iframe.style.position = "fixed";
@@ -127,11 +149,11 @@ export function printNoteHtml(
   const win = iframe.contentWindow;
   if (!iframeDoc || !win) {
     cleanup();
-    return;
+    return Promise.resolve();
   }
 
   iframeDoc.open();
-  iframeDoc.write(buildPrintDocument(title, bodyHtml));
+  iframeDoc.write(buildDocument(title, bodyHtml));
   iframeDoc.close();
 
   // Cleans up as soon as the OS print dialog actually closes, on a
@@ -139,8 +161,18 @@ export function printNoteHtml(
   // below is only a fallback for one that doesn't.
   win.addEventListener("afterprint", cleanup);
 
-  if (triggerPrint) triggerPrint(win);
-  else win.print();
+  const print = () => {
+    try {
+      if (triggerPrint) triggerPrint(win);
+      else win.print();
+    } finally {
+      setTimeout(cleanup, cleanupDelayMs);
+    }
+  };
 
-  setTimeout(cleanup, cleanupDelayMs);
+  if (!waitForAssets) {
+    print();
+    return Promise.resolve();
+  }
+  return waitForAssets(win).then(print, print);
 }

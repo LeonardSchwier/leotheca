@@ -1,17 +1,17 @@
 /**
  * Speech recognition bridge implementation
- * 
+ *
  * Platform dispatcher for speech recognition functionality.
  * This provides a unified interface that works on both desktop (Tauri)
  * and mobile (Capacitor) platforms.
  */
 
-import * as tauriBridge from './speechBridge';
-import * as capacitorBridge from './capacitorSpeechBridge';
-import { Capacitor } from '@capacitor/core';
+import * as tauriBridge from "./speechBridge";
+import * as capacitorBridge from "./capacitorSpeechBridge";
+import { Capacitor } from "@capacitor/core";
 
-export * from './speechBridge';
-export * from './capacitorSpeechBridge';
+export * from "./speechBridge";
+export * from "./capacitorSpeechBridge";
 
 /**
  * Platform-specific speech recognition implementation
@@ -25,17 +25,21 @@ export * from './capacitorSpeechBridge';
  * - Android: Checks if offline recognition is available
  * Note: This does NOT start recognition, just prepares the system
  */
-export async function initSpeechRecognition(modelOrLanguage?: string): Promise<void> {
+export async function initSpeechRecognition(
+  modelOrLanguage?: string,
+): Promise<void> {
   if (Capacitor.isNativePlatform()) {
     // On Android, check if offline recognition is available
     // Actual recognition is started separately
     const supported = await capacitorBridge.isAndroidOfflineSupported();
     if (!supported) {
-      throw new Error('Offline speech recognition not available on this Android device');
+      throw new Error(
+        "Offline speech recognition not available on this Android device",
+      );
     }
   } else {
-    // On desktop, modelOrLanguage is treated as a model path
-    await tauriBridge.initSpeechRecognition(modelOrLanguage || '');
+    // On desktop, modelOrLanguage is a model name (tiny, base, small, medium)
+    await tauriBridge.initSpeechRecognition(modelOrLanguage || "tiny");
   }
 }
 
@@ -49,7 +53,7 @@ export async function initSpeechRecognition(modelOrLanguage?: string): Promise<v
  */
 export async function transcribeAudio(
   audioData: Float32Array | number[],
-  language?: string
+  language?: string,
 ): Promise<string> {
   return tauriBridge.transcribeAudio(audioData, language);
 }
@@ -74,13 +78,13 @@ export async function getSpeechStatus() {
     // On Android, check if offline recognition is supported
     const supported = await capacitorBridge.isAndroidOfflineSupported();
     const languages = await capacitorBridge.getAndroidLanguages();
-    
+
     return {
       modelLoaded: false, // Android doesn't use models
       currentModel: null,
       supportedLanguages: languages,
       offlineSupported: supported,
-      platform: 'android' as const,
+      platform: "android" as const,
     };
   } else {
     const status = await tauriBridge.getSpeechStatus();
@@ -92,7 +96,7 @@ export async function getSpeechStatus() {
       // never becomes true; reflect that honestly instead of claiming
       // offline support unconditionally.
       offlineSupported: status.modelLoaded,
-      platform: 'desktop' as const,
+      platform: "desktop" as const,
     };
   }
 }
@@ -108,15 +112,15 @@ export async function getSpeechOptions() {
     return {
       models: [], // Android doesn't use whisper models
       languages,
-      platform: 'android' as const,
+      platform: "android" as const,
       offlineCapable: await capacitorBridge.isAndroidOfflineSupported(),
     };
   } else {
     const models = await tauriBridge.getWhisperModels();
     return {
       models,
-      languages: models.flatMap(m => m.languages), // All models support the same languages
-      platform: 'desktop' as const,
+      languages: models.flatMap((m) => m.languages), // All models support the same languages
+      platform: "desktop" as const,
       offlineCapable: true,
     };
   }
@@ -145,7 +149,7 @@ export async function isSpeechRecognitionAvailable(): Promise<boolean> {
 /**
  * Platform type
  */
-export type PlatformType = 'desktop' | 'android';
+export type PlatformType = "desktop" | "android";
 
 /**
  * Extended speech recognition status with platform info
@@ -162,7 +166,7 @@ export interface SpeechStatus {
  * Speech options including models and languages
  */
 export interface SpeechOptions {
-  models: import('./speechBridge').WhisperModelInfo[];
+  models: import("./speechBridge").WhisperModelInfo[];
   languages: string[];
   platform: PlatformType;
   offlineCapable: boolean;
@@ -175,7 +179,7 @@ export type {
   WhisperModelFile,
   SpeechRecognitionStatus,
   AudioCaptureConfig,
-} from './speechBridge';
+} from "./speechBridge";
 
 // Re-export utility functions and constants
 export {
@@ -184,5 +188,4 @@ export {
   SPEECH_CHANNELS,
   DEFAULT_AUDIO_BUFFER_MS,
   samplesForDuration,
-} from './speechBridge';
-
+} from "./speechBridge";

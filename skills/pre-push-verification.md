@@ -21,7 +21,7 @@ metadata:
 
 # Pre-push verification gate
 
-A concrete, mechanical checklist, not a restatement of general care. Read it before every push to the configured main branch. It applies even to a change that looks obviously correct — that feeling is exactly the failure mode this gate exists to catch, evidenced below.
+A concrete, mechanical checklist, not a restatement of general care. Read it before every push, to a work branch or the ledger branch. A push to main is refused. It applies even to a change that looks obviously correct: that feeling is exactly the failure mode this gate exists to catch, evidenced below.
 
 ## Enforcement
 

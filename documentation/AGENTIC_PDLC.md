@@ -4,12 +4,12 @@ Leotheca is built and maintained by autonomous coding agents under a written, pa
 
 ## 1. Summary
 
-|                        |                                                                                                                                                                                                                                                          |
-| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Thesis**             | Agents deliver at a steady pace only if the process is stricter than a human team's, not looser. Every rule that matters is therefore enforced by something that cannot be talked out of it, with agents doing the judgment work between those controls. |
-| **Operating model**    | A "dark factory": agents pick work, specify, build, test, review and push directly to `main` without a human approval step. Review is a separate agent pass, not a person. The owner sets direction and policy, and reads outcomes.                      |
-| **What keeps it safe** | One ownership ledger, one constitution, tests that must fail before a fix, hooks and CI that re-check what agents report, and a rule that completion needs evidence, not confidence.                                                                     |
-| **Design stance**      | Opinionated: spec before code, decisions recorded as rulings, no waiting on people, and no "done" without a named command and its observed output.                                                                                                       |
+|                        |                                                                                                                                                                                                                                                                                                         |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Thesis**             | Agents deliver at a steady pace only if the process is stricter than a human team's, not looser. Every rule that matters is therefore enforced by something that cannot be talked out of it, with agents doing the judgment work between those controls.                                                |
+| **Operating model**    | A "dark factory": agents pick work, specify, build, test, review and deliver through pull requests that a merge queue lands on `main` after the required checks, without a human approval step. Review is a separate agent pass, not a person. The owner sets direction and policy, and reads outcomes. |
+| **What keeps it safe** | One ownership ledger, one constitution, tests that must fail before a fix, hooks and CI that re-check what agents report, and a rule that completion needs evidence, not confidence.                                                                                                                    |
+| **Design stance**      | Opinionated: spec before code, decisions recorded as rulings, no waiting on people, and no "done" without a named command and its observed output.                                                                                                                                                      |
 
 Entry points: [`AGENTS.md`](../AGENTS.md) (startup sequence), [`CONSTITUTION.md`](../CONSTITUTION.md) (policy), [`skills/README.md`](../skills/README.md) (runbooks).
 
@@ -22,7 +22,7 @@ flowchart LR
   C --> D[Design check]
   D --> E[Build<br/>tests first]
   E --> F[Verify<br/>checks, review, security]
-  F --> G[Land on main<br/>+ CI on exact SHA]
+  F --> G[Pull request + merge queue<br/>required checks on the exact result]
   G --> H[Operate<br/>crash hunt, maintenance]
   H --> A
 ```

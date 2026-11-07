@@ -408,11 +408,11 @@ All return `Result<T, String>` unless noted. `FsEntry` is `{ name, path, isDir, 
 | `pick_and_read_external_markdown_file` | none | `{path, content}\|null` | User picks | `.md` filter. |
 | `detect_platform` | `userAgent` | `Platform` | None | Pure. |
 | `default_handler_for_platform` | `platform` | Contract | None | Pure. |
-| `init_speech_recognition` | `modelPath` | `()` | None, see KG-001 | See KG-002. |
+| `init_speech_recognition` | `model` (`tiny`, `base`, `small`, `medium`) | `()` | Name allow-list; the file is `<app_data_dir>/whisper-models/ggml-<model>.bin`, a path is refused | See KG-002. |
 | `transcribe_audio` | `audioData: f32[], language?` | `string` | None | Empty audio gives `""`. See KG-002. |
 | `get_speech_status` | none | Status | None | See KG-002. |
 | `get_whisper_models` | none | `WhisperModelInfo[]` | None | tiny 39, base 75, small 244, medium 769 MB. |
-| `check_whisper_models` | `appDir` | `WhisperModelFile[]` | None | Existence probe for `ggml-*.bin`. |
+| `check_whisper_models` | none | `WhisperModelFile[]` | Fixed directory `<app_data_dir>/whisper-models` | Existence probe for `ggml-*.bin`. |
 
 Event: `open-external-file` carrying `{path, content}`.
 
@@ -1063,7 +1063,7 @@ These are current behavior, recorded honestly. None was fixed by the change that
 
 | ID | Finding | Evidence | Severity |
 | --- | --- | --- | --- |
-| KG-001 | Scoped desktop commands trust the frontend-supplied `workspace_root` and do not compare it with `ActiveWorkspaceRoot`. `init_speech_recognition` and `check_whisper_models` accept arbitrary paths. A compromised renderer could use them, though CSP limits how that happens. | Traced in `commands.rs`, `workspace_mutations.rs`, `speech_commands.rs` | Medium |
+| KG-001 | Scoped desktop commands trust the frontend-supplied `workspace_root` and do not compare it with `ActiveWorkspaceRoot`. `init_speech_recognition` and `check_whisper_models` no longer take paths (model name allow-list, fixed directory); only the workspace-root part remains. | Traced in `commands.rs`, `workspace_mutations.rs`, `speech_commands.rs` | Medium |
 | KG-002 | `lib.rs` manages `WhisperState`, but speech commands request `State<Arc<Mutex<WhisperState>>>`. Those are different types, so Tauri cannot supply the state. Desktop speech is unavailable regardless, since no whisper backend is compiled by default. | Traced. Runtime invoke result Unverified. | Medium |
 | KG-003 | Android native plugin methods accept any URI string with no allow-list. Protection is the OS grant and the JS layer. | Traced | Medium |
 | KG-004 | `applyCustomCss` calls `resolvePath(customCssPath, workspacePath)` and `isPathWithinWorkspace(absolutePath, workspacePath)`, reversing both signatures. It tries to read the workspace folder itself, so with a real filesystem custom CSS never applies. | Observed: a probe with real path functions read `/ws`. | High for that feature |
@@ -1124,4 +1124,5 @@ Newest first. Each entry is `YYYY-MM-DD: what changed in behavior, contracts, fo
 - 2026-11-07: Process: the ownership ledger (claims, renewals, handoffs, finishes) moves to the `agent-ledger` branch; `ROADMAP.md` on main is a lagging snapshot, and the scheduled `ledger-audit` job in `agent-policy.yml` checks out the ledger branch (`documentation/BRANCH_MODEL.md`). No application behavior changed.
 - 2026-11-07: Security: desktop `set_active_workspace_root` now accepts only roots in a native workspace grant registry (`workspace-grants.json` in the app data dir), filled by the new native `pick_workspace_folder` command and seeded once from the legacy `config.json` profiles; any other path is refused (FR-WS-013).
 - 2026-11-07: Docs: `CHANGELOG.md` no longer lists Android camera capture (no camera code exists) or macOS Quick Look (source only, not built or bundled by any workflow) as shipped; `packaging/STATUS.md` is rewritten in English for `VERSION` 1.0.0 (resolves DD-03); `packaging/f-droid/README.md` states 1.0.0 / 10000 and that the `v1.0.0` tag was deleted; the README Obtainium note says what is unverified.
+- 2026-11-07: Security: `init_speech_recognition` takes a model name from the allow-list `tiny|base|small|medium` and loads `<app_data_dir>/whisper-models/ggml-<name>.bin`; `check_whisper_models` takes no argument and probes that directory. A renderer can no longer make the native side open an arbitrary file.
 <!-- change-log:end -->

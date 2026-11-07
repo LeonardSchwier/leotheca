@@ -293,6 +293,7 @@ function lineIsExcluded(line: LineInfo, state: ScanState): boolean {
   }
 
   if (state.rawHtmlClosingTag) {
+    // eslint-disable-next-line security/detect-non-literal-regexp -- reviewed: tag is a matched HTML tag name
     const close = new RegExp(`</${state.rawHtmlClosingTag}\\s*>`, "i");
     if (close.test(line.text)) state.rawHtmlClosingTag = null;
     return true;
@@ -305,6 +306,7 @@ function lineIsExcluded(line: LineInfo, state: ScanState): boolean {
   if (html) {
     const tag = html[1].toLowerCase();
     if (RAW_HTML_UNTIL_CLOSE.has(tag)) {
+      // eslint-disable-next-line security/detect-non-literal-regexp -- reviewed: tag is a matched HTML tag name
       const close = new RegExp(`</${tag}\\s*>`, "i");
       if (!close.test(line.text)) state.rawHtmlClosingTag = tag;
     } else {

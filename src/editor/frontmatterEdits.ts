@@ -65,6 +65,7 @@ const TOP_LEVEL_KEY = /^([A-Za-z0-9_.-]+):(.*)$/;
 const INDENTED_NONBLANK = /^\s+\S/;
 
 function findBlock(source: string): FrontmatterBlock | null {
+  // eslint-disable-next-line security/detect-unsafe-regex -- reviewed: lazy match to the next fence, linear in the frontmatter length
   const match = /^---(\r?\n)([\s\S]*?)(\r?\n)---(?:\r?\n)?/.exec(source);
   if (!match) return null;
   const contentStart = 3 + match[1].length;

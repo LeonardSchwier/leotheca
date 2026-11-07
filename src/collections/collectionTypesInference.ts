@@ -34,9 +34,11 @@ const BOOLEAN_PATTERN = /^(true|false)$/i;
 // looks like far more reliably than trusting `Number(raw)` outright, which
 // also accepts "", " ", "0x10", "Infinity", and "NaN" as finite-looking
 // input in ways a plain YAML scalar author never intends.
+// eslint-disable-next-line security/detect-unsafe-regex -- reviewed: anchored, no nested overlapping quantifiers; input is one short frontmatter value
 const NUMBER_PATTERN = /^[+-]?(\d+(\.\d+)?|\.\d+)$/;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const DATETIME_PATTERN =
+  // eslint-disable-next-line security/detect-unsafe-regex -- reviewed: anchored fixed-width groups; input is one short frontmatter value
   /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?$/;
 
 /** Rejects a syntactically-plausible but calendrically-invalid date

@@ -44,6 +44,7 @@ export function attachmentFileName(
 ): string {
   const suffix = randomSuffix();
   const cleanOriginal = originalName?.trim().replace(UNSAFE_NAME_CHARS, "-");
+  // eslint-disable-next-line security/detect-unsafe-regex -- reviewed: anchored, single optional extension on a file name
   const hasRealName = cleanOriginal && !/^image(\.\w+)?$/i.test(cleanOriginal);
   if (hasRealName) return withSuffix(cleanOriginal, suffix);
 

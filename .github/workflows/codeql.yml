@@ -1,0 +1,44 @@
+name: CodeQL
+
+# Dataflow analysis for the TypeScript sources and the workflow files. It runs
+# on GitHub only (CodeQL cannot run in the local gate) and is not a required
+# merge check: a new rule pack must not block unrelated pull requests. Findings
+# appear under Security, Code scanning; triage them there and fix or dismiss with
+# a reason. Rust is covered by clippy and cargo audit; Android lint is tracked separately.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - "src/**"
+      - ".github/workflows/**"
+      - "package.json"
+      - "package-lock.json"
+  schedule:
+    - cron: "23 5 * * 2"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [javascript-typescript, actions]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: none
+      - uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:${{ matrix.language }}"

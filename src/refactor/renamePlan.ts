@@ -233,6 +233,7 @@ function planMarkdownLinks(
   // Match markdown links: [label](target) and images: ![alt](target)
   // Also handle titles: [label](target "title")
   const markdownLinkRegex =
+    // eslint-disable-next-line security/detect-unsafe-regex -- reviewed: every group is delimited by brackets or quotes that the class excludes
     /(!\[[^\]]*\]|\[[^\]]*\])\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
 
   let match;

@@ -50,6 +50,24 @@ function push({ dir, head }, ref = "refs/heads/agent/rm-x/abc") {
 }
 
 describe("hooks/pre-push guard", () => {
+  it("treats everything under .agents as metadata and skips the app gate", () => {
+    const repo = repoWithVerify("#!/usr/bin/env bash\nexit 1\n");
+    mkdirSync(join(repo.dir, ".agents", "reviews"), { recursive: true });
+    writeFileSync(join(repo.dir, ".agents", "reviews", "r.md"), "# review\n");
+    repo.git("add", "-A");
+    repo.git("commit", "-q", "-m", "docs: add a review");
+    const head = repo.git("rev-parse", "HEAD");
+    const parent = repo.git("rev-parse", "HEAD~1");
+    const result = spawnSync("bash", ["hooks/pre-push"], {
+      cwd: repo.dir,
+      env: cleanGitEnv(),
+      encoding: "utf8",
+      input: `refs/heads/agent/x ${head} refs/heads/agent/x ${parent}\n`,
+    });
+    expect(result.stdout).toContain("metadata-only push");
+    expect(result.status, result.stderr).toBe(0);
+  });
+
   it("refuses a direct push to main", () => {
     const repo = repoWithVerify("#!/usr/bin/env bash\nexit 0\n");
     const result = push(repo, "refs/heads/main");

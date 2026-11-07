@@ -115,7 +115,9 @@ Minor bugs, UX improvements, and performance.
   Touches .github/workflows/release.yml and the workflow table in master-spec.md with a change log line. Validation: YAML parse of the workflow, then read the hosted Release run for the landed SHA and confirm the publish job passes.
 
   </details>
-- ⬜ **Install and use the Cloudflare security audit skill**: Install the security-audit skill from the Cloudflare skill repository after reading its SKILL.md and license, then run guidance mode once on the Tauri commands and capabilities, the Capacitor plugin and AndroidManifest. Each confirmed finding becomes its own roadmap seed with a validation plan, and the clear ones are fixed under their own claim with regression tests.
+- 🚧 **Install and use the Cloudflare security audit skill**: Install the security-audit skill from the Cloudflare skill repository after reading its SKILL.md and license, then run guidance mode once on the Tauri commands and capabilities, the Capacitor plugin and AndroidManifest. Each confirmed finding becomes its own roadmap seed with a validation plan, and the clear ones are fixed under their own claim with regression tests.
+  <!-- agent-state: {"schema":1,"id":"rm-102d06409c10e22f","state":"claimed","touch":[".agents/handoffs/security-audit-skill.md","skills/security-and-static-analysis.md"],"resources":["security-audit"],"owner":"claude-code-pointers-20261107T081216Z-830cdb5e","token":"4084a150af9a547fea5a03ace4e1ec05","branch":"agent/rm-102d06409c10e22f/4084a150af9a","claimed_at":"2026-11-07T08:21:37Z","heartbeat_at":"2026-11-07T08:21:37Z","lease_until":"2026-11-07T09:51:37Z"} -->
+  Agent: claude-code-pointers-20261107T081216Z-830cdb5e | item: rm-102d06409c10e22f | lease until: 2026-11-07T09:51:37Z
 
   <details>
   <summary>Scope and validation</summary>

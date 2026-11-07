@@ -127,8 +127,8 @@ Minor bugs, UX improvements, and performance.
   </details>
 
 - 🚧 **Sniff-test pass on README, screenshots and repository root**: The README is the front page of a repository used as a hiring reference, so every claim must be true and checkable. Re-verify the install section after the rolling-release change, the feature, platform and offline claims and the badges, add a short summary at the top, regenerate the stale screenshots from the current app, tidy the root, and fix stale statements in CONTRIBUTING.md and ARCHITECTURE.md.
-  <!-- agent-state: {"schema":1,"id":"rm-b0cc9663aed149a4","state":"claimed","touch":["CONTRIBUTING.md","PROGRESS.md","README.md","assets/screenshots","documentation","tests/e2e/screenshots.mjs"],"resources":["readme-front-page"],"owner":"claude-code-sniff-20261107T104924Z-812b652f","token":"89a2e65deb0a2f9da8b0e3f303a343f9","branch":"agent/rm-b0cc9663aed149a4/89a2e65deb0a","claimed_at":"2026-11-07T10:49:46Z","heartbeat_at":"2026-11-07T10:49:46Z","lease_until":"2026-11-07T12:19:46Z"} -->
-  Agent: claude-code-sniff-20261107T104924Z-812b652f | item: rm-b0cc9663aed149a4 | lease until: 2026-11-07T12:19:46Z
+  <!-- agent-state: {"schema":1,"id":"rm-b0cc9663aed149a4","state":"claimed","touch":["CONTRIBUTING.md","PROGRESS.md","README.md","assets/screenshots","documentation","tests/e2e/screenshots.mjs"],"resources":["readme-front-page"],"owner":"claude-code-sniff-20261107T104924Z-812b652f","token":"89a2e65deb0a2f9da8b0e3f303a343f9","branch":"agent/rm-b0cc9663aed149a4/89a2e65deb0a","claimed_at":"2026-11-07T10:49:46Z","heartbeat_at":"2026-11-07T11:00:25Z","lease_until":"2026-11-07T12:30:25Z"} -->
+  Agent: claude-code-sniff-20261107T104924Z-812b652f | item: rm-b0cc9663aed149a4 | lease until: 2026-11-07T12:30:25Z
 
 ## Weekly Code Review
 

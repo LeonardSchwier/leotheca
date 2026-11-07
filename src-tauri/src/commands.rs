@@ -1,3 +1,4 @@
+use crate::workspace_grants::WorkspaceGrants;
 use serde::Serialize;
 use std::fs;
 use std::path::{Component, Path, PathBuf};
@@ -909,7 +910,17 @@ pub fn set_active_workspace_root<R: tauri::Runtime>(
     path: Option<String>,
     app: tauri::AppHandle<R>,
     state: tauri::State<'_, ActiveWorkspaceRoot>,
+    grants: tauri::State<'_, WorkspaceGrants>,
 ) -> Result<(), String> {
+    // Only a root the native registry knows (dialog-granted, or seeded from
+    // the legacy profiles) may become active. Clearing is always allowed.
+    // The check runs before any state or scope change, so a refused root
+    // leaves the previous root and asset scope exactly as they were.
+    if let Some(requested) = &path {
+        if !grants.is_granted(Path::new(requested)) {
+            return Err("that folder has not been granted as a workspace".to_string());
+        }
+    }
     let mut guard = state
         .0
         .lock()
@@ -932,6 +943,24 @@ pub fn set_active_workspace_root<R: tauri::Runtime>(
     }
 
     Ok(())
+}
+
+/// Native folder dialog for choosing a workspace. The chosen directory is
+/// registered in the native grant registry (`workspace_grants.rs`) and its
+/// canonical path returned; `set_active_workspace_root` accepts only roots
+/// registered this way (or seeded from the legacy profiles). Returns `None`
+/// when the user cancels. The path is never a value the webview supplies.
+#[tauri::command]
+pub async fn pick_workspace_folder(
+    app: tauri::AppHandle,
+    grants: tauri::State<'_, WorkspaceGrants>,
+) -> Result<Option<String>, String> {
+    let Some(picked) = app.dialog().file().blocking_pick_folder() else {
+        return Ok(None);
+    };
+    let folder = picked.into_path().map_err(|e| e.to_string())?;
+    let granted = grants.grant(&folder)?;
+    Ok(Some(granted.to_string_lossy().into_owned()))
 }
 
 fn active_workspace_root_snapshot(state: &ActiveWorkspaceRoot) -> Option<PathBuf> {
@@ -1563,6 +1592,7 @@ mod tests {
     fn set_active_workspace_root_scopes_asset_protocol_to_the_active_workspace_only() {
         let app = tauri::test::mock_builder()
             .manage(ActiveWorkspaceRoot::default())
+            .manage(WorkspaceGrants::default())
             .build(tauri::generate_context!())
             .expect("failed to build mock app");
 
@@ -1588,6 +1618,11 @@ mod tests {
         File::create(&note_b).unwrap();
         File::create(&outside_file).unwrap();
 
+        // Both roots come from the native dialog in production; the
+        // registry is the only way a root becomes eligible.
+        app.state::<WorkspaceGrants>().grant(&workspace_a).unwrap();
+        app.state::<WorkspaceGrants>().grant(&workspace_b).unwrap();
+
         let scope = app.asset_protocol_scope();
 
         // Before any workspace is ever opened, the static scope denies
@@ -1601,6 +1636,7 @@ mod tests {
             Some(workspace_a.to_string_lossy().to_string()),
             app.handle().clone(),
             app.state::<ActiveWorkspaceRoot>(),
+            app.state::<WorkspaceGrants>(),
         )
         .unwrap();
         assert!(scope.is_allowed(&note_a));
@@ -1614,6 +1650,7 @@ mod tests {
             None,
             app.handle().clone(),
             app.state::<ActiveWorkspaceRoot>(),
+            app.state::<WorkspaceGrants>(),
         )
         .unwrap();
         assert!(!scope.is_allowed(&note_a));
@@ -1622,6 +1659,7 @@ mod tests {
             Some(workspace_b.to_string_lossy().to_string()),
             app.handle().clone(),
             app.state::<ActiveWorkspaceRoot>(),
+            app.state::<WorkspaceGrants>(),
         )
         .unwrap();
         assert!(scope.is_allowed(&note_b));
@@ -1630,6 +1668,66 @@ mod tests {
         fs::remove_dir_all(&workspace_a).unwrap();
         fs::remove_dir_all(&workspace_b).unwrap();
         fs::remove_file(&outside_file).unwrap();
+    }
+
+    #[test]
+    fn set_active_workspace_root_refuses_an_ungranted_root_and_keeps_the_previous_one() {
+        let app = tauri::test::mock_builder()
+            .manage(ActiveWorkspaceRoot::default())
+            .manage(WorkspaceGrants::default())
+            .build(tauri::generate_context!())
+            .expect("failed to build mock app");
+        let base = std::env::temp_dir().join(format!(
+            "leotheca-test-ungranted-root-{}",
+            std::process::id()
+        ));
+        let granted = base.join("granted");
+        let ungranted = base.join("ungranted");
+        let _ = fs::remove_dir_all(&base);
+        fs::create_dir_all(&granted).unwrap();
+        fs::create_dir_all(&ungranted).unwrap();
+        File::create(granted.join("a.png")).unwrap();
+        File::create(ungranted.join("b.png")).unwrap();
+        app.state::<WorkspaceGrants>().grant(&granted).unwrap();
+        let call = |path: Option<String>| {
+            set_active_workspace_root(
+                path,
+                app.handle().clone(),
+                app.state::<ActiveWorkspaceRoot>(),
+                app.state::<WorkspaceGrants>(),
+            )
+        };
+
+        call(Some(granted.to_string_lossy().to_string())).unwrap();
+        let scope = app.asset_protocol_scope();
+        assert!(scope.is_allowed(granted.join("a.png")));
+
+        // An arbitrary, a parent, a missing and a traversal path are all refused.
+        for bad in [
+            ungranted.to_string_lossy().to_string(),
+            base.to_string_lossy().to_string(),
+            base.join("missing").to_string_lossy().to_string(),
+            granted
+                .join("..")
+                .join("ungranted")
+                .to_string_lossy()
+                .to_string(),
+            "/etc".to_string(),
+        ] {
+            assert!(call(Some(bad)).is_err());
+        }
+
+        // The refusals changed nothing: the granted root is still active and
+        // the ungranted folder never entered the asset scope.
+        let active = active_workspace_root_snapshot(&app.state::<ActiveWorkspaceRoot>());
+        assert_eq!(active, Some(granted.clone()));
+        assert!(scope.is_allowed(granted.join("a.png")));
+        assert!(!scope.is_allowed(ungranted.join("b.png")));
+
+        // Clearing is always allowed.
+        call(None).unwrap();
+        assert!(!scope.is_allowed(granted.join("a.png")));
+        fs::remove_dir_all(&base).unwrap();
     }
 
     // `read_text_file`/`read_binary_file` themselves now take a

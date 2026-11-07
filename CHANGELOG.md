@@ -26,6 +26,7 @@
 
 ### Security
 
+- **Workspace folder grants**: The desktop app now activates a workspace only if it was chosen in the native folder dialog or already in your workspace list, so script injected into the webview cannot widen file access to an arbitrary folder.
 - **Hardened Mermaid SVG sanitization** — DOMPurify pass added after the regex layer to close the async SVG insertion gap.
 - **Content Security Policy** — Restrictive CSP enforces the "no network calls" promise at the browser level.
 

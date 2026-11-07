@@ -46,7 +46,7 @@ interface SecondaryEditorPaneProps {
  * `App.tsx`'s primary pane, not a shared generic component: it reuses the
  * same tab bar, editor, and preview, with its own view mode (spec 5.4), but
  * -- disclosed scope for this phase -- does not yet include the primary
- * pane's HeadingBreadcrumbs/FrontmatterPropertiesPanel/SpeechRecognitionButton,
+ * pane's HeadingBreadcrumbs/FrontmatterPropertiesPanel,
  * and shows a plain "not supported here yet" message instead of rendering a
  * canvas or ink note (CanvasView/InkView), rather than risk regressing any
  * of primary's own already-shipped, already-tested rendering path. */

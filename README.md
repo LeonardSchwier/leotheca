@@ -41,7 +41,7 @@ Three principles govern every decision here, in order. Full detail in [`PHILOSOP
 - 📤 Export a note to standalone HTML or print/PDF via the OS dialog.
 - ⌨️ `==highlighted text==` with color emoji (🔴🟠🟢🔵🟣), a convention used by other Markdown note apps.
 - 📊 Task Hub: read-only view of all GFM task-list items across your vault.
-- 🎤 Optional dictation, off by default and not yet working end to end: no whisper backend is compiled into desktop builds (see `master-spec.md` KG-002) and the Android recognizer is unverified on a real device.
+- 🔒 No camera, no microphone, no network: the app never records audio or video, has no voice dictation, and makes no network calls of its own. Those accesses can invade your privacy, so they are not offered.
 - 📁 Open files from outside your vault, or from the OS file manager, into a read-only scratch view.
 - 📱 On Android, real folder access via the Storage Access Framework.
 

@@ -62,7 +62,12 @@ Run relevant baseline checks where useful before editing. For a bug fix, keep th
 
 Test the actual decision/caller, including error and boundary paths. For persistence, filesystem, IPC, cancellation, or performance shortcuts, use the corresponding domain skill. A high passing test count does not replace these tests. Investigate unexplained count drops, but do not preserve obsolete tests solely to maintain a number.
 
-Review the final diff separately from implementation. Check scope, complete wiring, data-loss/privacy risks, async lifecycle, platform parity, and test quality. Record findings and resolutions. A bounded independent agent review is useful when available; self-review is the fallback without waiting for a person.
+Review the final diff separately from implementation, in two passes that never share a context. Each pass is a fresh subagent or a fresh context, with its own brief, and returns findings as Critical, Important, Minor. The Spec pass never sees the Standards findings and the reverse, so neither colours the other.
+
+1. **Standards pass.** Brief: the diff, `CONSTITUTION.md`, the product rules and the skills for the touched surface. Question: does the diff break a repo rule or add a smell? Check scope, complete wiring, data-loss and privacy risks, async lifecycle, platform parity, test quality, shallow or duplicated code.
+2. **Spec pass.** Brief: the acceptance criteria and the diff only. Question, one criterion at a time: where in the diff is it implemented, which test proves it, what is missing or extra? Write one table row per criterion: criterion, diff location, test, verdict (met, partly, missing).
+
+Fix Critical and Important findings of both passes, then re-run only the pass that found them. Record both in the `Review:` trailer as `Review: standards <reviewer>: <result>; spec <reviewer>: <result>`, and in the spec evidence table as two rows. A one-model run does both passes in turn from the two briefs above (`Review: self-review: <why no second model>; standards ok, spec ok`).
 
 ## Local setup, with a bound
 

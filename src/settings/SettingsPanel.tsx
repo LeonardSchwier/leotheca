@@ -339,10 +339,6 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
     "Collections",
     "Group notes by a saved search or a manual list, off by default",
   );
-  const showSpeechToText = matches(
-    "Speech-to-text dictation",
-    "Dictate note text by voice; off by default, only requests microphone access once enabled",
-  );
   const showSpellchecking = matches(
     "Spellchecking",
     "Flag misspelled words in the editor using a local dictionary; off by default",
@@ -403,7 +399,6 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
         showCaptureInboxNote ||
         showCaptureDatePattern ||
         showFrontmatterProperties ||
-        showSpeechToText ||
         showSpellchecking ||
         (workspaceSettings.value.themesEnabled && showAccentColor) ||
         (workspaceSettings.value.snippetsEnabled && showSnippetDefinitions) ||
@@ -1150,37 +1145,6 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                           onClick={() =>
                             void updateWorkspaceSettings({
                               frontmatterPropertiesEnabled: option.value,
-                            })
-                          }
-                        >
-                          {option.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {workspacePath.value && showSpeechToText && (
-                  <div class="settings-row">
-                    <div>
-                      <div class="settings-label">Speech-to-text dictation</div>
-                      <div class="settings-hint">
-                        Dictate note text by voice; off by default, only
-                        requests microphone access once enabled
-                      </div>
-                    </div>
-                    <div class="settings-switch">
-                      {OPTIONAL_FEATURE_OPTIONS.map((option) => (
-                        <button
-                          key={String(option.value)}
-                          class={
-                            workspaceSettings.value.speechToTextEnabled ===
-                            option.value
-                              ? "active"
-                              : ""
-                          }
-                          onClick={() =>
-                            void updateWorkspaceSettings({
-                              speechToTextEnabled: option.value,
                             })
                           }
                         >

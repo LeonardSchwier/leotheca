@@ -27,7 +27,10 @@ async function makeBlankPdf(pageCount = 1): Promise<Uint8Array> {
  * `convertToViewportPoint`/`convertToPdfPoint` exact inverses of each other
  * (as the real implementation's affine transform and its inverse are). Good
  * enough to test this module's coordinate math without pdf.js itself. */
-function makeFakeViewport(pageHeight: number, scale: number): PdfPointConverter {
+function makeFakeViewport(
+  pageHeight: number,
+  scale: number,
+): PdfPointConverter {
   return {
     convertToPdfPoint: (x, y) => [x / scale, pageHeight - y / scale],
     convertToViewportPoint: (x, y) => [x * scale, (pageHeight - y) * scale],
@@ -46,7 +49,10 @@ describe("rectToQuadPoints", () => {
       convertToViewportPoint: (x, y) => [x, 792 - y],
     };
 
-    const quad = rectToQuadPoints({ left: 10, top: 20, right: 110, bottom: 40 }, converter);
+    const quad = rectToQuadPoints(
+      { left: 10, top: 20, right: 110, bottom: 40 },
+      converter,
+    );
 
     expect(calls).toEqual([
       [10, 20], // top-left
@@ -76,7 +82,10 @@ describe("quadPointsToViewportRects", () => {
     const viewport = makeFakeViewport(792, 1);
     const line1 = { left: 10, top: 10, right: 100, bottom: 20 };
     const line2 = { left: 10, top: 22, right: 60, bottom: 32 };
-    const quadPoints = [...rectToQuadPoints(line1, viewport), ...rectToQuadPoints(line2, viewport)];
+    const quadPoints = [
+      ...rectToQuadPoints(line1, viewport),
+      ...rectToQuadPoints(line2, viewport),
+    ];
 
     const rects = quadPointsToViewportRects(quadPoints, viewport);
 
@@ -110,16 +119,28 @@ describe("applyAnnotationsToPdf / countMarkupAnnotations", () => {
     expect(annots?.size()).toBe(1);
     const dict = annots!.lookup(0, PDFDict);
     expect(dict.lookup(PDFName.of("Type"), PDFName).asString()).toBe("/Annot");
-    expect(dict.lookup(PDFName.of("Subtype"), PDFName).asString()).toBe("/Highlight");
+    expect(dict.lookup(PDFName.of("Subtype"), PDFName).asString()).toBe(
+      "/Highlight",
+    );
     expect(dict.lookup(PDFName.of("QuadPoints"))!.toString()).toContain("10");
-    expect(dict.lookup(PDFName.of("CA"), PDFNumber).asNumber()).toBeCloseTo(0.4);
+    expect(dict.lookup(PDFName.of("CA"), PDFNumber).asNumber()).toBeCloseTo(
+      0.4,
+    );
   });
 
   it("adds Underline and StrikeOut annotations distinguishable by subtype", async () => {
     const bytes = await makeBlankPdf(1);
     const annotated = await applyAnnotationsToPdf(bytes, [
-      { pageIndex: 0, subtype: "Underline", quadPoints: [0, 0, 10, 0, 0, 5, 10, 5] },
-      { pageIndex: 0, subtype: "StrikeOut", quadPoints: [0, 10, 10, 10, 0, 15, 10, 15] },
+      {
+        pageIndex: 0,
+        subtype: "Underline",
+        quadPoints: [0, 0, 10, 0, 0, 5, 10, 5],
+      },
+      {
+        pageIndex: 0,
+        subtype: "StrikeOut",
+        quadPoints: [0, 10, 10, 10, 0, 15, 10, 15],
+      },
     ]);
 
     expect(await countMarkupAnnotations(annotated)).toBe(2);
@@ -128,8 +149,16 @@ describe("applyAnnotationsToPdf / countMarkupAnnotations", () => {
   it("supports multiple pages, targeting each annotation at its own pageIndex", async () => {
     const bytes = await makeBlankPdf(3);
     const annotated = await applyAnnotationsToPdf(bytes, [
-      { pageIndex: 0, subtype: "Highlight", quadPoints: [0, 0, 10, 0, 0, 5, 10, 5] },
-      { pageIndex: 2, subtype: "Highlight", quadPoints: [0, 0, 10, 0, 0, 5, 10, 5] },
+      {
+        pageIndex: 0,
+        subtype: "Highlight",
+        quadPoints: [0, 0, 10, 0, 0, 5, 10, 5],
+      },
+      {
+        pageIndex: 2,
+        subtype: "Highlight",
+        quadPoints: [0, 0, 10, 0, 0, 5, 10, 5],
+      },
     ]);
 
     const reloaded = await PDFDocument.load(annotated);
@@ -141,10 +170,18 @@ describe("applyAnnotationsToPdf / countMarkupAnnotations", () => {
   it("preserves an existing annotation already on the page instead of replacing it", async () => {
     const bytes = await makeBlankPdf(1);
     const firstPass = await applyAnnotationsToPdf(bytes, [
-      { pageIndex: 0, subtype: "Highlight", quadPoints: [0, 0, 10, 0, 0, 5, 10, 5] },
+      {
+        pageIndex: 0,
+        subtype: "Highlight",
+        quadPoints: [0, 0, 10, 0, 0, 5, 10, 5],
+      },
     ]);
     const secondPass = await applyAnnotationsToPdf(firstPass, [
-      { pageIndex: 0, subtype: "Underline", quadPoints: [0, 10, 10, 10, 0, 15, 10, 15] },
+      {
+        pageIndex: 0,
+        subtype: "Underline",
+        quadPoints: [0, 10, 10, 10, 0, 15, 10, 15],
+      },
     ]);
 
     expect(await countMarkupAnnotations(secondPass)).toBe(2);
@@ -153,10 +190,15 @@ describe("applyAnnotationsToPdf / countMarkupAnnotations", () => {
   it("rejects a pageIndex beyond the document's real page count", async () => {
     const bytes = await makeBlankPdf(1);
     await expect(
-      applyAnnotationsToPdf(bytes, [{ pageIndex: 5, subtype: "Highlight", quadPoints: [0, 0, 10, 0, 0, 5, 10, 5] }]),
+      applyAnnotationsToPdf(bytes, [
+        {
+          pageIndex: 5,
+          subtype: "Highlight",
+          quadPoints: [0, 0, 10, 0, 0, 5, 10, 5],
+        },
+      ]),
     ).rejects.toThrow(/only has 1 page/);
   });
-
 });
 
 describe("readMarkupAnnotations", () => {
@@ -203,7 +245,11 @@ describe("readMarkupAnnotations", () => {
   it("ignores a non-markup annotation (e.g. a Link) instead of misreading it as a markup one", async () => {
     const doc = await PDFDocument.create();
     const page = doc.addPage([612, 792]);
-    const linkDict = doc.context.obj({ Type: "Annot", Subtype: "Link", Rect: [0, 0, 10, 5] });
+    const linkDict = doc.context.obj({
+      Type: "Annot",
+      Subtype: "Link",
+      Rect: [0, 0, 10, 5],
+    });
     page.node.addAnnot(doc.context.register(linkDict));
     const bytes = await doc.save();
 
@@ -245,14 +291,20 @@ describe("applyInkAnnotationsToPdf / readInkAnnotations (PDF Phase 2)", () => {
   it("rejects a pageIndex beyond the document's real page count", async () => {
     const bytes = await makeBlankPdf(1);
     await expect(
-      applyInkAnnotationsToPdf(bytes, [{ pageIndex: 3, inkList: [[0, 0, 1, 1]] }]),
+      applyInkAnnotationsToPdf(bytes, [
+        { pageIndex: 3, inkList: [[0, 0, 1, 1]] },
+      ]),
     ).rejects.toThrow(/only has 1 page/);
   });
 
   it("ignores a non-Ink annotation", async () => {
     const bytes = await makeBlankPdf(1);
     const annotated = await applyAnnotationsToPdf(bytes, [
-      { pageIndex: 0, subtype: "Highlight", quadPoints: [0, 0, 10, 0, 0, 5, 10, 5] },
+      {
+        pageIndex: 0,
+        subtype: "Highlight",
+        quadPoints: [0, 0, 10, 0, 0, 5, 10, 5],
+      },
     ]);
     expect(await readInkAnnotations(annotated)).toEqual([]);
   });
@@ -338,7 +390,13 @@ describe("applyShapeAnnotationsToPdf / readShapeAnnotations (PDF Phase 2)", () =
   it("round-trips an explicit color/width override for a shape", async () => {
     const bytes = await makeBlankPdf(1);
     const annotated = await applyShapeAnnotationsToPdf(bytes, [
-      { pageIndex: 0, subtype: "Circle", points: [0, 0, 40, 40], color: { r: 1, g: 0, b: 1 }, width: 6 },
+      {
+        pageIndex: 0,
+        subtype: "Circle",
+        points: [0, 0, 40, 40],
+        color: { r: 1, g: 0, b: 1 },
+        width: 6,
+      },
     ]);
 
     const [saved] = await readShapeAnnotations(annotated);
@@ -356,6 +414,10 @@ describe("applyShapeAnnotationsToPdf / readShapeAnnotations (PDF Phase 2)", () =
     ]);
 
     const saved = await readShapeAnnotations(annotated);
-    expect(saved.map((s) => s.subtype).sort()).toEqual(["Line", "Polygon", "Square"]);
+    expect(saved.map((s) => s.subtype).sort()).toEqual([
+      "Line",
+      "Polygon",
+      "Square",
+    ]);
   });
 });

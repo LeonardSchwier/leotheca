@@ -1,6 +1,12 @@
 /** @vitest-environment jsdom */
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, waitFor, within } from "@testing-library/preact";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  waitFor,
+  within,
+} from "@testing-library/preact";
 import { signal } from "@preact/signals";
 import type { WorkspaceProfile } from "./globalConfig";
 import {
@@ -37,8 +43,20 @@ import {
   workspaceProfiles,
 } from "./store";
 
-const PROFILE_A: WorkspaceProfile = { id: "a", name: "Personal", icon: "folder", path: "/a", lastOpenedAt: 2 };
-const PROFILE_B: WorkspaceProfile = { id: "b", name: "Work", icon: "briefcase", path: "/b", lastOpenedAt: 1 };
+const PROFILE_A: WorkspaceProfile = {
+  id: "a",
+  name: "Personal",
+  icon: "folder",
+  path: "/a",
+  lastOpenedAt: 2,
+};
+const PROFILE_B: WorkspaceProfile = {
+  id: "b",
+  name: "Work",
+  icon: "briefcase",
+  path: "/b",
+  lastOpenedAt: 1,
+};
 const PROFILE_ANDROID: WorkspaceProfile = {
   id: "c",
   name: "Phone",
@@ -80,11 +98,15 @@ describe("WorkspaceSwitcher", () => {
   it("opens the dialog listing every profile and announces the active one", () => {
     workspaceProfiles.value = [PROFILE_A, PROFILE_B];
     activeWorkspaceId.value = "a";
-    const { getByLabelText, getByRole, getAllByRole } = render(<WorkspaceSwitcher />);
+    const { getByLabelText, getByRole, getAllByRole } = render(
+      <WorkspaceSwitcher />,
+    );
     fireEvent.click(getByLabelText("Switch workspace"));
     expect(getByRole("dialog", { name: "Workspaces" })).toBeTruthy();
     expect(getAllByRole("listitem")).toHaveLength(2);
-    expect(getByRole("listitem", { name: "Personal, current workspace" })).toBeTruthy();
+    expect(
+      getByRole("listitem", { name: "Personal, current workspace" }),
+    ).toBeTruthy();
   });
 
   it("positions the dialog from the trigger rect so toolbar overflow cannot clip it", () => {
@@ -112,7 +134,9 @@ describe("WorkspaceSwitcher", () => {
   it("activates a profile when its row is clicked and closes the dialog", async () => {
     workspaceProfiles.value = [PROFILE_A, PROFILE_B];
     activeWorkspaceId.value = "a";
-    const { getByLabelText, getByText, queryByRole } = render(<WorkspaceSwitcher />);
+    const { getByLabelText, getByText, queryByRole } = render(
+      <WorkspaceSwitcher />,
+    );
     fireEvent.click(getByLabelText("Switch workspace"));
     fireEvent.click(getByText("Work"));
     await Promise.resolve();
@@ -125,8 +149,12 @@ describe("WorkspaceSwitcher", () => {
     activeWorkspaceId.value = "a";
     const { getByLabelText, getByRole } = render(<WorkspaceSwitcher />);
     fireEvent.click(getByLabelText("Switch workspace"));
-    const activeRow = getByRole("listitem", { name: "Personal, current workspace" });
-    fireEvent.click(within(activeRow).getByRole("button", { name: /^Personal/ }));
+    const activeRow = getByRole("listitem", {
+      name: "Personal, current workspace",
+    });
+    fireEvent.click(
+      within(activeRow).getByRole("button", { name: /^Personal/ }),
+    );
     await Promise.resolve();
     expect(activateWorkspaceProfile).not.toHaveBeenCalled();
   });
@@ -137,8 +165,12 @@ describe("WorkspaceSwitcher", () => {
     workspacePath.value = null;
     const { getByLabelText, getByRole } = render(<WorkspaceSwitcher />);
     fireEvent.click(getByLabelText("Switch workspace"));
-    const activeRow = getByRole("listitem", { name: "Personal, current workspace" });
-    fireEvent.click(within(activeRow).getByRole("button", { name: /^Personal/ }));
+    const activeRow = getByRole("listitem", {
+      name: "Personal, current workspace",
+    });
+    fireEvent.click(
+      within(activeRow).getByRole("button", { name: /^Personal/ }),
+    );
     await Promise.resolve();
     expect(activateWorkspaceProfile).toHaveBeenCalledWith("a");
   });
@@ -193,7 +225,9 @@ describe("WorkspaceSwitcher", () => {
     fireEvent.click(getByRole("button", { name: "Forget anyway" }));
     await Promise.resolve();
 
-    expect(forgetWorkspaceProfile).toHaveBeenNthCalledWith(2, "a", { discardUnsaved: true });
+    expect(forgetWorkspaceProfile).toHaveBeenNthCalledWith(2, "a", {
+      discardUnsaved: true,
+    });
   });
 
   it("does not retry forgetting the active profile when the unsaved-work confirmation is declined", async () => {
@@ -223,7 +257,9 @@ describe("WorkspaceSwitcher", () => {
   it("calls addWorkspaceFromPicker and closes the dialog when Add workspace is clicked", async () => {
     workspaceProfiles.value = [PROFILE_A];
     activeWorkspaceId.value = "a";
-    const { getByLabelText, getByText, queryByRole } = render(<WorkspaceSwitcher />);
+    const { getByLabelText, getByText, queryByRole } = render(
+      <WorkspaceSwitcher />,
+    );
     fireEvent.click(getByLabelText("Switch workspace"));
     fireEvent.click(getByText("+ Add workspace"));
     await Promise.resolve();
@@ -235,9 +271,15 @@ describe("WorkspaceSwitcher", () => {
     workspaceProfiles.value = [PROFILE_A, PROFILE_B];
     activeWorkspaceId.value = "a";
     const alert = vi.spyOn(window, "alert").mockImplementation(() => {});
-    vi.mocked(activateWorkspaceProfile).mockRejectedValueOnce(new Error("cannot open"));
-    vi.mocked(forgetWorkspaceProfile).mockRejectedValueOnce(new Error("disk full"));
-    vi.mocked(addWorkspaceFromPicker).mockRejectedValueOnce(new Error("picker failed"));
+    vi.mocked(activateWorkspaceProfile).mockRejectedValueOnce(
+      new Error("cannot open"),
+    );
+    vi.mocked(forgetWorkspaceProfile).mockRejectedValueOnce(
+      new Error("disk full"),
+    );
+    vi.mocked(addWorkspaceFromPicker).mockRejectedValueOnce(
+      new Error("picker failed"),
+    );
 
     const { getByLabelText, getByText } = render(<WorkspaceSwitcher />);
     fireEvent.click(getByLabelText("Switch workspace"));
@@ -250,7 +292,9 @@ describe("WorkspaceSwitcher", () => {
     fireEvent.click(getByLabelText("Forget Work"));
     await Promise.resolve();
     await Promise.resolve();
-    expect(alert).toHaveBeenCalledWith("Could not forget workspace. Try again.");
+    expect(alert).toHaveBeenCalledWith(
+      "Could not forget workspace. Try again.",
+    );
 
     fireEvent.click(getByText("+ Add workspace"));
     await Promise.resolve();
@@ -261,7 +305,9 @@ describe("WorkspaceSwitcher", () => {
   it("filters desktop profiles by name/path without exposing Android locator secrets", () => {
     workspaceProfiles.value = [PROFILE_A, PROFILE_B, PROFILE_ANDROID];
     activeWorkspaceId.value = "a";
-    const { getByLabelText, getByRole, queryByText, container } = render(<WorkspaceSwitcher />);
+    const { getByLabelText, getByRole, queryByText, container } = render(
+      <WorkspaceSwitcher />,
+    );
     fireEvent.click(getByLabelText("Switch workspace"));
     const search = getByRole("searchbox");
     fireEvent.input(search, { target: { value: "/b" } });
@@ -317,7 +363,9 @@ describe("WorkspaceSwitcher", () => {
     activeWorkspaceId.value = "a";
     const { getByRole } = render(<WorkspaceSwitcher />);
     workspaceSwitcherOpenRequest.value++;
-    await waitFor(() => expect(getByRole("dialog", { name: "Workspaces" })).toBeTruthy());
+    await waitFor(() =>
+      expect(getByRole("dialog", { name: "Workspaces" })).toBeTruthy(),
+    );
     workspaceAddRequest.value++;
     workspaceManageRequest.value++;
     await waitFor(() => {
@@ -330,9 +378,13 @@ describe("WorkspaceSwitcher", () => {
     workspaceProfiles.value = [PROFILE_A];
     activeWorkspaceId.value = "a";
     const alert = vi.spyOn(window, "alert").mockImplementation(() => {});
-    vi.mocked(addWorkspaceFromPicker).mockRejectedValueOnce(new Error("picker failed"));
+    vi.mocked(addWorkspaceFromPicker).mockRejectedValueOnce(
+      new Error("picker failed"),
+    );
     render(<WorkspaceSwitcher />);
     workspaceAddRequest.value++;
-    await waitFor(() => expect(alert).toHaveBeenCalledWith("Could not add workspace. Try again."));
+    await waitFor(() =>
+      expect(alert).toHaveBeenCalledWith("Could not add workspace. Try again."),
+    );
   });
 });

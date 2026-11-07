@@ -16,7 +16,9 @@ function setWorkspace(notes: Record<string, string>) {
     if (links.length > 0) wikiLinksByPath.set(path, links);
     const headings = scanHeadings(content);
     if (headings.length > 0) headingsByPath.set(path, headings);
-    const name = (path.split("/").pop() ?? path).replace(/\.md$/i, "").toLocaleLowerCase();
+    const name = (path.split("/").pop() ?? path)
+      .replace(/\.md$/i, "")
+      .toLocaleLowerCase();
     const existing = pathsByNoteName.get(name) ?? [];
     existing.push(path);
     pathsByNoteName.set(name, existing);
@@ -45,12 +47,16 @@ describe("DiagnosticsPanel", () => {
   it("shows a placeholder when the workspace has no link findings", () => {
     setWorkspace({ "/vault/A.md": "[[B]]", "/vault/B.md": "content" });
     const { getByText } = render(<DiagnosticsPanel onOpenFile={vi.fn()} />);
-    expect(getByText("No broken or ambiguous links found in this workspace.")).toBeTruthy();
+    expect(
+      getByText("No broken or ambiguous links found in this workspace."),
+    ).toBeTruthy();
   });
 
   it("lists a broken link with its status and source note", () => {
     setWorkspace({ "/vault/A.md": "[[Missing]]" });
-    const { getByText, getByLabelText } = render(<DiagnosticsPanel onOpenFile={vi.fn()} />);
+    const { getByText, getByLabelText } = render(
+      <DiagnosticsPanel onOpenFile={vi.fn()} />,
+    );
     expect(getByText("[[Missing]]")).toBeTruthy();
     expect(getByLabelText(/^Broken link: \[\[Missing\]\], in A$/)).toBeTruthy();
   });
@@ -60,8 +66,12 @@ describe("DiagnosticsPanel", () => {
       "/vault/A.md": "[[B#Nope]]",
       "/vault/B.md": "# Intro\ntext",
     });
-    const { getByLabelText } = render(<DiagnosticsPanel onOpenFile={vi.fn()} />);
-    expect(getByLabelText(/^Missing heading: \[\[B#Nope\]\], in A$/)).toBeTruthy();
+    const { getByLabelText } = render(
+      <DiagnosticsPanel onOpenFile={vi.fn()} />,
+    );
+    expect(
+      getByLabelText(/^Missing heading: \[\[B#Nope\]\], in A$/),
+    ).toBeTruthy();
   });
 
   it("lists an ambiguous-heading finding with its candidate count", () => {

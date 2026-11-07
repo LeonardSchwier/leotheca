@@ -101,13 +101,21 @@ export function computeVirtualWindow(
   overscan: number,
 ): VirtualWindow {
   if (rowCount === 0 || rowHeight <= 0) {
-    return { startIndex: 0, endIndex: 0, topSpacerHeight: 0, bottomSpacerHeight: 0 };
+    return {
+      startIndex: 0,
+      endIndex: 0,
+      topSpacerHeight: 0,
+      bottomSpacerHeight: 0,
+    };
   }
   const clampedScrollTop = Math.max(0, scrollTop);
   const firstVisible = Math.floor(clampedScrollTop / rowHeight);
   const visibleRowCount = Math.max(1, Math.ceil(viewportHeight / rowHeight));
   const startIndex = Math.max(0, firstVisible - overscan);
-  const endIndex = Math.min(rowCount, firstVisible + visibleRowCount + overscan);
+  const endIndex = Math.min(
+    rowCount,
+    firstVisible + visibleRowCount + overscan,
+  );
   return {
     startIndex,
     endIndex,

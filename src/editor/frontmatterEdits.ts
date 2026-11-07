@@ -40,9 +40,7 @@ export interface ReadonlyFrontmatterProperty {
 }
 
 export type FrontmatterProperty =
-  | EditableScalarProperty
-  | EditableListProperty
-  | ReadonlyFrontmatterProperty;
+  EditableScalarProperty | EditableListProperty | ReadonlyFrontmatterProperty;
 
 export interface ParsedFrontmatterProperties {
   properties: FrontmatterProperty[];
@@ -87,10 +85,18 @@ function sourceLines(content: string, offset: number): SourceLine[] {
   while (cursor <= content.length) {
     const newline = content.indexOf("\n", cursor);
     const endWithNewline = newline === -1 ? content.length : newline + 1;
-    const raw = content.slice(cursor, newline === -1 ? content.length : newline);
+    const raw = content.slice(
+      cursor,
+      newline === -1 ? content.length : newline,
+    );
     const text = raw.endsWith("\r") ? raw.slice(0, -1) : raw;
     const end = offset + cursor + text.length;
-    lines.push({ text, start: offset + cursor, end, endWithNewline: offset + endWithNewline });
+    lines.push({
+      text,
+      start: offset + cursor,
+      end,
+      endWithNewline: offset + endWithNewline,
+    });
     if (newline === -1) break;
     cursor = newline + 1;
     if (cursor === content.length) break;
@@ -128,7 +134,8 @@ function inlineCommentStart(value: string): number {
     else if (ch === "'") quote = "single";
     else if (ch === "[") depth++;
     else if (ch === "]" && depth > 0) depth--;
-    else if (ch === "#" && depth === 0 && (i === 0 || /\s/.test(value[i - 1]))) return i;
+    else if (ch === "#" && depth === 0 && (i === 0 || /\s/.test(value[i - 1])))
+      return i;
   }
   return -1;
 }
@@ -174,7 +181,8 @@ function quoteDouble(value: string): string {
 function serializeScalar(value: string, style: ScalarStyle): string {
   if (style === "double") return quoteDouble(value);
   if (style === "single") return `'${value.replace(/'/g, "''")}'`;
-  if (value !== "" && !/^[-?:,[\]{}#&*!|>'"%@`]|:\s|\s#|[\r\n]/.test(value)) return value;
+  if (value !== "" && !/^[-?:,[\]{}#&*!|>'"%@`]|:\s|\s#|[\r\n]/.test(value))
+    return value;
   return quoteDouble(value);
 }
 
@@ -182,7 +190,11 @@ function serializeList(values: string[]): string {
   return `[${values.map(quoteDouble).join(", ")}]`;
 }
 
-function replaceRange(source: string, range: SourceRange, replacement: string): string {
+function replaceRange(
+  source: string,
+  range: SourceRange,
+  replacement: string,
+): string {
   return source.slice(0, range.start) + replacement + source.slice(range.end);
 }
 
@@ -207,7 +219,9 @@ export function frontmatterBodyStart(source: string): number {
   return findBlock(source)?.blockEnd ?? 0;
 }
 
-export function parseFrontmatterProperties(source: string): ParsedFrontmatterProperties {
+export function parseFrontmatterProperties(
+  source: string,
+): ParsedFrontmatterProperties {
   const block = findBlock(source);
   if (!block) return { properties: [] };
   const lines = sourceLines(block.content, block.contentStart);
@@ -226,7 +240,8 @@ export function parseFrontmatterProperties(source: string): ParsedFrontmatterPro
     const colon = line.text.indexOf(":");
     const afterColon = line.text.slice(colon + 1);
     const commentAt = inlineCommentStart(afterColon);
-    const beforeComment = commentAt >= 0 ? afterColon.slice(0, commentAt) : afterColon;
+    const beforeComment =
+      commentAt >= 0 ? afterColon.slice(0, commentAt) : afterColon;
     const trimmedEnd = beforeComment.trimEnd();
     const leading = trimmedEnd.length - trimmedEnd.trimStart().length;
     const rawValue = trimmedEnd.trimStart();
@@ -244,7 +259,11 @@ export function parseFrontmatterProperties(source: string): ParsedFrontmatterPro
         listValues.push(stripQuotes(item[1]));
         j++;
       }
-      if (onlyListItems && j > i + 1 && !listValues.some((item) => item.includes(","))) {
+      if (
+        onlyListItems &&
+        j > i + 1 &&
+        !listValues.some((item) => item.includes(","))
+      ) {
         const last = lines[j - 1];
         properties.push({
           kind: "list",
@@ -291,7 +310,13 @@ export function parseFrontmatterProperties(source: string): ParsedFrontmatterPro
       continue;
     }
 
-    if (rawValue === "|" || rawValue === ">" || rawValue.startsWith("{") || rawValue.startsWith("&") || rawValue.startsWith("*")) {
+    if (
+      rawValue === "|" ||
+      rawValue === ">" ||
+      rawValue.startsWith("{") ||
+      rawValue.startsWith("&") ||
+      rawValue.startsWith("*")
+    ) {
       let j = i + 1;
       while (j < lines.length && INDENTED_NONBLANK.test(lines[j].text)) j++;
       const last = lines[Math.max(i, j - 1)];
@@ -354,16 +379,27 @@ export function updateFrontmatterProperty(
   if (property.kind === "scalar") {
     if (typeof value !== "string") return source;
     const serialized = serializeScalar(value, property.style);
-    return replaceRange(source, property.replaceRange, property.sourceWasEmpty ? ` ${serialized}` : serialized);
+    return replaceRange(
+      source,
+      property.replaceRange,
+      property.sourceWasEmpty ? ` ${serialized}` : serialized,
+    );
   }
   if (!Array.isArray(value)) return source;
   if (property.replaceRange.start === property.removeRange.start) {
-    return replaceRange(source, property.replaceRange, `${property.key}: ${serializeList(value)}`);
+    return replaceRange(
+      source,
+      property.replaceRange,
+      `${property.key}: ${serializeList(value)}`,
+    );
   }
   return replaceRange(source, property.replaceRange, serializeList(value));
 }
 
-export function removeFrontmatterProperty(source: string, property: FrontmatterProperty): string {
+export function removeFrontmatterProperty(
+  source: string,
+  property: FrontmatterProperty,
+): string {
   const result = replaceRange(source, property.removeRange, "");
   const block = findBlock(result);
   if (block && block.content.trim() === "") return result.slice(block.blockEnd);
@@ -374,7 +410,15 @@ export function addFrontmatterProperty(source: string, key: string): string {
   const block = findBlock(source);
   if (!block) return `---\n${key}: ""\n---\n${source}`;
   if (block.content === "") {
-    return source.slice(0, block.contentStart) + `${key}: ""` + source.slice(block.contentStart);
+    return (
+      source.slice(0, block.contentStart) +
+      `${key}: ""` +
+      source.slice(block.contentStart)
+    );
   }
-  return source.slice(0, block.closingStart) + `${key}: ""${block.eol}` + source.slice(block.closingStart);
+  return (
+    source.slice(0, block.closingStart) +
+    `${key}: ""${block.eol}` +
+    source.slice(block.closingStart)
+  );
 }

@@ -56,16 +56,16 @@ For native changes, check both platform implementations and callers. Frontend-on
 
 Use focused tests for relevant cases, then the verification skill's applicable suite:
 
-| Boundary | Prove |
-| --- | --- |
-| Decode | Valid current data; malformed primitives/objects; invalid individual fields; missing file; future version. |
-| Migrate | Representative old fixtures; no data loss; new required defaults; unsupported version left intact. |
-| Normalize | Invalid active IDs repaired consistently, stable ordering, duplicate rules, bounds and empty state. |
-| Round trip | Realistic data retains values and promised unknown fields through encode/decode. |
-| Startup/reopen | Actual startup path loads persisted data and the UI/caller observes it. |
-| Updates/save | User change reaches the encoder and real write boundary; reopen observes it. |
-| Failure/recovery | Read/write failure, corrupt source preservation, explicit repair, retry without false success. |
-| Concurrency | Out-of-order reads/writes, workspace switches, superseded operations, teardown. |
+| Boundary         | Prove                                                                                                      |
+| ---------------- | ---------------------------------------------------------------------------------------------------------- |
+| Decode           | Valid current data; malformed primitives/objects; invalid individual fields; missing file; future version. |
+| Migrate          | Representative old fixtures; no data loss; new required defaults; unsupported version left intact.         |
+| Normalize        | Invalid active IDs repaired consistently, stable ordering, duplicate rules, bounds and empty state.        |
+| Round trip       | Realistic data retains values and promised unknown fields through encode/decode.                           |
+| Startup/reopen   | Actual startup path loads persisted data and the UI/caller observes it.                                    |
+| Updates/save     | User change reaches the encoder and real write boundary; reopen observes it.                               |
+| Failure/recovery | Read/write failure, corrupt source preservation, explicit repair, retry without false success.             |
+| Concurrency      | Out-of-order reads/writes, workspace switches, superseded operations, teardown.                            |
 
 For a regression, retain the test and remove only the fix to prove the intended failure, then restore and pass. Assert exact values, identity, byte preservation, and call ordering where they are the contract. Do not test only that a helper was called or the number of tests increased.
 

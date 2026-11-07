@@ -127,7 +127,8 @@
   --rotate: 0deg;
   --scale-x: 1;
   font-size: calc(var(--text-scale-factor) * var(--font-height));
-  transform: rotate(var(--rotate)) scaleX(var(--scale-x)) scale(var(--min-font-size-inv));
+  transform: rotate(var(--rotate)) scaleX(var(--scale-x))
+    scale(var(--min-font-size-inv));
 }
 
 .pdf-text-layer.pdf-text-layer-marking span {

@@ -80,7 +80,13 @@ function splitLines(content: string): LineInfo[] {
   while (start < content.length) {
     const newline = content.indexOf("\n", start);
     if (newline === -1) {
-      lines.push({ text: content.slice(start), start, end: content.length, lineNumber, lineEnding: "" });
+      lines.push({
+        text: content.slice(start),
+        start,
+        end: content.length,
+        lineNumber,
+        lineEnding: "",
+      });
       break;
     }
     const hasCr = newline > start && content[newline - 1] === "\r";
@@ -110,7 +116,11 @@ function backtickRunLength(text: string, index: number): number {
   return end - index;
 }
 
-function findMatchingBacktickRun(text: string, from: number, length: number): number {
+function findMatchingBacktickRun(
+  text: string,
+  from: number,
+  length: number,
+): number {
   for (let i = from; i < text.length; i++) {
     if (text[i] !== "`") continue;
     const run = backtickRunLength(text, i);
@@ -133,7 +143,8 @@ function separatorPipeIndexes(text: string): number[] {
       i += run - 1;
       continue;
     }
-    if (text[i] === "|" && countPrecedingBackslashes(text, i) % 2 === 0) pipes.push(i);
+    if (text[i] === "|" && countPrecedingBackslashes(text, i) % 2 === 0)
+      pipes.push(i);
   }
   return pipes;
 }
@@ -165,15 +176,26 @@ function parseRow(line: LineInfo): ParsedRow {
   }
 
   let firstNonSpace = 0;
-  while (firstNonSpace < line.text.length && (line.text[firstNonSpace] === " " || line.text[firstNonSpace] === "\t")) {
+  while (
+    firstNonSpace < line.text.length &&
+    (line.text[firstNonSpace] === " " || line.text[firstNonSpace] === "\t")
+  ) {
     firstNonSpace += 1;
   }
   let lastNonSpace = line.text.length - 1;
-  while (lastNonSpace >= 0 && (line.text[lastNonSpace] === " " || line.text[lastNonSpace] === "\t")) lastNonSpace -= 1;
+  while (
+    lastNonSpace >= 0 &&
+    (line.text[lastNonSpace] === " " || line.text[lastNonSpace] === "\t")
+  )
+    lastNonSpace -= 1;
 
   const startsWithOuterPipe = pipes[0] === firstNonSpace;
   const endsWithOuterPipe = pipes[pipes.length - 1] === lastNonSpace;
-  const boundaries = [0, ...pipes.map((index) => index + 1), line.text.length + 1];
+  const boundaries = [
+    0,
+    ...pipes.map((index) => index + 1),
+    line.text.length + 1,
+  ];
   const cells: TableCell[] = [];
 
   for (let i = 0; i < boundaries.length - 1; i++) {
@@ -184,7 +206,12 @@ function parseRow(line: LineInfo): ParsedRow {
     if (i === pipes.length) segmentEnd = line.text.length;
     if (startsWithOuterPipe && i === 0) continue;
     if (endsWithOuterPipe && i === pipes.length) continue;
-    cells.push(trimCell(line.text.slice(segmentStart, segmentEnd), line.start + segmentStart));
+    cells.push(
+      trimCell(
+        line.text.slice(segmentStart, segmentEnd),
+        line.start + segmentStart,
+      ),
+    );
   }
 
   return { cells, startsWithOuterPipe, endsWithOuterPipe, hasPipe: true };
@@ -212,7 +239,11 @@ function parseDelimiter(row: ParsedRow): TableColumn[] | null {
   return columns;
 }
 
-function detectLineEnding(lines: LineInfo[], from: number, to: number): "\n" | "\r\n" {
+function detectLineEnding(
+  lines: LineInfo[],
+  from: number,
+  to: number,
+): "\n" | "\r\n" {
   for (let i = from; i <= to; i++) {
     if (lines[i]?.lineEnding) return lines[i].lineEnding as "\n" | "\r\n";
   }
@@ -256,7 +287,8 @@ function lineIsExcluded(line: LineInfo, state: ScanState): boolean {
   }
   const commentStartMatch = COMMENT_START_RE.exec(line.text);
   if (commentStartMatch) {
-    if (line.text.indexOf("-->", commentStartMatch[0].length) === -1) state.inComment = true;
+    if (line.text.indexOf("-->", commentStartMatch[0].length) === -1)
+      state.inComment = true;
     return true;
   }
 
@@ -281,7 +313,9 @@ function lineIsExcluded(line: LineInfo, state: ScanState): boolean {
     return true;
   }
 
-  return INDENTED_CODE_RE.test(line.text) || UNSUPPORTED_CONTAINER_RE.test(line.text);
+  return (
+    INDENTED_CODE_RE.test(line.text) || UNSUPPORTED_CONTAINER_RE.test(line.text)
+  );
 }
 
 function excludedLineIndexes(lines: LineInfo[]): Set<number> {
@@ -307,9 +341,13 @@ function rowHasUsableTablePipe(row: ParsedRow): boolean {
 }
 
 function outerPipeStyle(rows: ParsedRow[]): "both" | "none" | "mixed" {
-  const both = rows.every((row) => row.startsWithOuterPipe && row.endsWithOuterPipe);
+  const both = rows.every(
+    (row) => row.startsWithOuterPipe && row.endsWithOuterPipe,
+  );
   if (both) return "both";
-  const none = rows.every((row) => !row.startsWithOuterPipe && !row.endsWithOuterPipe);
+  const none = rows.every(
+    (row) => !row.startsWithOuterPipe && !row.endsWithOuterPipe,
+  );
   return none ? "none" : "mixed";
 }
 
@@ -329,7 +367,11 @@ export function scanMarkdownTables(content: string): MarkdownTableRecord[] {
     if (excluded.has(i) || excluded.has(i + 1)) continue;
     const headerRow = parseRow(lines[i]);
     const delimiterRow = parseRow(lines[i + 1]);
-    if (!rowHasUsableTablePipe(headerRow) || !rowHasUsableTablePipe(delimiterRow)) continue;
+    if (
+      !rowHasUsableTablePipe(headerRow) ||
+      !rowHasUsableTablePipe(delimiterRow)
+    )
+      continue;
     const delimiterColumns = parseDelimiter(delimiterRow);
     if (!delimiterColumns) continue;
 
@@ -354,7 +396,11 @@ export function scanMarkdownTables(content: string): MarkdownTableRecord[] {
       alignment: delimiterColumns[index]?.alignment ?? "default",
     }));
     const warnings: TableParseWarning[] = [];
-    if (headerRow.cells.length !== width || delimiterColumns.length !== width || body.some((row) => row.cells.length !== width)) {
+    if (
+      headerRow.cells.length !== width ||
+      delimiterColumns.length !== width ||
+      body.some((row) => row.cells.length !== width)
+    ) {
       warnings.push("raggedRows");
     }
     const style = outerPipeStyle(parsedRows);
@@ -385,9 +431,17 @@ export function scanMarkdownTables(content: string): MarkdownTableRecord[] {
 }
 
 /** Returns the supported table whose exact source range contains offset. */
-export function findMarkdownTableAt(content: string, offset: number): MarkdownTableRecord | null {
-  if (!Number.isInteger(offset) || offset < 0 || offset > content.length) return null;
-  return scanMarkdownTables(content).find((table) => offset >= table.sourceFrom && offset <= table.sourceTo) ?? null;
+export function findMarkdownTableAt(
+  content: string,
+  offset: number,
+): MarkdownTableRecord | null {
+  if (!Number.isInteger(offset) || offset < 0 || offset > content.length)
+    return null;
+  return (
+    scanMarkdownTables(content).find(
+      (table) => offset >= table.sourceFrom && offset <= table.sourceTo,
+    ) ?? null
+  );
 }
 
 function escapeCellMarkdown(rawMarkdown: string): string {
@@ -432,7 +486,9 @@ function alignmentDelimiter(alignment: TableAlignment): string {
 }
 
 function canonicalRow(cells: string[], width: number): string {
-  const padded = Array.from({ length: width }, (_, index) => escapeCellMarkdown(cells[index] ?? ""));
+  const padded = Array.from({ length: width }, (_, index) =>
+    escapeCellMarkdown(cells[index] ?? ""),
+  );
   return `| ${padded.join(" | ")} |`;
 }
 
@@ -450,10 +506,12 @@ export function serializeMarkdownTable(table: {
     ...table.rows.map((row) => row.length),
   );
   const value = (cell: TableCell | string | undefined): string =>
-    typeof cell === "string" ? cell : cell?.rawMarkdown ?? "";
+    typeof cell === "string" ? cell : (cell?.rawMarkdown ?? "");
   const header = canonicalRow(table.header.map(value), width);
   const delimiter = canonicalRow(
-    Array.from({ length: width }, (_, index) => alignmentDelimiter(table.columns[index]?.alignment ?? "default")),
+    Array.from({ length: width }, (_, index) =>
+      alignmentDelimiter(table.columns[index]?.alignment ?? "default"),
+    ),
     width,
   );
   const body = table.rows.map((row) => canonicalRow(row.map(value), width));
@@ -461,7 +519,9 @@ export function serializeMarkdownTable(table: {
 }
 
 /** Developer-only structural summary suitable for console or fixture inspection. */
-export function inspectMarkdownTables(content: string): MarkdownTableInspection[] {
+export function inspectMarkdownTables(
+  content: string,
+): MarkdownTableInspection[] {
   return scanMarkdownTables(content).map((table) => ({
     lineFrom: table.lineFrom,
     lineTo: table.lineTo,

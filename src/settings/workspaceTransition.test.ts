@@ -3,7 +3,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 function deferred<T = void>() {
   let resolve!: (value: T | PromiseLike<T>) => void;
-  const promise = new Promise<T>((res) => { resolve = res; });
+  const promise = new Promise<T>((res) => {
+    resolve = res;
+  });
   return { promise, resolve };
 }
 
@@ -18,7 +20,9 @@ const {
   listDir: vi.fn<(path: string) => Promise<unknown[]>>(async () => []),
   readTextFile: vi.fn<(path: string) => Promise<string>>(),
   writeTextFile: vi.fn<(path: string, contents: string) => Promise<void>>(),
-  restoreWorkspaceAccess: vi.fn<(path: string, token?: string) => Promise<void>>(async () => {}),
+  restoreWorkspaceAccess: vi.fn<
+    (path: string, token?: string) => Promise<void>
+  >(async () => {}),
 }));
 
 vi.mock("../workspace/tauriBridge", () => ({
@@ -78,13 +82,20 @@ describe("workspace transition integration", () => {
 
     saves.change(oldSession, "/workspace/note.md", "old workspace edit");
     await vi.advanceTimersByTimeAsync(400);
-    expect(writeTextFile).toHaveBeenCalledWith("/workspace/note.md", "old workspace edit");
+    expect(writeTextFile).toHaveBeenCalledWith(
+      "/workspace/note.md",
+      "old workspace edit",
+    );
 
     let switched = false;
-    const switching = setWorkspacePath("/workspace", "token-B").then(() => { switched = true; });
+    const switching = setWorkspacePath("/workspace", "token-B").then(() => {
+      switched = true;
+    });
     await Promise.resolve();
 
-    expect(restoreWorkspaceAccess.mock.calls).toEqual([["/workspace", "token-A"]]);
+    expect(restoreWorkspaceAccess.mock.calls).toEqual([
+      ["/workspace", "token-A"],
+    ]);
     expect(switched).toBe(false);
 
     oldWrite.resolve();
@@ -135,11 +146,15 @@ describe("workspace transition integration", () => {
       if (token === "bad-token") throw new Error("grant expired");
     });
 
-    await expect(setWorkspacePath("/workspace", "bad-token")).rejects.toThrow("grant expired");
+    await expect(setWorkspacePath("/workspace", "bad-token")).rejects.toThrow(
+      "grant expired",
+    );
 
     expect(workspacePath.value).toBe("/old");
     expect(workspaceSession.value).toBe(previousSession + 1);
-    expect(workspaceSelectionError.value).toContain("Could not open that workspace");
+    expect(workspaceSelectionError.value).toContain(
+      "Could not open that workspace",
+    );
     expect(workspaceSelectionError.value).not.toContain("bad-token");
   });
 
@@ -151,7 +166,9 @@ describe("workspace transition integration", () => {
       return [];
     });
 
-    await expect(setWorkspacePath("/unreadable", "new-token")).rejects.toThrow("permission denied");
+    await expect(setWorkspacePath("/unreadable", "new-token")).rejects.toThrow(
+      "permission denied",
+    );
     expect(workspacePath.value).toBe("/old");
     expect(workspaceSelectionError.value).toContain("permission denied");
   });
@@ -163,10 +180,14 @@ describe("workspace transition integration", () => {
     writeTextFile.mockRejectedValueOnce(new Error("disk full"));
     saves.change(oldSession, "/old/note.md", "unsaved edit");
 
-    await expect(setWorkspacePath("/new", "new-token")).rejects.toThrow('Could not save "/old/note.md"');
+    await expect(setWorkspacePath("/new", "new-token")).rejects.toThrow(
+      'Could not save "/old/note.md"',
+    );
 
     expect(workspacePath.value).toBe("/old");
-    expect(workspaceSelectionError.value).toContain('Could not save "/old/note.md"');
+    expect(workspaceSelectionError.value).toContain(
+      'Could not save "/old/note.md"',
+    );
     expect(saves.entryCount()).toBe(1);
   });
 
@@ -182,7 +203,9 @@ describe("workspace transition integration", () => {
     });
     saves.change(oldSession, "/old/note.md", "unsaved edit");
 
-    await setWorkspacePath("/new", "new-token", undefined, { discardUnsaved: true });
+    await setWorkspacePath("/new", "new-token", undefined, {
+      discardUnsaved: true,
+    });
 
     expect(workspacePath.value).toBe("/new");
     expect(saves.entryCount()).toBe(0);
@@ -193,9 +216,13 @@ describe("workspace transition integration", () => {
     workspacePath.value = null;
     restoreWorkspaceAccess.mockRejectedValueOnce(new Error("no such folder"));
 
-    await expect(setWorkspacePath("/gone", "token")).rejects.toThrow("no such folder");
+    await expect(setWorkspacePath("/gone", "token")).rejects.toThrow(
+      "no such folder",
+    );
 
     expect(workspacePath.value).toBeNull();
-    expect(workspaceSelectionError.value).toContain("Could not open that workspace");
+    expect(workspaceSelectionError.value).toContain(
+      "Could not open that workspace",
+    );
   });
 });

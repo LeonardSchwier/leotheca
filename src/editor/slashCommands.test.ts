@@ -224,7 +224,6 @@ describe("slashCommandCompletions", () => {
   });
 });
 
-
 describe("slashCommandCompletions (cursor position edge cases)", () => {
   it("does not throw when the cursor is at the very end of a one-character doc", () => {
     // Regression: doc.lineAt(context.pos) throws RangeError when pos

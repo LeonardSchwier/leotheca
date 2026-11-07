@@ -52,7 +52,8 @@ const fakeFs = vi.hoisted(() => ({
   listDelay: null as null | Promise<void>,
 }));
 vi.mock("../workspace/tauriBridge", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../workspace/tauriBridge")>();
+  const actual =
+    await importOriginal<typeof import("../workspace/tauriBridge")>();
   return {
     ...actual,
     listDir: async (root: string, path: string) => {
@@ -60,7 +61,11 @@ vi.mock("../workspace/tauriBridge", async (importOriginal) => {
       if (fakeFs.listDelay) await fakeFs.listDelay;
       const names = fakeFs.dirs.get(path);
       if (!names) throw new Error("no such dir");
-      return names.map((name) => ({ name, path: `${path}/${name}`, isDir: false }));
+      return names.map((name) => ({
+        name,
+        path: `${path}/${name}`,
+        isDir: false,
+      }));
     },
     readTextFile: async (path: string) => {
       if (!fakeFs.active) return actual.readTextFile(path);
@@ -72,8 +77,13 @@ vi.mock("../workspace/tauriBridge", async (importOriginal) => {
       if (!fakeFs.active) return actual.writeTextFile(path, text);
       fakeFs.writes.push({ path, text });
     },
-    createWorkspaceTextFileNew: async (root: string, rel: string, text: string) => {
-      if (!fakeFs.active) return actual.createWorkspaceTextFileNew(root, rel, text);
+    createWorkspaceTextFileNew: async (
+      root: string,
+      rel: string,
+      text: string,
+    ) => {
+      if (!fakeFs.active)
+        return actual.createWorkspaceTextFileNew(root, rel, text);
       fakeFs.created.push({ root, rel, text });
     },
   };
@@ -138,17 +148,17 @@ describe("CaptureSheet Accessibility (F05-FR-27)", () => {
   it("should clear announcement when closing sheet", () => {
     captureAnnouncement.value = "Test announcement";
     expect(captureAnnouncement.value).toBe("Test announcement");
-    
+
     closeCaptureSheet();
     expect(captureAnnouncement.value).toBe("");
   });
 
   it("should open and close capture sheet", () => {
     expect(captureSheetOpen.value).toBe(false);
-    
+
     captureSheetOpen.value = true;
     expect(captureSheetOpen.value).toBe(true);
-    
+
     closeCaptureSheet();
     expect(captureSheetOpen.value).toBe(false);
   });
@@ -160,9 +170,9 @@ describe("CaptureSheet Accessibility (F05-FR-27)", () => {
     captureSourceUrl.value = "https://example.com";
     captureDestinationMode.value = "append";
     captureOpenAfterCapture.value = false;
-    
+
     closeCaptureSheet();
-    
+
     expect(captureContent.value).toBe("");
     expect(captureTitle.value).toBe("");
     expect(captureSourceUrl.value).toBe("");
@@ -172,7 +182,7 @@ describe("CaptureSheet Accessibility (F05-FR-27)", () => {
 
   it("should handle all destination modes", () => {
     const modes = ["append", "new", "date"] as const;
-    modes.forEach(mode => {
+    modes.forEach((mode) => {
       captureDestinationMode.value = mode;
       expect(captureDestinationMode.value).toBe(mode);
     });
@@ -287,7 +297,9 @@ describe("CaptureSheet target picker", () => {
   it("renders a 'Capture into' select when open", () => {
     captureSheetOpen.value = true;
     const { getByRole } = render(<CaptureSheet />);
-    const select = getByRole("combobox", { name: /capture into/i }) as HTMLSelectElement;
+    const select = getByRole("combobox", {
+      name: /capture into/i,
+    }) as HTMLSelectElement;
     expect(select).toBeDefined();
     // Default target is the inbox
     expect(select.value).toBe("inbox");
@@ -306,7 +318,8 @@ describe("CaptureSheet target picker", () => {
     captureTargetKind.value = "specific";
     const { queryByLabelText, queryByRole } = render(<CaptureSheet />);
     // The sub-picker renders a <select> labelled "Note" (id: capture-target-note)
-    const input = queryByLabelText(/^note/i) ?? queryByRole("combobox", { name: /^note/i });
+    const input =
+      queryByLabelText(/^note/i) ?? queryByRole("combobox", { name: /^note/i });
     expect(input).not.toBeNull();
   });
 
@@ -344,7 +357,9 @@ describe("CaptureSheet target picker", () => {
       { label: "Ideas.md", path: "/workspace/Ideas.md" },
     ];
     const { getByRole } = render(<CaptureSheet />);
-    const select = getByRole("combobox", { name: /^note/i }) as HTMLSelectElement;
+    const select = getByRole("combobox", {
+      name: /^note/i,
+    }) as HTMLSelectElement;
     fireEvent.change(select, { target: { value: "/workspace/Notes.md" } });
     expect(captureTargetPath.value).toBe("/workspace/Notes.md");
   });
@@ -393,8 +408,12 @@ describe("CaptureSheet voice input", () => {
     const { findByText, getByLabelText } = render(<CaptureSheet />);
     fireEvent.click(await findByText("Speak"));
     await act(async () => {});
-    const capture = (await findByText("Stop and transcribe")) as HTMLButtonElement;
-    expect((getByLabelText("Capture note") as HTMLButtonElement).disabled).toBe(true);
+    const capture = (await findByText(
+      "Stop and transcribe",
+    )) as HTMLButtonElement;
+    expect((getByLabelText("Capture note") as HTMLButtonElement).disabled).toBe(
+      true,
+    );
     fireEvent.click(capture);
     await act(async () => {
       fakeEngine.resultCb?.({ text: "spoken words", isFinal: true });
@@ -418,7 +437,10 @@ describe("CaptureSheet voice input", () => {
 
 describe("CaptureSheet optional template", () => {
   const original = workspaceSettings.value;
-  const settle = () => act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+  const settle = () =>
+    act(async () => {
+      await new Promise((r) => setTimeout(r, 0));
+    });
 
   function setup(templatesEnabled = true) {
     fakeFs.active = true;
@@ -428,11 +450,19 @@ describe("CaptureSheet optional template", () => {
     fakeFs.created.length = 0;
     fakeFs.listDelay = null;
     fakeFs.dirs.set("/ws/Templates", ["Meeting.md", "Plain.md", "notes.txt"]);
-    fakeFs.files.set("/ws/Templates/Meeting.md", "## Meeting {{date}}\n\n{{content}}\n");
+    fakeFs.files.set(
+      "/ws/Templates/Meeting.md",
+      "## Meeting {{date}}\n\n{{content}}\n",
+    );
     fakeFs.files.set("/ws/Templates/Plain.md", "tags: capture");
     fakeFs.files.set("/ws/Inbox.md", "# Inbox\n\nold");
     workspacePath.value = "/ws";
-    workspaceSettings.value = { ...original, templatesEnabled, templatesFolder: "Templates", captureInboxNote: "Inbox.md" };
+    workspaceSettings.value = {
+      ...original,
+      templatesEnabled,
+      templatesFolder: "Templates",
+      captureInboxNote: "Inbox.md",
+    };
     captureTemplatePath.value = "";
     captureContent.value = "typed body";
     captureSheetOpen.value = true;
@@ -466,9 +496,15 @@ describe("CaptureSheet optional template", () => {
     setup();
     const { container } = render(<CaptureSheet />);
     await settle();
-    const select = container.querySelector("#capture-template") as HTMLSelectElement;
+    const select = container.querySelector(
+      "#capture-template",
+    ) as HTMLSelectElement;
     expect(select.value).toBe("");
-    expect(Array.from(select.options).map((o) => o.textContent)).toEqual(["None (plain capture)", "Meeting", "Plain"]);
+    expect(Array.from(select.options).map((o) => o.textContent)).toEqual([
+      "None (plain capture)",
+      "Meeting",
+      "Plain",
+    ]);
   });
 
   it("captures plain, exactly as before, when None is chosen", async () => {
@@ -479,20 +515,27 @@ describe("CaptureSheet optional template", () => {
     await settle();
     expect(fakeFs.writes).toHaveLength(1);
     expect(fakeFs.writes[0].path).toBe("/ws/Inbox.md");
-    expect(fakeFs.writes[0].text).toMatch(/^# Inbox\n\nold\n\n### \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\n\ntyped body$/);
+    expect(fakeFs.writes[0].text).toMatch(
+      /^# Inbox\n\nold\n\n### \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\n\ntyped body$/,
+    );
   });
 
   it("appends the rendered template, without the built-in header, when one is chosen", async () => {
     setup();
     const { container, getByLabelText } = render(<CaptureSheet />);
     await settle();
-    fireEvent.change(container.querySelector("#capture-template") as HTMLSelectElement, {
-      target: { value: "/ws/Templates/Meeting.md" },
-    });
+    fireEvent.change(
+      container.querySelector("#capture-template") as HTMLSelectElement,
+      {
+        target: { value: "/ws/Templates/Meeting.md" },
+      },
+    );
     fireEvent.click(getByLabelText("Capture note"));
     await settle();
     expect(fakeFs.writes).toHaveLength(1);
-    expect(fakeFs.writes[0].text).toMatch(/^# Inbox\n\nold\n\n## Meeting \d{4}-\d{2}-\d{2}\n\ntyped body$/);
+    expect(fakeFs.writes[0].text).toMatch(
+      /^# Inbox\n\nold\n\n## Meeting \d{4}-\d{2}-\d{2}\n\ntyped body$/,
+    );
     expect(captureSheetOpen.value).toBe(false);
   });
 
@@ -500,12 +543,18 @@ describe("CaptureSheet optional template", () => {
     setup();
     fakeFs.dirs.set("Daily", []);
     captureTargetKind.value = "daily";
-    workspaceSettings.value = { ...workspaceSettings.value, captureDatePattern: "Daily/{{date:YYYY-MM-DD}}.md" };
+    workspaceSettings.value = {
+      ...workspaceSettings.value,
+      captureDatePattern: "Daily/{{date:YYYY-MM-DD}}.md",
+    };
     const { container, getByLabelText } = render(<CaptureSheet />);
     await settle();
-    fireEvent.change(container.querySelector("#capture-template") as HTMLSelectElement, {
-      target: { value: "/ws/Templates/Plain.md" },
-    });
+    fireEvent.change(
+      container.querySelector("#capture-template") as HTMLSelectElement,
+      {
+        target: { value: "/ws/Templates/Plain.md" },
+      },
+    );
     fireEvent.click(getByLabelText("Capture note"));
     await settle();
     expect(fakeFs.created).toHaveLength(1);
@@ -518,14 +567,19 @@ describe("CaptureSheet optional template", () => {
     const { container, getByLabelText, getByRole } = render(<CaptureSheet />);
     await settle();
     fakeFs.files.delete("/ws/Templates/Meeting.md");
-    fireEvent.change(container.querySelector("#capture-template") as HTMLSelectElement, {
-      target: { value: "/ws/Templates/Meeting.md" },
-    });
+    fireEvent.change(
+      container.querySelector("#capture-template") as HTMLSelectElement,
+      {
+        target: { value: "/ws/Templates/Meeting.md" },
+      },
+    );
     fireEvent.click(getByLabelText("Capture note"));
     await settle();
     expect(fakeFs.writes).toHaveLength(0);
     expect(fakeFs.created).toHaveLength(0);
-    expect(getByRole("alert").textContent).toMatch(/Template could not be read.*None/);
+    expect(getByRole("alert").textContent).toMatch(
+      /Template could not be read.*None/,
+    );
     expect(captureSheetOpen.value).toBe(true);
     expect(captureContent.value).toBe("typed body");
   });
@@ -552,7 +606,9 @@ describe("CaptureSheet optional template", () => {
   it("ignores a template listing that resolves after the sheet was closed", async () => {
     setup();
     let release!: () => void;
-    fakeFs.listDelay = new Promise<void>((r) => { release = r; });
+    fakeFs.listDelay = new Promise<void>((r) => {
+      release = r;
+    });
     const { unmount } = render(<CaptureSheet />);
     act(() => closeCaptureSheet());
     unmount();

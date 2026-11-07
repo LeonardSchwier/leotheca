@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import type { HeadingRecord } from "../markdown/headings";
-import { copyHeadingLink, headingLinkDisabledReason, insertHeadingLink } from "./headingLinkOperations";
+import {
+  copyHeadingLink,
+  headingLinkDisabledReason,
+  insertHeadingLink,
+} from "./headingLinkOperations";
 import { announceOutline } from "./outlineAnnouncements";
 
 interface HeadingLinkActionsProps {

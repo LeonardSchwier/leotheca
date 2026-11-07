@@ -236,7 +236,9 @@ function isValidTaskRecord(raw: unknown): raw is TaskRecord {
  * because it's new. A malformed `FrontmatterProperty` (wrong `kind`, a
  * missing range) drops the whole cache entry, forcing a real re-read,
  * same as an invalid TaskRecord already does above. */
-function isValidSourceRange(raw: unknown): raw is { start: number; end: number } {
+function isValidSourceRange(
+  raw: unknown,
+): raw is { start: number; end: number } {
   if (typeof raw !== "object" || raw === null) return false;
   const range = raw as Record<string, unknown>;
   return (
@@ -264,7 +266,9 @@ function isValidFrontmatterProperty(raw: unknown): raw is FrontmatterProperty {
     return (
       record.editable === true &&
       typeof record.value === "string" &&
-      (record.style === "plain" || record.style === "single" || record.style === "double") &&
+      (record.style === "plain" ||
+        record.style === "single" ||
+        record.style === "double") &&
       isValidSourceRange(record.replaceRange) &&
       isValidSourceRange(record.removeRange)
     );
@@ -296,7 +300,11 @@ function isValidWikiLinkRecord(raw: unknown): raw is WikiLinkRecord {
   const isOptionalString = (v: unknown): boolean =>
     v === undefined || typeof v === "string";
   let fragmentValid = record.fragment === undefined;
-  if (!fragmentValid && typeof record.fragment === "object" && record.fragment !== null) {
+  if (
+    !fragmentValid &&
+    typeof record.fragment === "object" &&
+    record.fragment !== null
+  ) {
     const fragment = record.fragment as Record<string, unknown>;
     fragmentValid =
       (fragment.kind === "heading" || fragment.kind === "block") &&
@@ -647,7 +655,10 @@ export async function rebuildLinkIndex(
     const tasksByPath = new Map<string, TaskRecord[]>();
     const mtimeByPath = new Map<string, number>();
     const hasFrontmatterByPath = new Set<string>();
-    const frontmatterPropertiesByPath = new Map<string, FrontmatterProperty[]>();
+    const frontmatterPropertiesByPath = new Map<
+      string,
+      FrontmatterProperty[]
+    >();
     const wikiLinksByPath = new Map<string, WikiLinkRecord[]>();
     const headingsByPath = new Map<string, HeadingRecord[]>();
     const blocksByPath = new Map<string, BlockRecord[]>();
@@ -751,11 +762,17 @@ export async function rebuildLinkIndex(
             if (cached?.tasks.length) tasksByPath.set(entry.path, cached.tasks);
             if (cached?.hasFrontmatter) hasFrontmatterByPath.add(entry.path);
             if (cached?.frontmatterProperties.length) {
-              frontmatterPropertiesByPath.set(entry.path, cached.frontmatterProperties);
+              frontmatterPropertiesByPath.set(
+                entry.path,
+                cached.frontmatterProperties,
+              );
             }
-            if (cached?.wikiLinks.length) wikiLinksByPath.set(entry.path, cached.wikiLinks);
-            if (cached?.headings.length) headingsByPath.set(entry.path, cached.headings);
-            if (cached?.blocks.length) blocksByPath.set(entry.path, cached.blocks);
+            if (cached?.wikiLinks.length)
+              wikiLinksByPath.set(entry.path, cached.wikiLinks);
+            if (cached?.headings.length)
+              headingsByPath.set(entry.path, cached.headings);
+            if (cached?.blocks.length)
+              blocksByPath.set(entry.path, cached.blocks);
             return;
           }
           if (!isCurrentRequest()) return;

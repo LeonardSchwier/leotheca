@@ -21,7 +21,7 @@ export interface CaptureRequest {
 export function queueCaptureIfNoWorkspace(
   capture: CaptureRequest,
   workspacePath: string | null | undefined,
-  source: "in-app" | "deep-link" | "android-share" = "in-app"
+  source: "in-app" | "deep-link" | "android-share" = "in-app",
 ): boolean {
   if (!workspacePath) {
     addPendingCapture({
@@ -32,7 +32,7 @@ export function queueCaptureIfNoWorkspace(
       mode: capture.mode,
       targetProfileId: capture.targetProfileId,
       openAfterCommit: capture.openAfterCommit,
-      attachments: capture.attachments || []
+      attachments: capture.attachments || [],
     });
     return true; // Was queued
   }

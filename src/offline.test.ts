@@ -24,7 +24,12 @@ import * as path from "node:path";
 // ── 1. CSP assertion ────────────────────────────────────────────────
 
 describe("tauri.conf.json CSP", () => {
-  const confPath = path.resolve(__dirname, "..", "src-tauri", "tauri.conf.json");
+  const confPath = path.resolve(
+    __dirname,
+    "..",
+    "src-tauri",
+    "tauri.conf.json",
+  );
 
   it("has a CSP set (not null, not empty)", () => {
     const conf = JSON.parse(fs.readFileSync(confPath, "utf8"));
@@ -121,7 +126,7 @@ describe("runtime network isolation", () => {
     fetchSpy.mockImplementation((..._args: unknown[]) => {
       throw new Error(
         "NETWORK VIOLATION: Leotheca must never make network calls. " +
-        `Attempted fetch: ${_args[0]?.toString?.() ?? _args[0]}`
+          `Attempted fetch: ${_args[0]?.toString?.() ?? _args[0]}`,
       );
     });
 
@@ -131,7 +136,7 @@ describe("runtime network isolation", () => {
         xhrOpenSpy(...args);
         throw new Error(
           "NETWORK VIOLATION: Leotheca must never make XHR calls. " +
-          `Attempted XHR.open: ${args.join(" ")}`
+            `Attempted XHR.open: ${args.join(" ")}`,
         );
       };
       send = () => {
@@ -149,7 +154,7 @@ describe("runtime network isolation", () => {
       constructor(url: string) {
         throw new Error(
           "NETWORK VIOLATION: Leotheca must never open WebSocket. " +
-          `Attempted WebSocket to: ${url}`
+            `Attempted WebSocket to: ${url}`,
         );
       }
       close = () => {};
@@ -162,7 +167,7 @@ describe("runtime network isolation", () => {
       constructor(url: string) {
         throw new Error(
           "NETWORK VIOLATION: Leotheca must never open EventSource. " +
-          `Attempted EventSource to: ${url}`
+            `Attempted EventSource to: ${url}`,
         );
       }
       close = () => {};

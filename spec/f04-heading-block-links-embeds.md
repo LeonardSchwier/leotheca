@@ -97,8 +97,7 @@ interface WikiLinkRecord {
   raw: string;
   noteTarget: string;
   fragment?:
-    | { kind: "heading"; value: string }
-    | { kind: "block"; value: string };
+    { kind: "heading"; value: string } | { kind: "block"; value: string };
   label?: string;
   sourceFrom: number;
   sourceTo: number;
@@ -179,7 +178,11 @@ Multiple headings in one note may share a normalized key. Such a fragment is amb
 Rendered headings receive deterministic application-owned attributes:
 
 ```html
-<h2 id="lt-heading-design-system-2" data-lt-heading-key="design system" data-lt-heading-occurrence="2">
+<h2
+  id="lt-heading-design-system-2"
+  data-lt-heading-key="design system"
+  data-lt-heading-occurrence="2"
+></h2>
 ```
 
 The concrete slug algorithm may differ, but it must:
@@ -260,7 +263,13 @@ The application never adds IDs merely because a note is indexed or previewed.
 
 ```typescript
 interface ResolvedWikiTarget {
-  status: "resolved" | "missing-note" | "ambiguous-note" | "missing-fragment" | "ambiguous-fragment" | "malformed";
+  status:
+    | "resolved"
+    | "missing-note"
+    | "ambiguous-note"
+    | "missing-fragment"
+    | "ambiguous-fragment"
+    | "malformed";
   notePath?: string;
   heading?: HeadingRecord;
   block?: BlockRecord;
@@ -674,16 +683,16 @@ Desktop and Android:
 
 ## 22. Risks and mitigations
 
-| Risk | Impact | Mitigation |
-|---|---|---|
-| New separators reinterpret old filenames | Broken existing links | Unique legacy fallback, repository scan, reviewed F03 conversion |
-| Duplicate headings navigate unpredictably | Wrong context | Treat as ambiguous and offer stable block ID |
-| Block IDs pollute notes | Reduced portability | Insert only on explicit action, simple visible syntax |
-| Nested embeds cause recursion or memory pressure | App instability | Cycle detection and strict depth, count, and byte budgets |
-| Embedded content bypasses sanitizer | Security issue | Sanitize complete assembled output after expansion |
-| Relative links use host context | Wrong targets | Carry source-note context through every nested render node |
-| Stale async result appears | Cross-note or cross-workspace leak | Session and request generations with cancellation |
-| Multiple parsers disagree | Incorrect diagnostics or refactors | One syntax parser, resolver, and serializer used by all features |
+| Risk                                             | Impact                             | Mitigation                                                       |
+| ------------------------------------------------ | ---------------------------------- | ---------------------------------------------------------------- |
+| New separators reinterpret old filenames         | Broken existing links              | Unique legacy fallback, repository scan, reviewed F03 conversion |
+| Duplicate headings navigate unpredictably        | Wrong context                      | Treat as ambiguous and offer stable block ID                     |
+| Block IDs pollute notes                          | Reduced portability                | Insert only on explicit action, simple visible syntax            |
+| Nested embeds cause recursion or memory pressure | App instability                    | Cycle detection and strict depth, count, and byte budgets        |
+| Embedded content bypasses sanitizer              | Security issue                     | Sanitize complete assembled output after expansion               |
+| Relative links use host context                  | Wrong targets                      | Carry source-note context through every nested render node       |
+| Stale async result appears                       | Cross-note or cross-workspace leak | Session and request generations with cancellation                |
+| Multiple parsers disagree                        | Incorrect diagnostics or refactors | One syntax parser, resolver, and serializer used by all features |
 
 ## 23. Documentation changes
 

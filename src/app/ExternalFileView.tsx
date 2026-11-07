@@ -66,7 +66,12 @@ export function ExternalFileView({
       >
         <div class="modal-header">
           <h2 id="external-file-view-title">{name}</h2>
-          <button ref={closeRef} class="modal-close" aria-label="Close" onClick={onClose}>
+          <button
+            ref={closeRef}
+            class="modal-close"
+            aria-label="Close"
+            onClick={onClose}
+          >
             x
           </button>
         </div>
@@ -86,7 +91,9 @@ export function ExternalFileView({
           <div class="external-file-view-toolbar">
             <button
               class={`icon-button ${outlineOpen ? "active" : ""}`}
-              aria-label={outlineOpen ? "Hide note outline" : "Show note outline"}
+              aria-label={
+                outlineOpen ? "Hide note outline" : "Show note outline"
+              }
               title={outlineOpen ? "Hide outline" : "Show outline"}
               onClick={() => setOutlineOpen((v) => !v)}
             >

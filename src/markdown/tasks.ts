@@ -83,12 +83,22 @@ function splitLines(content: string): LineInfo[] {
   while (pos < content.length) {
     const newlineIndex = content.indexOf("\n", pos);
     if (newlineIndex === -1) {
-      lines.push({ text: content.slice(pos), start: pos, end: content.length, lineNumber });
+      lines.push({
+        text: content.slice(pos),
+        start: pos,
+        end: content.length,
+        lineNumber,
+      });
       break;
     }
     let lineEnd = newlineIndex;
     if (lineEnd > pos && content[lineEnd - 1] === "\r") lineEnd -= 1;
-    lines.push({ text: content.slice(pos, lineEnd), start: pos, end: lineEnd, lineNumber });
+    lines.push({
+      text: content.slice(pos, lineEnd),
+      start: pos,
+      end: lineEnd,
+      lineNumber,
+    });
     pos = newlineIndex + 1;
     lineNumber += 1;
   }
@@ -185,7 +195,12 @@ export function scanTasks(content: string): TaskRecord[] {
   for (const line of lines) {
     if (inFence) {
       const close = FENCE_RE.exec(line.text);
-      if (close && close[1][0] === fenceChar && close[1].length >= fenceLength && line.text.trim() === close[1]) {
+      if (
+        close &&
+        close[1][0] === fenceChar &&
+        close[1].length >= fenceLength &&
+        line.text.trim() === close[1]
+      ) {
         inFence = false;
       }
       continue;
@@ -204,7 +219,10 @@ export function scanTasks(content: string): TaskRecord[] {
     }
     const commentStartMatch = COMMENT_START_RE.exec(line.text);
     if (commentStartMatch) {
-      const closeOnSameLine = line.text.indexOf("-->", commentStartMatch[0].length);
+      const closeOnSameLine = line.text.indexOf(
+        "-->",
+        commentStartMatch[0].length,
+      );
       if (closeOnSameLine === -1) inComment = true;
       continue;
     }
@@ -212,7 +230,8 @@ export function scanTasks(content: string): TaskRecord[] {
     const match = TASK_LINE_RE.exec(line.text);
     if (!match) continue;
 
-    const [, leading, , afterBullet, markerChar, gapWhitespace, textBody] = match;
+    const [, leading, , afterBullet, markerChar, gapWhitespace, textBody] =
+      match;
     const indentationColumns = indentationColumnsOf(leading);
     // A 4-or-more-column-indented line with no shallower open task/list
     // item above it has nothing to nest under, so it reads as a top-level
@@ -224,10 +243,14 @@ export function scanTasks(content: string): TaskRecord[] {
     // indented code block belonging to that item's own content; resolving
     // that ambiguity would need real list-marker-width-aware block
     // parsing this Phase 1 slice deliberately does not implement.
-    const isTopLevelIndentedCodeBlock = indentationColumns >= 4 && openIndentLevels.length === 0;
+    const isTopLevelIndentedCodeBlock =
+      indentationColumns >= 4 && openIndentLevels.length === 0;
     if (isTopLevelIndentedCodeBlock) continue;
 
-    while (openIndentLevels.length > 0 && openIndentLevels[openIndentLevels.length - 1] >= indentationColumns) {
+    while (
+      openIndentLevels.length > 0 &&
+      openIndentLevels[openIndentLevels.length - 1] >= indentationColumns
+    ) {
       openIndentLevels.pop();
     }
     openIndentLevels.push(indentationColumns);

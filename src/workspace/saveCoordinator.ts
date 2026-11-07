@@ -42,13 +42,19 @@ export interface SaveCoordinator {
   change(session: string | number | null, path: string, content: string): void;
   flush(session: string | number | null, path: string): Promise<void>;
   waitForInflight(session: string | number | null, path: string): Promise<void>;
-  prepareForTransition(session: string | number | null, options?: { discard?: boolean }): Promise<void>;
+  prepareForTransition(
+    session: string | number | null,
+    options?: { discard?: boolean },
+  ): Promise<void>;
   resetForSession(currentSession: string | number | null): void;
   retry(session: string | number | null, path: string): Promise<void>;
   getError(session: string | number | null, path: string): string | null;
   hasUnsavedWork(session: string | number | null): boolean;
   entryCount(): number;
-  debugEntries(): Array<{ key: string; entry: Omit<SaveEntry, "timer" | "waiters"> }>;
+  debugEntries(): Array<{
+    key: string;
+    entry: Omit<SaveEntry, "timer" | "waiters">;
+  }>;
 }
 
 // App.tsx owns the editor coordinator instance. The settings transition layer
@@ -106,7 +112,9 @@ function writeWorkspaceRevision(path: string, content: string): Promise<void> {
  * F-004 routes every actual note write through the active workspace capability
  * held by tauriBridge, so autosave cannot bypass native containment.
  */
-export function createSaveCoordinator(cbs?: SaveCoordinatorCallbacks): SaveCoordinator {
+export function createSaveCoordinator(
+  cbs?: SaveCoordinatorCallbacks,
+): SaveCoordinator {
   const entries = new Map<string, SaveEntry>();
   const blockedSessions = new Set<string>();
 
@@ -114,7 +122,10 @@ export function createSaveCoordinator(cbs?: SaveCoordinatorCallbacks): SaveCoord
     return blockedSessions.has(sessionKey(session));
   }
 
-  function getOrCreate(session: string | number | null, path: string): SaveEntry {
+  function getOrCreate(
+    session: string | number | null,
+    path: string,
+  ): SaveEntry {
     const key = makeKey(session, path);
     let entry = entries.get(key);
     if (!entry) {
@@ -153,7 +164,8 @@ export function createSaveCoordinator(cbs?: SaveCoordinatorCallbacks): SaveCoord
     if (entry.timer) clearTimeout(entry.timer);
     entry.timer = setTimeout(() => {
       entry.timer = null;
-      if (isBlocked(session) || entry.inFlight || entry.revision !== revision) return;
+      if (isBlocked(session) || entry.inFlight || entry.revision !== revision)
+        return;
       void writeRevision(session, path, entry, revision);
     }, 400);
   }
@@ -203,7 +215,11 @@ export function createSaveCoordinator(cbs?: SaveCoordinatorCallbacks): SaveCoord
     }
   }
 
-  function change(session: string | number | null, path: string, content: string): void {
+  function change(
+    session: string | number | null,
+    path: string,
+    content: string,
+  ): void {
     if (isBlocked(session)) return;
     const entry = getOrCreate(session, path);
     entry.latestContent = content;
@@ -236,7 +252,10 @@ export function createSaveCoordinator(cbs?: SaveCoordinatorCallbacks): SaveCoord
    * In that case there is no content to write; `flush` is a no-op (the caller
    * already has the content it needs in memory). We return early to avoid
    * creating a spurious entry for a path that was never edited. */
-  async function flush(session: string | number | null, path: string): Promise<void> {
+  async function flush(
+    session: string | number | null,
+    path: string,
+  ): Promise<void> {
     if (isBlocked(session)) return;
     const entry = getOrCreate(session, path);
     if (entry.timer) {
@@ -250,7 +269,10 @@ export function createSaveCoordinator(cbs?: SaveCoordinatorCallbacks): SaveCoord
     await writeRevision(session, path, entry, revision);
   }
 
-  function waitForInflight(session: string | number | null, path: string): Promise<void> {
+  function waitForInflight(
+    session: string | number | null,
+    path: string,
+  ): Promise<void> {
     const entry = entries.get(makeKey(session, path));
     return entry ? waitForEntry(entry) : Promise.resolve();
   }
@@ -308,7 +330,8 @@ export function createSaveCoordinator(cbs?: SaveCoordinatorCallbacks): SaveCoord
         entry.timer = null;
       }
       pending.push([key, entry]);
-      if (entry.inFlight) wasInFlight.push([key, entry, entry.inFlightRevision]);
+      if (entry.inFlight)
+        wasInFlight.push([key, entry, entry.inFlightRevision]);
     }
     blockedSessions.add(sessionKey(session));
 
@@ -323,7 +346,13 @@ export function createSaveCoordinator(cbs?: SaveCoordinatorCallbacks): SaveCoord
         entry.inFlight
           ? waitForEntry(entry)
           : entry.revision !== entry.savedRevision
-            ? writeRevision(session, key.slice(prefix.length), entry, entry.revision, true)
+            ? writeRevision(
+                session,
+                key.slice(prefix.length),
+                entry,
+                entry.revision,
+                true,
+              )
             : undefined,
       ),
     );
@@ -332,9 +361,19 @@ export function createSaveCoordinator(cbs?: SaveCoordinatorCallbacks): SaveCoord
       wasInFlight
         .filter(
           ([, entry, waitedForRevision]) =>
-            !entry.inFlight && entry.revision !== entry.savedRevision && entry.revision !== waitedForRevision,
+            !entry.inFlight &&
+            entry.revision !== entry.savedRevision &&
+            entry.revision !== waitedForRevision,
         )
-        .map(([key, entry]) => writeRevision(session, key.slice(prefix.length), entry, entry.revision, true)),
+        .map(([key, entry]) =>
+          writeRevision(
+            session,
+            key.slice(prefix.length),
+            entry,
+            entry.revision,
+            true,
+          ),
+        ),
     );
 
     const failedPaths = pending
@@ -378,7 +417,10 @@ export function createSaveCoordinator(cbs?: SaveCoordinatorCallbacks): SaveCoord
     }
   }
 
-  async function retry(session: string | number | null, path: string): Promise<void> {
+  async function retry(
+    session: string | number | null,
+    path: string,
+  ): Promise<void> {
     if (isBlocked(session)) return;
     const entry = getOrCreate(session, path);
     await waitForEntry(entry);
@@ -388,7 +430,10 @@ export function createSaveCoordinator(cbs?: SaveCoordinatorCallbacks): SaveCoord
     await writeRevision(session, path, entry, revision);
   }
 
-  function getError(session: string | number | null, path: string): string | null {
+  function getError(
+    session: string | number | null,
+    path: string,
+  ): string | null {
     return entries.get(makeKey(session, path))?.lastError ?? null;
   }
 
@@ -407,7 +452,8 @@ export function createSaveCoordinator(cbs?: SaveCoordinatorCallbacks): SaveCoord
   function hasUnsavedWork(session: string | number | null): boolean {
     const prefix = `${sessionKey(session)}::`;
     for (const [key, entry] of entries) {
-      if (key.startsWith(prefix) && entry.revision !== entry.savedRevision) return true;
+      if (key.startsWith(prefix) && entry.revision !== entry.savedRevision)
+        return true;
     }
     return false;
   }

@@ -10,7 +10,13 @@ afterEach(() => {
 describe("NamePrompt", () => {
   it("defaults the submit button to Create", () => {
     const { getByText } = render(
-      <NamePrompt title="New note" placeholder="note-name" error={null} onSubmit={vi.fn()} onCancel={vi.fn()} />,
+      <NamePrompt
+        title="New note"
+        placeholder="note-name"
+        error={null}
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+      />,
     );
     expect(getByText("Create")).toBeTruthy();
   });
@@ -53,7 +59,13 @@ describe("NamePrompt", () => {
   it("submits the trimmed value when Enter is pressed", () => {
     const onSubmit = vi.fn();
     const { container } = render(
-      <NamePrompt title="New note" placeholder="x" error={null} onSubmit={onSubmit} onCancel={vi.fn()} />,
+      <NamePrompt
+        title="New note"
+        placeholder="x"
+        error={null}
+        onSubmit={onSubmit}
+        onCancel={vi.fn()}
+      />,
     );
     const input = container.querySelector("input") as HTMLInputElement;
     fireEvent.input(input, { target: { value: "  My Note  " } });
@@ -64,7 +76,13 @@ describe("NamePrompt", () => {
   it("does not submit an empty or whitespace-only value", () => {
     const onSubmit = vi.fn();
     const { container } = render(
-      <NamePrompt title="New note" placeholder="x" error={null} onSubmit={onSubmit} onCancel={vi.fn()} />,
+      <NamePrompt
+        title="New note"
+        placeholder="x"
+        error={null}
+        onSubmit={onSubmit}
+        onCancel={vi.fn()}
+      />,
     );
     const input = container.querySelector("input") as HTMLInputElement;
     fireEvent.input(input, { target: { value: "   " } });
@@ -75,7 +93,13 @@ describe("NamePrompt", () => {
   it("cancels on Escape", () => {
     const onCancel = vi.fn();
     const { container } = render(
-      <NamePrompt title="New note" placeholder="x" error={null} onSubmit={vi.fn()} onCancel={onCancel} />,
+      <NamePrompt
+        title="New note"
+        placeholder="x"
+        error={null}
+        onSubmit={vi.fn()}
+        onCancel={onCancel}
+      />,
     );
     fireEvent.keyDown(container.querySelector("input")!, { key: "Escape" });
     expect(onCancel).toHaveBeenCalledTimes(1);
@@ -84,7 +108,13 @@ describe("NamePrompt", () => {
   it("cancels when clicking the backdrop, but not when clicking inside the dialog", () => {
     const onCancel = vi.fn();
     const { container } = render(
-      <NamePrompt title="New note" placeholder="x" error={null} onSubmit={vi.fn()} onCancel={onCancel} />,
+      <NamePrompt
+        title="New note"
+        placeholder="x"
+        error={null}
+        onSubmit={vi.fn()}
+        onCancel={onCancel}
+      />,
     );
     fireEvent.click(container.querySelector(".name-prompt")!);
     expect(onCancel).not.toHaveBeenCalled();

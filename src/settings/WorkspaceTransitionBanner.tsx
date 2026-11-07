@@ -34,11 +34,16 @@ const ACTION_LABELS: Record<WorkspaceTransitionRecoveryAction["id"], string> = {
  * spec 15.4) the other, non-destructive actions don't need.
  */
 export function WorkspaceTransitionBanner() {
-  const [busy, setBusy] = useState<WorkspaceTransitionRecoveryAction["id"] | null>(null);
+  const [busy, setBusy] = useState<
+    WorkspaceTransitionRecoveryAction["id"] | null
+  >(null);
   const recovery = workspaceTransitionRecovery.value;
   if (!recovery) return null;
 
-  const run = async (id: WorkspaceTransitionRecoveryAction["id"], action: () => Promise<unknown>) => {
+  const run = async (
+    id: WorkspaceTransitionRecoveryAction["id"],
+    action: () => Promise<unknown>,
+  ) => {
     setBusy(id);
     try {
       await action();
@@ -57,7 +62,8 @@ export function WorkspaceTransitionBanner() {
       if (!recovery.discard) return;
       const confirmed = await confirmAction({
         title: "Switch without saving",
-        message: "Unsaved changes in this workspace will be lost. Switch anyway?",
+        message:
+          "Unsaved changes in this workspace will be lost. Switch anyway?",
         confirmLabel: "Switch anyway",
         danger: true,
       });
@@ -86,7 +92,11 @@ export function WorkspaceTransitionBanner() {
         {recovery.actions.map((action) => (
           <button
             key={action.id}
-            class={action.id === "discard" ? "workspace-transition-banner-danger" : undefined}
+            class={
+              action.id === "discard"
+                ? "workspace-transition-banner-danger"
+                : undefined
+            }
             onClick={() => void handleAction(action)}
             disabled={busy !== null}
           >

@@ -610,10 +610,19 @@ export const workspaceTransition: ReadonlySignal<WorkspaceTransitionState>;
 
 export async function addWorkspaceFromPicker(): Promise<void>;
 export async function activateWorkspaceProfile(id: string): Promise<void>;
-export async function renameWorkspaceProfile(id: string, name: string): Promise<void>;
-export async function setWorkspaceProfileIcon(id: string, icon: WorkspaceIcon): Promise<void>;
+export async function renameWorkspaceProfile(
+  id: string,
+  name: string,
+): Promise<void>;
+export async function setWorkspaceProfileIcon(
+  id: string,
+  icon: WorkspaceIcon,
+): Promise<void>;
 export async function relinkWorkspaceProfile(id: string): Promise<void>;
-export async function forgetWorkspaceProfile(id: string, options?: { discardUnsaved?: boolean }): Promise<void>;
+export async function forgetWorkspaceProfile(
+  id: string,
+  options?: { discardUnsaved?: boolean },
+): Promise<void>;
 ```
 
 `setWorkspacePath` must no longer be called directly by UI surfaces. It may remain temporarily as a private compatibility wrapper for tests or migration, but all user-visible activation must flow through profile actions and the transition coordinator.

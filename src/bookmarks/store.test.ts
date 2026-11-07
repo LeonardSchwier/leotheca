@@ -1,17 +1,18 @@
 /** @vitest-environment jsdom */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { readTextFile, writeWorkspaceTextFile, updateFavoritesWidget } = vi.hoisted(() => ({
-  readTextFile: vi.fn<(path: string) => Promise<string>>(async () => {
-    throw new Error("not found");
-  }),
-  writeWorkspaceTextFile: vi.fn<
-    (root: string, relativePath: string, contents: string) => Promise<void>
-  >(async () => {}),
-  updateFavoritesWidget: vi.fn<
-    (entries: { label: string; path: string }[]) => Promise<void>
-  >(async () => {}),
-}));
+const { readTextFile, writeWorkspaceTextFile, updateFavoritesWidget } =
+  vi.hoisted(() => ({
+    readTextFile: vi.fn<(path: string) => Promise<string>>(async () => {
+      throw new Error("not found");
+    }),
+    writeWorkspaceTextFile: vi.fn<
+      (root: string, relativePath: string, contents: string) => Promise<void>
+    >(async () => {}),
+    updateFavoritesWidget: vi.fn<
+      (entries: { label: string; path: string }[]) => Promise<void>
+    >(async () => {}),
+  }));
 
 vi.mock("../workspace/tauriBridge", () => ({
   readTextFile,
@@ -188,14 +189,16 @@ describe("bookmarks store", () => {
         resolveFirstWrite = resolve;
       });
     });
-    writeWorkspaceTextFile.mockImplementationOnce((_root, _path, content: string) => {
-      secondWriteStarted = true;
-      // By the time the second (queued) write actually runs, it must
-      // reflect the fully up-to-date state (both bookmarks), not a stale
-      // snapshot captured back when it was originally queued.
-      expect(JSON.parse(content)).toHaveLength(2);
-      return Promise.resolve();
-    });
+    writeWorkspaceTextFile.mockImplementationOnce(
+      (_root, _path, content: string) => {
+        secondWriteStarted = true;
+        // By the time the second (queued) write actually runs, it must
+        // reflect the fully up-to-date state (both bookmarks), not a stale
+        // snapshot captured back when it was originally queued.
+        expect(JSON.parse(content)).toHaveLength(2);
+        return Promise.resolve();
+      },
+    );
 
     const p1 = addFileBookmark("a.md", "A");
     await Promise.resolve();
@@ -243,18 +246,27 @@ describe("bookmarks store: Android favorites-list widget sync", () => {
 
   it("syncs a loaded file bookmark to the widget, excluding search bookmarks", async () => {
     const saved = [
-      { id: "1", kind: "file" as const, label: "Note", path: "/workspace/note.md" },
+      {
+        id: "1",
+        kind: "file" as const,
+        label: "Note",
+        path: "/workspace/note.md",
+      },
       { id: "2", kind: "search" as const, label: "My search", query: "todo" },
     ];
     readTextFile.mockResolvedValueOnce(JSON.stringify(saved));
     await loadBookmarks("/workspace");
 
-    expect(lastWidgetSync()).toEqual([{ label: "Note", path: "/workspace/note.md" }]);
+    expect(lastWidgetSync()).toEqual([
+      { label: "Note", path: "/workspace/note.md" },
+    ]);
   });
 
   it("syncs an added favorite to the widget immediately", async () => {
     await addFileBookmark("/workspace/note.md", "Note");
-    expect(lastWidgetSync()).toEqual([{ label: "Note", path: "/workspace/note.md" }]);
+    expect(lastWidgetSync()).toEqual([
+      { label: "Note", path: "/workspace/note.md" },
+    ]);
   });
 
   it("does not sync a search bookmark to the widget", async () => {
@@ -294,7 +306,9 @@ describe("bookmarks store: Android favorites-list widget sync", () => {
 
     const synced = lastWidgetSync();
     expect(synced).toHaveLength(25);
-    expect(synced).toEqual(saved.slice(0, 25).map((b) => ({ label: b.label, path: b.path })));
+    expect(synced).toEqual(
+      saved.slice(0, 25).map((b) => ({ label: b.label, path: b.path })),
+    );
   });
 });
 

@@ -28,7 +28,9 @@ function collectionsFilePath(rootPath: string): string {
   return `${rootPath}/${COLLECTIONS_RELATIVE_PATH}`;
 }
 
-export const collectionsFile = signal<CollectionsFileV1>(emptyCollectionsFile());
+export const collectionsFile = signal<CollectionsFileV1>(
+  emptyCollectionsFile(),
+);
 /** True once the persisted file's decode result flagged `corrupt: true`
  * (spec section 5.2, FR-03): the caller (CollectionsPanel) uses this to
  * warn rather than silently save a "cleaned up" file over data that might
@@ -43,9 +45,15 @@ export const collectionsFileCorrupt = signal(false);
  * not array/insertion order. A collection id present in `collections` but
  * missing from `order` cannot happen after a decode (decodeCollectionsFile
  * always appends it), so this never silently drops one. */
-export function orderedCollections(file: CollectionsFileV1): SmartCollectionV1[] {
-  const byId = new Map(file.collections.map((collection) => [collection.id, collection]));
-  return file.order.map((id) => byId.get(id)).filter((c): c is SmartCollectionV1 => !!c);
+export function orderedCollections(
+  file: CollectionsFileV1,
+): SmartCollectionV1[] {
+  const byId = new Map(
+    file.collections.map((collection) => [collection.id, collection]),
+  );
+  return file.order
+    .map((id) => byId.get(id))
+    .filter((c): c is SmartCollectionV1 => !!c);
 }
 
 let loadSequence = 0;
@@ -93,7 +101,11 @@ function saveCollections(): Promise<void> {
   const root = workspacePath.value;
   if (!root) return Promise.resolve();
   const write = collectionsWriteTail.then(async () => {
-    await writeWorkspaceTextFile(root, COLLECTIONS_RELATIVE_PATH, JSON.stringify(collectionsFile.value, null, 2));
+    await writeWorkspaceTextFile(
+      root,
+      COLLECTIONS_RELATIVE_PATH,
+      JSON.stringify(collectionsFile.value, null, 2),
+    );
     // A save always writes exactly what decodeCollectionsFile would decode
     // back losslessly (it's this module's own in-memory state, already
     // valid), so any earlier corruption warning no longer describes what's
@@ -150,7 +162,10 @@ export interface CollectionEdits {
   sort?: CollectionSortV1[];
 }
 
-export async function updateCollection(id: string, edits: CollectionEdits): Promise<void> {
+export async function updateCollection(
+  id: string,
+  edits: CollectionEdits,
+): Promise<void> {
   const timestamp = nowIso();
   collectionsFile.value = {
     ...collectionsFile.value,
@@ -159,7 +174,9 @@ export async function updateCollection(id: string, edits: CollectionEdits): Prom
         ? {
             ...collection,
             ...(edits.name !== undefined ? { name: edits.name.trim() } : {}),
-            ...(edits.description !== undefined ? { description: edits.description } : {}),
+            ...(edits.description !== undefined
+              ? { description: edits.description }
+              : {}),
             ...(edits.query !== undefined ? { query: edits.query } : {}),
             ...(edits.view !== undefined ? { view: edits.view } : {}),
             ...(edits.sort !== undefined ? { sort: edits.sort } : {}),
@@ -174,7 +191,9 @@ export async function updateCollection(id: string, edits: CollectionEdits): Prom
 export async function deleteCollection(id: string): Promise<void> {
   collectionsFile.value = {
     ...collectionsFile.value,
-    collections: collectionsFile.value.collections.filter((collection) => collection.id !== id),
+    collections: collectionsFile.value.collections.filter(
+      (collection) => collection.id !== id,
+    ),
     order: collectionsFile.value.order.filter((entryId) => entryId !== id),
   };
   await saveCollections();

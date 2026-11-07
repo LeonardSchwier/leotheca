@@ -1,4 +1,12 @@
-import { PDFArray, PDFDict, PDFDocument, PDFHexString, PDFName, PDFNumber, PDFString } from "pdf-lib";
+import {
+  PDFArray,
+  PDFDict,
+  PDFDocument,
+  PDFHexString,
+  PDFName,
+  PDFNumber,
+  PDFString,
+} from "pdf-lib";
 
 /**
  * Standard PDF text-markup annotation subtypes (ISO 32000-1 section
@@ -72,7 +80,10 @@ export interface ViewportRect {
  * helper) already accounts for, so this function only has to pick the
  * right four corners and call it.
  */
-export function rectToQuadPoints(rect: ViewportRect, viewport: PdfPointConverter): number[] {
+export function rectToQuadPoints(
+  rect: ViewportRect,
+  viewport: PdfPointConverter,
+): number[] {
   const [x1, y1] = viewport.convertToPdfPoint(rect.left, rect.top);
   const [x2, y2] = viewport.convertToPdfPoint(rect.right, rect.top);
   const [x3, y3] = viewport.convertToPdfPoint(rect.left, rect.bottom);
@@ -85,7 +96,10 @@ export function rectToQuadPoints(rect: ViewportRect, viewport: PdfPointConverter
  * per selection line) describes, so a not-yet-saved annotation from this
  * session can be redrawn as an overlay when the user navigates back to its
  * page, without re-reading the file. */
-export function quadPointsToViewportRects(quadPoints: number[], viewport: PdfPointConverter): ViewportRect[] {
+export function quadPointsToViewportRects(
+  quadPoints: number[],
+  viewport: PdfPointConverter,
+): ViewportRect[] {
   const rects: ViewportRect[] = [];
   for (let i = 0; i + 7 < quadPoints.length; i += 8) {
     rects.push(quadToViewportRect(quadPoints.slice(i, i + 8), viewport));
@@ -93,7 +107,10 @@ export function quadPointsToViewportRects(quadPoints: number[], viewport: PdfPoi
   return rects;
 }
 
-function quadToViewportRect(quad: number[], viewport: PdfPointConverter): ViewportRect {
+function quadToViewportRect(
+  quad: number[],
+  viewport: PdfPointConverter,
+): ViewportRect {
   // rectToQuadPoints wrote these as [topLeft, topRight, bottomLeft,
   // bottomRight] PDF points; convertToViewportPoint maps them back.
   const [x1, y1] = viewport.convertToViewportPoint(quad[0], quad[1]);
@@ -157,7 +174,9 @@ export async function applyAnnotationsToPdf(
   for (const annotation of annotations) {
     const page = pages[annotation.pageIndex];
     if (!page) {
-      throw new Error(`Cannot annotate page ${annotation.pageIndex}: the PDF only has ${pages.length} page(s).`);
+      throw new Error(
+        `Cannot annotate page ${annotation.pageIndex}: the PDF only has ${pages.length} page(s).`,
+      );
     }
     const color = annotation.color ?? DEFAULT_MARKUP_COLOR[annotation.subtype];
     const opacity = annotation.opacity ?? DEFAULT_OPACITY[annotation.subtype];
@@ -254,7 +273,9 @@ function numbersOf(dict: PDFDict, key: string): number[] {
  * round-trips as a standard object rather than something only this app's
  * own writer can read back.
  */
-export async function readMarkupAnnotations(bytes: Uint8Array): Promise<SavedAnnotation[]> {
+export async function readMarkupAnnotations(
+  bytes: Uint8Array,
+): Promise<SavedAnnotation[]> {
   const pdfDoc = await PDFDocument.load(bytes);
   const results: SavedAnnotation[] = [];
   const pages = pdfDoc.getPages();
@@ -274,8 +295,12 @@ export async function readMarkupAnnotations(bytes: Uint8Array): Promise<SavedAnn
       if (quadPoints.length < 8) continue;
       const c = numbersOf(dict, "C");
       const color: RgbColor =
-        c.length === 3 ? { r: c[0], g: c[1], b: c[2] } : DEFAULT_MARKUP_COLOR[subtype];
-      const opacity = dict.lookupMaybe(PDFName.of("CA"), PDFNumber)?.asNumber() ?? DEFAULT_OPACITY[subtype];
+        c.length === 3
+          ? { r: c[0], g: c[1], b: c[2] }
+          : DEFAULT_MARKUP_COLOR[subtype];
+      const opacity =
+        dict.lookupMaybe(PDFName.of("CA"), PDFNumber)?.asNumber() ??
+        DEFAULT_OPACITY[subtype];
       results.push({ pageIndex, subtype, quadPoints, color, opacity });
     }
   }
@@ -284,7 +309,9 @@ export async function readMarkupAnnotations(bytes: Uint8Array): Promise<SavedAnn
 
 /** Whether a page has at least one standard text-markup annotation, used
  * by round-trip tests. */
-export async function countMarkupAnnotations(bytes: Uint8Array): Promise<number> {
+export async function countMarkupAnnotations(
+  bytes: Uint8Array,
+): Promise<number> {
   return (await readMarkupAnnotations(bytes)).length;
 }
 
@@ -371,7 +398,12 @@ export interface SavedShapeAnnotation {
   width: number;
 }
 
-function annotBase(subtype: string, rect: number[], color: RgbColor, now: Date) {
+function annotBase(
+  subtype: string,
+  rect: number[],
+  color: RgbColor,
+  now: Date,
+) {
   return {
     Type: "Annot",
     Subtype: subtype,
@@ -395,7 +427,9 @@ export async function applyInkAnnotationsToPdf(
   for (const annotation of annotations) {
     const page = pages[annotation.pageIndex];
     if (!page) {
-      throw new Error(`Cannot annotate page ${annotation.pageIndex}: the PDF only has ${pages.length} page(s).`);
+      throw new Error(
+        `Cannot annotate page ${annotation.pageIndex}: the PDF only has ${pages.length} page(s).`,
+      );
     }
     const color = annotation.color ?? DEFAULT_INK_COLOR;
     const width = annotation.width ?? DEFAULT_INK_WIDTH;
@@ -422,10 +456,17 @@ export async function applyStickyNotesToPdf(
   for (const note of notes) {
     const page = pages[note.pageIndex];
     if (!page) {
-      throw new Error(`Cannot annotate page ${note.pageIndex}: the PDF only has ${pages.length} page(s).`);
+      throw new Error(
+        `Cannot annotate page ${note.pageIndex}: the PDF only has ${pages.length} page(s).`,
+      );
     }
     const color = note.color ?? DEFAULT_STICKY_NOTE_COLOR;
-    const rect = [note.x, note.y - STICKY_NOTE_ICON_SIZE, note.x + STICKY_NOTE_ICON_SIZE, note.y];
+    const rect = [
+      note.x,
+      note.y - STICKY_NOTE_ICON_SIZE,
+      note.x + STICKY_NOTE_ICON_SIZE,
+      note.y,
+    ];
     const dict = pdfDoc.context.obj({
       ...annotBase("Text", rect, color, now),
       Contents: PDFString.of(note.contents),
@@ -451,7 +492,9 @@ export async function applyShapeAnnotationsToPdf(
   for (const shape of shapes) {
     const page = pages[shape.pageIndex];
     if (!page) {
-      throw new Error(`Cannot annotate page ${shape.pageIndex}: the PDF only has ${pages.length} page(s).`);
+      throw new Error(
+        `Cannot annotate page ${shape.pageIndex}: the PDF only has ${pages.length} page(s).`,
+      );
     }
     const color = shape.color ?? DEFAULT_SHAPE_COLOR;
     const width = shape.width ?? DEFAULT_SHAPE_WIDTH;
@@ -469,7 +512,9 @@ export async function applyShapeAnnotationsToPdf(
 
 /** Reads every `/Subtype /Ink` annotation back, inverse of
  * `applyInkAnnotationsToPdf`. */
-export async function readInkAnnotations(bytes: Uint8Array): Promise<SavedInkAnnotation[]> {
+export async function readInkAnnotations(
+  bytes: Uint8Array,
+): Promise<SavedInkAnnotation[]> {
   const pdfDoc = await PDFDocument.load(bytes);
   const results: SavedInkAnnotation[] = [];
   const pages = pdfDoc.getPages();
@@ -483,7 +528,10 @@ export async function readInkAnnotations(bytes: Uint8Array): Promise<SavedInkAnn
       } catch {
         continue;
       }
-      if (dict.lookupMaybe(PDFName.of("Subtype"), PDFName)?.asString() !== "/Ink") continue;
+      if (
+        dict.lookupMaybe(PDFName.of("Subtype"), PDFName)?.asString() !== "/Ink"
+      )
+        continue;
       const inkListArray = dict.lookupMaybe(PDFName.of("InkList"), PDFArray);
       if (!inkListArray) continue;
       const inkList: number[][] = [];
@@ -499,9 +547,12 @@ export async function readInkAnnotations(bytes: Uint8Array): Promise<SavedInkAnn
       }
       if (inkList.length === 0) continue;
       const c = numbersOf(dict, "C");
-      const color: RgbColor = c.length === 3 ? { r: c[0], g: c[1], b: c[2] } : DEFAULT_INK_COLOR;
+      const color: RgbColor =
+        c.length === 3 ? { r: c[0], g: c[1], b: c[2] } : DEFAULT_INK_COLOR;
       const bs = dict.lookupMaybe(PDFName.of("BS"), PDFDict);
-      const width = bs?.lookupMaybe(PDFName.of("W"), PDFNumber)?.asNumber() ?? DEFAULT_INK_WIDTH;
+      const width =
+        bs?.lookupMaybe(PDFName.of("W"), PDFNumber)?.asNumber() ??
+        DEFAULT_INK_WIDTH;
       results.push({ pageIndex, inkList, color, width });
     }
   }
@@ -510,7 +561,9 @@ export async function readInkAnnotations(bytes: Uint8Array): Promise<SavedInkAnn
 
 /** Reads every `/Subtype /Text` sticky-note annotation back, inverse of
  * `applyStickyNotesToPdf`. */
-export async function readStickyNotes(bytes: Uint8Array): Promise<SavedStickyNote[]> {
+export async function readStickyNotes(
+  bytes: Uint8Array,
+): Promise<SavedStickyNote[]> {
   const pdfDoc = await PDFDocument.load(bytes);
   const results: SavedStickyNote[] = [];
   const pages = pdfDoc.getPages();
@@ -524,12 +577,18 @@ export async function readStickyNotes(bytes: Uint8Array): Promise<SavedStickyNot
       } catch {
         continue;
       }
-      if (dict.lookupMaybe(PDFName.of("Subtype"), PDFName)?.asString() !== "/Text") continue;
+      if (
+        dict.lookupMaybe(PDFName.of("Subtype"), PDFName)?.asString() !== "/Text"
+      )
+        continue;
       const rect = numbersOf(dict, "Rect");
       if (rect.length !== 4) continue;
       const contents = stringOf(dict, "Contents") ?? "";
       const c = numbersOf(dict, "C");
-      const color: RgbColor = c.length === 3 ? { r: c[0], g: c[1], b: c[2] } : DEFAULT_STICKY_NOTE_COLOR;
+      const color: RgbColor =
+        c.length === 3
+          ? { r: c[0], g: c[1], b: c[2] }
+          : DEFAULT_STICKY_NOTE_COLOR;
       // Inverse of applyStickyNotesToPdf's Rect construction: [x, y-size, x+size, y].
       results.push({ pageIndex, x: rect[0], y: rect[3], contents, color });
     }
@@ -539,7 +598,9 @@ export async function readStickyNotes(bytes: Uint8Array): Promise<SavedStickyNot
 
 /** Reads every Square/Circle/Line/Polygon shape annotation back, inverse
  * of `applyShapeAnnotationsToPdf`. */
-export async function readShapeAnnotations(bytes: Uint8Array): Promise<SavedShapeAnnotation[]> {
+export async function readShapeAnnotations(
+  bytes: Uint8Array,
+): Promise<SavedShapeAnnotation[]> {
   const pdfDoc = await PDFDocument.load(bytes);
   const results: SavedShapeAnnotation[] = [];
   const pages = pdfDoc.getPages();
@@ -563,9 +624,12 @@ export async function readShapeAnnotations(bytes: Uint8Array): Promise<SavedShap
             : numbersOf(dict, "Rect");
       if (points.length < 4) continue;
       const c = numbersOf(dict, "C");
-      const color: RgbColor = c.length === 3 ? { r: c[0], g: c[1], b: c[2] } : DEFAULT_SHAPE_COLOR;
+      const color: RgbColor =
+        c.length === 3 ? { r: c[0], g: c[1], b: c[2] } : DEFAULT_SHAPE_COLOR;
       const bs = dict.lookupMaybe(PDFName.of("BS"), PDFDict);
-      const width = bs?.lookupMaybe(PDFName.of("W"), PDFNumber)?.asNumber() ?? DEFAULT_SHAPE_WIDTH;
+      const width =
+        bs?.lookupMaybe(PDFName.of("W"), PDFNumber)?.asNumber() ??
+        DEFAULT_SHAPE_WIDTH;
       results.push({ pageIndex, subtype, points, color, width });
     }
   }

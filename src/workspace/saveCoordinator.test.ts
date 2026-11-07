@@ -33,7 +33,10 @@ describe("save coordinator workspace transitions", () => {
 
     await saves.prepareForTransition(3);
 
-    expect(writeTextFile).toHaveBeenCalledWith("/workspace/note.md", "outgoing");
+    expect(writeTextFile).toHaveBeenCalledWith(
+      "/workspace/note.md",
+      "outgoing",
+    );
     expect(saves.entryCount()).toBe(0);
   });
 
@@ -55,7 +58,9 @@ describe("save coordinator workspace transitions", () => {
     const saves = createSaveCoordinator();
     saves.change(5, "/workspace/note.md", "outgoing");
 
-    await expect(saves.prepareForTransition(5)).rejects.toThrow('Could not save "/workspace/note.md"');
+    await expect(saves.prepareForTransition(5)).rejects.toThrow(
+      'Could not save "/workspace/note.md"',
+    );
 
     expect(saves.entryCount()).toBe(1);
     expect(saves.getError(5, "/workspace/note.md")).toBe("disk full");
@@ -65,7 +70,10 @@ describe("save coordinator workspace transitions", () => {
     writeTextFile.mockResolvedValue();
     saves.change(5, "/workspace/note.md", "retry content");
     await vi.advanceTimersByTimeAsync(400);
-    expect(writeTextFile).toHaveBeenCalledWith("/workspace/note.md", "retry content");
+    expect(writeTextFile).toHaveBeenCalledWith(
+      "/workspace/note.md",
+      "retry content",
+    );
   });
 
   it("F20 Phase 2b-iii-b follow-up: throws when an already in-flight write fails", async () => {
@@ -80,7 +88,9 @@ describe("save coordinator workspace transitions", () => {
     await Promise.resolve();
     nativeWrite.reject(new Error("permission denied"));
 
-    await expect(transition).rejects.toThrow('Could not save "/workspace/note.md"');
+    await expect(transition).rejects.toThrow(
+      'Could not save "/workspace/note.md"',
+    );
     expect(saves.entryCount()).toBe(1);
   });
 
@@ -105,8 +115,16 @@ describe("save coordinator workspace transitions", () => {
 
     await transition;
 
-    expect(writeTextFile).toHaveBeenNthCalledWith(1, "/workspace/note.md", "v1");
-    expect(writeTextFile).toHaveBeenNthCalledWith(2, "/workspace/note.md", "v2");
+    expect(writeTextFile).toHaveBeenNthCalledWith(
+      1,
+      "/workspace/note.md",
+      "v1",
+    );
+    expect(writeTextFile).toHaveBeenNthCalledWith(
+      2,
+      "/workspace/note.md",
+      "v2",
+    );
     expect(saves.entryCount()).toBe(0);
   });
 
@@ -121,7 +139,9 @@ describe("save coordinator workspace transitions", () => {
     expect(writeTextFile).toHaveBeenCalledTimes(1);
 
     let transitionDone = false;
-    const transition = saves.prepareForTransition(4).then(() => { transitionDone = true; });
+    const transition = saves.prepareForTransition(4).then(() => {
+      transitionDone = true;
+    });
     await Promise.resolve();
     expect(transitionDone).toBe(false);
 
@@ -239,7 +259,10 @@ describe("flush revision invariant (rm-9d2a9eb41e719983)", () => {
     expect(saves.hasUnsavedWork(1)).toBe(false);
     // The flush wrote the same content once.
     expect(writeTextFile).toHaveBeenCalledTimes(1);
-    expect(writeTextFile).toHaveBeenCalledWith("/workspace/note.md", "content v1");
+    expect(writeTextFile).toHaveBeenCalledWith(
+      "/workspace/note.md",
+      "content v1",
+    );
   });
 
   it("flushes a pending (debounced, not-yet-fired) edit and leaves no phantom dirty state", async () => {
@@ -252,7 +275,10 @@ describe("flush revision invariant (rm-9d2a9eb41e719983)", () => {
     // flush() should cancel the debounce and write the pending content now.
     await saves.flush(2, "/workspace/note.md");
 
-    expect(writeTextFile).toHaveBeenCalledWith("/workspace/note.md", "pending edit");
+    expect(writeTextFile).toHaveBeenCalledWith(
+      "/workspace/note.md",
+      "pending edit",
+    );
     // After the flush settles, the note is fully saved.
     expect(saves.hasUnsavedWork(2)).toBe(false);
     // The debounce timer was cancelled, so advancing time does not fire a

@@ -76,7 +76,11 @@ export function FrontmatterPropertiesPanel({
   if (properties.length === 0 && !adding) {
     return (
       <div class="frontmatter-properties frontmatter-properties-empty">
-        <button class="frontmatter-add-button" disabled={readOnly} onClick={() => setAdding(true)}>
+        <button
+          class="frontmatter-add-button"
+          disabled={readOnly}
+          onClick={() => setAdding(true)}
+        >
           + Add property
         </button>
       </div>
@@ -92,7 +96,11 @@ export function FrontmatterPropertiesPanel({
             <input
               class="frontmatter-value"
               type="text"
-              value={property.kind === "list" ? property.value.join(", ") : property.value}
+              value={
+                property.kind === "list"
+                  ? property.value.join(", ")
+                  : property.value
+              }
               onInput={(event) =>
                 updateValue(property, (event.target as HTMLInputElement).value)
               }
@@ -127,19 +135,29 @@ export function FrontmatterPropertiesPanel({
             type="text"
             placeholder="Property name"
             value={newKey}
-            onInput={(event) => setNewKey((event.target as HTMLInputElement).value)}
+            onInput={(event) =>
+              setNewKey((event.target as HTMLInputElement).value)
+            }
             onKeyDown={(event) => {
               if (event.key === "Enter") confirmAdd();
               if (event.key === "Escape") cancelAdd();
             }}
             disabled={readOnly}
           />
-          <button class="frontmatter-add-confirm" onClick={confirmAdd} disabled={readOnly}>
+          <button
+            class="frontmatter-add-confirm"
+            onClick={confirmAdd}
+            disabled={readOnly}
+          >
             Add
           </button>
         </div>
       ) : (
-        <button class="frontmatter-add-button" onClick={() => setAdding(true)} disabled={readOnly}>
+        <button
+          class="frontmatter-add-button"
+          onClick={() => setAdding(true)}
+          disabled={readOnly}
+        >
           + Add property
         </button>
       )}

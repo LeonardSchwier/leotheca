@@ -3,7 +3,9 @@ import { scanTasks } from "./tasks";
 
 describe("scanTasks", () => {
   it("returns an empty array for a note with no task items", () => {
-    expect(scanTasks("Just a paragraph.\n\n- A plain bullet, not a task.")).toEqual([]);
+    expect(
+      scanTasks("Just a paragraph.\n\n- A plain bullet, not a task."),
+    ).toEqual([]);
   });
 
   it("recognizes an unchecked task", () => {
@@ -30,7 +32,9 @@ describe("scanTasks", () => {
   it("reports the exact source line and text ranges", () => {
     const source = "Intro\n\n- [ ] Call the dentist\n\nBody.";
     const [task] = scanTasks(source);
-    expect(source.slice(task.sourceFrom, task.sourceTo)).toBe("- [ ] Call the dentist");
+    expect(source.slice(task.sourceFrom, task.sourceTo)).toBe(
+      "- [ ] Call the dentist",
+    );
     expect(source.slice(task.textFrom, task.textTo)).toBe("Call the dentist");
     expect(task.line).toBe(3);
     expect(task.column).toBe(1);
@@ -122,8 +126,12 @@ describe("scanTasks", () => {
     const lfTasks = scanTasks(lf);
     const crlfTasks = scanTasks(crlf);
     expect(crlfTasks.map((t) => t.text)).toEqual(lfTasks.map((t) => t.text));
-    expect(crlfTasks.map((t) => t.checked)).toEqual(lfTasks.map((t) => t.checked));
-    expect(crlfTasks.map((t) => t.nestingDepth)).toEqual(lfTasks.map((t) => t.nestingDepth));
+    expect(crlfTasks.map((t) => t.checked)).toEqual(
+      lfTasks.map((t) => t.checked),
+    );
+    expect(crlfTasks.map((t) => t.nestingDepth)).toEqual(
+      lfTasks.map((t) => t.nestingDepth),
+    );
     crlfTasks.forEach((task, index) => {
       expect(crlf.slice(task.sourceFrom, task.sourceTo)).toBe(
         lf.slice(lfTasks[index].sourceFrom, lfTasks[index].sourceTo),

@@ -1,7 +1,10 @@
 import { useState } from "preact/hooks";
 import { linkIndex, fileNameFromPath } from "../linking/store";
 import { requestOutlineReveal } from "../outline/outlineNavigation";
-import { computeWorkspaceLinkDiagnostics, type WorkspaceLinkDiagnostic } from "./diagnostics";
+import {
+  computeWorkspaceLinkDiagnostics,
+  type WorkspaceLinkDiagnostic,
+} from "./diagnostics";
 import "./diagnostics.css";
 
 interface DiagnosticsPanelProps {
@@ -47,7 +50,10 @@ const STATUS_LABEL: Record<WorkspaceLinkDiagnostic["status"], string> = {
  * for this claim; see the roadmap entry and diagnostics.ts's own header
  * comment for why.
  */
-export function DiagnosticsPanel({ onOpenFile, onNavigated }: DiagnosticsPanelProps) {
+export function DiagnosticsPanel({
+  onOpenFile,
+  onNavigated,
+}: DiagnosticsPanelProps) {
   const diagnostics = computeWorkspaceLinkDiagnostics(linkIndex.value);
   // This panel is a point-in-time snapshot of `linkIndex.value`, refreshed
   // only when Settings' Health section opens (or on a save/workspace-load
@@ -80,14 +86,17 @@ export function DiagnosticsPanel({ onOpenFile, onNavigated }: DiagnosticsPanelPr
         <span class="diagnostics-count">{diagnostics.length}</span>
       </div>
       {diagnostics.length === 0 ? (
-        <p class="empty-hint">No broken or ambiguous links found in this workspace.</p>
+        <p class="empty-hint">
+          No broken or ambiguous links found in this workspace.
+        </p>
       ) : (
         <ul class="diagnostics-list" aria-label="Link diagnostics">
           {diagnostics.map((diagnostic) => {
             const sourceTitle = noteTitleFromPath(diagnostic.sourcePath);
             const statusLabel = STATUS_LABEL[diagnostic.status];
             const candidateNote =
-              diagnostic.status === "ambiguous-heading" && diagnostic.candidateHeadings
+              diagnostic.status === "ambiguous-heading" &&
+              diagnostic.candidateHeadings
                 ? ` (${diagnostic.candidateHeadings.length} candidates)`
                 : "";
             return (
@@ -97,16 +106,21 @@ export function DiagnosticsPanel({ onOpenFile, onNavigated }: DiagnosticsPanelPr
                   onClick={() => void handleSelect(diagnostic)}
                   aria-label={`${statusLabel}: ${diagnostic.linkText}, in ${sourceTitle}`}
                 >
-                  <span class={`diagnostics-badge diagnostics-badge-${diagnostic.status}`}>
+                  <span
+                    class={`diagnostics-badge diagnostics-badge-${diagnostic.status}`}
+                  >
                     {statusLabel}
                     {candidateNote}
                   </span>
-                  <span class="diagnostics-link-text">{diagnostic.linkText}</span>
+                  <span class="diagnostics-link-text">
+                    {diagnostic.linkText}
+                  </span>
                   <span class="diagnostics-note">{sourceTitle}</span>
                 </button>
                 {openErrorId === diagnostic.id && (
                   <p class="diagnostics-error-message" role="alert">
-                    Couldn't open "{sourceTitle}" — it may have been moved, renamed, or deleted.
+                    Couldn't open "{sourceTitle}": it may have been moved,
+                    renamed, or deleted.
                   </p>
                 )}
               </li>

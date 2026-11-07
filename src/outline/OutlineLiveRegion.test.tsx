@@ -19,7 +19,9 @@ describe("OutlineLiveRegion", () => {
   it("shows the latest announced message", () => {
     const { getByRole } = render(<OutlineLiveRegion />);
     act(() => announceOutline("Navigated to Section one, line 3."));
-    expect(getByRole("status").textContent).toBe("Navigated to Section one, line 3.");
+    expect(getByRole("status").textContent).toBe(
+      "Navigated to Section one, line 3.",
+    );
   });
 
   it("replaces an older message with a newer one", () => {

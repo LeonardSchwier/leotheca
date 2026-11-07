@@ -8,7 +8,8 @@ platforms: [linux, macos, windows]
 metadata:
   hermes:
     tags: [quality, gates, leotheca]
-    related_skills: [pre-push-verification, verification-suite, persistence-implementation]
+    related_skills:
+      [pre-push-verification, verification-suite, persistence-implementation]
 ---
 
 <!-- Variables: POLICY = ../CONSTITUTION.md; FRONTEND = ../src; ANDROID = ../android; NATIVE = ../src-tauri -->

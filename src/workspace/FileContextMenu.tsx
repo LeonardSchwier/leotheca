@@ -1,6 +1,11 @@
 import { useEffect } from "preact/hooks";
 import { copyTextToClipboard } from "../lib/clipboard";
-import { closeContextMenu, contextMenuPos, contextMenuTarget, relativePath } from "./fileTreeStore";
+import {
+  closeContextMenu,
+  contextMenuPos,
+  contextMenuTarget,
+  relativePath,
+} from "./fileTreeStore";
 import type { FsEntry } from "./types";
 
 interface FileContextMenuProps {
@@ -11,7 +16,13 @@ interface FileContextMenuProps {
   onDelete: (entry: FsEntry) => void;
 }
 
-export function FileContextMenu({ rootPath, onNewNote, onNewFolder, onRename, onDelete }: FileContextMenuProps) {
+export function FileContextMenu({
+  rootPath,
+  onNewNote,
+  onNewFolder,
+  onRename,
+  onDelete,
+}: FileContextMenuProps) {
   const entry = contextMenuTarget.value;
 
   useEffect(() => {

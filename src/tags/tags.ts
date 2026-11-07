@@ -1,4 +1,7 @@
-import { extractFrontmatterTags, stripFrontmatterBlock } from "../linking/frontmatter";
+import {
+  extractFrontmatterTags,
+  stripFrontmatterBlock,
+} from "../linking/frontmatter";
 
 // A fenced code block's delimiter line, indented or not. Doesn't try to
 // match the fence's info string (the language name after ``` ) since
@@ -48,7 +51,9 @@ export function extractInlineTags(body: string): string[] {
     }
     if (inFence) continue;
 
-    const line = rawLine.replace(INLINE_CODE_SPAN, (span) => " ".repeat(span.length));
+    const line = rawLine.replace(INLINE_CODE_SPAN, (span) =>
+      " ".repeat(span.length),
+    );
     INLINE_TAG_PATTERN.lastIndex = 0;
     let match: RegExpExecArray | null;
     while ((match = INLINE_TAG_PATTERN.exec(line))) {

@@ -7,7 +7,11 @@
  * the post-operation path graph.
  */
 
-import type { PlannedWikiLinkEdit, BlockedWikiLinkEdit, RenamePlan } from "./renamePlan";
+import type {
+  PlannedWikiLinkEdit,
+  BlockedWikiLinkEdit,
+  RenamePlan,
+} from "./renamePlan";
 
 /** Path move for a single file within a folder operation */
 export interface FilePathMove {
@@ -58,18 +62,21 @@ function removeLeadingSlashes(path: string): string {
 function isPathDescendantOrSame(newPath: string, oldPath: string): boolean {
   const normalizedNew = normalizePath(newPath);
   const normalizedOld = normalizePath(oldPath);
-  
+
   if (normalizedNew === normalizedOld) {
     return true;
   }
-  
+
   return normalizedNew.startsWith(normalizedOld + "/");
 }
 
 /**
  * Check if a folder exists at the given path
  */
-function folderExistsAtPath(folderPath: string, getFilePathsInFolder: (folderPath: string) => string[]): boolean {
+function folderExistsAtPath(
+  folderPath: string,
+  getFilePathsInFolder: (folderPath: string) => string[],
+): boolean {
   try {
     const filePaths = getFilePathsInFolder(folderPath);
     return filePaths.length > 0;
@@ -83,10 +90,14 @@ function folderExistsAtPath(folderPath: string, getFilePathsInFolder: (folderPat
  */
 function isPathInWorkspace(path: string, workspacePath: string): boolean {
   const normalizedPath = removeLeadingSlashes(normalizePath(path));
-  const normalizedWorkspace = removeLeadingSlashes(normalizePath(workspacePath));
-  
-  return normalizedPath.startsWith(normalizedWorkspace + "/") || 
-         normalizedPath === normalizedWorkspace;
+  const normalizedWorkspace = removeLeadingSlashes(
+    normalizePath(workspacePath),
+  );
+
+  return (
+    normalizedPath.startsWith(normalizedWorkspace + "/") ||
+    normalizedPath === normalizedWorkspace
+  );
 }
 
 /**
@@ -105,7 +116,7 @@ export function computeFolderRenamePlan(
   oldFolderPath: string,
   newFolderPath: string,
   workspacePath: string,
-  getFilePathsInFolder: (folderPath: string) => string[]
+  getFilePathsInFolder: (folderPath: string) => string[],
 ): FolderRenamePlan {
   const validationErrors: string[] = [];
   const fileMoves: FilePathMove[] = [];
@@ -113,9 +124,11 @@ export function computeFolderRenamePlan(
   const allBlocked: BlockedWikiLinkEdit[] = [];
 
   // Step 1: Validation checks from spec 9.4
-  
+
   if (isPathDescendantOrSame(newFolderPath, oldFolderPath)) {
-    validationErrors.push(`Cannot move folder into itself or descendant: ${oldFolderPath} -> ${newFolderPath}`);
+    validationErrors.push(
+      `Cannot move folder into itself or descendant: ${oldFolderPath} -> ${newFolderPath}`,
+    );
   }
 
   if (folderExistsAtPath(newFolderPath, getFilePathsInFolder)) {
@@ -127,34 +140,36 @@ export function computeFolderRenamePlan(
   }
 
   if (newFolderPath.includes("/.leotheca/") || newFolderPath === ".leotheca") {
-    validationErrors.push(`Cannot use reserved .leotheca/ path: ${newFolderPath}`);
+    validationErrors.push(
+      `Cannot use reserved .leotheca/ path: ${newFolderPath}`,
+    );
   }
 
   // Step 2: If validation passes, compute file moves
   if (validationErrors.length === 0) {
     const filePaths = getFilePathsInFolder(oldFolderPath);
-    
+
     for (const filePath of filePaths) {
       if (isMarkdownOrCanvasFile(filePath)) {
         const oldNormalized = normalizePath(oldFolderPath);
         const fileNormalized = normalizePath(filePath);
         const relativePath = fileNormalized.slice(oldNormalized.length + 1);
         const newFilePath = normalizePath(newFolderPath) + "/" + relativePath;
-        
+
         fileMoves.push({
           originalPath: filePath,
-          finalPath: newFilePath
+          finalPath: newFilePath,
         });
-        
+
         // For now, create a basic rename plan without reading file contents
         // In a full implementation, we'd use planNoteRename with a readNote function
         const renamePlan: RenamePlan = {
           oldPath: filePath,
           newPath: newFilePath,
           edits: [],
-          blocked: []
+          blocked: [],
         };
-        
+
         allEdits.push(...renamePlan.edits);
         allBlocked.push(...renamePlan.blocked);
       }
@@ -167,7 +182,7 @@ export function computeFolderRenamePlan(
     fileMoves,
     allEdits,
     allBlocked,
-    validationErrors
+    validationErrors,
   };
 }
 
@@ -181,10 +196,16 @@ export function getTotalChangeCount(plan: FolderRenamePlan): number {
 /**
  * Check if folder operation exceeds safety limits
  */
-export function exceedsSafetyLimits(plan: FolderRenamePlan, maxFileMoves: number = 100, maxEdits: number = 1000): boolean {
-  return plan.fileMoves.length > maxFileMoves || 
-         plan.allEdits.length > maxEdits ||
-         getTotalChangeCount(plan) > maxFileMoves + maxEdits;
+export function exceedsSafetyLimits(
+  plan: FolderRenamePlan,
+  maxFileMoves: number = 100,
+  maxEdits: number = 1000,
+): boolean {
+  return (
+    plan.fileMoves.length > maxFileMoves ||
+    plan.allEdits.length > maxEdits ||
+    getTotalChangeCount(plan) > maxFileMoves + maxEdits
+  );
 }
 
 /**
@@ -192,21 +213,21 @@ export function exceedsSafetyLimits(plan: FolderRenamePlan, maxFileMoves: number
  * This allows reusing existing rename infrastructure for execution
  */
 export function convertFolderPlanToIndividualPlans(
-  folderPlan: FolderRenamePlan
+  folderPlan: FolderRenamePlan,
 ): RenamePlan[] {
   const individualPlans: RenamePlan[] = [];
-  
+
   for (const fileMove of folderPlan.fileMoves) {
     // For now, create a basic rename plan without reading file contents
     const renamePlan: RenamePlan = {
       oldPath: fileMove.originalPath,
       newPath: fileMove.finalPath,
       edits: [],
-      blocked: []
+      blocked: [],
     };
     individualPlans.push(renamePlan);
   }
-  
+
   return individualPlans;
 }
 
@@ -218,38 +239,40 @@ export function validateFolderOperation(
   newFolderPath: string,
   workspacePath: string,
   getFilePathsInFolder: (folderPath: string) => string[],
-  maxFileCount: number = 1000
+  maxFileCount: number = 1000,
 ): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
-  
+
   const filePaths = getFilePathsInFolder(oldFolderPath);
   if (filePaths.length === 0) {
     errors.push(`Source folder is empty or doesn't exist: ${oldFolderPath}`);
   }
-  
+
   const markdownFiles = filePaths.filter(isMarkdownOrCanvasFile);
   if (markdownFiles.length > maxFileCount) {
-    errors.push(`Too many files in folder: ${markdownFiles.length} (max: ${maxFileCount})`);
+    errors.push(
+      `Too many files in folder: ${markdownFiles.length} (max: ${maxFileCount})`,
+    );
   }
-  
+
   if (oldFolderPath === newFolderPath) {
     errors.push("Source and destination are the same");
   }
-  
+
   if (isPathDescendantOrSame(newFolderPath, oldFolderPath)) {
     errors.push("Cannot move folder into itself or a descendant");
   }
-  
+
   if (!isPathInWorkspace(newFolderPath, workspacePath)) {
     errors.push("Destination path is outside workspace");
   }
-  
+
   if (newFolderPath.includes("/.leotheca/") || newFolderPath === ".leotheca") {
     errors.push("Cannot use reserved .leotheca/ path");
   }
-  
+
   return {
     valid: errors.length === 0,
-    errors
+    errors,
   };
 }

@@ -12,14 +12,22 @@ export interface EraserPoint {
 }
 
 function copyStrokeList(strokes: readonly InkStroke[]): InkStroke[] {
-  return strokes.map((stroke) => ({ ...stroke, points: stroke.points.map((point) => ({ ...point })) }));
+  return strokes.map((stroke) => ({
+    ...stroke,
+    points: stroke.points.map((point) => ({ ...point })),
+  }));
 }
 
-export function createInkHistory(strokes: readonly InkStroke[] = []): InkHistory {
+export function createInkHistory(
+  strokes: readonly InkStroke[] = [],
+): InkHistory {
   return { past: [], present: copyStrokeList(strokes), future: [] };
 }
 
-export function commitInkEdit(history: InkHistory, strokes: readonly InkStroke[]): InkHistory {
+export function commitInkEdit(
+  history: InkHistory,
+  strokes: readonly InkStroke[],
+): InkHistory {
   return {
     past: [...history.past, copyStrokeList(history.present)],
     present: copyStrokeList(strokes),
@@ -61,7 +69,11 @@ function squaredDistance(a: EraserPoint, b: InkPoint): number {
  * UI phase may add segment-boundary interpolation if real-device testing shows
  * a visible gap at unusually sparse samples.
  */
-export function eraseStrokeParts(stroke: InkStroke, point: EraserPoint, radius: number): InkStroke[] {
+export function eraseStrokeParts(
+  stroke: InkStroke,
+  point: EraserPoint,
+  radius: number,
+): InkStroke[] {
   const safeRadius = Math.max(0, radius);
   const radiusSquared = safeRadius * safeRadius;
   const runs: InkPoint[][] = [];
@@ -79,7 +91,8 @@ export function eraseStrokeParts(stroke: InkStroke, point: EraserPoint, radius: 
   }
   if (current.length > 0) runs.push(current);
 
-  if (runs.length === 1 && runs[0].length === stroke.points.length) return [stroke];
+  if (runs.length === 1 && runs[0].length === stroke.points.length)
+    return [stroke];
   return runs.map((points, index) => ({
     ...stroke,
     id: `${stroke.id}:erase:${index + 1}`,
@@ -87,6 +100,10 @@ export function eraseStrokeParts(stroke: InkStroke, point: EraserPoint, radius: 
   }));
 }
 
-export function eraseInkAtPoint(strokes: readonly InkStroke[], point: EraserPoint, radius: number): InkStroke[] {
+export function eraseInkAtPoint(
+  strokes: readonly InkStroke[],
+  point: EraserPoint,
+  radius: number,
+): InkStroke[] {
   return strokes.flatMap((stroke) => eraseStrokeParts(stroke, point, radius));
 }

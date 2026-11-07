@@ -19,7 +19,11 @@ export function CompactGroupSwitcher({
   onSelect,
 }: CompactGroupSwitcherProps) {
   return (
-    <div class="compact-group-switcher" role="tablist" aria-label="Editor group">
+    <div
+      class="compact-group-switcher"
+      role="tablist"
+      aria-label="Editor group"
+    >
       <button
         role="tab"
         aria-selected={visibleGroupId === "primary"}

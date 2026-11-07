@@ -63,7 +63,11 @@
 
 import type { LinkIndex } from "../linking/store";
 import { resolveWikiLinkTarget } from "../linking/wikiResolver";
-import { parseWikiLinks, serializeWikiLink, type WikiLinkRecord } from "../linking/wikiSyntax";
+import {
+  parseWikiLinks,
+  serializeWikiLink,
+  type WikiLinkRecord,
+} from "../linking/wikiSyntax";
 
 function noteBasename(path: string): string {
   return path.split("/").pop()?.replace(/\.md$/i, "") ?? path;
@@ -150,7 +154,11 @@ export interface RenamePlan {
  * `oldPath` itself (about to stop existing at its current path) is
  * excluded from the collision count; every other path sharing the new
  * basename is real and unaffected by this operation. */
-function wouldBeAmbiguousAfterRename(oldPath: string, newBasenameKey: string, index: LinkIndex): boolean {
+function wouldBeAmbiguousAfterRename(
+  oldPath: string,
+  newBasenameKey: string,
+  index: LinkIndex,
+): boolean {
   const existing = index.pathsByNoteName.get(newBasenameKey) ?? [];
   return existing.some((path) => path !== oldPath);
 }
@@ -200,14 +208,14 @@ function rewriteMarkdownLinkTarget(
   const labelEnd = fullMatch.indexOf("](");
   const targetStart = fullMatch.indexOf("(", labelEnd) + 1;
   const targetEnd = fullMatch.indexOf(")", targetStart);
-  
+
   if (labelEnd === -1 || targetStart === 0 || targetEnd === -1) {
     return fullMatch; // Fallback: return original if parsing fails
   }
 
   const labelPart = fullMatch.slice(0, labelEnd + 2); // "![alt](" or "[label]("
   const afterTarget = fullMatch.slice(targetEnd); // ""title")" or ")"
-  
+
   return `${labelPart}${newTarget}${afterTarget}`;
 }
 
@@ -220,29 +228,29 @@ function planMarkdownLinks(
   path: string,
   oldPath: string,
   newPath: string,
-  plan: RenamePlan
+  plan: RenamePlan,
 ): void {
   // Match markdown links: [label](target) and images: ![alt](target)
   // Also handle titles: [label](target "title")
-  const markdownLinkRegex = /(!\[[^\]]*\]|\[[^\]]*\])\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
-  
+  const markdownLinkRegex =
+    /(!\[[^\]]*\]|\[[^\]]*\])\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
+
   let match;
   while ((match = markdownLinkRegex.exec(content)) !== null) {
     const fullMatch = match[0];
     const linkPart = match[1];
     const target = match[2];
     const isImage = linkPart.startsWith("!");
-    
+
     // Skip if this doesn't reference our target note
     if (!markdownLinkTargetsPath(target, oldPath)) continue;
-    
+
     // Compute the new target path
 
-    
     // For markdown links, we need to compute the new relative path
     // This is the same logic as `resolvePathWithinWorkspace` but relative to the note's directory
     const relativeNewPath = computeRelativePath(path, newPath);
-    
+
     if (relativeNewPath === null) {
       // Cannot compute relative path - this shouldn't happen for valid paths
       plan.markdownBlocked!.push({
@@ -255,9 +263,9 @@ function planMarkdownLinks(
       });
       continue;
     }
-    
+
     const newText = rewriteMarkdownLinkTarget(fullMatch, relativeNewPath);
-    
+
     plan.markdownEdits!.push({
       path,
       from: match.index,
@@ -289,7 +297,11 @@ function computeRelativePath(fromPath: string, toPath: string): string | null {
   const toFileName = toPath.split("/").pop() ?? toPath;
 
   let commonLength = 0;
-  while (commonLength < fromParts.length && commonLength < toParts.length && fromParts[commonLength] === toParts[commonLength]) {
+  while (
+    commonLength < fromParts.length &&
+    commonLength < toParts.length &&
+    fromParts[commonLength] === toParts[commonLength]
+  ) {
     commonLength++;
   }
 
@@ -305,18 +317,31 @@ export async function planNoteRename(
   index: LinkIndex,
   readNote: (path: string) => Promise<string>,
 ): Promise<RenamePlan> {
-  const plan: RenamePlan = { oldPath, newPath, edits: [], blocked: [], markdownEdits: [], markdownBlocked: [] };
+  const plan: RenamePlan = {
+    oldPath,
+    newPath,
+    edits: [],
+    blocked: [],
+    markdownEdits: [],
+    markdownBlocked: [],
+  };
   if (oldPath === newPath) return plan;
 
   const oldBasenameKey = noteBasename(oldPath).toLocaleLowerCase();
   const newBasename = noteBasename(newPath);
-  const ambiguousAfterRename = wouldBeAmbiguousAfterRename(oldPath, newBasename.toLocaleLowerCase(), index);
+  const ambiguousAfterRename = wouldBeAmbiguousAfterRename(
+    oldPath,
+    newBasename.toLocaleLowerCase(),
+    index,
+  );
 
-  const candidates: Map<string, WikiLinkRecord[]> = index.wikiLinksByPath ?? new Map();
+  const candidates: Map<string, WikiLinkRecord[]> =
+    index.wikiLinksByPath ?? new Map();
   for (const [path, records] of candidates) {
     if (path === oldPath) continue;
     const mightReference = records.some(
-      (record) => record.noteTarget.trim().toLocaleLowerCase() === oldBasenameKey,
+      (record) =>
+        record.noteTarget.trim().toLocaleLowerCase() === oldBasenameKey,
     );
     if (!mightReference) continue;
 
@@ -331,7 +356,8 @@ export async function planNoteRename(
     }
 
     for (const record of parseWikiLinks(freshContent)) {
-      if (record.noteTarget.trim().toLocaleLowerCase() !== oldBasenameKey) continue;
+      if (record.noteTarget.trim().toLocaleLowerCase() !== oldBasenameKey)
+        continue;
       const resolved = resolveWikiLinkTarget(record, { currentNotePath: path });
       if (resolved.notePath !== oldPath) continue;
 
@@ -363,14 +389,14 @@ export async function planNoteRename(
   // We reuse the same candidate paths from the wikilink scan for efficiency
   for (const path of candidates.keys()) {
     if (path === oldPath) continue;
-    
+
     let freshContent: string;
     try {
       freshContent = await readNote(path);
     } catch {
       continue;
     }
-    
+
     planMarkdownLinks(freshContent, path, oldPath, newPath, plan);
   }
 

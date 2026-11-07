@@ -86,8 +86,11 @@ Example:
 
 ```markdown
 # Product
+
 ### Constraints
+
 ## Delivery
+
 #### Android
 ```
 
@@ -236,9 +239,9 @@ openNote({
   location: {
     kind: "range",
     from: heading.contentFrom,
-    to: heading.contentTo
+    to: heading.contentTo,
   },
-  focus: currentViewMode === "preview" ? "preview" : "source"
+  focus: currentViewMode === "preview" ? "preview" : "source",
 });
 ```
 
@@ -566,15 +569,15 @@ Breadcrumbs use a named navigation landmark and ordered list. The current headin
 
 ## 21. Risks and mitigations
 
-| Risk | Impact | Mitigation |
-|---|---|---|
-| Parsing every cursor move is expensive | Typing latency | Scan only on debounced content changes; cursor uses existing records |
-| Preview and Source disagree | Confusing breadcrumbs | One heading model, explicit Split authority, shared anchors |
-| Duplicate heading link is ambiguous | Wrong navigation | Warn and delegate stable block ID creation |
-| Outline steals editor focus | Poor writing experience | Active row follows without focus; explicit focus-transfer command |
-| Large outline renders slowly | Unresponsive panel | Bounded scan, filtering, and virtualization |
-| Persisted collapse state becomes stale | Incorrect presentation | In-memory bounded state first; fingerprinted keys if persistence is later added |
-| Multiple heading parsers diverge | Broken F03/F04 behavior | One shared scanner and normalization contract |
+| Risk                                   | Impact                  | Mitigation                                                                      |
+| -------------------------------------- | ----------------------- | ------------------------------------------------------------------------------- |
+| Parsing every cursor move is expensive | Typing latency          | Scan only on debounced content changes; cursor uses existing records            |
+| Preview and Source disagree            | Confusing breadcrumbs   | One heading model, explicit Split authority, shared anchors                     |
+| Duplicate heading link is ambiguous    | Wrong navigation        | Warn and delegate stable block ID creation                                      |
+| Outline steals editor focus            | Poor writing experience | Active row follows without focus; explicit focus-transfer command               |
+| Large outline renders slowly           | Unresponsive panel      | Bounded scan, filtering, and virtualization                                     |
+| Persisted collapse state becomes stale | Incorrect presentation  | In-memory bounded state first; fingerprinted keys if persistence is later added |
+| Multiple heading parsers diverge       | Broken F03/F04 behavior | One shared scanner and normalization contract                                   |
 
 ## 22. Documentation changes
 

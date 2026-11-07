@@ -21,11 +21,17 @@ export type LayoutComputer = (
  * during computation, so stale graph or workspace results never replace the
  * latest requested view.
  */
-export function createGraphLayoutCoordinator(compute: LayoutComputer = computeLayout) {
+export function createGraphLayoutCoordinator(
+  compute: LayoutComputer = computeLayout,
+) {
   let generation = 0;
   let scheduled = false;
   let latest:
-    | { generation: number; request: GraphLayoutRequest; publish: (positions: Map<string, Point>) => void }
+    | {
+        generation: number;
+        request: GraphLayoutRequest;
+        publish: (positions: Map<string, Point>) => void;
+      }
     | undefined;
 
   function request(

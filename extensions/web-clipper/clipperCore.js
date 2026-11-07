@@ -1,7 +1,21 @@
 /* global Node, URL */
 
 (() => {
-  const BLOCK_TAGS = new Set(["ARTICLE", "BLOCKQUOTE", "DIV", "H1", "H2", "H3", "H4", "H5", "H6", "LI", "P", "PRE", "SECTION"]);
+  const BLOCK_TAGS = new Set([
+    "ARTICLE",
+    "BLOCKQUOTE",
+    "DIV",
+    "H1",
+    "H2",
+    "H3",
+    "H4",
+    "H5",
+    "H6",
+    "LI",
+    "P",
+    "PRE",
+    "SECTION",
+  ]);
   const IGNORED_TAGS = new Set(["NOSCRIPT", "SCRIPT", "STYLE"]);
 
   function cleanText(value) {
@@ -20,7 +34,8 @@
   function markdownLink(text, href) {
     try {
       const url = new URL(href);
-      if (url.protocol === "http:" || url.protocol === "https:") return `[${text}](${url.href})`;
+      if (url.protocol === "http:" || url.protocol === "https:")
+        return `[${text}](${url.href})`;
     } catch {
       // A selection can contain a relative or malformed link. Keep its text
       // rather than creating Markdown that may resolve unexpectedly later.
@@ -39,13 +54,17 @@
     const text = cleanText(content);
     if (!text) return "";
 
-    if (/^H[1-6]$/.test(element.tagName)) return `${"#".repeat(Number(element.tagName[1]))} ${text}\n\n`;
-    if (element.tagName === "STRONG" || element.tagName === "B") return `**${text}**`;
+    if (/^H[1-6]$/.test(element.tagName))
+      return `${"#".repeat(Number(element.tagName[1]))} ${text}\n\n`;
+    if (element.tagName === "STRONG" || element.tagName === "B")
+      return `**${text}**`;
     if (element.tagName === "EM" || element.tagName === "I") return `*${text}*`;
     if (element.tagName === "CODE") return `\`${text}\``;
-    if (element.tagName === "A") return markdownLink(text, element.getAttribute("href") ?? "");
+    if (element.tagName === "A")
+      return markdownLink(text, element.getAttribute("href") ?? "");
     if (element.tagName === "LI") return `- ${cleanMultilineText(content)}\n`;
-    if (BLOCK_TAGS.has(element.tagName)) return `${cleanMultilineText(content)}\n\n`;
+    if (BLOCK_TAGS.has(element.tagName))
+      return `${cleanMultilineText(content)}\n\n`;
     return content;
   }
 
@@ -61,20 +80,26 @@
   function safeSourceUrl(value) {
     try {
       const url = new URL(value);
-      return url.protocol === "http:" || url.protocol === "https:" ? url.href : null;
+      return url.protocol === "http:" || url.protocol === "https:"
+        ? url.href
+        : null;
     } catch {
       return null;
     }
   }
 
   function sanitizeFileName(value) {
-    const base = cleanText(value).replace(/[\\/:*?"<>|]/g, "-").replace(/\.+$/g, "").slice(0, 80);
+    const base = cleanText(value)
+      .replace(/[\\/:*?"<>|]/g, "-")
+      .replace(/\.+$/g, "")
+      .slice(0, 80);
     return base || "Clipped note";
   }
 
   function buildClip({ title, fragment, sourceUrl, includeSource }) {
     const excerpt = fragmentToMarkdown(fragment);
-    if (!excerpt) throw new Error("Select some readable page content before clipping.");
+    if (!excerpt)
+      throw new Error("Select some readable page content before clipping.");
 
     const heading = cleanText(title) || "Clipped note";
     const source = includeSource ? safeSourceUrl(sourceUrl) : null;
@@ -82,5 +107,9 @@
     return { filename: `${sanitizeFileName(heading)}.md`, markdown };
   }
 
-  globalThis.LeothecaClipperCore = { buildClip, fragmentToMarkdown, sanitizeFileName };
+  globalThis.LeothecaClipperCore = {
+    buildClip,
+    fragmentToMarkdown,
+    sanitizeFileName,
+  };
 })();

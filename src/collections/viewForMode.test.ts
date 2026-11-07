@@ -64,7 +64,11 @@ describe("viewForMode preserves mode-specific view fields", () => {
   // table view that has `columns`, those columns must survive.
   // The fix: viewForMode accepts an optional `existing` view to merge from.
   it("preserves existing table columns via merge parameter", () => {
-    const existing = { mode: "table" as const, columns: ["title", "status", "due"], groupBy: "status" };
+    const existing = {
+      mode: "table" as const,
+      columns: ["title", "status", "due"],
+      groupBy: "status",
+    };
     const view = viewForMode("table", "status", ["done"], existing);
     expect(view.mode).toBe("table");
     if (view.mode === "table") {
@@ -75,7 +79,11 @@ describe("viewForMode preserves mode-specific view fields", () => {
   });
 
   it("preserves existing card fields via merge parameter", () => {
-    const existing = { mode: "card" as const, fields: ["title", "author"], groupBy: "author" };
+    const existing = {
+      mode: "card" as const,
+      fields: ["title", "author"],
+      groupBy: "author",
+    };
     const view = viewForMode("card", "author", ["Smith"], existing);
     expect(view.mode).toBe("card");
     if (view.mode === "card") {

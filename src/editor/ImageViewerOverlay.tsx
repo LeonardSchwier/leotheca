@@ -16,7 +16,10 @@ export function ImageViewerOverlay({
   const [error, setError] = useState<string | null>(null);
   const [scale, setScale] = useState<number>(1);
   const [isDragging, setIsDragging] = useState<boolean>(false);
-  const [position, setPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [position, setPosition] = useState<{ x: number; y: number }>({
+    x: 0,
+    y: 0,
+  });
   const containerRef = useRef<HTMLDivElement>(null);
   const dragStartPos = useRef<{ x: number; y: number } | null>(null);
 
@@ -59,23 +62,33 @@ export function ImageViewerOverlay({
     setPosition({ x: 0, y: 0 });
   }, []);
 
-  const handleMouseDown = useCallback((e: MouseEvent) => {
-    if (e.button === 0) { // Left mouse button
-      setIsDragging(true);
-      dragStartPos.current = { x: e.clientX - position.x, y: e.clientY - position.y };
-      // Prevent text selection and other default behaviors
-      e.preventDefault();
-    }
-  }, [position.x, position.y]);
+  const handleMouseDown = useCallback(
+    (e: MouseEvent) => {
+      if (e.button === 0) {
+        // Left mouse button
+        setIsDragging(true);
+        dragStartPos.current = {
+          x: e.clientX - position.x,
+          y: e.clientY - position.y,
+        };
+        // Prevent text selection and other default behaviors
+        e.preventDefault();
+      }
+    },
+    [position.x, position.y],
+  );
 
-  const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (isDragging && dragStartPos.current) {
-      setPosition({
-        x: e.clientX - dragStartPos.current.x,
-        y: e.clientY - dragStartPos.current.y,
-      });
-    }
-  }, [isDragging]);
+  const handleMouseMove = useCallback(
+    (e: MouseEvent) => {
+      if (isDragging && dragStartPos.current) {
+        setPosition({
+          x: e.clientX - dragStartPos.current.x,
+          y: e.clientY - dragStartPos.current.y,
+        });
+      }
+    },
+    [isDragging],
+  );
 
   const handleMouseUp = useCallback(() => {
     setIsDragging(false);
@@ -94,24 +107,27 @@ export function ImageViewerOverlay({
     }
   }, [isDragging, handleMouseMove, handleMouseUp]);
 
-  const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    switch (e.key) {
-      case "Escape":
-        onClose();
-        break;
-      case "+":
-      case "=":
-        handleZoomIn();
-        break;
-      case "-":
-      case "_":
-        handleZoomOut();
-        break;
-      case "0":
-        handleReset();
-        break;
-    }
-  }, [onClose, handleZoomIn, handleZoomOut, handleReset]);
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      switch (e.key) {
+        case "Escape":
+          onClose();
+          break;
+        case "+":
+        case "=":
+          handleZoomIn();
+          break;
+        case "-":
+        case "_":
+          handleZoomOut();
+          break;
+        case "0":
+          handleReset();
+          break;
+      }
+    },
+    [onClose, handleZoomIn, handleZoomOut, handleReset],
+  );
 
   useEffect(() => {
     document.addEventListener("keydown", handleKeyDown);
@@ -136,7 +152,10 @@ export function ImageViewerOverlay({
             <p>{error}</p>
             <button
               class="image-overlay-button image-overlay-close"
-              onClick={(e) => { e.stopPropagation(); onClose(); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onClose();
+              }}
               title="Close"
               aria-label="Close"
             >
@@ -156,11 +175,7 @@ export function ImageViewerOverlay({
   }
 
   return (
-    <div
-      class="image-overlay"
-      onClick={onClose}
-      onMouseDown={handleMouseDown}
-    >
+    <div class="image-overlay" onClick={onClose} onMouseDown={handleMouseDown}>
       <div
         class="image-overlay-content"
         onClick={(e) => e.stopPropagation()}
@@ -186,7 +201,10 @@ export function ImageViewerOverlay({
         <div class="image-overlay-controls">
           <button
             class="image-overlay-button"
-            onClick={(e) => { e.stopPropagation(); handleZoomOut(); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleZoomOut();
+            }}
             title="Zoom out"
             aria-label="Zoom out"
           >
@@ -194,7 +212,10 @@ export function ImageViewerOverlay({
           </button>
           <button
             class="image-overlay-button"
-            onClick={(e) => { e.stopPropagation(); handleReset(); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleReset();
+            }}
             title="Reset zoom"
             aria-label="Reset zoom"
           >
@@ -202,7 +223,10 @@ export function ImageViewerOverlay({
           </button>
           <button
             class="image-overlay-button"
-            onClick={(e) => { e.stopPropagation(); handleZoomIn(); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleZoomIn();
+            }}
             title="Zoom in"
             aria-label="Zoom in"
           >
@@ -210,7 +234,10 @@ export function ImageViewerOverlay({
           </button>
           <button
             class="image-overlay-button image-overlay-close"
-            onClick={(e) => { e.stopPropagation(); onClose(); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose();
+            }}
             title="Close"
             aria-label="Close"
           >

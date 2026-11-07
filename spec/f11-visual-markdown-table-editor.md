@@ -67,15 +67,15 @@ A supported table has:
 Examples:
 
 ```markdown
-| Name | Status |
-| --- | :---: |
+| Name  | Status |
+| ----- | :----: |
 | Alpha | Active |
 ```
 
 ```markdown
-Name | Status
---- | ---:
-Alpha | Active
+| Name  | Status |
+| ----- | -----: |
+| Alpha | Active |
 ```
 
 Outer pipes are optional. The delimiter row must contain at least three hyphens per column, with optional leading or trailing colons for alignment.
@@ -365,8 +365,8 @@ A later app-private draft recovery file requires separate privacy and lifecycle 
 F11 writes a canonical table with outer pipes:
 
 ```markdown
-| Name | Status |
-| --- | :---: |
+| Name  | Status |
+| ----- | :----: |
 | Alpha | Active |
 ```
 
@@ -750,16 +750,16 @@ Property-based or fuzz tests should assert that parser output never produces ove
 
 ## 26. Risks and mitigations
 
-| Risk | Impact | Mitigation |
-|---|---|---|
-| Parser splits pipes incorrectly | Corrupted table | Context-aware tokenizer, exact fixtures, fail closed on ambiguity |
-| Formatter changes unrelated note text | Data loss | Exact range replacement and byte-isolation tests |
-| Source changes while draft is open | Overwritten edits | Note-scoped lock, fingerprint validation, no auto-merge |
-| Large grid freezes mobile | Unusable feature | Hard limits, virtualization, bounded clipboard parsing |
-| Keyboard pattern conflicts with cell editing | Accessibility and input failure | Complete documented pattern and IME-aware handling |
-| Normalization surprises users | Trust loss | Warning summary and exact Markdown preview |
-| Save fails after Apply | False success | Canonical dirty state and existing Retry, never claim Saved early |
-| Visual editor becomes spreadsheet scope | Complexity | Explicit non-goals and raw Markdown cell model |
+| Risk                                         | Impact                          | Mitigation                                                        |
+| -------------------------------------------- | ------------------------------- | ----------------------------------------------------------------- |
+| Parser splits pipes incorrectly              | Corrupted table                 | Context-aware tokenizer, exact fixtures, fail closed on ambiguity |
+| Formatter changes unrelated note text        | Data loss                       | Exact range replacement and byte-isolation tests                  |
+| Source changes while draft is open           | Overwritten edits               | Note-scoped lock, fingerprint validation, no auto-merge           |
+| Large grid freezes mobile                    | Unusable feature                | Hard limits, virtualization, bounded clipboard parsing            |
+| Keyboard pattern conflicts with cell editing | Accessibility and input failure | Complete documented pattern and IME-aware handling                |
+| Normalization surprises users                | Trust loss                      | Warning summary and exact Markdown preview                        |
+| Save fails after Apply                       | False success                   | Canonical dirty state and existing Retry, never claim Saved early |
+| Visual editor becomes spreadsheet scope      | Complexity                      | Explicit non-goals and raw Markdown cell model                    |
 
 ## 27. Documentation changes
 

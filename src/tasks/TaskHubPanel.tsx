@@ -77,7 +77,11 @@ function parseTagsOrPaths(raw: string): string[] {
  * phase to every field rather than mixing persisted and session-only
  * state for a small first cut).
  */
-export function TaskHubPanel({ onOpenFile, onNavigated, save }: TaskHubPanelProps) {
+export function TaskHubPanel({
+  onOpenFile,
+  onNavigated,
+  save,
+}: TaskHubPanelProps) {
   const [query, setQuery] = useState<TaskHubQuery>(DEFAULT_TASK_HUB_QUERY);
   const [pathInput, setPathInput] = useState("");
   const [tagsInput, setTagsInput] = useState("");
@@ -91,7 +95,10 @@ export function TaskHubPanel({ onOpenFile, onNavigated, save }: TaskHubPanelProp
     () => queryTasks(tasksByPath, tagsByPath, query),
     [tasksByPath, tagsByPath, query],
   );
-  const filteredCount = groups.reduce((sum, group) => sum + group.entries.length, 0);
+  const filteredCount = groups.reduce(
+    (sum, group) => sum + group.entries.length,
+    0,
+  );
 
   function setRowStatusFor(key: string, status: RowStatus) {
     setRowStatus((current) => {
@@ -132,7 +139,10 @@ export function TaskHubPanel({ onOpenFile, onNavigated, save }: TaskHubPanelProp
   }
 
   function applyPathInput() {
-    setQuery((current) => ({ ...current, pathPrefixes: parseTagsOrPaths(pathInput) }));
+    setQuery((current) => ({
+      ...current,
+      pathPrefixes: parseTagsOrPaths(pathInput),
+    }));
   }
 
   function applyTagsInput() {
@@ -174,13 +184,20 @@ export function TaskHubPanel({ onOpenFile, onNavigated, save }: TaskHubPanelProp
           aria-label="Search tasks"
           value={query.text}
           onInput={(event) =>
-            setQuery((current) => ({ ...current, text: (event.target as HTMLInputElement).value }))
+            setQuery((current) => ({
+              ...current,
+              text: (event.target as HTMLInputElement).value,
+            }))
           }
         />
       </div>
 
       <div class="task-hub-toolbar">
-        <div class="task-hub-status-group" role="radiogroup" aria-label="Task status">
+        <div
+          class="task-hub-status-group"
+          role="radiogroup"
+          aria-label="Task status"
+        >
           {(["open", "completed", "all"] as TaskHubStatus[]).map((status) => (
             <button
               key={status}
@@ -190,7 +207,11 @@ export function TaskHubPanel({ onOpenFile, onNavigated, save }: TaskHubPanelProp
               class={`task-hub-status-button${query.status === status ? " active" : ""}`}
               onClick={() => setQuery((current) => ({ ...current, status }))}
             >
-              {status === "open" ? "Open" : status === "completed" ? "Completed" : "All"}
+              {status === "open"
+                ? "Open"
+                : status === "completed"
+                  ? "Completed"
+                  : "All"}
             </button>
           ))}
         </div>
@@ -213,7 +234,9 @@ export function TaskHubPanel({ onOpenFile, onNavigated, save }: TaskHubPanelProp
               type="text"
               placeholder="folder/subfolder, other-folder"
               value={pathInput}
-              onInput={(event) => setPathInput((event.target as HTMLInputElement).value)}
+              onInput={(event) =>
+                setPathInput((event.target as HTMLInputElement).value)
+              }
               onBlur={applyPathInput}
               onKeyDown={(event) => {
                 if (event.key === "Enter") applyPathInput();
@@ -226,7 +249,9 @@ export function TaskHubPanel({ onOpenFile, onNavigated, save }: TaskHubPanelProp
               type="text"
               placeholder="project, urgent"
               value={tagsInput}
-              onInput={(event) => setTagsInput((event.target as HTMLInputElement).value)}
+              onInput={(event) =>
+                setTagsInput((event.target as HTMLInputElement).value)
+              }
               onBlur={applyTagsInput}
               onKeyDown={(event) => {
                 if (event.key === "Enter") applyTagsInput();
@@ -240,7 +265,8 @@ export function TaskHubPanel({ onOpenFile, onNavigated, save }: TaskHubPanelProp
               onChange={(event) =>
                 setQuery((current) => ({
                   ...current,
-                  groupBy: (event.target as HTMLSelectElement).value as TaskHubGroupBy,
+                  groupBy: (event.target as HTMLSelectElement)
+                    .value as TaskHubGroupBy,
                 }))
               }
             >
@@ -256,7 +282,8 @@ export function TaskHubPanel({ onOpenFile, onNavigated, save }: TaskHubPanelProp
               onChange={(event) =>
                 setQuery((current) => ({
                   ...current,
-                  sortBy: (event.target as HTMLSelectElement).value as TaskHubSortBy,
+                  sortBy: (event.target as HTMLSelectElement)
+                    .value as TaskHubSortBy,
                 }))
               }
             >
@@ -264,7 +291,11 @@ export function TaskHubPanel({ onOpenFile, onNavigated, save }: TaskHubPanelProp
               <option value="text">Task text</option>
             </select>
           </label>
-          <button type="button" class="task-hub-clear-filters" onClick={clearFilters}>
+          <button
+            type="button"
+            class="task-hub-clear-filters"
+            onClick={clearFilters}
+          >
             Clear filters
           </button>
         </div>
@@ -278,7 +309,9 @@ export function TaskHubPanel({ onOpenFile, onNavigated, save }: TaskHubPanelProp
           <button
             type="button"
             class="task-hub-clear-filters"
-            onClick={() => setQuery((current) => ({ ...current, status: "all" }))}
+            onClick={() =>
+              setQuery((current) => ({ ...current, status: "all" }))
+            }
           >
             Show completed tasks
           </button>
@@ -286,7 +319,11 @@ export function TaskHubPanel({ onOpenFile, onNavigated, save }: TaskHubPanelProp
       ) : filteredCount === 0 ? (
         <div class="task-hub-empty">
           <p class="empty-hint">No tasks match these filters.</p>
-          <button type="button" class="task-hub-clear-filters" onClick={clearFilters}>
+          <button
+            type="button"
+            class="task-hub-clear-filters"
+            onClick={clearFilters}
+          >
             Clear filters
           </button>
         </div>
@@ -294,18 +331,27 @@ export function TaskHubPanel({ onOpenFile, onNavigated, save }: TaskHubPanelProp
         <div class="task-hub-groups">
           {groups.map((group) => (
             <div class="task-hub-group" key={group.key || "__ungrouped__"}>
-              {group.label && <h3 class="task-hub-group-heading">{group.label}</h3>}
-              <ul class="task-hub-list" aria-label={group.label || "Workspace tasks"}>
+              {group.label && (
+                <h3 class="task-hub-group-heading">{group.label}</h3>
+              )}
+              <ul
+                class="task-hub-list"
+                aria-label={group.label || "Workspace tasks"}
+              >
                 {group.entries.map((entry) => {
                   const key = rowKey(entry);
-                  const status = rowStatus.get(key) ?? { kind: "idle" as const };
+                  const status = rowStatus.get(key) ?? {
+                    kind: "idle" as const,
+                  };
                   const label = entry.task.displayText || "(Empty task)";
                   const stateLabel = entry.task.checked ? "Completed" : "Open";
                   return (
                     <li key={key} class="task-hub-item">
                       <div
                         class="task-hub-row"
-                        style={{ paddingLeft: `${entry.task.nestingDepth * 16}px` }}
+                        style={{
+                          paddingLeft: `${entry.task.nestingDepth * 16}px`,
+                        }}
                       >
                         <input
                           type="checkbox"
@@ -315,7 +361,10 @@ export function TaskHubPanel({ onOpenFile, onNavigated, save }: TaskHubPanelProp
                           aria-label={`${stateLabel} task: ${label}, in ${entry.noteTitle}`}
                           onChange={() => void handleToggle(entry)}
                         />
-                        <button class="task-hub-label" onClick={() => void handleSelect(entry)}>
+                        <button
+                          class="task-hub-label"
+                          onClick={() => void handleSelect(entry)}
+                        >
                           <span class="task-hub-text">{label}</span>
                           <span class="task-hub-note">{entry.noteTitle}</span>
                         </button>
@@ -346,7 +395,8 @@ export function TaskHubPanel({ onOpenFile, onNavigated, save }: TaskHubPanelProp
                       )}
                       {status.kind === "openError" && (
                         <p class="task-hub-row-error" role="alert">
-                          Couldn't open "{entry.noteTitle}" — it may have been moved, renamed, or deleted.
+                          Couldn't open "{entry.noteTitle}": it may have been
+                          moved, renamed, or deleted.
                         </p>
                       )}
                     </li>

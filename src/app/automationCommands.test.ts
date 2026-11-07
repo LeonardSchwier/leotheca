@@ -9,22 +9,35 @@ describe("parseAutomationUrl", () => {
   });
 
   it("recognizes new-note with a URL-decoded content param", () => {
-    expect(parseAutomationUrl("leotheca://new-note?content=Hello%20World%0ALine%202")).toEqual({
+    expect(
+      parseAutomationUrl(
+        "leotheca://new-note?content=Hello%20World%0ALine%202",
+      ),
+    ).toEqual({
       kind: "new-note",
       content: "Hello World\nLine 2",
     });
   });
 
   it("defaults new-note's content to an empty string when the param is missing", () => {
-    expect(parseAutomationUrl("leotheca://new-note")).toEqual({ kind: "new-note", content: "" });
+    expect(parseAutomationUrl("leotheca://new-note")).toEqual({
+      kind: "new-note",
+      content: "",
+    });
   });
 
   it("recognizes the command that opens favorites", () => {
-    expect(parseAutomationUrl("leotheca://open-favorites")).toEqual({ kind: "open-favorites" });
+    expect(parseAutomationUrl("leotheca://open-favorites")).toEqual({
+      kind: "open-favorites",
+    });
   });
 
   it("recognizes open-note with a URL-decoded path param", () => {
-    expect(parseAutomationUrl("leotheca://open-note?path=%2Fworkspace%2Fnotes%2FTodo.md")).toEqual({
+    expect(
+      parseAutomationUrl(
+        "leotheca://open-note?path=%2Fworkspace%2Fnotes%2FTodo.md",
+      ),
+    ).toEqual({
       kind: "open-note",
       path: "/workspace/notes/Todo.md",
     });
@@ -40,13 +53,21 @@ describe("parseAutomationUrl", () => {
 
   it("returns null for open-note with a path exceeding the 4096 char limit", () => {
     const longPath = "/" + "a".repeat(4097);
-    expect(parseAutomationUrl("leotheca://open-note?path=" + encodeURIComponent(longPath))).toBeNull();
+    expect(
+      parseAutomationUrl(
+        "leotheca://open-note?path=" + encodeURIComponent(longPath),
+      ),
+    ).toBeNull();
   });
 
   it("accepts an open-note path within the 4096 char limit", () => {
     const okPath = "/" + "a".repeat(4095);
     expect(okPath.length).toBe(4096);
-    expect(parseAutomationUrl("leotheca://open-note?path=" + encodeURIComponent(okPath))).toEqual({
+    expect(
+      parseAutomationUrl(
+        "leotheca://open-note?path=" + encodeURIComponent(okPath),
+      ),
+    ).toEqual({
       kind: "open-note",
       path: okPath,
     });
@@ -60,18 +81,27 @@ describe("parseAutomationUrl", () => {
   });
 
   it("recognizes capture with content (backward compatibility)", () => {
-    expect(parseAutomationUrl("leotheca://capture?content=Quick%20note")).toEqual({
+    expect(
+      parseAutomationUrl("leotheca://capture?content=Quick%20note"),
+    ).toEqual({
       kind: "capture",
       text: "Quick note",
     });
   });
 
   it("recognizes capture without text", () => {
-    expect(parseAutomationUrl("leotheca://capture")).toEqual({ kind: "capture", text: "" });
+    expect(parseAutomationUrl("leotheca://capture")).toEqual({
+      kind: "capture",
+      text: "",
+    });
   });
 
   it("recognizes capture with all F05 parameters", () => {
-    expect(parseAutomationUrl("leotheca://capture?text=Hello&title=Note&url=https://example.com&mode=append&profile=123&open=true")).toEqual({
+    expect(
+      parseAutomationUrl(
+        "leotheca://capture?text=Hello&title=Note&url=https://example.com&mode=append&profile=123&open=true",
+      ),
+    ).toEqual({
       kind: "capture",
       text: "Hello",
       title: "Note",
@@ -83,7 +113,9 @@ describe("parseAutomationUrl", () => {
   });
 
   it("ignores query params other than content", () => {
-    expect(parseAutomationUrl("leotheca://new-note?content=Hi&extra=ignored")).toEqual({
+    expect(
+      parseAutomationUrl("leotheca://new-note?content=Hi&extra=ignored"),
+    ).toEqual({
       kind: "new-note",
       content: "Hi",
     });
@@ -118,7 +150,15 @@ describe("parseAutomationUrl", () => {
     const result = parseAutomationUrl(`leotheca://capture?text=${text}`);
     expect(result).not.toBeNull();
     expect(result?.kind).toBe("capture");
-    const captureResult = result as { kind: "capture"; text: string; title?: string; url?: string; mode?: string; profile?: string; open?: boolean };
+    const captureResult = result as {
+      kind: "capture";
+      text: string;
+      title?: string;
+      url?: string;
+      mode?: string;
+      profile?: string;
+      open?: boolean;
+    };
     expect(captureResult.text).toBe(text);
   });
 
@@ -131,13 +171,17 @@ describe("parseAutomationUrl", () => {
   it("rejects a capture payload whose real UTF-8 byte size exceeds 32 KiB even though its UTF-16 length does not", () => {
     const text = "中".repeat(11000); // .length === 11000, UTF-8 byte size === 33000
     expect(text.length).toBeLessThan(32 * 1024);
-    const result = parseAutomationUrl(`leotheca://capture?text=${encodeURIComponent(text)}`);
+    const result = parseAutomationUrl(
+      `leotheca://capture?text=${encodeURIComponent(text)}`,
+    );
     expect(result).toBeNull();
   });
 
   it("accepts a capture payload whose real UTF-8 byte size is within 32 KiB even with multi-byte text", () => {
     const text = "中".repeat(10000); // .length === 10000, UTF-8 byte size === 30000
-    const result = parseAutomationUrl(`leotheca://capture?text=${encodeURIComponent(text)}`);
+    const result = parseAutomationUrl(
+      `leotheca://capture?text=${encodeURIComponent(text)}`,
+    );
     expect(result).not.toBeNull();
     expect(result?.kind).toBe("capture");
   });

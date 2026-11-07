@@ -27,7 +27,9 @@ function makeIndex(
 ): LinkIndex {
   const pathsByNoteName = new Map<string, string[]>();
   for (const p of notePaths) {
-    const name = (p.split("/").pop() ?? p).replace(/\.md$/i, "").toLocaleLowerCase();
+    const name = (p.split("/").pop() ?? p)
+      .replace(/\.md$/i, "")
+      .toLocaleLowerCase();
     const existing = pathsByNoteName.get(name) ?? [];
     existing.push(p);
     pathsByNoteName.set(name, existing);
@@ -130,7 +132,10 @@ describe("computeWorkspaceHealthAudit", () => {
     const findings = computeWorkspaceHealthAudit(index);
     const orphans = findings.filter((f) => f.kind === "orphaned");
     expect(orphans).toHaveLength(2);
-    expect(orphans.map((f) => f.notePath)).toEqual(["/vault/A.md", "/vault/B.md"]);
+    expect(orphans.map((f) => f.notePath)).toEqual([
+      "/vault/A.md",
+      "/vault/B.md",
+    ]);
   });
 
   it("sorts findings by note path", () => {
@@ -145,24 +150,21 @@ describe("computeWorkspaceHealthAudit", () => {
 
   it("handles a mixed workspace: linked + isolated notes", () => {
     // A ↔ B are linked; C is isolated.
-    const index = makeIndex(
-      ["/vault/A.md", "/vault/B.md", "/vault/C.md"],
-      {
-        backlinksByPath: new Map([
-          ["/vault/A.md", ["/vault/B.md"]],
-          ["/vault/B.md", ["/vault/A.md"]],
-          ["/vault/C.md", []],
-        ]),
-        wikiLinksByPath: new Map([
-          ["/vault/A.md", [{} as never]],
-          ["/vault/B.md", [{} as never]],
-        ]),
-        headingsByPath: new Map([
-          ["/vault/A.md", [{} as never]],
-          ["/vault/B.md", [{} as never]],
-        ]),
-      },
-    );
+    const index = makeIndex(["/vault/A.md", "/vault/B.md", "/vault/C.md"], {
+      backlinksByPath: new Map([
+        ["/vault/A.md", ["/vault/B.md"]],
+        ["/vault/B.md", ["/vault/A.md"]],
+        ["/vault/C.md", []],
+      ]),
+      wikiLinksByPath: new Map([
+        ["/vault/A.md", [{} as never]],
+        ["/vault/B.md", [{} as never]],
+      ]),
+      headingsByPath: new Map([
+        ["/vault/A.md", [{} as never]],
+        ["/vault/B.md", [{} as never]],
+      ]),
+    });
     const findings = computeWorkspaceHealthAudit(index);
     // C is the only orphaned + empty note.
     const cFindings = findings.filter((f) => f.notePath === "/vault/C.md");
@@ -185,9 +187,21 @@ describe("groupHealthAuditFindings", () => {
 
   it("groups findings by kind with correct counts and sorted note paths", () => {
     const findings = [
-      { id: "orphan:/vault/C.md", kind: "orphaned" as const, notePath: "/vault/C.md" },
-      { id: "orphan:/vault/A.md", kind: "orphaned" as const, notePath: "/vault/A.md" },
-      { id: "empty:/vault/B.md", kind: "empty" as const, notePath: "/vault/B.md" },
+      {
+        id: "orphan:/vault/C.md",
+        kind: "orphaned" as const,
+        notePath: "/vault/C.md",
+      },
+      {
+        id: "orphan:/vault/A.md",
+        kind: "orphaned" as const,
+        notePath: "/vault/A.md",
+      },
+      {
+        id: "empty:/vault/B.md",
+        kind: "empty" as const,
+        notePath: "/vault/B.md",
+      },
     ];
     const groups = groupHealthAuditFindings(findings);
     expect(groups).toHaveLength(2);
@@ -202,7 +216,11 @@ describe("groupHealthAuditFindings", () => {
 
   it("omits a kind group when it has zero findings", () => {
     const findings = [
-      { id: "orphan:/vault/A.md", kind: "orphaned" as const, notePath: "/vault/A.md" },
+      {
+        id: "orphan:/vault/A.md",
+        kind: "orphaned" as const,
+        notePath: "/vault/A.md",
+      },
     ];
     const groups = groupHealthAuditFindings(findings);
     expect(groups).toHaveLength(1);

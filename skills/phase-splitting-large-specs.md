@@ -8,7 +8,8 @@ platforms: [linux, macos, windows]
 metadata:
   hermes:
     tags: [planning, spec, scoping, leotheca]
-    related_skills: [roadmap-workflow, roadmap-entry-format, writing-scanner-modules]
+    related_skills:
+      [roadmap-workflow, roadmap-entry-format, writing-scanner-modules]
 ---
 
 <!-- Variables: SPEC_DIR = spec; ROADMAP_FILE = configured roadmap_file; WORKFLOW = roadmap-workflow.md -->

@@ -9,7 +9,11 @@ import {
   WidgetType,
 } from "@codemirror/view";
 import { tags } from "@lezer/highlight";
-import type { DelimiterType, InlineContext, MarkdownConfig } from "@lezer/markdown";
+import type {
+  DelimiterType,
+  InlineContext,
+  MarkdownConfig,
+} from "@lezer/markdown";
 import { resolveWikilink } from "../linking/store";
 import { parseWikiLinks, type WikiLinkRecord } from "../linking/wikiSyntax";
 import {
@@ -21,7 +25,10 @@ import {
 } from "../linking/wikiResolver";
 import { scanHeadings, type HeadingRecord } from "../markdown/headings";
 import { scanBlockIds, type BlockRecord } from "../markdown/blocks";
-import { detectHighlightColor, highlightClassName } from "../markdown/highlight";
+import {
+  detectHighlightColor,
+  highlightClassName,
+} from "../markdown/highlight";
 
 /**
  * Inline live-preview decorations for the editor's normal (source) mode:
@@ -116,11 +123,17 @@ const CODE_NODE_TYPES = new Set(["InlineCode", "FencedCode", "CodeBlock"]);
  * is always exactly what Preview will render, with no surface-specific
  * edge case to keep in sync by hand.
  */
-const HighlightDelim: DelimiterType = { resolve: "Highlight", mark: "HighlightMark" };
+const HighlightDelim: DelimiterType = {
+  resolve: "Highlight",
+  mark: "HighlightMark",
+};
 
 export const highlightMarkdownExtension: MarkdownConfig = {
   defineNodes: [
-    { name: "Highlight", style: { "Highlight/...": tags.special(tags.content) } },
+    {
+      name: "Highlight",
+      style: { "Highlight/...": tags.special(tags.content) },
+    },
     { name: "HighlightMark", style: tags.processingInstruction },
   ],
   parseInline: [
@@ -128,12 +141,19 @@ export const highlightMarkdownExtension: MarkdownConfig = {
       name: "Highlight",
       parse(cx: InlineContext, next: number, pos: number): number {
         // 61 === '='.charCodeAt(0)
-        if (next !== 61 || cx.char(pos + 1) !== 61 || cx.char(pos + 2) === 61) return -1;
+        if (next !== 61 || cx.char(pos + 1) !== 61 || cx.char(pos + 2) === 61)
+          return -1;
         const before = cx.slice(pos - 1, pos);
         const after = cx.slice(pos + 2, pos + 3);
         const spaceBefore = before === "" || /\s/.test(before);
         const spaceAfter = after === "" || /\s/.test(after);
-        return cx.addDelimiter(HighlightDelim, pos, pos + 2, !spaceAfter, !spaceBefore);
+        return cx.addDelimiter(
+          HighlightDelim,
+          pos,
+          pos + 2,
+          !spaceAfter,
+          !spaceBefore,
+        );
       },
       after: "Emphasis",
     },
@@ -206,8 +226,12 @@ function classifyHeadingLink(
   docText: string,
 ): HeadingLinkStatus {
   if (record.noteTarget === "") {
-    if (currentHeadingsRef.value === null) currentHeadingsRef.value = scanHeadings(docText);
-    const result = resolveHeadingFragment(currentHeadingsRef.value, record.fragment!.value);
+    if (currentHeadingsRef.value === null)
+      currentHeadingsRef.value = scanHeadings(docText);
+    const result = resolveHeadingFragment(
+      currentHeadingsRef.value,
+      record.fragment!.value,
+    );
     if (result.status === "resolved") return "resolved";
     if (result.status === "ambiguous-fragment") return "ambiguous";
     return "missing";
@@ -247,8 +271,12 @@ function classifyBlockLink(
   docText: string,
 ): BlockLinkStatus {
   if (record.noteTarget === "") {
-    if (currentBlocksRef.value === null) currentBlocksRef.value = scanBlockIds(docText);
-    const result = resolveBlockFragment(currentBlocksRef.value, record.fragment!.value);
+    if (currentBlocksRef.value === null)
+      currentBlocksRef.value = scanBlockIds(docText);
+    const result = resolveBlockFragment(
+      currentBlocksRef.value,
+      record.fragment!.value,
+    );
     if (result.status === "resolved") return "resolved";
     if (result.status === "ambiguous-fragment") return "ambiguous";
     return "missing";
@@ -290,8 +318,12 @@ function embedLinkClass(
   docText: string,
 ): string {
   if (!record.fragment) {
-    const target = resolveWikiLinkTarget(record, { currentNotePath: undefined });
-    return target.status === "resolved" ? "cm-live-embed-resolved" : "cm-live-embed-broken";
+    const target = resolveWikiLinkTarget(record, {
+      currentNotePath: undefined,
+    });
+    return target.status === "resolved"
+      ? "cm-live-embed-resolved"
+      : "cm-live-embed-broken";
   }
   if (record.fragment.kind === "heading") {
     const status = classifyHeadingLink(record, currentHeadingsRef, docText);
@@ -369,7 +401,8 @@ export function buildLiveDecorations(
   const marks: { from: number; to: number; class: string }[] = [];
   const hidden: SimpleRange[] = [];
   const codeRanges: SimpleRange[] = [];
-  const widgetReplacements: { from: number; to: number; widget: WidgetType }[] = [];
+  const widgetReplacements: { from: number; to: number; widget: WidgetType }[] =
+    [];
 
   for (const range of scanRanges) {
     tree.iterate({
@@ -384,7 +417,12 @@ export function buildLiveDecorations(
         }
 
         if (headingClass) {
-          const active = overlapsSelectedLines(state.doc, selectionRanges, node.from, node.to);
+          const active = overlapsSelectedLines(
+            state.doc,
+            selectionRanges,
+            node.from,
+            node.to,
+          );
           marks.push({ from: node.from, to: node.to, class: headingClass });
           if (!active) {
             const mark = node.node.getChild("HeaderMark");
@@ -400,20 +438,31 @@ export function buildLiveDecorations(
         }
 
         if (type === "StrongEmphasis" || type === "Emphasis") {
-          const active = overlapsSelectedLines(state.doc, selectionRanges, node.from, node.to);
+          const active = overlapsSelectedLines(
+            state.doc,
+            selectionRanges,
+            node.from,
+            node.to,
+          );
           marks.push({
             from: node.from,
             to: node.to,
             class: type === "StrongEmphasis" ? "cm-live-strong" : "cm-live-em",
           });
           if (!active) {
-            for (const mark of node.node.getChildren("EmphasisMark")) hide(hidden, mark.from, mark.to);
+            for (const mark of node.node.getChildren("EmphasisMark"))
+              hide(hidden, mark.from, mark.to);
           }
           return;
         }
 
         if (type === "Highlight") {
-          const active = overlapsSelectedLines(state.doc, selectionRanges, node.from, node.to);
+          const active = overlapsSelectedLines(
+            state.doc,
+            selectionRanges,
+            node.from,
+            node.to,
+          );
           const marksInNode = node.node.getChildren("HighlightMark");
           const openMark = marksInNode[0];
           const closeMark = marksInNode[marksInNode.length - 1];
@@ -422,9 +471,16 @@ export function buildLiveDecorations(
           // between the delimiters" input, so a color emoji is recognized
           // identically on both surfaces.
           const contentFrom = openMark ? openMark.to : node.from;
-          const contentTo = closeMark && closeMark !== openMark ? closeMark.from : node.to;
-          const { color } = detectHighlightColor(state.doc.sliceString(contentFrom, contentTo));
-          marks.push({ from: node.from, to: node.to, class: highlightClassName("cm-live-highlight", color) });
+          const contentTo =
+            closeMark && closeMark !== openMark ? closeMark.from : node.to;
+          const { color } = detectHighlightColor(
+            state.doc.sliceString(contentFrom, contentTo),
+          );
+          marks.push({
+            from: node.from,
+            to: node.to,
+            class: highlightClassName("cm-live-highlight", color),
+          });
           if (!active) {
             for (const mark of marksInNode) hide(hidden, mark.from, mark.to);
           }
@@ -432,10 +488,16 @@ export function buildLiveDecorations(
         }
 
         if (type === "InlineCode") {
-          const active = overlapsSelectedLines(state.doc, selectionRanges, node.from, node.to);
+          const active = overlapsSelectedLines(
+            state.doc,
+            selectionRanges,
+            node.from,
+            node.to,
+          );
           marks.push({ from: node.from, to: node.to, class: "cm-live-code" });
           if (!active) {
-            for (const mark of node.node.getChildren("CodeMark")) hide(hidden, mark.from, mark.to);
+            for (const mark of node.node.getChildren("CodeMark"))
+              hide(hidden, mark.from, mark.to);
           }
           return;
         }
@@ -447,11 +509,20 @@ export function buildLiveDecorations(
           const listType = node.node.parent?.parent?.type.name;
           if (listType !== "BulletList") return;
 
-          const active = overlapsSelectedLines(state.doc, selectionRanges, node.from, node.to);
+          const active = overlapsSelectedLines(
+            state.doc,
+            selectionRanges,
+            node.from,
+            node.to,
+          );
           if (!active) {
             let end = node.to;
             if (state.doc.sliceString(end, end + 1) === " ") end += 1;
-            widgetReplacements.push({ from: node.from, to: end, widget: new BulletWidget() });
+            widgetReplacements.push({
+              from: node.from,
+              to: end,
+              widget: new BulletWidget(),
+            });
           }
         }
       },
@@ -479,12 +550,22 @@ export function buildLiveDecorations(
   for (const range of scanRanges) {
     const text = docText.slice(range.from, range.to);
     for (const record of parseWikiLinks(text)) {
-      if (record.parseStatus !== "valid" || record.fragment?.kind !== "heading" || record.kind === "embed") continue;
+      if (
+        record.parseStatus !== "valid" ||
+        record.fragment?.kind !== "heading" ||
+        record.kind === "embed"
+      )
+        continue;
       const from = range.from + record.sourceFrom;
       const to = range.from + record.sourceTo;
       if (fragmentLinkRanges.has(`${from}:${to}`)) continue;
       fragmentLinkRanges.add(`${from}:${to}`);
-      if (codeRanges.some((codeRange) => from < codeRange.to && to > codeRange.from)) continue;
+      if (
+        codeRanges.some(
+          (codeRange) => from < codeRange.to && to > codeRange.from,
+        )
+      )
+        continue;
 
       const status = classifyHeadingLink(record, currentHeadingsRef, docText);
       marks.push({ from, to, class: HEADING_LINK_CLASS[status] });
@@ -500,12 +581,22 @@ export function buildLiveDecorations(
   for (const range of scanRanges) {
     const text = docText.slice(range.from, range.to);
     for (const record of parseWikiLinks(text)) {
-      if (record.parseStatus !== "valid" || record.fragment?.kind !== "block" || record.kind === "embed") continue;
+      if (
+        record.parseStatus !== "valid" ||
+        record.fragment?.kind !== "block" ||
+        record.kind === "embed"
+      )
+        continue;
       const from = range.from + record.sourceFrom;
       const to = range.from + record.sourceTo;
       if (fragmentLinkRanges.has(`${from}:${to}`)) continue;
       fragmentLinkRanges.add(`${from}:${to}`);
-      if (codeRanges.some((codeRange) => from < codeRange.to && to > codeRange.from)) continue;
+      if (
+        codeRanges.some(
+          (codeRange) => from < codeRange.to && to > codeRange.from,
+        )
+      )
+        continue;
 
       const status = classifyBlockLink(record, currentBlocksRef, docText);
       marks.push({ from, to, class: BLOCK_LINK_CLASS[status] });
@@ -545,7 +636,12 @@ export function buildLiveDecorations(
       if (fragmentLinkRanges.has(`${from}:${to}`)) continue;
       fragmentLinkRanges.add(`${from}:${to}`);
       fragmentLinkRanges.add(`${from + 1}:${to}`);
-      if (codeRanges.some((codeRange) => from < codeRange.to && to > codeRange.from)) continue;
+      if (
+        codeRanges.some(
+          (codeRange) => from < codeRange.to && to > codeRange.from,
+        )
+      )
+        continue;
 
       // Reuses the exact same lazily-populated heading/block caches the
       // passes above already share, rather than a fresh scan: most
@@ -553,7 +649,12 @@ export function buildLiveDecorations(
       // link, or embed, so this cache is very likely already empty and
       // cheap either way, but sharing it means a document with more than
       // one never scans twice.
-      const cls = embedLinkClass(record, currentHeadingsRef, currentBlocksRef, docText);
+      const cls = embedLinkClass(
+        record,
+        currentHeadingsRef,
+        currentBlocksRef,
+        docText,
+      );
       marks.push({ from, to, class: cls });
 
       if (!overlapsSelectedLines(state.doc, selectionRanges, from, to)) {
@@ -574,14 +675,21 @@ export function buildLiveDecorations(
       if (matchedWikilinks.has(from)) continue;
       matchedWikilinks.add(from);
       if (fragmentLinkRanges.has(`${from}:${to}`)) continue;
-      if (codeRanges.some((codeRange) => from < codeRange.to && to > codeRange.from)) continue;
+      if (
+        codeRanges.some(
+          (codeRange) => from < codeRange.to && to > codeRange.from,
+        )
+      )
+        continue;
 
       const target = match[1];
       const resolved = resolveWikilink(target) !== null;
       marks.push({
         from,
         to,
-        class: resolved ? "cm-live-wikilink-resolved" : "cm-live-wikilink-broken",
+        class: resolved
+          ? "cm-live-wikilink-resolved"
+          : "cm-live-wikilink-broken",
       });
 
       if (!overlapsSelectedLines(state.doc, selectionRanges, from, to)) {
@@ -592,9 +700,13 @@ export function buildLiveDecorations(
   }
 
   const ranges = [
-    ...marks.map(({ from, to, class: cls }) => Decoration.mark({ class: cls }).range(from, to)),
+    ...marks.map(({ from, to, class: cls }) =>
+      Decoration.mark({ class: cls }).range(from, to),
+    ),
     ...hidden.map(({ from, to }) => Decoration.replace({}).range(from, to)),
-    ...widgetReplacements.map(({ from, to, widget }) => Decoration.replace({ widget }).range(from, to)),
+    ...widgetReplacements.map(({ from, to, widget }) =>
+      Decoration.replace({ widget }).range(from, to),
+    ),
   ];
   return Decoration.set(ranges, true);
 }
@@ -607,7 +719,10 @@ export const livePreviewExtension = ViewPlugin.fromClass(
     }
     update(update: ViewUpdate) {
       if (update.docChanged || update.selectionSet || update.viewportChanged) {
-        this.decorations = buildLiveDecorations(update.view.state, update.view.visibleRanges);
+        this.decorations = buildLiveDecorations(
+          update.view.state,
+          update.view.visibleRanges,
+        );
       }
     }
   },

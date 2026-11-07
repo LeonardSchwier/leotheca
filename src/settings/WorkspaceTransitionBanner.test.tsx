@@ -15,7 +15,9 @@ const { transitionState } = vi.hoisted(() => ({
 }));
 
 vi.mock("./store", () => ({
-  workspaceTransitionRecovery: signal<WorkspaceTransitionRecoveryInfo | null>(null),
+  workspaceTransitionRecovery: signal<WorkspaceTransitionRecoveryInfo | null>(
+    null,
+  ),
 }));
 vi.mock("../workspace/workspaceTransition", () => ({
   workspaceTransitions: { state: transitionState },
@@ -26,7 +28,9 @@ import { workspaceTransitionRecovery } from "./store";
 import { ConfirmDialogHost } from "../app/ConfirmDialogHost";
 import { confirmRequest } from "../app/confirmDialog";
 
-function makeRecovery(overrides: Partial<WorkspaceTransitionRecoveryInfo> = {}): WorkspaceTransitionRecoveryInfo {
+function makeRecovery(
+  overrides: Partial<WorkspaceTransitionRecoveryInfo> = {},
+): WorkspaceTransitionRecoveryInfo {
   return {
     targetProfileId: "b",
     targetProfileName: "Work",
@@ -78,7 +82,12 @@ describe("WorkspaceTransitionBanner", () => {
 
   it("calls retry and shows busy state while it is in flight", async () => {
     let resolveRetry!: () => void;
-    const retry = vi.fn(() => new Promise<void>((resolve) => { resolveRetry = resolve; }));
+    const retry = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveRetry = resolve;
+        }),
+    );
     workspaceTransitionRecovery.value = makeRecovery({ retry });
 
     const { getByText } = render(<WorkspaceTransitionBanner />);
@@ -174,7 +183,12 @@ describe("WorkspaceTransitionBanner", () => {
   it("dismisses by resetting workspaceTransitions.state to idle, without calling any recovery action", () => {
     const recovery = makeRecovery();
     workspaceTransitionRecovery.value = recovery;
-    transitionState.value = { status: "error", targetProfileId: "b", phase: "access", message: "gone" };
+    transitionState.value = {
+      status: "error",
+      targetProfileId: "b",
+      phase: "access",
+      message: "gone",
+    };
 
     const { getByLabelText } = render(<WorkspaceTransitionBanner />);
     fireEvent.click(getByLabelText("Dismiss"));

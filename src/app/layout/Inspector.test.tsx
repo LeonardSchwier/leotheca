@@ -33,8 +33,12 @@ const BASE_PROPS = {
 describe("Inspector", () => {
   it("shows both tabs when Properties is enabled, Properties active by default", () => {
     const { getByRole } = render(<Inspector {...BASE_PROPS} />);
-    expect(getByRole("tab", { name: "Properties" }).getAttribute("aria-selected")).toBe("true");
-    expect(getByRole("tab", { name: "Backlinks" }).getAttribute("aria-selected")).toBe("false");
+    expect(
+      getByRole("tab", { name: "Properties" }).getAttribute("aria-selected"),
+    ).toBe("true");
+    expect(
+      getByRole("tab", { name: "Backlinks" }).getAttribute("aria-selected"),
+    ).toBe("false");
   });
 
   it("renders FrontmatterPropertiesPanel content on the Properties tab", () => {
@@ -43,28 +47,39 @@ describe("Inspector", () => {
   });
 
   it("renders BacklinksPanel content on the Backlinks tab", () => {
-    const { getByRole, getByText } = render(<Inspector {...BASE_PROPS} activeTab="backlinks" />);
-    expect(getByRole("tab", { name: "Backlinks" }).getAttribute("aria-selected")).toBe("true");
+    const { getByRole, getByText } = render(
+      <Inspector {...BASE_PROPS} activeTab="backlinks" />,
+    );
+    expect(
+      getByRole("tab", { name: "Backlinks" }).getAttribute("aria-selected"),
+    ).toBe("true");
     expect(getByText("No notes link here.")).toBeTruthy();
   });
 
   it("invokes onSetActiveTab when a tab is clicked", () => {
     const onSetActiveTab = vi.fn();
-    const { getByRole } = render(<Inspector {...BASE_PROPS} onSetActiveTab={onSetActiveTab} />);
+    const { getByRole } = render(
+      <Inspector {...BASE_PROPS} onSetActiveTab={onSetActiveTab} />,
+    );
     fireEvent.click(getByRole("tab", { name: "Backlinks" }));
     expect(onSetActiveTab).toHaveBeenCalledWith("backlinks");
   });
 
   it("invokes onClose when the close button is clicked", () => {
     const onClose = vi.fn();
-    const { getByLabelText } = render(<Inspector {...BASE_PROPS} onClose={onClose} />);
+    const { getByLabelText } = render(
+      <Inspector {...BASE_PROPS} onClose={onClose} />,
+    );
     fireEvent.click(getByLabelText("Close Inspector"));
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   it("hides the Properties tab and falls back to Backlinks when Properties is disabled", () => {
     const { queryByRole, getByText } = render(
-      <Inspector {...BASE_PROPS} properties={{ ...BASE_PROPS.properties, enabled: false }} />,
+      <Inspector
+        {...BASE_PROPS}
+        properties={{ ...BASE_PROPS.properties, enabled: false }}
+      />,
     );
     expect(queryByRole("tab", { name: "Properties" })).toBeNull();
     expect(getByText("No notes link here.")).toBeTruthy();

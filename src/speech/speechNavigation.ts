@@ -1,31 +1,39 @@
 /**
  * Speech recognition navigation and editor integration
- * 
+ *
  * Provides signal-based integration between speech recognition and the editor.
  * This allows speech recognition results to be properly inserted at the cursor
  * position in the active note editor.
  */
 
 import { signal } from "@preact/signals";
-import type { SpeechRecognitionState, SpeechRecognitionResult, SpeechRecognitionError } from "./types";
+import type {
+  SpeechRecognitionState,
+  SpeechRecognitionResult,
+  SpeechRecognitionError,
+} from "./types";
 
 /**
  * Signal that holds the current speech recognition state
  * This can be used by the UI to show recording indicators
  */
-export const speechRecognitionState = signal<SpeechRecognitionState>('idle');
+export const speechRecognitionState = signal<SpeechRecognitionState>("idle");
 
 /**
  * Signal that holds the latest speech recognition result
  * This can be used by the editor to insert text at cursor
  */
-export const speechRecognitionResult = signal<SpeechRecognitionResult | null>(null);
+export const speechRecognitionResult = signal<SpeechRecognitionResult | null>(
+  null,
+);
 
 /**
  * Signal that holds the latest speech recognition error
  * This can be used by the UI to show error messages
  */
-export const speechRecognitionError = signal<SpeechRecognitionError | null>(null);
+export const speechRecognitionError = signal<SpeechRecognitionError | null>(
+  null,
+);
 
 /**
  * Request speech recognition to start
@@ -66,7 +74,7 @@ let nextRequestId = 1;
 export function requestStartSpeechRecognition(language?: string): void {
   speechStartRequest.value = {
     requestId: nextRequestId++,
-    language
+    language,
   };
 }
 
@@ -75,7 +83,7 @@ export function requestStartSpeechRecognition(language?: string): void {
  */
 export function requestStopSpeechRecognition(): void {
   speechStopRequest.value = {
-    requestId: nextRequestId++
+    requestId: nextRequestId++,
   };
 }
 
@@ -84,14 +92,16 @@ export function requestStopSpeechRecognition(): void {
  */
 export function isSpeechRecognitionActive(): boolean {
   const state = speechRecognitionState.value;
-  return state === 'starting' || state === 'recording' || state === 'transcribing';
+  return (
+    state === "starting" || state === "recording" || state === "transcribing"
+  );
 }
 
 /**
  * Check if speech recognition is in an error state
  */
 export function isSpeechRecognitionError(): boolean {
-  return speechRecognitionState.value === 'error';
+  return speechRecognitionState.value === "error";
 }
 
 /**
@@ -143,7 +153,7 @@ export function clearSpeechError(): void {
  * Reset all speech navigation signals
  */
 export function resetSpeechNavigation(): void {
-  speechRecognitionState.value = 'idle';
+  speechRecognitionState.value = "idle";
   speechRecognitionResult.value = null;
   speechRecognitionError.value = null;
   speechStartRequest.value = null;

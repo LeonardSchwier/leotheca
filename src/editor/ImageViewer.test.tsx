@@ -42,18 +42,22 @@ describe("ImageViewer", () => {
   });
 
   it("re-resolves the src when the path prop changes", async () => {
-    vi.mocked(fileSrc).mockImplementation(async (path: string) => `asset://${path}`);
+    vi.mocked(fileSrc).mockImplementation(
+      async (path: string) => `asset://${path}`,
+    );
     const { container, rerender } = render(<ImageViewer path="/vault/a.png" />);
     await waitFor(() => expect(container.querySelector("img")).not.toBeNull());
-    expect((container.querySelector("img") as HTMLImageElement).getAttribute("src")).toBe(
-      "asset:///vault/a.png",
-    );
+    expect(
+      (container.querySelector("img") as HTMLImageElement).getAttribute("src"),
+    ).toBe("asset:///vault/a.png");
 
     rerender(<ImageViewer path="/vault/b.png" />);
     await waitFor(() =>
-      expect((container.querySelector("img") as HTMLImageElement).getAttribute("src")).toBe(
-        "asset:///vault/b.png",
-      ),
+      expect(
+        (container.querySelector("img") as HTMLImageElement).getAttribute(
+          "src",
+        ),
+      ).toBe("asset:///vault/b.png"),
     );
     expect(fileSrc).toHaveBeenCalledWith("/vault/b.png");
   });
@@ -87,7 +91,7 @@ describe("ImageViewer", () => {
     expect(img.getAttribute("src")).toBe("asset://b.png");
   });
 
-  it("renders a close button (aria-label \"Close\") only when an onClose prop is supplied", async () => {
+  it('renders a close button (aria-label "Close") only when an onClose prop is supplied', async () => {
     vi.mocked(fileSrc).mockResolvedValue("asset://localhost/vault/a.png");
     const { container, rerender } = render(<ImageViewer path="/vault/a.png" />);
     await waitFor(() => expect(container.querySelector("img")).not.toBeNull());
@@ -95,7 +99,9 @@ describe("ImageViewer", () => {
 
     const onClose = vi.fn();
     rerender(<ImageViewer path="/vault/a.png" onClose={onClose} />);
-    const close = container.querySelector('button[aria-label="Close"]') as HTMLButtonElement;
+    const close = container.querySelector(
+      'button[aria-label="Close"]',
+    ) as HTMLButtonElement;
     expect(close).not.toBeNull();
     expect(close.textContent).toBe("×");
 

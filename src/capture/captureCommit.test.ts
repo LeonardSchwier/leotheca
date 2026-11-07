@@ -30,18 +30,18 @@ describe("appendToInboxNote", () => {
 
     const result = await appendToInboxNote({
       inboxNotePath: "/workspace/Inbox.md",
-      content: "Test capture content"
+      content: "Test capture content",
     });
 
     expect(result.path).toBe("/workspace/Inbox.md");
     expect(result.name).toBe("Inbox.md");
     expect(mockWriteTextFile).toHaveBeenCalledWith(
       "/workspace/Inbox.md",
-      expect.stringContaining("### 2026") // Should contain formatted timestamp
+      expect.stringContaining("### 2026"), // Should contain formatted timestamp
     );
     expect(mockWriteTextFile).toHaveBeenCalledWith(
       "/workspace/Inbox.md",
-      expect.stringContaining("Test capture content")
+      expect.stringContaining("Test capture content"),
     );
   });
 
@@ -59,17 +59,17 @@ describe("appendToInboxNote", () => {
 
     const result = await appendToInboxNote({
       inboxNotePath: "/workspace/Inbox.md",
-      content: "New capture content"
+      content: "New capture content",
     });
 
     expect(result.path).toBe("/workspace/Inbox.md");
     expect(mockWriteTextFile).toHaveBeenCalledWith(
       "/workspace/Inbox.md",
-      expect.stringContaining(existingContent)
+      expect.stringContaining(existingContent),
     );
     expect(mockWriteTextFile).toHaveBeenCalledWith(
       "/workspace/Inbox.md",
-      expect.stringContaining("New capture content")
+      expect.stringContaining("New capture content"),
     );
   });
 
@@ -87,14 +87,14 @@ describe("appendToInboxNote", () => {
 
     const result = await appendToInboxNote({
       inboxNotePath: "/workspace/Inbox.md",
-      content: "New capture content"
+      content: "New capture content",
     });
 
     expect(result.path).toBe("/workspace/Inbox.md");
     // Should preserve CRLF line endings
     expect(mockWriteTextFile).toHaveBeenCalledWith(
       "/workspace/Inbox.md",
-      expect.stringContaining("\r\n")
+      expect.stringContaining("\r\n"),
     );
   });
 
@@ -112,13 +112,13 @@ describe("appendToInboxNote", () => {
 
     const result = await appendToInboxNote({
       inboxNotePath: "/workspace/Inbox.md",
-      content: "First capture"
+      content: "First capture",
     });
 
     expect(result.path).toBe("/workspace/Inbox.md");
     expect(mockWriteTextFile).toHaveBeenCalledWith(
       "/workspace/Inbox.md",
-      expect.stringContaining("First capture")
+      expect.stringContaining("First capture"),
     );
     // Should not have leading blank lines for empty files
     expect(mockWriteTextFile.mock.calls[0][1]).not.toMatch(/^\n\n/);
@@ -138,13 +138,13 @@ describe("appendToInboxNote", () => {
 
     const result = await appendToInboxNote({
       inboxNotePath: "/workspace/Inbox.md",
-      content: "First real capture"
+      content: "First real capture",
     });
 
     expect(result.path).toBe("/workspace/Inbox.md");
     expect(mockWriteTextFile).toHaveBeenCalledWith(
       "/workspace/Inbox.md",
-      expect.stringContaining("First real capture")
+      expect.stringContaining("First real capture"),
     );
   });
 
@@ -152,7 +152,8 @@ describe("appendToInboxNote", () => {
     // Regression for: a failed append write was indistinguishable from "file
     // doesn't exist", so the catch-all fallback re-wrote the note with only
     // the new capture text, silently discarding existingContent.
-    const existingContent = "# Inbox\n\nImportant existing note the user already wrote";
+    const existingContent =
+      "# Inbox\n\nImportant existing note the user already wrote";
     mockReadTextFile.mockResolvedValue(existingContent);
     // The real append write fails transiently (e.g. a lock/contention hiccup);
     // a later write attempt would succeed if one were made.
@@ -171,7 +172,7 @@ describe("appendToInboxNote", () => {
       appendToInboxNote({
         inboxNotePath: "/workspace/Inbox.md",
         content: "New capture content",
-      })
+      }),
     ).rejects.toThrow("EBUSY");
 
     // Only the one real append attempt should have been made; no fallback
@@ -179,7 +180,7 @@ describe("appendToInboxNote", () => {
     expect(mockWriteTextFile).toHaveBeenCalledTimes(1);
     expect(mockWriteTextFile).toHaveBeenCalledWith(
       "/workspace/Inbox.md",
-      expect.stringContaining(existingContent)
+      expect.stringContaining(existingContent),
     );
   });
 
@@ -190,11 +191,14 @@ describe("appendToInboxNote", () => {
     // "../workspace/tauriBridge" mocks above, and vi.resetModules() (needed to
     // pick that shape up cleanly) would otherwise leave later tests bound to
     // this test's own mock functions instead of their own.
-    const sensitiveMessage = "content://com.other.app/document/999: permission denied for /private/vault/path";
+    const sensitiveMessage =
+      "content://com.other.app/document/999: permission denied for /private/vault/path";
     const mockListDir = vi.fn().mockResolvedValue([]);
     const mockCreateWorkspaceTextFileNew = vi.fn().mockResolvedValue(undefined);
     const mockWriteWorkspaceBinaryFile = vi.fn().mockResolvedValue(undefined);
-    const mockReadBinaryFile = vi.fn().mockRejectedValue(new Error(sensitiveMessage));
+    const mockReadBinaryFile = vi
+      .fn()
+      .mockRejectedValue(new Error(sensitiveMessage));
 
     vi.resetModules();
     vi.doMock("../workspace/tauriBridge", () => ({
@@ -225,14 +229,17 @@ describe("appendToInboxNote", () => {
           fingerprint: "irrelevant",
           mimeType: "image/jpeg",
         },
-      ]
+      ],
     );
 
     // The note is still created; the failing attachment is skipped, not fatal.
     expect(result.name).toBe("Note title.md");
     expect(mockCreateWorkspaceTextFileNew).toHaveBeenCalled();
 
-    const allLoggedArgs = [...errorSpy.mock.calls, ...warnSpy.mock.calls].flat();
+    const allLoggedArgs = [
+      ...errorSpy.mock.calls,
+      ...warnSpy.mock.calls,
+    ].flat();
     for (const arg of allLoggedArgs) {
       expect(arg).not.toBeInstanceOf(Error);
       if (typeof arg === "string") {
@@ -250,16 +257,20 @@ describe("appendToInboxNote", () => {
     // 0x89 and 0xff/0xfe are not valid UTF-8 on their own: a decode-then-
     // TextEncoder-reencode round trip (the pre-fix behavior) would not
     // reproduce these exact bytes.
-    const sourceBytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0xff, 0xfe]);
+    const sourceBytes = new Uint8Array([
+      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0xff, 0xfe,
+    ]);
     const written = new Map<string, Uint8Array>();
 
     const mockReadBinaryFile = vi.fn(async (path: string) =>
-      path === sourcePath ? sourceBytes : (written.get(path) ?? new Uint8Array())
+      path === sourcePath
+        ? sourceBytes
+        : (written.get(path) ?? new Uint8Array()),
     );
     const mockWriteWorkspaceBinaryFile = vi.fn(
       async (workspaceRoot: string, relativePath: string, data: Uint8Array) => {
         written.set(`${workspaceRoot}/${relativePath}`, data);
-      }
+      },
     );
     const mockListDir = vi.fn().mockResolvedValue([]);
     const mockCreateWorkspaceTextFileNew = vi.fn().mockResolvedValue(undefined);
@@ -290,13 +301,17 @@ describe("appendToInboxNote", () => {
           fingerprint: "irrelevant",
           mimeType: "image/png",
         },
-      ]
+      ],
     );
 
     expect(result.name).toBe("Note title.md");
     expect(mockWriteWorkspaceBinaryFile).toHaveBeenCalledTimes(1);
-    const [workspaceRootArg, relativePathArg, writtenBytes] = mockWriteWorkspaceBinaryFile.mock
-      .calls[0] as [string, string, Uint8Array];
+    const [workspaceRootArg, relativePathArg, writtenBytes] =
+      mockWriteWorkspaceBinaryFile.mock.calls[0] as [
+        string,
+        string,
+        Uint8Array,
+      ];
     // The write goes through the workspace-contained bridge function, not a
     // caller-assembled absolute path: proves the containment boundary is
     // the real one in effect, not merely trusted to have been applied
@@ -304,11 +319,14 @@ describe("appendToInboxNote", () => {
     expect(workspaceRootArg).toBe("/workspace");
     expect(relativePathArg).not.toMatch(/^\//);
     expect(writtenBytes).toEqual(sourceBytes);
-    expect(written.get(`${workspaceRootArg}/${relativePathArg}`)).toEqual(sourceBytes);
+    expect(written.get(`${workspaceRootArg}/${relativePathArg}`)).toEqual(
+      sourceBytes,
+    );
 
     // The verified copy is referenced from the note; a real mismatch would
     // have silently dropped it instead (see the test right below).
-    const noteContent = mockCreateWorkspaceTextFileNew.mock.calls[0][2] as string;
+    const noteContent = mockCreateWorkspaceTextFileNew.mock
+      .calls[0][2] as string;
     expect(noteContent).toContain("photo");
   });
 
@@ -319,12 +337,14 @@ describe("appendToInboxNote", () => {
     // The "destination" never actually holds what was copied (simulating a
     // corrupting write), regardless of what copyFile passed to it.
     const mockReadBinaryFile = vi.fn(async (path: string) =>
-      path === sourcePath ? sourceBytes : new Uint8Array([9, 9, 9])
+      path === sourcePath ? sourceBytes : new Uint8Array([9, 9, 9]),
     );
     const mockWriteWorkspaceBinaryFile = vi.fn().mockResolvedValue(undefined);
     const mockListDir = vi.fn().mockResolvedValue([]);
     const mockCreateWorkspaceTextFileNew = vi.fn().mockResolvedValue(undefined);
-    const mockDeleteWorkspacePathPermanent = vi.fn().mockResolvedValue(undefined);
+    const mockDeleteWorkspacePathPermanent = vi
+      .fn()
+      .mockResolvedValue(undefined);
 
     vi.resetModules();
     vi.doMock("../workspace/tauriBridge", () => ({
@@ -353,18 +373,19 @@ describe("appendToInboxNote", () => {
           fingerprint: "irrelevant",
           mimeType: "image/png",
         },
-      ]
+      ],
     );
 
     expect(result.name).toBe("Note title.md");
-    const noteContent = mockCreateWorkspaceTextFileNew.mock.calls[0][2] as string;
+    const noteContent = mockCreateWorkspaceTextFileNew.mock
+      .calls[0][2] as string;
     expect(noteContent).not.toContain("photo2");
 
     // The corrupted destination file must not be left behind, orphaned and
     // unreferenced by any note.
     expect(mockDeleteWorkspacePathPermanent).toHaveBeenCalledTimes(1);
-    const [deletedRoot, deletedRelativePath] = mockDeleteWorkspacePathPermanent.mock
-      .calls[0] as [string, string];
+    const [deletedRoot, deletedRelativePath] = mockDeleteWorkspacePathPermanent
+      .mock.calls[0] as [string, string];
     expect(deletedRoot).toBe("/workspace");
     expect(deletedRelativePath).toContain("photo2");
     expect(deletedRelativePath).not.toMatch(/^\//);
@@ -375,14 +396,20 @@ describe("appendToInboxNote", () => {
     const sourceBytes = new Uint8Array([1, 2, 3, 4]);
 
     const mockReadBinaryFile = vi.fn(async (path: string) =>
-      path === sourcePath ? sourceBytes : new Uint8Array([9, 9, 9])
+      path === sourcePath ? sourceBytes : new Uint8Array([9, 9, 9]),
     );
     const mockWriteWorkspaceBinaryFile = vi.fn().mockResolvedValue(undefined);
     const mockListDir = vi.fn().mockResolvedValue([]);
     const mockCreateWorkspaceTextFileNew = vi.fn().mockResolvedValue(undefined);
-    const sensitiveDeleteError = new Error("content://com.evil/att-3.png denied");
-    const mockDeleteWorkspacePathPermanent = vi.fn().mockRejectedValue(sensitiveDeleteError);
-    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const sensitiveDeleteError = new Error(
+      "content://com.evil/att-3.png denied",
+    );
+    const mockDeleteWorkspacePathPermanent = vi
+      .fn()
+      .mockRejectedValue(sensitiveDeleteError);
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
 
     vi.resetModules();
     vi.doMock("../workspace/tauriBridge", () => ({
@@ -411,7 +438,7 @@ describe("appendToInboxNote", () => {
           fingerprint: "irrelevant",
           mimeType: "image/png",
         },
-      ]
+      ],
     );
 
     // A failed cleanup attempt must not crash the whole capture commit.
@@ -445,12 +472,14 @@ describe("appendToInboxNote", () => {
     const written = new Map<string, Uint8Array>();
 
     const mockReadBinaryFile = vi.fn(async (path: string) =>
-      path === sourcePath ? sourceBytes : (written.get(path) ?? new Uint8Array())
+      path === sourcePath
+        ? sourceBytes
+        : (written.get(path) ?? new Uint8Array()),
     );
     const mockWriteWorkspaceBinaryFile = vi.fn(
       async (workspaceRoot: string, relativePath: string, data: Uint8Array) => {
         written.set(`${workspaceRoot}/${relativePath}`, data);
-      }
+      },
     );
     const mockListDir = vi.fn().mockResolvedValue([]);
     const mockCreateWorkspaceTextFileNew = vi.fn().mockResolvedValue(undefined);
@@ -483,15 +512,12 @@ describe("appendToInboxNote", () => {
           fingerprint: "irrelevant",
           mimeType: "application/xml",
         },
-      ]
+      ],
     );
 
     expect(mockWriteWorkspaceBinaryFile).toHaveBeenCalledTimes(1);
-    const [workspaceRootArg, relativePathArg] = mockWriteWorkspaceBinaryFile.mock.calls[0] as [
-      string,
-      string,
-      Uint8Array,
-    ];
+    const [workspaceRootArg, relativePathArg] = mockWriteWorkspaceBinaryFile
+      .mock.calls[0] as [string, string, Uint8Array];
     expect(workspaceRootArg).toBe("/workspace");
     // Not asserting relativePathArg is free of ".." here -- that would only
     // restate this function's own unsanitized input. The actual guarantee
@@ -518,7 +544,9 @@ describe("attachment filename generation (F05 §9.3)", () => {
       },
     ];
 
-    const mockReadTextFile = vi.fn().mockResolvedValue("# Existing note\n\nOld content");
+    const mockReadTextFile = vi
+      .fn()
+      .mockResolvedValue("# Existing note\n\nOld content");
     const mockWriteTextFile = vi.fn().mockResolvedValue(undefined);
     const mockWriteWorkspaceBinaryFile = vi.fn().mockResolvedValue(undefined);
     const mockListDir = vi.fn().mockResolvedValue([]);
@@ -545,13 +573,16 @@ describe("attachment filename generation (F05 §9.3)", () => {
 
     // The attachment should have been written via writeWorkspaceBinaryFile
     expect(mockWriteWorkspaceBinaryFile).toHaveBeenCalled();
-    const relativePathArg = mockWriteWorkspaceBinaryFile.mock.calls[0][1] as string;
+    const relativePathArg = mockWriteWorkspaceBinaryFile.mock
+      .calls[0][1] as string;
 
     // CRITICAL REGRESSION: filename must not contain a colon
     expect(relativePathArg).not.toContain(":");
 
     // Should match the capture-YYYY-MM-DD-HH-MM-SS-random-name pattern
-    expect(relativePathArg).toMatch(/capture-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}-[a-z0-9]{6}-photo\.jpg$/);
+    expect(relativePathArg).toMatch(
+      /capture-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}-[a-z0-9]{6}-photo\.jpg$/,
+    );
 
     vi.restoreAllMocks();
   });
@@ -594,13 +625,26 @@ describe("verbatim (template-shaped) captures", () => {
   it("append without verbatim keeps the built-in header (regression)", async () => {
     const { appendToInboxNote, readTextFile, writeTextFile } = await load();
     readTextFile.mockRejectedValue(new Error("missing"));
-    await appendToInboxNote({ inboxNotePath: "/workspace/Inbox.md", content: "plain" });
-    expect(writeTextFile.mock.calls[0][1]).toMatch(/^### \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\n\nplain$/);
+    await appendToInboxNote({
+      inboxNotePath: "/workspace/Inbox.md",
+      content: "plain",
+    });
+    expect(writeTextFile.mock.calls[0][1]).toMatch(
+      /^### \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\n\nplain$/,
+    );
   });
 
   it("new note: writes the shaped text as the whole note, no title heading", async () => {
     const { createNoteWithTitle, createWorkspaceTextFileNew } = await load();
-    await createNoteWithTitle("/workspace/Daily", "---\ntags: [daily]\n---\n\nbody\n", "2026-11-07", "/workspace", undefined, undefined, { verbatim: true });
+    await createNoteWithTitle(
+      "/workspace/Daily",
+      "---\ntags: [daily]\n---\n\nbody\n",
+      "2026-11-07",
+      "/workspace",
+      undefined,
+      undefined,
+      { verbatim: true },
+    );
     expect(createWorkspaceTextFileNew).toHaveBeenCalledWith(
       "/workspace",
       "Daily/2026-11-07.md",
@@ -610,7 +654,16 @@ describe("verbatim (template-shaped) captures", () => {
 
   it("new note without verbatim still adds the title heading (regression)", async () => {
     const { createNoteWithTitle, createWorkspaceTextFileNew } = await load();
-    await createNoteWithTitle("/workspace/Daily", "body", "Title", "/workspace");
-    expect(createWorkspaceTextFileNew).toHaveBeenCalledWith("/workspace", "Daily/Title.md", "# Title\n\nbody");
+    await createNoteWithTitle(
+      "/workspace/Daily",
+      "body",
+      "Title",
+      "/workspace",
+    );
+    expect(createWorkspaceTextFileNew).toHaveBeenCalledWith(
+      "/workspace",
+      "Daily/Title.md",
+      "# Title\n\nbody",
+    );
   });
 });

@@ -83,7 +83,9 @@ export function HeadingBreadcrumbs({
   // note root has no HeadingRecord of its own).
   const activeHeading = chain.length > 0 ? chain[chain.length - 1] : undefined;
   const activeDuplicate =
-    activeIndex !== undefined ? computeDuplicateFlags(headings)[activeIndex] : false;
+    activeIndex !== undefined
+      ? computeDuplicateFlags(headings)[activeIndex]
+      : false;
   const ariaLabel =
     activeSource.kind === "cursor"
       ? "Breadcrumb (following Source)"
@@ -111,7 +113,9 @@ export function HeadingBreadcrumbs({
               </span>
               <button
                 class="heading-breadcrumb-segment"
-                aria-current={index === chain.length - 1 ? "location" : undefined}
+                aria-current={
+                  index === chain.length - 1 ? "location" : undefined
+                }
                 onClick={() => onSelectHeading(heading)}
               >
                 {heading.displayText || "(Untitled heading)"}

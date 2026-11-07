@@ -1,10 +1,10 @@
 /**
  * F03 Phase 2b/Phase 3: Transaction executor and recovery
  * (spec/f03-link-integrity-refactor-center.md Phase 3)
- * 
+ *
  * Provides the Apply step execution with mutation lock, preflight, journal,
  * rollback, and startup recovery for rename/move operations.
- * 
+ *
  * Key principles:
  * - One mutation lock per workspace to prevent concurrent operations
  * - Preflight validation before any mutations are made
@@ -39,7 +39,13 @@ export interface RenameJournalEntry {
    * changes the wikilink text's length (the common case), `to` no longer
    * marks the end of what's actually sitting at `from`. See
    * `applyRangeReplacementsGroupedByPath` below. */
-  originalWikilinks: { path: string; from: number; to: number; oldText: string; newText: string }[];
+  originalWikilinks: {
+    path: string;
+    from: number;
+    to: number;
+    oldText: string;
+    newText: string;
+  }[];
   /** Original metadata state (for rollback) */
   originalMetadata: {
     editorLayout: EditorLayoutState;
@@ -55,7 +61,7 @@ export interface RenameJournalEntry {
 }
 
 /** Steps in the rename execution process */
-export type RenameExecutionStep = 
+export type RenameExecutionStep =
   | "preflight"
   | "mutation_lock_acquired"
   | "metadata_migration_started"
@@ -108,10 +114,13 @@ export function releaseMutationLock(): void {
 /**
  * Start a new rename operation and create journal entry
  */
-export function startRenameOperation(oldPath: string, newPath: string): RenameJournalEntry {
+export function startRenameOperation(
+  oldPath: string,
+  newPath: string,
+): RenameJournalEntry {
   const operationId = generateOperationId();
   currentOperationId = operationId;
-  
+
   const entry: RenameJournalEntry = {
     operationId,
     startedAt: Date.now(),
@@ -126,13 +135,16 @@ export function startRenameOperation(oldPath: string, newPath: string): RenameJo
     step: "preflight",
     completed: false,
   };
-  
+
   renameJournal.push(entry);
   return entry;
 }
 
 /** Helper to create a basic editor layout */
-function createBasicEditorLayout(tabPaths: string[] = [], activePath: string | null = null): EditorLayoutState {
+function createBasicEditorLayout(
+  tabPaths: string[] = [],
+  activePath: string | null = null,
+): EditorLayoutState {
   return {
     activeGroupId: "primary",
     splitEnabled: false,
@@ -160,8 +172,8 @@ function createBasicWorkspaceSettings(): WorkspaceSettings {
  */
 function updateOperationStep(step: RenameExecutionStep): void {
   if (!currentOperationId) return;
-  
-  const entry = renameJournal.find(e => e.operationId === currentOperationId);
+
+  const entry = renameJournal.find((e) => e.operationId === currentOperationId);
   if (entry) {
     entry.step = step;
   }
@@ -172,8 +184,8 @@ function updateOperationStep(step: RenameExecutionStep): void {
  */
 function setOperationError(error: string): void {
   if (!currentOperationId) return;
-  
-  const entry = renameJournal.find(e => e.operationId === currentOperationId);
+
+  const entry = renameJournal.find((e) => e.operationId === currentOperationId);
   if (entry) {
     entry.error = error;
     entry.step = "failed";
@@ -185,13 +197,13 @@ function setOperationError(error: string): void {
  */
 function completeOperation(): void {
   if (!currentOperationId) return;
-  
-  const entry = renameJournal.find(e => e.operationId === currentOperationId);
+
+  const entry = renameJournal.find((e) => e.operationId === currentOperationId);
   if (entry) {
     entry.completed = true;
     entry.step = "completed";
   }
-  
+
   currentOperationId = null;
   releaseMutationLock();
 }
@@ -201,7 +213,7 @@ function completeOperation(): void {
  */
 function failOperation(error: string): void {
   if (!currentOperationId) return;
-  
+
   setOperationError(error);
   currentOperationId = null;
   releaseMutationLock();
@@ -212,7 +224,9 @@ function failOperation(error: string): void {
  */
 export function getCurrentOperation(): RenameJournalEntry | null {
   if (!currentOperationId) return null;
-  return renameJournal.find(e => e.operationId === currentOperationId) || null;
+  return (
+    renameJournal.find((e) => e.operationId === currentOperationId) || null
+  );
 }
 
 /**
@@ -226,7 +240,7 @@ export function getRenameJournal(): RenameJournalEntry[] {
  * Clear completed operations from journal (keep only failed/incomplete)
  */
 export function clearCompletedOperations(): void {
-  const incompleteIndex = renameJournal.findIndex(e => !e.completed);
+  const incompleteIndex = renameJournal.findIndex((e) => !e.completed);
   if (incompleteIndex > 0) {
     renameJournal.splice(0, incompleteIndex);
   }
@@ -290,7 +304,10 @@ interface NoteReadWrite {
 async function applyRangeReplacementsGroupedByPath(
   replacements: RangeReplacement[],
   io: NoteReadWrite,
-  onError?: { continueOnError: true; log: (path: string, error: unknown) => void },
+  onError?: {
+    continueOnError: true;
+    log: (path: string, error: unknown) => void;
+  },
 ): Promise<void> {
   const byPath = new Map<string, RangeReplacement[]>();
   for (const replacement of replacements) {
@@ -302,14 +319,22 @@ async function applyRangeReplacementsGroupedByPath(
   for (const [path, pathReplacements] of byPath) {
     try {
       let content = await io.readNote(path);
-      const orderedRightToLeft = [...pathReplacements].sort((a, b) => b.from - a.from);
+      const orderedRightToLeft = [...pathReplacements].sort(
+        (a, b) => b.from - a.from,
+      );
       let changed = false;
       for (const replacement of orderedRightToLeft) {
         const spanEnd = replacement.from + replacement.length;
-        if (replacement.verify !== undefined && content.slice(replacement.from, spanEnd) !== replacement.verify) {
+        if (
+          replacement.verify !== undefined &&
+          content.slice(replacement.from, spanEnd) !== replacement.verify
+        ) {
           continue;
         }
-        content = content.slice(0, replacement.from) + replacement.text + content.slice(spanEnd);
+        content =
+          content.slice(0, replacement.from) +
+          replacement.text +
+          content.slice(spanEnd);
         changed = true;
       }
       if (changed) await io.writeNote(path, content);
@@ -340,7 +365,10 @@ async function applyRangeReplacementsGroupedByPath(
 function computeRollbackReplacements(
   wikilinks: { path: string; from: number; oldText: string; newText: string }[],
 ): (RangeReplacement & { verify: string })[] {
-  const byPath = new Map<string, { path: string; from: number; oldText: string; newText: string }[]>();
+  const byPath = new Map<
+    string,
+    { path: string; from: number; oldText: string; newText: string }[]
+  >();
   for (const wikilink of wikilinks) {
     const existing = byPath.get(wikilink.path);
     if (existing) existing.push(wikilink);
@@ -351,7 +379,9 @@ function computeRollbackReplacements(
   for (const pathWikilinks of byPath.values()) {
     // Left-to-right so the cumulative shift is applied to each edit in the
     // same order the forward edits actually landed in the string.
-    const orderedLeftToRight = [...pathWikilinks].sort((a, b) => a.from - b.from);
+    const orderedLeftToRight = [...pathWikilinks].sort(
+      (a, b) => a.from - b.from,
+    );
     let shift = 0;
     for (const wikilink of orderedLeftToRight) {
       result.push({
@@ -378,37 +408,43 @@ export async function preflightRename(
   metadataMigrationPlan: MetadataMigrationPlan,
   currentEditorLayout: EditorLayoutState,
   currentBookmarks: Bookmark[],
-  currentWorkspaceSettings: WorkspaceSettings
+  currentWorkspaceSettings: WorkspaceSettings,
 ): Promise<{ success: boolean; error?: string }> {
   // 1. Check if oldPath exists
   // 2. Check if newPath doesn't already exist
   // 3. Check if operation would create ambiguity
   // 4. Check if we have the necessary permissions
-  
+
   // For now, implement basic checks
   if (oldPath === newPath) {
-    return { success: false, error: "Source and destination paths are the same" };
+    return {
+      success: false,
+      error: "Source and destination paths are the same",
+    };
   }
-  
+
   // Check for blocked edits (would become ambiguous)
   if (renamePlan.blocked.length > 0) {
     return {
       success: false,
-      error: `Cannot rename: ${renamePlan.blocked.length} references would become ambiguous`
+      error: `Cannot rename: ${renamePlan.blocked.length} references would become ambiguous`,
     };
   }
-  
+
   // Check if there are any edits to make
   const hasWikilinkEdits = renamePlan.edits.length > 0;
-  const hasMetadataEdits = 
-    JSON.stringify(metadataMigrationPlan.editorLayout) !== JSON.stringify(currentEditorLayout) ||
-    JSON.stringify(metadataMigrationPlan.bookmarks) !== JSON.stringify(currentBookmarks) ||
-    JSON.stringify(metadataMigrationPlan.workspaceSettings) !== JSON.stringify(currentWorkspaceSettings);
-  
+  const hasMetadataEdits =
+    JSON.stringify(metadataMigrationPlan.editorLayout) !==
+      JSON.stringify(currentEditorLayout) ||
+    JSON.stringify(metadataMigrationPlan.bookmarks) !==
+      JSON.stringify(currentBookmarks) ||
+    JSON.stringify(metadataMigrationPlan.workspaceSettings) !==
+      JSON.stringify(currentWorkspaceSettings);
+
   if (!hasWikilinkEdits && !hasMetadataEdits) {
     return { success: false, error: "No changes to apply" };
   }
-  
+
   return { success: true };
 }
 
@@ -430,17 +466,24 @@ export async function executeRenameOperation(
     saveEditorLayout: (layout: EditorLayoutState) => Promise<void>;
     saveBookmarks: (bookmarks: Bookmark[]) => Promise<void>;
     saveWorkspaceSettings: (settings: WorkspaceSettings) => Promise<void>;
-  }
-): Promise<{ success: boolean; error?: string; journalEntry?: RenameJournalEntry }> {
+  },
+): Promise<{
+  success: boolean;
+  error?: string;
+  journalEntry?: RenameJournalEntry;
+}> {
   // Step 1: Acquire mutation lock
   if (!acquireMutationLock()) {
-    return { success: false, error: "Another rename operation is already in progress" };
+    return {
+      success: false,
+      error: "Another rename operation is already in progress",
+    };
   }
-  
+
   // Step 2: Start operation and create journal entry
   const entry = startRenameOperation(oldPath, newPath);
   updateOperationStep("mutation_lock_acquired");
-  
+
   try {
     // Step 3: Create metadata migration plan
     const metadataPlan = createMetadataMigrationPlan(
@@ -448,16 +491,16 @@ export async function executeRenameOperation(
       currentBookmarks,
       currentWorkspaceSettings,
       oldPath,
-      newPath
+      newPath,
     );
-    
+
     // Store original metadata for rollback
     entry.originalMetadata = {
       editorLayout: JSON.parse(JSON.stringify(currentEditorLayout)),
       bookmarks: JSON.parse(JSON.stringify(currentBookmarks)),
       workspaceSettings: JSON.parse(JSON.stringify(currentWorkspaceSettings)),
     };
-    
+
     // Store original wikilink content for rollback
     for (const edit of renamePlan.edits) {
       entry.originalWikilinks.push({
@@ -468,18 +511,26 @@ export async function executeRenameOperation(
         newText: edit.newText,
       });
     }
-    
+
     updateOperationStep("preflight");
-    
+
     // Step 4: Preflight validation
-    const preflight = await preflightRename(oldPath, newPath, renamePlan, metadataPlan, currentEditorLayout, currentBookmarks, currentWorkspaceSettings);
+    const preflight = await preflightRename(
+      oldPath,
+      newPath,
+      renamePlan,
+      metadataPlan,
+      currentEditorLayout,
+      currentBookmarks,
+      currentWorkspaceSettings,
+    );
     if (!preflight.success) {
       failOperation(preflight.error || "Preflight failed");
       return { success: false, error: preflight.error, journalEntry: entry };
     }
-    
+
     updateOperationStep("metadata_migration_started");
-    
+
     // Step 5: Apply metadata migration
     try {
       await options.saveEditorLayout(metadataPlan.editorLayout);
@@ -490,11 +541,15 @@ export async function executeRenameOperation(
       // If metadata migration fails, we need to rollback
       failOperation(`Metadata migration failed: ${error}`);
       await rollbackOperation(entry, options);
-      return { success: false, error: `Metadata migration failed: ${error}`, journalEntry: entry };
+      return {
+        success: false,
+        error: `Metadata migration failed: ${error}`,
+        journalEntry: entry,
+      };
     }
-    
+
     updateOperationStep("wikilink_updates_started");
-    
+
     // Step 6: Apply wikilink updates
     try {
       await applyRangeReplacementsGroupedByPath(
@@ -511,11 +566,15 @@ export async function executeRenameOperation(
       // If wikilink updates fail, we need to rollback both wikilinks and metadata
       failOperation(`Wikilink updates failed: ${error}`);
       await rollbackOperation(entry, options);
-      return { success: false, error: `Wikilink updates failed: ${error}`, journalEntry: entry };
+      return {
+        success: false,
+        error: `Wikilink updates failed: ${error}`,
+        journalEntry: entry,
+      };
     }
-    
+
     updateOperationStep("file_rename_started");
-    
+
     // Step 7: Rename the actual file
     try {
       await options.renameFile(oldPath, newPath);
@@ -524,41 +583,51 @@ export async function executeRenameOperation(
       // If file rename fails, rollback everything
       failOperation(`File rename failed: ${error}`);
       await rollbackOperation(entry, options);
-      return { success: false, error: `File rename failed: ${error}`, journalEntry: entry };
+      return {
+        success: false,
+        error: `File rename failed: ${error}`,
+        journalEntry: entry,
+      };
     }
-    
+
     updateOperationStep("finalization_started");
-    
+
     // Step 8: Final cleanup and validation
     updateOperationStep("completed");
     completeOperation();
-    
+
     return { success: true, journalEntry: entry };
-    
   } catch (error) {
     // Handle any unexpected errors
     failOperation(`Unexpected error: ${error}`);
     await rollbackOperation(entry, options);
-    return { success: false, error: `Unexpected error: ${error}`, journalEntry: entry };
+    return {
+      success: false,
+      error: `Unexpected error: ${error}`,
+      journalEntry: entry,
+    };
   }
 }
 
 /**
  * Rollback an incomplete or failed operation
  */
-async function rollbackOperation(entry: RenameJournalEntry, options: {
-  readNote: (path: string) => Promise<string>;
-  writeNote: (path: string, content: string) => Promise<void>;
-  renameFile: (oldPath: string, newPath: string) => Promise<void>;
-  saveEditorLayout: (layout: EditorLayoutState) => Promise<void>;
-  saveBookmarks: (bookmarks: Bookmark[]) => Promise<void>;
-  saveWorkspaceSettings: (settings: WorkspaceSettings) => Promise<void>;
-}): Promise<void> {
+async function rollbackOperation(
+  entry: RenameJournalEntry,
+  options: {
+    readNote: (path: string) => Promise<string>;
+    writeNote: (path: string, content: string) => Promise<void>;
+    renameFile: (oldPath: string, newPath: string) => Promise<void>;
+    saveEditorLayout: (layout: EditorLayoutState) => Promise<void>;
+    saveBookmarks: (bookmarks: Bookmark[]) => Promise<void>;
+    saveWorkspaceSettings: (settings: WorkspaceSettings) => Promise<void>;
+  },
+): Promise<void> {
   updateOperationStep("rollback_started");
-  
+
   try {
     // The order of rollback should be reverse of the execution order
-    
+
     // 1. Rollback file rename (if it happened) - rename back from newPath to oldPath
     try {
       await options.renameFile(entry.newPath, entry.oldPath);
@@ -566,7 +635,7 @@ async function rollbackOperation(entry: RenameJournalEntry, options: {
       // If we can't rename back, that's a problem but we'll continue with other rollbacks
       console.error("Failed to rollback file rename:", renameError);
     }
-    
+
     // 2. Rollback wikilink updates. `computeRollbackReplacements` restores
     // each replacement at its *actual* current position (the `newText` it
     // wrote may be a different length than the pre-edit `oldText`, which
@@ -579,21 +648,23 @@ async function rollbackOperation(entry: RenameJournalEntry, options: {
       options,
       {
         continueOnError: true,
-        log: (path, error) => console.error(`Failed to rollback wikilink(s) in ${path}:`, error),
+        log: (path, error) =>
+          console.error(`Failed to rollback wikilink(s) in ${path}:`, error),
       },
     );
-    
+
     // 3. Rollback metadata migration
     try {
       await options.saveEditorLayout(entry.originalMetadata.editorLayout);
       await options.saveBookmarks(entry.originalMetadata.bookmarks);
-      await options.saveWorkspaceSettings(entry.originalMetadata.workspaceSettings);
+      await options.saveWorkspaceSettings(
+        entry.originalMetadata.workspaceSettings,
+      );
     } catch (metadataError) {
       console.error("Failed to rollback metadata:", metadataError);
     }
-    
+
     updateOperationStep("rollback_completed");
-    
   } catch (rollbackError) {
     updateOperationStep("failed");
     // If rollback fails, we have a serious problem
@@ -669,7 +740,13 @@ export async function applyRenamePlan(
         preferredRatio: 0.5,
         compactVisibleGroupId: "primary",
         groups: {
-          primary: { id: "primary", tabPaths: [], pinnedPaths: [], activePath: null, viewMode: "source" },
+          primary: {
+            id: "primary",
+            tabPaths: [],
+            pinnedPaths: [],
+            activePath: null,
+            viewMode: "source",
+          },
         },
       },
       bookmarks: [],
@@ -717,11 +794,15 @@ export async function applyRenamePlan(
     // `computeRollbackReplacements`).
     try {
       await applyRangeReplacementsGroupedByPath(
-        computeRollbackReplacements([...originalWikilinks, ...originalMarkdown]),
+        computeRollbackReplacements([
+          ...originalWikilinks,
+          ...originalMarkdown,
+        ]),
         options,
         {
           continueOnError: true,
-          log: (path, err) => console.error(`Failed to rollback wikilink(s) in ${path}:`, err),
+          log: (path, err) =>
+            console.error(`Failed to rollback wikilink(s) in ${path}:`, err),
         },
       );
     } catch (rollbackError) {
@@ -731,30 +812,31 @@ export async function applyRenamePlan(
     journalEntry.completed = false;
     journalEntry.step = "failed";
     journalEntry.error = error instanceof Error ? error.message : String(error);
-    return { success: false, error: error instanceof Error ? error.message : String(error) };
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
   }
 }
 
 /**
  * Startup recovery - check for incomplete operations and handle them
  */
-export async function recoverFromIncompleteOperations(
-  options: {
-    readNote: (path: string) => Promise<string>;
-    writeNote: (path: string, content: string) => Promise<void>;
-    renameFile: (oldPath: string, newPath: string) => Promise<void>;
-    saveEditorLayout: (layout: EditorLayoutState) => Promise<void>;
-    saveBookmarks: (bookmarks: Bookmark[]) => Promise<void>;
-    saveWorkspaceSettings: (settings: WorkspaceSettings) => Promise<void>;
-  }
-): Promise<{ recovered: boolean; operations: RenameJournalEntry[] }> {
+export async function recoverFromIncompleteOperations(options: {
+  readNote: (path: string) => Promise<string>;
+  writeNote: (path: string, content: string) => Promise<void>;
+  renameFile: (oldPath: string, newPath: string) => Promise<void>;
+  saveEditorLayout: (layout: EditorLayoutState) => Promise<void>;
+  saveBookmarks: (bookmarks: Bookmark[]) => Promise<void>;
+  saveWorkspaceSettings: (settings: WorkspaceSettings) => Promise<void>;
+}): Promise<{ recovered: boolean; operations: RenameJournalEntry[] }> {
   // Find any incomplete operations
-  const incompleteOperations = renameJournal.filter(e => !e.completed);
-  
+  const incompleteOperations = renameJournal.filter((e) => !e.completed);
+
   if (incompleteOperations.length === 0) {
     return { recovered: false, operations: [] };
   }
-  
+
   // For now, we'll attempt to rollback incomplete operations
   // A full implementation would offer resume options
   for (const operation of incompleteOperations) {
@@ -763,13 +845,16 @@ export async function recoverFromIncompleteOperations(
       operation.completed = true;
       operation.step = "rollback_completed";
     } catch (recoveryError) {
-      console.error(`Failed to recover operation ${operation.operationId}:`, recoveryError);
+      console.error(
+        `Failed to recover operation ${operation.operationId}:`,
+        recoveryError,
+      );
       // Mark as failed if recovery itself fails
       operation.completed = false;
       operation.error = `Recovery failed: ${recoveryError}`;
     }
   }
-  
+
   return { recovered: true, operations: incompleteOperations };
 }
 
@@ -777,12 +862,12 @@ export async function recoverFromIncompleteOperations(
  * Check if there's an incomplete operation that needs recovery
  */
 export function hasIncompleteOperations(): boolean {
-  return renameJournal.some(e => !e.completed);
+  return renameJournal.some((e) => !e.completed);
 }
 
 /**
  * Get the current incomplete operation (if any)
  */
 export function getIncompleteOperation(): RenameJournalEntry | null {
-  return renameJournal.find(e => !e.completed) || null;
+  return renameJournal.find((e) => !e.completed) || null;
 }

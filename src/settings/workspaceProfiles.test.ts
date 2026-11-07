@@ -104,14 +104,23 @@ describe("workspaceLocatorKey / findProfileByLocator", () => {
   });
 
   it("keys on the exact path when no token is present", () => {
-    expect(workspaceLocatorKey("/vault", undefined)).toBe(workspaceLocatorKey("/vault", undefined));
-    expect(workspaceLocatorKey("/vault", undefined)).not.toBe(workspaceLocatorKey("/Vault", undefined));
+    expect(workspaceLocatorKey("/vault", undefined)).toBe(
+      workspaceLocatorKey("/vault", undefined),
+    );
+    expect(workspaceLocatorKey("/vault", undefined)).not.toBe(
+      workspaceLocatorKey("/Vault", undefined),
+    );
   });
 
   it("finds an existing profile matching a freshly picked folder's locator", () => {
-    const profiles = [profile({ id: "p1", path: "/vault" }), profile({ id: "p2", path: "/other" })];
+    const profiles = [
+      profile({ id: "p1", path: "/vault" }),
+      profile({ id: "p2", path: "/other" }),
+    ];
     expect(findProfileByLocator(profiles, "/other", undefined)?.id).toBe("p2");
-    expect(findProfileByLocator(profiles, "/unknown", undefined)).toBeUndefined();
+    expect(
+      findProfileByLocator(profiles, "/unknown", undefined),
+    ).toBeUndefined();
   });
 
   it("matches by token identity across an Android profile's shared synthetic path", () => {
@@ -119,7 +128,9 @@ describe("workspaceLocatorKey / findProfileByLocator", () => {
       profile({ id: "p1", path: "/workspace", token: "content://a" }),
       profile({ id: "p2", path: "/workspace", token: "content://b" }),
     ];
-    expect(findProfileByLocator(profiles, "/workspace", "content://b")?.id).toBe("p2");
+    expect(
+      findProfileByLocator(profiles, "/workspace", "content://b")?.id,
+    ).toBe("p2");
   });
 });
 
@@ -130,7 +141,11 @@ describe("sortWorkspaceProfiles", () => {
       profile({ id: "new", lastOpenedAt: 3 }),
       profile({ id: "mid", lastOpenedAt: 2 }),
     ];
-    expect(sortWorkspaceProfiles(profiles).map((p) => p.id)).toEqual(["new", "mid", "old"]);
+    expect(sortWorkspaceProfiles(profiles).map((p) => p.id)).toEqual([
+      "new",
+      "mid",
+      "old",
+    ]);
   });
 
   it("breaks a tied lastOpenedAt by case-insensitive name", () => {
@@ -138,7 +153,10 @@ describe("sortWorkspaceProfiles", () => {
       profile({ id: "b", name: "banana", lastOpenedAt: 5 }),
       profile({ id: "a", name: "Apple", lastOpenedAt: 5 }),
     ];
-    expect(sortWorkspaceProfiles(profiles).map((p) => p.id)).toEqual(["a", "b"]);
+    expect(sortWorkspaceProfiles(profiles).map((p) => p.id)).toEqual([
+      "a",
+      "b",
+    ]);
   });
 
   it("breaks a tied name by stable ID", () => {
@@ -146,13 +164,19 @@ describe("sortWorkspaceProfiles", () => {
       profile({ id: "z", name: "Same", lastOpenedAt: 5 }),
       profile({ id: "a", name: "Same", lastOpenedAt: 5 }),
     ];
-    expect(sortWorkspaceProfiles(profiles).map((p) => p.id)).toEqual(["a", "z"]);
+    expect(sortWorkspaceProfiles(profiles).map((p) => p.id)).toEqual([
+      "a",
+      "z",
+    ]);
   });
 });
 
 describe("matchesWorkspaceSearch", () => {
   it("matches names, desktop basenames, and desktop path text case-insensitively", () => {
-    const p = profile({ name: "Project Notes", path: "/Users/me/Research/Vault" });
+    const p = profile({
+      name: "Project Notes",
+      path: "/Users/me/Research/Vault",
+    });
     expect(matchesWorkspaceSearch(p, "project")).toBe(true);
     expect(matchesWorkspaceSearch(p, "vault")).toBe(true);
     expect(matchesWorkspaceSearch(p, "RESEARCH")).toBe(true);
@@ -160,7 +184,11 @@ describe("matchesWorkspaceSearch", () => {
   });
 
   it("does not expose Android path or token text through search", () => {
-    const p = profile({ name: "Phone Notes", path: "/workspace", token: "content://secret/tree" });
+    const p = profile({
+      name: "Phone Notes",
+      path: "/workspace",
+      token: "content://secret/tree",
+    });
     expect(matchesWorkspaceSearch(p, "phone")).toBe(true);
     expect(matchesWorkspaceSearch(p, "workspace")).toBe(false);
     expect(matchesWorkspaceSearch(p, "secret")).toBe(false);

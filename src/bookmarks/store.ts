@@ -5,7 +5,11 @@
  */
 import { effect, signal } from "@preact/signals";
 import { workspacePath } from "../settings/store";
-import { readTextFile, updateFavoritesWidget, writeWorkspaceTextFile } from "../workspace/tauriBridge";
+import {
+  readTextFile,
+  updateFavoritesWidget,
+  writeWorkspaceTextFile,
+} from "../workspace/tauriBridge";
 import { workspaceTransitions } from "../workspace/workspaceTransition";
 import type { Bookmark } from "./types";
 
@@ -64,7 +68,10 @@ const MAX_WIDGET_FAVORITES = 25;
 // so this never needs its own platform check.
 effect(() => {
   const entries = bookmarks.value
-    .filter((bookmark): bookmark is Extract<Bookmark, { kind: "file" }> => bookmark.kind === "file")
+    .filter(
+      (bookmark): bookmark is Extract<Bookmark, { kind: "file" }> =>
+        bookmark.kind === "file",
+    )
     .slice(0, MAX_WIDGET_FAVORITES)
     .map((bookmark) => ({ label: bookmark.label, path: bookmark.path }));
   void updateFavoritesWidget(entries);
@@ -94,7 +101,11 @@ function saveBookmarks(): Promise<void> {
   const root = workspacePath.value;
   if (!root) return Promise.resolve();
   const write = bookmarksWriteTail.then(() =>
-    writeWorkspaceTextFile(root, ".leotheca/bookmarks.json", JSON.stringify(bookmarks.value, null, 2)),
+    writeWorkspaceTextFile(
+      root,
+      ".leotheca/bookmarks.json",
+      JSON.stringify(bookmarks.value, null, 2),
+    ),
   );
   // Keep the tail settled even on failure, so one rejected write doesn't
   // permanently wedge every later one behind it.

@@ -38,7 +38,10 @@ const MAX_ENTRIES = 200;
 const cache = new Map<string, DocumentViewState>();
 
 /** Records `path`'s current position, most-recently-used. */
-export function saveDocumentViewState(path: string, state: DocumentViewState): void {
+export function saveDocumentViewState(
+  path: string,
+  state: DocumentViewState,
+): void {
   cache.delete(path);
   cache.set(path, state);
   while (cache.size > MAX_ENTRIES) {
@@ -51,7 +54,10 @@ export function saveDocumentViewState(path: string, state: DocumentViewState): v
 /** Returns `path`'s cached position only if the caller's current document
  * length still matches what it was captured against; otherwise `undefined`,
  * exactly as if nothing had ever been cached. */
-export function getDocumentViewState(path: string, currentDocLength: number): DocumentViewState | undefined {
+export function getDocumentViewState(
+  path: string,
+  currentDocLength: number,
+): DocumentViewState | undefined {
   const state = cache.get(path);
   if (!state || state.docLength !== currentDocLength) return undefined;
   return state;

@@ -24,7 +24,9 @@ const FORBIDDEN: Array<{ name: string; re: RegExp }> = [
   {
     name: "private or CGNAT IPv4 address",
     re: new RegExp(
-      "(?<![\\d.])(?:10\\." + octet + "|192\\.168|172\\.(?:1[6-9]|2\\d|3[01])|100\\.(?:6[4-9]|[7-9]\\d|1[01]\\d|12[0-7]))\\." +
+      "(?<![\\d.])(?:10\\." +
+        octet +
+        "|192\\.168|172\\.(?:1[6-9]|2\\d|3[01])|100\\.(?:6[4-9]|[7-9]\\d|1[01]\\d|12[0-7]))\\." +
         octet +
         "\\." +
         octet +
@@ -34,10 +36,14 @@ const FORBIDDEN: Array<{ name: string; re: RegExp }> = [
   { name: "machine path", re: new RegExp("/var/lib/" + "leohub") },
 ];
 
-const SKIP_CONTENT = /\.(png|jpe?g|gif|mp4|wasm|otf|ttf|pfb|bcmap|icc|jar|keystore|lock)$|(^|\/)package-lock\.json$|^public\/pdfjs\/|(^|\/)[a-z-]+-sources\.json$/;
+const SKIP_CONTENT =
+  /\.(png|jpe?g|gif|mp4|wasm|otf|ttf|pfb|bcmap|icc|jar|keystore|lock)$|(^|\/)package-lock\.json$|^public\/pdfjs\/|(^|\/)[a-z-]+-sources\.json$/;
 
 function trackedFiles(): string[] {
-  const out = execFileSync("git", ["ls-files", "-z"], { cwd: root, maxBuffer: 64 * 1024 * 1024 }).toString();
+  const out = execFileSync("git", ["ls-files", "-z"], {
+    cwd: root,
+    maxBuffer: 64 * 1024 * 1024,
+  }).toString();
   return out.split("\0").filter(Boolean);
 }
 
@@ -62,7 +68,11 @@ describe("repository hygiene", () => {
   it("tracks no private IP address or machine-specific path outside agent handoffs", () => {
     const hits: string[] = [];
     for (const f of files) {
-      if (SCAN_EXEMPT_PREFIXES.some((p) => f.startsWith(p)) || SKIP_CONTENT.test(f)) continue;
+      if (
+        SCAN_EXEMPT_PREFIXES.some((p) => f.startsWith(p)) ||
+        SKIP_CONTENT.test(f)
+      )
+        continue;
       const text = readFileSync(resolve(root, f), "utf8");
       for (const { name, re } of FORBIDDEN) {
         const m = re.exec(text);

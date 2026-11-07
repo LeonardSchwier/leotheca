@@ -3,7 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, waitFor } from "@testing-library/preact";
 
 vi.mock("../markdown/mermaid", async () => {
-  const actual = await vi.importActual<typeof import("../markdown/mermaid")>("../markdown/mermaid");
+  const actual = await vi.importActual<typeof import("../markdown/mermaid")>(
+    "../markdown/mermaid",
+  );
   return {
     ...actual,
     renderMermaidToSvg: vi.fn(),
@@ -48,19 +50,25 @@ afterEach(() => {
 
 describe("MarkdownPreview", () => {
   it("renders standard markdown to HTML", () => {
-    const { container } = render(<MarkdownPreview source={"# Title\n\n**bold** and *italic*"} />);
+    const { container } = render(
+      <MarkdownPreview source={"# Title\n\n**bold** and *italic*"} />,
+    );
     expect(container.querySelector("h1")?.textContent).toBe("Title");
     expect(container.querySelector("strong")?.textContent).toBe("bold");
     expect(container.querySelector("em")?.textContent).toBe("italic");
   });
 
   it("sanitizes raw HTML so a script tag can't execute", () => {
-    const { container } = render(<MarkdownPreview source={'<script>window.pwned = true</script>'} />);
+    const { container } = render(
+      <MarkdownPreview source={"<script>window.pwned = true</script>"} />,
+    );
     expect(container.querySelector("script")).toBeNull();
   });
 
   it("sanitizes an attribute-based XSS attempt (onerror on an <img>)", () => {
-    const { container } = render(<MarkdownPreview source={'<img src="x" onerror="window.pwned=true">'} />);
+    const { container } = render(
+      <MarkdownPreview source={'<img src="x" onerror="window.pwned=true">'} />,
+    );
     const img = container.querySelector("img");
     expect(img?.getAttribute("onerror")).toBeNull();
   });
@@ -68,14 +76,18 @@ describe("MarkdownPreview", () => {
   it("renders a resolved wikilink as a solid, resolved-styled link", () => {
     linkIndex.value = {
       backlinksByPath: new Map(),
-      pathsByNoteName: new Map([["existing note", ["/vault/existing-note.md"]]]),
+      pathsByNoteName: new Map([
+        ["existing note", ["/vault/existing-note.md"]],
+      ]),
       pathsByAlias: new Map(),
       aliasesByPath: new Map(),
       pathsByTag: new Map(),
       tagsByPath: new Map(),
       tasksByPath: new Map(),
     };
-    const { container } = render(<MarkdownPreview source="See [[Existing Note]] for details." />);
+    const { container } = render(
+      <MarkdownPreview source="See [[Existing Note]] for details." />,
+    );
     const anchor = container.querySelector('a[href^="#leotheca-wikilink="]');
     expect(anchor).toBeTruthy();
     expect(anchor?.getAttribute("href")).toContain("&resolved=1");
@@ -83,22 +95,30 @@ describe("MarkdownPreview", () => {
   });
 
   it("renders an unresolved wikilink without the resolved marker", () => {
-    const { container } = render(<MarkdownPreview source="See [[Missing Note]] for details." />);
+    const { container } = render(
+      <MarkdownPreview source="See [[Missing Note]] for details." />,
+    );
     const anchor = container.querySelector('a[href^="#leotheca-wikilink="]');
     expect(anchor).toBeTruthy();
     expect(anchor?.getAttribute("href")).not.toContain("&resolved=1");
   });
 
   it("leaves an empty [[]] wikilink untouched rather than turning it into a link", () => {
-    const { container } = render(<MarkdownPreview source="Just [[]] brackets." />);
-    expect(container.querySelector('a[href^="#leotheca-wikilink="]')).toBeNull();
+    const { container } = render(
+      <MarkdownPreview source="Just [[]] brackets." />,
+    );
+    expect(
+      container.querySelector('a[href^="#leotheca-wikilink="]'),
+    ).toBeNull();
     expect(container.textContent).toContain("[[]]");
   });
 
   it("clicking a resolved wikilink opens the target file and prevents navigation", () => {
     linkIndex.value = {
       backlinksByPath: new Map(),
-      pathsByNoteName: new Map([["existing note", ["/vault/existing-note.md"]]]),
+      pathsByNoteName: new Map([
+        ["existing note", ["/vault/existing-note.md"]],
+      ]),
       pathsByAlias: new Map(),
       aliasesByPath: new Map(),
       pathsByTag: new Map(),
@@ -107,19 +127,32 @@ describe("MarkdownPreview", () => {
     };
     const onOpenFile = vi.fn();
     const { container } = render(
-      <MarkdownPreview source="See [[Existing Note]] for details." onOpenFile={onOpenFile} />,
+      <MarkdownPreview
+        source="See [[Existing Note]] for details."
+        onOpenFile={onOpenFile}
+      />,
     );
-    const anchor = container.querySelector('a[href^="#leotheca-wikilink="]') as HTMLAnchorElement;
+    const anchor = container.querySelector(
+      'a[href^="#leotheca-wikilink="]',
+    ) as HTMLAnchorElement;
     fireEvent.click(anchor);
-    expect(onOpenFile).toHaveBeenCalledWith("/vault/existing-note.md", "existing-note.md");
+    expect(onOpenFile).toHaveBeenCalledWith(
+      "/vault/existing-note.md",
+      "existing-note.md",
+    );
   });
 
   it("clicking an unresolved wikilink does not call onOpenFile", () => {
     const onOpenFile = vi.fn();
     const { container } = render(
-      <MarkdownPreview source="See [[Missing Note]] for details." onOpenFile={onOpenFile} />,
+      <MarkdownPreview
+        source="See [[Missing Note]] for details."
+        onOpenFile={onOpenFile}
+      />,
     );
-    const anchor = container.querySelector('a[href^="#leotheca-wikilink="]') as HTMLAnchorElement;
+    const anchor = container.querySelector(
+      'a[href^="#leotheca-wikilink="]',
+    ) as HTMLAnchorElement;
     fireEvent.click(anchor);
     expect(onOpenFile).not.toHaveBeenCalled();
   });
@@ -127,7 +160,10 @@ describe("MarkdownPreview", () => {
   it("clicking a regular markdown link does not call onOpenFile", () => {
     const onOpenFile = vi.fn();
     const { container } = render(
-      <MarkdownPreview source="[a normal link](https://example.com)" onOpenFile={onOpenFile} />,
+      <MarkdownPreview
+        source="[a normal link](https://example.com)"
+        onOpenFile={onOpenFile}
+      />,
     );
     const anchor = container.querySelector("a") as HTMLAnchorElement;
     fireEvent.click(anchor);
@@ -137,19 +173,28 @@ describe("MarkdownPreview", () => {
 
 describe("MarkdownPreview: search-query highlighting", () => {
   it("highlights every occurrence of the search term in one text node, not just the first", () => {
-    const { container } = render(<MarkdownPreview source="test test test" searchQuery="test" />);
+    const { container } = render(
+      <MarkdownPreview source="test test test" searchQuery="test" />,
+    );
     const highlights = container.querySelectorAll(".search-highlight");
     expect(highlights.length).toBe(3);
     highlights.forEach((el) => expect(el.textContent).toBe("test"));
   });
 
   it("highlights matches across separate text nodes produced by different paragraphs", () => {
-    const { container } = render(<MarkdownPreview source={"one test\n\nanother test"} searchQuery="test" />);
+    const { container } = render(
+      <MarkdownPreview
+        source={"one test\n\nanother test"}
+        searchQuery="test"
+      />,
+    );
     expect(container.querySelectorAll(".search-highlight").length).toBe(2);
   });
 
   it("matches case-insensitively", () => {
-    const { container } = render(<MarkdownPreview source="Test TEST test" searchQuery="test" />);
+    const { container } = render(
+      <MarkdownPreview source="Test TEST test" searchQuery="test" />,
+    );
     expect(container.querySelectorAll(".search-highlight").length).toBe(3);
   });
 
@@ -159,7 +204,9 @@ describe("MarkdownPreview: search-query highlighting", () => {
     // entity ("amp") must never wrap part of it in a <span>, since the
     // browser would then reparse the severed "&" as a literal character
     // instead of resolving the entity, corrupting the rendered text.
-    const { container } = render(<MarkdownPreview source="AT&T reported" searchQuery="amp" />);
+    const { container } = render(
+      <MarkdownPreview source="AT&T reported" searchQuery="amp" />,
+    );
     expect(container.querySelector(".search-highlight")).toBeNull();
     expect(container.textContent?.trim()).toBe("AT&T reported");
   });
@@ -169,13 +216,20 @@ describe("MarkdownPreview: search-query highlighting", () => {
     // the entity-splitting logic treats "&amp;" as a single token and
     // skips it, so a "&" query produces no highlight — this is correct
     // (highlighting only part of the entity would corrupt the text).
-    const { container } = render(<MarkdownPreview source="Bed & Breakfast" searchQuery="&" />);
+    const { container } = render(
+      <MarkdownPreview source="Bed & Breakfast" searchQuery="&" />,
+    );
     expect(container.querySelector(".search-highlight")).toBeNull();
     expect(container.textContent?.trim()).toBe("Bed & Breakfast");
   });
 
   it("still highlights an ordinary term that sits right next to an entity", () => {
-    const { container } = render(<MarkdownPreview source="AT&T reported record profit" searchQuery="report" />);
+    const { container } = render(
+      <MarkdownPreview
+        source="AT&T reported record profit"
+        searchQuery="report"
+      />,
+    );
     const highlights = container.querySelectorAll(".search-highlight");
     expect(highlights.length).toBe(1);
     expect(highlights[0].textContent).toBe("report");
@@ -194,16 +248,23 @@ describe("MarkdownPreview: local image attachments", () => {
   });
 
   it("leaves a local relative image unresolved when no notePath is given", () => {
-    const { container } = render(<MarkdownPreview source="![a cat](cat.png)" />);
+    const { container } = render(
+      <MarkdownPreview source="![a cat](cat.png)" />,
+    );
     const img = container.querySelector("img");
     expect(img?.getAttribute("src")).toBe("cat.png");
     expect(fileSrc).not.toHaveBeenCalled();
   });
 
   it("resolves a local relative image against the note's own folder", async () => {
-    vi.mocked(fileSrc).mockResolvedValue("asset://localhost/vault/notes/cat.png");
+    vi.mocked(fileSrc).mockResolvedValue(
+      "asset://localhost/vault/notes/cat.png",
+    );
     const { container } = render(
-      <MarkdownPreview source="![a cat](cat.png)" notePath="/vault/notes/today.md" />,
+      <MarkdownPreview
+        source="![a cat](cat.png)"
+        notePath="/vault/notes/today.md"
+      />,
     );
 
     expect(fileSrc).toHaveBeenCalledWith("/vault/notes/cat.png");
@@ -215,7 +276,9 @@ describe("MarkdownPreview: local image attachments", () => {
   });
 
   it("resolves a ../ image target relative to the note's folder when it stays in the workspace", async () => {
-    vi.mocked(fileSrc).mockResolvedValue("asset://localhost/vault/attachments/cat.png");
+    vi.mocked(fileSrc).mockResolvedValue(
+      "asset://localhost/vault/attachments/cat.png",
+    );
     render(
       <MarkdownPreview
         source="![a cat](../attachments/cat.png)"
@@ -227,10 +290,15 @@ describe("MarkdownPreview: local image attachments", () => {
 
   it("rejects a relative image that escapes the workspace without reading it", () => {
     const { container } = render(
-      <MarkdownPreview source="![outside](../../outside.png)" notePath="/vault/notes/today.md" />,
+      <MarkdownPreview
+        source="![outside](../../outside.png)"
+        notePath="/vault/notes/today.md"
+      />,
     );
     expect(fileSrc).not.toHaveBeenCalled();
-    expect(container.querySelector("img")?.getAttribute("src")).toBe("../../outside.png");
+    expect(container.querySelector("img")?.getAttribute("src")).toBe(
+      "../../outside.png",
+    );
   });
 
   it("rejects a prefix-confusion escape at the exact workspace boundary", () => {
@@ -244,38 +312,64 @@ describe("MarkdownPreview: local image attachments", () => {
   });
 
   it("rejects an absolute local image target without reading it", () => {
-    render(<MarkdownPreview source="![outside](/outside/cat.png)" notePath="/vault/notes/today.md" />);
+    render(
+      <MarkdownPreview
+        source="![outside](/outside/cat.png)"
+        notePath="/vault/notes/today.md"
+      />,
+    );
     expect(fileSrc).not.toHaveBeenCalled();
   });
 
   it("preserves a title alongside a resolved local image", async () => {
-    vi.mocked(fileSrc).mockResolvedValue("asset://localhost/vault/notes/cat.png");
-    const { container } = render(
-      <MarkdownPreview source='![a cat](cat.png "My cat")' notePath="/vault/notes/today.md" />,
+    vi.mocked(fileSrc).mockResolvedValue(
+      "asset://localhost/vault/notes/cat.png",
     );
-    await waitFor(() => expect(container.querySelector("img")?.getAttribute("src")).not.toContain("#leotheca-attachment"));
-    expect(container.querySelector("img")?.getAttribute("title")).toBe("My cat");
+    const { container } = render(
+      <MarkdownPreview
+        source='![a cat](cat.png "My cat")'
+        notePath="/vault/notes/today.md"
+      />,
+    );
+    await waitFor(() =>
+      expect(container.querySelector("img")?.getAttribute("src")).not.toContain(
+        "#leotheca-attachment",
+      ),
+    );
+    expect(container.querySelector("img")?.getAttribute("title")).toBe(
+      "My cat",
+    );
   });
 
   it("does not resolve an absolute http(s) image link", () => {
     const { container } = render(
-      <MarkdownPreview source="![remote](https://example.com/cat.png)" notePath="/vault/notes/today.md" />,
+      <MarkdownPreview
+        source="![remote](https://example.com/cat.png)"
+        notePath="/vault/notes/today.md"
+      />,
     );
     expect(fileSrc).not.toHaveBeenCalled();
-    expect(container.querySelector("img")?.getAttribute("src")).toBe("https://example.com/cat.png");
+    expect(container.querySelector("img")?.getAttribute("src")).toBe(
+      "https://example.com/cat.png",
+    );
   });
 
   it("does not resolve a data: URI image link", () => {
     const dataUri = "data:image/png;base64,AAAA";
     const { container } = render(
-      <MarkdownPreview source={`![inline](${dataUri})`} notePath="/vault/notes/today.md" />,
+      <MarkdownPreview
+        source={`![inline](${dataUri})`}
+        notePath="/vault/notes/today.md"
+      />,
     );
     expect(fileSrc).not.toHaveBeenCalled();
     expect(container.querySelector("img")?.getAttribute("src")).toBe(dataUri);
   });
 
   it("resolves the same repeated image path only once, applying the result to every occurrence", async () => {
-    vi.mocked(fileSrc).mockResolvedValue("asset://localhost/vault/notes/cat.png");
+    vi.mocked(fileSrc).mockResolvedValue(
+      "asset://localhost/vault/notes/cat.png",
+    );
     const { container } = render(
       <MarkdownPreview
         source={"![first](cat.png)\n\n![second](cat.png)"}
@@ -287,7 +381,9 @@ describe("MarkdownPreview: local image attachments", () => {
       const imgs = Array.from(container.querySelectorAll("img"));
       expect(imgs).toHaveLength(2);
       for (const img of imgs) {
-        expect(img.getAttribute("src")).toBe("asset://localhost/vault/notes/cat.png");
+        expect(img.getAttribute("src")).toBe(
+          "asset://localhost/vault/notes/cat.png",
+        );
       }
     });
     expect(fileSrc).toHaveBeenCalledTimes(1);
@@ -295,7 +391,9 @@ describe("MarkdownPreview: local image attachments", () => {
   });
 
   it("resolves two different image paths independently", async () => {
-    vi.mocked(fileSrc).mockImplementation(async (path: string) => `asset://localhost${path}`);
+    vi.mocked(fileSrc).mockImplementation(
+      async (path: string) => `asset://localhost${path}`,
+    );
     const { container } = render(
       <MarkdownPreview
         source={"![a](a.png)\n\n![b](b.png)"}
@@ -316,48 +414,67 @@ describe("MarkdownPreview: local image attachments", () => {
 
 describe("MarkdownPreview: math rendering", () => {
   it("renders $inline$ math via KaTeX", () => {
-    const { container } = render(<MarkdownPreview source="Einstein's $E = mc^2$ formula." />);
+    const { container } = render(
+      <MarkdownPreview source="Einstein's $E = mc^2$ formula." />,
+    );
     const math = container.querySelector(".katex");
     expect(math).toBeTruthy();
     expect(container.querySelector(".katex-display")).toBeNull();
   });
 
   it("renders $$block$$ math via KaTeX in display mode", () => {
-    const { container } = render(<MarkdownPreview source="$$\\int_0^1 x^2 \\,dx$$" />);
+    const { container } = render(
+      <MarkdownPreview source="$$\\int_0^1 x^2 \\,dx$$" />,
+    );
     expect(container.querySelector(".katex-display")).toBeTruthy();
   });
 
   it("does not treat currency-like text as math (no space allowed just inside the delimiters)", () => {
-    const { container } = render(<MarkdownPreview source="Costs $5 and $10 respectively." />);
+    const { container } = render(
+      <MarkdownPreview source="Costs $5 and $10 respectively." />,
+    );
     expect(container.querySelector(".katex")).toBeNull();
     expect(container.textContent).toContain("$5 and $10");
   });
 
   it("does not render math inside an inline code span", () => {
-    const { container } = render(<MarkdownPreview source="Use `$x$` literally, not as math." />);
+    const { container } = render(
+      <MarkdownPreview source="Use `$x$` literally, not as math." />,
+    );
     expect(container.querySelector(".katex")).toBeNull();
     expect(container.querySelector("code")?.textContent).toBe("$x$");
   });
 
   it("does not render math inside a fenced code block", () => {
-    const { container } = render(<MarkdownPreview source={"```\n$x^2$\n```"} />);
+    const { container } = render(
+      <MarkdownPreview source={"```\n$x^2$\n```"} />,
+    );
     expect(container.querySelector(".katex")).toBeNull();
     expect(container.querySelector("pre code")?.textContent).toContain("$x^2$");
   });
 
   it("leaves $...$ as literal text when math rendering is disabled", () => {
-    const { container } = render(<MarkdownPreview source="Formula: $E = mc^2$." mathRenderingEnabled={false} />);
+    const { container } = render(
+      <MarkdownPreview
+        source="Formula: $E = mc^2$."
+        mathRenderingEnabled={false}
+      />,
+    );
     expect(container.querySelector(".katex")).toBeNull();
     expect(container.textContent).toContain("$E = mc^2$");
   });
 
   it("leaves $$...$$ as literal text when math rendering is disabled", () => {
-    const { container } = render(<MarkdownPreview source="$$x^2$$" mathRenderingEnabled={false} />);
+    const { container } = render(
+      <MarkdownPreview source="$$x^2$$" mathRenderingEnabled={false} />,
+    );
     expect(container.querySelector(".katex-display")).toBeNull();
   });
 
   it("does not crash on malformed LaTeX, and shows KaTeX's own error styling", () => {
-    const { container } = render(<MarkdownPreview source="Broken: $\\frac{1}{$." />);
+    const { container } = render(
+      <MarkdownPreview source="Broken: $\\frac{1}{$." />,
+    );
     expect(container.querySelector(".markdown-preview")).toBeTruthy();
   });
 
@@ -372,7 +489,9 @@ describe("MarkdownPreview: math rendering", () => {
 describe("MarkdownPreview: footnotes", () => {
   it("renders a footnote reference as a numbered, linked superscript and a matching Footnotes section", () => {
     const { container } = render(
-      <MarkdownPreview source={"Some text with a footnote.[^1]\n\n[^1]: Here is the footnote."} />,
+      <MarkdownPreview
+        source={"Some text with a footnote.[^1]\n\n[^1]: Here is the footnote."}
+      />,
     );
     const ref = container.querySelector(".footnote-ref a");
     expect(ref?.textContent).toBe("1");
@@ -398,14 +517,18 @@ describe("MarkdownPreview: footnotes", () => {
     const refs = Array.from(container.querySelectorAll(".footnote-ref a"));
     expect(refs.map((el) => el.textContent)).toEqual(["1", "2"]);
 
-    const items = Array.from(container.querySelectorAll("section.footnotes li"));
+    const items = Array.from(
+      container.querySelectorAll("section.footnotes li"),
+    );
     expect(items[0].textContent).toContain("Definition B.");
     expect(items[1].textContent).toContain("Definition A.");
   });
 
   it("reuses the same number for a footnote referenced more than once", () => {
     const { container } = render(
-      <MarkdownPreview source={"One[^x] and again[^x].\n\n[^x]: Shared definition."} />,
+      <MarkdownPreview
+        source={"One[^x] and again[^x].\n\n[^x]: Shared definition."}
+      />,
     );
     const refs = Array.from(container.querySelectorAll(".footnote-ref a"));
     expect(refs.map((el) => el.textContent)).toEqual(["1", "1"]);
@@ -415,7 +538,9 @@ describe("MarkdownPreview: footnotes", () => {
   it("supports a multi-line, indented footnote definition body", () => {
     const { container } = render(
       <MarkdownPreview
-        source={"See note.[^1]\n\n[^1]: First line of the note.\n    Second line, indented."}
+        source={
+          "See note.[^1]\n\n[^1]: First line of the note.\n    Second line, indented."
+        }
       />,
     );
     const item = container.querySelector("li#fn-1");
@@ -433,29 +558,43 @@ describe("MarkdownPreview: footnotes", () => {
 
   it("leaves an unreferenced footnote definition out of the rendered output entirely", () => {
     const { container } = render(
-      <MarkdownPreview source={"No references here.\n\n[^unused]: Never linked."} />,
+      <MarkdownPreview
+        source={"No references here.\n\n[^unused]: Never linked."}
+      />,
     );
     expect(container.querySelector("section.footnotes")).toBeNull();
     expect(container.textContent).not.toContain("Never linked");
   });
 
   it("leaves an undefined [^id] reference as literal text", () => {
-    const { container } = render(<MarkdownPreview source={"A reference to nowhere.[^missing]"} />);
+    const { container } = render(
+      <MarkdownPreview source={"A reference to nowhere.[^missing]"} />,
+    );
     expect(container.querySelector(".footnote-ref")).toBeNull();
     expect(container.textContent).toContain("[^missing]");
   });
 
   it("does not render a Footnotes section when there are no footnotes at all", () => {
-    const { container } = render(<MarkdownPreview source={"Just an ordinary paragraph."} />);
+    const { container } = render(
+      <MarkdownPreview source={"Just an ordinary paragraph."} />,
+    );
     expect(container.querySelector("section.footnotes")).toBeNull();
   });
 
   it("removes the footnote-definition line from the flowing document text", () => {
     const { container } = render(
-      <MarkdownPreview source={"Body text.[^1]\n\n[^1]: The definition text."} />,
+      <MarkdownPreview
+        source={"Body text.[^1]\n\n[^1]: The definition text."}
+      />,
     );
-    const paragraphs = Array.from(container.querySelectorAll(".markdown-preview > p"));
-    expect(paragraphs.some((p) => p.textContent?.includes("[^1]: The definition text."))).toBe(false);
+    const paragraphs = Array.from(
+      container.querySelectorAll(".markdown-preview > p"),
+    );
+    expect(
+      paragraphs.some((p) =>
+        p.textContent?.includes("[^1]: The definition text."),
+      ),
+    ).toBe(false);
   });
 
   it("does not treat a footnote-shaped line inside a fenced code block as a real definition", () => {
@@ -465,12 +604,16 @@ describe("MarkdownPreview: footnotes", () => {
       />,
     );
     expect(container.querySelector("section.footnotes")).toBeNull();
-    expect(container.querySelector("code")?.textContent).toContain("[^1]: not a real footnote");
+    expect(container.querySelector("code")?.textContent).toContain(
+      "[^1]: not a real footnote",
+    );
   });
 
   it("does not cross-contaminate footnote numbering between two separately rendered notes", () => {
     const { container: first } = render(
-      <MarkdownPreview source={"Note one.[^1]\n\n[^1]: First note's footnote."} />,
+      <MarkdownPreview
+        source={"Note one.[^1]\n\n[^1]: First note's footnote."}
+      />,
     );
     expect(first.querySelector(".footnote-ref")).toBeTruthy();
     cleanup();
@@ -503,7 +646,10 @@ describe("MarkdownPreview: onActiveHeadingChange", () => {
   it("reports undefined when the note has no headings", () => {
     const onActiveHeadingChange = vi.fn();
     render(
-      <MarkdownPreview source="Just a paragraph." onActiveHeadingChange={onActiveHeadingChange} />,
+      <MarkdownPreview
+        source="Just a paragraph."
+        onActiveHeadingChange={onActiveHeadingChange}
+      />,
     );
     expect(onActiveHeadingChange).toHaveBeenCalledWith(undefined);
   });
@@ -570,7 +716,10 @@ describe("MarkdownPreview: onDirectInteraction", () => {
   it("does not fire for the initial mount recompute", () => {
     const onDirectInteraction = vi.fn();
     render(
-      <MarkdownPreview source={"# One\n\n## Two"} onDirectInteraction={onDirectInteraction} />,
+      <MarkdownPreview
+        source={"# One\n\n## Two"}
+        onDirectInteraction={onDirectInteraction}
+      />,
     );
     expect(onDirectInteraction).not.toHaveBeenCalled();
   });
@@ -578,16 +727,27 @@ describe("MarkdownPreview: onDirectInteraction", () => {
   it("does not fire for a recompute triggered by a content change alone", () => {
     const onDirectInteraction = vi.fn();
     const { rerender } = render(
-      <MarkdownPreview source={"# One"} onDirectInteraction={onDirectInteraction} />,
+      <MarkdownPreview
+        source={"# One"}
+        onDirectInteraction={onDirectInteraction}
+      />,
     );
-    rerender(<MarkdownPreview source={"# One\n\n## Two"} onDirectInteraction={onDirectInteraction} />);
+    rerender(
+      <MarkdownPreview
+        source={"# One\n\n## Two"}
+        onDirectInteraction={onDirectInteraction}
+      />,
+    );
     expect(onDirectInteraction).not.toHaveBeenCalled();
   });
 
   it("fires on a real scroll event", () => {
     const onDirectInteraction = vi.fn();
     const { container } = render(
-      <MarkdownPreview source={"# One\n\n## Two"} onDirectInteraction={onDirectInteraction} />,
+      <MarkdownPreview
+        source={"# One\n\n## Two"}
+        onDirectInteraction={onDirectInteraction}
+      />,
     );
     const preview = container.querySelector(".markdown-preview")!;
     fireEvent.scroll(preview);
@@ -597,7 +757,10 @@ describe("MarkdownPreview: onDirectInteraction", () => {
   it("fires on a click anywhere inside the preview, not only on a wikilink", () => {
     const onDirectInteraction = vi.fn();
     const { container } = render(
-      <MarkdownPreview source={"Just a paragraph."} onDirectInteraction={onDirectInteraction} />,
+      <MarkdownPreview
+        source={"Just a paragraph."}
+        onDirectInteraction={onDirectInteraction}
+      />,
     );
     const preview = container.querySelector(".markdown-preview")!;
     fireEvent.click(preview);
@@ -607,7 +770,10 @@ describe("MarkdownPreview: onDirectInteraction", () => {
   it("fires on a keydown inside the preview", () => {
     const onDirectInteraction = vi.fn();
     const { container } = render(
-      <MarkdownPreview source={"# One"} onDirectInteraction={onDirectInteraction} />,
+      <MarkdownPreview
+        source={"# One"}
+        onDirectInteraction={onDirectInteraction}
+      />,
     );
     const preview = container.querySelector(".markdown-preview")!;
     fireEvent.keyDown(preview, { key: "Tab" });
@@ -626,14 +792,18 @@ describe("MarkdownPreview: F04 Phase 1 heading links", () => {
   it("renders [[Note|Label]] with the explicit label, resolved", () => {
     linkIndex.value = {
       backlinksByPath: new Map(),
-      pathsByNoteName: new Map([["existing note", ["/vault/existing-note.md"]]]),
+      pathsByNoteName: new Map([
+        ["existing note", ["/vault/existing-note.md"]],
+      ]),
       pathsByAlias: new Map(),
       aliasesByPath: new Map(),
       pathsByTag: new Map(),
       tagsByPath: new Map(),
       tasksByPath: new Map(),
     };
-    const { container } = render(<MarkdownPreview source="[[Existing Note|see this]]" />);
+    const { container } = render(
+      <MarkdownPreview source="[[Existing Note|see this]]" />,
+    );
     const anchor = container.querySelector('a[href^="#leotheca-wikilink="]');
     expect(anchor?.textContent).toBe("see this");
     expect(anchor?.getAttribute("href")).toContain("resolved=1");
@@ -641,7 +811,10 @@ describe("MarkdownPreview: F04 Phase 1 heading links", () => {
 
   it("resolves a same-note [[#Heading]] link and shows the heading text as its label", () => {
     const { container } = render(
-      <MarkdownPreview source={"# Intro\n\n## Milestones\n\nSee [[#Milestones]] below."} notePath="/vault/plan.md" />,
+      <MarkdownPreview
+        source={"# Intro\n\n## Milestones\n\nSee [[#Milestones]] below."}
+        notePath="/vault/plan.md"
+      />,
     );
     const anchor = container.querySelector('a[href^="#leotheca-wikilink="]');
     expect(anchor?.textContent).toBe("Milestones");
@@ -653,18 +826,29 @@ describe("MarkdownPreview: F04 Phase 1 heading links", () => {
     const onOpenFile = vi.fn();
     const source = "# Intro\n\n## Milestones\n\nSee [[#Milestones]] below.";
     const { container } = render(
-      <MarkdownPreview source={source} notePath="/vault/plan.md" onOpenFile={onOpenFile} />,
+      <MarkdownPreview
+        source={source}
+        notePath="/vault/plan.md"
+        onOpenFile={onOpenFile}
+      />,
     );
-    const anchor = container.querySelector('a[href^="#leotheca-wikilink="]') as HTMLAnchorElement;
+    const anchor = container.querySelector(
+      'a[href^="#leotheca-wikilink="]',
+    ) as HTMLAnchorElement;
     fireEvent.click(anchor);
     expect(onOpenFile).not.toHaveBeenCalled();
     expect(outlineRevealRequest.value?.from).toBe(source.indexOf("Milestones"));
-    expect(outlineRevealRequest.value?.to).toBe(source.indexOf("Milestones") + "Milestones".length);
+    expect(outlineRevealRequest.value?.to).toBe(
+      source.indexOf("Milestones") + "Milestones".length,
+    );
   });
 
   it("renders a same-note heading link as missing, distinctly, when the heading does not exist", () => {
     const { container } = render(
-      <MarkdownPreview source={"See [[#Nonexistent]] below."} notePath="/vault/plan.md" />,
+      <MarkdownPreview
+        source={"See [[#Nonexistent]] below."}
+        notePath="/vault/plan.md"
+      />,
     );
     const anchor = container.querySelector('a[href^="#leotheca-wikilink="]');
     expect(anchor?.getAttribute("href")).not.toContain("resolved=1");
@@ -673,9 +857,14 @@ describe("MarkdownPreview: F04 Phase 1 heading links", () => {
 
   it("does not reveal anything when clicking a same-note heading link that does not resolve", () => {
     const { container } = render(
-      <MarkdownPreview source={"See [[#Nonexistent]] below."} notePath="/vault/plan.md" />,
+      <MarkdownPreview
+        source={"See [[#Nonexistent]] below."}
+        notePath="/vault/plan.md"
+      />,
     );
-    const anchor = container.querySelector('a[href^="#leotheca-wikilink="]') as HTMLAnchorElement;
+    const anchor = container.querySelector(
+      'a[href^="#leotheca-wikilink="]',
+    ) as HTMLAnchorElement;
     fireEvent.click(anchor);
     expect(outlineRevealRequest.value).toBeNull();
   });
@@ -699,7 +888,9 @@ describe("MarkdownPreview: F04 Phase 1 heading links", () => {
         notePath="/vault/plan.md"
       />,
     );
-    const anchor = container.querySelector('a[href^="#leotheca-wikilink="]') as HTMLAnchorElement;
+    const anchor = container.querySelector(
+      'a[href^="#leotheca-wikilink="]',
+    ) as HTMLAnchorElement;
     fireEvent.click(anchor);
     expect(outlineRevealRequest.value).toBeNull();
   });
@@ -713,9 +904,13 @@ describe("MarkdownPreview: F04 Phase 1 heading links", () => {
       pathsByTag: new Map(),
       tagsByPath: new Map(),
       tasksByPath: new Map(),
-      headingsByPath: new Map([["/vault/project-plan.md", scanHeadings("# Milestones\n\ntext")]]),
+      headingsByPath: new Map([
+        ["/vault/project-plan.md", scanHeadings("# Milestones\n\ntext")],
+      ]),
     };
-    const { container } = render(<MarkdownPreview source="[[Project Plan#Milestones]]" />);
+    const { container } = render(
+      <MarkdownPreview source="[[Project Plan#Milestones]]" />,
+    );
     const anchor = container.querySelector('a[href^="#leotheca-wikilink="]');
     expect(anchor?.getAttribute("href")).toContain("resolved=1");
     expect(anchor?.getAttribute("href")).toContain("headingStatus=resolved");
@@ -730,9 +925,13 @@ describe("MarkdownPreview: F04 Phase 1 heading links", () => {
       pathsByTag: new Map(),
       tagsByPath: new Map(),
       tasksByPath: new Map(),
-      headingsByPath: new Map([["/vault/project-plan.md", scanHeadings("# Milestones\n\ntext")]]),
+      headingsByPath: new Map([
+        ["/vault/project-plan.md", scanHeadings("# Milestones\n\ntext")],
+      ]),
     };
-    const { container } = render(<MarkdownPreview source="[[Project Plan#Nonexistent]]" />);
+    const { container } = render(
+      <MarkdownPreview source="[[Project Plan#Nonexistent]]" />,
+    );
     const anchor = container.querySelector('a[href^="#leotheca-wikilink="]');
     expect(anchor?.getAttribute("href")).not.toContain("resolved=1");
     expect(anchor?.getAttribute("href")).toContain("headingStatus=missing");
@@ -748,15 +947,19 @@ describe("MarkdownPreview: F04 Phase 1 heading links", () => {
       tagsByPath: new Map(),
       tasksByPath: new Map(),
       headingsByPath: new Map([
-        ["/vault/project-plan.md", scanHeadings("## Design\n\ntext\n\n## Design\n\nmore")],
+        [
+          "/vault/project-plan.md",
+          scanHeadings("## Design\n\ntext\n\n## Design\n\nmore"),
+        ],
       ]),
     };
-    const { container } = render(<MarkdownPreview source="[[Project Plan#Design]]" />);
+    const { container } = render(
+      <MarkdownPreview source="[[Project Plan#Design]]" />,
+    );
     const anchor = container.querySelector('a[href^="#leotheca-wikilink="]');
     expect(anchor?.getAttribute("href")).not.toContain("resolved=1");
     expect(anchor?.getAttribute("href")).toContain("headingStatus=ambiguous");
   });
-
 
   it("clicking a resolved cross-note heading link opens the note and passes the heading key through onOpenFile", () => {
     linkIndex.value = {
@@ -770,28 +973,46 @@ describe("MarkdownPreview: F04 Phase 1 heading links", () => {
     };
     const onOpenFile = vi.fn();
     const { container } = render(
-      <MarkdownPreview source="[[Project Plan#Milestones]]" onOpenFile={onOpenFile} />,
+      <MarkdownPreview
+        source="[[Project Plan#Milestones]]"
+        onOpenFile={onOpenFile}
+      />,
     );
-    const anchor = container.querySelector('a[href^="#leotheca-wikilink="]') as HTMLAnchorElement;
+    const anchor = container.querySelector(
+      'a[href^="#leotheca-wikilink="]',
+    ) as HTMLAnchorElement;
     fireEvent.click(anchor);
-    expect(onOpenFile).toHaveBeenCalledWith("/vault/project-plan.md", "project-plan.md", {
-      headingKey: "Milestones",
-    });
+    expect(onOpenFile).toHaveBeenCalledWith(
+      "/vault/project-plan.md",
+      "project-plan.md",
+      {
+        headingKey: "Milestones",
+      },
+    );
   });
 
   it("does not call onOpenFile for a cross-note heading link whose note does not resolve", () => {
     const onOpenFile = vi.fn();
     const { container } = render(
-      <MarkdownPreview source="[[Missing Note#Heading]]" onOpenFile={onOpenFile} />,
+      <MarkdownPreview
+        source="[[Missing Note#Heading]]"
+        onOpenFile={onOpenFile}
+      />,
     );
-    const anchor = container.querySelector('a[href^="#leotheca-wikilink="]') as HTMLAnchorElement;
+    const anchor = container.querySelector(
+      'a[href^="#leotheca-wikilink="]',
+    ) as HTMLAnchorElement;
     fireEvent.click(anchor);
     expect(onOpenFile).not.toHaveBeenCalled();
   });
 
   it("leaves a malformed [[Note#]] (empty fragment) as literal text, not a link", () => {
-    const { container } = render(<MarkdownPreview source="See [[Note#]] here." />);
-    expect(container.querySelector('a[href^="#leotheca-wikilink="]')).toBeNull();
+    const { container } = render(
+      <MarkdownPreview source="See [[Note#]] here." />,
+    );
+    expect(
+      container.querySelector('a[href^="#leotheca-wikilink="]'),
+    ).toBeNull();
     expect(container.textContent).toContain("[[Note#]]");
   });
 
@@ -824,8 +1045,12 @@ describe("MarkdownPreview: F04 Phase 1 heading links", () => {
         tasksByPath: new Map(),
       };
       const onOpenFile = vi.fn();
-      const { container } = render(<MarkdownPreview source="[[Foo#1]]" onOpenFile={onOpenFile} />);
-      const anchor = container.querySelector('a[href^="#leotheca-wikilink="]') as HTMLAnchorElement;
+      const { container } = render(
+        <MarkdownPreview source="[[Foo#1]]" onOpenFile={onOpenFile} />,
+      );
+      const anchor = container.querySelector(
+        'a[href^="#leotheca-wikilink="]',
+      ) as HTMLAnchorElement;
       fireEvent.click(anchor);
       expect(onOpenFile).toHaveBeenCalledWith("/vault/foo#1.md", "foo#1.md");
     });
@@ -834,7 +1059,10 @@ describe("MarkdownPreview: F04 Phase 1 heading links", () => {
   describe("headingLinksEnabled=false (feature flag off)", () => {
     it("treats the whole [[Note#Heading]] text as a note name, exactly like before this feature existed", () => {
       const { container } = render(
-        <MarkdownPreview source="[[Note#Heading]]" headingLinksEnabled={false} />,
+        <MarkdownPreview
+          source="[[Note#Heading]]"
+          headingLinksEnabled={false}
+        />,
       );
       const anchor = container.querySelector('a[href^="#leotheca-wikilink="]');
       expect(anchor?.textContent).toBe("Note#Heading");
@@ -852,7 +1080,9 @@ describe("MarkdownPreview: F04 Phase 1 heading links", () => {
     it("clicking a plain link still opens the note when the flag is off", () => {
       linkIndex.value = {
         backlinksByPath: new Map(),
-        pathsByNoteName: new Map([["existing note", ["/vault/existing-note.md"]]]),
+        pathsByNoteName: new Map([
+          ["existing note", ["/vault/existing-note.md"]],
+        ]),
         pathsByAlias: new Map(),
         aliasesByPath: new Map(),
         pathsByTag: new Map(),
@@ -861,11 +1091,20 @@ describe("MarkdownPreview: F04 Phase 1 heading links", () => {
       };
       const onOpenFile = vi.fn();
       const { container } = render(
-        <MarkdownPreview source="[[Existing Note]]" headingLinksEnabled={false} onOpenFile={onOpenFile} />,
+        <MarkdownPreview
+          source="[[Existing Note]]"
+          headingLinksEnabled={false}
+          onOpenFile={onOpenFile}
+        />,
       );
-      const anchor = container.querySelector('a[href^="#leotheca-wikilink="]') as HTMLAnchorElement;
+      const anchor = container.querySelector(
+        'a[href^="#leotheca-wikilink="]',
+      ) as HTMLAnchorElement;
       fireEvent.click(anchor);
-      expect(onOpenFile).toHaveBeenCalledWith("/vault/existing-note.md", "existing-note.md");
+      expect(onOpenFile).toHaveBeenCalledWith(
+        "/vault/existing-note.md",
+        "existing-note.md",
+      );
     });
   });
 });
@@ -873,7 +1112,10 @@ describe("MarkdownPreview: F04 Phase 1 heading links", () => {
 describe("MarkdownPreview: F04 Phase 3a block references", () => {
   it("never shows a block ID marker as visible text", () => {
     const { container } = render(
-      <MarkdownPreview source="This decision is final. ^release-decision" notePath="/vault/plan.md" />,
+      <MarkdownPreview
+        source="This decision is final. ^release-decision"
+        notePath="/vault/plan.md"
+      />,
     );
     expect(container.textContent).not.toContain("^release-decision");
     expect(container.textContent).toContain("This decision is final.");
@@ -882,7 +1124,9 @@ describe("MarkdownPreview: F04 Phase 3a block references", () => {
   it("resolves a same-note [[#^block-id]] link", () => {
     const { container } = render(
       <MarkdownPreview
-        source={"The user owns the files. ^local-first\n\nSee [[#^local-first]] above."}
+        source={
+          "The user owns the files. ^local-first\n\nSee [[#^local-first]] above."
+        }
         notePath="/vault/plan.md"
       />,
     );
@@ -893,20 +1137,32 @@ describe("MarkdownPreview: F04 Phase 3a block references", () => {
 
   it("clicking a resolved same-note block link reveals that block's exact content range, without opening a note", () => {
     const onOpenFile = vi.fn();
-    const source = "The user owns the files. ^local-first\n\nSee [[#^local-first]] above.";
+    const source =
+      "The user owns the files. ^local-first\n\nSee [[#^local-first]] above.";
     const { container } = render(
-      <MarkdownPreview source={source} notePath="/vault/plan.md" onOpenFile={onOpenFile} />,
+      <MarkdownPreview
+        source={source}
+        notePath="/vault/plan.md"
+        onOpenFile={onOpenFile}
+      />,
     );
-    const anchor = container.querySelector('a[href^="#leotheca-wikilink="]') as HTMLAnchorElement;
+    const anchor = container.querySelector(
+      'a[href^="#leotheca-wikilink="]',
+    ) as HTMLAnchorElement;
     fireEvent.click(anchor);
     expect(onOpenFile).not.toHaveBeenCalled();
     expect(outlineRevealRequest.value?.from).toBe(0);
-    expect(outlineRevealRequest.value?.to).toBe("The user owns the files.".length);
+    expect(outlineRevealRequest.value?.to).toBe(
+      "The user owns the files.".length,
+    );
   });
 
   it("renders a same-note block link as missing, distinctly, when the block id does not exist", () => {
     const { container } = render(
-      <MarkdownPreview source={"See [[#^nonexistent]] below."} notePath="/vault/plan.md" />,
+      <MarkdownPreview
+        source={"See [[#^nonexistent]] below."}
+        notePath="/vault/plan.md"
+      />,
     );
     const anchor = container.querySelector('a[href^="#leotheca-wikilink="]');
     expect(anchor?.getAttribute("href")).not.toContain("resolved=1");
@@ -915,9 +1171,14 @@ describe("MarkdownPreview: F04 Phase 3a block references", () => {
 
   it("does not reveal anything when clicking a same-note block link that does not resolve", () => {
     const { container } = render(
-      <MarkdownPreview source={"See [[#^nonexistent]] below."} notePath="/vault/plan.md" />,
+      <MarkdownPreview
+        source={"See [[#^nonexistent]] below."}
+        notePath="/vault/plan.md"
+      />,
     );
-    const anchor = container.querySelector('a[href^="#leotheca-wikilink="]') as HTMLAnchorElement;
+    const anchor = container.querySelector(
+      'a[href^="#leotheca-wikilink="]',
+    ) as HTMLAnchorElement;
     fireEvent.click(anchor);
     expect(outlineRevealRequest.value).toBeNull();
   });
@@ -944,10 +1205,15 @@ describe("MarkdownPreview: F04 Phase 3a block references", () => {
       tagsByPath: new Map(),
       tasksByPath: new Map(),
       blocksByPath: new Map([
-        ["/vault/project-plan.md", scanBlockIds("A key decision. ^release-decision")],
+        [
+          "/vault/project-plan.md",
+          scanBlockIds("A key decision. ^release-decision"),
+        ],
       ]),
     };
-    const { container } = render(<MarkdownPreview source="[[Project Plan#^release-decision]]" />);
+    const { container } = render(
+      <MarkdownPreview source="[[Project Plan#^release-decision]]" />,
+    );
     const anchor = container.querySelector('a[href^="#leotheca-wikilink="]');
     expect(anchor?.getAttribute("href")).toContain("resolved=1");
     expect(anchor?.getAttribute("href")).toContain("blockStatus=resolved");
@@ -963,10 +1229,15 @@ describe("MarkdownPreview: F04 Phase 3a block references", () => {
       tagsByPath: new Map(),
       tasksByPath: new Map(),
       blocksByPath: new Map([
-        ["/vault/project-plan.md", scanBlockIds("A key decision. ^release-decision")],
+        [
+          "/vault/project-plan.md",
+          scanBlockIds("A key decision. ^release-decision"),
+        ],
       ]),
     };
-    const { container } = render(<MarkdownPreview source="[[Project Plan#^nonexistent]]" />);
+    const { container } = render(
+      <MarkdownPreview source="[[Project Plan#^nonexistent]]" />,
+    );
     const anchor = container.querySelector('a[href^="#leotheca-wikilink="]');
     expect(anchor?.getAttribute("href")).not.toContain("resolved=1");
     expect(anchor?.getAttribute("href")).toContain("blockStatus=missing");
@@ -985,7 +1256,9 @@ describe("MarkdownPreview: F04 Phase 3a block references", () => {
         ["/vault/project-plan.md", scanBlockIds("First. ^dup\n\nSecond. ^dup")],
       ]),
     };
-    const { container } = render(<MarkdownPreview source="[[Project Plan#^dup]]" />);
+    const { container } = render(
+      <MarkdownPreview source="[[Project Plan#^dup]]" />,
+    );
     const anchor = container.querySelector('a[href^="#leotheca-wikilink="]');
     expect(anchor?.getAttribute("href")).not.toContain("resolved=1");
     expect(anchor?.getAttribute("href")).toContain("blockStatus=ambiguous");
@@ -1003,21 +1276,35 @@ describe("MarkdownPreview: F04 Phase 3a block references", () => {
     };
     const onOpenFile = vi.fn();
     const { container } = render(
-      <MarkdownPreview source="[[Project Plan#^release-decision]]" onOpenFile={onOpenFile} />,
+      <MarkdownPreview
+        source="[[Project Plan#^release-decision]]"
+        onOpenFile={onOpenFile}
+      />,
     );
-    const anchor = container.querySelector('a[href^="#leotheca-wikilink="]') as HTMLAnchorElement;
+    const anchor = container.querySelector(
+      'a[href^="#leotheca-wikilink="]',
+    ) as HTMLAnchorElement;
     fireEvent.click(anchor);
-    expect(onOpenFile).toHaveBeenCalledWith("/vault/project-plan.md", "project-plan.md", {
-      blockId: "release-decision",
-    });
+    expect(onOpenFile).toHaveBeenCalledWith(
+      "/vault/project-plan.md",
+      "project-plan.md",
+      {
+        blockId: "release-decision",
+      },
+    );
   });
 
   it("does not call onOpenFile for a cross-note block link whose note does not resolve", () => {
     const onOpenFile = vi.fn();
     const { container } = render(
-      <MarkdownPreview source="[[Missing Note#^some-id]]" onOpenFile={onOpenFile} />,
+      <MarkdownPreview
+        source="[[Missing Note#^some-id]]"
+        onOpenFile={onOpenFile}
+      />,
     );
-    const anchor = container.querySelector('a[href^="#leotheca-wikilink="]') as HTMLAnchorElement;
+    const anchor = container.querySelector(
+      'a[href^="#leotheca-wikilink="]',
+    ) as HTMLAnchorElement;
     fireEvent.click(anchor);
     expect(onOpenFile).not.toHaveBeenCalled();
   });
@@ -1036,7 +1323,9 @@ describe("MarkdownPreview: F04 Phase 3a block references", () => {
   it("resolves a same-note block link to a list-item block (F04 Phase 3b)", () => {
     const { container } = render(
       <MarkdownPreview
-        source={"- The user owns the files. ^local-first\n\nSee [[#^local-first]] above."}
+        source={
+          "- The user owns the files. ^local-first\n\nSee [[#^local-first]] above."
+        }
         notePath="/vault/plan.md"
       />,
     );
@@ -1052,7 +1341,9 @@ describe("MarkdownPreview: F04 Phase 3a block references", () => {
   it("resolves a same-note block link to a blockquote block (F04 Phase 3b)", () => {
     const { container } = render(
       <MarkdownPreview
-        source={"> A quoted principle. ^principle\n\nSee [[#^principle]] above."}
+        source={
+          "> A quoted principle. ^principle\n\nSee [[#^principle]] above."
+        }
         notePath="/vault/plan.md"
       />,
     );
@@ -1065,7 +1356,9 @@ describe("MarkdownPreview: F04 Phase 3a block references", () => {
   it("resolves a same-note block link to a fenced-code block (F04 Phase 3d)", () => {
     const { container } = render(
       <MarkdownPreview
-        source={"```\nconst x = 1;\n```\n^code-example\n\nSee [[#^code-example]] above."}
+        source={
+          "```\nconst x = 1;\n```\n^code-example\n\nSee [[#^code-example]] above."
+        }
         notePath="/vault/plan.md"
       />,
     );
@@ -1083,9 +1376,14 @@ describe("MarkdownPreview: F04 Phase 3a block references", () => {
 describe("MarkdownPreview: F04 Phase 5d block anchor rendering hook", () => {
   it("gives a uniquely-identified paragraph a deterministic DOM id and data-lt-block-id", () => {
     const { container } = render(
-      <MarkdownPreview source="This decision is final. ^release-decision" notePath="/vault/plan.md" />,
+      <MarkdownPreview
+        source="This decision is final. ^release-decision"
+        notePath="/vault/plan.md"
+      />,
     );
-    const host = container.querySelector('[data-lt-block-id="release-decision"]');
+    const host = container.querySelector(
+      '[data-lt-block-id="release-decision"]',
+    );
     expect(host?.tagName).toBe("P");
     expect(host?.id).toBe("lt-block-release-decision");
     // The anchor marker itself never survives into the final DOM.
@@ -1095,7 +1393,9 @@ describe("MarkdownPreview: F04 Phase 5d block anchor rendering hook", () => {
   it("gives a uniquely-identified list item its own id, not the whole list", () => {
     const { container } = render(
       <MarkdownPreview
-        source={"- First item\n- The user owns the files. ^local-first\n- Third item"}
+        source={
+          "- First item\n- The user owns the files. ^local-first\n- Third item"
+        }
         notePath="/vault/plan.md"
       />,
     );
@@ -1107,7 +1407,10 @@ describe("MarkdownPreview: F04 Phase 5d block anchor rendering hook", () => {
 
   it("gives a uniquely-identified blockquote its own id", () => {
     const { container } = render(
-      <MarkdownPreview source={"> A quoted principle. ^principle"} notePath="/vault/plan.md" />,
+      <MarkdownPreview
+        source={"> A quoted principle. ^principle"}
+        notePath="/vault/plan.md"
+      />,
     );
     const host = container.querySelector('[data-lt-block-id="principle"]');
     expect(host?.tagName).toBe("BLOCKQUOTE");
@@ -1116,7 +1419,10 @@ describe("MarkdownPreview: F04 Phase 5d block anchor rendering hook", () => {
 
   it("gives a uniquely-identified fenced code block's own <pre> its id, not a sibling element", () => {
     const { container } = render(
-      <MarkdownPreview source={"```\nconst x = 1;\n```\n^code-block-id"} notePath="/vault/plan.md" />,
+      <MarkdownPreview
+        source={"```\nconst x = 1;\n```\n^code-block-id"}
+        notePath="/vault/plan.md"
+      />,
     );
     const host = container.querySelector('[data-lt-block-id="code-block-id"]');
     expect(host?.tagName).toBe("PRE");
@@ -1127,7 +1433,10 @@ describe("MarkdownPreview: F04 Phase 5d block anchor rendering hook", () => {
 
   it("does not assign a DOM id for a block whose marker is a duplicate elsewhere in the note", () => {
     const { container } = render(
-      <MarkdownPreview source={"One. ^dup\n\nTwo. ^dup"} notePath="/vault/plan.md" />,
+      <MarkdownPreview
+        source={"One. ^dup\n\nTwo. ^dup"}
+        notePath="/vault/plan.md"
+      />,
     );
     expect(container.querySelector("[data-lt-block-id]")).toBeNull();
     expect(container.querySelector("[data-lt-block-anchor]")).toBeNull();
@@ -1154,18 +1463,28 @@ describe("MarkdownPreview: F04 Phase 5d block anchor rendering hook", () => {
         notePath="/vault/plan.md"
       />,
     );
-    expect(container.querySelector('[data-lt-block-id="first"]')?.textContent).toBe("First paragraph.");
-    expect(container.querySelector('[data-lt-block-id="second"]')?.textContent).toBe("Second paragraph.");
+    expect(
+      container.querySelector('[data-lt-block-id="first"]')?.textContent,
+    ).toBe("First paragraph.");
+    expect(
+      container.querySelector('[data-lt-block-id="second"]')?.textContent,
+    ).toBe("Second paragraph.");
   });
 
   it("adds a keyboard-focusable copy-link control that reuses the block link syntax", () => {
     const writeText = vi.fn();
     Object.assign(navigator, { clipboard: { writeText } });
     const { container } = render(
-      <MarkdownPreview source="This decision is final. ^release-decision" notePath="/vault/plan.md" />,
+      <MarkdownPreview
+        source="This decision is final. ^release-decision"
+        notePath="/vault/plan.md"
+      />,
     );
-    const button = container.querySelector<HTMLButtonElement>(".block-link-copy");
-    expect(button?.getAttribute("aria-label")).toBe("Copy link to block release-decision");
+    const button =
+      container.querySelector<HTMLButtonElement>(".block-link-copy");
+    expect(button?.getAttribute("aria-label")).toBe(
+      "Copy link to block release-decision",
+    );
     fireEvent.click(button!);
     expect(writeText).toHaveBeenCalledWith("[[#^release-decision]]");
   });
@@ -1175,14 +1494,29 @@ describe("MarkdownPreview: F04 Phase 5d block anchor rendering hook", () => {
     const writeText = vi.fn();
     Object.assign(navigator, { clipboard: { writeText } });
     const { container } = render(
-      <MarkdownPreview source="This decision is final. ^release-decision" notePath="/vault/plan.md" />,
+      <MarkdownPreview
+        source="This decision is final. ^release-decision"
+        notePath="/vault/plan.md"
+      />,
     );
     const block = container.querySelector<HTMLElement>("[data-lt-block-id]")!;
-    fireEvent.pointerDown(block, { pointerType: "touch", clientX: 10, clientY: 10 });
+    fireEvent.pointerDown(block, {
+      pointerType: "touch",
+      clientX: 10,
+      clientY: 10,
+    });
     vi.advanceTimersByTime(550);
     expect(writeText).toHaveBeenCalledWith("[[#^release-decision]]");
-    fireEvent.pointerDown(block, { pointerType: "touch", clientX: 10, clientY: 10 });
-    fireEvent.pointerMove(block, { pointerType: "touch", clientX: 25, clientY: 10 });
+    fireEvent.pointerDown(block, {
+      pointerType: "touch",
+      clientX: 10,
+      clientY: 10,
+    });
+    fireEvent.pointerMove(block, {
+      pointerType: "touch",
+      clientX: 25,
+      clientY: 10,
+    });
     vi.advanceTimersByTime(550);
     expect(writeText).toHaveBeenCalledTimes(1);
   });
@@ -1202,40 +1536,67 @@ describe("MarkdownPreview: F04 Phase 4a embeds", () => {
   }
 
   it("renders a same-note heading embed synchronously with the section content and label", () => {
-    const source = "# Intro\n\n## Milestones\n\nShip v1.\n\nSee ![[#Milestones]] above.";
-    const { container } = render(<MarkdownPreview source={source} notePath="/vault/plan.md" />);
+    const source =
+      "# Intro\n\n## Milestones\n\nShip v1.\n\nSee ![[#Milestones]] above.";
+    const { container } = render(
+      <MarkdownPreview source={source} notePath="/vault/plan.md" />,
+    );
     const frame = container.querySelector(".embed-frame");
     expect(frame).toBeTruthy();
-    expect(frame?.querySelector(".embed-frame-body")?.textContent).toContain("Ship v1.");
-    expect(frame?.querySelector(".embed-frame-label")?.textContent).toContain("Milestones");
+    expect(frame?.querySelector(".embed-frame-body")?.textContent).toContain(
+      "Ship v1.",
+    );
+    expect(frame?.querySelector(".embed-frame-label")?.textContent).toContain(
+      "Milestones",
+    );
   });
 
   it("renders a same-note block embed synchronously with the block content", () => {
-    const source = "The user owns the files. ^local-first\n\nSee ![[#^local-first]] above.";
-    const { container } = render(<MarkdownPreview source={source} notePath="/vault/plan.md" />);
+    const source =
+      "The user owns the files. ^local-first\n\nSee ![[#^local-first]] above.";
+    const { container } = render(
+      <MarkdownPreview source={source} notePath="/vault/plan.md" />,
+    );
     const frame = container.querySelector(".embed-frame");
-    expect(frame?.querySelector(".embed-frame-body")?.textContent).toContain("The user owns the files.");
+    expect(frame?.querySelector(".embed-frame-body")?.textContent).toContain(
+      "The user owns the files.",
+    );
   });
 
   it("renders a same-note block embed of a list-item block (F04 Phase 3b block-kind eligibility)", () => {
-    const source = "- The user owns the files. ^local-first\n\nSee ![[#^local-first]] above.";
-    const { container } = render(<MarkdownPreview source={source} notePath="/vault/plan.md" />);
+    const source =
+      "- The user owns the files. ^local-first\n\nSee ![[#^local-first]] above.";
+    const { container } = render(
+      <MarkdownPreview source={source} notePath="/vault/plan.md" />,
+    );
     const frame = container.querySelector(".embed-frame");
-    expect(frame?.querySelector(".embed-frame-body")?.textContent).toContain("The user owns the files.");
+    expect(frame?.querySelector(".embed-frame-body")?.textContent).toContain(
+      "The user owns the files.",
+    );
   });
 
   it("shows an 'Embedded heading not found' placeholder for a same-note heading that doesn't exist", () => {
     const { container } = render(
-      <MarkdownPreview source={"See ![[#Nonexistent]] above."} notePath="/vault/plan.md" />,
+      <MarkdownPreview
+        source={"See ![[#Nonexistent]] above."}
+        notePath="/vault/plan.md"
+      />,
     );
-    expect(container.querySelector(".embed-frame-body")?.textContent).toBe("Embedded heading not found");
+    expect(container.querySelector(".embed-frame-body")?.textContent).toBe(
+      "Embedded heading not found",
+    );
   });
 
   it("shows an 'Embedded block not found' placeholder for a same-note block id that doesn't exist", () => {
     const { container } = render(
-      <MarkdownPreview source={"See ![[#^nonexistent]] above."} notePath="/vault/plan.md" />,
+      <MarkdownPreview
+        source={"See ![[#^nonexistent]] above."}
+        notePath="/vault/plan.md"
+      />,
     );
-    expect(container.querySelector(".embed-frame-body")?.textContent).toBe("Embedded block not found");
+    expect(container.querySelector(".embed-frame-body")?.textContent).toBe(
+      "Embedded block not found",
+    );
   });
 
   it("shows an ambiguous placeholder for a same-note heading matching more than one heading", () => {
@@ -1245,56 +1606,88 @@ describe("MarkdownPreview: F04 Phase 4a embeds", () => {
         notePath="/vault/plan.md"
       />,
     );
-    expect(container.querySelector(".embed-frame-body")?.textContent).toContain("more than one heading");
+    expect(container.querySelector(".embed-frame-body")?.textContent).toContain(
+      "more than one heading",
+    );
   });
 
   it("shows an 'Embedded note not found' placeholder for a note that doesn't resolve, with no async read attempted", () => {
-    const { container } = render(<MarkdownPreview source="![[Missing Note]]" />);
-    expect(container.querySelector(".embed-frame-body")?.textContent).toBe("Embedded note not found");
+    const { container } = render(
+      <MarkdownPreview source="![[Missing Note]]" />,
+    );
+    expect(container.querySelector(".embed-frame-body")?.textContent).toBe(
+      "Embedded note not found",
+    );
     expect(readTextFile).not.toHaveBeenCalled();
   });
 
   it("resolves a cross-note whole-note embed asynchronously, with frontmatter stripped", async () => {
     setNote("project plan", "/vault/project-plan.md");
-    vi.mocked(readTextFile).mockResolvedValue("---\ntitle: Plan\n---\nThe actual body text.");
-    const { container } = render(<MarkdownPreview source="![[Project Plan]]" />);
+    vi.mocked(readTextFile).mockResolvedValue(
+      "---\ntitle: Plan\n---\nThe actual body text.",
+    );
+    const { container } = render(
+      <MarkdownPreview source="![[Project Plan]]" />,
+    );
 
-    expect(container.querySelector(".embed-frame-body")?.textContent).toBe("Loading…");
+    expect(container.querySelector(".embed-frame-body")?.textContent).toBe(
+      "Loading…",
+    );
 
     await waitFor(() => {
-      expect(container.querySelector(".embed-frame-body")?.textContent).toContain("The actual body text.");
+      expect(
+        container.querySelector(".embed-frame-body")?.textContent,
+      ).toContain("The actual body text.");
     });
-    expect(container.querySelector(".embed-frame-body")?.textContent).not.toContain("title: Plan");
+    expect(
+      container.querySelector(".embed-frame-body")?.textContent,
+    ).not.toContain("title: Plan");
     expect(readTextFile).toHaveBeenCalledWith("/vault/project-plan.md");
   });
 
   it("resolves a cross-note heading embed asynchronously", async () => {
     setNote("project plan", "/vault/project-plan.md");
-    vi.mocked(readTextFile).mockResolvedValue("# Intro\n\n## Milestones\n\nShip v1.");
-    const { container } = render(<MarkdownPreview source="![[Project Plan#Milestones]]" />);
+    vi.mocked(readTextFile).mockResolvedValue(
+      "# Intro\n\n## Milestones\n\nShip v1.",
+    );
+    const { container } = render(
+      <MarkdownPreview source="![[Project Plan#Milestones]]" />,
+    );
 
     await waitFor(() => {
-      expect(container.querySelector(".embed-frame-body")?.textContent).toContain("Ship v1.");
+      expect(
+        container.querySelector(".embed-frame-body")?.textContent,
+      ).toContain("Ship v1.");
     });
   });
 
   it("resolves a cross-note block embed asynchronously", async () => {
     setNote("project plan", "/vault/project-plan.md");
-    vi.mocked(readTextFile).mockResolvedValue("The decision is final. ^release-decision");
-    const { container } = render(<MarkdownPreview source="![[Project Plan#^release-decision]]" />);
+    vi.mocked(readTextFile).mockResolvedValue(
+      "The decision is final. ^release-decision",
+    );
+    const { container } = render(
+      <MarkdownPreview source="![[Project Plan#^release-decision]]" />,
+    );
 
     await waitFor(() => {
-      expect(container.querySelector(".embed-frame-body")?.textContent).toContain("The decision is final.");
+      expect(
+        container.querySelector(".embed-frame-body")?.textContent,
+      ).toContain("The decision is final.");
     });
   });
 
   it("shows 'Could not read embedded note' when the cross-note read fails", async () => {
     setNote("project plan", "/vault/project-plan.md");
     vi.mocked(readTextFile).mockRejectedValue(new Error("not found"));
-    const { container } = render(<MarkdownPreview source="![[Project Plan]]" />);
+    const { container } = render(
+      <MarkdownPreview source="![[Project Plan]]" />,
+    );
 
     await waitFor(() => {
-      expect(container.querySelector(".embed-frame-body")?.textContent).toBe("Could not read embedded note");
+      expect(container.querySelector(".embed-frame-body")?.textContent).toBe(
+        "Could not read embedded note",
+      );
     });
   });
 
@@ -1304,14 +1697,22 @@ describe("MarkdownPreview: F04 Phase 4a embeds", () => {
     // A read that never settles on its own, standing in for a hung
     // native call: the timeout, not the read itself, must be what
     // eventually produces the placeholder.
-    vi.mocked(readTextFile).mockImplementation(() => new Promise<string>(() => {}));
-    const { container } = render(<MarkdownPreview source="![[Project Plan]]" />);
+    vi.mocked(readTextFile).mockImplementation(
+      () => new Promise<string>(() => {}),
+    );
+    const { container } = render(
+      <MarkdownPreview source="![[Project Plan]]" />,
+    );
 
-    expect(container.querySelector(".embed-frame-body")?.textContent).toBe("Loading…");
+    expect(container.querySelector(".embed-frame-body")?.textContent).toBe(
+      "Loading…",
+    );
 
     await vi.advanceTimersByTimeAsync(8000);
 
-    expect(container.querySelector(".embed-frame-body")?.textContent).toBe("Could not read embedded note");
+    expect(container.querySelector(".embed-frame-body")?.textContent).toBe(
+      "Could not read embedded note",
+    );
   });
 
   it("does not let a real read that resolves after the timeout overwrite the timeout's own placeholder", async () => {
@@ -1324,10 +1725,14 @@ describe("MarkdownPreview: F04 Phase 4a embeds", () => {
           resolveRead = resolve;
         }),
     );
-    const { container } = render(<MarkdownPreview source="![[Project Plan]]" />);
+    const { container } = render(
+      <MarkdownPreview source="![[Project Plan]]" />,
+    );
 
     await vi.advanceTimersByTimeAsync(8000);
-    expect(container.querySelector(".embed-frame-body")?.textContent).toBe("Could not read embedded note");
+    expect(container.querySelector(".embed-frame-body")?.textContent).toBe(
+      "Could not read embedded note",
+    );
 
     // The real read finally settles, well after the timeout already
     // rendered its own placeholder. It must lose the race silently, not
@@ -1335,16 +1740,24 @@ describe("MarkdownPreview: F04 Phase 4a embeds", () => {
     resolveRead("# Intro\n\nReal content.");
     await vi.advanceTimersByTimeAsync(0);
 
-    expect(container.querySelector(".embed-frame-body")?.textContent).toBe("Could not read embedded note");
+    expect(container.querySelector(".embed-frame-body")?.textContent).toBe(
+      "Could not read embedded note",
+    );
   });
 
   it("shows 'Embedded heading not found' when the cross-note target lacks the heading", async () => {
     setNote("project plan", "/vault/project-plan.md");
-    vi.mocked(readTextFile).mockResolvedValue("# Intro\n\nno such heading here");
-    const { container } = render(<MarkdownPreview source="![[Project Plan#Nonexistent]]" />);
+    vi.mocked(readTextFile).mockResolvedValue(
+      "# Intro\n\nno such heading here",
+    );
+    const { container } = render(
+      <MarkdownPreview source="![[Project Plan#Nonexistent]]" />,
+    );
 
     await waitFor(() => {
-      expect(container.querySelector(".embed-frame-body")?.textContent).toBe("Embedded heading not found");
+      expect(container.querySelector(".embed-frame-body")?.textContent).toBe(
+        "Embedded heading not found",
+      );
     });
   });
 
@@ -1362,7 +1775,8 @@ describe("MarkdownPreview: F04 Phase 4a embeds", () => {
       tasksByPath: new Map(),
     };
     vi.mocked(readTextFile).mockImplementation(async (path: string) => {
-      if (path === "/vault/target.md") return "Has a nested ![[Other]] reference.";
+      if (path === "/vault/target.md")
+        return "Has a nested ![[Other]] reference.";
       if (path === "/vault/other.md") return "The innermost content.";
       throw new Error(`unexpected path: ${path}`);
     });
@@ -1372,14 +1786,20 @@ describe("MarkdownPreview: F04 Phase 4a embeds", () => {
       expect(container.querySelectorAll(".embed-frame")).toHaveLength(2);
     });
     const frames = container.querySelectorAll(".embed-frame");
-    expect(frames[0].querySelector(".embed-frame-body")?.textContent).toContain("Has a nested");
+    expect(frames[0].querySelector(".embed-frame-body")?.textContent).toContain(
+      "Has a nested",
+    );
     await waitFor(() => {
-      expect(frames[0].querySelector(".embed-frame-body")?.textContent).toContain("The innermost content.");
+      expect(
+        frames[0].querySelector(".embed-frame-body")?.textContent,
+      ).toContain("The innermost content.");
     });
     // The nested embed expanded into a real frame (its own header and
     // "Open source note" link included), not a bare degraded link
     // replacing the whole frame.
-    expect(frames[1].querySelector(".embed-frame-label")?.textContent).toBe("other.md");
+    expect(frames[1].querySelector(".embed-frame-label")?.textContent).toBe(
+      "other.md",
+    );
   });
 
   it("caps recursion at the maximum depth (3), degrading the next level to a plain link", async () => {
@@ -1417,7 +1837,9 @@ describe("MarkdownPreview: F04 Phase 4a embeds", () => {
     });
     const frames = container.querySelectorAll(".embed-frame");
     await waitFor(() => {
-      expect(frames[2].querySelector(".embed-frame-body")?.textContent).toContain("Level three.");
+      expect(
+        frames[2].querySelector(".embed-frame-body")?.textContent,
+      ).toContain("Level three.");
     });
     // Two-step, not a chained `.embed-frame-body a[...]` selector off
     // frames[2] directly: frames[2] (Note3's own frame) is itself nested
@@ -1441,12 +1863,18 @@ describe("MarkdownPreview: F04 Phase 4a embeds", () => {
     // again: expanding it a second time would recurse forever without
     // cycle detection.
     const source = "![[#Loop]]\n\n## Loop\n\nSelf-referential. ![[#Loop]]";
-    const { container } = render(<MarkdownPreview source={source} notePath="/vault/loop.md" />);
+    const { container } = render(
+      <MarkdownPreview source={source} notePath="/vault/loop.md" />,
+    );
 
     const outer = container.querySelector(".embed-frame");
-    expect(outer?.querySelector(".embed-frame-body")?.textContent).toContain("Self-referential.");
+    expect(outer?.querySelector(".embed-frame-body")?.textContent).toContain(
+      "Self-referential.",
+    );
     const inner = outer?.querySelector(".embed-frame");
-    expect(inner?.querySelector(".embed-frame-body")?.textContent).toBe("Embed cycle stopped");
+    expect(inner?.querySelector(".embed-frame-body")?.textContent).toBe(
+      "Embed cycle stopped",
+    );
   });
 
   it("stops a cross-note cycle where the embedded note re-embeds a note already being expanded", async () => {
@@ -1475,12 +1903,19 @@ describe("MarkdownPreview: F04 Phase 4a embeds", () => {
     await waitFor(() => {
       expect(container.querySelectorAll(".embed-frame")).toHaveLength(3);
     });
-    const [outer, inner, cycleFrame] = container.querySelectorAll(".embed-frame");
+    const [outer, inner, cycleFrame] =
+      container.querySelectorAll(".embed-frame");
     await waitFor(() => {
-      expect(outer.querySelector(".embed-frame-body")?.textContent).toContain("A embeds");
+      expect(outer.querySelector(".embed-frame-body")?.textContent).toContain(
+        "A embeds",
+      );
     });
-    expect(inner.querySelector(".embed-frame-body")?.textContent).toContain("B embeds back:");
-    expect(cycleFrame.querySelector(".embed-frame-body")?.textContent).toBe("Embed cycle stopped");
+    expect(inner.querySelector(".embed-frame-body")?.textContent).toContain(
+      "B embeds back:",
+    );
+    expect(cycleFrame.querySelector(".embed-frame-body")?.textContent).toBe(
+      "Embed cycle stopped",
+    );
     // No further expansion after the cycle is stopped.
     await waitFor(() => {
       expect(container.querySelectorAll(".embed-frame")).toHaveLength(3);
@@ -1488,29 +1923,56 @@ describe("MarkdownPreview: F04 Phase 4a embeds", () => {
   });
 
   it("shows 'Embed limit reached' once the maximum resolved-instance count (25) is exceeded", () => {
-    const embeds = Array.from({ length: 26 }, (_, i) => `![[#H${i + 1}]]`).join("\n\n");
-    const headings = Array.from({ length: 26 }, (_, i) => `## H${i + 1}\n\nBody ${i + 1}.`).join("\n\n");
+    const embeds = Array.from({ length: 26 }, (_, i) => `![[#H${i + 1}]]`).join(
+      "\n\n",
+    );
+    const headings = Array.from(
+      { length: 26 },
+      (_, i) => `## H${i + 1}\n\nBody ${i + 1}.`,
+    ).join("\n\n");
     const source = `${embeds}\n\n${headings}`;
-    const { container } = render(<MarkdownPreview source={source} notePath="/vault/many.md" />);
+    const { container } = render(
+      <MarkdownPreview source={source} notePath="/vault/many.md" />,
+    );
 
     const frames = container.querySelectorAll(".embed-frame");
     expect(frames).toHaveLength(26);
     for (let i = 0; i < 25; i++) {
-      expect(frames[i].querySelector(".embed-frame-body")?.textContent).toContain(`Body ${i + 1}.`);
+      expect(
+        frames[i].querySelector(".embed-frame-body")?.textContent,
+      ).toContain(`Body ${i + 1}.`);
     }
-    expect(frames[25].querySelector(".embed-frame-body")?.textContent).toBe("Embed limit reached");
+    expect(frames[25].querySelector(".embed-frame-body")?.textContent).toBe(
+      "Embed limit reached",
+    );
   });
 
   it("shows 'Embed limit reached' once the total-bytes-loaded budget (1 MiB) is exceeded", () => {
     const bigBody = "x".repeat(1_100_000);
-    const source = ["![[#Big]]", "", "![[#Small]]", "", "## Big", "", bigBody, "", "## Small", "", "Tiny body."].join(
-      "\n",
+    const source = [
+      "![[#Big]]",
+      "",
+      "![[#Small]]",
+      "",
+      "## Big",
+      "",
+      bigBody,
+      "",
+      "## Small",
+      "",
+      "Tiny body.",
+    ].join("\n");
+    const { container } = render(
+      <MarkdownPreview source={source} notePath="/vault/big.md" />,
     );
-    const { container } = render(<MarkdownPreview source={source} notePath="/vault/big.md" />);
 
     const [bigFrame, smallFrame] = container.querySelectorAll(".embed-frame");
-    expect(bigFrame.querySelector(".embed-frame-body")?.textContent).toContain(bigBody);
-    expect(smallFrame.querySelector(".embed-frame-body")?.textContent).toBe("Embed limit reached");
+    expect(bigFrame.querySelector(".embed-frame-body")?.textContent).toContain(
+      bigBody,
+    );
+    expect(smallFrame.querySelector(".embed-frame-body")?.textContent).toBe(
+      "Embed limit reached",
+    );
   });
 
   it("treats the byte budget landing at exactly 0 remaining as exhausted (F04 Phase 4b edge-case coverage)", () => {
@@ -1520,14 +1982,30 @@ describe("MarkdownPreview: F04 Phase 4a embeds", () => {
     // above). The boundary condition itself, `<= 0`, is what's under
     // test here.
     const exactlyOneMiB = "x".repeat(1_048_576);
-    const source = ["![[#Exact]]", "", "![[#Next]]", "", "## Exact", "", exactlyOneMiB, "", "## Next", "", "Tiny."].join(
-      "\n",
+    const source = [
+      "![[#Exact]]",
+      "",
+      "![[#Next]]",
+      "",
+      "## Exact",
+      "",
+      exactlyOneMiB,
+      "",
+      "## Next",
+      "",
+      "Tiny.",
+    ].join("\n");
+    const { container } = render(
+      <MarkdownPreview source={source} notePath="/vault/exact.md" />,
     );
-    const { container } = render(<MarkdownPreview source={source} notePath="/vault/exact.md" />);
 
     const [exactFrame, nextFrame] = container.querySelectorAll(".embed-frame");
-    expect(exactFrame.querySelector(".embed-frame-body")?.textContent).toContain(exactlyOneMiB);
-    expect(nextFrame.querySelector(".embed-frame-body")?.textContent).toBe("Embed limit reached");
+    expect(
+      exactFrame.querySelector(".embed-frame-body")?.textContent,
+    ).toContain(exactlyOneMiB);
+    expect(nextFrame.querySelector(".embed-frame-body")?.textContent).toBe(
+      "Embed limit reached",
+    );
   });
 
   it("resolves two independent sibling cross-note embeds concurrently without cross-contaminating their ancestry", async () => {
@@ -1554,7 +2032,9 @@ describe("MarkdownPreview: F04 Phase 4a embeds", () => {
       if (path === "/vault/notey.md") return "Content Y.";
       throw new Error(`unexpected path: ${path}`);
     });
-    const { container } = render(<MarkdownPreview source={"![[NoteX]]\n\n![[NoteY]]"} />);
+    const { container } = render(
+      <MarkdownPreview source={"![[NoteX]]\n\n![[NoteY]]"} />,
+    );
 
     await waitFor(() => {
       expect(container.textContent).toContain("Content X.");
@@ -1562,8 +2042,12 @@ describe("MarkdownPreview: F04 Phase 4a embeds", () => {
     });
     const frames = container.querySelectorAll(".embed-frame");
     expect(frames).toHaveLength(2);
-    expect(frames[0].querySelector(".embed-frame-body")?.textContent).toContain("Content X.");
-    expect(frames[1].querySelector(".embed-frame-body")?.textContent).toContain("Content Y.");
+    expect(frames[0].querySelector(".embed-frame-body")?.textContent).toContain(
+      "Content X.",
+    );
+    expect(frames[1].querySelector(".embed-frame-body")?.textContent).toContain(
+      "Content Y.",
+    );
   });
 
   it("expands a same-note embed nested inside a cross-note embed's own content, resolving against the embedded note (not the host)", async () => {
@@ -1586,11 +2070,15 @@ describe("MarkdownPreview: F04 Phase 4a embeds", () => {
     });
     const [outer, inner] = container.querySelectorAll(".embed-frame");
     await waitFor(() => {
-      expect(outer.querySelector(".embed-frame-body")?.textContent).toContain("Intro text.");
+      expect(outer.querySelector(".embed-frame-body")?.textContent).toContain(
+        "Intro text.",
+      );
     });
     // The nested same-note fragment ("#Details") resolved against
     // reference.md's own headings, not the (pathless) host note's.
-    expect(inner.querySelector(".embed-frame-body")?.textContent).toContain("The embedded note's own section.");
+    expect(inner.querySelector(".embed-frame-body")?.textContent).toContain(
+      "The embedded note's own section.",
+    );
   });
 
   it("expands a chain mixing cross-note and same-note embeds more than one level of each (F04 Phase 4b edge-case coverage)", async () => {
@@ -1620,7 +2108,8 @@ describe("MarkdownPreview: F04 Phase 4a embeds", () => {
     };
     vi.mocked(readTextFile).mockImplementation(async (path: string) => {
       if (path === "/vault/notea.md") return "Level A. ![[NoteB]]";
-      if (path === "/vault/noteb.md") return "Level B. ![[#Section]]\n\n## Section\n\nFinal leaf content.";
+      if (path === "/vault/noteb.md")
+        return "Level B. ![[#Section]]\n\n## Section\n\nFinal leaf content.";
       throw new Error(`unexpected path: ${path}`);
     });
     const { container } = render(<MarkdownPreview source="![[NoteA]]" />);
@@ -1628,14 +2117,21 @@ describe("MarkdownPreview: F04 Phase 4a embeds", () => {
     await waitFor(() => {
       expect(container.querySelectorAll(".embed-frame")).toHaveLength(3);
     });
-    const [noteAFrame, noteBFrame, sectionFrame] = container.querySelectorAll(".embed-frame");
+    const [noteAFrame, noteBFrame, sectionFrame] =
+      container.querySelectorAll(".embed-frame");
     await waitFor(() => {
-      expect(noteAFrame.querySelector(".embed-frame-body")?.textContent).toContain("Level A.");
+      expect(
+        noteAFrame.querySelector(".embed-frame-body")?.textContent,
+      ).toContain("Level A.");
     });
     await waitFor(() => {
-      expect(noteBFrame.querySelector(".embed-frame-body")?.textContent).toContain("Level B.");
+      expect(
+        noteBFrame.querySelector(".embed-frame-body")?.textContent,
+      ).toContain("Level B.");
     });
-    expect(sectionFrame.querySelector(".embed-frame-body")?.textContent).toContain("Final leaf content.");
+    expect(
+      sectionFrame.querySelector(".embed-frame-body")?.textContent,
+    ).toContain("Final leaf content.");
   });
 
   it("shows an ambiguous-heading placeholder for a same-note embed nested inside a cross-note embed (F04 Phase 4b edge-case coverage)", async () => {
@@ -1658,7 +2154,9 @@ describe("MarkdownPreview: F04 Phase 4a embeds", () => {
     });
     const [, inner] = container.querySelectorAll(".embed-frame");
     await waitFor(() => {
-      expect(inner.querySelector(".embed-frame-body")?.textContent).toContain("more than one heading");
+      expect(inner.querySelector(".embed-frame-body")?.textContent).toContain(
+        "more than one heading",
+      );
     });
   });
 
@@ -1684,7 +2182,9 @@ describe("MarkdownPreview: F04 Phase 4a embeds", () => {
       if (path === "/vault/noteb.md") return noteBRead;
       throw new Error(`unexpected path: ${path}`);
     });
-    const { container, rerender } = render(<MarkdownPreview source="![[NoteA]]" />);
+    const { container, rerender } = render(
+      <MarkdownPreview source="![[NoteA]]" />,
+    );
 
     // Wait until NoteA has resolved and NoteB's own placeholder (a
     // *nested* cross-note request, discovered only while resolving
@@ -1693,7 +2193,9 @@ describe("MarkdownPreview: F04 Phase 4a embeds", () => {
       expect(container.querySelectorAll(".embed-frame")).toHaveLength(2);
     });
     const [, noteBFrame] = container.querySelectorAll(".embed-frame");
-    expect(noteBFrame.querySelector(".embed-frame-body")?.textContent).toBe("Loading…");
+    expect(noteBFrame.querySelector(".embed-frame-body")?.textContent).toBe(
+      "Loading…",
+    );
 
     // Re-rendering with a source that no longer requests any embed runs
     // the effect's own cleanup, setting the closure's `cancelled` flag
@@ -1705,24 +2207,40 @@ describe("MarkdownPreview: F04 Phase 4a embeds", () => {
 
     // The cancelled resolution must not have mutated the (now-detached)
     // NoteB frame's body: it never received the real content.
-    expect(noteBFrame.querySelector(".embed-frame-body")?.textContent).toBe("Loading…");
+    expect(noteBFrame.querySelector(".embed-frame-body")?.textContent).toBe(
+      "Loading…",
+    );
     expect(container.querySelector(".embed-frame")).toBeNull();
   });
 
   it("still strips block-id markers from a same-note embed's own extracted content", () => {
-    const source = "# Intro\n\n## Section\n\nText with a marker. ^marked\n\nSee ![[#Section]] above.";
-    const { container } = render(<MarkdownPreview source={source} notePath="/vault/plan.md" />);
-    expect(container.querySelector(".embed-frame-body")?.textContent).not.toContain("^marked");
-    expect(container.querySelector(".embed-frame-body")?.textContent).toContain("Text with a marker.");
+    const source =
+      "# Intro\n\n## Section\n\nText with a marker. ^marked\n\nSee ![[#Section]] above.";
+    const { container } = render(
+      <MarkdownPreview source={source} notePath="/vault/plan.md" />,
+    );
+    expect(
+      container.querySelector(".embed-frame-body")?.textContent,
+    ).not.toContain("^marked");
+    expect(container.querySelector(".embed-frame-body")?.textContent).toContain(
+      "Text with a marker.",
+    );
   });
 
   it("clicking a same-note embed's Open source note link reveals the section without opening a note", () => {
     const onOpenFile = vi.fn();
-    const source = "# Intro\n\n## Milestones\n\nShip v1.\n\nSee ![[#Milestones]] above.";
+    const source =
+      "# Intro\n\n## Milestones\n\nShip v1.\n\nSee ![[#Milestones]] above.";
     const { container } = render(
-      <MarkdownPreview source={source} notePath="/vault/plan.md" onOpenFile={onOpenFile} />,
+      <MarkdownPreview
+        source={source}
+        notePath="/vault/plan.md"
+        onOpenFile={onOpenFile}
+      />,
     );
-    const openLink = container.querySelector(".embed-frame-open") as HTMLAnchorElement;
+    const openLink = container.querySelector(
+      ".embed-frame-open",
+    ) as HTMLAnchorElement;
     expect(openLink).toBeTruthy();
     fireEvent.click(openLink);
     expect(onOpenFile).not.toHaveBeenCalled();
@@ -1736,9 +2254,14 @@ describe("MarkdownPreview: F04 Phase 4a embeds", () => {
     const { container } = render(
       <MarkdownPreview source="![[Project Plan]]" onOpenFile={onOpenFile} />,
     );
-    const openLink = container.querySelector(".embed-frame-open") as HTMLAnchorElement;
+    const openLink = container.querySelector(
+      ".embed-frame-open",
+    ) as HTMLAnchorElement;
     fireEvent.click(openLink);
-    expect(onOpenFile).toHaveBeenCalledWith("/vault/project-plan.md", "project-plan.md");
+    expect(onOpenFile).toHaveBeenCalledWith(
+      "/vault/project-plan.md",
+      "project-plan.md",
+    );
   });
 
   it("does not render an embed frame when headingLinksEnabled is off", () => {
@@ -1750,40 +2273,55 @@ describe("MarkdownPreview: F04 Phase 4a embeds", () => {
 
   it("falls back to a generic label for a same-note embed with no notePath given at all", () => {
     const { container } = render(<MarkdownPreview source="![[#Heading]]" />);
-    expect(container.querySelector(".embed-frame-label")?.textContent).toContain("this note");
-    expect(container.querySelector(".embed-frame-body")?.textContent).toBe("Embedded note not found");
+    expect(
+      container.querySelector(".embed-frame-label")?.textContent,
+    ).toContain("this note");
+    expect(container.querySelector(".embed-frame-body")?.textContent).toBe(
+      "Embedded note not found",
+    );
   });
 
   it("still renders correctly when the embed marker sits mid-paragraph rather than on its own line", () => {
-    const source = "# Intro\n\n## Milestones\n\nShip v1.\n\nBefore text ![[#Milestones]] after text.";
-    const { container } = render(<MarkdownPreview source={source} notePath="/vault/plan.md" />);
+    const source =
+      "# Intro\n\n## Milestones\n\nShip v1.\n\nBefore text ![[#Milestones]] after text.";
+    const { container } = render(
+      <MarkdownPreview source={source} notePath="/vault/plan.md" />,
+    );
     expect(container.textContent).toContain("Before text");
     expect(container.textContent).toContain("after text.");
-    expect(container.querySelector(".embed-frame-body")?.textContent).toContain("Ship v1.");
+    expect(container.querySelector(".embed-frame-body")?.textContent).toContain(
+      "Ship v1.",
+    );
   });
 });
 
 describe("MarkdownPreview RTL text direction", () => {
-  it("sets dir=\"auto\" on the preview container itself", () => {
+  it('sets dir="auto" on the preview container itself', () => {
     const { container } = render(<MarkdownPreview source="Hello" />);
-    expect(container.querySelector(".markdown-preview")?.getAttribute("dir")).toBe("auto");
+    expect(
+      container.querySelector(".markdown-preview")?.getAttribute("dir"),
+    ).toBe("auto");
   });
 
-  it("sets dir=\"auto\" on a Hebrew paragraph and an English paragraph alike", () => {
-    const { container } = render(<MarkdownPreview source={"שלום עולם\n\nHello world"} />);
+  it('sets dir="auto" on a Hebrew paragraph and an English paragraph alike', () => {
+    const { container } = render(
+      <MarkdownPreview source={"שלום עולם\n\nHello world"} />,
+    );
     const paragraphs = container.querySelectorAll("p");
     expect(paragraphs).toHaveLength(2);
     expect(paragraphs[0].getAttribute("dir")).toBe("auto");
     expect(paragraphs[1].getAttribute("dir")).toBe("auto");
   });
 
-  it("sets dir=\"auto\" on a right-to-left heading and list item", () => {
-    const { container } = render(<MarkdownPreview source={"# כותרת\n\n- פריט ראשון"} />);
+  it('sets dir="auto" on a right-to-left heading and list item', () => {
+    const { container } = render(
+      <MarkdownPreview source={"# כותרת\n\n- פריט ראשון"} />,
+    );
     expect(container.querySelector("h1")?.getAttribute("dir")).toBe("auto");
     expect(container.querySelector("li")?.getAttribute("dir")).toBe("auto");
   });
 
-  it("survives DOMPurify sanitization: dir=\"auto\" is still present after render, not stripped", () => {
+  it('survives DOMPurify sanitization: dir="auto" is still present after render, not stripped', () => {
     const { container } = render(<MarkdownPreview source="**bold** שלום" />);
     const paragraph = container.querySelector("p");
     expect(paragraph?.getAttribute("dir")).toBe("auto");
@@ -1792,7 +2330,10 @@ describe("MarkdownPreview RTL text direction", () => {
 });
 
 describe("MarkdownPreview: F07 Phase 5 -- Ctrl/Cmd-click opens a link in the other editor group", () => {
-  function withResolvableLink(source: string, onOpenFile: (...args: unknown[]) => void) {
+  function withResolvableLink(
+    source: string,
+    onOpenFile: (...args: unknown[]) => void,
+  ) {
     linkIndex.value = {
       backlinksByPath: new Map(),
       pathsByNoteName: new Map([["project plan", ["/vault/project-plan.md"]]]),
@@ -1809,31 +2350,58 @@ describe("MarkdownPreview: F07 Phase 5 -- Ctrl/Cmd-click opens a link in the oth
     const onOpenFile = vi.fn();
     const { container } = withResolvableLink("[[Project Plan]]", onOpenFile);
     fireEvent.click(container.querySelector('a[href^="#leotheca-wikilink="]')!);
-    expect(onOpenFile).toHaveBeenCalledWith("/vault/project-plan.md", "project-plan.md");
+    expect(onOpenFile).toHaveBeenCalledWith(
+      "/vault/project-plan.md",
+      "project-plan.md",
+    );
   });
 
   it("Ctrl-click sets otherGroup: true", () => {
     const onOpenFile = vi.fn();
     const { container } = withResolvableLink("[[Project Plan]]", onOpenFile);
-    fireEvent.click(container.querySelector('a[href^="#leotheca-wikilink="]')!, { ctrlKey: true });
-    expect(onOpenFile).toHaveBeenCalledWith("/vault/project-plan.md", "project-plan.md", { otherGroup: true });
+    fireEvent.click(
+      container.querySelector('a[href^="#leotheca-wikilink="]')!,
+      { ctrlKey: true },
+    );
+    expect(onOpenFile).toHaveBeenCalledWith(
+      "/vault/project-plan.md",
+      "project-plan.md",
+      { otherGroup: true },
+    );
   });
 
   it("Cmd (metaKey)-click also sets otherGroup: true", () => {
     const onOpenFile = vi.fn();
     const { container } = withResolvableLink("[[Project Plan]]", onOpenFile);
-    fireEvent.click(container.querySelector('a[href^="#leotheca-wikilink="]')!, { metaKey: true });
-    expect(onOpenFile).toHaveBeenCalledWith("/vault/project-plan.md", "project-plan.md", { otherGroup: true });
+    fireEvent.click(
+      container.querySelector('a[href^="#leotheca-wikilink="]')!,
+      { metaKey: true },
+    );
+    expect(onOpenFile).toHaveBeenCalledWith(
+      "/vault/project-plan.md",
+      "project-plan.md",
+      { otherGroup: true },
+    );
   });
 
   it("carries otherGroup alongside a heading-fragment link too", () => {
     const onOpenFile = vi.fn();
-    const { container } = withResolvableLink("[[Project Plan#Milestones]]", onOpenFile);
-    fireEvent.click(container.querySelector('a[href^="#leotheca-wikilink="]')!, { ctrlKey: true });
-    expect(onOpenFile).toHaveBeenCalledWith("/vault/project-plan.md", "project-plan.md", {
-      headingKey: "Milestones",
-      otherGroup: true,
-    });
+    const { container } = withResolvableLink(
+      "[[Project Plan#Milestones]]",
+      onOpenFile,
+    );
+    fireEvent.click(
+      container.querySelector('a[href^="#leotheca-wikilink="]')!,
+      { ctrlKey: true },
+    );
+    expect(onOpenFile).toHaveBeenCalledWith(
+      "/vault/project-plan.md",
+      "project-plan.md",
+      {
+        headingKey: "Milestones",
+        otherGroup: true,
+      },
+    );
   });
 });
 
@@ -1841,7 +2409,9 @@ describe("MarkdownPreview: F07 Phase 5 -- Ctrl/Cmd-click opens a link in the oth
 // Emoji-color prefix convention.
 describe("MarkdownPreview highlight (== syntax)", () => {
   it("renders ==text== as a <mark> with the base highlight class", () => {
-    const { container } = render(<MarkdownPreview source={"==highlighted=="} />);
+    const { container } = render(
+      <MarkdownPreview source={"==highlighted=="} />,
+    );
     const mark = container.querySelector("mark");
     expect(mark).not.toBeNull();
     expect(mark?.textContent).toBe("highlighted");
@@ -1849,7 +2419,9 @@ describe("MarkdownPreview highlight (== syntax)", () => {
   });
 
   it("renders inline markdown inside a highlight (bold nests correctly)", () => {
-    const { container } = render(<MarkdownPreview source={"==**bold** inside=="} />);
+    const { container } = render(
+      <MarkdownPreview source={"==**bold** inside=="} />,
+    );
     const mark = container.querySelector("mark");
     expect(mark).not.toBeNull();
     expect(mark?.querySelector("strong")?.textContent).toBe("bold");
@@ -1857,13 +2429,17 @@ describe("MarkdownPreview highlight (== syntax)", () => {
   });
 
   it("renders a highlight in the middle of a sentence, leaving surrounding text untouched", () => {
-    const { container } = render(<MarkdownPreview source={"before ==mid== after"} />);
+    const { container } = render(
+      <MarkdownPreview source={"before ==mid== after"} />,
+    );
     expect(container.querySelector("p")?.textContent).toBe("before mid after");
     expect(container.querySelector("mark")?.textContent).toBe("mid");
   });
 
   it("supports multiple, independent highlights in one line", () => {
-    const { container } = render(<MarkdownPreview source={"==one== and ==two=="} />);
+    const { container } = render(
+      <MarkdownPreview source={"==one== and ==two=="} />,
+    );
     const marks = container.querySelectorAll("mark");
     expect(marks.length).toBe(2);
     expect(marks[0].textContent).toBe("one");
@@ -1876,23 +2452,32 @@ describe("MarkdownPreview highlight (== syntax)", () => {
     ["\u{1F7E2}", "green"], // 🟢
     ["\u{1F535}", "blue"], // 🔵
     ["\u{1F7E3}", "purple"], // 🟣
-  ])("maps the %s emoji prefix to the %s color class and strips it from the text", (emoji, color) => {
-    const { container } = render(<MarkdownPreview source={`==${emoji}colored==`} />);
-    const mark = container.querySelector("mark");
-    expect(mark).not.toBeNull();
-    expect(mark?.textContent).toBe("colored");
-    expect(mark?.className).toBe(`lt-highlight lt-highlight-${color}`);
-  });
+  ])(
+    "maps the %s emoji prefix to the %s color class and strips it from the text",
+    (emoji, color) => {
+      const { container } = render(
+        <MarkdownPreview source={`==${emoji}colored==`} />,
+      );
+      const mark = container.querySelector("mark");
+      expect(mark).not.toBeNull();
+      expect(mark?.textContent).toBe("colored");
+      expect(mark?.className).toBe(`lt-highlight lt-highlight-${color}`);
+    },
+  );
 
   it("keeps a following space after a stripped color emoji prefix", () => {
-    const { container } = render(<MarkdownPreview source={"==\u{1F534} colored=="} />);
+    const { container } = render(
+      <MarkdownPreview source={"==\u{1F534} colored=="} />,
+    );
     const mark = container.querySelector("mark");
     expect(mark?.textContent).toBe(" colored");
     expect(mark?.className).toBe("lt-highlight lt-highlight-red");
   });
 
   it("does not treat an unrecognized emoji prefix as a color", () => {
-    const { container } = render(<MarkdownPreview source={"==\u{1F600}text=="} />);
+    const { container } = render(
+      <MarkdownPreview source={"==\u{1F600}text=="} />,
+    );
     const mark = container.querySelector("mark");
     expect(mark).not.toBeNull();
     expect(mark?.className).toBe("lt-highlight");
@@ -1908,15 +2493,23 @@ describe("MarkdownPreview highlight (== syntax)", () => {
   });
 
   it("leaves an unterminated == as literal text (no <mark> at all)", () => {
-    const { container } = render(<MarkdownPreview source={"this has == but never closes"} />);
+    const { container } = render(
+      <MarkdownPreview source={"this has == but never closes"} />,
+    );
     expect(container.querySelector("mark")).toBeNull();
-    expect(container.querySelector("p")?.textContent).toBe("this has == but never closes");
+    expect(container.querySelector("p")?.textContent).toBe(
+      "this has == but never closes",
+    );
   });
 
   it("does not treat a comparison-like == with surrounding spaces as a highlight", () => {
-    const { container } = render(<MarkdownPreview source={"if x == y and a == b"} />);
+    const { container } = render(
+      <MarkdownPreview source={"if x == y and a == b"} />,
+    );
     expect(container.querySelector("mark")).toBeNull();
-    expect(container.querySelector("p")?.textContent).toBe("if x == y and a == b");
+    expect(container.querySelector("p")?.textContent).toBe(
+      "if x == y and a == b",
+    );
   });
 
   it("resolves adjacent highlights on the same line independently, not as one nested span", () => {
@@ -1928,25 +2521,36 @@ describe("MarkdownPreview highlight (== syntax)", () => {
   });
 
   it("never renders == literally inside a code span", () => {
-    const { container } = render(<MarkdownPreview source={"`==not a highlight==`"} />);
+    const { container } = render(
+      <MarkdownPreview source={"`==not a highlight==`"} />,
+    );
     expect(container.querySelector("mark")).toBeNull();
-    expect(container.querySelector("code")?.textContent).toBe("==not a highlight==");
+    expect(container.querySelector("code")?.textContent).toBe(
+      "==not a highlight==",
+    );
   });
 
   it("renders a highlight containing a wikilink", () => {
-    const { container } = render(<MarkdownPreview source={"==see [[Some Note]]=="} />);
+    const { container } = render(
+      <MarkdownPreview source={"==see [[Some Note]]=="} />,
+    );
     const mark = container.querySelector("mark");
     expect(mark).not.toBeNull();
     expect(mark?.querySelector("a")).not.toBeNull();
   });
 
   it("sanitizes highlight content the same way as the rest of the document", () => {
-    const { container } = render(<MarkdownPreview source={"==<script>window.pwned = true</script>=="} />);
+    const { container } = render(
+      <MarkdownPreview source={"==<script>window.pwned = true</script>=="} />,
+    );
     expect(container.querySelector("script")).toBeNull();
   });
 });
 
-import { renderMermaidToSvg, sanitizeMermaidSvgForInjection } from "../markdown/mermaid";
+import {
+  renderMermaidToSvg,
+  sanitizeMermaidSvgForInjection,
+} from "../markdown/mermaid";
 
 describe("MarkdownPreview: mermaid SVG injection-site sanitization (W-2026-11-01-2)", () => {
   // The vi.mock above keeps the REAL sanitizeMermaidSvgForInjection (via
@@ -1955,7 +2559,9 @@ describe("MarkdownPreview: mermaid SVG injection-site sanitization (W-2026-11-01
   // The import above resolves to the MOCKED renderMermaidToSvg (a vi.fn).
 
   it("routes the mermaid result through the injection-site guard", async () => {
-    (renderMermaidToSvg as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(
+    (
+      renderMermaidToSvg as unknown as ReturnType<typeof vi.fn>
+    ).mockResolvedValue(
       `<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script><rect onmouseover="alert(2)" width="1" height="1"/></svg>`,
     );
     const { container } = render(
@@ -1977,7 +2583,6 @@ describe("MarkdownPreview: mermaid SVG injection-site sanitization (W-2026-11-01
   });
 });
 
-
 describe("MarkdownPreview hostile nesting depth", () => {
   // marked's recursive lexer/walker throws RangeError past a few thousand
   // nested blockquotes. Nothing above MarkdownPreview catches a render-time
@@ -1997,7 +2602,9 @@ describe("MarkdownPreview hostile nesting depth", () => {
   });
 
   it("recovers on the next edit once the pathological text is removed", () => {
-    const { container, rerender } = render(<MarkdownPreview source={deepQuote} />);
+    const { container, rerender } = render(
+      <MarkdownPreview source={deepQuote} />,
+    );
     rerender(<MarkdownPreview source={"# Fine now"} />);
     expect(container.querySelector("h1")?.textContent).toBe("Fine now");
   });
@@ -2018,9 +2625,14 @@ describe("MarkdownPreview: rejected clipboard write for the block copy control",
     process.on("unhandledRejection", onUnhandled);
     try {
       const { container } = render(
-        <MarkdownPreview source="This decision is final. ^release-decision" notePath="/vault/plan.md" />,
+        <MarkdownPreview
+          source="This decision is final. ^release-decision"
+          notePath="/vault/plan.md"
+        />,
       );
-      fireEvent.click(container.querySelector<HTMLButtonElement>(".block-link-copy")!);
+      fireEvent.click(
+        container.querySelector<HTMLButtonElement>(".block-link-copy")!,
+      );
       await new Promise((resolve) => setTimeout(resolve, 20));
       expect(writes).toBe(1);
       expect(unhandled).toEqual([]);

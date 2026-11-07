@@ -17,7 +17,10 @@ import type { EditorLayoutState } from "./types";
 
 describe("createPrimaryEditorLayout", () => {
   it("keeps each path in the primary group at most once and repairs a stale active path", () => {
-    const layout = createPrimaryEditorLayout(["/a.md", "/b.md", "/a.md"], "/missing.md");
+    const layout = createPrimaryEditorLayout(
+      ["/a.md", "/b.md", "/a.md"],
+      "/missing.md",
+    );
 
     expect(layout).toEqual({
       activeGroupId: "primary",
@@ -47,7 +50,11 @@ describe("createPrimaryEditorLayout", () => {
 describe("synchronizePrimaryEditorLayout", () => {
   it("uses the canonical document order and does not duplicate it in a secondary group", () => {
     const initial = createPrimaryEditorLayout(["/old.md"], "/old.md");
-    const layout = synchronizePrimaryEditorLayout(initial, ["/a.md", "/b.md"], "/a.md");
+    const layout = synchronizePrimaryEditorLayout(
+      initial,
+      ["/a.md", "/b.md"],
+      "/a.md",
+    );
 
     expect(layout.groups.primary.tabPaths).toEqual(["/a.md", "/b.md"]);
     expect(layout.groups.primary.activePath).toBe("/a.md");
@@ -59,7 +66,11 @@ describe("synchronizePrimaryEditorLayout", () => {
       createPrimaryEditorLayout(["/a.md", "/b.md", "/c.md"], "/a.md"),
       "/c.md",
     );
-    const layout = synchronizePrimaryEditorLayout(initial, ["/a.md", "/b.md"], "/a.md");
+    const layout = synchronizePrimaryEditorLayout(
+      initial,
+      ["/a.md", "/b.md"],
+      "/a.md",
+    );
 
     expect(layout.groups.primary.pinnedPaths).toEqual([]);
     expect(layout.groups.primary.tabPaths).toEqual(["/a.md", "/b.md"]);
@@ -69,11 +80,18 @@ describe("synchronizePrimaryEditorLayout", () => {
     const initial: EditorLayoutState = {
       ...createPrimaryEditorLayout(["/a.md"], "/a.md"),
       groups: {
-        primary: { ...createPrimaryEditorLayout(["/a.md"], "/a.md").groups.primary, viewMode: "preview" },
+        primary: {
+          ...createPrimaryEditorLayout(["/a.md"], "/a.md").groups.primary,
+          viewMode: "preview",
+        },
       },
     };
 
-    const layout = synchronizePrimaryEditorLayout(initial, ["/a.md", "/b.md"], "/b.md");
+    const layout = synchronizePrimaryEditorLayout(
+      initial,
+      ["/a.md", "/b.md"],
+      "/b.md",
+    );
 
     expect(layout.groups.primary.viewMode).toBe("preview");
   });
@@ -96,7 +114,10 @@ describe("restorePrimaryEditorLayout", () => {
   it("is a no-op on tabPaths and activePath when nothing is pinned", () => {
     const layout = createPrimaryEditorLayout(["/a.md", "/b.md"], "/b.md");
 
-    const restored = restorePrimaryEditorLayout(layout, { pinnedPaths: [], viewMode: "source" });
+    const restored = restorePrimaryEditorLayout(layout, {
+      pinnedPaths: [],
+      viewMode: "source",
+    });
 
     expect(restored.groups.primary.tabPaths).toEqual(["/a.md", "/b.md"]);
     expect(restored.groups.primary.activePath).toBe("/b.md");
@@ -106,8 +127,14 @@ describe("restorePrimaryEditorLayout", () => {
 
 describe("primary-group pins", () => {
   it("pins in stable order and returns an unpinned tab to the leading ordinary region", () => {
-    const initial = createPrimaryEditorLayout(["/a.md", "/b.md", "/c.md"], "/a.md");
-    const pinned = pinPrimaryEditorLayout(pinPrimaryEditorLayout(initial, "/c.md"), "/b.md");
+    const initial = createPrimaryEditorLayout(
+      ["/a.md", "/b.md", "/c.md"],
+      "/a.md",
+    );
+    const pinned = pinPrimaryEditorLayout(
+      pinPrimaryEditorLayout(initial, "/c.md"),
+      "/b.md",
+    );
     const unpinned = unpinPrimaryEditorLayout(pinned, "/c.md");
 
     expect(pinned.groups.primary).toMatchObject({
@@ -154,7 +181,9 @@ describe("createSplitLayout", () => {
 
 describe("moveTabToGroup", () => {
   it("moves tab from primary to secondary", () => {
-    const initial = createSplitLayout(createPrimaryEditorLayout(["/a.md", "/b.md"], "/a.md"));
+    const initial = createSplitLayout(
+      createPrimaryEditorLayout(["/a.md", "/b.md"], "/a.md"),
+    );
     const layout = moveTabToGroup(initial, "/a.md", "secondary");
 
     expect(layout.activeGroupId).toBe("secondary");
@@ -166,14 +195,18 @@ describe("moveTabToGroup", () => {
   });
 
   it("does not move tab that is not in source group", () => {
-    const initial = createSplitLayout(createPrimaryEditorLayout(["/a.md", "/b.md"], "/a.md"));
+    const initial = createSplitLayout(
+      createPrimaryEditorLayout(["/a.md", "/b.md"], "/a.md"),
+    );
     const layout = moveTabToGroup(initial, "/c.md", "secondary");
 
     expect(layout).toBe(initial);
   });
 
   it("does not move tab if it already exists in target group", () => {
-    const initial = createSplitLayout(createPrimaryEditorLayout(["/a.md", "/b.md"], "/a.md"));
+    const initial = createSplitLayout(
+      createPrimaryEditorLayout(["/a.md", "/b.md"], "/a.md"),
+    );
     // This shouldn't happen in normal usage but guard against it
     const layout = moveTabToGroup(initial, "/a.md", "primary");
 
@@ -188,7 +221,9 @@ describe("moveTabToGroup", () => {
     // yet (see openInOtherGroup's doc comment). A stale activeGroupId here
     // must not stop the move: the tab lives in "secondary", so it should
     // move from there to "primary" regardless of what activeGroupId says.
-    let layout = createSplitLayout(createPrimaryEditorLayout(["/a.md"], "/a.md"));
+    let layout = createSplitLayout(
+      createPrimaryEditorLayout(["/a.md"], "/a.md"),
+    );
     layout = moveTabToGroup(layout, "/a.md", "secondary");
     expect(layout.groups.secondary?.tabPaths).toEqual(["/a.md"]);
     // Simulate the stale-activeGroupId race directly: activeGroupId still
@@ -238,17 +273,19 @@ describe("mergeSecondaryIntoPrimary", () => {
 describe("updateSplitRatio", () => {
   it("clamps ratio between 0.30 and 0.70", () => {
     const initial = createPrimaryEditorLayout(["/a.md"], "/a.md");
-    
-    expect(updateSplitRatio(initial, 0.25).preferredRatio).toBe(0.30);
-    expect(updateSplitRatio(initial, 0.50).preferredRatio).toBe(0.50);
-    expect(updateSplitRatio(initial, 0.75).preferredRatio).toBe(0.70);
-    expect(updateSplitRatio(initial, 1.50).preferredRatio).toBe(0.70);
+
+    expect(updateSplitRatio(initial, 0.25).preferredRatio).toBe(0.3);
+    expect(updateSplitRatio(initial, 0.5).preferredRatio).toBe(0.5);
+    expect(updateSplitRatio(initial, 0.75).preferredRatio).toBe(0.7);
+    expect(updateSplitRatio(initial, 1.5).preferredRatio).toBe(0.7);
   });
 });
 
 describe("activateGroup", () => {
   it("changes active group to specified group", () => {
-    const initial = createSplitLayout(createPrimaryEditorLayout(["/a.md"], "/a.md"));
+    const initial = createSplitLayout(
+      createPrimaryEditorLayout(["/a.md"], "/a.md"),
+    );
     const layout = activateGroup(initial, "secondary");
 
     expect(layout.activeGroupId).toBe("secondary");
@@ -272,7 +309,10 @@ describe("pinGroupTab", () => {
   });
 
   it("pins tab in secondary group", () => {
-    const initial = createSplitLayout(createPrimaryEditorLayout(["/a.md"], "/a.md"), "/b.md");
+    const initial = createSplitLayout(
+      createPrimaryEditorLayout(["/a.md"], "/a.md"),
+      "/b.md",
+    );
     const layout = pinGroupTab(initial, "secondary", "/b.md");
 
     expect(layout.groups.secondary?.pinnedPaths).toEqual(["/b.md"]);
@@ -298,7 +338,10 @@ describe("unpinGroupTab", () => {
   });
 
   it("unpins tab in secondary group", () => {
-    const initial = createSplitLayout(createPrimaryEditorLayout(["/a.md"], "/a.md"), "/b.md");
+    const initial = createSplitLayout(
+      createPrimaryEditorLayout(["/a.md"], "/a.md"),
+      "/b.md",
+    );
     let layout = pinGroupTab(initial, "secondary", "/b.md");
     layout = unpinGroupTab(layout, "secondary", "/b.md");
 

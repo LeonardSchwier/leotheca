@@ -86,7 +86,8 @@ export function resolveHeadingFragment(
   const key = normalizeHeadingKey(fragmentValue);
   const matches = headings.filter((heading) => heading.key === key);
   if (matches.length === 0) return { status: "missing-fragment" };
-  if (matches.length > 1) return { status: "ambiguous-fragment", candidates: matches };
+  if (matches.length > 1)
+    return { status: "ambiguous-fragment", candidates: matches };
   return { status: "resolved", heading: matches[0] };
 }
 
@@ -107,7 +108,8 @@ export function resolveBlockFragment(
   const key = fragmentValue.toLowerCase();
   const matches = blocks.filter((block) => block.key === key);
   if (matches.length === 0) return { status: "missing-fragment" };
-  if (matches.length > 1) return { status: "ambiguous-fragment", candidates: matches };
+  if (matches.length > 1)
+    return { status: "ambiguous-fragment", candidates: matches };
   return { status: "resolved", block: matches[0] };
 }
 
@@ -138,8 +140,15 @@ export function resolveBlockFragment(
  * opens. This phase does not change that pre-existing behavior, only
  * extends the same authority one level deeper.
  */
-export function crossNoteHeadingsFor(record: WikiLinkRecord): HeadingRecord[] | undefined {
-  if (record.noteTarget === "" || !record.fragment || record.fragment.kind !== "heading") return undefined;
+export function crossNoteHeadingsFor(
+  record: WikiLinkRecord,
+): HeadingRecord[] | undefined {
+  if (
+    record.noteTarget === "" ||
+    !record.fragment ||
+    record.fragment.kind !== "heading"
+  )
+    return undefined;
   const notePath = resolveWikilink(record.noteTarget);
   if (!notePath) return undefined;
   return linkIndex.value.headingsByPath?.get(notePath) ?? [];
@@ -155,8 +164,15 @@ export function crossNoteHeadingsFor(record: WikiLinkRecord): HeadingRecord[] | 
  * that function's own doc comment for the full rationale, which applies
  * here unchanged with "heading" replaced by "block".
  */
-export function crossNoteBlocksFor(record: WikiLinkRecord): BlockRecord[] | undefined {
-  if (record.noteTarget === "" || !record.fragment || record.fragment.kind !== "block") return undefined;
+export function crossNoteBlocksFor(
+  record: WikiLinkRecord,
+): BlockRecord[] | undefined {
+  if (
+    record.noteTarget === "" ||
+    !record.fragment ||
+    record.fragment.kind !== "block"
+  )
+    return undefined;
   const notePath = resolveWikilink(record.noteTarget);
   if (!notePath) return undefined;
   return linkIndex.value.blocksByPath?.get(notePath) ?? [];
@@ -203,7 +219,9 @@ export function resolveWikiLinkTarget(
   if (record.parseStatus === "malformed") return { status: "malformed" };
 
   const sameNote = record.noteTarget === "";
-  const notePath = sameNote ? context.currentNotePath : (resolveWikilink(record.noteTarget) ?? undefined);
+  const notePath = sameNote
+    ? context.currentNotePath
+    : (resolveWikilink(record.noteTarget) ?? undefined);
 
   if (!notePath) {
     // Section 5.3: the structured note portion didn't resolve. If the
@@ -214,7 +232,12 @@ export function resolveWikiLinkTarget(
     // unambiguous "this note" marker, never a filename to fall back to.
     if (!sameNote && (record.fragment || record.label)) {
       const legacyPath = resolveWikilink(record.legacyRaw);
-      if (legacyPath) return { status: "resolved", notePath: legacyPath, legacyFallback: true };
+      if (legacyPath)
+        return {
+          status: "resolved",
+          notePath: legacyPath,
+          legacyFallback: true,
+        };
     }
     return { status: "missing-note" };
   }
@@ -227,12 +250,19 @@ export function resolveWikiLinkTarget(
       // resolution stands, same as the equivalent heading branch below.
       return { status: "resolved", notePath };
     }
-    const blockResult = resolveBlockFragment(context.targetBlocks, record.fragment.value);
+    const blockResult = resolveBlockFragment(
+      context.targetBlocks,
+      record.fragment.value,
+    );
     if (blockResult.status === "resolved") {
       return { status: "resolved", notePath, block: blockResult.block };
     }
     if (blockResult.status === "ambiguous-fragment") {
-      return { status: "ambiguous-fragment", notePath, candidateBlocks: blockResult.candidates };
+      return {
+        status: "ambiguous-fragment",
+        notePath,
+        candidateBlocks: blockResult.candidates,
+      };
     }
     return { status: "missing-fragment", notePath };
   }
@@ -244,12 +274,19 @@ export function resolveWikiLinkTarget(
     return { status: "resolved", notePath };
   }
 
-  const fragmentResult = resolveHeadingFragment(context.targetHeadings, record.fragment.value);
+  const fragmentResult = resolveHeadingFragment(
+    context.targetHeadings,
+    record.fragment.value,
+  );
   if (fragmentResult.status === "resolved") {
     return { status: "resolved", notePath, heading: fragmentResult.heading };
   }
   if (fragmentResult.status === "ambiguous-fragment") {
-    return { status: "ambiguous-fragment", notePath, candidateHeadings: fragmentResult.candidates };
+    return {
+      status: "ambiguous-fragment",
+      notePath,
+      candidateHeadings: fragmentResult.candidates,
+    };
   }
   return { status: "missing-fragment", notePath };
 }

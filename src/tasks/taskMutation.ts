@@ -26,9 +26,7 @@ import type { SaveCoordinator } from "../workspace/saveCoordinator";
  */
 
 export type ToggleTaskResult =
-  | { status: "ok" }
-  | { status: "stale" }
-  | { status: "error"; message: string };
+  { status: "ok" } | { status: "stale" } | { status: "error"; message: string };
 
 export interface ToggleTaskDeps {
   save: SaveCoordinator;
@@ -49,7 +47,10 @@ function tasksMatch(a: TaskRecord, b: TaskRecord): boolean {
 /** Re-scans `content` and returns the task exactly matching `expected`, or
  * null when nothing does (the note changed underneath the recorded task:
  * spec section 5.3's "exact range no longer validates" -> fail closed). */
-function findMatchingTask(content: string, expected: TaskRecord): TaskRecord | null {
+function findMatchingTask(
+  content: string,
+  expected: TaskRecord,
+): TaskRecord | null {
   return scanTasks(content).find((task) => tasksMatch(task, expected)) ?? null;
 }
 
@@ -59,7 +60,9 @@ function findMatchingTask(content: string, expected: TaskRecord): TaskRecord | n
  * always writes lowercase `x`, never uppercase. */
 function flipMarker(content: string, task: TaskRecord): string {
   const next = task.checked ? " " : "x";
-  return content.slice(0, task.markerFrom) + next + content.slice(task.markerTo);
+  return (
+    content.slice(0, task.markerFrom) + next + content.slice(task.markerTo)
+  );
 }
 
 /** Incrementally replaces one note's task records in the shared workspace
@@ -92,7 +95,10 @@ export function replaceIndexedTasks(path: string, content: string): void {
 // validates against (and edits) what the first one just wrote.
 const closedFileQueues = new Map<string, Promise<void>>();
 
-function enqueueClosedFileWrite<T>(path: string, run: () => Promise<T>): Promise<T> {
+function enqueueClosedFileWrite<T>(
+  path: string,
+  run: () => Promise<T>,
+): Promise<T> {
   const previous = closedFileQueues.get(path) ?? Promise.resolve();
   const settled = previous.then(run, run);
   closedFileQueues.set(
@@ -156,7 +162,10 @@ export async function toggleTaskCompletion(
     try {
       diskContent = await readTextFile(path);
     } catch (error) {
-      return { status: "error", message: error instanceof Error ? error.message : String(error) };
+      return {
+        status: "error",
+        message: error instanceof Error ? error.message : String(error),
+      };
     }
     if (workspaceSession.value !== sessionAtStart) return { status: "stale" };
 
@@ -167,7 +176,10 @@ export async function toggleTaskCompletion(
     try {
       await writeTextFile(path, newContent);
     } catch (error) {
-      return { status: "error", message: error instanceof Error ? error.message : String(error) };
+      return {
+        status: "error",
+        message: error instanceof Error ? error.message : String(error),
+      };
     }
     if (workspaceSession.value !== sessionAtStart) return { status: "stale" };
     replaceIndexedTasks(path, newContent);

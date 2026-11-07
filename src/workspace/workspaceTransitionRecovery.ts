@@ -48,7 +48,8 @@ export function classifyTransitionErrorKind(
 }
 
 export interface WorkspaceTransitionRecoveryAction {
-  id: "retry" | "discard" | "relink" | "grant-access" | "open-another" | "forget";
+  id:
+    "retry" | "discard" | "relink" | "grant-access" | "open-another" | "forget";
   label: string;
 }
 
@@ -63,7 +64,9 @@ export interface WorkspaceTransitionRecoveryAction {
  * re-grant the same folder" native primitive on either platform, see F20
  * Phase 2b-i), so both surface as the same `relink`/`grant-access` id with
  * kind-appropriate copy; the caller wires both to the same handler. */
-export function recoveryActionsFor(kind: WorkspaceTransitionErrorKind): WorkspaceTransitionRecoveryAction[] {
+export function recoveryActionsFor(
+  kind: WorkspaceTransitionErrorKind,
+): WorkspaceTransitionRecoveryAction[] {
   switch (kind) {
     case "save_failed":
       return [

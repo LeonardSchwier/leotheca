@@ -59,7 +59,9 @@ export interface WorkspaceHealthFinding {
  *   primary target: `noteCount` counts them, but none of the
  *   content-signal maps have an entry for them.
  */
-export function computeWorkspaceHealthAudit(index: LinkIndex): WorkspaceHealthFinding[] {
+export function computeWorkspaceHealthAudit(
+  index: LinkIndex,
+): WorkspaceHealthFinding[] {
   const findings: WorkspaceHealthFinding[] = [];
   const noteCount = index.noteCount ?? 0;
 
@@ -128,7 +130,9 @@ export function groupHealthAuditFindings(
   for (const { kind, label } of kindOrder) {
     const list = byKind.get(kind);
     if (!list || list.length === 0) continue;
-    const notePaths = list.map((f) => f.notePath).sort((a, b) => a.localeCompare(b));
+    const notePaths = list
+      .map((f) => f.notePath)
+      .sort((a, b) => a.localeCompare(b));
     groups.push({
       kind,
       label,

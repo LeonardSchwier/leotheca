@@ -3,7 +3,16 @@ import { classifyWorkspaceResource, isImagePath, isTextFile } from "./types";
 
 describe("isImagePath", () => {
   it("recognizes every supported image extension", () => {
-    for (const ext of ["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "ico"]) {
+    for (const ext of [
+      "png",
+      "jpg",
+      "jpeg",
+      "gif",
+      "webp",
+      "svg",
+      "bmp",
+      "ico",
+    ]) {
       expect(isImagePath(`/vault/photo.${ext}`)).toBe(true);
     }
   });

@@ -59,8 +59,10 @@ A supported task is a list item whose marker is followed by a bracket state:
 ```markdown
 - [ ] Open task
 - [x] Completed task
-* [X] Completed with uppercase marker
-+ [ ] Another open task
+
+* [x] Completed with uppercase marker
+
+- [ ] Another open task
 ```
 
 Rules:
@@ -567,15 +569,15 @@ Test at minimum:
 
 ## 17. Risks and mitigations
 
-| Risk | Impact | Mitigation |
-|---|---|---|
+| Risk                                                | Impact                               | Mitigation                                                                             |
+| --------------------------------------------------- | ------------------------------------ | -------------------------------------------------------------------------------------- |
 | Regex-only task parsing misidentifies code examples | Incorrect tasks or destructive edits | Use the shared structure scanner with excluded-region fixtures and exact source ranges |
-| Indexed location becomes stale | Wrong task is toggled | Re-read or validate canonical open content; fail closed |
-| Autosave overwrites Task Hub mutation | Lost update | One path-specific writer through open-document state and save coordinator |
-| Large workspaces create slow filters | Unresponsive UI | One shared index, memoized selectors, debounce, virtualization |
-| Due syntax surprises users | Misclassified tasks | Explicit ISO-only suffix convention, no natural-language guessing |
-| Completing a filtered row loses focus | Accessibility failure | Defined next, previous, empty-state focus policy |
-| Android grant expires | Capture or toggle failure | Existing workspace recovery actions and no hidden retry loop |
+| Indexed location becomes stale                      | Wrong task is toggled                | Re-read or validate canonical open content; fail closed                                |
+| Autosave overwrites Task Hub mutation               | Lost update                          | One path-specific writer through open-document state and save coordinator              |
+| Large workspaces create slow filters                | Unresponsive UI                      | One shared index, memoized selectors, debounce, virtualization                         |
+| Due syntax surprises users                          | Misclassified tasks                  | Explicit ISO-only suffix convention, no natural-language guessing                      |
+| Completing a filtered row loses focus               | Accessibility failure                | Defined next, previous, empty-state focus policy                                       |
+| Android grant expires                               | Capture or toggle failure            | Existing workspace recovery actions and no hidden retry loop                           |
 
 ## 18. Documentation changes
 

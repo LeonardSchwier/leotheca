@@ -37,11 +37,16 @@ describe("parseWikiLinks", () => {
   it("parses [[#Heading]] as a same-note heading link with an empty note target", () => {
     const [record] = parseWikiLinks("[[#Design System]]");
     expect(record.noteTarget).toBe("");
-    expect(record.fragment).toEqual({ kind: "heading", value: "Design System" });
+    expect(record.fragment).toEqual({
+      kind: "heading",
+      value: "Design System",
+    });
   });
 
   it("parses [[Note#Heading|Label]] with both a fragment and a label", () => {
-    const [record] = parseWikiLinks("[[Project Plan#Milestones|the milestones]]");
+    const [record] = parseWikiLinks(
+      "[[Project Plan#Milestones|the milestones]]",
+    );
     expect(record.noteTarget).toBe("Project Plan");
     expect(record.fragment).toEqual({ kind: "heading", value: "Milestones" });
     expect(record.label).toBe("the milestones");
@@ -56,7 +61,10 @@ describe("parseWikiLinks", () => {
 
   it("parses [[Note#^block-id]] into a block fragment", () => {
     const [record] = parseWikiLinks("[[Note#^release-decision]]");
-    expect(record.fragment).toEqual({ kind: "block", value: "release-decision" });
+    expect(record.fragment).toEqual({
+      kind: "block",
+      value: "release-decision",
+    });
   });
 
   it("parses [[#^block-id]] as a same-note block reference", () => {
@@ -94,7 +102,9 @@ describe("parseWikiLinks", () => {
   });
 
   it("leaves an unterminated [[ with no closing ]] unmatched rather than guessing", () => {
-    expect(parseWikiLinks("This has [[ no closing brackets at all")).toEqual([]);
+    expect(parseWikiLinks("This has [[ no closing brackets at all")).toEqual(
+      [],
+    );
   });
 
   it("marks an empty fragment after # as malformed", () => {
@@ -113,7 +123,9 @@ describe("parseWikiLinks", () => {
   });
 
   it("finds multiple, non-overlapping links in one document", () => {
-    const records = parseWikiLinks("[[First]] and [[Second#Heading]] and [[Third|Label]].");
+    const records = parseWikiLinks(
+      "[[First]] and [[Second#Heading]] and [[Third|Label]].",
+    );
     expect(records).toHaveLength(3);
     expect(records[0].noteTarget).toBe("First");
     expect(records[1].noteTarget).toBe("Second");
@@ -162,13 +174,18 @@ describe("parseWikiLinks", () => {
 
     it("unescapes inside a heading fragment too", () => {
       const [record] = parseWikiLinks("[[Note#Heading \\# One]]");
-      expect(record.fragment).toEqual({ kind: "heading", value: "Heading # One" });
+      expect(record.fragment).toEqual({
+        kind: "heading",
+        value: "Heading # One",
+      });
     });
   });
 
   describe("escapeWikiLinkText", () => {
     it("leaves plain text without any of the five escapable characters unchanged", () => {
-      expect(escapeWikiLinkText("Plain Heading Text")).toBe("Plain Heading Text");
+      expect(escapeWikiLinkText("Plain Heading Text")).toBe(
+        "Plain Heading Text",
+      );
     });
 
     it("escapes a literal # so a round trip through parseWikiLinks keeps it in the fragment", () => {
@@ -181,7 +198,10 @@ describe("parseWikiLinks", () => {
     it("escapes a literal | so it does not split off a label", () => {
       const escaped = escapeWikiLinkText("Before | After");
       const [record] = parseWikiLinks(`[[Note#${escaped}]]`);
-      expect(record.fragment).toEqual({ kind: "heading", value: "Before | After" });
+      expect(record.fragment).toEqual({
+        kind: "heading",
+        value: "Before | After",
+      });
       expect(record.label).toBeUndefined();
     });
 
@@ -216,7 +236,10 @@ describe("parseWikiLinks", () => {
     it("parses ![[Note#^block-id]] as an embed with a block fragment", () => {
       const [record] = parseWikiLinks("![[Note#^release-decision]]");
       expect(record.kind).toBe("embed");
-      expect(record.fragment).toEqual({ kind: "block", value: "release-decision" });
+      expect(record.fragment).toEqual({
+        kind: "block",
+        value: "release-decision",
+      });
     });
 
     it("parses a plain [[Note]] with no preceding ! as a link, not an embed", () => {
@@ -248,12 +271,17 @@ describe("parseWikiLinks", () => {
 // ground a second time.
 describe("serializeWikiLink", () => {
   it("serializes a plain note target with no fragment", () => {
-    expect(serializeWikiLink({ noteTarget: "Existing Note" })).toBe("[[Existing Note]]");
+    expect(serializeWikiLink({ noteTarget: "Existing Note" })).toBe(
+      "[[Existing Note]]",
+    );
   });
 
   it("serializes a same-note heading fragment as [[#Heading]]", () => {
     expect(
-      serializeWikiLink({ noteTarget: "", fragment: { kind: "heading", value: "Design System" } }),
+      serializeWikiLink({
+        noteTarget: "",
+        fragment: { kind: "heading", value: "Design System" },
+      }),
     ).toBe("[[#Design System]]");
   });
 
@@ -268,7 +296,10 @@ describe("serializeWikiLink", () => {
 
   it("serializes a block fragment with the ^ marker", () => {
     expect(
-      serializeWikiLink({ noteTarget: "Note", fragment: { kind: "block", value: "release-decision" } }),
+      serializeWikiLink({
+        noteTarget: "Note",
+        fragment: { kind: "block", value: "release-decision" },
+      }),
     ).toBe("[[Note#^release-decision]]");
   });
 
@@ -291,7 +322,10 @@ describe("serializeWikiLink", () => {
   });
 
   it("escapes a literal | in a heading fragment so it is not read back as a label separator", () => {
-    const text = serializeWikiLink({ noteTarget: "Note", fragment: { kind: "heading", value: "A | B" } });
+    const text = serializeWikiLink({
+      noteTarget: "Note",
+      fragment: { kind: "heading", value: "A | B" },
+    });
     const [record] = parseWikiLinks(text);
     expect(record.fragment).toEqual({ kind: "heading", value: "A | B" });
     expect(record.label).toBeUndefined();

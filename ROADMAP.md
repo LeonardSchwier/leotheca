@@ -49,16 +49,6 @@ Items nobody owns. Take the first one that fits.
   Agent: claude-code-reviewaxes-20261107T225137Z | item: rm-4951084b07a113bf | lease until: 2026-11-08T00:41:13Z
 - ⬜ **Lint the shape of skills and agent entry files**: Idea from `mattpocock/skills` (`writing-for-agents`), made automatic. Add a check that every `skills/*.md` has frontmatter with name and description, stays under a line limit that a 27B local model can follow, and that `AGENTS.md` and the constitution stay short with links for detail; fix the files that exceed it by splitting. Document the rule in skills/README.md.
 - ⬜ **Run a scheduled architecture survey that seeds roadmap items**: Idea from `mattpocock/skills` (`improve-codebase-architecture`, `codebase-design`), made automatic. Add a maintenance skill that surveys the code for shallow modules and duplicated seams, writes its candidates as cited roadmap seeds (never a human questionnaire), and runs from the integrator or maintenance pass about weekly. Record the vocabulary (deep module, seam) in the glossary.
-- 🚧 **Commit as a distinct agent identity**: Agent commits currently carry the owner's name and noreply address as author, with only a Co-Authored-By trailer naming the agent.
-  <!-- agent-state: {"schema":1,"id":"rm-ded6a0ed0f5513f1","state":"claimed","touch":["AGENTS.md","CONSTITUTION.md","hooks/README.md","scripts/agent-git-env.sh","scripts/check-rules.test.js","scripts/commit-msg-check.mjs"],"resources":[],"owner":"claude-code-pdlc-20261106T231246Z-fcf4c9d1","token":"50f0a9f9644a02e49cf7d5bc55d8cedf","branch":"agent/rm-ded6a0ed0f5513f1/50f0a9f9644a","claimed_at":"2026-11-07T22:48:58Z","heartbeat_at":"2026-11-07T22:48:58Z","lease_until":"2026-11-08T00:18:58Z"} -->
-  Agent: claude-code-pdlc-20261106T231246Z-fcf4c9d1 | item: rm-ded6a0ed0f5513f1 | lease until: 2026-11-08T00:18:58Z
-
-  <details>
-  <summary>Scope and detail</summary>
-
-  Owner decision 2026-11-07: agents commit as `Claude Code (agent) <noreply@anthropic.com>` (author and committer), keep the trailer, and existing history stays untouched. Put the rule in the constitution and AGENTS.md, add `scripts/agent-git-env.sh` to export the identity, and add a check that warns when an agent-trailer commit is authored under the owner's address.
-
-  </details>
 - ⬜ **Run Android lint in CI**: `./gradlew lint` is not wired. Add it to the android job (or its own workflow), read the first report, fix or baseline each finding with a reason, and keep it non-required until triaged.
 - ⬜ **Retire the legacy tests/ui script**: `tests/ui` holds about 28 Python Playwright tests against a Tauri mock, outside CI; `tests/e2e` has 16 journeys. Map each legacy test to an e2e journey (add the missing ones) or drop it with a stated reason, then delete `tests/ui`, its eslint entry and the `documentation/TESTING.md` section.
 - ⬜ **Minimalistic Nordic UI theme**: Redesign Leotheca's visual system around a minimal Nordic idiom -- a restrained cool light palette (frost white, soft greys, fog blue, a single muted accent), low-contrast light mode plus a dark "polar night" companion, generous whitespace, calm restrained typography, and reduced chrome (fewer borders, subtle elevation, quiet borders) across the desktop and Android UIs.
@@ -90,6 +80,18 @@ Items that wait for access or a decision outside the repository.
 - ⏸ **Compatibility layer**: Load community extension manifests; gated on maintainer approval of the third-party-code security model.
 
 ## Implemented
+
+- ✅ **Commit as a distinct agent identity**: Agent commits currently carry the owner's name and noreply address as author, with only a Co-Authored-By trailer naming the agent.
+  <!-- agent-state: {"schema":1,"id":"rm-ded6a0ed0f5513f1","state":"done","touch":["AGENTS.md","CONSTITUTION.md","hooks/README.md","scripts/agent-git-env.sh","scripts/check-rules.test.js","scripts/commit-msg-check.mjs"],"resources":[],"note":"Merged as PR 88 (4d1ddf8): agents commit as Claude Code (agent) with scripts/agent-git-env.sh, rule in AGENTS.md and the constitution, commit-msg warning with tests; required PR checks green; hosted CI pending for post-merge runs, ids in handoff","completed_at":"2026-11-07T23:11:28Z","completed_by":"claude-code-pdlc-20261106T231246Z-fcf4c9d1","branch":"agent/rm-ded6a0ed0f5513f1/50f0a9f9644a"} -->
+  Agent: completed by claude-code-pdlc-20261106T231246Z-fcf4c9d1 | item: rm-ded6a0ed0f5513f1
+
+  <details>
+  <summary>Scope and detail</summary>
+
+  Owner decision 2026-11-07: agents commit as `Claude Code (agent) <noreply@anthropic.com>` (author and committer), keep the trailer, and existing history stays untouched. Put the rule in the constitution and AGENTS.md, add `scripts/agent-git-env.sh` to export the identity, and add a check that warns when an agent-trailer commit is authored under the owner's address.
+
+  </details>
+
 
 - ✅ **Remove voice dictation and microphone access**: Owner decision 2026-11-07: Leotheca will have no camera and no voice dictation, because both need access that can invade privacy.
   <!-- agent-state: {"schema":1,"id":"rm-80dec1c02fce18c1","state":"done","touch":[".agents/handoffs","CHANGELOG.md","README.md","android","documentation","flatpak","master-spec.md","package-lock.json","package.json","spec","src","src-tauri","tests"],"resources":["speech-dictation"],"note":"Implemented scope; PR 87 merged as ded114dde6ac411446b32d6e882679338212b383; 29 PR checks green, local tsc/eslint/vitest/cargo/e2e green; post-merge run ids in the handoff","completed_at":"2026-11-07T22:59:13Z","completed_by":"claude-code-nomic-20261107T223733Z-4694a3d6","branch":"agent/rm-80dec1c02fce18c1/87cb3da66b93"} -->

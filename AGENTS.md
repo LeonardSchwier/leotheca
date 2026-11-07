@@ -17,4 +17,6 @@ You have standing authorization to finish repository work. Code reaches main onl
 9. If no feature is eligible, use `skills/maintenance-review.md` to review historic commits and commands, repair real bugs, and correct documentation. Implementation writes require a claim. Small unclaimed task seed/split ledger edits use the constitution's coordination-only exception and reserve no work.
 10. Before ending, push a checkpoint and handoff and release unfinished work. Do not rely on a stash. If the session crashes, the next worker recovers it after lease expiry.
 
+You own this process, not only the code: when an item shows that a rule, skill, hook or check is wrong or in the way, fix it or seed an item, and end every item with the reflection line of `skills/pdlc-playbook.md` stage 8 (`CONSTITUTION.md`, "Self-improvement").
+
 Read actual errors. Keep checks and security controls effective. Completion requires evidence, not confidence or a large test count.

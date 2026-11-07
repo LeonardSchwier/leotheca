@@ -950,7 +950,7 @@ Only numbers that exist in code, configuration or an observed run appear here. N
 | --- | --- | --- |
 | `ci.yml` | Push (ignoring `ROADMAP.md` and `.agents/handoffs/**`), PR, call | Jobs `frontend`, `e2e`, `backend`, `android`, `appimage-smoke`, `validation` (`validation` requires every other job) |
 | `rules.yml` | Push, PR, weekly schedule | Commit convention, added-line rules, secret-shaped tokens, dependency intake, fast-forward-only main, prettier on changed files, licenses, action pinning, `npm audit` (reported, non-blocking until triaged) |
-| `agent-policy.yml` | Push and PR on policy paths | Python helper tests, ledger and roadmap format |
+| `agent-policy.yml` | Push and PR on policy paths; weekly schedule (Monday 05:17 UTC) | Python helper tests, ledger and roadmap format, hosted CI evidence in finished items; the schedule runs only the `ledger-audit` job |
 | `release.yml` | Tag `v*`, implementation push to main, manual | Builds Linux, Android, Flatpak, macOS, Windows, then publishes |
 | `gh-pages.yml` | Push on `website/**`, manual | Deploys the static `website/` (two pages, relative URLs, no build step). The repository's Pages source is not enabled as of 2026-11-07, so the job fails at Setup Pages until it is (see `website/README.md`) |
 | `flathub-submission-verify.yml`, `fdroid-submission-verify.yml` | Workflow-defined | Verify store recipes |
@@ -1093,6 +1093,7 @@ These are current behavior, recorded honestly. None was fixed by the change that
 Newest first. Each entry is `YYYY-MM-DD: what changed in behavior, contracts, formats, build or release`. See `skills/master-spec-maintenance.md`.
 
 <!-- change-log:start -->
+- 2026-11-07: Process: `scripts/check_ledger_evidence.py` requires every item newly marked done to carry a hosted workflow run id (or the words `hosted CI unavailable`) in its finish note. It runs in `agent-policy.yml` on every push and pull request, and a weekly `ledger-audit` job checks everything finished on or after 2026-11-08. No application behavior changed.
 - 2026-11-07: Release workflow: the macOS DMG is now attached to the release. The `macos-dmg` artifact keeps its `dmg/` subfolder (it uploads the DMG and the `.app` together), so the publish pattern `artifacts/macos-dmg/*.dmg` matched nothing and the DMG was silently omitted; the pattern is now `artifacts/macos-dmg/dmg/*.dmg`. No application behavior changed.
 - 2026-11-07: Release workflow: the rolling `dev-build` is now a normal release marked Latest (`make_latest`) instead of a prerelease, so the Releases page and Obtainium show the newest build; the outdated `v1.0.0` release and tag were removed. No application behavior changed.
 - 2026-11-07: Security: `list_dir` now checks both `path` and `workspaceRoot` against the native `ActiveWorkspaceRoot` (or the app config dir) like its sibling read commands, so a compromised webview can no longer list an arbitrary directory by passing the same value twice. No change for normal workspace use.

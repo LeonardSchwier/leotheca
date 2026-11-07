@@ -1,6 +1,9 @@
 name: Agent policy
 
 on:
+  schedule:
+    # Weekly audit (Monday 05:17 UTC): finished items must still carry hosted CI evidence.
+    - cron: "17 5 * * 1"
   push:
     paths:
       - "CONSTITUTION.md"
@@ -13,6 +16,8 @@ on:
       - "scripts/test_agent_ledger.py"
       - "scripts/check_roadmap_format.py"
       - "scripts/test_check_roadmap_format.py"
+      - "scripts/check_ledger_evidence.py"
+      - "scripts/test_check_ledger_evidence.py"
       - ".github/workflows/agent-policy.yml"
       - "master-spec.md"
       - "spec/master/**"
@@ -45,6 +50,8 @@ on:
       - "scripts/test_agent_ledger.py"
       - "scripts/check_roadmap_format.py"
       - "scripts/test_check_roadmap_format.py"
+      - "scripts/check_ledger_evidence.py"
+      - "scripts/test_check_ledger_evidence.py"
       - ".github/workflows/agent-policy.yml"
       - "master-spec.md"
       - "spec/master/**"
@@ -71,6 +78,7 @@ permissions:
 
 jobs:
   ledger:
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -108,8 +116,16 @@ jobs:
             echo "No usable base commit for this event (new branch or history rewrite); running the structural check only."
             python3 scripts/check_roadmap_format.py --root .
           fi
-# ​
+      - name: Check finished items carry hosted CI evidence
+        run: |
+          if [ -n "${{ steps.base.outputs.ref }}" ]; then
+            python3 scripts/check_ledger_evidence.py --root . --base "${{ steps.base.outputs.ref }}"
+          else
+            python3 scripts/check_ledger_evidence.py --root . --since 2026-11-08
+          fi
+  # ​
   master-spec:
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -142,3 +158,16 @@ jobs:
             echo "No usable base commit; running the structure check only."
             python3 scripts/check_master_spec.py --root .
           fi
+
+  ledger-audit:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate the repository ledger
+        run: python3 scripts/agent_ledger.py --root . list > /dev/null
+      - name: Audit finished items for hosted CI evidence
+        run: python3 scripts/check_ledger_evidence.py --root . --since 2026-11-08

@@ -83,6 +83,8 @@ Do not change a lockfile just to accommodate the sandbox, install guessed depend
 | A known code/test failure, security/data-loss risk without adequate tests, incompatible migration, or unreviewed conflict exists | Do not land it. Fix it, or checkpoint/block and continue another runnable scope.                                                                                                                            |
 | Proven hosted infrastructure failure; all applicable checks pass locally                                                         | Local evidence may permit landing/finishing with an explicit infrastructure limitation. Record a separate deduplicated CI repair item. An application failure is never relabeled infrastructure to qualify. |
 
+The finish note must name the hosted run ids it relies on (for example `CI 42340859598`) or say `hosted CI unavailable` with the reason. `scripts/check_ledger_evidence.py` checks this on every push and weekly; it proves the author pointed at a run, not that the run was green, so read the run when it matters.
+
 Deferred landing is limited to independently useful, reversible changes with executable evidence for the changed behavior and no known defect. It never covers missing tests for persistence migrations, filesystem mutation, security boundaries, or a new native contract. State exactly which check is missing and why it cannot plausibly conceal an untested change at that boundary.
 
 If no local runner and no observable CI exist, an agent can still complete appropriately verified documentation, policy, and read-only review work. It cannot truthfully ship untested application logic. This keeps the pipeline useful without inventing a green result.

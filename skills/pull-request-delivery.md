@@ -14,13 +14,13 @@ Variables: read CONSTITUTION.md (remote, main_branch).
 1. Verify the work branch locally with `verification-suite.md`. The pre-push hook runs on the branch push too.
 2. Merge fresh main into the work branch, resolve conflicts with `merge-conflict-resolution.md`, retest what the merge changed, and check your claim is still valid (`agent_ledger.py check --margin-minutes 10` in the control tree on the ledger branch).
 3. Push the branch: `git push "$REMOTE" "HEAD:refs/heads/$WORK_BRANCH"`. Never push to main; the hook refuses it, and the server does once the ruleset is on.
-4. Open the pull request with a conventional-commit title and a body that ends with the evidence trailers. The squash commit takes its message from the title and body, so the commit rules run on exactly that text:
+4. Write the body from `.github/pull_request_template.md` (copy it to `$BODY_FILE` and fill it): `## Summary`, `## Evidence` (before and after output, or the exact command and what it printed), `## Merge danger` (one-way or two-way door, blast radius, rollback), then the evidence trailers. The Rules workflow (`scripts/check-rules.mjs prbody`) fails a pull request whose body lacks the three headings. Open the pull request with a conventional-commit title. The squash commit takes its message from the title and body, so the commit rules run on exactly that text:
 
    ```sh
    gh pr create --base "$MAIN_BRANCH" --head "$WORK_BRANCH" --title "type(scope): summary" --body-file "$BODY_FILE"
    ```
 
-   The body holds the task id, the review summary and test evidence, and the trailers the rules require (`Co-Authored-By:`, and `Legal-Check:`, `Review:`, `Database-Review:` or `Dependency-intake:` when the paths demand them).
+   The body holds the task id, the review summary and test evidence, and ends with the trailers the rules require (`Co-Authored-By:`, and `Legal-Check:`, `Review:`, `Database-Review:` or `Dependency-intake:` when the paths demand them). Mark the danger honestly: a one-way door (migration, release, deleted data, changed public contract) is stated as such with its rollback plan.
 
 5. Switch on merging. Prefer auto-merge, which waits for the required checks and the queue:
 

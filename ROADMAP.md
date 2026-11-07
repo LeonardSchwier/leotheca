@@ -95,6 +95,30 @@ Minor bugs, UX improvements, and performance.
 - ⬜ **Master specification for spec-driven rebuilds**: Write master-spec.md, a full specification of the application's current behavior sufficient to rebuild it, and add a constitution rule plus a CI check so every implementation push to main updates it.
   <!-- agent-state: {"schema":1,"id":"rm-e0a353c57cfd59e2","state":"open","touch":[".github/workflows/agent-policy.yml","master-spec.md","scripts/check_master_spec.py","scripts/test_check_master_spec.py","skills/master-spec-maintenance.md","spec/master"],"resources":["master-spec"],"note":"Landed 2ddb675 (master-spec.md, checker, CI job, skill). Remaining: constitution rule + playbook link, blocked by live claim on CONSTITUTION.md; see handoff.","released_at":"2026-11-06T23:29:31Z"} -->
   Agent: unclaimed | item: rm-e0a353c57cfd59e2
+- ⬜ **Constitution and index pointers**: Add the master specification rule to CONSTITUTION.md with a link from skills/pdlc-playbook.md, add the constitution reference and README row for the security skill, and fix hooks/README.md, which still says the e2e suite is not on main.
+
+  <details>
+  <summary>Scope and validation</summary>
+
+  Constitution edits stay tiny and weaken no rule. The rule says every implementation push updates master-spec.md, enforced by scripts/check_master_spec.py in CI, and points at skills/master-spec-maintenance.md. Also adds one-line pointers for skills/text-rights-and-legal-check.md and skills/database-best-practices.md. The tests/e2e suite and the required CI job e2e are on main. Validation: scripts/check_roadmap_format.py, prettier --check on changed files, ledger list, hosted Rules and Agent policy runs on the landed SHA. This completes the remaining scope of rm-e0a353c57cfd59e2.
+
+  </details>
+- ⬜ **Serialise release publish of the dev-build release**: The publish job in .github/workflows/release.yml failed once with Not Found on update-a-release-asset when two runs overlapped. Add a concurrency group with cancel-in-progress false so publishes queue instead of racing.
+
+  <details>
+  <summary>Scope and validation</summary>
+
+  Touches .github/workflows/release.yml and the workflow table in master-spec.md with a change log line. Validation: YAML parse of the workflow, then read the hosted Release run for the landed SHA and confirm the publish job passes.
+
+  </details>
+- ⬜ **Install and use the Cloudflare security audit skill**: Install the security-audit skill from the Cloudflare skill repository after reading its SKILL.md and license, then run guidance mode once on the Tauri commands and capabilities, the Capacitor plugin and AndroidManifest. Each confirmed finding becomes its own roadmap seed with a validation plan, and the clear ones are fixed under their own claim with regression tests.
+
+  <details>
+  <summary>Scope and validation</summary>
+
+  Install per its README at user or project level and do not commit generated audit output. Record honestly what the local runner could not do and never claim a full audit. Covers todo 5b. Validation: the skill source and license verified before install, guidance run notes in a handoff, seeds validated by scripts/check_roadmap_format.py.
+
+  </details>
 
 ## Weekly Code Review
 

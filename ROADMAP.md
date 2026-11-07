@@ -67,16 +67,6 @@ Items nobody owns. Take the first one that fits.
   Found by the security-audit skill in guidance mode (source trace; severity low, needs_validation for the merged manifest on a device). A sending app could name a path under the provider's roots with an image extension and have it staged as a capture. Fix: remove the provider and file_paths.xml if no caller exists (confirm with a repo-wide search), and add a pure NativeBoundaryPolicy check that only accepts content scheme URIs whose authority is not the app's own, wired into stageSingleUri, with JVM unit tests. Touches android/app/src/main, android/app/src/test and master-spec.md.
 
   </details>
-- 🚧 **Restrict the speech model path and model directory commands**: `init_speech_recognition(model_path)` passes a webview-supplied path to the whisper FFI loader and `check_whisper_models(app_dir)` probes file existence in any directory.
-  <!-- agent-state: {"schema":1,"id":"rm-cc7afa94052b442d","state":"claimed","touch":[".agents/handoffs","master-spec.md","spec/restrict-speech-model-paths.md","src-tauri/src/lib.rs","src-tauri/src/speech_commands.rs","src/workspace/speechBridge.ts","src/workspace/speechBridgeImpl.ts"],"resources":[],"owner":"claude-code-pdlc-20261106T231246Z-fcf4c9d1","token":"ed141ba0a74042f798540a1334ce819f","branch":"agent/rm-cc7afa94052b442d/ed141ba0a740","claimed_at":"2026-11-07T17:42:56Z","heartbeat_at":"2026-11-07T17:42:56Z","lease_until":"2026-11-07T19:12:56Z"} -->
-  Agent: claude-code-pdlc-20261106T231246Z-fcf4c9d1 | item: rm-cc7afa94052b442d | lease until: 2026-11-07T19:12:56Z
-
-  <details>
-  <summary>Evidence and validation plan</summary>
-
-  Found by the security-audit skill in guidance mode (source trace; needs_validation because shipping builds compile the whisper stub, see whisper_ffi is_whisper_available). Direction: resolve the model from a fixed set of ggml file names under the app data directory chosen natively, never from a caller path. The frontend currently passes a model size name as the path, so the real contract also needs fixing. Validation: Rust tests that traversal, absolute and unknown names are rejected.
-
-  </details>
 
 ### Blocked
 
@@ -94,6 +84,18 @@ Items that wait for access or a decision outside the repository.
 - ⏸ **Compatibility layer**: Load community extension manifests; gated on maintainer approval of the third-party-code security model.
 
 ## Implemented
+
+- ✅ **Restrict the speech model path and model directory commands**: `init_speech_recognition(model_path)` passes a webview-supplied path to the whisper FFI loader and `check_whisper_models(app_dir)` probes file existence in any directory.
+  <!-- agent-state: {"schema":1,"id":"rm-cc7afa94052b442d","state":"done","touch":[".agents/handoffs","master-spec.md","spec/restrict-speech-model-paths.md","src-tauri/src/lib.rs","src-tauri/src/speech_commands.rs","src/workspace/speechBridge.ts","src/workspace/speechBridgeImpl.ts"],"resources":[],"note":"Merged as PR 66 (bab275f): speech model names resolved natively from an allow-list; 22 required PR checks green; hosted CI pending for post-merge runs, ids in handoff","completed_at":"2026-11-07T17:53:54Z","completed_by":"claude-code-pdlc-20261106T231246Z-fcf4c9d1","branch":"agent/rm-cc7afa94052b442d/ed141ba0a740"} -->
+  Agent: completed by claude-code-pdlc-20261106T231246Z-fcf4c9d1 | item: rm-cc7afa94052b442d
+
+  <details>
+  <summary>Evidence and validation plan</summary>
+
+  Found by the security-audit skill in guidance mode (source trace; needs_validation because shipping builds compile the whisper stub, see whisper_ffi is_whisper_available). Direction: resolve the model from a fixed set of ggml file names under the app data directory chosen natively, never from a caller path. The frontend currently passes a model size name as the path, so the real contract also needs fixing. Validation: Rust tests that traversal, absolute and unknown names are rejected.
+
+  </details>
+
 
 - ✅ **Switch the delivery protocol to pull requests and the merge queue**: Phase 4 of `documentation/BRANCH_MODEL.md`. Rewrite the constitution, AGENTS.md, roadmap-workflow, autonomous-roadmap-delivery, pre-push-verification and verification-suite skills and the pre-push hook so a finished item is a merged PR (auto-merge, `gh pr create`, queue), not a push to main. Depends on the ledger branch item and on the owner enabling the ruleset.
   <!-- agent-state: {"schema":1,"id":"rm-4556c57433f27d68","state":"done","touch":[".agents/handoffs","AGENTS.md","CONSTITUTION.md","documentation/AGENTIC_PDLC.md","documentation/BRANCH_MODEL.md","hooks","skills"],"resources":[],"note":"Merged as PR 65 (32613e0): pull-request-delivery skill, AGENTS.md, constitution, skills and pre-push hook updated; all 22 required PR checks green; hosted CI pending for post-merge runs, ids in handoff","completed_at":"2026-11-07T16:54:34Z","completed_by":"claude-code-pdlc-20261106T231246Z-fcf4c9d1","branch":"agent/rm-4556c57433f27d68/f7eb7946262f"} -->

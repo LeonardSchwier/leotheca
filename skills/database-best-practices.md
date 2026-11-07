@@ -8,7 +8,8 @@ platforms: [linux, macos, windows]
 metadata:
   hermes:
     tags: [database, schema, normalization, keys, migrations, leotheca]
-    related_skills: [persistence-implementation, change-quality-gates, pdlc-playbook]
+    related_skills:
+      [persistence-implementation, change-quality-gates, pdlc-playbook]
 ---
 
 <!--
@@ -22,16 +23,16 @@ Load this only when a change creates or alters a table, index, key, query layer 
 
 ## Schema rules
 
-| Rule | Check before landing |
-| --- | --- |
-| 1NF: one value per column, no repeating groups or comma-lists | No column stores a list or JSON blob that is filtered or joined on. |
-| 2NF/3NF: every non-key column depends on the whole key and nothing but the key | Each fact is stored once. A copied value needs a stated reason. |
-| BCNF: every determinant is a candidate key | No hidden functional dependency between non-key columns. |
-| Every table has a primary key | Stable, never reused, never meaningful to the user (surrogate or a proven natural key). |
-| Every real-world uniqueness rule is a UNIQUE constraint | Not only an application check. Include composite keys, e.g. (workspace_id, path). Normalize case/Unicode before comparing. |
-| Foreign keys are declared and enforced | State ON DELETE (RESTRICT, CASCADE or SET NULL) per key and why. Enable enforcement where the engine defaults to off (SQLite needs `PRAGMA foreign_keys = ON` per connection). |
-| Constraints live in the schema | NOT NULL, CHECK, and a type that matches the data. Times as UTC, one format. |
-| Index what you query | Foreign keys and frequent predicates. Remove indexes nothing uses. Each index costs writes. |
+| Rule                                                                           | Check before landing                                                                                                                                                           |
+| ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1NF: one value per column, no repeating groups or comma-lists                  | No column stores a list or JSON blob that is filtered or joined on.                                                                                                            |
+| 2NF/3NF: every non-key column depends on the whole key and nothing but the key | Each fact is stored once. A copied value needs a stated reason.                                                                                                                |
+| BCNF: every determinant is a candidate key                                     | No hidden functional dependency between non-key columns.                                                                                                                       |
+| Every table has a primary key                                                  | Stable, never reused, never meaningful to the user (surrogate or a proven natural key).                                                                                        |
+| Every real-world uniqueness rule is a UNIQUE constraint                        | Not only an application check. Include composite keys, e.g. (workspace_id, path). Normalize case/Unicode before comparing.                                                     |
+| Foreign keys are declared and enforced                                         | State ON DELETE (RESTRICT, CASCADE or SET NULL) per key and why. Enable enforcement where the engine defaults to off (SQLite needs `PRAGMA foreign_keys = ON` per connection). |
+| Constraints live in the schema                                                 | NOT NULL, CHECK, and a type that matches the data. Times as UTC, one format.                                                                                                   |
+| Index what you query                                                           | Foreign keys and frequent predicates. Remove indexes nothing uses. Each index costs writes.                                                                                    |
 
 Denormalize only with a measured problem and a ruling in the spec (decision, why, cost if wrong). Name the code that keeps the copy consistent and test it.
 
@@ -50,6 +51,8 @@ Denormalize only with a measured problem and a ruling in the spec (decision, why
 - A foreign-key violation and a cascade behave as declared.
 - Empty, very large and non-UTF-8-adjacent inputs (long names, combining characters) are handled.
 - The rebuild-from-files path reproduces the same rows, if the database is derived.
+
+A push that touches `.sql` or migration files must carry `Database-Review: <keys, normal form, migration safety>` in a commit message (`scripts/check-rules.mjs trailers`).
 
 ## Review questions
 

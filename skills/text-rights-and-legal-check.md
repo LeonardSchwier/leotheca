@@ -8,7 +8,8 @@ platforms: [linux, macos, windows]
 metadata:
   hermes:
     tags: [legal, licensing, copyright, trademarks, content, leotheca]
-    related_skills: [pdlc-playbook, security-and-static-analysis, verification-suite]
+    related_skills:
+      [pdlc-playbook, security-and-static-analysis, verification-suite]
 ---
 
 <!--
@@ -23,22 +24,22 @@ This is an engineering check, not legal advice, and it is a **fixing** gate: the
 
 ## When it runs
 
-**On every change, from stage 6 of `skills/pdlc-playbook.md`.** Run `git diff --name-only <main>...HEAD` and classify. A change is in scope if it touches any of: UI strings in `src/`, docs, README, website, CHANGELOG, store or package metadata (metainfo, desktop files, listings), sample or template notes, `assets/`, `public/`, fonts, icons, images, or a dependency manifest/lockfile. If nothing is in scope, record `N/A` with the diff file list as evidence. Never skip the check without that record.
+**On every change, from stage 6 of `skills/pdlc-playbook.md`.** Run `git diff --name-only <main>...HEAD` and classify. A change is in scope if it touches any of: UI strings in `src/`, docs, README, website, CHANGELOG, store or package metadata (metainfo, desktop files, listings), sample or template notes, `assets/`, `public/`, fonts, icons, images, or a dependency manifest/lockfile. If nothing is in scope, record `N/A` with the diff file list as evidence. Never skip the check without that record. A push that touches these files must carry the trailer `Legal-Check: N verified, M fixed, 0 open` in a commit message; `scripts/check-rules.mjs trailers` enforces it on pre-push and in CI.
 
 ## Checks
 
-| # | Check | Pass when |
-| --- | --- | --- |
-| 1 | Provenance | Every new text or asset is original, generated for this project, or licensed. Name the source for anything else. |
-| 2 | No copied wording | No verbatim or near-verbatim text from another product's UI, docs, marketing, changelog or store listing. Describe behavior in your own words. Competitor and product names stay out of tracked files (`HYGIENE_TEST` enforces part of this). |
-| 3 | Trademarks | Third-party names appear only to say what we interoperate with (nominative use), with no logos and no implied endorsement. |
-| 4 | Asset and font licenses | Each bundled font, icon, image and sample has a license file in the tree, compatible with `LICENSE_FILE`, and required attribution is in `THIRD_PARTY_NOTICES`. A license that forbids redistribution or app embedding fails. |
-| 5 | Dependency licenses | A new dependency's license is read from its package metadata and is compatible. Copyleft, unknown or missing license: pick a compatible alternative or drop the dependency. |
-| 6 | Generated text | Model-generated copy is not a reproduction of a known source. Spot-check distinctive phrases by search where a network is allowed. |
-| 7 | People and data | No real names, emails, addresses, tokens or private paths in samples, tests or docs. |
-| 8 | Truthful claims | Privacy, offline, no-telemetry, security and performance claims match the code. Cite the file or test that proves each, or remove the claim. |
-| 9 | Safe content | Nothing offensive, deceptive or harmful in shipped text, and every error string is safe to show (no secrets, no raw paths). |
-| 10 | Legal documents | A license text, privacy statement or terms page cites a primary source: norm or license name, version, URL, retrieval date. With no reachable source, use the unmodified upstream license text already in the tree or remove the statement; never write one from memory. |
+| #   | Check                   | Pass when                                                                                                                                                                                                                                                                |
+| --- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | Provenance              | Every new text or asset is original, generated for this project, or licensed. Name the source for anything else.                                                                                                                                                         |
+| 2   | No copied wording       | No verbatim or near-verbatim text from another product's UI, docs, marketing, changelog or store listing. Describe behavior in your own words. Competitor and product names stay out of tracked files (`HYGIENE_TEST` enforces part of this).                            |
+| 3   | Trademarks              | Third-party names appear only to say what we interoperate with (nominative use), with no logos and no implied endorsement.                                                                                                                                               |
+| 4   | Asset and font licenses | Each bundled font, icon, image and sample has a license file in the tree, compatible with `LICENSE_FILE`, and required attribution is in `THIRD_PARTY_NOTICES`. A license that forbids redistribution or app embedding fails.                                            |
+| 5   | Dependency licenses     | A new dependency's license is read from its package metadata and is compatible. Copyleft, unknown or missing license: pick a compatible alternative or drop the dependency.                                                                                              |
+| 6   | Generated text          | Model-generated copy is not a reproduction of a known source. Spot-check distinctive phrases by search where a network is allowed.                                                                                                                                       |
+| 7   | People and data         | No real names, emails, addresses, tokens or private paths in samples, tests or docs.                                                                                                                                                                                     |
+| 8   | Truthful claims         | Privacy, offline, no-telemetry, security and performance claims match the code. Cite the file or test that proves each, or remove the claim.                                                                                                                             |
+| 9   | Safe content            | Nothing offensive, deceptive or harmful in shipped text, and every error string is safe to show (no secrets, no raw paths).                                                                                                                                              |
+| 10  | Legal documents         | A license text, privacy statement or terms page cites a primary source: norm or license name, version, URL, retrieval date. With no reachable source, use the unmodified upstream license text already in the tree or remove the statement; never write one from memory. |
 
 ## Fix it yourself
 

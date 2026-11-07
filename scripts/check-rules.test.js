@@ -10,6 +10,8 @@ import {
   workflowRefProblems,
   secretProblems,
   lineSecretProblems,
+  requiredTrailers,
+  trailerProblems,
   parsePackageDeps,
   parseCargoDeps,
   changedDeps,
@@ -213,5 +215,101 @@ describe("lineSecretProblems and the ledger claim token", () => {
   it("does not exempt a token that is not 32 lowercase hex characters", () => {
     const odd = ledger().replace(hex, "Z".repeat(32));
     expect(lineSecretProblems("ROADMAP.md", odd).length).toBeGreaterThan(0);
+  });
+});
+
+describe("evidence trailers", () => {
+  const LEGAL = "Legal-Check: 3 verified, 1 fixed, 0 open";
+  const REVIEW = "Review: second model, no findings left";
+  const DB =
+    "Database-Review: keys and unique constraints checked, migration idempotent";
+
+  it("requires nothing for ledger-only and test-only changes", () => {
+    expect(
+      requiredTrailers([
+        "ROADMAP.md",
+        ".agents/handoffs/x.md",
+        "src/a.test.ts",
+      ]),
+    ).toEqual({
+      legal: false,
+      database: false,
+      review: false,
+    });
+  });
+  it("requires the legal trailer for docs, assets, README and dependency files", () => {
+    for (const p of [
+      "README.md",
+      "documentation/X.md",
+      "assets/a.png",
+      "package.json",
+      "package-lock.json",
+      "website/index.html",
+    ])
+      expect(requiredTrailers([p]).legal, p).toBe(true);
+  });
+  it("does not require it for vendored pdfjs or the ledger", () => {
+    expect(
+      requiredTrailers(["public/pdfjs/build/pdf.js", "ROADMAP.md"]).legal,
+    ).toBe(false);
+  });
+  it("requires the database trailer for sql and migrations", () => {
+    expect(requiredTrailers(["db/schema.sql"]).database).toBe(true);
+    expect(requiredTrailers(["src/db/migrations/001.ts"]).database).toBe(true);
+  });
+  it("requires the review trailer for trust-boundary, workflow, hook and constitution files", () => {
+    for (const p of [
+      "src-tauri/src/commands.rs",
+      ".github/workflows/ci.yml",
+      "hooks/pre-push",
+      "CONSTITUTION.md",
+      "android/app/src/main/AndroidManifest.xml",
+      "scripts/check-rules.mjs",
+    ])
+      expect(requiredTrailers([p]).review, p).toBe(true);
+  });
+  it("reports each missing trailer", () => {
+    const found = trailerProblems(
+      ["README.md", "db/a.sql", "hooks/pre-push"],
+      "feat: x\n",
+    );
+    expect(found).toHaveLength(3);
+  });
+  it("accepts a push whose messages hold every required trailer", () => {
+    expect(
+      trailerProblems(
+        ["README.md", "db/a.sql", "hooks/pre-push"],
+        `feat: x\n\n${LEGAL}\n${DB}\n${REVIEW}\n`,
+      ),
+    ).toEqual([]);
+  });
+  it("accepts an explicit self-review with a reason", () => {
+    expect(
+      trailerProblems(
+        ["hooks/pre-push"],
+        "x\n\nReview: self-review: no second model on the local runner\n",
+      ),
+    ).toEqual([]);
+  });
+  it("rejects a legal trailer that leaves findings open", () => {
+    expect(
+      trailerProblems(
+        ["README.md"],
+        "x\n\nLegal-Check: 4 verified, 0 fixed, 2 open\n",
+      ),
+    ).toHaveLength(1);
+  });
+  it("rejects a review or database trailer without content", () => {
+    expect(
+      trailerProblems(["hooks/pre-push"], "x\n\nReview: ok\n"),
+    ).toHaveLength(1);
+    expect(
+      trailerProblems(["db/a.sql"], "x\n\nDatabase-Review: fine\n"),
+    ).toHaveLength(1);
+  });
+  it("asks for nothing when no listed path changed", () => {
+    expect(trailerProblems(["src/App.tsx", "ROADMAP.md"], "feat: x\n")).toEqual(
+      [],
+    );
   });
 });

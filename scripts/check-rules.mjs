@@ -422,6 +422,80 @@ function checkDeps([base, head]) {
   );
 }
 
+// Evidence trailers: the legal/text-rights check, the database skill and the
+// second-model review are procedures (skills/text-rights-and-legal-check.md,
+// skills/database-best-practices.md, skills/pdlc-playbook.md stage 6). This
+// makes the evidence mechanical: a push that touches the matching paths needs
+// the matching trailer in a commit message of the pushed range, like
+// "Dependency-intake:". It proves the author recorded the result, not that the
+// result is right; "Review: self-review: <reason>" stays allowed and visible.
+const LEGAL_PATHS = [
+  /^README\.md$/,
+  /^CHANGELOG\.md$/,
+  /^LICENSE$/,
+  /^website\//,
+  /^assets\//,
+  /^documentation\//,
+  /^docs\//,
+  /^public\/(?!pdfjs\/)/,
+  /^packaging\//,
+  /^extensions\/.*\.(md|json|html)$/,
+  /^package(-lock)?\.json$/,
+  /^src-tauri\/Cargo\.(toml|lock)$/,
+  /^flatpak\/.*\.xml$/,
+];
+const DB_PATHS = [/\.sql$/i, /(^|\/)migrations\//];
+const REVIEW_PATHS = [
+  /^src-tauri\/src\//,
+  /^android\/.*AndroidManifest\.xml$/,
+  /^\.github\/workflows\//,
+  /^hooks\//,
+  /^CONSTITUTION\.md$/,
+  /^scripts\/(check-rules|guard-command|commit-msg-check)\.mjs$/,
+];
+
+export function requiredTrailers(paths) {
+  const any = (res) => paths.some((p) => res.some((re) => re.test(p)));
+  return {
+    legal: any(LEGAL_PATHS),
+    database: any(DB_PATHS),
+    review: any(REVIEW_PATHS),
+  };
+}
+
+export function trailerProblems(paths, messages) {
+  const need = requiredTrailers(paths);
+  const problems = [];
+  if (
+    need.legal &&
+    !/^Legal-Check: \d+ verified, \d+ fixed, 0 open\b/m.test(messages)
+  )
+    problems.push(
+      'text, asset, doc or dependency files changed without a "Legal-Check: N verified, M fixed, 0 open" line (skills/text-rights-and-legal-check.md; 0 open is the only landable result)',
+    );
+  if (need.database && !/^Database-Review: \S.{20,}/m.test(messages))
+    problems.push(
+      'schema or migration files changed without a "Database-Review: <keys, normal form, migration safety>" line (skills/database-best-practices.md)',
+    );
+  if (need.review && !/^Review: \S.{9,}/m.test(messages))
+    problems.push(
+      'trust-boundary, workflow, hook or constitution files changed without a "Review: <reviewer model or tool>: <result>" or "Review: self-review: <why no second model>" line (skills/pdlc-playbook.md stage 6)',
+    );
+  return problems;
+}
+
+function checkTrailers([base, head]) {
+  const baseRev = /^0+$/.test(base) || !isValidRev(base) ? `${head}~1` : base;
+  const paths = git(["diff", "--name-only", `${baseRev}..${head}`])
+    .split("\n")
+    .filter(Boolean);
+  const messages = git(["log", "--format=%B", `${baseRev}..${head}`]);
+  return report(
+    "Evidence trailers missing from the commit messages of this push",
+    trailerProblems(paths, messages),
+  );
+}
+
 // SPDX identifiers acceptable for a free-software, source-built MIT project.
 // Anything else (including a missing license field) needs a human decision.
 const LICENSE_ALLOWED = new Set([
@@ -516,6 +590,8 @@ function main(argv) {
       return checkCommits(rest);
     case "deps":
       return checkDeps(rest);
+    case "trailers":
+      return checkTrailers(rest);
     case "secrets":
       return checkLines(rest);
     case "licenses":
@@ -524,7 +600,7 @@ function main(argv) {
       return checkWorkflows();
     default:
       console.error(
-        "usage: check-rules.mjs lines|files|format (--staged | <base> <head>) | commits <base> <head> | licenses | workflows",
+        "usage: check-rules.mjs lines|files|format (--staged | <base> <head>) | commits <base> <head> | deps <base> <head> | trailers <base> <head> | licenses | workflows",
       );
       return 2;
   }

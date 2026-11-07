@@ -47,6 +47,7 @@ while read -r local_ref local_sha remote_ref remote_sha; do
   node scripts/check-rules.mjs lines "$base" "$local_sha" || failed=1
   node scripts/check-rules.mjs format "$base" "$local_sha" || failed=1
   node scripts/check-rules.mjs deps "$base" "$local_sha" || failed=1
+  node scripts/check-rules.mjs trailers "$base" "$local_sha" || failed=1
 
   if git diff --name-only "$base" "$local_sha" | grep -v -E "$METADATA_RE" | grep -q .; then
     app_changed=1

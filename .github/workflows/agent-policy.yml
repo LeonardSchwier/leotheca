@@ -38,43 +38,10 @@ on:
       - "packaging/**"
       - "snap/**"
       - ".github/workflows/**"
+  # No path filter on these two: a required check that is skipped for a
+  # pull request would block the merge queue forever.
   pull_request:
-    paths:
-      - "CONSTITUTION.md"
-      - "AGENTS.md"
-      - "CLAUDE.md"
-      - "ROADMAP.md"
-      - "documentation/REUSE_AGENT_ORCHESTRATION.md"
-      - "skills/**"
-      - "scripts/agent_ledger.py"
-      - "scripts/test_agent_ledger.py"
-      - "scripts/check_roadmap_format.py"
-      - "scripts/test_check_roadmap_format.py"
-      - "scripts/check_ledger_evidence.py"
-      - "scripts/test_check_ledger_evidence.py"
-      - ".github/workflows/agent-policy.yml"
-      - "master-spec.md"
-      - "spec/master/**"
-      - "scripts/check_master_spec.py"
-      - "scripts/test_check_master_spec.py"
-      - "src/**"
-      - "src-tauri/**"
-      - "android/**"
-      - "capacitor.config.ts"
-      - "index.html"
-      - "package.json"
-      - "package-lock.json"
-      - "vite.config.ts"
-      - "VERSION"
-      - "public/**"
-      - "extensions/**"
-      - "flatpak/**"
-      - "packaging/**"
-      - "snap/**"
-      - ".github/workflows/**"
-
-permissions:
-  contents: read
+  merge_group:
 
 jobs:
   ledger:
@@ -99,6 +66,8 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             ref="${{ github.event.pull_request.base.sha }}"
+          elif [ "${{ github.event_name }}" = "merge_group" ]; then
+            ref="${{ github.event.merge_group.base_sha }}"
           elif [ "${{ github.event_name }}" = "push" ] \
                && [ -n "${{ github.event.before }}" ] \
                && [ "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ] \
@@ -141,6 +110,8 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             ref="${{ github.event.pull_request.base.sha }}"
+          elif [ "${{ github.event_name }}" = "merge_group" ]; then
+            ref="${{ github.event.merge_group.base_sha }}"
           elif [ "${{ github.event_name }}" = "push" ] \
                && [ -n "${{ github.event.before }}" ] \
                && [ "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ] \

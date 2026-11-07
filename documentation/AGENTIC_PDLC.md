@@ -74,7 +74,7 @@ Agentic controls make judgments. Non-agentic controls cannot be argued with. Qua
 ### 4.6 Verify
 
 - **Conventional:** QA, code review, a security review before release.
-- **Here, in order:** the checks in [`skills/verification-suite.md`](../skills/verification-suite.md) for the changed surface (type check, lint, unit tests, build; Rust and Android checks when touched); an independent review by a fresh agent that gets a crafted brief and not the session history, with findings ranked and a capped fix loop; end-to-end smoke tests of core journeys; then the security gate in [`skills/security-and-static-analysis.md`](../skills/security-and-static-analysis.md). Completion is a table of claims against the exact command and observed result. Words such as "should work" are banned until evidence exists.
+- **Here, in order:** the checks in [`skills/verification-suite.md`](../skills/verification-suite.md) for the changed surface (type check, lint, unit tests, build; Rust and Android checks when touched); an independent review by a fresh agent that gets a crafted brief and not the session history, with findings ranked and a capped fix loop; end-to-end smoke tests of core journeys; then the security gate in [`skills/security-and-static-analysis.md`](../skills/security-and-static-analysis.md) and the text-rights check in [`skills/text-rights-and-legal-check.md`](../skills/text-rights-and-legal-check.md), which fixes its own findings instead of escalating them. Completion is a table of claims against the exact command and observed result. Words such as "should work" are banned until evidence exists.
 - **Enforced by:** `hooks/pre-push` runs [`scripts/verify-fast.sh`](../scripts/verify-fast.sh) and refuses force pushes and deletion of `main`; [`skills/pre-push-verification.md`](../skills/pre-push-verification.md) records the real incidents that motivated it.
 
 ### 4.7 Release
@@ -109,7 +109,7 @@ The process is provider-neutral and also designed to run from the author's local
 | Hosted CI evidence | At the time of writing several landed commits had CI queued, so they are not claimed as hosted-green. |
 | Security tooling | The security-audit workflow is documented but no full audit has been run. Secret scanning, dependency auditing as a blocking gate, and SAST tools are seeded in the roadmap, not wired. `npm audit` currently reports findings that are untriaged. |
 | Design system adoption | Leoforma is published; the app does not yet consume it as a pinned dependency. |
-| Legal and text-rights check, database best-practice skill | Planned stage-6 controls, not yet in the repository. |
+| Legal and text-rights check, database best-practice skill | Both skills are in the repository and the legal check is step 5 of stage 6. They are procedures run by agents, with no hook or CI job enforcing them yet. |
 | Enforcement model | The ledger is a cooperative protocol among compliant runners, not a server-enforced boundary. Branch protection is not used. |
 | Independence of review | Review is by a separate agent, which reduces but does not remove correlated errors with the author model. |
 

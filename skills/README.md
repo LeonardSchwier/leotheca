@@ -21,6 +21,8 @@ Each runbook carries standard SKILL.md YAML frontmatter (name, description, vers
 | No feature work is currently runnable | [maintenance-review.md](maintenance-review.md) |
 | One specification is too large for a session | [phase-splitting-large-specs.md](phase-splitting-large-specs.md) |
 | Change a native/IPC/persistence bridge or sensitive-data path | [change-quality-gates.md](change-quality-gates.md) |
+| Any change touches shipped text, assets, docs or dependencies (every change, in stage 6) | [text-rights-and-legal-check.md](text-rights-and-legal-check.md) |
+| A table, key, index or database migration is created or changed | [database-best-practices.md](database-best-practices.md) |
 | Persisted settings/data or migrations change | [persistence-implementation.md](persistence-implementation.md) |
 | Add/change a Markdown structure scanner | [writing-scanner-modules.md](writing-scanner-modules.md) |
 | Work on source-built package submissions | [packaging-submission-pipelines.md](packaging-submission-pipelines.md) |

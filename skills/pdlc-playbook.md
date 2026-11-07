@@ -82,6 +82,7 @@ Smallest task first, per the Plan. Write the test, watch it fail for the right r
 2. **Independent review**: a fresh agent (or fresh context) gets a crafted brief, not session history: acceptance criteria, the diff, the spec's rulings, and a "Review Focus" list of the inputs most likely to break. It returns findings as Critical, Important, Minor. Fix Critical and Important and re-review. After `FIX_LOOP_CAP` rounds with findings still open, record a ruling and either shrink the scope or block with the evidence. Without a separate agent, do the same pass yourself from the brief alone.
 3. **End-to-end smoke**: the Playwright suite owned by `E2E_GATE`. Until that item is `✅`, record the gap as missing evidence per `verification-suite.md`.
 4. **Security**: `SECURITY_GATE`. If the file does not exist yet, record that and apply `change-quality-gates.md`.
+5. **Legal and text rights**: `skills/text-rights-and-legal-check.md`, on **every** change (record `N/A` with the file list when nothing user-visible, asset or dependency changed). The agent fixes any risk itself (rewrite, replace, remove, narrow) and re-runs; the only landable result is `0 open`. Schema work also follows `skills/database-best-practices.md`.
 
 A failing check is a code failure until its log says otherwise. Debugging: no fix without a stated root cause. After `DEBUG_STRIKES` failed fixes for one failure, stop patching: re-read the code path, question the design and record a ruling.
 
@@ -94,6 +95,7 @@ In the finish transaction, fill **Evidence** (table below), then `git mv SPEC_FI
 | each acceptance criterion | exact test name or command, tested SHA | observed output |
 | review | reviewer, rounds, findings fixed | closed |
 | e2e smoke / security | job or command | pass, or deferred with reason |
+| legal/text check | `Legal/text check: N verified, M fixed, 0 open` | recorded in the spec |
 
 Banned before evidence exists: "should work", "probably fine", "done". Distrust a success report you did not see: check the diff and rerun the command.
 

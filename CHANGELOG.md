@@ -4,6 +4,7 @@
 
 ### Maintenance
 
+- **Capture no longer stalls on long runs of blank lines**: Trailing blank lines are removed in linear time. A note ending in tens of thousands of newlines followed by text used to freeze the capture sheet for seconds. Static security analysis (ESLint security rules, Semgrep, CodeQL) now runs on the sources.
 - **Android share hardening**: Sharing into Leotheca now accepts only another app's content URI; file URIs and the app's own provider are rejected, and the unused FileProvider was removed.
 - **Dependency security update**: Updated production dependencies to clear all 8 known vulnerabilities reported by `npm audit` (including two critical: DOMPurify and Capacitor Android). A weekly audit workflow now reports new advisories.
 - **Speech model commands restricted**: Desktop `init_speech_recognition` now takes a model name (tiny, base, small, medium) and loads it from the app's own `whisper-models` directory; `check_whisper_models` takes no path. The renderer can no longer make the app open an arbitrary file.

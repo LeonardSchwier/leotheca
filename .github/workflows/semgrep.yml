@@ -1,0 +1,43 @@
+name: Semgrep
+
+# Pattern-based security rules for the TypeScript and Rust sources (semgrep OSS,
+# registry rule packs p/typescript and p/rust). Warnings and errors fail the job;
+# INFO findings are ignored, because on the first run 69 of 74 were the
+# temp-dir rule firing inside Rust unit tests. A reviewed false positive carries
+# a `nosemgrep: <rule> -- reviewed: <reason>` comment. Not a required merge
+# check: the registry rule packs change without a commit here, so a new rule
+# must not block unrelated pull requests; the weekly run turns red instead.
+
+on:
+  pull_request:
+    paths:
+      - "src/**"
+      - "src-tauri/src/**"
+      - ".github/workflows/semgrep.yml"
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "src-tauri/src/**"
+  schedule:
+    - cron: "37 5 * * 3"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  semgrep:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install semgrep
+        run: pip install semgrep==1.184.0
+      - name: Scan
+        run: >
+          semgrep scan --config p/typescript --config p/rust
+          --severity WARNING --severity ERROR --error --metrics off
+          --exclude '*.test.*' src src-tauri/src

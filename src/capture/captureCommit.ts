@@ -12,6 +12,7 @@ import {
   readBinaryFile,
   deleteWorkspacePathPermanent,
 } from "../workspace/tauriBridge";
+import { trimTrailingNewlines } from "../lib/trimTrailingNewlines";
 import { resolvePathWithinWorkspace } from "../workspace/paths";
 import { PendingAttachment } from "./pendingCaptures";
 import { rebuildLinkIndex } from "../linking/store";
@@ -523,7 +524,7 @@ function formatVerbatimContent(
   content: string,
   attachmentPaths?: string[],
 ): string {
-  const lines = [content.replace(/(\r?\n)+$/, "")];
+  const lines = [trimTrailingNewlines(content)];
   if (attachmentPaths && attachmentPaths.length > 0) {
     lines.push("");
     for (const attachmentPath of attachmentPaths) {

@@ -961,6 +961,8 @@ Only numbers that exist in code, configuration or an observed run appear here. N
 | `ci.yml` | Push (ignoring `ROADMAP.md` and `.agents/handoffs/**`), PR, call | Jobs `frontend`, `e2e`, `backend`, `android`, `appimage-smoke`, `validation` (`validation` requires every other job) |
 | `rules.yml` | Push, PR, weekly schedule | Commit convention, added-line rules, secret-shaped tokens, dependency intake, fast-forward-only main, prettier on changed files, licenses, action pinning, `npm audit` (reported, non-blocking until triaged) |
 | `agent-policy.yml` | Push on policy paths; every pull request and merge-queue run; weekly schedule (Monday 05:17 UTC) | Python helper tests, ledger and roadmap format, hosted CI evidence in finished items; the schedule runs only the `ledger-audit` job |
+| `codeql.yml` | Pull requests touching `src`, workflows or manifests; pushes to main; weekly (Tuesday 05:23 UTC) | CodeQL for `javascript-typescript` and `actions`; not a required merge check |
+| `semgrep.yml` | Pull requests and pushes touching `src` or `src-tauri/src`; weekly (Wednesday 05:37 UTC) | `semgrep scan` with `p/typescript` and `p/rust`, warnings and errors fail; not a required merge check |
 | `audit.yml` | Pull requests and pushes to main that change `package.json` or `package-lock.json`; weekly schedule (Monday 05:41 UTC) | `npm audit --omit=dev --audit-level=high`; not a required merge check, so a new advisory turns the weekly run red without blocking unrelated pull requests |
 | `release.yml` | Tag `v*`, implementation push to main, manual | Builds Linux, Android, Flatpak, macOS, Windows, then publishes |
 | `flathub-submission-verify.yml`, `fdroid-submission-verify.yml` | Workflow-defined | Verify store recipes |
@@ -1143,4 +1145,5 @@ Newest first. Each entry is `YYYY-MM-DD: what changed in behavior, contracts, fo
 - 2026-11-07: Process: `rules.yml` and the pre-push hook run `check-rules.mjs reflection`, which fails a push that archives a spec under `spec/completed/` without a `Reflection:` line. No application behavior changed.
 - 2026-11-07: Dependencies: `tokio` 1.53.1 to 1.54.1 (RUSTSEC-2026-0386, unsound) in `src-tauri/Cargo.lock`; `flatpak/cargo-sources.json` regenerated. No application behavior changed; 134 Rust tests pass.
 - 2026-11-07: Process: the root `package.json` gains `test:e2e` (`npm --prefix tests/e2e test`), so the pre-push gate runs the Playwright smoke suite when a browser is installed. No application behavior changed.
+- 2026-11-07: Security tooling: `eslint-plugin-security` joins `npm run lint` (new dev dependency, shipped code only) and the `codeql` and `semgrep` workflows are added. One real defect was fixed: stripping trailing newlines from capture content used a backtracking regex that needed about 8 seconds for 60,000 newlines followed by text; `src/lib/trimTrailingNewlines.ts` does it in linear time. No other behavior changed.
 <!-- change-log:end -->

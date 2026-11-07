@@ -18,6 +18,7 @@ const INLINE_CODE_SPAN = /`[^`\n]*`/g;
 // otherwise truncate or drop tags containing accented Latin, CJK, or any
 // other non-ASCII letters.
 const INLINE_TAG_PATTERN =
+  // eslint-disable-next-line security/detect-unsafe-regex -- reviewed: separator characters differ from the repeated class, so segments cannot overlap
   /#([\p{L}\p{N}_][\p{L}\p{N}_-]*(?:\/[\p{L}\p{N}_][\p{L}\p{N}_-]*)*)/gu;
 
 function isTagBoundary(char: string | undefined): boolean {

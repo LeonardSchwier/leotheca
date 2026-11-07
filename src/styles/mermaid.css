@@ -1,0 +1,124 @@
+/* Mermaid diagrams in the Preview pane (src/markdown/mermaidFigure.ts).
+   The SVG fills the note width and keeps its aspect ratio; zoom and pan are
+   a transform on .mermaid-canvas. Colors come from the app tokens, so the
+   chrome follows light and dark; the diagram itself is drawn by Mermaid in
+   the matching theme (src/markdown/mermaid.ts). */
+.mermaid-figure {
+  position: relative;
+  margin: 1em 0;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-panel);
+  overflow: hidden;
+}
+
+.mermaid-viewport {
+  overflow: hidden;
+  padding: 12px;
+  touch-action: pan-y;
+}
+
+.mermaid-figure[data-zoomed="true"] .mermaid-viewport {
+  cursor: grab;
+}
+
+.mermaid-figure[data-panning="true"] .mermaid-viewport {
+  cursor: grabbing;
+  user-select: none;
+}
+
+.mermaid-canvas {
+  transform-origin: 0 0;
+}
+
+.mermaid-canvas svg {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto;
+}
+
+.mermaid-toolbar {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 1;
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-raised);
+  opacity: 0.55;
+  transition: opacity 120ms ease;
+}
+
+.mermaid-figure:hover .mermaid-toolbar,
+.mermaid-figure:focus-within .mermaid-toolbar,
+.mermaid-fullscreen .mermaid-toolbar {
+  opacity: 1;
+}
+
+.mermaid-tool {
+  min-width: 28px;
+  height: 28px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.mermaid-tool:hover {
+  background: var(--color-hover);
+}
+
+.mermaid-fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: var(--color-canvas);
+}
+
+.mermaid-fullscreen .mermaid-viewport {
+  height: 100%;
+  padding: 48px 24px 24px;
+  box-sizing: border-box;
+}
+
+.mermaid-error {
+  margin: 1em 0;
+  padding: 10px 12px;
+  border: 1px solid var(--color-danger);
+  border-radius: 8px;
+  background: var(--color-panel);
+}
+
+.mermaid-error-title {
+  margin: 0 0 4px;
+  font-weight: 600;
+  color: var(--color-danger);
+}
+
+.mermaid-error-message {
+  margin: 0 0 8px;
+  color: var(--color-text-secondary);
+  font-size: 0.9em;
+}
+
+.mermaid-error pre {
+  margin: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mermaid-toolbar {
+    transition: none;
+  }
+}

@@ -8565,15 +8565,15 @@
   },
   {
     "type": "file",
-    "url": "https://codeload.github.com/LeonardSchwier/leoforma/tar.gz/refs/tags/v0.1.1",
-    "sha512": "17194ffb1f02bf851ff313dc1ece298995dd834079322c3cb31256761ad8bc011265316a298b63cf238292263da8a1df1e3d4e9e7308ae5f0a83699b8a4b0928",
-    "dest-filename": "4ffb1f02bf851ff313dc1ece298995dd834079322c3cb31256761ad8bc011265316a298b63cf238292263da8a1df1e3d4e9e7308ae5f0a83699b8a4b0928",
-    "dest": "flatpak-node/npm-cache/_cacache/content-v2/sha512/17/19"
+    "url": "https://github.com/LeonardSchwier/leoforma/releases/download/v0.2.0/leonardschwier-leoforma-0.2.0.tgz",
+    "sha512": "8a489769f5db7dd8cddde96e274f4b1ead9e6a43a291fd0fce693400d48081b61c1a8c749bc6285abf2c38e3e9fd8db63a4ac044fa94b3ada192be28e1bf79f2",
+    "dest-filename": "9769f5db7dd8cddde96e274f4b1ead9e6a43a291fd0fce693400d48081b61c1a8c749bc6285abf2c38e3e9fd8db63a4ac044fa94b3ada192be28e1bf79f2",
+    "dest": "flatpak-node/npm-cache/_cacache/content-v2/sha512/8a/48"
   },
   {
     "type": "inline",
-    "contents": "15638b0bd5fc95bee8c178659adc8d5b399198f1\t{\"key\": \"make-fetch-happen:request-cache:https://codeload.github.com/LeonardSchwier/leoforma/tar.gz/refs/tags/v0.1.1\", \"integrity\": \"sha512-FxlP+x8Cv4Uf8xPcHs4piZXdg0B5Miw8sxJWdhrYvAESZTFqKYtjzyOCkiY9qKHfHj1OnnMIrl8Kg2mbiksJKA==\", \"time\": 0, \"size\": 902404, \"metadata\": {\"url\": \"https://codeload.github.com/LeonardSchwier/leoforma/tar.gz/refs/tags/v0.1.1\", \"reqHeaders\": {}, \"resHeaders\": {}}}",
-    "dest-filename": "e69bcb6033e44a0f25bcacc29055e017e28ec65bfe0b67c9bda3b0302463",
-    "dest": "flatpak-node/npm-cache/_cacache/index-v5/fe/54"
+    "contents": "b1a6ec0a92a66dc371158d65e34bb185a03f9e58\t{\"key\": \"make-fetch-happen:request-cache:https://github.com/LeonardSchwier/leoforma/releases/download/v0.2.0/leonardschwier-leoforma-0.2.0.tgz\", \"integrity\": \"sha512-ikiXafXbfdjN3eluJ09LHq2eakOikf0Pzmk0ANSAgbYcGox0m8YoWr8sOOPp/Y22OkrARPqUs62hkr4o4b958g==\", \"time\": 0, \"size\": 438430, \"metadata\": {\"url\": \"https://github.com/LeonardSchwier/leoforma/releases/download/v0.2.0/leonardschwier-leoforma-0.2.0.tgz\", \"reqHeaders\": {}, \"resHeaders\": {}}}",
+    "dest-filename": "6b443fb5cd19c1e3bd541f8cd8b8193da70ec0c1ef91766a6099dd3cb9e4",
+    "dest": "flatpak-node/npm-cache/_cacache/index-v5/47/80"
   }
 ]

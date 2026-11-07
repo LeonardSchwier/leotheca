@@ -107,16 +107,6 @@ Minor bugs, UX improvements, and performance.
 - ⬜ **Master specification for spec-driven rebuilds**: Write master-spec.md, a full specification of the application's current behavior sufficient to rebuild it, and add a constitution rule plus a CI check so every implementation push to main updates it.
   <!-- agent-state: {"schema":1,"id":"rm-e0a353c57cfd59e2","state":"open","touch":[".github/workflows/agent-policy.yml","master-spec.md","scripts/check_master_spec.py","scripts/test_check_master_spec.py","skills/master-spec-maintenance.md","spec/master"],"resources":["master-spec"],"note":"Landed 2ddb675 (master-spec.md, checker, CI job, skill). Remaining: constitution rule + playbook link, blocked by live claim on CONSTITUTION.md; see handoff.","released_at":"2026-11-06T23:29:31Z"} -->
   Agent: unclaimed | item: rm-e0a353c57cfd59e2
-- 🚧 **Constitution and index pointers**: Add the master specification rule to CONSTITUTION.md with a link from skills/pdlc-playbook.md, add the constitution reference and README row for the security skill, and fix hooks/README.md, which still says the e2e suite is not on main.
-  <!-- agent-state: {"schema":1,"id":"rm-fbcbd094e7cc8498","state":"claimed","touch":["CONSTITUTION.md","hooks/README.md","skills/README.md","skills/pdlc-playbook.md","skills/security-and-static-analysis.md"],"resources":["constitution"],"owner":"claude-code-pointers-20261107T081216Z-830cdb5e","token":"29a68add6ee5046f451580711133be76","branch":"agent/rm-fbcbd094e7cc8498/29a68add6ee5","claimed_at":"2026-11-07T08:12:41Z","heartbeat_at":"2026-11-07T08:12:41Z","lease_until":"2026-11-07T09:42:41Z"} -->
-  Agent: claude-code-pointers-20261107T081216Z-830cdb5e | item: rm-fbcbd094e7cc8498 | lease until: 2026-11-07T09:42:41Z
-
-  <details>
-  <summary>Scope and validation</summary>
-
-  Constitution edits stay tiny and weaken no rule. The rule says every implementation push updates master-spec.md, enforced by scripts/check_master_spec.py in CI, and points at skills/master-spec-maintenance.md. Also adds one-line pointers for skills/text-rights-and-legal-check.md and skills/database-best-practices.md. The tests/e2e suite and the required CI job e2e are on main. Validation: scripts/check_roadmap_format.py, prettier --check on changed files, ledger list, hosted Rules and Agent policy runs on the landed SHA. This completes the remaining scope of rm-e0a353c57cfd59e2.
-
-  </details>
 - ⬜ **Serialise release publish of the dev-build release**: The publish job in .github/workflows/release.yml failed once with Not Found on update-a-release-asset when two runs overlapped. Add a concurrency group with cancel-in-progress false so publishes queue instead of racing.
 
   <details>
@@ -369,6 +359,18 @@ _Review only — no fixes implemented this pass._
   - ✅ Completed 2026-11-06 — commit c137d45. New sixth widget in the family that DISPLAYS one chosen note's title + markdown-stripped content preview on the home screen. `LeothecaViewNoteWidgetProvider.java` (renders stored `{title, path}`, capped dependency-free `stripMarkdownForWidget` preview, deep-links a tap to `leotheca://select-widget-note`, degrades to a "tap to choose a note" prompt when nothing chosen/unreadable); `FolderAccessPlugin.setViewNote` (stores the note + nudges all placed instances, same division of labour as the favorites/recent widgets); `capacitorBridgeImpl.setViewNoteWidget` (best-effort TS wrapper); new `leotheca_widget_view_note` layout + `leotheca_widget_view_note_info` (110×90 content widget); receiver registered in AndroidManifest. Tests (TDD, written first): 5 new resource-contract tests in WidgetResourcesUnitTest. Gates: Android `:app:testDebugUnitTest` green, `npx tsc --noEmit` clean, `npx vitest run` 3221/3221 (171 files), `npx vite build` OK.
 
 ## Implemented
+
+- ✅ **Constitution and index pointers**: Add the master specification rule to CONSTITUTION.md with a link from skills/pdlc-playbook.md, add the constitution reference and README row for the security skill, and fix hooks/README.md, which still says the e2e suite is not on main.
+  <!-- agent-state: {"schema":1,"id":"rm-fbcbd094e7cc8498","state":"done","touch":["CONSTITUTION.md","hooks/README.md","skills/README.md","skills/pdlc-playbook.md","skills/security-and-static-analysis.md"],"resources":["constitution"],"note":"Landed 6eb2dc7 (9a57542, c15b1e0): master-spec rule, playbook link, security skill pointers, hooks README fixed. prettier and check-rules clean locally; hosted Rules and Agent policy success on 6eb2dc7; CI and Release queued, docs only.","completed_at":"2026-11-07T08:21:21Z","completed_by":"claude-code-pointers-20261107T081216Z-830cdb5e","branch":"agent/rm-fbcbd094e7cc8498/29a68add6ee5"} -->
+  Agent: completed by claude-code-pointers-20261107T081216Z-830cdb5e | item: rm-fbcbd094e7cc8498
+
+  <details>
+  <summary>Scope and validation</summary>
+
+  Constitution edits stay tiny and weaken no rule. The rule says every implementation push updates master-spec.md, enforced by scripts/check_master_spec.py in CI, and points at skills/master-spec-maintenance.md. Also adds one-line pointers for skills/text-rights-and-legal-check.md and skills/database-best-practices.md. The tests/e2e suite and the required CI job e2e are on main. Validation: scripts/check_roadmap_format.py, prettier --check on changed files, ledger list, hosted Rules and Agent policy runs on the landed SHA. This completes the remaining scope of rm-e0a353c57cfd59e2.
+
+  </details>
+
 
 - ✅ **Playwright end-to-end suite in the CI pipeline**: A Python browser script exists under tests/ui but no CI job runs it, so nothing in the pipeline drives the real UI. Add a Playwright suite covering the core user journeys against the built frontend with a mocked native bridge, run it as a required CI job, and upload traces on failure.
   <!-- agent-state: {"schema":1,"id":"rm-57a389f7112eb947","state":"done","touch":[".agents/handoffs/2026-11-07-rm-57a389f7112eb947.md","spec/completed","spec/playwright-end-to-end-suite-in-the-ci-pipeline.md"],"resources":[],"note":"Suite landed 07f7a65 (tests/e2e, 14 journeys) with a required e2e job in ci.yml uploading traces on failure; policy fixes landed 4cc8d50. Hosted: CI run 42340859598 on 07f7a65 with job e2e success; on 4cc8d50 CI 42343989613, Release 42343989717, Agent policy 42343989581, Rules 42343989607 all success. Local: 14 passed, eslint 0 errors, tsc 0. Open: typing freeze after a pending edit (cause not found, insertText used in the autosave test); root test:e2e script so the pre-push gate runs the suite.","completed_at":"2026-11-07T08:08:49Z","completed_by":"claude-code-secgate-20261106T231758Z-76f8c3fc","branch":"agent/rm-57a389f7112eb947/b7c1b1b99f45"} -->

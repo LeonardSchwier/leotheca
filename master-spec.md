@@ -1093,6 +1093,7 @@ These are current behavior, recorded honestly. None was fixed by the change that
 Newest first. Each entry is `YYYY-MM-DD: what changed in behavior, contracts, formats, build or release`. See `skills/master-spec-maintenance.md`.
 
 <!-- change-log:start -->
+- 2026-11-07: Build: the app depends on `@leonardschwier/leoforma` (public design system, tag v0.1.0, `git+https`, commit pinned by `package-lock.json`, `allow-git=root` in `.npmrc`; builds offline from the npm cache). Not yet imported by any source file. No application behavior changed.
 - 2026-11-07: Build and process: Playwright end-to-end smoke suite (`tests/e2e`, 14 journeys) and a required `e2e` job in `ci.yml` that uploads traces on failure. No application behavior changed.
 - 2026-11-07: Crash hardening (Android): `pickFolder` and `exportHtml` reject instead of throwing when the device has no document picker; share-intent extras are read defensively and styled text is kept; a restored activity no longer replays its share intent; `onNewIntent` is null-safe.
 - 2026-11-07: Desktop "Import Markdown vault..." command (`import_markdown_vault`, `cancel_markdown_import`, setting `markdownImportEnabled`, FR-IMPORT) copies a vault folder into `Imported/<name>`, converts three syntaxes and reports every outcome.

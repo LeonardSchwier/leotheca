@@ -28,13 +28,13 @@ An item is finished when its PR is merged, not when the branch is pushed.
 
 ## Phases
 
-| Phase | Content                                                                                                                          | Who                        | Status |
-| ----- | -------------------------------------------------------------------------------------------------------------------------------- | -------------------------- | ------ |
-| 1     | Workflows also run on `merge_group`. Required checks are never skipped by path filters. This document and the owner checklist.   | agent                      | done   |
-| 2     | Ledger branch: `agent_ledger.py` and the skills work against `origin/ledger`; `ROADMAP.md` on main becomes a generated snapshot. | agent                      | open   |
-| 3     | Owner enables the ruleset below. Only after phase 2: claims and heartbeats must not need a push to main.                         | owner                      | open   |
-| 4     | Constitution, `AGENTS.md`, roadmap and pre-push skills describe PR plus queue as the only way into main.                         | agent, after phase 2 and 3 | open   |
-| 5     | Scheduled integrator agent.                                                                                                      | agent                      | open   |
+| Phase | Content                                                                                                                                                                                               | Who                        | Status |
+| ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- | ------ |
+| 1     | Workflows also run on `merge_group`. Required checks are never skipped by path filters. This document and the owner checklist.                                                                        | agent                      | done   |
+| 2     | Ledger branch `ledger`: claims, renewals, handoffs and finishes go there (`ledger_branch` in the constitution); `ROADMAP.md` on main is a lagging snapshot; the weekly audit reads the ledger branch. | agent                      | done   |
+| 3     | Owner enables the ruleset below. Only after phase 2: claims and heartbeats must not need a push to main.                                                                                              | owner                      | open   |
+| 4     | Constitution, `AGENTS.md`, roadmap and pre-push skills describe PR plus queue as the only way into main.                                                                                              | agent, after phase 2 and 3 | open   |
+| 5     | Scheduled integrator agent.                                                                                                                                                                           | agent                      | open   |
 
 The rules in the constitution change only in phase 4, once the server enforces them. Until then direct pushes to main keep working under the existing protocol.
 

@@ -1117,4 +1117,5 @@ Newest first. Each entry is `YYYY-MM-DD: what changed in behavior, contracts, fo
 - 2026-11-06: First version, written from the code on main at application version 1.0.0.
 - 2026-11-07: Release workflow: the publish job now runs in a concurrency group per release (tag, or dev-build) with cancel-in-progress false, so overlapping runs no longer race on release assets. No application behavior changed.
 - 2026-11-07: Process: `ci.yml`, `rules.yml` and `agent-policy.yml` also run on `merge_group`, and `agent-policy.yml` no longer filters pull requests by path, so a required check is never skipped for the merge queue (`documentation/BRANCH_MODEL.md`). No application behavior changed.
+- 2026-11-07: Process: the ownership ledger (claims, renewals, handoffs, finishes) moves to the `ledger` branch; `ROADMAP.md` on main is a lagging snapshot, and the scheduled `ledger-audit` job in `agent-policy.yml` checks out the ledger branch (`documentation/BRANCH_MODEL.md`). No application behavior changed.
 <!-- change-log:end -->

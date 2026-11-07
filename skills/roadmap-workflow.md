@@ -13,7 +13,7 @@ metadata:
 ---
 
 <!--
-Variables: use CONSTITUTION.md's remote, main_branch, roadmap_file, handoff_dir,
+Variables: use CONSTITUTION.md's remote, main_branch, ledger_branch, roadmap_file, handoff_dir,
 lease_minutes, heartbeat_minutes, clock_skew_minutes, contention_retries.
 HELPER = scripts/agent_ledger.py
 TOOL_NAME = set to the actual running agent tool
@@ -27,21 +27,21 @@ This is the exact coordination procedure. It applies to features, bugs, CI repai
 
 Each worker uses its own clone. Never share a working directory or index with another worker. A control worktree inside that worker's clone handles only ledger/handoff commits. Keep it outside the application tree so lint/test discovery cannot include another checkout.
 
-Set `REMOTE`, `MAIN_BRANCH`, `ROADMAP_FILE`, and `TOOL_NAME` from the variables above. Use the same values throughout this session. Create the remaining variables:
+Set `REMOTE`, `MAIN_BRANCH`, `LEDGER_BRANCH`, `ROADMAP_FILE`, and `TOOL_NAME` from the variables above. Use the same values throughout this session. Create the remaining variables:
 
 ```sh
 REPO_ROOT=$(git rev-parse --show-toplevel)
 AGENT_ID="$TOOL_NAME-$(date -u +%Y%m%dT%H%M%SZ)-$(python3 -c 'import secrets; print(secrets.token_hex(4))')"
 CONTROL_DIR="$REPO_ROOT-control-$AGENT_ID"
-git fetch "$REMOTE" "$MAIN_BRANCH"
-git worktree add --detach "$CONTROL_DIR" "$REMOTE/$MAIN_BRANCH"
+git fetch "$REMOTE" "$LEDGER_BRANCH"
+git worktree add --detach "$CONTROL_DIR" "$REMOTE/$LEDGER_BRANCH"
 ```
 
 Leave existing edits intact. Do not run a hard reset or `git clean`. If this is someone else's checkout, create your own clone before starting.
 
 ## 2. Select work and define its scope
 
-Read the Open section on current remote main and relevant handoffs. The list command is a summary, not a replacement for reading the item:
+Read the Open section on the current remote ledger branch and relevant handoffs. The list command is a summary, not a replacement for reading the item:
 
 ```sh
 python3 "$REPO_ROOT/scripts/agent_ledger.py" --root "$CONTROL_DIR" list
@@ -63,8 +63,8 @@ Start **every** claim/renew/release/block/finish transaction from a clean contro
 
 ```sh
 test -z "$(git -C "$CONTROL_DIR" status --porcelain)" || exit 1
-git fetch "$REMOTE" "$MAIN_BRANCH"
-BASE=$(git rev-parse "$REMOTE/$MAIN_BRANCH")
+git fetch "$REMOTE" "$LEDGER_BRANCH"
+BASE=$(git rev-parse "$REMOTE/$LEDGER_BRANCH")
 git -C "$CONTROL_DIR" switch --detach "$BASE"
 ```
 
@@ -84,14 +84,14 @@ git -C "$CONTROL_DIR" diff --check
 git -C "$CONTROL_DIR" add -- "$ROADMAP_FILE"
 git -C "$CONTROL_DIR" diff --cached --stat
 git -C "$CONTROL_DIR" commit -m "chore(agents): claim $TASK_ID by $AGENT_ID"
-git -C "$CONTROL_DIR" push "$REMOTE" "HEAD:refs/heads/$MAIN_BRANCH"
+git -C "$CONTROL_DIR" push "$REMOTE" "HEAD:refs/heads/$LEDGER_BRANCH"
 ```
 
-Check the command's exit status. If it succeeded, fetch again, switch the clean control tree to fresh remote main, and confirm:
+Check the command's exit status. If it succeeded, fetch again, switch the clean control tree to the fresh remote ledger branch, and confirm:
 
 ```sh
-git fetch "$REMOTE" "$MAIN_BRANCH"
-git -C "$CONTROL_DIR" switch --detach "$REMOTE/$MAIN_BRANCH"
+git fetch "$REMOTE" "$LEDGER_BRANCH"
+git -C "$CONTROL_DIR" switch --detach "$REMOTE/$LEDGER_BRANCH"
 python3 "$REPO_ROOT/scripts/agent_ledger.py" --root "$CONTROL_DIR" check \
   --id "$TASK_ID" --token "$TOKEN" --margin-minutes 10
 ```
@@ -104,7 +104,7 @@ git switch -c "$WORK_BRANCH" "$REMOTE/$MAIN_BRANCH"
 
 **If push loses a race:** do not merge or cherry-pick the losing claim commit onto new main. Its eligibility decision is stale. Keep the local failed commit if needed for diagnosis, switch the clean control tree to newly fetched main, and rerun the helper. If another agent owns this item or overlapping scope, choose another. After `contention_retries` immediate races, do read-only preparation before retrying rather than flooding main.
 
-**If push result is ambiguous:** fetch and inspect the token on remote main first. A timeout may occur after the server accepted the commit. If the exact token is present and valid, you own it; if not, resolve from fresh main. An authentication/protection rejection is an external capability blocker, not a reason to force.
+**If push result is ambiguous:** fetch and inspect the token on the remote ledger branch first. A timeout may occur after the server accepted the commit. If the exact token is present and valid, you own it; if not, resolve from fresh main. An authentication/protection rejection is an external capability blocker, not a reason to force.
 
 ## 4. Implement and keep the lease alive
 
@@ -160,6 +160,8 @@ git merge-base --is-ancestor "$CANDIDATE_SHA" "$REMOTE/$MAIN_BRANCH"
 A newer main can legitimately contain your commit as an ancestor. Inspect your changes on that main; do not require that your commit remain its tip. Record the landed SHA immediately in the next control handoff. Inspect CI for that SHA and repair failures under the same claim.
 
 ## 6. Finish or defer
+
+The ledger branch carries only the roadmap and handoffs, but CI runs the policy scripts from its own tree. Before a finish push, bring it up to date with `git -C "$CONTROL_DIR" merge --no-edit "$REMOTE/$MAIN_BRANCH"`; main never edits the roadmap, so this merge has no conflicts. Code stays on main; claims, renewals, handoffs and finishes go to `LEDGER_BRANCH`.
 
 When the verification skill permits completion, start a clean control transaction:
 

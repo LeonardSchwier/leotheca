@@ -7,6 +7,7 @@
   "workspace_settings_dir": ".leotheca",
   "remote": "origin",
   "main_branch": "main",
+  "ledger_branch": "ledger",
   "roadmap_file": "ROADMAP.md",
   "changelog_file": "CHANGELOG.md",
   "product_rules_file": "documentation/PROJECT_RULES.md",
@@ -56,7 +57,7 @@ The 2026-09-06 owner instruction supersedes all earlier rules requiring a human 
 
 ## Coordination invariants
 
-1. The configured roadmap on **remote main** is the only ownership ledger. A local edit, branch, chat message, running CI job, or agent name alone does not reserve work.
+1. The configured roadmap on the **remote ledger branch** (`ledger_branch`) is the only ownership ledger. `ROADMAP.md` on main is a read-only snapshot that may lag; never claim, renew or finish against it. Handoffs live on the ledger branch too. A local edit, branch, chat message, running CI job, or agent name alone does not reserve work.
 2. Every worker has a unique session ID and at most one active implementation claim. Same-provider sessions use different IDs. Every acquired or reclaimed item has a new unpredictable token and a unique branch. Never reuse a dead worker's token.
 3. Claim before editing implementation. Publish a claim-only commit based on latest main with a normal fast-forward push. Fetch again and confirm your token. Only the successful remote claim winner may implement. Small coordination-only additions of an unclaimed task, or splits of an unowned task, may be published before claiming; use the same fresh-base transaction, preserve all scope, and never rewrite a live owner's task. These seed edits reserve no work. Write new entry prose per `skills/roadmap-entry-format.md`; `scripts/check_roadmap_format.py` enforces it in CI for entries that are new relative to the branch's merge-base.
 4. Claim file/directory touch paths and shared semantic resources, such as `workspace-lifecycle` or `editor-state`. Different files can change the same contract. Conflicting live claims exclude each other. `master-spec.md` and `CHANGELOG.md` are shared append-only documents: claims naming them do not conflict, because CI requires every implementation push to extend the master specification and the edits merge line by line. A claim on `.` or on `ROADMAP.md` stays exclusive. Small edits to your own roadmap block, handoff file, and release-note bullet are merged per item and do not lock the whole ledger.

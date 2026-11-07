@@ -1,0 +1,36 @@
+name: Dependency audit
+
+# Fails on any known high or critical vulnerability in the production
+# dependencies. The audit reads package-lock.json only, so no install is needed.
+# New advisories appear without any change of ours, so it also runs weekly.
+# It is deliberately not a required merge check: an advisory that lands today
+# must not block an unrelated pull request. The weekly run turns red instead.
+
+on:
+  pull_request:
+    paths:
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/audit.yml"
+  push:
+    branches: [main]
+    paths:
+      - "package.json"
+      - "package-lock.json"
+  schedule:
+    - cron: "41 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  npm-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high

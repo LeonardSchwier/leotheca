@@ -106,6 +106,19 @@ def path_overlap(left, right):
     return left == "." or right == "." or left == right or left.startswith(right + "/") or right.startswith(left + "/")
 
 
+# Documents that nearly every change must edit and that merge line by line:
+# two claims naming the same one do not conflict. CI still requires the edit
+# (scripts/check_master_spec.py). A claim on "." or on a parent directory still
+# conflicts, and so does every other path, ROADMAP.md included.
+SHARED_APPEND_PATHS = frozenset({"master-spec.md", "CHANGELOG.md"})
+
+
+def paths_conflict(left, right):
+    if left == right and left in SHARED_APPEND_PATHS:
+        return False
+    return path_overlap(left, right)
+
+
 def validate_state(state, icon):
     require(isinstance(state, dict), "agent-state must be a JSON object")
     kind = state.get("state")
@@ -340,7 +353,7 @@ class Ledger:
                         continue
                     require(held.get("owner") != args["agent"], "Agent already owns a live claim; finish, block, or release it first")
                     require(not set(semantic) & set(held["resources"]), f"Resource overlap with: {other['title']}")
-                    require(not any(path_overlap(left, right) for left in touch for right in held["touch"]), f"Touch-path overlap with: {other['title']}")
+                    require(not any(paths_conflict(left, right) for left in touch for right in held["touch"]), f"Touch-path overlap with: {other['title']}")
                 token = secrets.token_hex(16)
                 state.update(owner=args["agent"], token=token, branch=f"agent/{state['id']}/{token[:12]}", claimed_at=stamp(self.now),
                              heartbeat_at=stamp(self.now), lease_until=stamp(self.now + timedelta(minutes=self.config["lease_minutes"])))
@@ -353,7 +366,7 @@ class Ledger:
                 if other is item or not self.fenced(held):
                     continue
                 overlap = set(current["resources"]) & set(held["resources"]) or any(
-                    path_overlap(left, right) for left in current["touch"] for right in held["touch"])
+                    paths_conflict(left, right) for left in current["touch"] for right in held["touch"])
                 require(not overlap, f"Scope now overlaps {other['title']}; stop publication, preserve work, and release/replan")
             return {"title": item["title"], "metadata": current, "valid": True, "local_only": True}
         if command == "renew":

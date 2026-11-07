@@ -87,6 +87,18 @@ public class CaptureIntentHandler {
             return;
         }
         
+        // The activity is exported: drop streams that are not another app's content URI.
+        List<Uri> acceptable = new ArrayList<>();
+        for (Uri candidate : uris) {
+            if (NativeBoundaryPolicy.isAcceptableShareUri(
+                    candidate.getScheme(), candidate.getAuthority(), context.getPackageName())) {
+                acceptable.add(candidate);
+            } else {
+                Log.w(TAG, "F05: Dropped a shared stream that is not another app's content URI");
+            }
+        }
+        uris = acceptable;
+
         // Validate URI count
         if (uris.size() > MAX_ATTACHMENTS) {
             Log.w(TAG, "F05: Too many attachments (" + uris.size() + "), maximum is " + MAX_ATTACHMENTS);

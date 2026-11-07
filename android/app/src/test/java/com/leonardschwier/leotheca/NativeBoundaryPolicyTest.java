@@ -57,4 +57,28 @@ public class NativeBoundaryPolicyTest {
         assertEquals("hello", NativeBoundaryPolicy.charSequenceToString(new StringBuilder("hello")));
         assertNull(NativeBoundaryPolicy.charSequenceToString(null));
     }
+
+    @Test
+    public void shareStreamsMustBeAnotherAppsContentUri() {
+        String own = "com.leonardschwier.leotheca";
+        assertTrue(NativeBoundaryPolicy.isAcceptableShareUri("content", "com.android.providers.media.documents", own));
+        assertTrue(NativeBoundaryPolicy.isAcceptableShareUri("CONTENT", "media", own));
+        // Never read the app's own files or providers with the app's identity.
+        assertFalse(NativeBoundaryPolicy.isAcceptableShareUri("file", "", own));
+        assertFalse(NativeBoundaryPolicy.isAcceptableShareUri("file", null, own));
+        assertFalse(NativeBoundaryPolicy.isAcceptableShareUri("content", own + ".fileprovider", own));
+        assertFalse(NativeBoundaryPolicy.isAcceptableShareUri("content", own, own));
+        assertFalse(NativeBoundaryPolicy.isAcceptableShareUri("content", "COM.LEONARDSCHWIER.LEOTHECA.fileprovider", own));
+        // A user id prefix does not hide the provider.
+        assertFalse(NativeBoundaryPolicy.isAcceptableShareUri("content", "10@" + own + ".fileprovider", own));
+        assertTrue(NativeBoundaryPolicy.isAcceptableShareUri("content", "10@media", own));
+        // A package that merely starts with the same letters is another app.
+        assertTrue(NativeBoundaryPolicy.isAcceptableShareUri("content", own + "x.provider", own));
+        // Missing parts are refused.
+        assertFalse(NativeBoundaryPolicy.isAcceptableShareUri(null, "media", own));
+        assertFalse(NativeBoundaryPolicy.isAcceptableShareUri("content", null, own));
+        assertFalse(NativeBoundaryPolicy.isAcceptableShareUri("content", "", own));
+        assertFalse(NativeBoundaryPolicy.isAcceptableShareUri("content", "10@", own));
+        assertFalse(NativeBoundaryPolicy.isAcceptableShareUri("content", "media", null));
+    }
 }

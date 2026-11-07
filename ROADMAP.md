@@ -72,8 +72,8 @@ Items nobody owns. Take the first one that fits.
 
   </details>
 - 🚧 **Bind the active workspace root to a native folder grant**: `set_active_workspace_root(path)` accepts any string from the webview and then widens both the unscoped-path allow-list and the asset protocol scope to it, so the per-command containment checks only hold while the webview is trusted.
-  <!-- agent-state: {"schema":1,"id":"rm-c3bdf7e55130df3a","state":"claimed","touch":["CHANGELOG.md","master-spec.md","spec","src-tauri/Cargo.toml","src-tauri/src","src/settings","src/workspace"],"resources":["workspace-lifecycle","workspace-root-grant"],"owner":"claude-code-sec2-20261107T163030Z-64c6b6fd","token":"fd610f611e594098571172f976c16c53","branch":"agent/rm-c3bdf7e55130df3a/fd610f611e59","claimed_at":"2026-11-07T16:31:21Z","heartbeat_at":"2026-11-07T16:31:21Z","lease_until":"2026-11-07T18:01:21Z"} -->
-  Agent: claude-code-sec2-20261107T163030Z-64c6b6fd | item: rm-c3bdf7e55130df3a | lease until: 2026-11-07T18:01:21Z
+  <!-- agent-state: {"schema":1,"id":"rm-c3bdf7e55130df3a","state":"claimed","touch":["CHANGELOG.md","master-spec.md","spec","src-tauri/Cargo.toml","src-tauri/src","src/settings","src/workspace"],"resources":["workspace-lifecycle","workspace-root-grant"],"owner":"claude-code-sec2-20261107T163030Z-64c6b6fd","token":"fd610f611e594098571172f976c16c53","branch":"agent/rm-c3bdf7e55130df3a/fd610f611e59","claimed_at":"2026-11-07T16:31:21Z","heartbeat_at":"2026-11-07T16:38:17Z","lease_until":"2026-11-07T18:08:17Z"} -->
+  Agent: claude-code-sec2-20261107T163030Z-64c6b6fd | item: rm-c3bdf7e55130df3a | lease until: 2026-11-07T18:08:17Z
 
   <details>
   <summary>Evidence and validation plan</summary>

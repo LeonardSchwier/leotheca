@@ -94,7 +94,9 @@ Minor bugs, UX improvements, and performance.
 - ⬜ **Master specification for spec-driven rebuilds**: Write master-spec.md, a full specification of the application's current behavior sufficient to rebuild it, and add a constitution rule plus a CI check so every implementation push to main updates it.
   <!-- agent-state: {"schema":1,"id":"rm-e0a353c57cfd59e2","state":"open","touch":[".github/workflows/agent-policy.yml","master-spec.md","scripts/check_master_spec.py","scripts/test_check_master_spec.py","skills/master-spec-maintenance.md","spec/master"],"resources":["master-spec"],"note":"Landed 2ddb675 (master-spec.md, checker, CI job, skill). Remaining: constitution rule + playbook link, blocked by live claim on CONSTITUTION.md; see handoff.","released_at":"2026-11-06T23:29:31Z"} -->
   Agent: unclaimed | item: rm-e0a353c57cfd59e2
-- ⬜ **Serialise release publish of the dev-build release**: The publish job in .github/workflows/release.yml failed once with Not Found on update-a-release-asset when two runs overlapped. Add a concurrency group with cancel-in-progress false so publishes queue instead of racing.
+- 🚧 **Serialise release publish of the dev-build release**: The publish job in .github/workflows/release.yml failed once with Not Found on update-a-release-asset when two runs overlapped. Add a concurrency group with cancel-in-progress false so publishes queue instead of racing.
+  <!-- agent-state: {"schema":1,"id":"rm-c8ffcf5d6f415fd5","state":"claimed","touch":[".github/workflows/release.yml","master-spec.md"],"resources":["release-pipeline"],"owner":"claude-code-pointers-20261107T081216Z-830cdb5e","token":"44bd8d02383af8c41240e0ef29b5a6ed","branch":"agent/rm-c8ffcf5d6f415fd5/44bd8d02383a","claimed_at":"2026-11-07T09:00:25Z","heartbeat_at":"2026-11-07T09:00:25Z","lease_until":"2026-11-07T10:30:25Z"} -->
+  Agent: claude-code-pointers-20261107T081216Z-830cdb5e | item: rm-c8ffcf5d6f415fd5 | lease until: 2026-11-07T10:30:25Z
 
   <details>
   <summary>Scope and validation</summary>

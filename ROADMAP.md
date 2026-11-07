@@ -39,7 +39,9 @@ Items nobody owns. Take the first one that fits.
   <!-- agent-state: {"schema":1,"id":"rm-166ef9a028950ee5","state":"claimed","touch":["src/settings/WorkspaceSwitcher.test.tsx"],"resources":[],"owner":"claude-code-reviewaxes-20261107T225137Z","token":"554d67236af235fde0491fc03a3be5dc","branch":"agent/rm-166ef9a028950ee5/554d67236af2","claimed_at":"2026-11-07T23:12:09Z","heartbeat_at":"2026-11-07T23:12:09Z","lease_until":"2026-11-08T00:42:09Z"} -->
   Agent: claude-code-reviewaxes-20261107T225137Z | item: rm-166ef9a028950ee5 | lease until: 2026-11-08T00:42:09Z
 
-- ⬜ **Adopt a shared glossary that the PDLC maintains by itself**: Idea from the public MIT-licensed `mattpocock/skills` repository (ubiquitous language, ADRs inline), made automatic.
+- 🚧 **Adopt a shared glossary that the PDLC maintains by itself**: Idea from the public MIT-licensed `mattpocock/skills` repository (ubiquitous language, ADRs inline), made automatic.
+  <!-- agent-state: {"schema":1,"id":"rm-cd6c1e964400b173","state":"claimed","touch":[".github/workflows/rules.yml","AGENTS.md","CHANGELOG.md","GLOSSARY.md","documentation/AGENTIC_PDLC.md","hooks/README.md","hooks/pre-push","master-spec.md","scripts/check-rules.mjs","scripts/check-rules.test.js","skills/pdlc-playbook.md","spec/adopt-a-shared-glossary-that-the-pdlc-maintains-by-itself.md"],"resources":[],"owner":"claude-code-glossary-20261107T225141Z-a2f6c986","token":"69807f906e53f548b2f08a2e682217e4","branch":"agent/rm-cd6c1e964400b173/69807f906e53","claimed_at":"2026-11-07T23:29:49Z","heartbeat_at":"2026-11-07T23:29:49Z","lease_until":"2026-11-08T00:59:49Z"} -->
+  Agent: claude-code-glossary-20261107T225141Z-a2f6c986 | item: rm-cd6c1e964400b173 | lease until: 2026-11-08T00:59:49Z
 
   <details>
   <summary>Scope and detail</summary>

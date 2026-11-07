@@ -20,7 +20,7 @@ metadata:
 <!--
 Variables: read CONSTITUTION.md. SPEC_DIR = spec; DONE_DIR = spec/completed;
 SPEC_FILE = spec/<slug>.md (slug = kebab-case roadmap title);
-DESIGN_SYSTEM = roadmap item "Shared design system package" (until it lands: src/styles/theme.css, src/ui/primitives.css);
+DESIGN_SYSTEM = Leoforma, github.com/LeonardSchwier/leoforma (package @leonardschwier/leoforma, pinned in package.json; a missing token or component is added there and the pin bumped; src/ui keeps only Sheet, EmptyState, StatusIndicator and icons);
 E2E_GATE = roadmap item "Playwright end-to-end suite in the CI pipeline" (owns the suite; do not duplicate it here);
 SECURITY_GATE = skills/security-and-static-analysis.md (owned elsewhere; link only);
 MASTER_SPEC = skills/master-spec-maintenance.md (stage 5 and 6: an implementation push updates master-spec.md);

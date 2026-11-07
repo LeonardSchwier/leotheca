@@ -56,7 +56,7 @@ It reads the tool JSON on stdin. It is a seatbelt against mistakes, not a sandbo
 - Agents never bypass: no `--no-verify`, no `core.hooksPath` override, no editing a hook to pass (constitution rule 8). A failing hook names a real problem; fix it.
 - A hook that blocks wrongly is a bug in the hook: land a fix under a claim, with a test, and record the false positive in the handoff.
 - A human owner may use `git push --no-verify` in an emergency. CI runs every check again on the pushed commits, so a bypass only delays the failure and turns `main` red.
-- `rules-allow: <reason>` on a line exempts only the em dash and competitor-name rules, for a literal identifier. It never exempts the secret scan.
+- `rules-allow: <reason>` on a line exempts only the em dash and competitor-name rules, for a literal identifier. It never exempts the secret scan. The one narrow exception is the ledger helper's own claim token: in `ROADMAP.md` `agent-state` comment lines the exact field `"token":"<32 lowercase hex>"` is removed before scanning, so claim, renew and merge commits pass while a real secret on the same line or elsewhere in the file is still caught.
 
 ## Tests
 

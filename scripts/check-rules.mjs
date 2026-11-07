@@ -87,6 +87,19 @@ const SECRET_EXEMPT = [
 export const isSecretExempt = (path) =>
   SECRET_EXEMPT.some((re) => re.test(path));
 
+// The ledger helper writes a random 32-hex claim token into ROADMAP.md
+// `agent-state` comments. That value is not a credential, but its field name
+// looks like one. Only that exact field shape is removed before scanning, so a
+// real secret on the same line, or anywhere else in ROADMAP.md, is still found.
+const LEDGER_LINE = /^\s*<!-- agent-state: \{.*\} -->\s*$/;
+const LEDGER_TOKEN = /"token":"[0-9a-f]{32}"/;
+export function lineSecretProblems(path, text) {
+  if (isSecretExempt(path)) return [];
+  if (path === "ROADMAP.md" && LEDGER_LINE.test(text))
+    return secretProblems(text.replace(LEDGER_TOKEN, '"token":"-"'));
+  return secretProblems(text);
+}
+
 export const MAX_FILE_BYTES = 1024 * 1024;
 const BIG_FILE_ALLOWED = [
   /^public\//,
@@ -199,9 +212,8 @@ function checkLines(target) {
   const problems = [];
   const secrets = [];
   for (const { path, line, text } of parseAddedLines(diff)) {
-    if (!isSecretExempt(path))
-      for (const p of secretProblems(text))
-        secrets.push(`${path}:${line}: ${p}`);
+    for (const p of lineSecretProblems(path, text))
+      secrets.push(`${path}:${line}: ${p}`);
     if (isContentExempt(path)) continue;
     for (const p of lineProblems(text)) problems.push(`${path}:${line}: ${p}`);
   }

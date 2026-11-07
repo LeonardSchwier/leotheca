@@ -9,6 +9,7 @@ import {
   parseAddedLines,
   workflowRefProblems,
   secretProblems,
+  lineSecretProblems,
   parsePackageDeps,
   parseCargoDeps,
   changedDeps,
@@ -185,5 +186,32 @@ describe("dependency intake", () => {
         "Dependency-intake: left-pad: real package, maintained, MIT, github.com/x/y, no install scripts",
       ),
     ).toBe(true);
+  });
+});
+
+describe("lineSecretProblems and the ledger claim token", () => {
+  const hex = "0123456789abcdef0123456789abcdef";
+  const ledger = (extra = "") =>
+    `  <!-- agent-state: {"schema":1,"id":"rm-x","state":"claimed","note":"${extra}","token":"${hex}","owner":"a"} -->`;
+
+  it("does not flag the ledger token in a ROADMAP.md agent-state line", () => {
+    expect(lineSecretProblems("ROADMAP.md", ledger())).toEqual([]);
+  });
+  it("still flags the same text in any other file", () => {
+    expect(lineSecretProblems("README.md", ledger()).length).toBeGreaterThan(0);
+  });
+  it("still flags a real secret placed inside an agent-state line", () => {
+    const real = "gh" + "p_" + "a".repeat(36);
+    expect(
+      lineSecretProblems("ROADMAP.md", ledger(real)).length,
+    ).toBeGreaterThan(0);
+  });
+  it("still flags a secret on an ordinary ROADMAP.md line", () => {
+    const line = `password: "${"x".repeat(30)}"`;
+    expect(lineSecretProblems("ROADMAP.md", line).length).toBeGreaterThan(0);
+  });
+  it("does not exempt a token that is not 32 lowercase hex characters", () => {
+    const odd = ledger().replace(hex, "Z".repeat(32));
+    expect(lineSecretProblems("ROADMAP.md", odd).length).toBeGreaterThan(0);
   });
 });

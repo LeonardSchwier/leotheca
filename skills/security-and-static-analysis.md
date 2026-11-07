@@ -25,6 +25,8 @@ AUDIT_OUT = a directory OUTSIDE the repository (for example ~/leotheca-audits/<d
 
 # Security review and static analysis in the test and review stage
 
+The binding rules are in `CONSTITUTION.md` (coordination invariants, quality and verification, and the untrusted-path-input rule); this skill is the procedure and never overrides them.
+
 Security is part of the testing and code-review stage of delivery, not a later audit. `skills/change-quality-gates.md` covers the evidence for a changed boundary; this skill adds the review workflow and the static-analysis stack. Both run from `skills/verification-suite.md`'s applicable-checks table.
 
 ## 1. LLM security audit (Cloudflare security-audit skill)

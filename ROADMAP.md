@@ -61,16 +61,6 @@ Items nobody owns. Take the first one that fits.
 - ⬜ **Master specification for spec-driven rebuilds**: Write master-spec.md, a full specification of the application's current behavior sufficient to rebuild it, and add a constitution rule plus a CI check so every implementation push to main updates it.
   <!-- agent-state: {"schema":1,"id":"rm-e0a353c57cfd59e2","state":"open","touch":[".github/workflows/agent-policy.yml","master-spec.md","scripts/check_master_spec.py","scripts/test_check_master_spec.py","skills/master-spec-maintenance.md","spec/master"],"resources":["master-spec"],"note":"Landed 2ddb675 (master-spec.md, checker, CI job, skill). Remaining: constitution rule + playbook link, blocked by live claim on CONSTITUTION.md; see handoff.","released_at":"2026-11-06T23:29:31Z"} -->
   Agent: unclaimed | item: rm-e0a353c57cfd59e2
-- 🚧 **Reject foreign share streams and drop the unused FileProvider**: The exported MainActivity accepts SEND intents whose EXTRA_STREAM is any URI, and CaptureIntentHandler.stageSingleUri opens it with the app's own ContentResolver, which includes the app's own FileProvider (authority applicationId.fileprovider). That provider is unused (no getUriForFile call) and file_paths.xml maps the whole external storage root.
-  <!-- agent-state: {"schema":1,"id":"rm-e209b9fc773a53c0","state":"claimed","touch":[".agents/handoffs","android/app/src/main/AndroidManifest.xml","android/app/src/main/java/com/leonardschwier/leotheca/CaptureIntentHandler.java","android/app/src/main/java/com/leonardschwier/leotheca/NativeBoundaryPolicy.java","android/app/src/main/res/xml/file_paths.xml","android/app/src/test/java/com/leonardschwier/leotheca/NativeBoundaryPolicyTest.java","master-spec.md"],"resources":[],"owner":"claude-code-pdlc-20261106T231246Z-fcf4c9d1","token":"fafc19c03b3f66737b5f2a04677b7704","branch":"agent/rm-e209b9fc773a53c0/fafc19c03b3f","claimed_at":"2026-11-07T19:52:13Z","heartbeat_at":"2026-11-07T19:52:13Z","lease_until":"2026-11-07T21:22:13Z"} -->
-  Agent: claude-code-pdlc-20261106T231246Z-fcf4c9d1 | item: rm-e209b9fc773a53c0 | lease until: 2026-11-07T21:22:13Z
-
-  <details>
-  <summary>Evidence, fix and validation plan</summary>
-
-  Found by the security-audit skill in guidance mode (source trace; severity low, needs_validation for the merged manifest on a device). A sending app could name a path under the provider's roots with an image extension and have it staged as a capture. Fix: remove the provider and file_paths.xml if no caller exists (confirm with a repo-wide search), and add a pure NativeBoundaryPolicy check that only accepts content scheme URIs whose authority is not the app's own, wired into stageSingleUri, with JVM unit tests. Touches android/app/src/main, android/app/src/test and master-spec.md.
-
-  </details>
 
 ### Blocked
 
@@ -88,6 +78,18 @@ Items that wait for access or a decision outside the repository.
 - ⏸ **Compatibility layer**: Load community extension manifests; gated on maintainer approval of the third-party-code security model.
 
 ## Implemented
+
+- ✅ **Reject foreign share streams and drop the unused FileProvider**: The exported MainActivity accepts SEND intents whose EXTRA_STREAM is any URI, and CaptureIntentHandler.stageSingleUri opens it with the app's own ContentResolver, which includes the app's own FileProvider (authority applicationId.fileprovider). That provider is unused (no getUriForFile call) and file_paths.xml maps the whole external storage root.
+  <!-- agent-state: {"schema":1,"id":"rm-e209b9fc773a53c0","state":"done","touch":[".agents/handoffs","android/app/src/main/AndroidManifest.xml","android/app/src/main/java/com/leonardschwier/leotheca/CaptureIntentHandler.java","android/app/src/main/java/com/leonardschwier/leotheca/NativeBoundaryPolicy.java","android/app/src/main/res/xml/file_paths.xml","android/app/src/test/java/com/leonardschwier/leotheca/NativeBoundaryPolicyTest.java","master-spec.md"],"resources":[],"note":"Merged as PR 77 (): shared streams accepted only as another app's content URI, unused FileProvider removed; 22 required PR checks green incl. android; not exercised on a device; hosted CI pending for post-merge runs, ids in handoff","completed_at":"2026-11-07T20:05:55Z","completed_by":"claude-code-pdlc-20261106T231246Z-fcf4c9d1","branch":"agent/rm-e209b9fc773a53c0/fafc19c03b3f"} -->
+  Agent: completed by claude-code-pdlc-20261106T231246Z-fcf4c9d1 | item: rm-e209b9fc773a53c0
+
+  <details>
+  <summary>Evidence, fix and validation plan</summary>
+
+  Found by the security-audit skill in guidance mode (source trace; severity low, needs_validation for the merged manifest on a device). A sending app could name a path under the provider's roots with an image extension and have it staged as a capture. Fix: remove the provider and file_paths.xml if no caller exists (confirm with a repo-wide search), and add a pure NativeBoundaryPolicy check that only accepts content scheme URIs whose authority is not the app's own, wired into stageSingleUri, with JVM unit tests. Touches android/app/src/main, android/app/src/test and master-spec.md.
+
+  </details>
+
 
 - ✅ **Confirm the local model name in the docs**: The owner confirmed on 2026-11-07 that the local model is Qwen 3.8 27B. Remove the "unverified" hedges in `CONSTITUTION.md` and `documentation/AGENTIC_PDLC.md`.
   <!-- agent-state: {"schema":1,"id":"rm-8a50a5cd2f6b3a5c","state":"done","touch":[".agents/handoffs","CONSTITUTION.md","documentation/AGENTIC_PDLC.md"],"resources":[],"note":"Merged as PR 73 (eafb708): model name stated as confirmed Qwen 3.8 27B in the constitution and PDLC document; 22 required PR checks green; hosted CI pending for post-merge runs, ids in handoff","completed_at":"2026-11-07T19:50:13Z","completed_by":"claude-code-pdlc-20261106T231246Z-fcf4c9d1","branch":"agent/rm-8a50a5cd2f6b3a5c/2841542a4b76"} -->

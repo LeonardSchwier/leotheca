@@ -28,7 +28,13 @@ Variables: read CONSTITUTION.md (remote, main_branch).
    gh pr merge "$PR" --auto --squash --subject "type(scope): summary" --body-file "$BODY_FILE"
    ```
 
-   If auto-merge is unavailable (the repository setting or ruleset is not on yet), wait with `gh pr checks "$PR" --watch` and merge when the required checks are green: `gh pr merge "$PR" --squash --subject ... --body-file ...`. Never merge on red. Never use an admin bypass.
+   If auto-merge is unavailable (the repository setting or ruleset is not on yet), use the script, which waits for the checks, merges, retries once on "Base branch was modified" and prints `MERGED <sha>` only when the pull request really merged:
+
+   ```sh
+   scripts/deliver-pr.sh "$PR" "type(scope): summary" "$BODY_FILE"
+   ```
+
+   Chain everything after it with `&&` (finish, handoff, ledger push): a chain joined with `;` once recorded a finish for a pull request that had not merged. Never merge on red. Never use an admin bypass.
 
 6. Keep renewing the lease while the PR waits. Read the failed log of any red check, quote the real error, fix it on the branch and push again. A conflict after a queue entry is repaired the same way: merge main into the branch, retest, push.
 7. When the PR is merged, record the merge commit SHA in the handoff, then finish the item on the ledger branch. Finished means merged. Runs that start on main after the merge (Release, Dependabot) are inspected and their ids appended to the handoff; a red one is a main regression and takes priority.

@@ -1,6 +1,6 @@
 # F-Droid packaging
 
-Status: the metadata declares an immutable source commit, version name, and version code under `Builds:`, and has a reproducible build recipe that is exercised by `.github/workflows/fdroid-submission-verify.yml`, which reads that same commit/version pin from the metadata itself rather than hardcoding a copy, so the two cannot silently drift apart. The repository-side verification runs the official metadata tools and build-server image, and independently rebuilds and inspects the unsigned APK. The workflow's rebuild cannot complete until the metadata's currently-declared `v0.1.0` tag actually exists (see the outstanding-work item below about cutting that tag). A real submission to the separate metadata repository is still required before this roadmap item can be called complete.
+Status: the metadata declares an immutable source commit, version name, and version code under `Builds:`, and has a reproducible build recipe that is exercised by `.github/workflows/fdroid-submission-verify.yml`, which reads that same commit/version pin from the metadata itself rather than hardcoding a copy, so the two cannot silently drift apart. The repository-side verification runs the official metadata tools and build-server image, and independently rebuilds and inspects the unsigned APK. The workflow's rebuild cannot complete until the metadata's declared `v1.0.0` tag exists again: that tag and its release were deleted on 2026-11-07 when the rolling `dev-build` became the only release, so a fresh tag must be cut and the metadata moved to it (see the outstanding-work items below). A real submission to the separate metadata repository is still required before this roadmap item can be called complete.
 
 ## What's here
 
@@ -22,15 +22,15 @@ The submission verification workflow checks all of the following against the rel
 4. The shared frontend builds and synchronizes into the Android project.
 5. Frontend-only files rejected by the source scanner are removed before the native build.
 6. The unsigned release APK is rebuilt after that cleanup.
-7. The APK reports the version name and version code declared in the metadata's `Builds:` entry (currently `0.1.0` / `100`), and no `android.permission.INTERNET` permission.
-8. The official build-server flow must produce `com.leonardschwier.leotheca_<versionCode>.apk` (currently `com.leonardschwier.leotheca_100.apk`, matching the metadata's declared `versionCode`); a failed or missing build is a hard workflow failure.
+7. The APK reports the version name and version code declared in the metadata's `Builds:` entry (currently `1.0.0` / `10000`), and no `android.permission.INTERNET` permission.
+8. The official build-server flow must produce `com.leonardschwier.leotheca_<versionCode>.apk` (currently `com.leonardschwier.leotheca_10000.apk`, matching the metadata's declared `versionCode`); a failed or missing build is a hard workflow failure.
 
 A green workflow proves the repository-side recipe is buildable under that independent cloud environment. It is not a substitute for the separate repository's own review and submission CI.
 
 1. ~~Resolve the npm-offline-build question.~~ Done, see above.
 2. Confirm the `output` glob path matches what a real `gradle assembleRelease` (unsigned) run actually produces.
 3. Decide on `AutoUpdateMode`/`UpdateCheckMode` properly, both are placeholder `None` values right now. Now that a real tagged release exists (or will shortly, see `ROADMAP.md`), switch these to F-Droid's tag-based detection, likely `UpdateCheckMode: Tags ^v[0-9]+\.[0-9]+\.[0-9]+$` (matching this repo's `v*` tag pattern from `release.yml`) paired with `AutoUpdateMode: Version` and a `Builds` commit template using F-Droid's `%v`/`%c` placeholders. Confirm the exact current syntax against F-Droid's [Build Metadata Reference](https://f-droid.org/docs/Build_Metadata_Reference/) before submitting, this area of their format has had revisions.
-4. Update `CurrentVersion`/`CurrentVersionCode` and add a matching entry under `Builds:` for the actual first tagged release (this draft's `Builds:` entry already points at the future `v0.1.0` tag rather than `main`, per audit follow-up F-015's requirement that a build recipe reference an immutable ref, but that tag does not exist yet; if the version changes again before it is cut, `versionName`/`versionCode`/`commit` here need to move together, kept honest by `npm run check-version`).
+4. Update `CurrentVersion`/`CurrentVersionCode` and the `Builds:` entry (`versionName`, `versionCode`, `commit`) to the first tag that actually exists. The entry currently names `v1.0.0` (version 1.0.0, code 10000, matching the root `VERSION` file and `android/app/build.gradle`), but that tag was deleted, so it must be replaced with a fresh tag before submission. The three values move together and are kept honest by `npm run check-version`.
 
 ## Submitting
 

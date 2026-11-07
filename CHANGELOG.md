@@ -4,14 +4,13 @@
 
 ### Maintenance
 
+- **Documentation corrections**: Removed "Android camera capture" from the new-features list (the repository contains no camera code; the feature is still open on the roadmap). Moved the macOS Quick Look generator out of the shipped features: its source and build scripts are in the repository (`packaging/macos/quicklook/`, `scripts/build-quicklook.sh`), but no release workflow builds or bundles it, so it is not part of the downloadable app. Rewrote `packaging/STATUS.md` in English with the current state, and corrected the version stated in `packaging/f-droid/README.md`.
 - **Repository tidy-up** — Removed a tracked 100 MB AppImage, a stray control worktree, session logs, a scan session log and dated session reports from the tree (history is not rewritten). Added ignore rules, moved the speech-to-text research and plan to `documentation/`, moved the mermaid smoke test under `src/markdown/`, removed machine-specific paths from build scripts, and added `src/tidyRepoHygiene.test.ts`, which fails on tracked files over 5 MB or on private IP addresses and machine paths outside `.agents/handoffs`.
 
 ### New Features
 
 - **Markdown vault import**: Desktop command "Import Markdown vault..." copies a folder of Markdown notes into `Imported/<folder name>` in the open workspace without changing the source or overwriting any file, rewrites only attachment embeds, nested heading links and `%%comments%%`, and shows a report of what was converted, kept, unsupported, renamed, skipped or failed. Can be switched off in Settings.
-- **macOS Quick Look preview** — ⌥-click `.md` files in Finder to preview without opening the app.
 - **Quick Capture target picker** — Choose the capture destination (specific note, daily note, or bookmark) with an optional template.
-- **Android camera capture** — Take a photo directly from the "Insert attachment" toolbar.
 - **Settings export** — Export the current settings bundle to a file.
 - **Folder exclusion in search** — A negated term (e.g. `-archive`) now hides a folder named `archive` and every file inside it at any depth. Exact-segment match: `-archive` hides `archive/x.md` but not `archivex/y.md`. Root-level files are unaffected. Applies to File Explorer, Bookmarks, and Outline search results. No file I/O for excluded entries.
 - **Fuzzy matching in quick switcher, command palette, and link suggestions** — All three search surfaces now use subsequence-based fuzzy matching with word-start and consecutive-run bonuses instead of strict substring matching. Typing "mn" matches "Meeting Notes" and "ml" matches "Macronomics". Case-insensitive, zero new dependencies (`src/fuzzyMatch.ts`).

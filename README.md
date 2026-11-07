@@ -75,7 +75,7 @@ There are no versioned releases yet. Every build comes from the single [rolling 
 ### Android
 
 - **Direct APK**: download `leotheca-dev-build-android-DEBUG-UNSIGNED.apk` from the release and install it manually. It is a debug-signed build for testing, not a release-signed one.
-- **Obtainium**: add this repository's URL. Because the rolling release is the Latest release and is not marked as a prerelease, Obtainium should be able to track it. That has not been verified by this repository's CI. Each push replaces the release, so expect frequent updates.
+- **Obtainium**: add this repository's URL. The rolling release is marked Latest, is not a prerelease, and carries an Android APK asset (`leotheca-dev-build-android-DEBUG-UNSIGNED.apk`), which is what Obtainium reads. Whether Obtainium detects each rebuild as an update, given that the tag name `dev-build` never changes, is unverified: nothing in this repository's CI or tests exercises Obtainium. Each push replaces the release, so expect frequent updates.
 - **F-Droid**: not submitted. A build recipe is kept in [`packaging/f-droid/`](packaging/f-droid/), but it still names a `v1.0.0` tag that was deleted and has not been recreated, so it cannot be built as it stands.
 
 Minimum Android version: API 29 (Android 10), set in [`android/variables.gradle`](android/variables.gradle).

@@ -8,7 +8,8 @@ platforms: [linux, macos, windows]
 metadata:
   hermes:
     tags: [roadmap, workflow, coordination, leotheca]
-    related_skills: [autonomous-roadmap-delivery, roadmap-entry-format, pre-push-verification]
+    related_skills:
+      [autonomous-roadmap-delivery, roadmap-entry-format, pre-push-verification]
 ---
 
 <!--
@@ -52,7 +53,7 @@ python3 "$REPO_ROOT/scripts/agent_ledger.py" --root "$CONTROL_DIR" list
 4. Read legacy unstructured `🚧` entries and relevant branch diffs. The helper cannot infer their overlap. Observe/normalize those that could overlap before claiming, as described below.
 5. Shared per-item additions to the roadmap, handoff directory, and changelog do not require locking those entire files. A structural rewrite of a shared document does require its path as a touch scope.
 
-Use existing resource names for existing contracts. For example, two claims changing the editor's selected note must both claim `editor-state`, even if one edits a hook and the other a component. Never invent a synonym to evade a live claim. If the helper reports an overlapping path/resource, choose another item.
+Use existing resource names for existing contracts. For example, two claims changing the editor's selected note must both claim `editor-state`, even if one edits a hook and the other a component. Never invent a synonym to evade a live claim. Name `master-spec.md` and `CHANGELOG.md` in your touch list whenever your push must extend them: they are shared append-only documents and never conflict, while a claim on `.` or `ROADMAP.md` stays exclusive (merge them line by line before you push, step 5). If the helper reports an overlapping path/resource, choose another item.
 
 Authoring or extending an item's own prose (a coordination-only seed of a new item, or the description you finish with) follows `skills/roadmap-entry-format.md`: a short always-visible summary, with root cause, repro, alternatives, and verification narrative behind a `<details>` toggle once the summary budget runs out. `scripts/check_roadmap_format.py` enforces it in CI for entries new since the branch's merge-base.
 

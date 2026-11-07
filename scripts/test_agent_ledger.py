@@ -116,6 +116,30 @@ class LeaseTests(unittest.TestCase):
         state = self.claim(title="Beta", agent="session-b", touch=["src/editorial/view.ts"])
         self.assertEqual(state["touch"], ["src/editorial/view.ts"])
 
+    def test_shared_append_only_documents_do_not_conflict(self):
+        first = self.claim(touch=["src/alpha", "master-spec.md"])
+        self.commit()
+        second = self.claim(title="Beta", agent="session-b", touch=["src/beta", "master-spec.md", "CHANGELOG.md"])
+        self.commit()
+        self.assertIn("master-spec.md", second["touch"])
+        # both owners stay valid: the shared file is not a conflict on check either
+        self.assertTrue(self.owned("check", first)["valid"])
+        self.assertTrue(self.owned("check", second)["valid"])
+        # everything else still conflicts: another path of the first claim,
+        # the whole repository, and ROADMAP.md next to a held path
+        with self.assertRaisesRegex(ledger.LedgerError, "overlap"):
+            self.claim(title="Gamma", agent="session-c", touch=["src/alpha"])
+        with self.assertRaisesRegex(ledger.LedgerError, "overlap"):
+            self.claim(title="Gamma", agent="session-c", touch=["."])
+        with self.assertRaisesRegex(ledger.LedgerError, "overlap"):
+            self.claim(title="Gamma", agent="session-c", touch=["ROADMAP.md", "src/beta"])
+
+    def test_roadmap_file_itself_stays_exclusive(self):
+        self.claim(touch=["ROADMAP.md"])
+        self.commit()
+        with self.assertRaisesRegex(ledger.LedgerError, "overlap"):
+            self.claim(title="Beta", agent="session-b", touch=["ROADMAP.md"])
+
     def test_exact_file_is_reserved_but_sibling_file_is_independent(self):
         self.claim(touch=["src/App.tsx"])
         self.commit()

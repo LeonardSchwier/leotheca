@@ -42,7 +42,7 @@
     "@codemirror/view": "^6.35.3",
     "@leonardschwier/leoforma": "https://github.com/LeonardSchwier/leoforma/releases/download/v0.2.0/leonardschwier-leoforma-0.2.0.tgz",
     "@lezer/highlight": "^1.2.1",
-    "@preact/signals": "^1.3.0",
+    "@preact/signals": "^2.11.4",
     "@sinonjs/fake-timers": "^15.4.0",
     "@tauri-apps/api": "^2.1.1",
     "@tauri-apps/plugin-clipboard-manager": "^2.3.2",

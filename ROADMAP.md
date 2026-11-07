@@ -32,6 +32,8 @@ Items with an owner. An expired lease means the item can be recovered.
 
 Items nobody owns. Take the first one that fits.
 
+- ⬜ **Stop the flaky unhandled cancelAnimationFrame error in WorkspaceSwitcher.test.tsx**: CI run 42423085656 failed once with `ReferenceError: cancelAnimationFrame is not defined` raised by a preact hooks timer (Timeout.r) after the jsdom environment was torn down, although all 3334 tests passed. Fix by letting the pending after-paint timer run before teardown (await it in an afterAll) or mock the frame functions; acceptance: the file runs 20 times in a row with no unhandled error.
+
 - ⬜ **Move the PDF export spec from the ledger branch to main**: The PDF export agent archived `spec/completed/pdf-export-for-notes.md` on the ledger branch, so a ledger push that merges main looks like an application change and runs the full gate. Add the file to main by pull request and remove it from the ledger branch; tell agents in `skills/roadmap-workflow.md` that spec archives travel with the code pull request.
 - ⬜ **Adopt a shared glossary that the PDLC maintains by itself**: Idea from the public MIT-licensed `mattpocock/skills` repository (ubiquitous language, ADRs inline), made automatic.
 

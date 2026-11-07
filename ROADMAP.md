@@ -38,6 +38,14 @@ Significant missing features users expect.
 
 Minor bugs, UX improvements, and performance.
 
+- ⬜ **Verify and document the web clipper and the website**: Neither `extensions/web-clipper` nor `website/` has ever been run. The clipper uses the Firefox-only `browser` global, and the Pages site has never deployed (Pages is not enabled) and uses root-absolute asset paths. Test both for real, fix what breaks, narrow unverified claims, and document install and deploy steps.
+
+  <details>
+  <summary>Scope and evidence plan</summary>
+
+  Load the extension in Playwright Chromium and run a real clip; run its unit tests; check it sends nothing anywhere. Serve `website/` locally under a sub-path, open both pages, check links and every claim against the app, and record rulings in `spec/verify-and-document-the-web-clipper-and-the-website.md`.
+
+  </details>
 - ✅ **Recent-notes widget performance** (done 2026-10-11, `579d804`):
   Fixed two bugs in `syncRecentNotesWidget` (fileTreeStore.ts):
   1. **Burst-coalescing bug**: `pendingRecentNotesSync` held a single `resolve` ref; when

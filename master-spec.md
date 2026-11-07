@@ -955,7 +955,7 @@ Only numbers that exist in code, configuration or an observed run appear here. N
 | `gh-pages.yml` | Push on `website/**`, manual | Deploys the static `website/` (two pages, relative URLs, no build step). The repository's Pages source is not enabled as of 2026-11-07, so the job fails at Setup Pages until it is (see `website/README.md`) |
 | `flathub-submission-verify.yml`, `fdroid-submission-verify.yml` | Workflow-defined | Verify store recipes |
 
-**Release channels.** A `v*` tag publishes a draft versioned release (draft because no Android signing keys exist). A push to main replaces the rolling `dev-build` prerelease. Publication requires `validation`, `version-guard`, Linux and Android success. Flatpak, macOS and Windows are optional, and their absence is recorded in the release body. Manual runs never publish.
+**Release channels.** A `v*` tag publishes a draft versioned release (draft because no Android signing keys exist). A push to main replaces the rolling `dev-build` prerelease. Publication requires `validation`, `version-guard`, Linux and Android success. Flatpak, macOS and Windows are optional, and their absence is recorded in the release body. Manual runs never publish. The `publish` job runs in a concurrency group (`release-publish-<tag>` for a tag, `release-publish-dev-build` otherwise) with `cancel-in-progress: false`, so overlapping runs queue instead of racing on the release assets.
 
 **Packaging.** `flatpak/` (GNOME 50 runtime, offline `cargo-sources.json`, `node-sources.json`), `packaging/f-droid/`, `packaging/homebrew/` (draft Cask with TODO placeholders), `packaging/macos/` (app and Quick Look), `snap/` (draft). External store submission status is not confirmed by the code.
 
@@ -1106,4 +1106,5 @@ Newest first. Each entry is `YYYY-MM-DD: what changed in behavior, contracts, fo
 - 2026-11-07: Quick Capture gained an optional per-capture Template select (existing templates folder, placeholders {{content}} {{title}} {{url}} {{date}} {{time}}); None keeps the plain format.
 - 2026-11-06: Fixed a temp-file name collision in `write_file_atomically` (native atomic overwrite): two writes to the same target in the same millisecond on one process could silently overwrite each other's in-flight temp file, so the loser's rename failed with a spurious error while the winner's reported success actually held the other call's content. Temp names now carry a per-process monotonic sequence number as well as the existing timestamp/PID, so no two calls can collide. No caller-visible behavior change. Added FR-FS-013.
 - 2026-11-06: First version, written from the code on main at application version 1.0.0.
+- 2026-11-07: Release workflow: the publish job now runs in a concurrency group per release (tag, or dev-build) with cancel-in-progress false, so overlapping runs no longer race on release assets. No application behavior changed.
 <!-- change-log:end -->

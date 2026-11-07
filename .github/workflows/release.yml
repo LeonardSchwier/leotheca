@@ -405,6 +405,14 @@ jobs:
     # than being skipped by dependency semantics.
     if: always() && github.event_name == 'push' && needs.validation.result == 'success' && needs.version-guard.result == 'success' && needs.linux.result == 'success' && needs.android.result == 'success'
     runs-on: ubuntu-latest
+    # Serialise publishes of the same release. Overlapping main runs raced on
+    # the rolling dev-build release and one failed with "Not Found -
+    # update-a-release-asset". Queue instead of cancelling a running publish.
+    # Each version tag has its own group so a later main push can never
+    # replace a pending tag publish.
+    concurrency:
+      group: release-publish-${{ github.ref_type == 'tag' && github.ref_name || 'dev-build' }}
+      cancel-in-progress: false
     permissions:
       contents: write
     steps:

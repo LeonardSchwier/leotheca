@@ -141,6 +141,9 @@
   --color-mark-text: #171815;
 }
 
+/* The choices set Leoforma's --ds-color-accent tokens, not the app aliases, so
+   Leoforma's own components (Button primary, focus and selected states) follow
+   the workspace accent too; --color-accent and friends resolve to them. */
 /* UX-01 spec section 9.6/19.2/VIS-003: Ocean, Forest, and Plum each define
    their own solid/hover/soft/on-accent quad in both themes (contrast
    verified: every solid-vs-panel and on-accent-vs-solid pair below is at
@@ -150,66 +153,66 @@
    as e.g. selected-tab text on a dark panel is not guaranteed to still
    pass contrast). */
 :root[data-accent="ocean"] {
-  --color-accent: #21708f;
-  --color-accent-hover: #17536b;
-  --color-accent-soft: #dceaf0;
-  --color-on-accent: #ffffff;
+  --ds-color-accent: #21708f;
+  --ds-color-accent-hover: #17536b;
+  --ds-color-accent-soft: #dceaf0;
+  --ds-color-on-accent: #ffffff;
 }
 @media (prefers-color-scheme: dark) {
   :root[data-accent="ocean"]:not([data-theme="light"]) {
-    --color-accent: #6fb8d6;
-    --color-accent-hover: #8cc9e2;
-    --color-accent-soft: #1e3540;
-    --color-on-accent: #0e2129;
+    --ds-color-accent: #6fb8d6;
+    --ds-color-accent-hover: #8cc9e2;
+    --ds-color-accent-soft: #1e3540;
+    --ds-color-on-accent: #0e2129;
   }
 }
 :root[data-theme="dark"][data-accent="ocean"] {
-  --color-accent: #6fb8d6;
-  --color-accent-hover: #8cc9e2;
-  --color-accent-soft: #1e3540;
-  --color-on-accent: #0e2129;
+  --ds-color-accent: #6fb8d6;
+  --ds-color-accent-hover: #8cc9e2;
+  --ds-color-accent-soft: #1e3540;
+  --ds-color-on-accent: #0e2129;
 }
 
 :root[data-accent="forest"] {
-  --color-accent: #3d7150;
-  --color-accent-hover: #2a5138;
-  --color-accent-soft: #dcebe0;
-  --color-on-accent: #ffffff;
+  --ds-color-accent: #3d7150;
+  --ds-color-accent-hover: #2a5138;
+  --ds-color-accent-soft: #dcebe0;
+  --ds-color-on-accent: #ffffff;
 }
 @media (prefers-color-scheme: dark) {
   :root[data-accent="forest"]:not([data-theme="light"]) {
-    --color-accent: #7fc79a;
-    --color-accent-hover: #9ad6b1;
-    --color-accent-soft: #1e3327;
-    --color-on-accent: #0e1f16;
+    --ds-color-accent: #7fc79a;
+    --ds-color-accent-hover: #9ad6b1;
+    --ds-color-accent-soft: #1e3327;
+    --ds-color-on-accent: #0e1f16;
   }
 }
 :root[data-theme="dark"][data-accent="forest"] {
-  --color-accent: #7fc79a;
-  --color-accent-hover: #9ad6b1;
-  --color-accent-soft: #1e3327;
-  --color-on-accent: #0e1f16;
+  --ds-color-accent: #7fc79a;
+  --ds-color-accent-hover: #9ad6b1;
+  --ds-color-accent-soft: #1e3327;
+  --ds-color-on-accent: #0e1f16;
 }
 
 :root[data-accent="plum"] {
-  --color-accent: #7a5473;
-  --color-accent-hover: #593d54;
-  --color-accent-soft: #ede1ea;
-  --color-on-accent: #ffffff;
+  --ds-color-accent: #7a5473;
+  --ds-color-accent-hover: #593d54;
+  --ds-color-accent-soft: #ede1ea;
+  --ds-color-on-accent: #ffffff;
 }
 @media (prefers-color-scheme: dark) {
   :root[data-accent="plum"]:not([data-theme="light"]) {
-    --color-accent: #cb9dc4;
-    --color-accent-hover: #dbb4d5;
-    --color-accent-soft: #362b34;
-    --color-on-accent: #1d161c;
+    --ds-color-accent: #cb9dc4;
+    --ds-color-accent-hover: #dbb4d5;
+    --ds-color-accent-soft: #362b34;
+    --ds-color-on-accent: #1d161c;
   }
 }
 :root[data-theme="dark"][data-accent="plum"] {
-  --color-accent: #cb9dc4;
-  --color-accent-hover: #dbb4d5;
-  --color-accent-soft: #362b34;
-  --color-on-accent: #1d161c;
+  --ds-color-accent: #cb9dc4;
+  --ds-color-accent-hover: #dbb4d5;
+  --ds-color-accent-soft: #362b34;
+  --ds-color-on-accent: #1d161c;
 }
 
 * {

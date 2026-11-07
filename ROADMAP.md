@@ -115,16 +115,6 @@ Minor bugs, UX improvements, and performance.
   Touches .github/workflows/release.yml and the workflow table in master-spec.md with a change log line. Validation: YAML parse of the workflow, then read the hosted Release run for the landed SHA and confirm the publish job passes.
 
   </details>
-- 🚧 **Install and use the Cloudflare security audit skill**: Install the security-audit skill from the Cloudflare skill repository after reading its SKILL.md and license, then run guidance mode once on the Tauri commands and capabilities, the Capacitor plugin and AndroidManifest. Each confirmed finding becomes its own roadmap seed with a validation plan, and the clear ones are fixed under their own claim with regression tests.
-  <!-- agent-state: {"schema":1,"id":"rm-102d06409c10e22f","state":"claimed","touch":[".agents/handoffs/security-audit-skill.md","skills/security-and-static-analysis.md"],"resources":["security-audit"],"owner":"claude-code-pointers-20261107T081216Z-830cdb5e","token":"4084a150af9a547fea5a03ace4e1ec05","branch":"agent/rm-102d06409c10e22f/4084a150af9a","claimed_at":"2026-11-07T08:21:37Z","heartbeat_at":"2026-11-07T08:21:37Z","lease_until":"2026-11-07T09:51:37Z"} -->
-  Agent: claude-code-pointers-20261107T081216Z-830cdb5e | item: rm-102d06409c10e22f | lease until: 2026-11-07T09:51:37Z
-
-  <details>
-  <summary>Scope and validation</summary>
-
-  Install per its README at user or project level and do not commit generated audit output. Record honestly what the local runner could not do and never claim a full audit. Covers todo 5b. Validation: the skill source and license verified before install, guidance run notes in a handoff, seeds validated by scripts/check_roadmap_format.py.
-
-  </details>
 - ⬜ **Gate the list_dir desktop command with the active workspace root**: `list_dir(path, workspace_root)` in src-tauri/src/commands.rs takes both the directory and its containment root from the frontend and never consults ActiveWorkspaceRoot, so a compromised webview can list any readable directory by passing the same value twice. Every sibling command (find_*, read_*, workspace_stats) gates `path` with check_unscoped_path_allowed.
 
   <details>
@@ -393,6 +383,18 @@ _Review only — no fixes implemented this pass._
   - ✅ Completed 2026-11-06 — commit c137d45. New sixth widget in the family that DISPLAYS one chosen note's title + markdown-stripped content preview on the home screen. `LeothecaViewNoteWidgetProvider.java` (renders stored `{title, path}`, capped dependency-free `stripMarkdownForWidget` preview, deep-links a tap to `leotheca://select-widget-note`, degrades to a "tap to choose a note" prompt when nothing chosen/unreadable); `FolderAccessPlugin.setViewNote` (stores the note + nudges all placed instances, same division of labour as the favorites/recent widgets); `capacitorBridgeImpl.setViewNoteWidget` (best-effort TS wrapper); new `leotheca_widget_view_note` layout + `leotheca_widget_view_note_info` (110×90 content widget); receiver registered in AndroidManifest. Tests (TDD, written first): 5 new resource-contract tests in WidgetResourcesUnitTest. Gates: Android `:app:testDebugUnitTest` green, `npx tsc --noEmit` clean, `npx vitest run` 3221/3221 (171 files), `npx vite build` OK.
 
 ## Implemented
+
+- ✅ **Install and use the Cloudflare security audit skill**: Install the security-audit skill from the Cloudflare skill repository after reading its SKILL.md and license, then run guidance mode once on the Tauri commands and capabilities, the Capacitor plugin and AndroidManifest. Each confirmed finding becomes its own roadmap seed with a validation plan, and the clear ones are fixed under their own claim with regression tests.
+  <!-- agent-state: {"schema":1,"id":"rm-102d06409c10e22f","state":"done","touch":[".agents/handoffs/security-audit-skill.md","skills/security-and-static-analysis.md"],"resources":["security-audit"],"note":"Landed 871b439: verified MIT upstream c1c8a8c installed user-level, one Tier 1 guidance run, four findings seeded, docs updated. Local: prettier and check-rules clean; hosted Rules and Agent policy success on 871b439; CI/Release queued (docs only). No full Tier 2 audit; see handoff.","completed_at":"2026-11-07T08:27:38Z","completed_by":"claude-code-pointers-20261107T081216Z-830cdb5e","branch":"agent/rm-102d06409c10e22f/4084a150af9a"} -->
+  Agent: completed by claude-code-pointers-20261107T081216Z-830cdb5e | item: rm-102d06409c10e22f
+
+  <details>
+  <summary>Scope and validation</summary>
+
+  Install per its README at user or project level and do not commit generated audit output. Record honestly what the local runner could not do and never claim a full audit. Covers todo 5b. Validation: the skill source and license verified before install, guidance run notes in a handoff, seeds validated by scripts/check_roadmap_format.py.
+
+  </details>
+
 
 - ✅ **Constitution and index pointers**: Add the master specification rule to CONSTITUTION.md with a link from skills/pdlc-playbook.md, add the constitution reference and README row for the security skill, and fix hooks/README.md, which still says the e2e suite is not on main.
   <!-- agent-state: {"schema":1,"id":"rm-fbcbd094e7cc8498","state":"done","touch":["CONSTITUTION.md","hooks/README.md","skills/README.md","skills/pdlc-playbook.md","skills/security-and-static-analysis.md"],"resources":["constitution"],"note":"Landed 6eb2dc7 (9a57542, c15b1e0): master-spec rule, playbook link, security skill pointers, hooks README fixed. prettier and check-rules clean locally; hosted Rules and Agent policy success on 6eb2dc7; CI and Release queued, docs only.","completed_at":"2026-11-07T08:21:21Z","completed_by":"claude-code-pointers-20261107T081216Z-830cdb5e","branch":"agent/rm-fbcbd094e7cc8498/29a68add6ee5"} -->

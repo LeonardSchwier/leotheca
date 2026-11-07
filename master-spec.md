@@ -359,12 +359,14 @@ Annotations are written into the PDF using `pdf-lib`: markup subtypes highlight,
 
 Two gates exist on desktop:
 
-- **Unscoped gate** `check_unscoped_path_allowed`: the target, after resolving its nearest existing ancestor and any symlink, MUST be inside the `ActiveWorkspaceRoot` set by `set_active_workspace_root`, or inside the app config directory.
+- **Unscoped gate** `check_unscoped_path_allowed`: the target, after resolving its nearest existing ancestor and any symlink, MUST be inside the `ActiveWorkspaceRoot` set by `set_active_workspace_root`, or inside the app config directory. `set_active_workspace_root` accepts a root only when it resolves (canonical path) to an entry of the native workspace grant registry.
 - **Scoped gate** `resolve_within_workspace(root, relative)`: rejects empty, absolute, root or prefix components and any `..`, then resolves against the canonical `root`, including a final symlink.
 
 The scoped gate takes `workspace_root` from the frontend and does not compare it with `ActiveWorkspaceRoot`. See KG-001.
 
 `set_active_workspace_root` also swaps asset protocol scope: `forbid_directory` on the old root and `allow_directory` on the new root. Static scope is `[]`.
+
+**Workspace grant registry** (`src-tauri/src/workspace_grants.rs`, file `<app_data_dir>/workspace-grants.json`, `{ "version": 1, "roots": [canonical paths] }`). A root enters it only through the native `pick_workspace_folder` command (folder dialog plus registration in one Rust call) or a one-time seed, performed only when the registry file does not exist, from the legacy `config.json` in the app config dir (every `workspaceProfiles[].path` and `lastWorkspacePath` that is an absolute, existing directory). A corrupt registry file loads empty and is not reseeded. The app data dir is not on the unscoped allow-list, so the webview has no command that edits the registry. Android is unaffected.
 
 Android has no path gate natively. `capacitorBridgeImpl.ts` only derives URIs from a listing that begins at the granted tree, and refuses non-`/workspace` paths for listing. Native methods accept any URI string and rely on the OS grant. Treat this as an OS boundary, not an allow-list. See KG-003.
 
@@ -374,7 +376,8 @@ All return `Result<T, String>` unless noted. `FsEntry` is `{ name, path, isDir, 
 
 | Command | Input | Output | Gate | Errors and notes |
 | --- | --- | --- | --- | --- |
-| `set_active_workspace_root` | `path: string\|null` | `()` | Sets the gate | Poisoned mutex error. Path is not validated. Asset scope errors ignored. |
+| `pick_workspace_folder` | none | `string\|null` | Native dialog | Async. Returns the canonical granted folder path, `null` when cancelled. Registers the folder in the grant registry. |
+| `set_active_workspace_root` | `path: string\|null` | `()` | Sets the gate | Error when `path` is not a granted root (state and asset scope unchanged). `null` always clears. Poisoned mutex error. Asset scope errors ignored. |
 | `list_dir` | `path, workspaceRoot` | `FsEntry[]` | `path` and `workspaceRoot` must both lie inside the active workspace or the app config dir (checked natively against `ActiveWorkspaceRoot`); canonical start with `workspaceRoot` | Dirs then files, case-folded name order, no dotfiles, no escaping symlinks. |
 | `find_markdown_files` | `path` | `FsEntry[]` with size | Unscoped | Depth 40, `.md` case-insensitive. |
 | `find_all_files` | `path` | `FsEntry[]` with size | Unscoped | Files only. |
@@ -493,6 +496,7 @@ The URL parser is not the security boundary. The native gate on the eventual rea
 | FR-WS-009 | A failed in-session transition MUST expose typed recovery actions by error kind: save_failed, permission_missing, workspace_missing, global_config_save_failed, unknown. | Given failure phase access, When classified, Then permission_missing or workspace_missing is returned by platform and only applicable actions are offered. | `src/workspace/workspaceTransitionRecovery.test.ts` |
 | FR-WS-010 | Forgetting the active profile with unsaved work MUST require explicit confirmation. | Given unsaved work and the active profile, When forget is requested, Then WorkspaceForgetUnsavedWorkError or a confirmation path stops silent loss. | `src/settings/store.test.ts` |
 | FR-WS-011 | The command palette MUST include Switch workspace, Add workspace and Manage workspace profiles, and the switcher MUST filter profiles by fuzzy name match; a token-backed profile's opaque path MUST NOT be searched. | Given a profile with a token and a query matching only its path, When searched, Then it does not match. | `src/settings/workspaceProfiles.test.ts` |
+| FR-WS-013 | Desktop `set_active_workspace_root` MUST accept only a root that is in the native workspace grant registry (granted by `pick_workspace_folder` or seeded once from legacy profiles), and a refused root MUST leave the previous root and asset scope unchanged. | Given an ungranted, parent, missing or traversal path, When set_active_workspace_root is called, Then it errors and the granted root stays active. | `src-tauri/src/commands.rs`, `src-tauri/src/workspace_grants.rs`, `src/workspace/tauriBridgeImpl.test.ts` |
 | FR-WS-012 | Desktop workspace access MUST clear the active root before validating a new one, so a failed restore never leaves the old root authorized for the new session. | Given restoreWorkspaceAccess is called, When it starts, Then set_active_workspace_root(null) precedes the new root. | `src/workspace/tauriBridge.test.ts` |
 
 ### File tree and file operations (FR-FS)
@@ -997,7 +1001,7 @@ Generated from section 8 by `python3 scripts/check_master_spec.py --update-trace
 <!-- traceability:start -->
 | Prefix | Area | Requirements | With a linked test | NONE | Test files |
 | --- | --- | --- | --- | --- | --- |
-| FR-WS | Workspaces and profiles | 12 | 12 | 0 | `src/settings/WelcomeDialog.test.tsx`, `src/settings/store.test.ts`, `src/settings/workspaceProfiles.test.ts`, `src/settings/workspaceTransition.test.ts`, `src/workspace/tauriBridge.test.ts`, `src/workspace/workspaceTransition.test.ts`, `src/workspace/workspaceTransitionRecovery.test.ts` |
+| FR-WS | Workspaces and profiles | 13 | 13 | 0 | `src-tauri/src/commands.rs`, `src-tauri/src/workspace_grants.rs`, `src/settings/WelcomeDialog.test.tsx`, `src/settings/store.test.ts`, `src/settings/workspaceProfiles.test.ts`, `src/settings/workspaceTransition.test.ts`, `src/workspace/tauriBridge.test.ts`, `src/workspace/tauriBridgeImpl.test.ts`, `src/workspace/workspaceTransition.test.ts`, `src/workspace/workspaceTransitionRecovery.test.ts` |
 | FR-FS | File tree and file operations | 13 | 13 | 0 | `src-tauri/src/commands.rs`, `src/workspace/FileContextMenu.test.tsx`, `src/workspace/TemplatePicker.test.tsx`, `src/workspace/fileOpenAuthority.test.ts`, `src/workspace/fileTreeStore.test.ts`, `src/workspace/types.test.ts` |
 | FR-EDIT | Editor and saving | 17 | 17 | 0 | `src/app/fontSizeControls.test.ts`, `src/editor/attachments.test.ts`, `src/editor/frontmatterEdits.test.ts`, `src/editor/livePreview.test.ts`, `src/editor/slashCommands.test.ts`, `src/editor/snippets.test.ts`, `src/editor/textDiff.test.ts`, `src/editor/textDirection.test.ts`, `src/markdown/highlight.test.ts`, `src/markdown/tableCommands.test.ts`, `src/settings/workspaceSettings.test.ts`, `src/workspace/saveCoordinator.test.ts`, `src/workspace/tauriBridge.test.ts` |
 | FR-VIEW | Markdown preview | 9 | 9 | 0 | `src/editor/MarkdownPreview.concurrency.test.tsx`, `src/editor/MarkdownPreview.test.tsx`, `src/markdown/mermaidSanitize.test.ts`, `src/offline.test.ts` |
@@ -1027,7 +1031,7 @@ Generated from section 8 by `python3 scripts/check_master_spec.py --update-trace
 | FR-WID | Android widgets | 3 | 3 | 0 | `android/app/src/test/java/com/getcapacitor/myapp/WidgetResourcesUnitTest.java`, `android/app/src/test/java/com/leonardschwier/leotheca/NewNoteColdStartTrackerTest.java`, `src/workspace/fileTreeStore.test.ts` |
 | FR-CLIP | Web clipper extension | 3 | 3 | 0 | `extensions/web-clipper/clipperCore.test.js`, `extensions/web-clipper/messaging.test.js` |
 | FR-UI | Shell, UI primitives and accessibility | 12 | 10 | 2 | `src/app/App.test.tsx`, `src/app/CommandPalette.test.tsx`, `src/app/EmptyEditorState.test.tsx`, `src/app/layout/DocumentHeader.test.tsx`, `src/app/layout/adaptiveLayout.test.ts`, `src/app/useResizableSidebar.test.ts`, `src/fuzzyMatch.test.ts`, `src/ui/overlayBackButton.sheet.test.tsx`, `src/ui/overlayBackButton.test.ts`, `src/workspace/FileTree.test.tsx` |
-| **Total** | | **194** | **185** | **9** | |
+| **Total** | | **195** | **186** | **9** | |
 <!-- traceability:end -->
 
 ## 15. Coverage gaps
@@ -1118,5 +1122,6 @@ Newest first. Each entry is `YYYY-MM-DD: what changed in behavior, contracts, fo
 - 2026-11-07: Release workflow: the publish job now runs in a concurrency group per release (tag, or dev-build) with cancel-in-progress false, so overlapping runs no longer race on release assets. No application behavior changed.
 - 2026-11-07: Process: `ci.yml`, `rules.yml` and `agent-policy.yml` also run on `merge_group`, and `agent-policy.yml` no longer filters pull requests by path, so a required check is never skipped for the merge queue (`documentation/BRANCH_MODEL.md`). No application behavior changed.
 - 2026-11-07: Process: the ownership ledger (claims, renewals, handoffs, finishes) moves to the `agent-ledger` branch; `ROADMAP.md` on main is a lagging snapshot, and the scheduled `ledger-audit` job in `agent-policy.yml` checks out the ledger branch (`documentation/BRANCH_MODEL.md`). No application behavior changed.
+- 2026-11-07: Security: desktop `set_active_workspace_root` now accepts only roots in a native workspace grant registry (`workspace-grants.json` in the app data dir), filled by the new native `pick_workspace_folder` command and seeded once from the legacy `config.json` profiles; any other path is refused (FR-WS-013).
 - 2026-11-07: Docs: `CHANGELOG.md` no longer lists Android camera capture (no camera code exists) or macOS Quick Look (source only, not built or bundled by any workflow) as shipped; `packaging/STATUS.md` is rewritten in English for `VERSION` 1.0.0 (resolves DD-03); `packaging/f-droid/README.md` states 1.0.0 / 10000 and that the `v1.0.0` tag was deleted; the README Obtainium note says what is unverified.
 <!-- change-log:end -->

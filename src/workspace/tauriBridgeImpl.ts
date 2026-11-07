@@ -1,5 +1,5 @@
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
-import { open, save } from "@tauri-apps/plugin-dialog";
+import { save } from "@tauri-apps/plugin-dialog";
 import { appConfigDir, join } from "@tauri-apps/api/path";
 import { getVersion } from "@tauri-apps/api/app";
 import { listen } from "@tauri-apps/api/event";
@@ -11,8 +11,11 @@ export async function pickWorkspaceFolder(): Promise<{
   token?: string;
   name?: string;
 } | null> {
-  const selected = await open({ directory: true, multiple: false });
-  const path = Array.isArray(selected) ? (selected[0] ?? null) : selected;
+  // The native `pick_workspace_folder` command shows the dialog and
+  // registers the chosen folder in the native grant registry; only a folder
+  // registered that way can later become the active workspace root
+  // (`set_active_workspace_root`), so the path is never a webview-supplied value.
+  const path = await invoke<string | null>("pick_workspace_folder");
   // No separate display name on Desktop: `path` is already the real
   // folder path, so `defaultProfileName`'s own basename fallback already
   // produces the right name without one, unlike Android's opaque,
@@ -42,7 +45,9 @@ export async function pickWorkspaceFolder(): Promise<{
  * supplies. Kept here, still exercised by its own test, as a plain
  * dialog-only utility for any future caller that genuinely just needs a
  * path back (not a write). */
-export async function pickHtmlExportPath(defaultFileName: string): Promise<string | null> {
+export async function pickHtmlExportPath(
+  defaultFileName: string,
+): Promise<string | null> {
   return save({
     defaultPath: defaultFileName,
     filters: [{ name: "HTML", extensions: ["html"] }],
@@ -175,7 +180,9 @@ export async function writeBinaryFile(
  * against, not just this module's own JS variable. `null` clears it (no
  * workspace open). Called by `tauriBridge.ts`'s `restoreWorkspaceAccess`
  * wrapper, never called directly by anything else. */
-export async function setActiveWorkspaceRoot(path: string | null): Promise<void> {
+export async function setActiveWorkspaceRoot(
+  path: string | null,
+): Promise<void> {
   return invoke("set_active_workspace_root", { path });
 }
 
@@ -286,7 +293,11 @@ export async function renameWorkspacePathNoReplace(
   from: string,
   to: string,
 ): Promise<void> {
-  return invoke("rename_workspace_path_no_replace", { workspaceRoot, from, to });
+  return invoke("rename_workspace_path_no_replace", {
+    workspaceRoot,
+    from,
+    to,
+  });
 }
 
 export async function deleteWorkspacePathPermanent(
@@ -405,15 +416,17 @@ export async function takePendingExternalFile(): Promise<ExternalMarkdownFile | 
  * this one event so the frontend has a single live path+content pair to
  * listen on regardless of which platform mechanism actually delivered it.
  * Returns an unlisten function, mirroring `onOpenUrl`'s own shape. */
-export function onExternalFileOpen(callback: (file: ExternalMarkdownFile) => void): () => void {
+export function onExternalFileOpen(
+  callback: (file: ExternalMarkdownFile) => void,
+): () => void {
   let unlisten: (() => void) | null = null;
   let cancelled = false;
-  void listen<ExternalMarkdownFile>("open-external-file", (event) => callback(event.payload)).then(
-    (fn) => {
-      if (cancelled) fn();
-      else unlisten = fn;
-    },
-  );
+  void listen<ExternalMarkdownFile>("open-external-file", (event) =>
+    callback(event.payload),
+  ).then((fn) => {
+    if (cancelled) fn();
+    else unlisten = fn;
+  });
   return () => {
     cancelled = true;
     unlisten?.();
@@ -460,7 +473,9 @@ export function onExternalFileOpen(callback: (file: ExternalMarkdownFile) => voi
  * for a target that doesn't pan out. */
 export async function pickMarkdownFileToOpen(): Promise<ExternalMarkdownFile | null> {
   try {
-    return await invoke<ExternalMarkdownFile | null>("pick_and_read_external_markdown_file");
+    return await invoke<ExternalMarkdownFile | null>(
+      "pick_and_read_external_markdown_file",
+    );
   } catch {
     return null;
   }

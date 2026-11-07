@@ -3,6 +3,7 @@ mod default_handler;
 mod external_open;
 mod markdown_import;
 mod speech_commands;
+mod workspace_grants;
 mod workspace_mutations;
 
 use external_open::{ExternalMarkdownFile, PendingOpenFile};
@@ -88,6 +89,24 @@ pub fn run() {
         .and_then(external_open::read_markdown_file);
     builder = builder.manage(PendingOpenFile::new(initial_pending_open_file));
 
+    // Native registry of granted workspace folders (workspace_grants.rs),
+    // loaded from <app_data_dir>/workspace-grants.json and seeded once from
+    // the legacy config.json profiles when that file does not exist yet.
+    builder = builder.setup(|app| {
+        use tauri::Manager;
+        let data_dir = app.path().app_data_dir()?;
+        let legacy_config = app
+            .path()
+            .app_config_dir()
+            .ok()
+            .map(|d| d.join("config.json"));
+        app.manage(workspace_grants::WorkspaceGrants::load(
+            data_dir.join(workspace_grants::GRANTS_FILE_NAME),
+            legacy_config.as_deref(),
+        ));
+        Ok(())
+    });
+
     builder
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
@@ -104,6 +123,7 @@ pub fn run() {
             commands::write_text_file,
             commands::write_binary_file,
             commands::set_active_workspace_root,
+            commands::pick_workspace_folder,
             commands::export_text_file_via_dialog,
             commands::create_dir,
             commands::rename_path,

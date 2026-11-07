@@ -1,16 +1,18 @@
 import { describe, expect, it, vi } from "vitest";
 
-const { saveImpl, openImpl } = vi.hoisted(() => ({ saveImpl: vi.fn(), openImpl: vi.fn() }));
+const { saveImpl } = vi.hoisted(() => ({ saveImpl: vi.fn() }));
 
 vi.mock("@tauri-apps/plugin-dialog", () => ({
-  open: openImpl,
   save: saveImpl,
 }));
 vi.mock("@tauri-apps/api/core", () => ({
   convertFileSrc: vi.fn(),
   invoke: vi.fn(),
 }));
-vi.mock("@tauri-apps/api/path", () => ({ appConfigDir: vi.fn(), join: vi.fn() }));
+vi.mock("@tauri-apps/api/path", () => ({
+  appConfigDir: vi.fn(),
+  join: vi.fn(),
+}));
 vi.mock("@tauri-apps/api/app", () => ({ getVersion: vi.fn() }));
 vi.mock("@tauri-apps/api/event", () => ({ listen: vi.fn() }));
 
@@ -19,6 +21,7 @@ import {
   exportTextFileViaDialog,
   pickHtmlExportPath,
   pickMarkdownFileToOpen,
+  pickWorkspaceFolder,
   setActiveWorkspaceRoot,
 } from "./tauriBridgeImpl";
 
@@ -46,6 +49,24 @@ describe("pickHtmlExportPath", () => {
   });
 });
 
+describe("pickWorkspaceFolder", () => {
+  // The dialog and the native grant registration happen together in Rust
+  // (`pick_workspace_folder`), so the webview never supplies the path that
+  // `set_active_workspace_root` later accepts.
+  it("returns the natively granted folder path", async () => {
+    invokeMock.mockResolvedValueOnce("/home/user/Vault");
+
+    expect(await pickWorkspaceFolder()).toEqual({ path: "/home/user/Vault" });
+    expect(invokeMock).toHaveBeenLastCalledWith("pick_workspace_folder");
+  });
+
+  it("returns null when the user cancels", async () => {
+    invokeMock.mockResolvedValueOnce(null);
+
+    expect(await pickWorkspaceFolder()).toBeNull();
+  });
+});
+
 describe("pickMarkdownFileToOpen", () => {
   // Reads through the native `pick_and_read_external_markdown_file`
   // command -- which shows the dialog and reads the picked file in the
@@ -64,7 +85,9 @@ describe("pickMarkdownFileToOpen", () => {
 
     const result = await pickMarkdownFileToOpen();
 
-    expect(invokeMock).toHaveBeenCalledWith("pick_and_read_external_markdown_file");
+    expect(invokeMock).toHaveBeenCalledWith(
+      "pick_and_read_external_markdown_file",
+    );
     expect(result).toEqual({
       path: "/home/user/Documents/scratch-note.md",
       content: "# scratch",
@@ -92,7 +115,10 @@ describe("exportTextFileViaDialog", () => {
   it("invokes the combined native dialog-and-write command with the default name and contents", async () => {
     invokeMock.mockResolvedValueOnce(true);
 
-    const result = await exportTextFileViaDialog("My Note.html", "<html></html>");
+    const result = await exportTextFileViaDialog(
+      "My Note.html",
+      "<html></html>",
+    );
 
     expect(invokeMock).toHaveBeenCalledWith("export_text_file_via_dialog", {
       defaultFileName: "My Note.html",
@@ -104,7 +130,10 @@ describe("exportTextFileViaDialog", () => {
   it("resolves false when the native command reports the user cancelled", async () => {
     invokeMock.mockResolvedValueOnce(false);
 
-    const result = await exportTextFileViaDialog("My Note.html", "<html></html>");
+    const result = await exportTextFileViaDialog(
+      "My Note.html",
+      "<html></html>",
+    );
 
     expect(result).toBe(false);
   });
@@ -126,6 +155,8 @@ describe("setActiveWorkspaceRoot", () => {
 
     await setActiveWorkspaceRoot(null);
 
-    expect(invokeMock).toHaveBeenCalledWith("set_active_workspace_root", { path: null });
+    expect(invokeMock).toHaveBeenCalledWith("set_active_workspace_root", {
+      path: null,
+    });
   });
 });

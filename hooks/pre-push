@@ -4,13 +4,13 @@
 # bypassed with --no-verify, which protects nothing, so the slow full pipeline
 # is explicit:  PREPUSH_FULL=1 git push   or   npm run ci
 #
-# Pushes that only touch roadmap leases and handoffs skip the application
+# Pushes that only touch the roadmap or files under .agents skip the application
 # checks (they cannot affect the app); commit message rules still run.
 set -u
 cd "$(git rev-parse --show-toplevel)" || exit 1
 
 ZERO=0000000000000000000000000000000000000000
-METADATA_RE='^(ROADMAP\.md|\.agents/handoffs/.*)$'
+METADATA_RE='^(ROADMAP\.md|\.agents/.*)$'
 failed=0
 app_changed=0
 checked=0

@@ -41,7 +41,7 @@ Every governance and hygiene file in this repository, what it does, and what act
 | [`eslint.config.js`](../eslint.config.js)                                          | Lint rules                                                                                                      | `pre-push` (`scripts/verify-fast.sh`) and the `frontend` job in `ci.yml`                                                 |
 | [`.npmrc`](../.npmrc)                                                              | Allows only the declared Leoforma release asset as a remote dependency                                          | npm                                                                                                                      |
 | [`.gitignore`](../.gitignore)                                                      | Keeps build output and private logs out of the tree                                                             | git; `src/tidyRepoHygiene.test.ts` fails on oversize files and machine-specific paths                                    |
-| [`.github/dependabot.yml`](../.github/dependabot.yml)                              | Weekly grouped update pull requests for Actions, npm (root and `tests/e2e`) and Cargo                           | Dependabot; agents port the update through the ledger, and `check-rules.mjs deps` requires the `Dependency-intake:` line |
+| [`.github/dependabot.yml`](../.github/dependabot.yml)                              | Monthly grouped update pull requests for Actions, npm (root and `tests/e2e`) and Cargo                          | Dependabot; agents port the update through the ledger, and `check-rules.mjs deps` requires the `Dependency-intake:` line |
 
 ## Workflows
 

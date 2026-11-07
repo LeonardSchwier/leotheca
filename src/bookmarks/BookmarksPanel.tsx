@@ -84,7 +84,8 @@ export function BookmarksPanel({
             <button
               class="file-tree-item bookmarks-open"
               onClick={() => {
-                if (bookmark.kind === "file") void handleOpenFileBookmark(bookmark);
+                if (bookmark.kind === "file")
+                  void handleOpenFileBookmark(bookmark);
                 else onRunSearch(bookmark.query);
               }}
             >
@@ -114,7 +115,8 @@ export function BookmarksPanel({
           </div>
           {openErrorId === bookmark.id && (
             <p class="bookmarks-error-message" role="alert">
-              Couldn't open "{bookmark.label}" — it may have been moved, renamed, or deleted.
+              Couldn't open "{bookmark.label}": it may have been moved, renamed,
+              or deleted.
             </p>
           )}
         </li>

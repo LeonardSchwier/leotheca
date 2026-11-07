@@ -52,7 +52,9 @@ function TagNodeRow({
         <button
           class="tags-chevron"
           aria-label={
-            hasChildren ? `${isExpanded ? "Collapse" : "Expand"} ${node.fullTag}` : undefined
+            hasChildren
+              ? `${isExpanded ? "Collapse" : "Expand"} ${node.fullTag}`
+              : undefined
           }
           disabled={!hasChildren}
           onClick={() => onToggleExpanded(node.fullTag)}
@@ -61,7 +63,11 @@ function TagNodeRow({
         </button>
         <button
           class="tags-label"
-          onClick={() => (hasOwnNotes ? onToggleNotes(node.fullTag) : onToggleExpanded(node.fullTag))}
+          onClick={() =>
+            hasOwnNotes
+              ? onToggleNotes(node.fullTag)
+              : onToggleExpanded(node.fullTag)
+          }
         >
           <span class="tags-name">{node.segment}</span>
           <span class="tags-count">{node.allPaths.length}</span>
@@ -86,7 +92,8 @@ function TagNodeRow({
               </button>
               {openErrorPath === path && (
                 <p class="tags-error-message" role="alert">
-                  Couldn't open "{fileNameFromPath(path)}" — it may have been moved, renamed, or deleted.
+                  Couldn't open "{fileNameFromPath(path)}": it may have been
+                  moved, renamed, or deleted.
                 </p>
               )}
             </li>
@@ -151,9 +158,13 @@ export function TagsPanel({ onOpenFile }: TagsPanelProps) {
           node={node}
           depth={0}
           expandedTags={expandedTags}
-          onToggleExpanded={(fullTag) => setExpandedTags((current) => toggle(current, fullTag))}
+          onToggleExpanded={(fullTag) =>
+            setExpandedTags((current) => toggle(current, fullTag))
+          }
           openNoteLists={openNoteLists}
-          onToggleNotes={(fullTag) => setOpenNoteLists((current) => toggle(current, fullTag))}
+          onToggleNotes={(fullTag) =>
+            setOpenNoteLists((current) => toggle(current, fullTag))
+          }
           openErrorPath={openErrorPath}
           onOpenFile={onOpenFile}
           onSetOpenError={setOpenErrorPath}

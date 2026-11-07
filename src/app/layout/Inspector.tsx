@@ -1,4 +1,7 @@
-import { FrontmatterPropertiesPanel, type FrontmatterPropertiesPanelProps } from "../../editor/FrontmatterPropertiesPanel";
+import {
+  FrontmatterPropertiesPanel,
+  type FrontmatterPropertiesPanelProps,
+} from "../../editor/FrontmatterPropertiesPanel";
 import { BacklinksPanel } from "../../linking/BacklinksPanel";
 import { Icon as RegistryIcon } from "../../ui/icons";
 
@@ -29,11 +32,19 @@ export interface InspectorProps {
   onOpenFile: (path: string, name: string) => void | Promise<void>;
 }
 
-export function Inspector({ activeTab, onSetActiveTab, onClose, properties, path, onOpenFile }: InspectorProps) {
+export function Inspector({
+  activeTab,
+  onSetActiveTab,
+  onClose,
+  properties,
+  path,
+  onOpenFile,
+}: InspectorProps) {
   // A disabled Properties tab (workspace setting) has nothing to show;
   // falling back to Backlinks here keeps the panel from ever opening onto
   // an empty pane, without App.tsx needing to know this rule itself.
-  const effectiveTab: InspectorTab = activeTab === "properties" && !properties.enabled ? "backlinks" : activeTab;
+  const effectiveTab: InspectorTab =
+    activeTab === "properties" && !properties.enabled ? "backlinks" : activeTab;
 
   return (
     <aside class="inspector" aria-label="Note inspector">
@@ -60,7 +71,12 @@ export function Inspector({ activeTab, onSetActiveTab, onClose, properties, path
             Backlinks
           </button>
         </div>
-        <button type="button" class="icon-button" aria-label="Close Inspector" onClick={onClose}>
+        <button
+          type="button"
+          class="icon-button"
+          aria-label="Close Inspector"
+          onClick={onClose}
+        >
           <RegistryIcon name="close" size={16} />
         </button>
       </div>

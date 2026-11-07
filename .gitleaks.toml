@@ -1,0 +1,37 @@
+# gitleaks configuration. Extends the default rules; nothing is switched off.
+# Every allowlist below is narrow and says why. Triaged 2026-11-07 against
+# gitleaks 8.30.1 (full tree scan: 15 findings, all false positives).
+[extend]
+useDefault = true
+
+# The agent ledger stores lease tokens as 32 hex characters ("token":"...",
+# "Token: ..." in handoffs). They coordinate work between agents and grant no
+# access to anything, but they look like generic API keys. Only this rule is
+# exempted, only in the files that carry ledger state.
+[[allowlists]]
+description = "Agent lease tokens in the ledger snapshot and handoffs"
+targetRules = ["generic-api-key"]
+paths = [
+  '''^ROADMAP\.md$''',
+  '''^\.agents/handoffs/[^/]+\.md$''',
+]
+
+# A fixed fake token that exercises the roadmap format checker.
+[[allowlists]]
+description = "Fake lease token in the roadmap format test fixture"
+targetRules = ["generic-api-key"]
+paths = ['''^scripts/test_check_roadmap_format\.py$''']
+regexes = ['''00112233445566778899aabbccddeeff''']
+
+# "keys:" in the shortcut table is a key chord, not a credential.
+[[allowlists]]
+description = "Keyboard shortcut table entries"
+targetRules = ["generic-api-key"]
+paths = ['''^src/app/shortcuts\.ts$''']
+regexes = ['''keys:\s*"[A-Za-z+]+"''']
+
+# Documentation examples that show a curl call with a placeholder token.
+[[allowlists]]
+description = "Placeholder token in curl examples (YOUR_TOKEN, YOUR_GITHUB_TOKEN)"
+targetRules = ["curl-auth-header"]
+regexes = ['''^YOUR_(GITHUB_)?TOKEN$''']

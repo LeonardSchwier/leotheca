@@ -11,6 +11,7 @@
     "tauri": "tauri",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:e2e": "npm --prefix tests/e2e test",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "node scripts/check-rules.mjs format origin/main HEAD",

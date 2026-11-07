@@ -945,6 +945,7 @@ Only numbers that exist in code, configuration or an observed run appear here. N
 | `npm run dev` | Vite on port 1420 per `devUrl` |
 | `npm run build` | `tsc --noEmit` then `vite build` into `dist/` |
 | `npm test` | Vitest |
+| `npm run test:e2e` | Playwright smoke suite in `tests/e2e` against the production bundle; run by the pre-push gate when a browser is installed |
 | `npm run lint` | ESLint |
 | `npm run check-version` | `VERSION`, `package.json`, `Cargo.toml`, Android and other metadata agree |
 | `npm run ci`, `ci:quick`, `ci:frontend`, `ci:backend` | `scripts/ci-local.sh` |
@@ -1141,4 +1142,5 @@ Newest first. Each entry is `YYYY-MM-DD: what changed in behavior, contracts, fo
 - 2026-11-07: Formatting: prettier was applied to the whole tree in one mechanical commit (311 files). Behavior is unchanged except the wording of the "Couldn't open ..." error notices in the file tree, sidebar, backlinks, graph, canvas, collections, diagnostics and task hub, where a dash became a colon, and one default-app hint in settings.
 - 2026-11-07: Process: `rules.yml` and the pre-push hook run `check-rules.mjs reflection`, which fails a push that archives a spec under `spec/completed/` without a `Reflection:` line. No application behavior changed.
 - 2026-11-07: Dependencies: `tokio` 1.53.1 to 1.54.1 (RUSTSEC-2026-0386, unsound) in `src-tauri/Cargo.lock`; `flatpak/cargo-sources.json` regenerated. No application behavior changed; 134 Rust tests pass.
+- 2026-11-07: Process: the root `package.json` gains `test:e2e` (`npm --prefix tests/e2e test`), so the pre-push gate runs the Playwright smoke suite when a browser is installed. No application behavior changed.
 <!-- change-log:end -->

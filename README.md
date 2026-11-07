@@ -9,7 +9,7 @@ A free and open source markdown viewer and editor for a local folder of plain te
 ![Platforms](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows%20%7C%20Android-informational)
 
 > [!IMPORTANT]
-> **Reference implementation of an agentic PDLC.** Besides being a note app, this repository is a worked example of delivering software with autonomous coding agents under strict, partly machine-enforced controls: an ownership ledger, spec-first delivery, tests-first fixes, hooks, CI and independent review. See [`documentation/AGENTIC_PDLC.md`](documentation/AGENTIC_PDLC.md) for the stage-by-stage description, the enforcing files, and the known gaps.
+> **Reference implementation of an agentic PDLC.** Besides being a note app, this repository is a worked example of delivering software with autonomous coding agents under strict, partly machine-enforced controls: an ownership ledger, spec-first delivery, tests-first fixes, hooks, CI and independent review. See [`documentation/AGENTIC_PDLC.md`](documentation/AGENTIC_PDLC.md) for the stage-by-stage description, the agents involved, the enforcing files, and the known gaps.
 
 ## Why this exists
 
@@ -40,18 +40,6 @@ Three principles govern every decision here, in order. Full detail in [`PHILOSOP
 - 🚀 No account, no telemetry, no network calls, fully offline.
 
 See [`ROADMAP.md`](ROADMAP.md) for what's shipped so far in detail and what's still open.
-
-## 🤖 About this project
-
-Leotheca was built using agentic AI engineering approaches. The following agents and contributors are listed in the git history:
-
-- **Leonard Schwier** — maintainer, architect
-- **LeoHub Hermes** (local agent) — most features, bug fixes, CI/CD, packaging
-- **opencode** (local agent, author's workstation) — small-model-friendly runs, same ledger and rules
-- **Mistral Vibe** (cloud agent) — specific roadmap items
-- **Claude Code** (cloud agent) — specific roadmap items
-- **ChatGPT automation** (cloud agent) — specific roadmap items
-- **Leotheca CI** — automated verification and release pipeline
 
 ## 📸 Screenshots
 
@@ -93,9 +81,9 @@ Minimum Android version: API 29 (Android 10).
 - **macOS**: download the universal (Apple Silicon and Intel) DMG from [GitHub Releases](https://github.com/LeonardSchwier/leotheca/releases). Unsigned and un-notarized for now, so macOS shows an "unidentified developer" Gatekeeper warning on first open (right-click the app and choose Open, or run `xattr -cr` on it, to get past it). A Homebrew Cask is planned, not yet submitted, see `packaging/homebrew/README.md`.
 - **Windows**: download the MSI installer from [GitHub Releases](https://github.com/LeonardSchwier/leotheca/releases). Unsigned for now, so Windows SmartScreen may warn on first run ("More info" then "Run anyway" to proceed). No package manager or store distribution, by design, see [`CONSTITUTION.md`](CONSTITUTION.md).
 
-### Development builds
+### Rolling release
 
-Every push to `main` automatically rebuilds every artifact (AppImage, Flatpak, Android APK, macOS DMG, Windows MSI) and republishes them to a single, always up to date [`dev-build` release](https://github.com/LeonardSchwier/leotheca/releases/tag/dev-build), separate from the versioned releases above. It's the freshest possible build, but unreviewed and marked as a prerelease on purpose, so Obtainium and F-Droid (which only track non-prerelease releases) never pick it up automatically. Use it if you want to try the latest changes; use a versioned release for anything else.
+Every push to `main` automatically rebuilds every artifact (AppImage, Flatpak, Android APK, macOS DMG, Windows MSI) and republishes them to a single, always up to date [`dev-build` release](https://github.com/LeonardSchwier/leotheca/releases/tag/dev-build). It is also the repository's Latest release, so the Releases page and Obtainium both show it. There are no versioned releases at the moment: this is the freshest possible build and it is unreviewed, so treat it as the current state of `main`.
 
 ## 🔄 Sync
 

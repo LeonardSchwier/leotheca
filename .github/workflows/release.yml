@@ -427,13 +427,15 @@ jobs:
             echo "name=Leotheca ${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
             echo "draft=true" >> "$GITHUB_OUTPUT"
             echo "prerelease=false" >> "$GITHUB_OUTPUT"
+            echo "make_latest=legacy" >> "$GITHUB_OUTPUT"
             body=""
           else
             echo "tag=dev-build" >> "$GITHUB_OUTPUT"
             echo "name=Development build ($(date -u +%Y-%m-%d), ${GITHUB_SHA::7})" >> "$GITHUB_OUTPUT"
             echo "draft=false" >> "$GITHUB_OUTPUT"
-            echo "prerelease=true" >> "$GITHUB_OUTPUT"
-            body="Automatically rebuilt from the latest push to main (commit ${GITHUB_SHA}). Not a stable, reviewed release, see the versioned v* releases for those. The Android APK is debug-signed and unsigned, for testing only. The macOS and Windows builds are unsigned and un-notarized (no code-signing certificate is configured yet): macOS will show an \"unidentified developer\" Gatekeeper warning on first open, and Windows may show a SmartScreen warning."
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+            echo "make_latest=true" >> "$GITHUB_OUTPUT"
+            body="Automatically rebuilt from the latest push to main (commit ${GITHUB_SHA}). This is the rolling release: it always holds the newest build of main, it is unreviewed, and there are no other releases at the moment. The Android APK is debug-signed and unsigned, for testing only. The macOS and Windows builds are unsigned and un-notarized (no code-signing certificate is configured yet): macOS will show an \"unidentified developer\" Gatekeeper warning on first open, and Windows may show a SmartScreen warning."
           fi
           if [ "${{ needs.flatpak.result }}" != "success" ]; then
             body="${body}"$'\n\n'"Flatpak bundle not included in this run: the flatpak build job failed (see this commit's Actions run), a pre-existing issue already tracked in ROADMAP.md, not something this release broke."
@@ -468,6 +470,7 @@ jobs:
           body: ${{ steps.release.outputs.body }}
           draft: ${{ steps.release.outputs.draft }}
           prerelease: ${{ steps.release.outputs.prerelease }}
+          make_latest: ${{ steps.release.outputs.make_latest }}
           files: |
             artifacts/linux-appimage/*.AppImage
             artifacts/android-debug-apk/*.apk

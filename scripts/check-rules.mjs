@@ -104,7 +104,6 @@ export const MAX_FILE_BYTES = 1024 * 1024;
 const BIG_FILE_ALLOWED = [
   /^public\//,
   /^assets\//,
-  /^website\//,
   /^package-lock\.json$/,
   /^src-tauri\/(icons|Cargo\.lock)/,
   /^android\/.*\.(png|webp|jar)$/,
@@ -433,7 +432,6 @@ const LEGAL_PATHS = [
   /^README\.md$/,
   /^CHANGELOG\.md$/,
   /^LICENSE$/,
-  /^website\//,
   /^assets\//,
   /^documentation\//,
   /^docs\//,

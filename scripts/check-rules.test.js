@@ -244,7 +244,7 @@ describe("evidence trailers", () => {
       "assets/a.png",
       "package.json",
       "package-lock.json",
-      "website/index.html",
+      "docs/guide.md",
     ])
       expect(requiredTrailers([p]).legal, p).toBe(true);
   });

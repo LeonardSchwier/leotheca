@@ -37,6 +37,7 @@ export default defineConfig({
       ".agents/control-*/**",
       ".agents/*/control-*/**",
       "control-*/**",
+      ".claude/**",
       "**/control-opencode-*/**",
     ],
 

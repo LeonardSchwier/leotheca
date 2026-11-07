@@ -14,6 +14,7 @@ Each runbook carries standard SKILL.md YAML frontmatter (name, description, vers
 | Write or edit a roadmap entry's prose                                                       | [roadmap-entry-format.md](roadmap-entry-format.md)                     |
 | Your change alters application behavior, a format, a bridge command, a setting or the build | [master-spec-maintenance.md](master-spec-maintenance.md)               |
 | Before every push, no exceptions                                                            | [pre-push-verification.md](pre-push-verification.md)                   |
+| Repair or merge pull requests whose owner is gone                                           | [integrator.md](integrator.md)                                         |
 | Deliver a verified item to main                                                             | [pull-request-delivery.md](pull-request-delivery.md)                   |
 | Decide what to test; local/hosted/deferred CI                                               | [verification-suite.md](verification-suite.md)                         |
 | A real job/test/build fails                                                                 | [ci-failure-triage.md](ci-failure-triage.md)                           |

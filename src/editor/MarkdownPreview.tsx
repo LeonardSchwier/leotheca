@@ -4,9 +4,20 @@ import { copyTextToClipboard } from "../lib/clipboard";
 import DOMPurify from "dompurify";
 import katex from "katex";
 import "katex/dist/katex.min.css";
-import { setMermaidRenderingEnabled, renderMermaidToSvg, sanitizeMermaidSvgForInjection } from "../markdown/mermaid";
+import {
+  setMermaidRenderingEnabled,
+  renderMermaidToSvg,
+  mermaidErrorHtml,
+  watchAppMermaidTheme,
+  type MermaidTheme,
+} from "../markdown/mermaid";
+import { mountMermaidFigure } from "../markdown/mermaidFigure";
 import { fileNameFromPath, resolveWikilink } from "../linking/store";
-import { parseWikiLinks, type WikiLinkFragment, type WikiLinkRecord } from "../linking/wikiSyntax";
+import {
+  parseWikiLinks,
+  type WikiLinkFragment,
+  type WikiLinkRecord,
+} from "../linking/wikiSyntax";
 import {
   crossNoteBlocksFor,
   crossNoteHeadingsFor,
@@ -16,7 +27,10 @@ import {
 } from "../linking/wikiResolver";
 import { scanHeadings, type HeadingRecord } from "../markdown/headings";
 import { scanBlockIds, type BlockRecord } from "../markdown/blocks";
-import { detectHighlightColor, highlightClassName } from "../markdown/highlight";
+import {
+  detectHighlightColor,
+  highlightClassName,
+} from "../markdown/highlight";
 import { frontmatterBodyStart } from "./frontmatterEdits";
 import { requestOutlineReveal } from "../outline/outlineNavigation";
 import { workspacePath } from "../settings/store";
@@ -31,7 +45,7 @@ marked.setOptions({ gfm: true, breaks: false });
  * Escapes a string for use in a regular expression.
  */
 function escapeRegExp(string: string): string {
-  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 /**
@@ -55,30 +69,34 @@ function highlightSearchMatches(html: string, query: string): string {
   if (!query) return html;
 
   const escapedQuery = escapeRegExp(query);
-  const caseInsensitiveQuery = new RegExp(escapedQuery, 'gi');
+  const caseInsensitiveQuery = new RegExp(escapedQuery, "gi");
 
   // Split the HTML on tags and entity references; text parts are
   // everything else.
-  const parts = html.split(/(<[^>]+>|&(?:[a-zA-Z][a-zA-Z0-9]*|#\d+|#x[0-9a-fA-F]+);)/g);
+  const parts = html.split(
+    /(<[^>]+>|&(?:[a-zA-Z][a-zA-Z0-9]*|#\d+|#x[0-9a-fA-F]+);)/g,
+  );
 
-  return parts.map((part) => {
-    // A captured tag or entity token: return as-is, never a highlight target.
-    if (part.startsWith('<') || part.startsWith('&')) {
-      return part;
-    }
-    // This is text content, apply highlighting. Match text is
-    // re-escaped before injection: the query is user input and could
-    // contain "&", "<", ">" characters that must survive as character
-    // references in the injected HTML (the span's innerHTML is parsed
-    // again by the browser, so a raw "&" would be misread as an entity).
-    return part.replace(caseInsensitiveQuery, (match) => {
-      const escaped = match
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;");
-      return `<span class="search-highlight">${escaped}</span>`;
-    });
-  }).join('');
+  return parts
+    .map((part) => {
+      // A captured tag or entity token: return as-is, never a highlight target.
+      if (part.startsWith("<") || part.startsWith("&")) {
+        return part;
+      }
+      // This is text content, apply highlighting. Match text is
+      // re-escaped before injection: the query is user input and could
+      // contain "&", "<", ">" characters that must survive as character
+      // references in the injected HTML (the span's innerHTML is parsed
+      // again by the browser, so a raw "&" would be misread as an entity).
+      return part.replace(caseInsensitiveQuery, (match) => {
+        const escaped = match
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
+        return `<span class="search-highlight">${escaped}</span>`;
+      });
+    })
+    .join("");
 }
 
 /**
@@ -102,7 +120,10 @@ function highlightSearchMatches(html: string, query: string): string {
 let mathRenderingActive = true;
 
 function escapeHtml(text: string): string {
-  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }
 
 /** Single entry point for every marked.parse call in this file. marked's
@@ -115,7 +136,10 @@ function parseMarkdownSafely(text: string): string {
   try {
     return marked.parse(text, { async: false }) as string;
   } catch (error) {
-    console.warn("Markdown preview fell back to plain text", error instanceof Error ? error.name : "parse error");
+    console.warn(
+      "Markdown preview fell back to plain text",
+      error instanceof Error ? error.name : "parse error",
+    );
     return `<pre class="preview-parse-fallback">${escapeHtml(text)}</pre>`;
   }
 }
@@ -171,7 +195,11 @@ interface FootnoteState {
   numbers: Map<string, number>;
 }
 
-let footnoteState: FootnoteState = { definitions: new Map(), order: [], numbers: new Map() };
+let footnoteState: FootnoteState = {
+  definitions: new Map(),
+  order: [],
+  numbers: new Map(),
+};
 
 function resetFootnoteState(definitions: Map<string, string>): void {
   footnoteState = { definitions, order: [], numbers: new Map() };
@@ -235,7 +263,10 @@ const FOOTNOTE_FENCE_RE = /^ {0,3}(`{3,}|~{3,})/;
  * parsed by the same `marked.parse` call as everything else, just later,
  * from renderFootnotesSection below, once numbering is known.
  */
-function extractFootnoteDefinitions(text: string): { text: string; definitions: Map<string, string> } {
+function extractFootnoteDefinitions(text: string): {
+  text: string;
+  definitions: Map<string, string>;
+} {
   const lines = text.split("\n");
   const definitions = new Map<string, string>();
   const keptLines: string[] = [];
@@ -250,7 +281,12 @@ function extractFootnoteDefinitions(text: string): { text: string; definitions: 
     if (inFence) {
       keptLines.push(line);
       const close = FOOTNOTE_FENCE_RE.exec(line);
-      if (close && close[1][0] === fenceChar && close[1].length >= fenceLength && line.trim() === close[1]) {
+      if (
+        close &&
+        close[1][0] === fenceChar &&
+        close[1].length >= fenceLength &&
+        line.trim() === close[1]
+      ) {
         inFence = false;
       }
       index += 1;
@@ -291,7 +327,8 @@ function extractFootnoteDefinitions(text: string): { text: string; definitions: 
         continue;
       }
       if (/^(?: {4}|\t)/.test(candidate)) {
-        for (let blank = 0; blank < pendingBlankLines; blank += 1) bodyLines.push("");
+        for (let blank = 0; blank < pendingBlankLines; blank += 1)
+          bodyLines.push("");
         pendingBlankLines = 0;
         bodyLines.push(candidate.replace(/^(?: {4}|\t)/, ""));
         index += 1;
@@ -302,7 +339,8 @@ function extractFootnoteDefinitions(text: string): { text: string; definitions: 
     // Unconsumed trailing blank lines belong to the document, not this
     // definition: put them back so surrounding block structure (a
     // following paragraph needing its blank-line separator) is unchanged.
-    for (let blank = 0; blank < pendingBlankLines; blank += 1) keptLines.push("");
+    for (let blank = 0; blank < pendingBlankLines; blank += 1)
+      keptLines.push("");
 
     // First definition for a given id wins, same as marked's own
     // "first definition wins" rule for reference-style links/images.
@@ -340,7 +378,9 @@ function renderFootnotesSection(): string {
       // back-reference becomes its own trailing paragraph instead.
       const singleParagraph = /^<p>([\s\S]*)<\/p>$/.exec(bodyHtml);
       const backref = `<a href="#fnref-${slug}" class="footnote-backref" aria-label="Back to reference">↩</a>`;
-      const content = singleParagraph ? `<p>${singleParagraph[1]} ${backref}</p>` : `${bodyHtml}<p>${backref}</p>`;
+      const content = singleParagraph
+        ? `<p>${singleParagraph[1]} ${backref}</p>`
+        : `${bodyHtml}<p>${backref}</p>`;
       return `<li id="fn-${slug}">${content}</li>`;
     })
     .join("");
@@ -360,7 +400,8 @@ marked.use({
         if (!match) return undefined;
         return { type: "blockMath", raw: match[0], text: match[1].trim() };
       },
-      renderer: (token: Tokens.Generic) => renderMath(token.text as string, true),
+      renderer: (token: Tokens.Generic) =>
+        renderMath(token.text as string, true),
     },
     {
       name: "inlineMath",
@@ -372,7 +413,8 @@ marked.use({
         if (!match) return undefined;
         return { type: "inlineMath", raw: match[0], text: match[1] };
       },
-      renderer: (token: Tokens.Generic) => renderMath(token.text as string, false),
+      renderer: (token: Tokens.Generic) =>
+        renderMath(token.text as string, false),
     },
     {
       name: "footnoteRef",
@@ -428,8 +470,13 @@ marked.use({
         };
       },
       renderer(token: Tokens.Generic) {
-        const inner = this.parser.parseInline((token.tokens as Tokens.Generic[]) ?? []);
-        const className = highlightClassName("lt-highlight", token.color as string | undefined);
+        const inner = this.parser.parseInline(
+          (token.tokens as Tokens.Generic[]) ?? [],
+        );
+        const className = highlightClassName(
+          "lt-highlight",
+          token.color as string | undefined,
+        );
         return `<mark class="${className}">${inner}</mark>`;
       },
     },
@@ -460,7 +507,12 @@ export interface MarkdownPreviewProps {
   onOpenFile?: (
     path: string,
     name: string,
-    options?: { headingKey?: string; blockId?: string; otherGroup?: boolean; sourceNotePath?: string },
+    options?: {
+      headingKey?: string;
+      blockId?: string;
+      otherGroup?: boolean;
+      sourceNotePath?: string;
+    },
   ) => void;
   /** Whether $inline$ / $$block$$ math renders via KaTeX at all; when
    * false, that syntax is left as ordinary text, same as before this
@@ -557,7 +609,10 @@ const BLOCK_COPY_LONG_PRESS_MOVE_PX = 8;
  * *waiting* on it. The `settled` flag discards whichever outcome loses
  * the race, so a very-late real resolution can never overwrite a
  * placeholder the timeout already caused to render. */
-function readEmbedNoteWithTimeout(path: string, timeoutMs: number): Promise<string> {
+function readEmbedNoteWithTimeout(
+  path: string,
+  timeoutMs: number,
+): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     let settled = false;
     const timer = setTimeout(() => {
@@ -610,17 +665,24 @@ function markLocalImageAttachments(
   workspaceRoot: string | null,
 ): string {
   if (!noteDir || !workspaceRoot) return source;
-  return source.replace(IMAGE_MARKDOWN, (match, alt: string, rawTarget: string) => {
-    const trimmed = rawTarget.trim();
-    const withTitle = /^(\S+)(\s+"[^"]*")?$/.exec(trimmed);
-    if (!withTitle) return match;
-    const [, target, titleSuffix = ""] = withTitle;
-    if (!isLocalRelativeTarget(target)) return match;
+  return source.replace(
+    IMAGE_MARKDOWN,
+    (match, alt: string, rawTarget: string) => {
+      const trimmed = rawTarget.trim();
+      const withTitle = /^(\S+)(\s+"[^"]*")?$/.exec(trimmed);
+      if (!withTitle) return match;
+      const [, target, titleSuffix = ""] = withTitle;
+      if (!isLocalRelativeTarget(target)) return match;
 
-    const containedPath = resolvePathWithinWorkspace(workspaceRoot, noteDir, target);
-    if (!containedPath) return match;
-    return `![${alt}](${ATTACHMENT_SRC_PREFIX}${encodeURIComponent(containedPath)}${titleSuffix})`;
-  });
+      const containedPath = resolvePathWithinWorkspace(
+        workspaceRoot,
+        noteDir,
+        target,
+      );
+      if (!containedPath) return match;
+      return `![${alt}](${ATTACHMENT_SRC_PREFIX}${encodeURIComponent(containedPath)}${titleSuffix})`;
+    },
+  );
 }
 
 /** Markdown-escapes `[`/`]` in a wikilink's rendered label so marked
@@ -689,11 +751,16 @@ function parseWikilinkHref(href: string): ParsedWikilinkHref {
   const headingStatus = params.get("headingStatus");
   const blockStatus = params.get("blockStatus");
   const asStatus = (value: string | null) =>
-    value === "resolved" || value === "missing" || value === "ambiguous" ? value : undefined;
+    value === "resolved" || value === "missing" || value === "ambiguous"
+      ? value
+      : undefined;
   return {
     target: params.get("leotheca-wikilink") ?? "",
     resolved: params.get("resolved") === "1",
-    fragmentKind: fragmentKind === "heading" || fragmentKind === "block" ? fragmentKind : undefined,
+    fragmentKind:
+      fragmentKind === "heading" || fragmentKind === "block"
+        ? fragmentKind
+        : undefined,
     fragment: params.get("fragment") ?? undefined,
     headingStatus: asStatus(headingStatus),
     blockStatus: asStatus(blockStatus),
@@ -712,11 +779,17 @@ function parseWikilinkHref(href: string): ParsedWikilinkHref {
  * below) falls back to the literal `Note#Heading`-shaped target
  * expression rather than guessing.
  */
-function defaultWikilinkLabel(record: WikiLinkRecord, headingStatus: "resolved" | "missing" | "ambiguous" | undefined): string {
+function defaultWikilinkLabel(
+  record: WikiLinkRecord,
+  headingStatus: "resolved" | "missing" | "ambiguous" | undefined,
+): string {
   if (!record.fragment) return record.noteTarget;
-  if (record.fragment.kind === "heading" && headingStatus === "resolved") return record.fragment.value;
+  if (record.fragment.kind === "heading" && headingStatus === "resolved")
+    return record.fragment.value;
   const marker = record.fragment.kind === "block" ? "^" : "";
-  return record.noteTarget ? `${record.noteTarget}#${marker}${record.fragment.value}` : `#${marker}${record.fragment.value}`;
+  return record.noteTarget
+    ? `${record.noteTarget}#${marker}${record.fragment.value}`
+    : `#${marker}${record.fragment.value}`;
 }
 
 /**
@@ -766,7 +839,11 @@ function defaultWikilinkLabel(record: WikiLinkRecord, headingStatus: "resolved" 
  * need to escape `"`). Used by the embed-frame HTML this file builds
  * directly rather than through `marked` (F04 Phase 4a). */
 function escapeAttr(text: string): string {
-  return text.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }
 
 /** Bundles every piece of context `renderWikilinksStructured` and its
@@ -793,7 +870,10 @@ interface EmbedBudget {
 }
 
 function createEmbedBudget(): EmbedBudget {
-  return { instancesRemaining: MAX_EMBED_INSTANCES, bytesRemaining: MAX_EMBED_BYTES };
+  return {
+    instancesRemaining: MAX_EMBED_INSTANCES,
+    bytesRemaining: MAX_EMBED_BYTES,
+  };
 }
 
 /** Everything needed to decide whether, and how, to expand a nested
@@ -889,22 +969,35 @@ function extractEmbedSection(
   blocks: BlockRecord[],
 ): EmbedExtraction {
   if (!fragment) {
-    return { status: "ok", text: content.slice(frontmatterBodyStart(content)).trim() };
+    return {
+      status: "ok",
+      text: content.slice(frontmatterBodyStart(content)).trim(),
+    };
   }
   if (fragment.kind === "heading") {
     const result = resolveHeadingFragment(headings, fragment.value);
-    if (result.status === "missing-fragment") return { status: "missing-heading" };
-    if (result.status === "ambiguous-fragment") return { status: "ambiguous-heading" };
+    if (result.status === "missing-fragment")
+      return { status: "missing-heading" };
+    if (result.status === "ambiguous-fragment")
+      return { status: "ambiguous-heading" };
     return {
       status: "ok",
-      text: content.slice(result.heading.sourceFrom, result.heading.sectionTo).trim(),
+      text: content
+        .slice(result.heading.sourceFrom, result.heading.sectionTo)
+        .trim(),
       sectionLabel: result.heading.displayText,
     };
   }
   const result = resolveBlockFragment(blocks, fragment.value);
   if (result.status === "missing-fragment") return { status: "missing-block" };
-  if (result.status === "ambiguous-fragment") return { status: "ambiguous-block" };
-  return { status: "ok", text: content.slice(result.block.contentFrom, result.block.contentTo).trim() };
+  if (result.status === "ambiguous-fragment")
+    return { status: "ambiguous-block" };
+  return {
+    status: "ok",
+    text: content
+      .slice(result.block.contentFrom, result.block.contentTo)
+      .trim(),
+  };
 }
 
 /**
@@ -935,7 +1028,11 @@ function renderEmbeddedMarkdownToHtml(
   const headings = scanHeadings(text);
   const blocks = scanBlockIds(text);
   const withoutBlockMarkers = stripBlockIdMarkers(text, blocks);
-  const withAttachments = markLocalImageAttachments(withoutBlockMarkers, noteDir, workspaceRoot);
+  const withAttachments = markLocalImageAttachments(
+    withoutBlockMarkers,
+    noteDir,
+    workspaceRoot,
+  );
   const withWikilinks = renderWikilinksStructured(withAttachments, {
     currentHeadings: headings,
     currentBlocks: blocks,
@@ -984,12 +1081,21 @@ function embedExtractionHtml(
     case "ok": {
       const { embedBudget } = nextRecursion;
       const textBytes = new TextEncoder().encode(extraction.text).length;
-      if (embedBudget.instancesRemaining <= 0 || embedBudget.bytesRemaining <= 0) {
+      if (
+        embedBudget.instancesRemaining <= 0 ||
+        embedBudget.bytesRemaining <= 0
+      ) {
         return '<p class="embed-frame-message">Embed limit reached</p>';
       }
       embedBudget.instancesRemaining -= 1;
       embedBudget.bytesRemaining -= textBytes;
-      return renderEmbeddedMarkdownToHtml(extraction.text, notePath, noteDir, workspaceRoot, nextRecursion);
+      return renderEmbeddedMarkdownToHtml(
+        extraction.text,
+        notePath,
+        noteDir,
+        workspaceRoot,
+        nextRecursion,
+      );
     }
   }
 }
@@ -1011,11 +1117,14 @@ function embedFrameHtml(params: {
   sectionLabel?: string;
   bodyHtml: string;
 }): string {
-  const idAttr = params.embedId !== undefined ? ` data-lt-embed-id="${params.embedId}"` : "";
+  const idAttr =
+    params.embedId !== undefined ? ` data-lt-embed-id="${params.embedId}"` : "";
   const openLink = params.openHref
     ? `<a href="${escapeAttr(params.openHref)}" class="embed-frame-open">Open source note</a>`
     : "";
-  const sectionSuffix = params.sectionLabel ? ` &middot; ${escapeHtml(params.sectionLabel)}` : "";
+  const sectionSuffix = params.sectionLabel
+    ? ` &middot; ${escapeHtml(params.sectionLabel)}`
+    : "";
   return (
     `\n\n<div class="embed-frame"${idAttr} aria-label="${escapeAttr(`Embedded content from ${params.labelName}`)}">` +
     `<div class="embed-frame-header"><span class="embed-frame-label">${escapeHtml(params.labelName)}${sectionSuffix}</span>${openLink}</div>` +
@@ -1033,13 +1142,26 @@ function embedFrameHtml(params: {
  * combination recurring is. A plain whole-note embed (`fragment`
  * undefined) still keys on the note path alone, correctly catching
  * `![[NoteA]]` containing `![[NoteB]]` containing `![[NoteA]]` again. */
-function embedIdentity(notePath: string, fragment: WikiLinkFragment | undefined): string {
+function embedIdentity(
+  notePath: string,
+  fragment: WikiLinkFragment | undefined,
+): string {
   return fragment ? `${notePath}#${fragment.kind}:${fragment.value}` : notePath;
 }
 
-function renderWikilinksStructured(source: string, context: RenderContext): string {
-  const { currentHeadings, currentBlocks, currentNotePath, pristineNoteSource, noteDir, workspaceRoot, embedRecursion } =
-    context;
+function renderWikilinksStructured(
+  source: string,
+  context: RenderContext,
+): string {
+  const {
+    currentHeadings,
+    currentBlocks,
+    currentNotePath,
+    pristineNoteSource,
+    noteDir,
+    workspaceRoot,
+    embedRecursion,
+  } = context;
   const records = parseWikiLinks(source);
   if (records.length === 0) return source;
 
@@ -1065,11 +1187,15 @@ function renderWikilinksStructured(source: string, context: RenderContext): stri
       targetBlocks: sameNote ? currentBlocks : crossNoteBlocksFor(record),
     });
 
-    if (record.kind === "embed" && embedRecursion.embedDepth < MAX_EMBED_DEPTH) {
+    if (
+      record.kind === "embed" &&
+      embedRecursion.embedDepth < MAX_EMBED_DEPTH
+    ) {
       if (target.status === "missing-note" || !target.notePath) {
         result += embedFrameHtml({
           labelName: record.noteTarget || "this note",
-          bodyHtml: '<p class="embed-frame-message">Embedded note not found</p>',
+          bodyHtml:
+            '<p class="embed-frame-message">Embedded note not found</p>',
         });
         continue;
       }
@@ -1111,21 +1237,38 @@ function renderWikilinksStructured(source: string, context: RenderContext): stri
       };
 
       if (sameNote) {
-        const extraction = extractEmbedSection(pristineNoteSource, record.fragment, currentHeadings, currentBlocks);
+        const extraction = extractEmbedSection(
+          pristineNoteSource,
+          record.fragment,
+          currentHeadings,
+          currentBlocks,
+        );
         result += embedFrameHtml({
           labelName,
           openHref,
-          sectionLabel: extraction.status === "ok" ? extraction.sectionLabel : undefined,
-          bodyHtml: embedExtractionHtml(extraction, notePath, noteDir, workspaceRoot, nextRecursion),
+          sectionLabel:
+            extraction.status === "ok" ? extraction.sectionLabel : undefined,
+          bodyHtml: embedExtractionHtml(
+            extraction,
+            notePath,
+            noteDir,
+            workspaceRoot,
+            nextRecursion,
+          ),
         });
       } else {
         const embedId = embedRecursion.crossNoteEmbedsOut.length;
-        embedRecursion.crossNoteEmbedsOut.push({ notePath, fragment: record.fragment, nextRecursion });
+        embedRecursion.crossNoteEmbedsOut.push({
+          notePath,
+          fragment: record.fragment,
+          nextRecursion,
+        });
         result += embedFrameHtml({
           embedId,
           labelName,
           openHref,
-          bodyHtml: '<p class="embed-frame-message embed-frame-loading">Loading&hellip;</p>',
+          bodyHtml:
+            '<p class="embed-frame-message embed-frame-loading">Loading&hellip;</p>',
         });
       }
       continue;
@@ -1137,11 +1280,13 @@ function renderWikilinksStructured(source: string, context: RenderContext): stri
     if (!legacyFallback && record.fragment?.kind === "heading") {
       if (target.heading) headingStatus = "resolved";
       else if (target.status === "missing-fragment") headingStatus = "missing";
-      else if (target.status === "ambiguous-fragment") headingStatus = "ambiguous";
+      else if (target.status === "ambiguous-fragment")
+        headingStatus = "ambiguous";
     } else if (!legacyFallback && record.fragment?.kind === "block") {
       if (target.block) blockStatus = "resolved";
       else if (target.status === "missing-fragment") blockStatus = "missing";
-      else if (target.status === "ambiguous-fragment") blockStatus = "ambiguous";
+      else if (target.status === "ambiguous-fragment")
+        blockStatus = "ambiguous";
     }
 
     const overallResolved =
@@ -1236,7 +1381,8 @@ function blockAnchorMarkerHtml(id: string, kind: BlockRecord["kind"]): string {
 function stripBlockIdMarkers(source: string, blocks: BlockRecord[]): string {
   if (blocks.length === 0) return source;
   const keyCounts = new Map<string, number>();
-  for (const block of blocks) keyCounts.set(block.key, (keyCounts.get(block.key) ?? 0) + 1);
+  for (const block of blocks)
+    keyCounts.set(block.key, (keyCounts.get(block.key) ?? 0) + 1);
 
   let result = "";
   let cursor = 0;
@@ -1286,7 +1432,9 @@ async function resolveAttachmentImages(
   // caching" roadmap entry).
   const imagesByPath = new Map<string, HTMLImageElement[]>();
   for (const img of images) {
-    const absolutePath = decodeURIComponent(img.getAttribute("src")!.slice(ATTACHMENT_SRC_PREFIX.length));
+    const absolutePath = decodeURIComponent(
+      img.getAttribute("src")!.slice(ATTACHMENT_SRC_PREFIX.length),
+    );
     const group = imagesByPath.get(absolutePath);
     if (group) group.push(img);
     else imagesByPath.set(absolutePath, [img]);
@@ -1312,7 +1460,9 @@ async function resolveAttachmentImages(
   };
 
   const workerCount = Math.min(ATTACHMENT_READ_CONCURRENCY, uniquePaths.length);
-  await Promise.allSettled(Array.from({ length: workerCount }, () => resolveNext()));
+  await Promise.allSettled(
+    Array.from({ length: workerCount }, () => resolveNext()),
+  );
 }
 
 export function MarkdownPreview({
@@ -1354,8 +1504,14 @@ export function MarkdownPreview({
     // headingLinksEnabled flag as renderWikilinksStructured below, so
     // turning that setting off is still a genuine escape hatch back to
     // this feature's pre-F04 rendering, `^block-id` text included.
-    const withoutBlockMarkers = headingLinksEnabled ? stripBlockIdMarkers(source, currentBlocks) : source;
-    const withAttachments = markLocalImageAttachments(withoutBlockMarkers, noteDir, workspaceRoot);
+    const withoutBlockMarkers = headingLinksEnabled
+      ? stripBlockIdMarkers(source, currentBlocks)
+      : source;
+    const withAttachments = markLocalImageAttachments(
+      withoutBlockMarkers,
+      noteDir,
+      workspaceRoot,
+    );
     const crossNoteEmbedsOut: CrossNoteEmbedRequest[] = [];
     // F04 Phase 4b: the host preview's own recursion root. Depth 0, one
     // shared budget for this whole preview render, and an empty ancestry
@@ -1391,17 +1547,22 @@ export function MarkdownPreview({
     // marked.parse and reset footnoteState for that call; this reset
     // starts the actual top-level document's own numbering from zero
     // regardless of what that left behind.
-    const { text: withoutFootnoteDefinitions, definitions: footnoteDefinitions } =
-      extractFootnoteDefinitions(withWikilinks);
+    const {
+      text: withoutFootnoteDefinitions,
+      definitions: footnoteDefinitions,
+    } = extractFootnoteDefinitions(withWikilinks);
     resetFootnoteState(footnoteDefinitions);
     const rendered = parseMarkdownSafely(withoutFootnoteDefinitions);
     const renderedWithFootnotes = rendered + renderFootnotesSection();
     // Allow the mermaid-placeholder data attribute through DOMPurify so
     // the useEffect below can read the diagram source and replace the
     // placeholder with real SVG.
-    const sanitized = DOMPurify.sanitize(addAutoTextDirection(renderedWithFootnotes), {
-      ADD_ATTR: ["data-mermaid-source"],
-    });
+    const sanitized = DOMPurify.sanitize(
+      addAutoTextDirection(renderedWithFootnotes),
+      {
+        ADD_ATTR: ["data-mermaid-source"],
+      },
+    );
     return { html: sanitized, crossNoteEmbeds: crossNoteEmbedsOut };
   }, [
     source,
@@ -1433,7 +1594,9 @@ export function MarkdownPreview({
     if (!container) return;
     let cancelled = false;
     const images = Array.from(
-      container.querySelectorAll<HTMLImageElement>(`img[src^="${ATTACHMENT_SRC_PREFIX}"]`),
+      container.querySelectorAll<HTMLImageElement>(
+        `img[src^="${ATTACHMENT_SRC_PREFIX}"]`,
+      ),
     );
     void resolveAttachmentImages(images, () => cancelled);
     return () => {
@@ -1450,49 +1613,56 @@ export function MarkdownPreview({
     if (!container) return;
     const cleanups: Array<() => void> = [];
     const install = () => {
-      for (const host of Array.from(container.querySelectorAll<HTMLElement>("[data-lt-block-id]"))) {
+      for (const host of Array.from(
+        container.querySelectorAll<HTMLElement>("[data-lt-block-id]"),
+      )) {
         if (host.querySelector(".block-link-copy")) continue;
-      const id = host.dataset.ltBlockId;
-      if (!id) continue;
-      const copy = () => void copyTextToClipboard(`[[#^${id}]]`);
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "block-link-copy";
-      button.setAttribute("aria-label", `Copy link to block ${id}`);
-      button.title = "Copy block link";
-      button.addEventListener("click", copy);
-      host.append(button);
+        const id = host.dataset.ltBlockId;
+        if (!id) continue;
+        const copy = () => void copyTextToClipboard(`[[#^${id}]]`);
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "block-link-copy";
+        button.setAttribute("aria-label", `Copy link to block ${id}`);
+        button.title = "Copy block link";
+        button.addEventListener("click", copy);
+        host.append(button);
 
-      let timer: ReturnType<typeof setTimeout> | undefined;
-      let startX = 0;
-      let startY = 0;
-      const cancel = () => {
-        if (timer !== undefined) clearTimeout(timer);
-        timer = undefined;
-      };
-      const onPointerDown = (event: PointerEvent) => {
-        if (event.pointerType !== "touch" && event.pointerType !== "pen") return;
-        startX = event.clientX;
-        startY = event.clientY;
-        timer = setTimeout(() => {
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        let startX = 0;
+        let startY = 0;
+        const cancel = () => {
+          if (timer !== undefined) clearTimeout(timer);
           timer = undefined;
-          copy();
-        }, BLOCK_COPY_LONG_PRESS_MS);
-      };
-      const onPointerMove = (event: PointerEvent) => {
-        if (Math.hypot(event.clientX - startX, event.clientY - startY) > BLOCK_COPY_LONG_PRESS_MOVE_PX) cancel();
-      };
-      host.addEventListener("pointerdown", onPointerDown);
-      host.addEventListener("pointermove", onPointerMove);
-      host.addEventListener("pointerup", cancel);
-      host.addEventListener("pointercancel", cancel);
+        };
+        const onPointerDown = (event: PointerEvent) => {
+          if (event.pointerType !== "touch" && event.pointerType !== "pen")
+            return;
+          startX = event.clientX;
+          startY = event.clientY;
+          timer = setTimeout(() => {
+            timer = undefined;
+            copy();
+          }, BLOCK_COPY_LONG_PRESS_MS);
+        };
+        const onPointerMove = (event: PointerEvent) => {
+          if (
+            Math.hypot(event.clientX - startX, event.clientY - startY) >
+            BLOCK_COPY_LONG_PRESS_MOVE_PX
+          )
+            cancel();
+        };
+        host.addEventListener("pointerdown", onPointerDown);
+        host.addEventListener("pointermove", onPointerMove);
+        host.addEventListener("pointerup", cancel);
+        host.addEventListener("pointercancel", cancel);
         cleanups.push(() => {
-        cancel();
-        button.removeEventListener("click", copy);
-        host.removeEventListener("pointerdown", onPointerDown);
-        host.removeEventListener("pointermove", onPointerMove);
-        host.removeEventListener("pointerup", cancel);
-        host.removeEventListener("pointercancel", cancel);
+          cancel();
+          button.removeEventListener("click", copy);
+          host.removeEventListener("pointerdown", onPointerDown);
+          host.removeEventListener("pointermove", onPointerMove);
+          host.removeEventListener("pointerup", cancel);
+          host.removeEventListener("pointercancel", cancel);
         });
       }
     };
@@ -1525,7 +1695,9 @@ export function MarkdownPreview({
 
     container.addEventListener("click", handleImageClick, { capture: true });
     return () => {
-      container.removeEventListener("click", handleImageClick, { capture: true });
+      container.removeEventListener("click", handleImageClick, {
+        capture: true,
+      });
     };
   }, [onImageClick]);
 
@@ -1549,7 +1721,9 @@ export function MarkdownPreview({
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-    const anchors = Array.from(container.querySelectorAll<HTMLElement>("[data-lt-block-anchor]"));
+    const anchors = Array.from(
+      container.querySelectorAll<HTMLElement>("[data-lt-block-anchor]"),
+    );
     for (const anchor of anchors) {
       const id = anchor.getAttribute("data-lt-block-anchor")!;
       const kind = anchor.getAttribute("data-lt-block-kind");
@@ -1612,7 +1786,10 @@ export function MarkdownPreview({
     if (!container || crossNoteEmbeds.length === 0) return;
     let cancelled = false;
 
-    const resolveOne = async (embedId: number, request: CrossNoteEmbedRequest) => {
+    const resolveOne = async (
+      embedId: number,
+      request: CrossNoteEmbedRequest,
+    ) => {
       const body = container.querySelector<HTMLElement>(
         `[data-lt-embed-id="${embedId}"] .embed-frame-body`,
       );
@@ -1620,17 +1797,33 @@ export function MarkdownPreview({
 
       let content: string;
       try {
-        content = await readEmbedNoteWithTimeout(request.notePath, EMBED_LOAD_TIMEOUT_MS);
+        content = await readEmbedNoteWithTimeout(
+          request.notePath,
+          EMBED_LOAD_TIMEOUT_MS,
+        );
       } catch {
         if (cancelled) return;
-        body.innerHTML = DOMPurify.sanitize('<p class="embed-frame-message">Could not read embedded note</p>');
+        body.innerHTML = DOMPurify.sanitize(
+          '<p class="embed-frame-message">Could not read embedded note</p>',
+        );
         return;
       }
       if (cancelled) return;
 
-      const extraction = extractEmbedSection(content, request.fragment, scanHeadings(content), scanBlockIds(content));
+      const extraction = extractEmbedSection(
+        content,
+        request.fragment,
+        scanHeadings(content),
+        scanBlockIds(content),
+      );
       const embedNoteDir = dirname(request.notePath);
-      const bodyHtml = embedExtractionHtml(extraction, request.notePath, embedNoteDir, workspaceRoot, request.nextRecursion);
+      const bodyHtml = embedExtractionHtml(
+        extraction,
+        request.notePath,
+        embedNoteDir,
+        workspaceRoot,
+        request.nextRecursion,
+      );
       // A fresh DOM mutation from freshly-read note content, outside the
       // synchronous render pass DOMPurify.sanitize(rendered) above already
       // covers: this is a second, genuinely necessary sanitize call, not
@@ -1638,9 +1831,12 @@ export function MarkdownPreview({
       body.innerHTML = DOMPurify.sanitize(addAutoTextDirection(bodyHtml));
 
       const newImages = Array.from(
-        body.querySelectorAll<HTMLImageElement>(`img[src^="${ATTACHMENT_SRC_PREFIX}"]`),
+        body.querySelectorAll<HTMLImageElement>(
+          `img[src^="${ATTACHMENT_SRC_PREFIX}"]`,
+        ),
       );
-      if (newImages.length > 0) void resolveAttachmentImages(newImages, () => cancelled);
+      if (newImages.length > 0)
+        void resolveAttachmentImages(newImages, () => cancelled);
     };
 
     let nextIndex = 0;
@@ -1652,8 +1848,13 @@ export function MarkdownPreview({
         await resolveOne(index, crossNoteEmbeds[index]);
       }
     };
-    const workerCount = Math.min(ATTACHMENT_READ_CONCURRENCY, crossNoteEmbeds.length);
-    void Promise.allSettled(Array.from({ length: workerCount }, () => worker()));
+    const workerCount = Math.min(
+      ATTACHMENT_READ_CONCURRENCY,
+      crossNoteEmbeds.length,
+    );
+    void Promise.allSettled(
+      Array.from({ length: workerCount }, () => worker()),
+    );
 
     return () => {
       cancelled = true;
@@ -1682,10 +1883,12 @@ export function MarkdownPreview({
         return;
       }
       const containerRect = container.getBoundingClientRect();
-      const thresholdY = containerRect.top + containerRect.height * READING_THRESHOLD_FRACTION;
+      const thresholdY =
+        containerRect.top + containerRect.height * READING_THRESHOLD_FRACTION;
       let active: number | undefined;
       for (let i = 0; i < headingElements.length; i++) {
-        if (headingElements[i].getBoundingClientRect().top <= thresholdY) active = i;
+        if (headingElements[i].getBoundingClientRect().top <= thresholdY)
+          active = i;
         else break;
       }
       onActiveHeadingChangeRef.current?.(active);
@@ -1706,44 +1909,53 @@ export function MarkdownPreview({
   // Resolve mermaid placeholders: the marked extension (src/markdown/mermaid.ts)
   // emits a <div class="mermaid-placeholder" data-mermaid-source="..."> for
   // each ```mermaid fence. This effect finds them in the rendered DOM and
-  // replaces each with real SVG via renderMermaidToSvg (async). Falls back
-  // to a plain code block on any rendering failure — the user still sees
-  // the diagram source rather than a blank pane.
+  // swaps each for a zoomable figure holding the SVG (mountMermaidFigure
+  // sanitizes it at the injection site). A diagram that fails to parse shows
+  // an error notice plus its source instead of a blank pane. When the app
+  // theme flips, every figure is rendered again in the new theme.
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-    const placeholders = Array.from(container.querySelectorAll<HTMLElement>(".mermaid-placeholder"));
-    if (placeholders.length === 0) return;
     let cancelled = false;
-    for (const el of placeholders) {
+    const renderInto = (el: HTMLElement, theme?: MermaidTheme) => {
       const encoded = el.getAttribute("data-mermaid-source") ?? "";
-      if (!encoded) continue;
+      if (!encoded) return;
       let source: string;
       try {
         source = decodeURIComponent(encoded);
       } catch {
-        el.outerHTML = `<pre><code class="language-mermaid"></code></pre>`;
-        continue;
+        el.outerHTML = mermaidErrorHtml(
+          "",
+          "The diagram source is not valid text.",
+        );
+        return;
       }
-      void renderMermaidToSvg(source)
+      void renderMermaidToSvg(source, theme)
         .then((svg: string) => {
-          if (cancelled) return;
-          // W-2026-11-01-2: last guard at the injection site — this outerHTML
-          // write happens after the container's main DOMPurify pass, so the
-          // SVG must be explicitly sanitized right before it enters the DOM.
-          el.outerHTML = sanitizeMermaidSvgForInjection(svg);
+          if (cancelled || !el.isConnected) return;
+          if (svg.startsWith("<svg")) mountMermaidFigure(el, svg, source);
+          else el.outerHTML = svg;
         })
         .catch(() => {
-          if (cancelled) return;
-          const escaped = source
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;");
-          el.outerHTML = `<pre><code class="language-mermaid">${escaped}</code></pre>`;
+          if (cancelled || !el.isConnected) return;
+          el.outerHTML = mermaidErrorHtml(source);
         });
+    };
+    for (const el of Array.from(
+      container.querySelectorAll<HTMLElement>(".mermaid-placeholder"),
+    )) {
+      renderInto(el);
     }
+    const stopWatching = watchAppMermaidTheme((theme) => {
+      for (const fig of Array.from(
+        container.querySelectorAll<HTMLElement>(".mermaid-figure"),
+      )) {
+        renderInto(fig, theme);
+      }
+    });
     return () => {
       cancelled = true;
+      stopWatching();
     };
   }, [html]);
 
@@ -1775,9 +1987,15 @@ export function MarkdownPreview({
           // already-scanned headings/blocks rather than round-tripping
           // through onOpenFile.
           if (parsed.fragmentKind === "heading" && parsed.fragment) {
-            const match = resolveHeadingFragment(currentHeadings, parsed.fragment);
+            const match = resolveHeadingFragment(
+              currentHeadings,
+              parsed.fragment,
+            );
             if (match.status === "resolved") {
-              requestOutlineReveal(match.heading.contentFrom, match.heading.contentTo);
+              requestOutlineReveal(
+                match.heading.contentFrom,
+                match.heading.contentTo,
+              );
             }
             // missing-fragment/ambiguous-fragment: no navigation, per
             // spec section 10.4's "never scroll to an arbitrary
@@ -1785,7 +2003,10 @@ export function MarkdownPreview({
           } else if (parsed.fragmentKind === "block" && parsed.fragment) {
             const match = resolveBlockFragment(currentBlocks, parsed.fragment);
             if (match.status === "resolved") {
-              requestOutlineReveal(match.block.contentFrom, match.block.contentTo);
+              requestOutlineReveal(
+                match.block.contentFrom,
+                match.block.contentTo,
+              );
             }
           }
           return;
@@ -1801,11 +2022,19 @@ export function MarkdownPreview({
         // against the pane this preview lives in (see onOpenFile's own
         // doc comment above).
         const otherGroup =
-          event.ctrlKey || event.metaKey ? { otherGroup: true as const, sourceNotePath: notePath } : undefined;
+          event.ctrlKey || event.metaKey
+            ? { otherGroup: true as const, sourceNotePath: notePath }
+            : undefined;
         if (parsed.fragmentKind === "heading" && parsed.fragment) {
-          onOpenFile?.(path, fileNameFromPath(path), { headingKey: parsed.fragment, ...otherGroup });
+          onOpenFile?.(path, fileNameFromPath(path), {
+            headingKey: parsed.fragment,
+            ...otherGroup,
+          });
         } else if (parsed.fragmentKind === "block" && parsed.fragment) {
-          onOpenFile?.(path, fileNameFromPath(path), { blockId: parsed.fragment, ...otherGroup });
+          onOpenFile?.(path, fileNameFromPath(path), {
+            blockId: parsed.fragment,
+            ...otherGroup,
+          });
         } else if (otherGroup) {
           onOpenFile?.(path, fileNameFromPath(path), otherGroup);
         } else {

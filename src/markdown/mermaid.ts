@@ -26,11 +26,73 @@ export function setMermaidRenderingEnabled(enabled: boolean): void {
   mermaidRenderingActive = enabled;
 }
 
-let mermaidInitialized = false;
-function ensureMermaidInitialized() {
-  if (mermaidInitialized) return;
-  mermaidInitialized = true;
-  mermaid.initialize({ startOnLoad: false, securityLevel: "strict" });
+export type MermaidTheme = "light" | "dark";
+
+/**
+ * The theme the app is showing right now: an explicit `data-theme` on the
+ * root wins (src/settings/store.ts), otherwise the OS preference, which is
+ * what theme.css follows when `data-theme` is absent.
+ */
+export function getAppMermaidTheme(): MermaidTheme {
+  if (typeof document === "undefined") return "light";
+  const explicit = document.documentElement.getAttribute("data-theme");
+  if (explicit === "dark") return "dark";
+  if (explicit === "light") return "light";
+  const dark =
+    typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(prefers-color-scheme: dark)").matches;
+  return dark ? "dark" : "light";
+}
+
+/**
+ * Call `onChange` whenever the app theme flips (data-theme attribute or OS
+ * preference). Returns the unsubscribe function.
+ */
+export function watchAppMermaidTheme(
+  onChange: (theme: MermaidTheme) => void,
+): () => void {
+  if (typeof document === "undefined") return () => {};
+  let last = getAppMermaidTheme();
+  const check = () => {
+    const next = getAppMermaidTheme();
+    if (next === last) return;
+    last = next;
+    onChange(next);
+  };
+  let observer: MutationObserver | undefined;
+  if (typeof MutationObserver !== "undefined") {
+    observer = new MutationObserver(check);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-theme"],
+    });
+  }
+  const media =
+    typeof window !== "undefined" && typeof window.matchMedia === "function"
+      ? window.matchMedia("(prefers-color-scheme: dark)")
+      : undefined;
+  media?.addEventListener?.("change", check);
+  return () => {
+    observer?.disconnect();
+    media?.removeEventListener?.("change", check);
+  };
+}
+
+let initializedTheme: MermaidTheme | null = null;
+function ensureMermaidInitialized(theme: MermaidTheme) {
+  if (initializedTheme === theme) return;
+  initializedTheme = theme;
+  mermaid.initialize({
+    startOnLoad: false,
+    securityLevel: "strict",
+    theme: theme === "dark" ? "dark" : "default",
+    fontFamily: "inherit",
+    suppressErrorRendering: true,
+    flowchart: { useMaxWidth: true },
+    sequence: { useMaxWidth: true },
+    gantt: { useMaxWidth: true },
+  });
 }
 
 let mermaidCounter = 0;
@@ -39,19 +101,28 @@ let mermaidCounter = 0;
  * Render a single mermaid diagram source string to sanitized SVG HTML,
  * falling back to a plain code block on any parse/render failure.
  * MarkdownPreview's useEffect calls this for each placeholder element.
+ * `theme` defaults to the app's current theme.
  */
-export async function renderMermaidToSvg(source: string): Promise<string> {
-  ensureMermaidInitialized();
+export async function renderMermaidToSvg(
+  source: string,
+  theme: MermaidTheme = getAppMermaidTheme(),
+): Promise<string> {
   const id = `mermaid-render-${mermaidCounter++}`;
-  return mermaid
-    .render(id, source)
-    .then((result) => {
-      if (typeof result.svg !== "string" || result.svg.length === 0) {
-        throw new Error("mermaid produced no SVG");
-      }
-      return sanitizeMermaidSvg(result.svg);
-    })
-    .catch(() => codeBlockFallback(source));
+  try {
+    ensureMermaidInitialized(theme);
+    const result = await mermaid.render(id, source);
+    if (typeof result.svg !== "string" || result.svg.length === 0) {
+      throw new Error("mermaid produced no SVG");
+    }
+    return sanitizeMermaidSvg(result.svg);
+  } catch (error) {
+    // A failed parse can leave mermaid's scratch element in the document.
+    if (typeof document !== "undefined") {
+      document.getElementById(id)?.remove();
+      document.getElementById(`d${id}`)?.remove();
+    }
+    return mermaidErrorHtml(source, error);
+  }
 }
 
 const mermaidExtension = {
@@ -78,7 +149,11 @@ const mermaidExtension = {
     if (!closed) return undefined;
     const raw = bodyLines.join("\n").trim();
     if (!raw) return undefined;
-    return { type: "mermaid", raw: fence[0] + bodyLines.join("\n") + "\n```", text: raw };
+    return {
+      type: "mermaid",
+      raw: fence[0] + bodyLines.join("\n") + "\n```",
+      text: raw,
+    };
   },
   renderer(token: Tokens.Generic): string {
     // encodeURIComponent keeps the attribute value on a single line so
@@ -86,7 +161,7 @@ const mermaidExtension = {
     // and unlike btoa it is safe for non-Latin1 source text (emoji, CJK,
     // accented labels) where btoa would throw InvalidCharacterError and
     // leave the user with an empty code block.
-    const encoded = encodeURIComponent((token.text as string));
+    const encoded = encodeURIComponent(token.text as string);
     return `<div class="mermaid-placeholder" data-mermaid-source="${encoded}"></div>`;
   },
 };
@@ -94,8 +169,14 @@ const mermaidExtension = {
 export function sanitizeMermaidSvg(svg: string): string {
   const regexSanitized = svg
     .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, "")
-    .replace(/(href|src|xlink:href)\s*=\s*"(?:javascript:|data:text\/html)[^"]*"/gi, "$1=\"#\"")
-    .replace(/(href|src|xlink:href)\s*=\s*(?:javascript:|data:text\/html)[^\s>]+/gi, "$1=#");
+    .replace(
+      /(href|src|xlink:href)\s*=\s*"(?:javascript:|data:text\/html)[^"]*"/gi,
+      '$1="#"',
+    )
+    .replace(
+      /(href|src|xlink:href)\s*=\s*(?:javascript:|data:text\/html)[^\s>]+/gi,
+      "$1=#",
+    );
   // DOMPurify (default profile) as a second, defense-in-depth layer.
   // The default profile allows both SVG and HTML elements (mermaid emits
   // <a>, <img>, <text>, <path>, etc.) and strips <script>, inline event
@@ -103,7 +184,14 @@ export function sanitizeMermaidSvg(svg: string): string {
   // <foreignObject> (can carry live HTML with scripts) and <use> (can
   // reference external SVG resources).
   return DOMPurify.sanitize(regexSanitized, {
-    FORBID_TAGS: ["foreignObject", "use", "script", "iframe", "object", "embed"],
+    FORBID_TAGS: [
+      "foreignObject",
+      "use",
+      "script",
+      "iframe",
+      "object",
+      "embed",
+    ],
   });
 }
 
@@ -121,20 +209,54 @@ export function sanitizeMermaidSvg(svg: string): string {
 export function sanitizeMermaidSvgForInjection(svg: string): string {
   const regexSanitized = svg
     .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, "")
-    .replace(/(href|src|xlink:href)\s*=\s*"(?:javascript:|data:text\/html)[^"]*"/gi, "$1=\"#\"")
-    .replace(/(href|src|xlink:href)\s*=\s*(?:javascript:|data:text\/html)[^\s>]+/gi, "$1=#");
+    .replace(
+      /(href|src|xlink:href)\s*=\s*"(?:javascript:|data:text\/html)[^"]*"/gi,
+      '$1="#"',
+    )
+    .replace(
+      /(href|src|xlink:href)\s*=\s*(?:javascript:|data:text\/html)[^\s>]+/gi,
+      "$1=#",
+    );
   return DOMPurify.sanitize(regexSanitized, {
     USE_PROFILES: { svg: true },
-    FORBID_TAGS: ["script", "iframe", "object", "embed", "foreignObject", "use"],
+    FORBID_TAGS: [
+      "script",
+      "iframe",
+      "object",
+      "embed",
+      "foreignObject",
+      "use",
+    ],
   });
 }
 
-function codeBlockFallback(source: string): string {
-  const escaped = source
+function escapeHtml(text: string): string {
+  return text
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
-  return `<pre><code class="language-mermaid">${escaped}</code></pre>`;
+}
+
+/**
+ * The error display: a notice with the reason, then the diagram source as a
+ * plain code block so the user can still read and fix it. Never throws.
+ */
+export function mermaidErrorHtml(source: string, error?: unknown): string {
+  const reason =
+    error instanceof Error
+      ? error.message
+      : typeof error === "string"
+        ? error
+        : "";
+  const firstLine = reason.split("\n")[0].trim().slice(0, 200);
+  const notice = firstLine
+    ? `<p class="mermaid-error-message">${escapeHtml(firstLine)}</p>`
+    : "";
+  return (
+    `<div class="mermaid-error" role="note">` +
+    `<p class="mermaid-error-title">This diagram could not be rendered.</p>${notice}` +
+    `<pre><code class="language-mermaid">${escapeHtml(source)}</code></pre></div>`
+  );
 }
 
 // marked 15.x: the pack form ({ extensions: [...] }) is required; a bare

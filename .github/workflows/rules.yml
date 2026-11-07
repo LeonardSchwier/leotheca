@@ -8,6 +8,8 @@ name: Rules
 on:
   push:
   pull_request:
+    # edited: fixing a missing heading in the body re-runs the body check.
+    types: [opened, synchronize, reopened, edited]
   merge_group:
   schedule:
     # New advisories appear without any commit; re-run the supply-chain job.
@@ -70,6 +72,23 @@ jobs:
           if ! git cat-file -e "$base^{commit}" 2>/dev/null; then base="${{ steps.range.outputs.head }}~1"; fi
           # Reuse the staged-diff logic against the pushed range.
           node scripts/check-rules.mjs files "$base" "${{ steps.range.outputs.head }}"
+
+  pr-body:
+    # The body becomes the squash commit message; it must carry the headings of
+    # .github/pull_request_template.md. Runs on pull requests only (push and
+    # merge_group have no body). The body reaches the script through an env
+    # var, never through shell interpolation. Dependabot bodies are generated.
+    if: github.event_name == 'pull_request' && github.event.pull_request.user.type != 'Bot'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Pull request body has Summary, Evidence and Merge danger
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: node scripts/check-rules.mjs prbody
 
   format:
     # Ratchet: files changed in this push must be prettier-clean. The tree

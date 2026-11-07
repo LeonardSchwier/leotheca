@@ -94,7 +94,7 @@ Every claimed implementation item follows `skills/pdlc-playbook.md`: (1) roadmap
 
 ## Author environment and runners
 
-The author (leonardschwier) develops with opencode on one NVIDIA GeForce RTX 4090 (24 GB VRAM) running a local Qwen model, which the owner wrote as "qwen 3.8 27b" (exact name unverified). Therefore every skill and playbook step must work with a ~27B local model: short skills, tiny tasks, state kept in files, no reliance on huge context or frontier-only capabilities. Supported runners include Claude Code, ChatGPT automation, Hermes, Mistral Vibe and opencode; all use the same ledger and this file.
+The author (leonardschwier) develops with opencode on one NVIDIA GeForce RTX 4090 (24 GB VRAM) running a local Qwen 3.8 27B model (name confirmed by the owner). Therefore every skill and playbook step must work with a ~27B local model: short skills, tiny tasks, state kept in files, no reliance on huge context or frontier-only capabilities. Supported runners include Claude Code, ChatGPT automation, Hermes, Mistral Vibe and opencode; all use the same ledger and this file.
 
 ## Quality and verification
 

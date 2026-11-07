@@ -68,6 +68,32 @@ describe("hooks/pre-push guard", () => {
     expect(result.status, result.stderr).toBe(0);
   });
 
+  it("judges a ledger push by what it adds on top of main", () => {
+    // main moves on with an application change that the ledger branch merges.
+    const repo = repoWithVerify("#!/usr/bin/env bash\nexit 1\n");
+    writeFileSync(
+      join(repo.dir, "CONSTITUTION.md"),
+      '{ "ledger_branch": "agent-ledger" }\n',
+    );
+    repo.git("add", "-A");
+    repo.git("commit", "-q", "-m", "docs: config");
+    repo.git("update-ref", "refs/remotes/origin/main", "HEAD");
+    const oldLedgerTip = repo.git("rev-parse", "HEAD~1");
+    mkdirSync(join(repo.dir, ".agents", "handoffs"), { recursive: true });
+    writeFileSync(join(repo.dir, ".agents", "handoffs", "x.md"), "# h\n");
+    repo.git("add", "-A");
+    repo.git("commit", "-q", "-m", "docs: handoff");
+    const head = repo.git("rev-parse", "HEAD");
+    const result = spawnSync("bash", ["hooks/pre-push"], {
+      cwd: repo.dir,
+      env: cleanGitEnv(),
+      encoding: "utf8",
+      input: `refs/heads/agent-ledger ${head} refs/heads/agent-ledger ${oldLedgerTip}\n`,
+    });
+    expect(result.stdout).toContain("metadata-only push");
+    expect(result.status, result.stderr).toBe(0);
+  });
+
   it("refuses a direct push to main", () => {
     const repo = repoWithVerify("#!/usr/bin/env bash\nexit 0\n");
     const result = push(repo, "refs/heads/main");

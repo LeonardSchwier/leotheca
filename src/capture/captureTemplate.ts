@@ -6,6 +6,7 @@
  * Nothing here touches the network or a new storage format.
  */
 
+import { trimTrailingNewlines } from "../lib/trimTrailingNewlines";
 import { readTextFile } from "../workspace/tauriBridge";
 
 /** Templates larger than this are rejected so a stray huge file cannot freeze or exhaust the sheet. */
@@ -64,7 +65,7 @@ export function renderCaptureTemplate(
   });
 
   const lineEnding = rendered.includes("\r\n") ? "\r\n" : "\n";
-  rendered = rendered.replace(/(\r?\n)+$/, "");
+  rendered = trimTrailingNewlines(rendered);
   if (!usedContent) {
     rendered =
       rendered === "" ? body : `${rendered}${lineEnding}${lineEnding}${body}`;

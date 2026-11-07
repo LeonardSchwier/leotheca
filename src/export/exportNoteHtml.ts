@@ -121,6 +121,7 @@ export async function inlineLocalImages(
   // attribute values (double- or single-quoted) to contain `>`: the scan jumps
   // over each quoted value and only a bare, unquoted `>` terminates the tag.
   const SRC_ATTR = /src\s*=\s*("([^"]*)"|'([^']*)')/gi;
+  // eslint-disable-next-line security/detect-unsafe-regex -- reviewed: alternatives start with distinct characters, so there is no ambiguity to backtrack on
   const IMG_TAG = /<img\b(?:[^>'"]|"[^"]*"|'[^']*')*>/gi;
   return html.replace(IMG_TAG, (tag) => {
     // Find the LAST `src=` in the tag: a genuine `src` attribute always wins

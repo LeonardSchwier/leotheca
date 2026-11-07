@@ -69,6 +69,7 @@ function highlightSearchMatches(html: string, query: string): string {
   if (!query) return html;
 
   const escapedQuery = escapeRegExp(query);
+  // eslint-disable-next-line security/detect-non-literal-regexp -- reviewed: the query is escaped on the previous line
   const caseInsensitiveQuery = new RegExp(escapedQuery, "gi");
 
   // Split the HTML on tags and entity references; text parts are
@@ -669,6 +670,7 @@ function markLocalImageAttachments(
     IMAGE_MARKDOWN,
     (match, alt: string, rawTarget: string) => {
       const trimmed = rawTarget.trim();
+      // eslint-disable-next-line security/detect-unsafe-regex -- reviewed: anchored, one optional quoted title; input is one link destination
       const withTitle = /^(\S+)(\s+"[^"]*")?$/.exec(trimmed);
       if (!withTitle) return match;
       const [, target, titleSuffix = ""] = withTitle;
@@ -1964,6 +1966,7 @@ export function MarkdownPreview({
       class="markdown-preview"
       dir="auto"
       ref={containerRef}
+      // nosemgrep: react-dangerouslysetinnerhtml -- reviewed: html is the DOMPurify.sanitize output (see renderMarkdown)
       dangerouslySetInnerHTML={{ __html: html }}
       onClick={(event) => {
         onDirectInteractionRef.current?.();

@@ -101,10 +101,6 @@ describe("DEFAULT_WORKSPACE_SETTINGS", () => {
     expect(DEFAULT_WORKSPACE_SETTINGS.readingFont).toBe("sans");
   });
 
-  it("defaults speech-to-text dictation to off, so no native speech API is touched until the user opts in", () => {
-    expect(DEFAULT_WORKSPACE_SETTINGS.speechToTextEnabled).toBe(false);
-  });
-
   it("defaults search results to relevance order, so the newest, best-matching notes come first without any extra UI", () => {
     expect(DEFAULT_WORKSPACE_SETTINGS.searchSortMode).toBe("relevance");
   });
@@ -153,7 +149,7 @@ describe("loadWorkspaceSettings", () => {
     expect(corrupt).toBe(false);
   });
 
-  it("respects an explicitly set speechToTextEnabled: true from the settings file", async () => {
+  it("ignores a speechToTextEnabled key left behind by the removed dictation feature, without flagging corruption", async () => {
     readTextFile.mockResolvedValueOnce(
       JSON.stringify({
         ...DEFAULT_WORKSPACE_SETTINGS,
@@ -161,11 +157,11 @@ describe("loadWorkspaceSettings", () => {
       }),
     );
     const { settings, corrupt } = await loadWorkspaceSettings(ROOT);
-    expect(settings.speechToTextEnabled).toBe(true);
+    expect(settings).not.toHaveProperty("speechToTextEnabled");
     expect(corrupt).toBe(false);
   });
 
-  it("falls back speechToTextEnabled to its off default and flags corruption when the stored value isn't a boolean", async () => {
+  it("also tolerates a malformed legacy speechToTextEnabled value", async () => {
     readTextFile.mockResolvedValueOnce(
       JSON.stringify({
         ...DEFAULT_WORKSPACE_SETTINGS,
@@ -173,8 +169,8 @@ describe("loadWorkspaceSettings", () => {
       }),
     );
     const { settings, corrupt } = await loadWorkspaceSettings(ROOT);
-    expect(settings.speechToTextEnabled).toBe(false);
-    expect(corrupt).toBe(true);
+    expect(settings).not.toHaveProperty("speechToTextEnabled");
+    expect(corrupt).toBe(false);
   });
 });
 

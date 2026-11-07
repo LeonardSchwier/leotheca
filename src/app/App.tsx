@@ -18,7 +18,6 @@ import { TabBar } from "../workspace/TabBar";
 import { MarkdownEditor } from "../editor/MarkdownEditor";
 import { MarkdownPreview } from "../editor/MarkdownPreview";
 import { FrontmatterPropertiesPanel } from "../editor/FrontmatterPropertiesPanel";
-import { SpeechRecognitionButton } from "../editor/SpeechRecognitionButton";
 import { ImageViewer } from "../editor/ImageViewer";
 import { ImageViewerOverlay } from "../editor/ImageViewerOverlay";
 import { PdfViewer } from "../pdf/PdfViewer";
@@ -1732,23 +1731,6 @@ export function App() {
             })}
           </div>
         )}
-        {current?.kind === "text" &&
-          workspaceSettings.value.speechToTextEnabled && (
-            <SpeechRecognitionButton
-              onResult={(text) => {
-                if (text && current) {
-                  // Use the existing outline insert mechanism to insert speech text
-                  outlineInsertRequest.value = {
-                    text,
-                    requestId: Date.now(), // Use timestamp as unique requestId
-                  };
-                }
-              }}
-              onError={(error) => {
-                console.error("Speech recognition error:", error);
-              }}
-            />
-          )}
         {current?.kind === "text" && (
           <>
             <button

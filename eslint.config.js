@@ -1,5 +1,6 @@
 import js from "@eslint/js";
 import reactHooks from "eslint-plugin-react-hooks";
+import security from "eslint-plugin-security";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
@@ -35,6 +36,36 @@ export default tseslint.config(
     rules: {
       "react-hooks/rules-of-hooks": "error",
       "react-hooks/exhaustive-deps": "warn",
+    },
+  },
+  {
+    // Static security patterns (eslint-plugin-security) on shipped code.
+    // Triage of the first run (2026-11-07, 202 findings in src, tests excluded):
+    //  - detect-object-injection (185): off. It flags every `obj[key]`, and the
+    //    app indexes plain objects and arrays with its own keys; the real risk,
+    //    prototype pollution from parsed input, is covered by tests on the
+    //    parsers instead. High noise, no true finding found in a sample.
+    //  - detect-possible-timing-attacks (1): off. It compared a search token with
+    //    "OR"; nothing here compares a secret.
+    //  - detect-unsafe-regex (10): error. One was a real quadratic stall
+    //    (`/(\r?\n)+$/`, fixed by src/lib/trimTrailingNewlines.ts); the other
+    //    nine are bounded and carry a `reviewed:` disable comment.
+    //  - detect-non-literal-regexp (3): error; each input is escaped or a fixed
+    //    tag name, and carries a `reviewed:` disable comment.
+    files: ["src/**/*.{ts,tsx}"],
+    ignores: ["src/**/*.test.{ts,tsx}"],
+    plugins: { security },
+    rules: {
+      "security/detect-unsafe-regex": "error",
+      "security/detect-non-literal-regexp": "error",
+      "security/detect-eval-with-expression": "error",
+      "security/detect-new-buffer": "error",
+      "security/detect-pseudoRandomBytes": "error",
+      "security/detect-bidi-characters": "error",
+      "security/detect-buffer-noassert": "error",
+      "security/detect-child-process": "error",
+      "security/detect-disable-mustache-escape": "error",
+      "security/detect-no-csrf-before-method-override": "error",
     },
   },
   {

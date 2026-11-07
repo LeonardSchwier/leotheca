@@ -13,7 +13,10 @@
  * No network calls, fully offline — matching CONSTITUTION.md's rule.
  */
 
-import type { CompletionContext, CompletionResult } from "@codemirror/autocomplete";
+import type {
+  CompletionContext,
+  CompletionResult,
+} from "@codemirror/autocomplete";
 
 /** A single slash command: the label shown in the popup, the text to
  *  insert, and a short description. */
@@ -145,7 +148,9 @@ export const SLASH_TRIGGER = /^\/([a-zA-Z][a-zA-Z0-9-]*)$/;
  * chosen snippet. The cursor is placed at the end of the inserted text
  * (for most snippets) so the user can immediately start editing.
  */
-export function slashCommandCompletions(context: CompletionContext): CompletionResult | null {
+export function slashCommandCompletions(
+  context: CompletionContext,
+): CompletionResult | null {
   // We need the current line, not just the text before the cursor.
   // lineAt throws RangeError when pos > doc.length; clamp to a valid range.
   const pos = Math.min(context.pos, context.state.doc.length);

@@ -1,7 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import { h } from "preact";
 import { act, render } from "@testing-library/preact";
-import { appendTranscript, describeVoiceError, useCaptureVoice } from "./captureVoice";
+import {
+  appendTranscript,
+  describeVoiceError,
+  useCaptureVoice,
+} from "./captureVoice";
 import type {
   SpeechRecognitionController,
   SpeechRecognitionError,
@@ -62,7 +66,12 @@ class FakeController implements SpeechRecognitionController {
     };
   }
   async getOptions() {
-    return { models: [], languages: [], platform: "desktop", offlineCapable: true };
+    return {
+      models: [],
+      languages: [],
+      platform: "desktop",
+      offlineCapable: true,
+    };
   }
   async isSpeechRecognitionAvailable() {
     return this.available;
@@ -72,18 +81,30 @@ class FakeController implements SpeechRecognitionController {
 
 type Api = ReturnType<typeof useCaptureVoice>;
 
-function mount(controller: FakeController, enabled: boolean, onTranscript = vi.fn()) {
+function mount(
+  controller: FakeController,
+  enabled: boolean,
+  onTranscript = vi.fn(),
+) {
   const ref: { api: Api | null } = { api: null };
   const create = vi.fn(() => controller);
   function Probe(props: { enabled: boolean }) {
-    ref.api = useCaptureVoice({ enabled: props.enabled, onTranscript, createController: create });
+    ref.api = useCaptureVoice({
+      enabled: props.enabled,
+      onTranscript,
+      createController: create,
+    });
     return null;
   }
   const view = render(h(Probe, { enabled }));
   return { ref, create, onTranscript, view, Probe };
 }
 
-const flush = () => act(async () => { await Promise.resolve(); await Promise.resolve(); });
+const flush = () =>
+  act(async () => {
+    await Promise.resolve();
+    await Promise.resolve();
+  });
 
 describe("appendTranscript", () => {
   it("never overwrites typed text and ignores blank transcripts", () => {
@@ -95,7 +116,13 @@ describe("appendTranscript", () => {
 
 describe("describeVoiceError", () => {
   it("gives actionable text for a denied permission", () => {
-    expect(describeVoiceError({ code: "permission_denied", message: "x", isFatal: true })).toMatch(/denied/);
+    expect(
+      describeVoiceError({
+        code: "permission_denied",
+        message: "x",
+        isFatal: true,
+      }),
+    ).toMatch(/denied/);
   });
 });
 
@@ -144,7 +171,9 @@ describe("useCaptureVoice", () => {
     const { ref, onTranscript } = mount(c, true);
     await flush();
     await act(async () => ref.api?.toggle());
-    await act(async () => { await ref.api?.cancel(); });
+    await act(async () => {
+      await ref.api?.cancel();
+    });
     act(() => c.emitResult("stale"));
     expect(onTranscript).not.toHaveBeenCalled();
     await act(async () => ref.api?.toggle());

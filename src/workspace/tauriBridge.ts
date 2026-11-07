@@ -115,12 +115,17 @@ let activeWorkspaceRoot: string | null = null;
 // never go through those two commands), so this stays a plain desktop-only
 // side effect instead of a third cross-platform interface method every
 // `capacitorBridgeImpl.ts` change would otherwise need to keep matching.
-async function syncNativeActiveWorkspaceRoot(path: string | null): Promise<void> {
+async function syncNativeActiveWorkspaceRoot(
+  path: string | null,
+): Promise<void> {
   if (Capacitor.isNativePlatform()) return;
   await desktop.setActiveWorkspaceRoot(path);
 }
 
-export async function restoreWorkspaceAccess(path: string, token?: string): Promise<void> {
+export async function restoreWorkspaceAccess(
+  path: string,
+  token?: string,
+): Promise<void> {
   activeWorkspaceRoot = null;
   // Same clear-before-attempt/publish-only-after-success sequencing this
   // function already applies to its own `activeWorkspaceRoot` above: the
@@ -132,10 +137,13 @@ export async function restoreWorkspaceAccess(path: string, token?: string): Prom
   await syncNativeActiveWorkspaceRoot(path);
 }
 
-export const listDir: typeof impl.listDir = (workspaceRoot: string, path: string) =>
-  trackWorkspaceOperation(impl.listDir(workspaceRoot, path));
-export const findMarkdownFiles: typeof impl.findMarkdownFiles = (path: string) =>
-  trackWorkspaceOperation(impl.findMarkdownFiles(path));
+export const listDir: typeof impl.listDir = (
+  workspaceRoot: string,
+  path: string,
+) => trackWorkspaceOperation(impl.listDir(workspaceRoot, path));
+export const findMarkdownFiles: typeof impl.findMarkdownFiles = (
+  path: string,
+) => trackWorkspaceOperation(impl.findMarkdownFiles(path));
 export const findAllFiles: typeof impl.findAllFiles = (path: string) =>
   trackWorkspaceOperation(impl.findAllFiles(path));
 export const findAllEntries: typeof impl.findAllEntries = (path: string) =>
@@ -144,45 +152,60 @@ export const readTextFile: typeof impl.readTextFile = (path: string) =>
   trackWorkspaceOperation(impl.readTextFile(path));
 export const readBinaryFile: typeof impl.readBinaryFile = (path: string) =>
   trackWorkspaceOperation(impl.readBinaryFile(path));
-export const readTextFilesBatch: typeof impl.readTextFilesBatch = (paths: string[]) =>
-  trackWorkspaceOperation(impl.readTextFilesBatch(paths));
-export const writeTextFile: typeof impl.writeTextFile = (path: string, contents: string) =>
-  trackWorkspaceOperation(impl.writeTextFile(path, contents));
-export const writeBinaryFile: typeof impl.writeBinaryFile = (path: string, data: Uint8Array) =>
-  trackWorkspaceOperation(impl.writeBinaryFile(path, data));
+export const readTextFilesBatch: typeof impl.readTextFilesBatch = (
+  paths: string[],
+) => trackWorkspaceOperation(impl.readTextFilesBatch(paths));
+export const writeTextFile: typeof impl.writeTextFile = (
+  path: string,
+  contents: string,
+) => trackWorkspaceOperation(impl.writeTextFile(path, contents));
+export const writeBinaryFile: typeof impl.writeBinaryFile = (
+  path: string,
+  data: Uint8Array,
+) => trackWorkspaceOperation(impl.writeBinaryFile(path, data));
 export const createDir: typeof impl.createDir = (path: string) =>
   trackWorkspaceOperation(impl.createDir(path));
 export const renamePath: typeof impl.renamePath = (from: string, to: string) =>
   trackWorkspaceOperation(impl.renamePath(from, to));
-export const trashPath: typeof impl.trashPath = (workspaceRoot: string, path: string) =>
-  trackWorkspaceOperation(impl.trashPath(workspaceRoot, path));
-export const deletePathPermanent: typeof impl.deletePathPermanent = (path: string) =>
-  trackWorkspaceOperation(impl.deletePathPermanent(path));
+export const trashPath: typeof impl.trashPath = (
+  workspaceRoot: string,
+  path: string,
+) => trackWorkspaceOperation(impl.trashPath(workspaceRoot, path));
+export const deletePathPermanent: typeof impl.deletePathPermanent = (
+  path: string,
+) => trackWorkspaceOperation(impl.deletePathPermanent(path));
 
 export const writeWorkspaceTextFile: typeof impl.writeWorkspaceTextFile = (
   workspaceRoot: string,
   relativePath: string,
   contents: string,
-) => trackWorkspaceOperation(impl.writeWorkspaceTextFile(workspaceRoot, relativePath, contents));
+) =>
+  trackWorkspaceOperation(
+    impl.writeWorkspaceTextFile(workspaceRoot, relativePath, contents),
+  );
 export const writeWorkspaceBinaryFile: typeof impl.writeWorkspaceBinaryFile = (
   workspaceRoot: string,
   relativePath: string,
   data: Uint8Array,
-) => trackWorkspaceOperation(impl.writeWorkspaceBinaryFile(workspaceRoot, relativePath, data));
-export const createWorkspaceTextFileNew: typeof impl.createWorkspaceTextFileNew = (
-  workspaceRoot: string,
-  relativePath: string,
-  contents: string,
-) => trackMutation(impl.createWorkspaceTextFileNew(workspaceRoot, relativePath, contents));
-export const createWorkspaceBinaryFileNew: typeof impl.createWorkspaceBinaryFileNew = (
-  workspaceRoot: string,
-  relativePath: string,
-  data: Uint8Array,
-) => trackMutation(impl.createWorkspaceBinaryFileNew(workspaceRoot, relativePath, data));
+) =>
+  trackWorkspaceOperation(
+    impl.writeWorkspaceBinaryFile(workspaceRoot, relativePath, data),
+  );
+export const createWorkspaceTextFileNew: typeof impl.createWorkspaceTextFileNew =
+  (workspaceRoot: string, relativePath: string, contents: string) =>
+    trackMutation(
+      impl.createWorkspaceTextFileNew(workspaceRoot, relativePath, contents),
+    );
+export const createWorkspaceBinaryFileNew: typeof impl.createWorkspaceBinaryFileNew =
+  (workspaceRoot: string, relativePath: string, data: Uint8Array) =>
+    trackMutation(
+      impl.createWorkspaceBinaryFileNew(workspaceRoot, relativePath, data),
+    );
 export const createWorkspaceDir: typeof impl.createWorkspaceDir = (
   workspaceRoot: string,
   relativePath: string,
-) => trackWorkspaceOperation(impl.createWorkspaceDir(workspaceRoot, relativePath));
+) =>
+  trackWorkspaceOperation(impl.createWorkspaceDir(workspaceRoot, relativePath));
 export const createWorkspaceDirNew: typeof impl.createWorkspaceDirNew = (
   workspaceRoot: string,
   relativePath: string,
@@ -192,15 +215,14 @@ export const renameWorkspacePath: typeof impl.renameWorkspacePath = (
   from: string,
   to: string,
 ) => trackWorkspaceOperation(impl.renameWorkspacePath(workspaceRoot, from, to));
-export const renameWorkspacePathNoReplace: typeof impl.renameWorkspacePathNoReplace = (
-  workspaceRoot: string,
-  from: string,
-  to: string,
-) => trackMutation(impl.renameWorkspacePathNoReplace(workspaceRoot, from, to));
-export const deleteWorkspacePathPermanent: typeof impl.deleteWorkspacePathPermanent = (
-  workspaceRoot: string,
-  relativePath: string,
-) => trackWorkspaceOperation(impl.deleteWorkspacePathPermanent(workspaceRoot, relativePath));
+export const renameWorkspacePathNoReplace: typeof impl.renameWorkspacePathNoReplace =
+  (workspaceRoot: string, from: string, to: string) =>
+    trackMutation(impl.renameWorkspacePathNoReplace(workspaceRoot, from, to));
+export const deleteWorkspacePathPermanent: typeof impl.deleteWorkspacePathPermanent =
+  (workspaceRoot: string, relativePath: string) =>
+    trackWorkspaceOperation(
+      impl.deleteWorkspacePathPermanent(workspaceRoot, relativePath),
+    );
 
 /**
  * Saves an already-open workspace file through the active workspace
@@ -209,14 +231,21 @@ export const deleteWorkspacePathPermanent: typeof impl.deleteWorkspacePathPerman
  * and F-003's save coordinator owns revision ordering. New file creation
  * uses the separate no-replace mutation contract from F-004.
  */
-export function writeActiveWorkspaceTextFile(path: string, contents: string): Promise<void> {
+export function writeActiveWorkspaceTextFile(
+  path: string,
+  contents: string,
+): Promise<void> {
   const workspaceRoot = activeWorkspaceRoot;
   if (!workspaceRoot) {
-    return Promise.reject(new Error("No active workspace is available for this write."));
+    return Promise.reject(
+      new Error("No active workspace is available for this write."),
+    );
   }
   if (path === workspaceRoot || !isPathWithinWorkspace(workspaceRoot, path)) {
     return Promise.reject(
-      new Error(`Cannot save "${path}" outside workspace root "${workspaceRoot}".`),
+      new Error(
+        `Cannot save "${path}" outside workspace root "${workspaceRoot}".`,
+      ),
     );
   }
   return writeWorkspaceTextFile(
@@ -234,14 +263,21 @@ export function writeActiveWorkspaceTextFile(path: string, contents: string): Pr
  * revision ordering for binary files the way F-003 has for note text, so
  * callers are responsible for not racing two saves of the same path.
  */
-export function writeActiveWorkspaceBinaryFile(path: string, data: Uint8Array): Promise<void> {
+export function writeActiveWorkspaceBinaryFile(
+  path: string,
+  data: Uint8Array,
+): Promise<void> {
   const workspaceRoot = activeWorkspaceRoot;
   if (!workspaceRoot) {
-    return Promise.reject(new Error("No active workspace is available for this write."));
+    return Promise.reject(
+      new Error("No active workspace is available for this write."),
+    );
   }
   if (path === workspaceRoot || !isPathWithinWorkspace(workspaceRoot, path)) {
     return Promise.reject(
-      new Error(`Cannot save "${path}" outside workspace root "${workspaceRoot}".`),
+      new Error(
+        `Cannot save "${path}" outside workspace root "${workspaceRoot}".`,
+      ),
     );
   }
   return writeWorkspaceBinaryFile(
@@ -257,12 +293,18 @@ export const getAppConfigFilePath = impl.getAppConfigFilePath;
 export const getAppVersion = impl.getAppVersion;
 export const fileSrc: typeof impl.fileSrc = (path: string) =>
   trackWorkspaceOperation(impl.fileSrc(path));
-export const getWorkspaceStats: typeof impl.getWorkspaceStats = (path: string) =>
-  trackWorkspaceOperation(impl.getWorkspaceStats(path));
+export const getWorkspaceStats: typeof impl.getWorkspaceStats = (
+  path: string,
+) => trackWorkspaceOperation(impl.getWorkspaceStats(path));
 export const setStatusBarAppearance = impl.setStatusBarAppearance;
 
 // F05: Android share intent bridge
-export type { AndroidStagedAttachment, PendingShareData, ShareDataResult, HasShareDataResult } from "./tauriBridgeImpl";
+export type {
+  AndroidStagedAttachment,
+  PendingShareData,
+  ShareDataResult,
+  HasShareDataResult,
+} from "./tauriBridgeImpl";
 export const getPendingShareData = impl.getPendingShareData;
 export const hasPendingShareData = impl.hasPendingShareData;
 

@@ -1,6 +1,12 @@
 /** @vitest-environment jsdom */
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/preact";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  waitFor,
+} from "@testing-library/preact";
 
 afterEach(() => {
   cleanup();
@@ -8,7 +14,8 @@ afterEach(() => {
 
 const { readBinaryFile, writeActiveWorkspaceBinaryFile } = vi.hoisted(() => ({
   readBinaryFile: vi.fn<(path: string) => Promise<Uint8Array>>(),
-  writeActiveWorkspaceBinaryFile: vi.fn<(path: string, data: Uint8Array) => Promise<void>>(),
+  writeActiveWorkspaceBinaryFile:
+    vi.fn<(path: string, data: Uint8Array) => Promise<void>>(),
 }));
 
 vi.mock("../workspace/tauriBridge", () => ({
@@ -78,7 +85,10 @@ vi.mock("./pdfWorker", () => ({
 }));
 
 vi.mock("./pdfAnnotations", async () => {
-  const actual = await vi.importActual<typeof import("./pdfAnnotations")>("./pdfAnnotations");
+  const actual =
+    await vi.importActual<typeof import("./pdfAnnotations")>(
+      "./pdfAnnotations",
+    );
   return {
     ...actual,
     readMarkupAnnotations: vi.fn(async () => []),
@@ -108,7 +118,9 @@ afterEach(() => {
 describe("PdfViewer", () => {
   it("shows the real page count once the document loads", async () => {
     mockDoc(["page one text", "page two text", "page three text"]);
-    const { getByLabelText, findByText } = render(<PdfViewer path="/vault/doc.pdf" />);
+    const { getByLabelText, findByText } = render(
+      <PdfViewer path="/vault/doc.pdf" />,
+    );
 
     await findByText("/ 3");
     expect((getByLabelText("Page number") as HTMLInputElement).value).toBe("1");
@@ -116,7 +128,9 @@ describe("PdfViewer", () => {
 
   it("shows an error message when the file can't be read", async () => {
     readBinaryFile.mockRejectedValue(new Error("disk full"));
-    getDocumentMock.mockReturnValue({ promise: Promise.resolve(makeFakeDoc(["x"])) });
+    getDocumentMock.mockReturnValue({
+      promise: Promise.resolve(makeFakeDoc(["x"])),
+    });
     const { findByRole } = render(<PdfViewer path="/vault/doc.pdf" />);
 
     const alert = await findByRole("alert");
@@ -125,7 +139,9 @@ describe("PdfViewer", () => {
 
   it("page navigation buttons respect the 1..numPages bounds", async () => {
     mockDoc(["a", "b"]);
-    const { getByLabelText, findByText } = render(<PdfViewer path="/vault/doc.pdf" />);
+    const { getByLabelText, findByText } = render(
+      <PdfViewer path="/vault/doc.pdf" />,
+    );
     await findByText("/ 2");
 
     const prev = getByLabelText("Previous page") as HTMLButtonElement;
@@ -148,7 +164,9 @@ describe("PdfViewer", () => {
 
   it("typing a page number in range jumps to that page, and an out-of-range one is ignored", async () => {
     mockDoc(["a", "b", "c"]);
-    const { getByLabelText, findByText } = render(<PdfViewer path="/vault/doc.pdf" />);
+    const { getByLabelText, findByText } = render(
+      <PdfViewer path="/vault/doc.pdf" />,
+    );
     await findByText("/ 3");
 
     const input = getByLabelText("Page number") as HTMLInputElement;
@@ -181,7 +199,9 @@ describe("PdfViewer", () => {
 
   it("zoom in/out/reset change the displayed percentage", async () => {
     mockDoc(["a"]);
-    const { getByLabelText, findByText } = render(<PdfViewer path="/vault/doc.pdf" />);
+    const { getByLabelText, findByText } = render(
+      <PdfViewer path="/vault/doc.pdf" />,
+    );
     await findByText("/ 1");
 
     const zoomIn = getByLabelText("Zoom in");
@@ -205,10 +225,14 @@ describe("PdfViewer", () => {
 
   it("searches every page's real text content and reports how many pages match", async () => {
     mockDoc(["nothing here", "the quick brown fox", "another fox sighting"]);
-    const { getByLabelText, getByText, findByText } = render(<PdfViewer path="/vault/doc.pdf" />);
+    const { getByLabelText, getByText, findByText } = render(
+      <PdfViewer path="/vault/doc.pdf" />,
+    );
     await findByText("/ 3");
 
-    const searchInput = document.querySelector(".pdf-search-input") as HTMLInputElement;
+    const searchInput = document.querySelector(
+      ".pdf-search-input",
+    ) as HTMLInputElement;
     await act(async () => {
       fireEvent.input(searchInput, { target: { value: "fox" } });
     });
@@ -225,10 +249,14 @@ describe("PdfViewer", () => {
 
   it("reports no matches for a query nothing contains", async () => {
     mockDoc(["alpha", "beta"]);
-    const { getByLabelText, getByText, findByText } = render(<PdfViewer path="/vault/doc.pdf" />);
+    const { getByLabelText, getByText, findByText } = render(
+      <PdfViewer path="/vault/doc.pdf" />,
+    );
     await findByText("/ 2");
 
-    const searchInput = document.querySelector(".pdf-search-input") as HTMLInputElement;
+    const searchInput = document.querySelector(
+      ".pdf-search-input",
+    ) as HTMLInputElement;
     await act(async () => {
       fireEvent.input(searchInput, { target: { value: "zzz" } });
     });
@@ -243,7 +271,9 @@ describe("PdfViewer", () => {
 
   it("the markup tool buttons toggle active state on click", async () => {
     mockDoc(["a"]);
-    const { getByRole, findByText } = render(<PdfViewer path="/vault/doc.pdf" />);
+    const { getByRole, findByText } = render(
+      <PdfViewer path="/vault/doc.pdf" />,
+    );
     await findByText("/ 1");
 
     const highlightButton = getByRole("button", { name: "Highlight" });
@@ -262,7 +292,9 @@ describe("PdfViewer", () => {
 
   it("Save annotations starts disabled with nothing pending", async () => {
     mockDoc(["a"]);
-    const { getByText, findByText } = render(<PdfViewer path="/vault/doc.pdf" />);
+    const { getByText, findByText } = render(
+      <PdfViewer path="/vault/doc.pdf" />,
+    );
     await findByText("/ 1");
 
     const saveButton = getByText("Save annotations") as HTMLButtonElement;
@@ -273,17 +305,21 @@ describe("PdfViewer", () => {
 describe("PdfViewer -- PDF Phase 2 (ink, sticky notes, shapes)", () => {
   it("the Draw tool mounts a real InkSurface overlay, and committing a stroke adds one pending annotation", async () => {
     mockDoc(["a"]);
-    const { getByRole, getByText, findByText, container } = render(<PdfViewer path="/vault/doc.pdf" />);
+    const { getByRole, getByText, findByText, container } = render(
+      <PdfViewer path="/vault/doc.pdf" />,
+    );
     await findByText("/ 1");
 
     await act(async () => {
       fireEvent.click(getByRole("button", { name: "Draw" }));
     });
 
-    const surface = container.querySelector(".ink-surface") as unknown as (SVGSVGElement & {
+    const surface = container.querySelector(
+      ".ink-surface",
+    ) as unknown as SVGSVGElement & {
       setPointerCapture: (id: number) => void;
       hasPointerCapture: (id: number) => boolean;
-    });
+    };
     expect(surface).toBeTruthy();
     // jsdom doesn't implement pointer capture; InkSurface itself guards
     // every pointermove/up on it, so tests must stub it, the same
@@ -292,31 +328,59 @@ describe("PdfViewer -- PDF Phase 2 (ink, sticky notes, shapes)", () => {
     surface.hasPointerCapture = vi.fn(() => true);
 
     await act(async () => {
-      fireEvent.pointerDown(surface, { pointerId: 1, pointerType: "mouse", button: 0, clientX: 10, clientY: 10 });
-      fireEvent.pointerMove(surface, { pointerId: 1, pointerType: "mouse", button: 0, clientX: 20, clientY: 20 });
-      fireEvent.pointerUp(surface, { pointerId: 1, pointerType: "mouse", button: 0, clientX: 30, clientY: 10 });
+      fireEvent.pointerDown(surface, {
+        pointerId: 1,
+        pointerType: "mouse",
+        button: 0,
+        clientX: 10,
+        clientY: 10,
+      });
+      fireEvent.pointerMove(surface, {
+        pointerId: 1,
+        pointerType: "mouse",
+        button: 0,
+        clientX: 20,
+        clientY: 20,
+      });
+      fireEvent.pointerUp(surface, {
+        pointerId: 1,
+        pointerType: "mouse",
+        button: 0,
+        clientX: 30,
+        clientY: 10,
+      });
     });
 
     const saveButton = getByText(/Save annotations/) as HTMLButtonElement;
     expect(saveButton.disabled).toBe(false);
     expect(saveButton.textContent).toContain("(1)");
-    await waitFor(() => expect(container.querySelector(".pdf-drawing-overlay polyline")).toBeTruthy());
+    await waitFor(() =>
+      expect(
+        container.querySelector(".pdf-drawing-overlay polyline"),
+      ).toBeTruthy(),
+    );
   });
 
   it("the Note tool places a sticky-note draft on click, and Enter commits it as one pending annotation", async () => {
     mockDoc(["a"]);
-    const { getByRole, getByText, findByText, container } = render(<PdfViewer path="/vault/doc.pdf" />);
+    const { getByRole, getByText, findByText, container } = render(
+      <PdfViewer path="/vault/doc.pdf" />,
+    );
     await findByText("/ 1");
 
     await act(async () => {
       fireEvent.click(getByRole("button", { name: "Note" }));
     });
-    const pageContainer = container.querySelector(".pdf-page-container") as HTMLDivElement;
+    const pageContainer = container.querySelector(
+      ".pdf-page-container",
+    ) as HTMLDivElement;
     await act(async () => {
       fireEvent.click(pageContainer, { clientX: 50, clientY: 60 });
     });
 
-    const textarea = container.querySelector(".pdf-sticky-note-draft textarea") as HTMLTextAreaElement;
+    const textarea = container.querySelector(
+      ".pdf-sticky-note-draft textarea",
+    ) as HTMLTextAreaElement;
     expect(textarea).toBeTruthy();
 
     await act(async () => {
@@ -329,22 +393,30 @@ describe("PdfViewer -- PDF Phase 2 (ink, sticky notes, shapes)", () => {
     expect(container.querySelector(".pdf-sticky-note-draft")).toBeNull();
     const saveButton = getByText(/Save annotations/) as HTMLButtonElement;
     expect(saveButton.textContent).toContain("(1)");
-    await waitFor(() => expect(container.querySelector(".pdf-sticky-note-icon")).toBeTruthy());
+    await waitFor(() =>
+      expect(container.querySelector(".pdf-sticky-note-icon")).toBeTruthy(),
+    );
   });
 
   it("Escape cancels a sticky-note draft without adding a pending annotation", async () => {
     mockDoc(["a"]);
-    const { getByRole, getByText, findByText, container } = render(<PdfViewer path="/vault/doc.pdf" />);
+    const { getByRole, getByText, findByText, container } = render(
+      <PdfViewer path="/vault/doc.pdf" />,
+    );
     await findByText("/ 1");
 
     await act(async () => {
       fireEvent.click(getByRole("button", { name: "Note" }));
     });
-    const pageContainer = container.querySelector(".pdf-page-container") as HTMLDivElement;
+    const pageContainer = container.querySelector(
+      ".pdf-page-container",
+    ) as HTMLDivElement;
     await act(async () => {
       fireEvent.click(pageContainer, { clientX: 50, clientY: 60 });
     });
-    const textarea = container.querySelector(".pdf-sticky-note-draft textarea") as HTMLTextAreaElement;
+    const textarea = container.querySelector(
+      ".pdf-sticky-note-draft textarea",
+    ) as HTMLTextAreaElement;
     await act(async () => {
       fireEvent.input(textarea, { target: { value: "discard me" } });
       fireEvent.keyDown(textarea, { key: "Escape" });
@@ -357,7 +429,9 @@ describe("PdfViewer -- PDF Phase 2 (ink, sticky notes, shapes)", () => {
 
   it("keeps an annotation added while a save is still in flight, instead of silently discarding it", async () => {
     mockDoc(["a"]);
-    const { getByRole, getByText, findByText, container } = render(<PdfViewer path="/vault/doc.pdf" />);
+    const { getByRole, getByText, findByText, container } = render(
+      <PdfViewer path="/vault/doc.pdf" />,
+    );
     await findByText("/ 1");
 
     const addStickyNote = async (text: string) => {
@@ -370,11 +444,15 @@ describe("PdfViewer -- PDF Phase 2 (ink, sticky notes, shapes)", () => {
           fireEvent.click(noteButton);
         });
       }
-      const pageContainer = container.querySelector(".pdf-page-container") as HTMLDivElement;
+      const pageContainer = container.querySelector(
+        ".pdf-page-container",
+      ) as HTMLDivElement;
       await act(async () => {
         fireEvent.click(pageContainer, { clientX: 50, clientY: 60 });
       });
-      const textarea = container.querySelector(".pdf-sticky-note-draft textarea") as HTMLTextAreaElement;
+      const textarea = container.querySelector(
+        ".pdf-sticky-note-draft textarea",
+      ) as HTMLTextAreaElement;
       await act(async () => {
         fireEvent.input(textarea, { target: { value: text } });
       });
@@ -384,7 +462,9 @@ describe("PdfViewer -- PDF Phase 2 (ink, sticky notes, shapes)", () => {
     };
 
     await addStickyNote("first note");
-    expect((getByText(/Save annotations/) as HTMLButtonElement).textContent).toContain("(1)");
+    expect(
+      (getByText(/Save annotations/) as HTMLButtonElement).textContent,
+    ).toContain("(1)");
 
     // Hold the save open so a second annotation can be added while it is
     // still in flight, the exact window handleSave's fix must survive.
@@ -407,46 +487,80 @@ describe("PdfViewer -- PDF Phase 2 (ink, sticky notes, shapes)", () => {
     });
 
     await waitFor(() =>
-      expect((getByText(/Save annotations/) as HTMLButtonElement).textContent).toContain("(1)"),
+      expect(
+        (getByText(/Save annotations/) as HTMLButtonElement).textContent,
+      ).toContain("(1)"),
     );
   });
 
   it("dragging with the Square tool commits one pending shape annotation", async () => {
     mockDoc(["a"]);
-    const { getByRole, getByText, findByText, container } = render(<PdfViewer path="/vault/doc.pdf" />);
+    const { getByRole, getByText, findByText, container } = render(
+      <PdfViewer path="/vault/doc.pdf" />,
+    );
     await findByText("/ 1");
 
     await act(async () => {
       fireEvent.click(getByRole("button", { name: "Square" }));
     });
-    const pageContainer = container.querySelector(".pdf-page-container") as HTMLDivElement;
+    const pageContainer = container.querySelector(
+      ".pdf-page-container",
+    ) as HTMLDivElement;
 
     await act(async () => {
-      fireEvent.pointerDown(pageContainer, { pointerId: 1, clientX: 10, clientY: 10 });
-      fireEvent.pointerMove(pageContainer, { pointerId: 1, clientX: 60, clientY: 60 });
-      fireEvent.pointerUp(pageContainer, { pointerId: 1, clientX: 60, clientY: 60 });
+      fireEvent.pointerDown(pageContainer, {
+        pointerId: 1,
+        clientX: 10,
+        clientY: 10,
+      });
+      fireEvent.pointerMove(pageContainer, {
+        pointerId: 1,
+        clientX: 60,
+        clientY: 60,
+      });
+      fireEvent.pointerUp(pageContainer, {
+        pointerId: 1,
+        clientX: 60,
+        clientY: 60,
+      });
     });
 
     const saveButton = getByText(/Save annotations/) as HTMLButtonElement;
     expect(saveButton.textContent).toContain("(1)");
-    await waitFor(() => expect(container.querySelector(".pdf-drawing-overlay rect")).toBeTruthy());
+    await waitFor(() =>
+      expect(container.querySelector(".pdf-drawing-overlay rect")).toBeTruthy(),
+    );
   });
 
   it("a pointercancel discards an in-progress shape drag instead of leaving the draft preview stuck (regression)", async () => {
     mockDoc(["a"]);
-    const { getByRole, getByText, findByText, container } = render(<PdfViewer path="/vault/doc.pdf" />);
+    const { getByRole, getByText, findByText, container } = render(
+      <PdfViewer path="/vault/doc.pdf" />,
+    );
     await findByText("/ 1");
 
     await act(async () => {
       fireEvent.click(getByRole("button", { name: "Square" }));
     });
-    const pageContainer = container.querySelector(".pdf-page-container") as HTMLDivElement;
+    const pageContainer = container.querySelector(
+      ".pdf-page-container",
+    ) as HTMLDivElement;
 
     await act(async () => {
-      fireEvent.pointerDown(pageContainer, { pointerId: 1, clientX: 10, clientY: 10 });
-      fireEvent.pointerMove(pageContainer, { pointerId: 1, clientX: 60, clientY: 60 });
+      fireEvent.pointerDown(pageContainer, {
+        pointerId: 1,
+        clientX: 10,
+        clientY: 10,
+      });
+      fireEvent.pointerMove(pageContainer, {
+        pointerId: 1,
+        clientX: 60,
+        clientY: 60,
+      });
     });
-    await waitFor(() => expect(container.querySelector(".pdf-drawing-overlay rect")).toBeTruthy());
+    await waitFor(() =>
+      expect(container.querySelector(".pdf-drawing-overlay rect")).toBeTruthy(),
+    );
 
     // A drag interrupted by an OS/browser context switch, a multi-touch
     // conflict, or the tab losing focus delivers pointercancel instead
@@ -463,16 +577,28 @@ describe("PdfViewer -- PDF Phase 2 (ink, sticky notes, shapes)", () => {
 
   it("a drag shorter than the click-vs-drag threshold does not commit a degenerate shape", async () => {
     mockDoc(["a"]);
-    const { getByRole, getByText, findByText, container } = render(<PdfViewer path="/vault/doc.pdf" />);
+    const { getByRole, getByText, findByText, container } = render(
+      <PdfViewer path="/vault/doc.pdf" />,
+    );
     await findByText("/ 1");
 
     await act(async () => {
       fireEvent.click(getByRole("button", { name: "Line" }));
     });
-    const pageContainer = container.querySelector(".pdf-page-container") as HTMLDivElement;
+    const pageContainer = container.querySelector(
+      ".pdf-page-container",
+    ) as HTMLDivElement;
     await act(async () => {
-      fireEvent.pointerDown(pageContainer, { pointerId: 1, clientX: 10, clientY: 10 });
-      fireEvent.pointerUp(pageContainer, { pointerId: 1, clientX: 11, clientY: 10 });
+      fireEvent.pointerDown(pageContainer, {
+        pointerId: 1,
+        clientX: 10,
+        clientY: 10,
+      });
+      fireEvent.pointerUp(pageContainer, {
+        pointerId: 1,
+        clientX: 11,
+        clientY: 10,
+      });
     });
 
     const saveButton = getByText("Save annotations") as HTMLButtonElement;
@@ -481,13 +607,17 @@ describe("PdfViewer -- PDF Phase 2 (ink, sticky notes, shapes)", () => {
 
   it("clicking with the Polygon tool adds vertices, and Finish shape commits one pending shape annotation", async () => {
     mockDoc(["a"]);
-    const { getByRole, getByText, queryByText, findByText, container } = render(<PdfViewer path="/vault/doc.pdf" />);
+    const { getByRole, getByText, queryByText, findByText, container } = render(
+      <PdfViewer path="/vault/doc.pdf" />,
+    );
     await findByText("/ 1");
 
     await act(async () => {
       fireEvent.click(getByRole("button", { name: "Polygon" }));
     });
-    const pageContainer = container.querySelector(".pdf-page-container") as HTMLDivElement;
+    const pageContainer = container.querySelector(
+      ".pdf-page-container",
+    ) as HTMLDivElement;
 
     await act(async () => {
       fireEvent.click(pageContainer, { clientX: 10, clientY: 10 });
@@ -508,18 +638,26 @@ describe("PdfViewer -- PDF Phase 2 (ink, sticky notes, shapes)", () => {
     expect(queryByText(/Finish shape/)).toBeNull();
     const saveButton = getByText(/Save annotations/) as HTMLButtonElement;
     expect(saveButton.textContent).toContain("(1)");
-    await waitFor(() => expect(container.querySelector(".pdf-drawing-overlay polygon")).toBeTruthy());
+    await waitFor(() =>
+      expect(
+        container.querySelector(".pdf-drawing-overlay polygon"),
+      ).toBeTruthy(),
+    );
   });
 
   it("switching tools clears an in-progress (uncommitted) polygon draft", async () => {
     mockDoc(["a"]);
-    const { getByRole, getByText, findByText, container } = render(<PdfViewer path="/vault/doc.pdf" />);
+    const { getByRole, getByText, findByText, container } = render(
+      <PdfViewer path="/vault/doc.pdf" />,
+    );
     await findByText("/ 1");
 
     await act(async () => {
       fireEvent.click(getByRole("button", { name: "Polygon" }));
     });
-    const pageContainer = container.querySelector(".pdf-page-container") as HTMLDivElement;
+    const pageContainer = container.querySelector(
+      ".pdf-page-container",
+    ) as HTMLDivElement;
     await act(async () => {
       fireEvent.click(pageContainer, { clientX: 10, clientY: 10 });
       fireEvent.click(pageContainer, { clientX: 20, clientY: 10 });

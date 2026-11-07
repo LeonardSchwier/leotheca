@@ -7,7 +7,9 @@ import type { WorkspaceProfile } from "./globalConfig";
 const { MockWorkspaceRelinkConflictError } = vi.hoisted(() => ({
   MockWorkspaceRelinkConflictError: class extends Error {
     constructor(public readonly conflictingProfileName: string) {
-      super(`This folder is already used by workspace "${conflictingProfileName}".`);
+      super(
+        `This folder is already used by workspace "${conflictingProfileName}".`,
+      );
       this.name = "WorkspaceRelinkConflictError";
     }
   },
@@ -33,8 +35,20 @@ import {
   workspaceSelectionError,
 } from "./store";
 
-const PROFILE_A: WorkspaceProfile = { id: "a", name: "Personal", icon: "folder", path: "/a", lastOpenedAt: 2 };
-const PROFILE_B: WorkspaceProfile = { id: "b", name: "Work", icon: "briefcase", path: "/b", lastOpenedAt: 1 };
+const PROFILE_A: WorkspaceProfile = {
+  id: "a",
+  name: "Personal",
+  icon: "folder",
+  path: "/a",
+  lastOpenedAt: 2,
+};
+const PROFILE_B: WorkspaceProfile = {
+  id: "b",
+  name: "Work",
+  icon: "briefcase",
+  path: "/b",
+  lastOpenedAt: 1,
+};
 
 afterEach(() => {
   cleanup();
@@ -79,7 +93,8 @@ describe("WelcomeDialog: no profiles at all (spec 9.4)", () => {
 
   it("does not overwrite a more specific error setWorkspacePath already published", async () => {
     vi.mocked(addWorkspaceFromPicker).mockImplementation(async () => {
-      workspaceSelectionError.value = "Could not open that workspace: permission denied.";
+      workspaceSelectionError.value =
+        "Could not open that workspace: permission denied.";
       throw new Error("boom");
     });
     const { getByText, getByRole } = render(<WelcomeDialog />);
@@ -87,7 +102,9 @@ describe("WelcomeDialog: no profiles at all (spec 9.4)", () => {
     await fireEvent.click(getByText("Choose Folder"));
     await Promise.resolve();
 
-    expect(getByRole("alert").textContent).toBe("Could not open that workspace: permission denied.");
+    expect(getByRole("alert").textContent).toBe(
+      "Could not open that workspace: permission denied.",
+    );
   });
 });
 
@@ -136,7 +153,9 @@ describe("WelcomeDialog: unavailable active profile (spec 17.2)", () => {
     await Promise.resolve();
     await Promise.resolve();
 
-    expect(alert).toHaveBeenCalledWith('This folder is already used by workspace "Work".');
+    expect(alert).toHaveBeenCalledWith(
+      'This folder is already used by workspace "Work".',
+    );
   });
 
   it("lists the other known profiles to open instead", () => {
@@ -145,15 +164,20 @@ describe("WelcomeDialog: unavailable active profile (spec 17.2)", () => {
     const { getByText, queryByText } = render(<WelcomeDialog />);
     expect(getByText("Or open a different workspace")).toBeTruthy();
     expect(getByText("Work")).toBeTruthy();
-    expect(queryByText("Personal", { selector: ".workspace-switcher-row-name" })).toBeNull();
+    expect(
+      queryByText("Personal", { selector: ".workspace-switcher-row-name" }),
+    ).toBeNull();
   });
 
   it("shows the actionable workspaceSelectionError from a failed retry", () => {
     workspaceProfiles.value = [PROFILE_A];
     activeWorkspaceId.value = "a";
-    workspaceSelectionError.value = "Could not open that workspace: permission denied.";
+    workspaceSelectionError.value =
+      "Could not open that workspace: permission denied.";
     const { getByRole } = render(<WelcomeDialog />);
-    expect(getByRole("alert").textContent).toBe("Could not open that workspace: permission denied.");
+    expect(getByRole("alert").textContent).toBe(
+      "Could not open that workspace: permission denied.",
+    );
   });
 });
 

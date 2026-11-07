@@ -4,8 +4,13 @@ import { minimalChange } from "./textDiff";
 /** Applies a TextChange the same way `EditorView.dispatch({ changes })`
  * would, so tests can assert on the resulting text rather than hand-
  * checking from/to/insert individually. */
-function applyChange(oldText: string, change: ReturnType<typeof minimalChange>): string {
-  return oldText.slice(0, change.from) + change.insert + oldText.slice(change.to);
+function applyChange(
+  oldText: string,
+  change: ReturnType<typeof minimalChange>,
+): string {
+  return (
+    oldText.slice(0, change.from) + change.insert + oldText.slice(change.to)
+  );
 }
 
 describe("minimalChange", () => {
@@ -63,8 +68,10 @@ describe("minimalChange", () => {
   });
 
   it("matches the real frontmatter-edit shape: a change confined to the top of the document", () => {
-    const oldText = '---\ntitle: "Old"\n---\n\nBody text the user is editing, cursor down here.';
-    const newText = '---\ntitle: "New"\n---\n\nBody text the user is editing, cursor down here.';
+    const oldText =
+      '---\ntitle: "Old"\n---\n\nBody text the user is editing, cursor down here.';
+    const newText =
+      '---\ntitle: "New"\n---\n\nBody text the user is editing, cursor down here.';
     const change = minimalChange(oldText, newText);
     expect(applyChange(oldText, change)).toBe(newText);
     // The body (everything from the blank line on) must be entirely

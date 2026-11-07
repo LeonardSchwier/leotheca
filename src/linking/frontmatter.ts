@@ -15,25 +15,23 @@ const FRONTMATTER_BLOCK = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/;
 
 function stripQuotes(value: string): string {
   const trimmed = value.trim();
-  const isDoubleQuoted = trimmed.startsWith('"') && trimmed.endsWith('"') && trimmed.length >= 2;
+  const isDoubleQuoted =
+    trimmed.startsWith('"') && trimmed.endsWith('"') && trimmed.length >= 2;
   if (isDoubleQuoted) {
     // Undo the escaping applyFrontmatterFields below always applies when
     // writing a double-quoted scalar, so a value round-trips through an
     // edit correctly even if it contains a literal quote or backslash.
     return trimmed.slice(1, -1).replace(/\\(["\\])/g, "$1");
   }
-  const isSingleQuoted = trimmed.startsWith("'") && trimmed.endsWith("'") && trimmed.length >= 2;
+  const isSingleQuoted =
+    trimmed.startsWith("'") && trimmed.endsWith("'") && trimmed.length >= 2;
   if (isSingleQuoted) return trimmed.slice(1, -1);
   return trimmed;
 }
 
 function parseInlineList(inline: string): string[] {
   if (inline.startsWith("[") && inline.endsWith("]")) {
-    return inline
-      .slice(1, -1)
-      .split(",")
-      .map(stripQuotes)
-      .filter(Boolean);
+    return inline.slice(1, -1).split(",").map(stripQuotes).filter(Boolean);
   }
   const single = stripQuotes(inline);
   return single ? [single] : [];
@@ -69,7 +67,10 @@ const LIST_FIELD_PATTERNS = {
  * array when there's no frontmatter block, or no `key` field in it. Shared
  * by extractAliases and extractFrontmatterTags below, the only two fields
  * this app reads this way outside of the generic Properties panel. */
-function extractListField(source: string, key: keyof typeof LIST_FIELD_PATTERNS): string[] {
+function extractListField(
+  source: string,
+  key: keyof typeof LIST_FIELD_PATTERNS,
+): string[] {
   const block = FRONTMATTER_BLOCK.exec(source);
   if (!block) return [];
 
@@ -228,7 +229,8 @@ function quoteScalar(value: string): string {
 }
 
 function serializeField(field: FrontmatterField): string {
-  if (field.kind === "scalar") return `${field.key}: ${quoteScalar(field.value)}`;
+  if (field.kind === "scalar")
+    return `${field.key}: ${quoteScalar(field.value)}`;
   return `${field.key}: [${field.value.map(quoteScalar).join(", ")}]`;
 }
 

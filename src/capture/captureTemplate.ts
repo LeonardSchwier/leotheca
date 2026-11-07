@@ -33,7 +33,10 @@ function pad(n: number): string {
  * typed text is ever dropped. A URL not consumed by `{{url}}` becomes a
  * trailing `Source: <url>` line, matching the plain capture format.
  */
-export function renderCaptureTemplate(template: string, values: CaptureTemplateValues): string {
+export function renderCaptureTemplate(
+  template: string,
+  values: CaptureTemplateValues,
+): string {
   const when = values.date ?? new Date();
   const dateText = `${when.getFullYear()}-${pad(when.getMonth() + 1)}-${pad(when.getDate())}`;
   const timeText = `${pad(when.getHours())}:${pad(when.getMinutes())}`;
@@ -63,7 +66,8 @@ export function renderCaptureTemplate(template: string, values: CaptureTemplateV
   const lineEnding = rendered.includes("\r\n") ? "\r\n" : "\n";
   rendered = rendered.replace(/(\r?\n)+$/, "");
   if (!usedContent) {
-    rendered = rendered === "" ? body : `${rendered}${lineEnding}${lineEnding}${body}`;
+    rendered =
+      rendered === "" ? body : `${rendered}${lineEnding}${lineEnding}${body}`;
   }
   if (url && !usedUrl) {
     rendered = `${rendered}${lineEnding}${lineEnding}Source: <${url}>`;

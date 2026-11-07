@@ -54,7 +54,7 @@ This is the prose format for every `ROADMAP.md` bullet: what goes on the always-
 
 Not this (the whole thing is one paragraph a reader must fully read to know whether it's relevant):
 
-> `- ✅ **Fix search crash**: The search indexer read every file into memory at once before filtering, so a workspace with more than a few hundred notes would run the process out of memory and crash with no error shown to the user; reproduced on a 500-note test vault with `X: OutOfMemory` in the log; root cause is `buildIndex` in `search/indexer.ts` calling `readAllFiles` instead of the existing streaming `readFilesBatched` helper already used by the file tree; fixed by switching `buildIndex` to `readFilesBatched` with the same 8MB batch cap `fileTreeStore.ts` already uses; considered raising the heap limit instead but rejected because it only delays the crash on a larger vault, not a real fix; added a regression test with a synthetic 500-file fixture, revert-confirmed to fail before the fix; full verification green: tsc, eslint, 2100/2100 vitest, vite build, cargo fmt/clippy/test/check.`
+> `- ✅ **Fix search crash**: The search indexer read every file into memory at once before filtering, so a workspace with more than a few hundred notes would run the process out of memory and crash with no error shown to the user; reproduced on a 500-note test vault with `X: OutOfMemory`in the log; root cause is`buildIndex`in`search/indexer.ts`calling`readAllFiles`instead of the existing streaming`readFilesBatched`helper already used by the file tree; fixed by switching`buildIndex`to`readFilesBatched`with the same 8MB batch cap`fileTreeStore.ts` already uses; considered raising the heap limit instead but rejected because it only delays the crash on a larger vault, not a real fix; added a regression test with a synthetic 500-file fixture, revert-confirmed to fail before the fix; full verification green: tsc, eslint, 2100/2100 vitest, vite build, cargo fmt/clippy/test/check.`
 
 This (a reader sees the failure and fix in one glance; everything else is one click away):
 
@@ -63,7 +63,7 @@ This (a reader sees the failure and fix in one glance; everything else is one cl
 > `  <details>`
 > `  <summary>Root cause, fix, and verification</summary>`
 >
-> `  Reproduced on a 500-note test vault (`OutOfMemory` in the log). Root cause: `buildIndex` in `search/indexer.ts` called `readAllFiles` instead of the existing streaming `readFilesBatched` helper the file tree already uses. Fixed by switching to `readFilesBatched` with the same 8MB batch cap. Considered raising the heap limit instead; rejected -- it only delays the crash on a larger vault, not a real fix. Regression test added with a synthetic 500-file fixture, revert-confirmed to fail before the fix. Full verification green: tsc, eslint, 2100/2100 vitest, vite build, cargo fmt/clippy/test/check.`
+> `  Reproduced on a 500-note test vault (`OutOfMemory`in the log). Root cause:`buildIndex`in`search/indexer.ts`called`readAllFiles`instead of the existing streaming`readFilesBatched`helper the file tree already uses. Fixed by switching to`readFilesBatched` with the same 8MB batch cap. Considered raising the heap limit instead; rejected -- it only delays the crash on a larger vault, not a real fix. Regression test added with a synthetic 500-file fixture, revert-confirmed to fail before the fix. Full verification green: tsc, eslint, 2100/2100 vitest, vite build, cargo fmt/clippy/test/check.`
 >
 > `  </details>`
 

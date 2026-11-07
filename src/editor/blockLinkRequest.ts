@@ -43,7 +43,9 @@ export interface BlockLinkCreateRequest {
   requestId: number;
 }
 
-export const blockLinkCreateRequest = signal<BlockLinkCreateRequest | null>(null);
+export const blockLinkCreateRequest = signal<BlockLinkCreateRequest | null>(
+  null,
+);
 
 let nextCreateRequestId = 1;
 

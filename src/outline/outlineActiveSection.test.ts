@@ -7,7 +7,9 @@ describe("activeHeadingIndex", () => {
     const source = "Intro text.\n\n# First heading\nBody.";
     const headings = scanHeadings(source);
     expect(activeHeadingIndex(headings, 0)).toBeUndefined();
-    expect(activeHeadingIndex(headings, headings[0].sourceFrom - 1)).toBeUndefined();
+    expect(
+      activeHeadingIndex(headings, headings[0].sourceFrom - 1),
+    ).toBeUndefined();
   });
 
   it("returns the heading whose own line contains the cursor", () => {
@@ -46,11 +48,17 @@ describe("breadcrumbChain", () => {
     const headings = scanHeadings(source);
     const androidIndex = headings.findIndex((h) => h.displayText === "Android");
     const chain = breadcrumbChain(headings, androidIndex);
-    expect(chain.map((h) => h.displayText)).toEqual(["Product", "Delivery", "Android"]);
+    expect(chain.map((h) => h.displayText)).toEqual([
+      "Product",
+      "Delivery",
+      "Android",
+    ]);
   });
 
   it("returns just the active heading when it has no heading ancestor", () => {
     const headings = scanHeadings("# Top level\n");
-    expect(breadcrumbChain(headings, 0).map((h) => h.displayText)).toEqual(["Top level"]);
+    expect(breadcrumbChain(headings, 0).map((h) => h.displayText)).toEqual([
+      "Top level",
+    ]);
   });
 });

@@ -53,7 +53,14 @@ describe("loadGlobalConfig", () => {
       theme: "light",
       activeWorkspaceId: "profile-1",
       workspaceProfiles: [
-        { id: "profile-1", name: "Personal", icon: "folder", path: "/vault", token: "content://tree/abc", lastOpenedAt: 100 },
+        {
+          id: "profile-1",
+          name: "Personal",
+          icon: "folder",
+          path: "/vault",
+          token: "content://tree/abc",
+          lastOpenedAt: 100,
+        },
       ],
       lastWorkspacePath: "/vault",
       workspaceToken: "content://tree/abc",
@@ -116,14 +123,20 @@ describe("decodeGlobalConfig", () => {
 
   it("rejects a wrong-typed workspaceToken", () => {
     const { config, corrupt } = decodeGlobalConfig(
-      JSON.stringify({ workspaceToken: 12345, version: 2, workspaceProfiles: [] }),
+      JSON.stringify({
+        workspaceToken: 12345,
+        version: 2,
+        workspaceProfiles: [],
+      }),
     );
     expect(config.workspaceToken).toBeUndefined();
     expect(corrupt).toBe(true);
   });
 
   it("defaults externalFileOpenEnabled to true when absent", () => {
-    const { config, corrupt } = decodeGlobalConfig(JSON.stringify({ theme: "dark" }));
+    const { config, corrupt } = decodeGlobalConfig(
+      JSON.stringify({ theme: "dark" }),
+    );
     expect(config.externalFileOpenEnabled).toBe(true);
     expect(corrupt).toBe(false);
   });
@@ -150,7 +163,14 @@ describe("decodeGlobalConfig", () => {
       theme: "dark",
       activeWorkspaceId: "p1",
       workspaceProfiles: [
-        { id: "p1", name: "Work", icon: "briefcase", path: "/vault", token: "content://x", lastOpenedAt: 500 },
+        {
+          id: "p1",
+          name: "Work",
+          icon: "briefcase",
+          path: "/vault",
+          token: "content://x",
+          lastOpenedAt: 500,
+        },
       ],
       lastWorkspacePath: "/vault",
       workspaceToken: "content://x",
@@ -165,7 +185,9 @@ describe("decodeGlobalConfig", () => {
     const { config } = decodeGlobalConfig(
       JSON.stringify({ theme: "dark", futureField: "kept" }),
     );
-    expect((config as unknown as Record<string, unknown>).futureField).toBe("kept");
+    expect((config as unknown as Record<string, unknown>).futureField).toBe(
+      "kept",
+    );
   });
 
   it("preserves an unknown field inside a recognized profile record", () => {
@@ -173,11 +195,21 @@ describe("decodeGlobalConfig", () => {
       JSON.stringify({
         version: 2,
         workspaceProfiles: [
-          { id: "p1", name: "Work", icon: "folder", path: "/vault", lastOpenedAt: 1, futureProfileField: "kept" },
+          {
+            id: "p1",
+            name: "Work",
+            icon: "folder",
+            path: "/vault",
+            lastOpenedAt: 1,
+            futureProfileField: "kept",
+          },
         ],
       }),
     );
-    expect((config.workspaceProfiles[0] as unknown as Record<string, unknown>).futureProfileField).toBe("kept");
+    expect(
+      (config.workspaceProfiles[0] as unknown as Record<string, unknown>)
+        .futureProfileField,
+    ).toBe("kept");
   });
 
   it("drops a malformed profile record but keeps the other valid ones, marking corrupt", () => {
@@ -185,9 +217,27 @@ describe("decodeGlobalConfig", () => {
       JSON.stringify({
         version: 2,
         workspaceProfiles: [
-          { id: "p1", name: "Work", icon: "folder", path: "/vault", lastOpenedAt: 1 },
-          { id: "", name: "Bad", icon: "folder", path: "/other", lastOpenedAt: 2 },
-          { id: "p3", name: "Personal", icon: "folder", path: "/home", lastOpenedAt: 3 },
+          {
+            id: "p1",
+            name: "Work",
+            icon: "folder",
+            path: "/vault",
+            lastOpenedAt: 1,
+          },
+          {
+            id: "",
+            name: "Bad",
+            icon: "folder",
+            path: "/other",
+            lastOpenedAt: 2,
+          },
+          {
+            id: "p3",
+            name: "Personal",
+            icon: "folder",
+            path: "/home",
+            lastOpenedAt: 3,
+          },
         ],
       }),
     );
@@ -208,20 +258,38 @@ describe("decodeGlobalConfig", () => {
       JSON.stringify({
         version: 2,
         workspaceProfiles: [
-          { id: "dup", name: "First", icon: "folder", path: "/a", lastOpenedAt: 1 },
-          { id: "dup", name: "Second", icon: "folder", path: "/b", lastOpenedAt: 2 },
+          {
+            id: "dup",
+            name: "First",
+            icon: "folder",
+            path: "/a",
+            lastOpenedAt: 1,
+          },
+          {
+            id: "dup",
+            name: "Second",
+            icon: "folder",
+            path: "/b",
+            lastOpenedAt: 2,
+          },
         ],
       }),
     );
     expect(config.workspaceProfiles).toHaveLength(2);
-    expect(config.workspaceProfiles.find((p) => p.id === "dup")?.name).toBe("First");
+    expect(config.workspaceProfiles.find((p) => p.id === "dup")?.name).toBe(
+      "First",
+    );
     expect(corrupt).toBe(false);
   });
 
   describe("legacy migration (section 19)", () => {
     it("migrates a legacy config with a lastWorkspacePath into one profile", () => {
       const { config, corrupt } = decodeGlobalConfig(
-        JSON.stringify({ lastWorkspacePath: "/Users/me/vault", theme: "dark", workspaceToken: "content://x" }),
+        JSON.stringify({
+          lastWorkspacePath: "/Users/me/vault",
+          theme: "dark",
+          workspaceToken: "content://x",
+        }),
       );
       expect(config.workspaceProfiles).toHaveLength(1);
       const [profile] = config.workspaceProfiles;
@@ -235,7 +303,9 @@ describe("decodeGlobalConfig", () => {
     });
 
     it("names a migrated profile 'Workspace' when the path is the Android synthetic root", () => {
-      const { config } = decodeGlobalConfig(JSON.stringify({ lastWorkspacePath: "/workspace" }));
+      const { config } = decodeGlobalConfig(
+        JSON.stringify({ lastWorkspacePath: "/workspace" }),
+      );
       expect(config.workspaceProfiles[0].name).toBe("Workspace");
     });
 
@@ -260,7 +330,15 @@ describe("decodeGlobalConfig", () => {
       const { config } = decodeGlobalConfig(
         JSON.stringify({
           version: 2,
-          workspaceProfiles: [{ id: "p1", name: "Existing", icon: "folder", path: "/vault", lastOpenedAt: 1 }],
+          workspaceProfiles: [
+            {
+              id: "p1",
+              name: "Existing",
+              icon: "folder",
+              path: "/vault",
+              lastOpenedAt: 1,
+            },
+          ],
           activeWorkspaceId: "p1",
           lastWorkspacePath: "/vault",
         }),

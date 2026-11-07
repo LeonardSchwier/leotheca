@@ -56,9 +56,15 @@ export function OutlineRowContent({
         title={heading.displayText || "(Untitled heading)"}
         onClick={onSelect}
       >
-        <span class="outline-text">{heading.displayText || "(Untitled heading)"}</span>
+        <span class="outline-text">
+          {heading.displayText || "(Untitled heading)"}
+        </span>
         {duplicate && (
-          <span class="outline-duplicate-marker" aria-label="Duplicate heading text" title="Duplicate heading text">
+          <span
+            class="outline-duplicate-marker"
+            aria-label="Duplicate heading text"
+            title="Duplicate heading text"
+          >
             ⚠
           </span>
         )}

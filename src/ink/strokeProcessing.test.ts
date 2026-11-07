@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { inkWidthAtPoint, normalizeInkSample, smoothInkPoints } from "./strokeProcessing";
+import {
+  inkWidthAtPoint,
+  normalizeInkSample,
+  smoothInkPoints,
+} from "./strokeProcessing";
 import type { InkPoint } from "./inkDocument";
 
 const points: InkPoint[] = [
@@ -22,7 +26,16 @@ describe("normalizeInkSample", () => {
   });
 
   it("clamps hardware values to Pointer Events ranges", () => {
-    expect(normalizeInkSample({ x: 1, y: 2, pressure: 4, tiltX: -120, tiltY: 130, time: 8 })).toEqual({
+    expect(
+      normalizeInkSample({
+        x: 1,
+        y: 2,
+        pressure: 4,
+        tiltX: -120,
+        tiltY: 130,
+        time: 8,
+      }),
+    ).toEqual({
       x: 1,
       y: 2,
       pressure: 1,
@@ -33,7 +46,14 @@ describe("normalizeInkSample", () => {
   });
 
   it("replaces non-finite samples with stable fallbacks", () => {
-    expect(normalizeInkSample({ x: Number.NaN, y: Infinity, pressure: Number.NaN, time: Infinity })).toEqual({
+    expect(
+      normalizeInkSample({
+        x: Number.NaN,
+        y: Infinity,
+        pressure: Number.NaN,
+        time: Infinity,
+      }),
+    ).toEqual({
       x: 0,
       y: 0,
       pressure: 0.5,
@@ -54,7 +74,11 @@ describe("smoothInkPoints", () => {
   it("adds spline samples between raw points rather than returning a jagged polyline", () => {
     const smoothed = smoothInkPoints(points, 4);
     expect(smoothed.length).toBeGreaterThan(points.length);
-    expect(smoothed.some((point) => point.x > 0 && point.x < 10 && point.y !== point.x)).toBe(true);
+    expect(
+      smoothed.some(
+        (point) => point.x > 0 && point.x < 10 && point.y !== point.x,
+      ),
+    ).toBe(true);
   });
 
   it("keeps pressure and tilt inside physical ranges", () => {
@@ -71,7 +95,9 @@ describe("smoothInkPoints", () => {
   it("keeps interpolated timestamps monotonic", () => {
     const smoothed = smoothInkPoints(points, 5);
     for (let index = 1; index < smoothed.length; index += 1) {
-      expect(smoothed[index].time).toBeGreaterThanOrEqual(smoothed[index - 1].time);
+      expect(smoothed[index].time).toBeGreaterThanOrEqual(
+        smoothed[index - 1].time,
+      );
     }
   });
 
@@ -97,6 +123,8 @@ describe("inkWidthAtPoint", () => {
   });
 
   it("never produces a zero-width mark from an invalid base width", () => {
-    expect(inkWidthAtPoint(0, { pressure: 0, tiltX: 0, tiltY: 0 })).toBeGreaterThan(0);
+    expect(
+      inkWidthAtPoint(0, { pressure: 0, tiltX: 0, tiltY: 0 }),
+    ).toBeGreaterThan(0);
   });
 });

@@ -9,7 +9,10 @@ import {
   workspacePath,
   workspaceProfiles,
 } from "./store";
-import { displayWorkspaceIcon, matchesWorkspaceSearch } from "./workspaceProfiles";
+import {
+  displayWorkspaceIcon,
+  matchesWorkspaceSearch,
+} from "./workspaceProfiles";
 import {
   workspaceAddRequest,
   workspaceManageRequest,
@@ -46,14 +49,17 @@ function reportWorkspaceActionFailure(action: string): void {
  * the active profile can be aborted by unsaved note content; this offers
  * the spec's secondary, explicitly-confirmed "forget without saving"
  * override rather than failing silently or reporting a generic error. */
-export async function forgetWithUnsavedWorkConfirmation(id: string): Promise<void> {
+export async function forgetWithUnsavedWorkConfirmation(
+  id: string,
+): Promise<void> {
   try {
     await forgetWorkspaceProfile(id);
   } catch (error) {
     if (error instanceof WorkspaceForgetUnsavedWorkError) {
       const discard = await confirmAction({
         title: "Forget workspace",
-        message: "This workspace has changes that have not been saved yet. Forget it anyway and lose those changes?",
+        message:
+          "This workspace has changes that have not been saved yet. Forget it anyway and lose those changes?",
         confirmLabel: "Forget anyway",
         danger: true,
       });
@@ -71,7 +77,10 @@ export async function forgetWithUnsavedWorkConfirmation(id: string): Promise<voi
 
 export function WorkspaceSwitcher() {
   const [open, setOpen] = useState(false);
-  const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
+  const [menuPosition, setMenuPosition] = useState<{
+    top: number;
+    left: number;
+  } | null>(null);
   const [query, setQuery] = useState("");
   const [highlighted, setHighlighted] = useState(0);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -85,7 +94,9 @@ export function WorkspaceSwitcher() {
   const manageRequest = workspaceManageRequest.value;
   const profiles = workspaceProfiles.value;
   const active = profiles.find((p) => p.id === activeWorkspaceId.value);
-  const filtered = profiles.filter((profile) => matchesWorkspaceSearch(profile, query));
+  const filtered = profiles.filter((profile) =>
+    matchesWorkspaceSearch(profile, query),
+  );
 
   const setPositionFromTrigger = () => {
     const rect = triggerRef.current?.getBoundingClientRect();
@@ -116,7 +127,9 @@ export function WorkspaceSwitcher() {
   useEffect(() => {
     if (addRequest === previousAddRequest.current) return;
     previousAddRequest.current = addRequest;
-    void addWorkspaceFromPicker().catch(() => reportWorkspaceActionFailure("add"));
+    void addWorkspaceFromPicker().catch(() =>
+      reportWorkspaceActionFailure("add"),
+    );
   }, [addRequest]);
 
   useEffect(() => {
@@ -149,7 +162,8 @@ export function WorkspaceSwitcher() {
   }, [open]);
 
   useEffect(() => {
-    if (highlighted >= filtered.length) setHighlighted(Math.max(0, filtered.length - 1));
+    if (highlighted >= filtered.length)
+      setHighlighted(Math.max(0, filtered.length - 1));
   }, [filtered.length, highlighted]);
 
   const handleActivate = async (id: string) => {
@@ -157,7 +171,8 @@ export function WorkspaceSwitcher() {
     // `activeWorkspaceId` alone isn't proof the workspace is actually open
     // (section 17.2 keeps it pointed at a profile that failed to open), so
     // re-selecting that same row must still retry rather than no-op.
-    const alreadyOpen = id === activeWorkspaceId.value && workspacePath.value !== null;
+    const alreadyOpen =
+      id === activeWorkspaceId.value && workspacePath.value !== null;
     close();
     if (alreadyOpen) return;
     try {
@@ -184,10 +199,14 @@ export function WorkspaceSwitcher() {
       close();
     } else if (event.key === "ArrowDown") {
       event.preventDefault();
-      if (filtered.length) setHighlighted((value) => (value + 1) % filtered.length);
+      if (filtered.length)
+        setHighlighted((value) => (value + 1) % filtered.length);
     } else if (event.key === "ArrowUp") {
       event.preventDefault();
-      if (filtered.length) setHighlighted((value) => (value - 1 + filtered.length) % filtered.length);
+      if (filtered.length)
+        setHighlighted(
+          (value) => (value - 1 + filtered.length) % filtered.length,
+        );
     } else if (event.key === "Enter" && filtered[highlighted]) {
       event.preventDefault();
       void handleActivate(filtered[highlighted].id);
@@ -204,9 +223,15 @@ export function WorkspaceSwitcher() {
         aria-expanded={open}
         onClick={() => (open ? close(false) : openFromTrigger())}
       >
-        <span class="workspace-switcher-icon" aria-hidden="true">{active ? workspaceIconGlyph(active.icon) : "📂"}</span>
-        <span class="workspace-switcher-name">{active ? active.name : "Open workspace"}</span>
-        <span class="workspace-switcher-caret" aria-hidden="true">▾</span>
+        <span class="workspace-switcher-icon" aria-hidden="true">
+          {active ? workspaceIconGlyph(active.icon) : "📂"}
+        </span>
+        <span class="workspace-switcher-name">
+          {active ? active.name : "Open workspace"}
+        </span>
+        <span class="workspace-switcher-caret" aria-hidden="true">
+          ▾
+        </span>
       </button>
       {open && menuPosition && (
         <div
@@ -214,8 +239,13 @@ export function WorkspaceSwitcher() {
           class="workspace-switcher-menu"
           role="dialog"
           aria-label="Workspaces"
-          style={{ top: `${menuPosition.top}px`, left: `${menuPosition.left}px` }}
-          onKeyDown={(event) => handleMenuKeyDown(event as unknown as KeyboardEvent)}
+          style={{
+            top: `${menuPosition.top}px`,
+            left: `${menuPosition.left}px`,
+          }}
+          onKeyDown={(event) =>
+            handleMenuKeyDown(event as unknown as KeyboardEvent)
+          }
         >
           <input
             ref={searchRef}
@@ -224,7 +254,10 @@ export function WorkspaceSwitcher() {
             aria-label="Search workspaces"
             placeholder="Search workspaces"
             value={query}
-            onInput={(event) => { setQuery(event.currentTarget.value); setHighlighted(0); }}
+            onInput={(event) => {
+              setQuery(event.currentTarget.value);
+              setHighlighted(0);
+            }}
           />
           {profiles.length === 0 ? (
             <div class="workspace-switcher-empty">No workspaces yet</div>
@@ -239,7 +272,11 @@ export function WorkspaceSwitcher() {
                   key={profile.id}
                   class={`workspace-switcher-row ${isActive ? "active" : ""} ${index === highlighted ? "highlighted" : ""}`}
                   role="listitem"
-                  aria-label={isActive ? `${profile.name}, current workspace` : profile.name}
+                  aria-label={
+                    isActive
+                      ? `${profile.name}, current workspace`
+                      : profile.name
+                  }
                 >
                   <button
                     class="workspace-switcher-row-button"
@@ -248,16 +285,39 @@ export function WorkspaceSwitcher() {
                     onMouseEnter={() => setHighlighted(index)}
                     onClick={() => void handleActivate(profile.id)}
                   >
-                    <span class="workspace-switcher-icon" aria-hidden="true">{workspaceIconGlyph(profile.icon)}</span>
-                    <span class="workspace-switcher-row-name">{profile.name}<small>{locatorLabel(profile.path, profile.token)}</small></span>
-                    {isActive && <span class="workspace-switcher-check" aria-hidden="true">✓</span>}
+                    <span class="workspace-switcher-icon" aria-hidden="true">
+                      {workspaceIconGlyph(profile.icon)}
+                    </span>
+                    <span class="workspace-switcher-row-name">
+                      {profile.name}
+                      <small>{locatorLabel(profile.path, profile.token)}</small>
+                    </span>
+                    {isActive && (
+                      <span class="workspace-switcher-check" aria-hidden="true">
+                        ✓
+                      </span>
+                    )}
                   </button>
-                  <button class="workspace-switcher-forget" aria-label={`Forget ${profile.name}`} title="Forget" onClick={() => void forgetWithUnsavedWorkConfirmation(profile.id)}>×</button>
+                  <button
+                    class="workspace-switcher-forget"
+                    aria-label={`Forget ${profile.name}`}
+                    title="Forget"
+                    onClick={() =>
+                      void forgetWithUnsavedWorkConfirmation(profile.id)
+                    }
+                  >
+                    ×
+                  </button>
                 </div>
               );
             })}
           </div>
-          <button class="workspace-switcher-add" onClick={() => void handleAdd()}>+ Add workspace</button>
+          <button
+            class="workspace-switcher-add"
+            onClick={() => void handleAdd()}
+          >
+            + Add workspace
+          </button>
         </div>
       )}
     </div>

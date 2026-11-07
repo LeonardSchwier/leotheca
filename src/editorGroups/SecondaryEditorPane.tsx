@@ -106,7 +106,10 @@ export function SecondaryEditorPane({
           <span>
             Couldn't save "{current.name}": {current.saveError}
           </span>
-          <button type="button" onClick={() => void save.retry(session, current.path)}>
+          <button
+            type="button"
+            onClick={() => void save.retry(session, current.path)}
+          >
             Retry
           </button>
         </div>
@@ -119,11 +122,17 @@ export function SecondaryEditorPane({
               onClose(current.path);
             }}
           />
-        ) : current.kind === "canvas" || current.kind === "ink" || current.kind === "pdf" ? (
+        ) : current.kind === "canvas" ||
+          current.kind === "ink" ||
+          current.kind === "pdf" ? (
           <div class="secondary-pane-unsupported">
             <p>
-              {current.kind === "canvas" ? "Canvas" : current.kind === "ink" ? "Ink" : "PDF"} notes
-              aren't supported in the reference group yet.
+              {current.kind === "canvas"
+                ? "Canvas"
+                : current.kind === "ink"
+                  ? "Ink"
+                  : "PDF"}{" "}
+              notes aren't supported in the reference group yet.
             </p>
             <button type="button" onClick={() => onMoveActiveTabHere()}>
               Move to primary group
@@ -174,7 +183,11 @@ export function SecondaryEditorPane({
       ) : (
         <div class="secondary-pane-empty">
           <p>No note open in this group.</p>
-          <button type="button" onClick={onMoveActiveTabHere} disabled={!hasPrimaryActiveTab}>
+          <button
+            type="button"
+            onClick={onMoveActiveTabHere}
+            disabled={!hasPrimaryActiveTab}
+          >
             Move current tab here
           </button>
           <button type="button" onClick={onClosePane}>

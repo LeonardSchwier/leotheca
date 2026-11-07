@@ -113,9 +113,13 @@ interface FolderAccessPlugin {
   listDir(options: { uri: string }): Promise<{ entries: NativeEntry[] }>;
   findMarkdownFiles(options: { uri: string }): Promise<WorkspaceWalkResult>;
   findAllFiles(options: { uri: string }): Promise<{ files: NativeFile[] }>;
-  findAllEntries(options: { uri: string }): Promise<{ entries: NativeAllEntry[] }>;
+  findAllEntries(options: {
+    uri: string;
+  }): Promise<{ entries: NativeAllEntry[] }>;
   readTextFile(options: { uri: string }): Promise<{ content: string }>;
-  readTextFilesBatch(options: { uris: string[] }): Promise<{ contents: (string | null)[] }>;
+  readTextFilesBatch(options: {
+    uris: string[];
+  }): Promise<{ contents: (string | null)[] }>;
   writeTextFile(options: {
     uri?: string;
     parentUri?: string;
@@ -138,9 +142,18 @@ interface FolderAccessPlugin {
     name: string;
     base64Data: string;
   }): Promise<{ uri: string }>;
-  createDir(options: { parentUri: string; name: string }): Promise<{ uri: string }>;
-  createDirNew(options: { parentUri: string; name: string }): Promise<{ uri: string }>;
-  renamePath(options: { uri: string; newName: string }): Promise<{ uri: string }>;
+  createDir(options: {
+    parentUri: string;
+    name: string;
+  }): Promise<{ uri: string }>;
+  createDirNew(options: {
+    parentUri: string;
+    name: string;
+  }): Promise<{ uri: string }>;
+  renamePath(options: {
+    uri: string;
+    newName: string;
+  }): Promise<{ uri: string }>;
   renamePathNoReplace(options: {
     uri: string;
     parentUri: string;
@@ -154,15 +167,22 @@ interface FolderAccessPlugin {
   deletePath(options: { uri: string }): Promise<void>;
   readFileAsDataUrl(options: { uri: string }): Promise<{ dataUrl: string }>;
   // F05: Android share intent bridge
-  getPendingShareData(): Promise<{ data: PendingShareData | null; timestamp: number }>;
+  getPendingShareData(): Promise<{
+    data: PendingShareData | null;
+    timestamp: number;
+  }>;
   hasPendingShareData(): Promise<{ hasData: boolean }>;
   // Android home-screen favorites-list widget: pushes the resolved list of
   // favorited notes for the RemoteViewsService to render, so the native
   // widget never needs to parse bookmarks.json or resolve SAF paths itself.
-  updateFavoritesWidget(options: { entries: FavoritesWidgetEntry[] }): Promise<void>;
+  updateFavoritesWidget(options: {
+    entries: FavoritesWidgetEntry[];
+  }): Promise<void>;
   // Android home-screen recent-notes widget: pushes the resolved list of
   // most-recently-edited notes for the RemoteViewsService to render.
-  updateRecentNotesWidget(options: { entries: RecentNotesWidgetEntry[] }): Promise<void>;
+  updateRecentNotesWidget(options: {
+    entries: RecentNotesWidgetEntry[];
+  }): Promise<void>;
   // Android home-screen "View note" widget: pushes the single user-chosen
   // note's title + resolved SAF path so the provider can render its content.
   setViewNote(options: { path: string; title: string }): Promise<void>;
@@ -172,7 +192,10 @@ const FolderAccess = registerPlugin<FolderAccessPlugin>("FolderAccess");
 
 interface PrintExportPlugin {
   printHtml(options: { html: string; title: string }): Promise<void>;
-  exportHtml(options: { html: string; defaultFileName: string }): Promise<{ saved: boolean }>;
+  exportHtml(options: {
+    html: string;
+    defaultFileName: string;
+  }): Promise<{ saved: boolean }>;
 }
 
 const PrintExport = registerPlugin<PrintExportPlugin>("PrintExport");
@@ -299,10 +322,17 @@ export async function pickWorkspaceFolder(): Promise<{
   pathToUri.clear();
   pathToUri.set(WORKSPACE_ROOT, result.uri);
   walkCache.clear();
-  return { path: WORKSPACE_ROOT, token: result.uri, name: result.name ?? undefined };
+  return {
+    path: WORKSPACE_ROOT,
+    token: result.uri,
+    name: result.name ?? undefined,
+  };
 }
 
-export async function restoreWorkspaceAccess(path: string, token: string | undefined): Promise<void> {
+export async function restoreWorkspaceAccess(
+  path: string,
+  token: string | undefined,
+): Promise<void> {
   if (path === WORKSPACE_ROOT && token) {
     pathToUri.clear();
     pathToUri.set(WORKSPACE_ROOT, token);
@@ -324,7 +354,9 @@ export async function listDir(
 ): Promise<FsEntry[]> {
   void workspaceRoot;
   if (!isWorkspacePath(path)) {
-    throw new Error(`listDir is only supported for workspace paths, got "${path}".`);
+    throw new Error(
+      `listDir is only supported for workspace paths, got "${path}".`,
+    );
   }
   const uri = await resolveUri(path);
   const { entries } = await FolderAccess.listDir({ uri });
@@ -333,7 +365,12 @@ export async function listDir(
     if (entry.name.startsWith(".")) continue;
     const childPath = `${path}/${entry.name}`;
     pathToUri.set(childPath, entry.uri);
-    result.push({ name: entry.name, path: childPath, isDir: entry.isDir, mtime: entry.mtime });
+    result.push({
+      name: entry.name,
+      path: childPath,
+      isDir: entry.isDir,
+      mtime: entry.mtime,
+    });
   }
   return result;
 }
@@ -349,7 +386,9 @@ export async function readTextFile(path: string): Promise<string> {
     directory: Directory.Data,
     encoding: Encoding.UTF8,
   });
-  return typeof result.data === "string" ? result.data : await result.data.text();
+  return typeof result.data === "string"
+    ? result.data
+    : await result.data.text();
 }
 
 /** Reads `path`'s raw bytes, for content that must round-trip byte-for-byte
@@ -375,13 +414,18 @@ export async function readBinaryFile(path: string): Promise<Uint8Array> {
     : new Uint8Array(await result.data.arrayBuffer());
 }
 
-export async function readTextFilesBatch(paths: string[]): Promise<(string | null)[]> {
+export async function readTextFilesBatch(
+  paths: string[],
+): Promise<(string | null)[]> {
   const uris = await Promise.all(paths.map((path) => resolveUri(path)));
   const { contents } = await FolderAccess.readTextFilesBatch({ uris });
   return contents;
 }
 
-export async function writeTextFile(path: string, contents: string): Promise<void> {
+export async function writeTextFile(
+  path: string,
+  contents: string,
+): Promise<void> {
   if (isWorkspacePath(path)) {
     const existingUri = pathToUri.get(path);
     if (existingUri) {
@@ -390,7 +434,11 @@ export async function writeTextFile(path: string, contents: string): Promise<voi
     }
     const parentUri = await ensureDirUri(pathDirname(path));
     const name = pathBasename(path);
-    const created = await FolderAccess.writeTextFile({ parentUri, name, contents });
+    const created = await FolderAccess.writeTextFile({
+      parentUri,
+      name,
+      contents,
+    });
     pathToUri.set(path, created.uri);
     return;
   }
@@ -423,7 +471,10 @@ export function base64ToBytes(base64: string): Uint8Array {
   return bytes;
 }
 
-export async function writeBinaryFile(path: string, data: Uint8Array): Promise<void> {
+export async function writeBinaryFile(
+  path: string,
+  data: Uint8Array,
+): Promise<void> {
   const base64Data = bytesToBase64(data);
   if (isWorkspacePath(path)) {
     const existingUri = pathToUri.get(path);
@@ -433,7 +484,11 @@ export async function writeBinaryFile(path: string, data: Uint8Array): Promise<v
     }
     const parentUri = await ensureDirUri(pathDirname(path));
     const name = pathBasename(path);
-    const created = await FolderAccess.writeBinaryFile({ parentUri, name, base64Data });
+    const created = await FolderAccess.writeBinaryFile({
+      parentUri,
+      name,
+      base64Data,
+    });
     pathToUri.set(path, created.uri);
     return;
   }
@@ -472,9 +527,14 @@ export async function renamePath(from: string, to: string): Promise<void> {
   }
 }
 
-export async function trashPath(workspaceRoot: string, path: string): Promise<void> {
+export async function trashPath(
+  workspaceRoot: string,
+  path: string,
+): Promise<void> {
   if (!path.startsWith(`${workspaceRoot}/`)) {
-    throw new Error(`"${path}" is not inside workspace root "${workspaceRoot}".`);
+    throw new Error(
+      `"${path}" is not inside workspace root "${workspaceRoot}".`,
+    );
   }
   const relativeToWorkspace = path.slice(workspaceRoot.length + 1);
   const segments = relativeToWorkspace.split("/");
@@ -482,7 +542,9 @@ export async function trashPath(workspaceRoot: string, path: string): Promise<vo
   const trashParentPath = [workspaceRoot, ".trash", ...segments].join("/");
   const trashParentUri = await ensureDirUri(trashParentPath);
   const { entries } = await FolderAccess.listDir({ uri: trashParentUri });
-  const finalName = entries.some((e) => e.name === name) ? `${Date.now()}-${name}` : name;
+  const finalName = entries.some((e) => e.name === name)
+    ? `${Date.now()}-${name}`
+    : name;
   const trashTargetPath = `${trashParentPath}/${finalName}`;
   const sourceUri = await resolveUri(path);
   const sourceParentUri = await resolveUri(pathDirname(path));
@@ -647,7 +709,9 @@ export async function findMarkdownFiles(
 ): Promise<FsEntry[]> {
   const cached = getWalkCache(rootPath);
   if (cached?.allFiles) {
-    const markdownFiles = cached.allFiles.filter((f) => f.relativePath.endsWith(".md"));
+    const markdownFiles = cached.allFiles.filter((f) =>
+      f.relativePath.endsWith(".md"),
+    );
     return markdownFiles.map(({ relativePath, uri, mtime, size }) => {
       const path = `${rootPath}/${relativePath}`;
       pathToUri.set(path, uri);
@@ -669,14 +733,18 @@ export async function findMarkdownFiles(
   });
 }
 
-async function walkWorkspaceAllFiles(rootPath: string): Promise<{ files: NativeFile[] }> {
+async function walkWorkspaceAllFiles(
+  rootPath: string,
+): Promise<{ files: NativeFile[] }> {
   const uri = await resolveUri(rootPath);
   return FolderAccess.findAllFiles({ uri });
 }
 
 export async function findAllFiles(
   rootPath: string,
-  deps: { walk: typeof walkWorkspaceAllFiles } = { walk: walkWorkspaceAllFiles },
+  deps: { walk: typeof walkWorkspaceAllFiles } = {
+    walk: walkWorkspaceAllFiles,
+  },
 ): Promise<FsEntry[]> {
   const cached = getWalkCache(rootPath);
   if (cached?.allFiles) {
@@ -695,14 +763,18 @@ export async function findAllFiles(
   });
 }
 
-async function walkWorkspaceAllEntries(rootPath: string): Promise<{ entries: NativeAllEntry[] }> {
+async function walkWorkspaceAllEntries(
+  rootPath: string,
+): Promise<{ entries: NativeAllEntry[] }> {
   const uri = await resolveUri(rootPath);
   return FolderAccess.findAllEntries({ uri });
 }
 
 export async function findAllEntries(
   rootPath: string,
-  deps: { walk: typeof walkWorkspaceAllEntries } = { walk: walkWorkspaceAllEntries },
+  deps: { walk: typeof walkWorkspaceAllEntries } = {
+    walk: walkWorkspaceAllEntries,
+  },
 ): Promise<FsEntry[]> {
   const cached = getWalkCache(rootPath);
   if (cached?.allEntries) {
@@ -736,7 +808,9 @@ export async function getWorkspaceStats(
     markdownFiles,
     WORKSPACE_STATS_READ_CONCURRENCY,
     async (note) => {
-      const contents = await deps.readTextFile(`${rootPath}/${note.relativePath}`);
+      const contents = await deps.readTextFile(
+        `${rootPath}/${note.relativePath}`,
+      );
       totalNoteLines += contents.length === 0 ? 0 : contents.split("\n").length;
     },
   );
@@ -744,28 +818,35 @@ export async function getWorkspaceStats(
     folderCount,
     noteCount: markdownFiles.length,
     imageCount,
-    averageLinesPerNote: markdownFiles.length === 0 ? 0 : totalNoteLines / markdownFiles.length,
+    averageLinesPerNote:
+      markdownFiles.length === 0 ? 0 : totalNoteLines / markdownFiles.length,
     oldestNoteDate: null,
     newestNoteDate: null,
   };
 }
 
-export async function setStatusBarAppearance(isDarkBackground: boolean): Promise<void> {
-  await StatusBar.setStyle({ style: isDarkBackground ? Style.Dark : Style.Light });
+export async function setStatusBarAppearance(
+  isDarkBackground: boolean,
+): Promise<void> {
+  await StatusBar.setStyle({
+    style: isDarkBackground ? Style.Dark : Style.Light,
+  });
 }
 
 export async function getPendingShareData(): Promise<ShareDataResult> {
   try {
     const result = await FolderAccess.getPendingShareData();
     return {
-      data: result.data ? {
-        text: result.data.text ?? "",
-        title: result.data.title ?? null,
-        hasSingleUri: result.data.hasSingleUri ?? false,
-        hasMultipleUris: result.data.hasMultipleUris ?? false,
-        attachments: result.data.attachments ?? undefined
-      } : null,
-      timestamp: result.timestamp ?? 0
+      data: result.data
+        ? {
+            text: result.data.text ?? "",
+            title: result.data.title ?? null,
+            hasSingleUri: result.data.hasSingleUri ?? false,
+            hasMultipleUris: result.data.hasMultipleUris ?? false,
+            attachments: result.data.attachments ?? undefined,
+          }
+        : null,
+      timestamp: result.timestamp ?? 0,
     };
   } catch {
     // If the method doesn't exist (desktop), return no data
@@ -792,7 +873,9 @@ export async function hasPendingShareData(): Promise<HasShareDataResult> {
  * called from a reactive signal effect (bookmarks/store.ts), so a failure
  * here must never surface to a bookmark add/remove/load caller.
  */
-export async function updateFavoritesWidget(entries: FavoritesWidgetEntry[]): Promise<void> {
+export async function updateFavoritesWidget(
+  entries: FavoritesWidgetEntry[],
+): Promise<void> {
   try {
     await FolderAccess.updateFavoritesWidget({ entries });
   } catch {
@@ -807,7 +890,9 @@ export async function updateFavoritesWidget(entries: FavoritesWidgetEntry[]): Pr
  * called from a reactive signal effect (fileTreeStore.ts), so a failure
  * here must never surface to a file-tree caller.
  */
-export async function updateRecentNotesWidget(entries: RecentNotesWidgetEntry[]): Promise<void> {
+export async function updateRecentNotesWidget(
+  entries: RecentNotesWidgetEntry[],
+): Promise<void> {
   try {
     await FolderAccess.updateRecentNotesWidget({ entries });
   } catch {
@@ -822,7 +907,10 @@ export async function updateRecentNotesWidget(entries: RecentNotesWidgetEntry[])
  * updateRecentNotesWidget above: a failure must never surface to the caller
  * (e.g. a note-open handler), because the in-app view is always authoritative.
  */
-export async function setViewNoteWidget(path: string, title: string): Promise<void> {
+export async function setViewNoteWidget(
+  path: string,
+  title: string,
+): Promise<void> {
   try {
     await FolderAccess.setViewNote({ path, title });
   } catch {
@@ -838,8 +926,14 @@ export async function setViewNoteWidget(path: string, title: string): Promise<vo
  * markup. `title` becomes both the print job's name (shown in Android's
  * print queue/notification) and the printed document's `<title>`.
  */
-export async function printNote(title: string, bodyHtml: string): Promise<void> {
-  await PrintExport.printHtml({ html: buildPrintDocument(title, bodyHtml), title });
+export async function printNote(
+  title: string,
+  bodyHtml: string,
+): Promise<void> {
+  await PrintExport.printHtml({
+    html: buildPrintDocument(title, bodyHtml),
+    title,
+  });
 }
 
 /**
@@ -872,7 +966,10 @@ export async function exportNoteHtml(
  * contract parity -- `tauriBridge.ts` re-exports the Desktop function
  * directly rather than dispatching to this one, so this stub is never
  * actually called. */
-export async function takePendingExternalFile(): Promise<{ path: string; content: string } | null> {
+export async function takePendingExternalFile(): Promise<{
+  path: string;
+  content: string;
+} | null> {
   return null;
 }
 

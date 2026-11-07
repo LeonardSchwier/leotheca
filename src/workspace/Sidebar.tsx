@@ -31,7 +31,16 @@ const SEARCH_DEBOUNCE_MS = 200;
 // nothing at all there, even though they showed up fine on desktop.
 function NewNoteIcon() {
   return (
-    <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <svg
+      width="15"
+      height="15"
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.5"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    >
       <path d="M5 2.5h7l3 3v12a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-14a1 1 0 0 1 1-1z" />
       <path d="M12 2.5v3h3" />
       <path d="M10 10v5M7.5 12.5h5" />
@@ -41,7 +50,16 @@ function NewNoteIcon() {
 
 function NewFolderIcon() {
   return (
-    <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <svg
+      width="15"
+      height="15"
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.5"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    >
       <path d="M2.5 5.5a1 1 0 0 1 1-1h4l1.5 2h7a1 1 0 0 1 1 1v8.5a1 1 0 0 1-1 1h-13.5a1 1 0 0 1-1-1v-10.5z" />
       <path d="M10 10.5v4M8 12.5h4" />
     </svg>
@@ -50,7 +68,11 @@ function NewFolderIcon() {
 
 interface SidebarProps {
   rootPath: string;
-  onOpenFile: (path: string, name: string, searchQuery?: string) => void | Promise<void>;
+  onOpenFile: (
+    path: string,
+    name: string,
+    searchQuery?: string,
+  ) => void | Promise<void>;
   /** Flushes any pending debounced autosave for `path` before it moves, so
    * renaming a file whose open tab has unsaved keystrokes doesn't lose
    * them. See the identical need (and fuller explanation) at App.tsx's own
@@ -68,13 +90,23 @@ interface RenamePromptState {
   name: string;
 }
 
-export function Sidebar({ rootPath, onOpenFile, flushPendingAutosave }: SidebarProps) {
-  const [createPrompt, setCreatePrompt] = useState<CreatePromptState | null>(null);
-  const [renamePrompt, setRenamePrompt] = useState<RenamePromptState | null>(null);
+export function Sidebar({
+  rootPath,
+  onOpenFile,
+  flushPendingAutosave,
+}: SidebarProps) {
+  const [createPrompt, setCreatePrompt] = useState<CreatePromptState | null>(
+    null,
+  );
+  const [renamePrompt, setRenamePrompt] = useState<RenamePromptState | null>(
+    null,
+  );
   const renamePreview = useRenamePreview();
   const [expandAllLoading, setExpandAllLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [searchOpenErrorPath, setSearchOpenErrorPath] = useState<string | null>(null);
+  const [searchOpenErrorPath, setSearchOpenErrorPath] = useState<string | null>(
+    null,
+  );
   const searchTimer = useRef<ReturnType<typeof setTimeout>>();
 
   async function handleOpenSearchResult(entry: FsEntry) {
@@ -127,7 +159,10 @@ export function Sidebar({ rootPath, onOpenFile, flushPendingAutosave }: SidebarP
   const handleRename = async (name: string) => {
     if (!renamePrompt) return;
     try {
-      if (!(await renamePreview.confirmRenameWithPreview(renamePrompt.path, name))) return;
+      if (
+        !(await renamePreview.confirmRenameWithPreview(renamePrompt.path, name))
+      )
+        return;
       await flushPendingAutosave(renamePrompt.path);
       const newPath = await renameEntry(renamePrompt.path, name);
       renameOpenTab(renamePrompt.path, newPath, name);
@@ -159,7 +194,10 @@ export function Sidebar({ rootPath, onOpenFile, flushPendingAutosave }: SidebarP
 
   const handleSearchInput = (value: string) => {
     if (searchTimer.current) clearTimeout(searchTimer.current);
-    searchTimer.current = setTimeout(() => runSearch(rootPath, value), SEARCH_DEBOUNCE_MS);
+    searchTimer.current = setTimeout(
+      () => runSearch(rootPath, value),
+      SEARCH_DEBOUNCE_MS,
+    );
   };
 
   return (
@@ -169,7 +207,12 @@ export function Sidebar({ rootPath, onOpenFile, flushPendingAutosave }: SidebarP
           class="icon-button"
           title="New note"
           aria-label="New note"
-          onClick={() => setCreatePrompt({ mode: "note", targetDir: selectedDir.value ?? rootPath })}
+          onClick={() =>
+            setCreatePrompt({
+              mode: "note",
+              targetDir: selectedDir.value ?? rootPath,
+            })
+          }
         >
           <NewNoteIcon />
         </button>
@@ -177,7 +220,12 @@ export function Sidebar({ rootPath, onOpenFile, flushPendingAutosave }: SidebarP
           class="icon-button"
           title="New folder"
           aria-label="New folder"
-          onClick={() => setCreatePrompt({ mode: "folder", targetDir: selectedDir.value ?? rootPath })}
+          onClick={() =>
+            setCreatePrompt({
+              mode: "folder",
+              targetDir: selectedDir.value ?? rootPath,
+            })
+          }
         >
           <NewFolderIcon />
         </button>
@@ -207,7 +255,12 @@ export function Sidebar({ rootPath, onOpenFile, flushPendingAutosave }: SidebarP
           disabled={expandAllLoading}
         >
           {expandAllLoading ? (
-            <span class="expand-all-spinner" title="Expanding all directories...">⏳</span>
+            <span
+              class="expand-all-spinner"
+              title="Expanding all directories..."
+            >
+              ⏳
+            </span>
           ) : (
             "▾▸"
           )}
@@ -271,19 +324,31 @@ export function Sidebar({ rootPath, onOpenFile, flushPendingAutosave }: SidebarP
           </button>
         )}
       </div>
-      {searchInProgress.value && <p class="search-progress" role="status">Searching notes…</p>}
+      {searchInProgress.value && (
+        <p class="search-progress" role="status">
+          Searching notes…
+        </p>
+      )}
       {searchResults.value ? (
         <ul class="search-results">
-          {searchResults.value.length === 0 && <li class="empty-hint">No matches.</li>}
+          {searchResults.value.length === 0 && (
+            <li class="empty-hint">No matches.</li>
+          )}
           {searchResults.value.map((entry) => (
             <li key={entry.path}>
-              <button class="file-tree-item" onClick={() => void handleOpenSearchResult(entry)}>
+              <button
+                class="file-tree-item"
+                onClick={() => void handleOpenSearchResult(entry)}
+              >
                 {entry.name}
-                <span class="search-result-path">{entry.path.replace(rootPath, "")}</span>
+                <span class="search-result-path">
+                  {entry.path.replace(rootPath, "")}
+                </span>
               </button>
               {searchOpenErrorPath === entry.path && (
                 <p class="file-tree-open-error" role="alert">
-                  Couldn't open "{entry.name}" — it may have been moved, renamed, or deleted.
+                  Couldn't open "{entry.name}": it may have been moved, renamed,
+                  or deleted.
                 </p>
               )}
             </li>
@@ -295,14 +360,20 @@ export function Sidebar({ rootPath, onOpenFile, flushPendingAutosave }: SidebarP
       <FileContextMenu
         rootPath={rootPath}
         onNewNote={(dir) => setCreatePrompt({ mode: "note", targetDir: dir })}
-        onNewFolder={(dir) => setCreatePrompt({ mode: "folder", targetDir: dir })}
-        onRename={(entry) => setRenamePrompt({ path: entry.path, name: entry.name })}
+        onNewFolder={(dir) =>
+          setCreatePrompt({ mode: "folder", targetDir: dir })
+        }
+        onRename={(entry) =>
+          setRenamePrompt({ path: entry.path, name: entry.name })
+        }
         onDelete={handleDelete}
       />
       {createPrompt && (
         <NamePrompt
           title={createPrompt.mode === "note" ? "New note" : "New folder"}
-          placeholder={createPrompt.mode === "note" ? "note-name" : "folder-name"}
+          placeholder={
+            createPrompt.mode === "note" ? "note-name" : "folder-name"
+          }
           error={error}
           onSubmit={handleCreate}
           onCancel={() => {

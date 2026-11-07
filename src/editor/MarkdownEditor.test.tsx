@@ -5,9 +5,17 @@ import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { undo } from "@codemirror/commands";
 import { CompletionContext } from "@codemirror/autocomplete";
-import { MarkdownEditor, blockLinkCompletions, headingLinkCompletions, wikilinkCompletions } from "./MarkdownEditor";
+import {
+  MarkdownEditor,
+  blockLinkCompletions,
+  headingLinkCompletions,
+  wikilinkCompletions,
+} from "./MarkdownEditor";
 import { linkIndex } from "../linking/store";
-import { __resetDocumentViewStateForTests, saveDocumentViewState } from "../editorGroups/documentViewState";
+import {
+  __resetDocumentViewStateForTests,
+  saveDocumentViewState,
+} from "../editorGroups/documentViewState";
 
 const { writeWorkspaceBinaryFile, readTextFile } = vi.hoisted(() => ({
   writeWorkspaceBinaryFile: vi.fn<
@@ -186,35 +194,48 @@ describe("headingLinkCompletions", () => {
   it("returns null when there is no # after [[", async () => {
     setNotes(["Alpha"]);
     const doc = "see [[Alp";
-    const result = await headingLinkCompletions("/vault/current.md")(contextAt(doc, doc.length));
+    const result = await headingLinkCompletions("/vault/current.md")(
+      contextAt(doc, doc.length),
+    );
     expect(result).toBeNull();
   });
 
   it("returns null for a block-reference fragment ([[Note#^), routed to blockLinkCompletions instead", async () => {
     setNotes(["Alpha"]);
     const doc = "see [[Alpha#^";
-    const result = await headingLinkCompletions("/vault/current.md")(contextAt(doc, doc.length));
+    const result = await headingLinkCompletions("/vault/current.md")(
+      contextAt(doc, doc.length),
+    );
     expect(result).toBeNull();
     expect(readTextFile).not.toHaveBeenCalled();
   });
 
   it("suggests the current note's own headings for a same-note [[#", async () => {
     const doc = "# Intro\n\n## Setup\n\nsee [[#";
-    const result = await headingLinkCompletions("/vault/current.md")(contextAt(doc, doc.length));
+    const result = await headingLinkCompletions("/vault/current.md")(
+      contextAt(doc, doc.length),
+    );
     expect(result).not.toBeNull();
-    expect(result!.options.map((o) => o.label).sort()).toEqual(["Intro", "Setup"]);
+    expect(result!.options.map((o) => o.label).sort()).toEqual([
+      "Intro",
+      "Setup",
+    ]);
     expect(readTextFile).not.toHaveBeenCalled();
   });
 
   it("filters same-note headings by the partial text already typed", async () => {
     const doc = "# Intro\n\n## Setup\n\nsee [[#se";
-    const result = await headingLinkCompletions("/vault/current.md")(contextAt(doc, doc.length));
+    const result = await headingLinkCompletions("/vault/current.md")(
+      contextAt(doc, doc.length),
+    );
     expect(result!.options.map((o) => o.label)).toEqual(["Setup"]);
   });
 
   it("applies the heading's display text and closing ]] when a same-note suggestion is accepted", async () => {
     const doc = "# Intro\n\nsee [[#";
-    const result = await headingLinkCompletions("/vault/current.md")(contextAt(doc, doc.length));
+    const result = await headingLinkCompletions("/vault/current.md")(
+      contextAt(doc, doc.length),
+    );
     expect(result!.options[0].apply).toBe("Intro]]");
     expect(result!.from).toBe(doc.length);
   });
@@ -223,7 +244,9 @@ describe("headingLinkCompletions", () => {
     setNotes(["Alpha"]);
     readTextFile.mockResolvedValueOnce("# Foo\n\n## Bar");
     const doc = "see [[Alpha#";
-    const result = await headingLinkCompletions("/vault/current.md")(contextAt(doc, doc.length));
+    const result = await headingLinkCompletions("/vault/current.md")(
+      contextAt(doc, doc.length),
+    );
     expect(readTextFile).toHaveBeenCalledWith("/workspace/Alpha.md");
     expect(result!.options.map((o) => o.label).sort()).toEqual(["Bar", "Foo"]);
   });
@@ -231,7 +254,9 @@ describe("headingLinkCompletions", () => {
   it("uses the live in-memory document, not a file read, when the note portion names the currently open note", async () => {
     setNotes(["Alpha"]);
     const doc = "# Foo\n\nsee [[Alpha#";
-    const result = await headingLinkCompletions("/workspace/Alpha.md")(contextAt(doc, doc.length));
+    const result = await headingLinkCompletions("/workspace/Alpha.md")(
+      contextAt(doc, doc.length),
+    );
     expect(readTextFile).not.toHaveBeenCalled();
     expect(result!.options.map((o) => o.label)).toEqual(["Foo"]);
   });
@@ -239,7 +264,9 @@ describe("headingLinkCompletions", () => {
   it("returns null when the note portion does not resolve to any note", async () => {
     setNotes(["Alpha"]);
     const doc = "see [[Nope#";
-    const result = await headingLinkCompletions("/vault/current.md")(contextAt(doc, doc.length));
+    const result = await headingLinkCompletions("/vault/current.md")(
+      contextAt(doc, doc.length),
+    );
     expect(result).toBeNull();
   });
 
@@ -247,33 +274,44 @@ describe("headingLinkCompletions", () => {
     setNotes(["Alpha"]);
     readTextFile.mockRejectedValueOnce(new Error("boom"));
     const doc = "see [[Alpha#";
-    const result = await headingLinkCompletions("/vault/current.md")(contextAt(doc, doc.length));
+    const result = await headingLinkCompletions("/vault/current.md")(
+      contextAt(doc, doc.length),
+    );
     expect(result).toBeNull();
   });
 
   it("marks every occurrence of a duplicate heading name in its detail text", async () => {
     const doc = "# Setup\n\n# Setup\n\nsee [[#";
-    const result = await headingLinkCompletions("/vault/current.md")(contextAt(doc, doc.length));
+    const result = await headingLinkCompletions("/vault/current.md")(
+      contextAt(doc, doc.length),
+    );
     expect(result!.options).toHaveLength(2);
-    for (const option of result!.options) expect(option.detail).toContain("duplicate");
+    for (const option of result!.options)
+      expect(option.detail).toContain("duplicate");
   });
 
   it("does not mark a unique heading name as a duplicate", async () => {
     const doc = "# Intro\n\nsee [[#";
-    const result = await headingLinkCompletions("/vault/current.md")(contextAt(doc, doc.length));
+    const result = await headingLinkCompletions("/vault/current.md")(
+      contextAt(doc, doc.length),
+    );
     expect(result!.options[0].detail).not.toContain("duplicate");
   });
 
   it("escapes a heading whose own text contains a fragment-delimiter character", async () => {
     const doc = "# Issue #12\n\nsee [[#";
-    const result = await headingLinkCompletions("/vault/current.md")(contextAt(doc, doc.length));
+    const result = await headingLinkCompletions("/vault/current.md")(
+      contextAt(doc, doc.length),
+    );
     expect(result!.options[0].label).toBe("Issue #12");
     expect(result!.options[0].apply).toBe("Issue \\#12]]");
   });
 
   it("returns null when no heading exists at all", async () => {
     const doc = "Just a paragraph.\n\nsee [[#";
-    const result = await headingLinkCompletions("/vault/current.md")(contextAt(doc, doc.length));
+    const result = await headingLinkCompletions("/vault/current.md")(
+      contextAt(doc, doc.length),
+    );
     expect(result).toBeNull();
   });
 });
@@ -286,42 +324,57 @@ describe("blockLinkCompletions", () => {
   it("returns null when there is no #^ after [[", async () => {
     setNotes(["Alpha"]);
     const doc = "see [[Alp";
-    const result = await blockLinkCompletions("/vault/current.md")(contextAt(doc, doc.length));
+    const result = await blockLinkCompletions("/vault/current.md")(
+      contextAt(doc, doc.length),
+    );
     expect(result).toBeNull();
   });
 
   it("returns null for a plain heading fragment ([[Note#), routed to headingLinkCompletions instead", async () => {
     setNotes(["Alpha"]);
     const doc = "see [[Alpha#";
-    const result = await blockLinkCompletions("/vault/current.md")(contextAt(doc, doc.length));
+    const result = await blockLinkCompletions("/vault/current.md")(
+      contextAt(doc, doc.length),
+    );
     expect(result).toBeNull();
     expect(readTextFile).not.toHaveBeenCalled();
   });
 
   it("suggests the current note's own block ids for a same-note [[#^", async () => {
     const doc = "First. ^first-id\n\nSecond. ^second-id\n\nsee [[#^";
-    const result = await blockLinkCompletions("/vault/current.md")(contextAt(doc, doc.length));
+    const result = await blockLinkCompletions("/vault/current.md")(
+      contextAt(doc, doc.length),
+    );
     expect(result).not.toBeNull();
-    expect(result!.options.map((o) => o.label).sort()).toEqual(["first-id", "second-id"]);
+    expect(result!.options.map((o) => o.label).sort()).toEqual([
+      "first-id",
+      "second-id",
+    ]);
     expect(readTextFile).not.toHaveBeenCalled();
   });
 
   it("filters same-note block ids by the partial text already typed", async () => {
     const doc = "First. ^first-id\n\nSecond. ^second-id\n\nsee [[#^first";
-    const result = await blockLinkCompletions("/vault/current.md")(contextAt(doc, doc.length));
+    const result = await blockLinkCompletions("/vault/current.md")(
+      contextAt(doc, doc.length),
+    );
     expect(result!.options.map((o) => o.label)).toEqual(["first-id"]);
   });
 
   it("applies the block id and closing ]] when a same-note suggestion is accepted", async () => {
     const doc = "First. ^first-id\n\nsee [[#^";
-    const result = await blockLinkCompletions("/vault/current.md")(contextAt(doc, doc.length));
+    const result = await blockLinkCompletions("/vault/current.md")(
+      contextAt(doc, doc.length),
+    );
     expect(result!.options[0].apply).toBe("first-id]]");
     expect(result!.from).toBe(doc.length);
   });
 
   it("includes a content preview and line number in the option's detail", async () => {
     const doc = "The decision is final. ^decision\n\nsee [[#^";
-    const result = await blockLinkCompletions("/vault/current.md")(contextAt(doc, doc.length));
+    const result = await blockLinkCompletions("/vault/current.md")(
+      contextAt(doc, doc.length),
+    );
     expect(result!.options[0].detail).toContain("The decision is final.");
     expect(result!.options[0].detail).toContain("line 1");
   });
@@ -330,15 +383,22 @@ describe("blockLinkCompletions", () => {
     setNotes(["Alpha"]);
     readTextFile.mockResolvedValueOnce("Foo. ^foo-id\n\nBar. ^bar-id");
     const doc = "see [[Alpha#^";
-    const result = await blockLinkCompletions("/vault/current.md")(contextAt(doc, doc.length));
+    const result = await blockLinkCompletions("/vault/current.md")(
+      contextAt(doc, doc.length),
+    );
     expect(readTextFile).toHaveBeenCalledWith("/workspace/Alpha.md");
-    expect(result!.options.map((o) => o.label).sort()).toEqual(["bar-id", "foo-id"]);
+    expect(result!.options.map((o) => o.label).sort()).toEqual([
+      "bar-id",
+      "foo-id",
+    ]);
   });
 
   it("uses the live in-memory document, not a file read, when the note portion names the currently open note", async () => {
     setNotes(["Alpha"]);
     const doc = "Foo. ^foo-id\n\nsee [[Alpha#^";
-    const result = await blockLinkCompletions("/workspace/Alpha.md")(contextAt(doc, doc.length));
+    const result = await blockLinkCompletions("/workspace/Alpha.md")(
+      contextAt(doc, doc.length),
+    );
     expect(readTextFile).not.toHaveBeenCalled();
     expect(result!.options.map((o) => o.label)).toEqual(["foo-id"]);
   });
@@ -346,7 +406,9 @@ describe("blockLinkCompletions", () => {
   it("returns null when the note portion does not resolve to any note", async () => {
     setNotes(["Alpha"]);
     const doc = "see [[Nope#^";
-    const result = await blockLinkCompletions("/vault/current.md")(contextAt(doc, doc.length));
+    const result = await blockLinkCompletions("/vault/current.md")(
+      contextAt(doc, doc.length),
+    );
     expect(result).toBeNull();
   });
 
@@ -354,26 +416,35 @@ describe("blockLinkCompletions", () => {
     setNotes(["Alpha"]);
     readTextFile.mockRejectedValueOnce(new Error("boom"));
     const doc = "see [[Alpha#^";
-    const result = await blockLinkCompletions("/vault/current.md")(contextAt(doc, doc.length));
+    const result = await blockLinkCompletions("/vault/current.md")(
+      contextAt(doc, doc.length),
+    );
     expect(result).toBeNull();
   });
 
   it("marks every occurrence of a duplicate block id in its detail text", async () => {
     const doc = "One. ^dup\n\nTwo. ^dup\n\nsee [[#^";
-    const result = await blockLinkCompletions("/vault/current.md")(contextAt(doc, doc.length));
+    const result = await blockLinkCompletions("/vault/current.md")(
+      contextAt(doc, doc.length),
+    );
     expect(result!.options).toHaveLength(2);
-    for (const option of result!.options) expect(option.detail).toContain("duplicate");
+    for (const option of result!.options)
+      expect(option.detail).toContain("duplicate");
   });
 
   it("does not mark a unique block id as a duplicate", async () => {
     const doc = "First. ^first-id\n\nsee [[#^";
-    const result = await blockLinkCompletions("/vault/current.md")(contextAt(doc, doc.length));
+    const result = await blockLinkCompletions("/vault/current.md")(
+      contextAt(doc, doc.length),
+    );
     expect(result!.options[0].detail).not.toContain("duplicate");
   });
 
   it("returns null when no block id exists at all", async () => {
     const doc = "Just a paragraph.\n\nsee [[#^";
-    const result = await blockLinkCompletions("/vault/current.md")(contextAt(doc, doc.length));
+    const result = await blockLinkCompletions("/vault/current.md")(
+      contextAt(doc, doc.length),
+    );
     expect(result).toBeNull();
   });
 });
@@ -381,22 +452,38 @@ describe("blockLinkCompletions", () => {
 describe("MarkdownEditor: reusing the editor view across a file switch", () => {
   it("shows the newly opened file's content when path and value change together", () => {
     const { container, rerender } = render(
-      <MarkdownEditor path="/vault/a.md" value="first file" {...baseEditorProps()} />,
+      <MarkdownEditor
+        path="/vault/a.md"
+        value="first file"
+        {...baseEditorProps()}
+      />,
     );
     expect(editorView(container).state.doc.toString()).toBe("first file");
 
     rerender(
-      <MarkdownEditor path="/vault/b.md" value="second file" {...baseEditorProps()} />,
+      <MarkdownEditor
+        path="/vault/b.md"
+        value="second file"
+        {...baseEditorProps()}
+      />,
     );
     expect(editorView(container).state.doc.toString()).toBe("second file");
   });
 
   it("does not let undo reach back into the previous file's content", () => {
     const { container, rerender } = render(
-      <MarkdownEditor path="/vault/a.md" value="first file" {...baseEditorProps()} />,
+      <MarkdownEditor
+        path="/vault/a.md"
+        value="first file"
+        {...baseEditorProps()}
+      />,
     );
     rerender(
-      <MarkdownEditor path="/vault/b.md" value="second file" {...baseEditorProps()} />,
+      <MarkdownEditor
+        path="/vault/b.md"
+        value="second file"
+        {...baseEditorProps()}
+      />,
     );
     const view = editorView(container);
 
@@ -411,10 +498,18 @@ describe("MarkdownEditor: reusing the editor view across a file switch", () => {
   it("rebuilds the paste-attachment extension for the newly opened file, not the previous one", async () => {
     writeWorkspaceBinaryFile.mockClear();
     const { container, rerender } = render(
-      <MarkdownEditor path="/vault/folderA/a.md" value="" {...baseEditorProps()} />,
+      <MarkdownEditor
+        path="/vault/folderA/a.md"
+        value=""
+        {...baseEditorProps()}
+      />,
     );
     rerender(
-      <MarkdownEditor path="/vault/folderB/b.md" value="" {...baseEditorProps()} />,
+      <MarkdownEditor
+        path="/vault/folderB/b.md"
+        value=""
+        {...baseEditorProps()}
+      />,
     );
     const view = editorView(container);
 
@@ -436,7 +531,12 @@ describe("MarkdownEditor: reusing the editor view across a file switch", () => {
 describe("MarkdownEditor: reveal", () => {
   it("moves the selection to the requested range and does not affect undo history", () => {
     const { container, rerender } = render(
-      <MarkdownEditor path="/vault/a.md" value="one two three" {...baseEditorProps()} reveal={null} />,
+      <MarkdownEditor
+        path="/vault/a.md"
+        value="one two three"
+        {...baseEditorProps()}
+        reveal={null}
+      />,
     );
     rerender(
       <MarkdownEditor
@@ -480,7 +580,12 @@ describe("MarkdownEditor: reveal", () => {
 
   it("clamps an out-of-range reveal to the document's actual length", () => {
     const { container, rerender } = render(
-      <MarkdownEditor path="/vault/a.md" value="short" {...baseEditorProps()} reveal={null} />,
+      <MarkdownEditor
+        path="/vault/a.md"
+        value="short"
+        {...baseEditorProps()}
+        reveal={null}
+      />,
     );
     rerender(
       <MarkdownEditor
@@ -518,12 +623,19 @@ describe("MarkdownEditor: insertRequest (F06 Phase 3's insert-heading-link actio
         insertRequest={{ text: "[[#Heading]]", requestId: 1 }}
       />,
     );
-    expect(editorView(container).state.doc.toString()).toBe("one [[#Heading]] three");
+    expect(editorView(container).state.doc.toString()).toBe(
+      "one [[#Heading]] three",
+    );
   });
 
   it("places the cursor right after the inserted text", () => {
     const { container, rerender } = render(
-      <MarkdownEditor path="/vault/a.md" value="" {...baseEditorProps()} insertRequest={null} />,
+      <MarkdownEditor
+        path="/vault/a.md"
+        value=""
+        {...baseEditorProps()}
+        insertRequest={null}
+      />,
     );
     rerender(
       <MarkdownEditor
@@ -540,7 +652,12 @@ describe("MarkdownEditor: insertRequest (F06 Phase 3's insert-heading-link actio
 
   it("is undo-tracked like normal typed input, unlike reveal", () => {
     const { container, rerender } = render(
-      <MarkdownEditor path="/vault/a.md" value="one two three" {...baseEditorProps()} insertRequest={null} />,
+      <MarkdownEditor
+        path="/vault/a.md"
+        value="one two three"
+        {...baseEditorProps()}
+        insertRequest={null}
+      />,
     );
     rerender(
       <MarkdownEditor
@@ -633,7 +750,9 @@ describe("MarkdownEditor: blockLinkCopyRequest (F04 Phase 5d's Copy block link a
     const finalView = editorView(container);
     const doc = finalView.state.doc.toString();
     expect(doc).toMatch(/Second paragraph, no marker yet\. \^b-[a-f0-9]{8}$/);
-    expect(doc.startsWith("First paragraph.\n\nSecond paragraph, no marker yet.")).toBe(true);
+    expect(
+      doc.startsWith("First paragraph.\n\nSecond paragraph, no marker yet."),
+    ).toBe(true);
     expect(writeText).toHaveBeenCalledTimes(1);
     const [linkText] = writeText.mock.calls[0] as [string];
     const insertedId = doc.slice(doc.lastIndexOf("^") + 1);
@@ -754,7 +873,9 @@ describe("MarkdownEditor: blockLinkCreateRequest (F04 Phase 5e3's Create block l
     const finalView = editorView(container);
     const doc = finalView.state.doc.toString();
     expect(doc).toMatch(/Second paragraph, no marker yet\. \^b-[a-f0-9]{8}$/);
-    expect(doc.startsWith("First paragraph.\n\nSecond paragraph, no marker yet.")).toBe(true);
+    expect(
+      doc.startsWith("First paragraph.\n\nSecond paragraph, no marker yet."),
+    ).toBe(true);
     expect(writeText).not.toHaveBeenCalled();
     expect(finalView.state.selection.main.head).toBe(cursorPos);
   });
@@ -935,7 +1056,10 @@ describe("MarkdownEditor: onCursorChange", () => {
     );
     const view = editorView(container);
     onCursorChange.mockClear();
-    view.dispatch({ changes: { from: 5, insert: "!" }, selection: { anchor: 6 } });
+    view.dispatch({
+      changes: { from: 5, insert: "!" },
+      selection: { anchor: 6 },
+    });
     expect(onCursorChange).toHaveBeenCalledWith(6);
   });
 
@@ -976,7 +1100,6 @@ describe("MarkdownEditor: onCursorChange", () => {
     );
     expect(onCursorChange).toHaveBeenCalledWith(0);
   });
-
 });
 
 describe("MarkdownEditor: RTL text direction", () => {
@@ -986,7 +1109,11 @@ describe("MarkdownEditor: RTL text direction", () => {
 
   it("applies direction: rtl to a Hebrew line and leaves an English line unstyled", () => {
     const { container } = render(
-      <MarkdownEditor path="/vault/a.md" value={"Hello world\nשלום עולם"} {...baseEditorProps()} />,
+      <MarkdownEditor
+        path="/vault/a.md"
+        value={"Hello world\nשלום עולם"}
+        {...baseEditorProps()}
+      />,
     );
     const [line1, line2] = cmLines(container);
     expect(line1.style.direction).toBe("");
@@ -996,7 +1123,11 @@ describe("MarkdownEditor: RTL text direction", () => {
 
   it("applies direction: rtl to an Arabic Markdown heading line", () => {
     const { container } = render(
-      <MarkdownEditor path="/vault/a.md" value="# مرحبا بالعالم" {...baseEditorProps()} />,
+      <MarkdownEditor
+        path="/vault/a.md"
+        value="# مرحبا بالعالم"
+        {...baseEditorProps()}
+      />,
     );
     const [line1] = cmLines(container);
     expect(line1.style.direction).toBe("rtl");
@@ -1004,7 +1135,11 @@ describe("MarkdownEditor: RTL text direction", () => {
 
   it("re-evaluates direction per line independently in a mixed-direction note", () => {
     const { container } = render(
-      <MarkdownEditor path="/vault/a.md" value={"שלום\nHello\nעולם"} {...baseEditorProps()} />,
+      <MarkdownEditor
+        path="/vault/a.md"
+        value={"שלום\nHello\nעולם"}
+        {...baseEditorProps()}
+      />,
     );
     const [line1, line2, line3] = cmLines(container);
     expect(line1.style.direction).toBe("rtl");
@@ -1014,7 +1149,11 @@ describe("MarkdownEditor: RTL text direction", () => {
 
   it("keeps the editor perLineTextDirection facet enabled", () => {
     const { container } = render(
-      <MarkdownEditor path="/vault/a.md" value="Hello" {...baseEditorProps()} />,
+      <MarkdownEditor
+        path="/vault/a.md"
+        value="Hello"
+        {...baseEditorProps()}
+      />,
     );
     const view = editorView(container);
     expect(view.state.facet(EditorView.perLineTextDirection)).toBe(true);
@@ -1024,27 +1163,59 @@ describe("MarkdownEditor: RTL text direction", () => {
 describe("MarkdownEditor: remembers cursor position across a file switch (F07 Phase 3 follow-up)", () => {
   it("restores the exact cursor position when switching back to a file with unchanged content", () => {
     const { container, rerender } = render(
-      <MarkdownEditor path="/vault/a.md" value="hello world" {...baseEditorProps()} />,
+      <MarkdownEditor
+        path="/vault/a.md"
+        value="hello world"
+        {...baseEditorProps()}
+      />,
     );
     const view = editorView(container);
     view.dispatch({ selection: { anchor: 5, head: 5 } });
 
-    rerender(<MarkdownEditor path="/vault/b.md" value="second file" {...baseEditorProps()} />);
+    rerender(
+      <MarkdownEditor
+        path="/vault/b.md"
+        value="second file"
+        {...baseEditorProps()}
+      />,
+    );
     expect(editorView(container).state.selection.main.head).toBe(0); // b.md never had a cursor cached
 
-    rerender(<MarkdownEditor path="/vault/a.md" value="hello world" {...baseEditorProps()} />);
+    rerender(
+      <MarkdownEditor
+        path="/vault/a.md"
+        value="hello world"
+        {...baseEditorProps()}
+      />,
+    );
     expect(editorView(container).state.selection.main.head).toBe(5);
     expect(editorView(container).state.selection.main.anchor).toBe(5);
   });
 
   it("restores a non-empty selection range, not just a collapsed cursor", () => {
     const { container, rerender } = render(
-      <MarkdownEditor path="/vault/a.md" value="hello world" {...baseEditorProps()} />,
+      <MarkdownEditor
+        path="/vault/a.md"
+        value="hello world"
+        {...baseEditorProps()}
+      />,
     );
     editorView(container).dispatch({ selection: { anchor: 0, head: 5 } }); // selects "hello"
 
-    rerender(<MarkdownEditor path="/vault/b.md" value="other" {...baseEditorProps()} />);
-    rerender(<MarkdownEditor path="/vault/a.md" value="hello world" {...baseEditorProps()} />);
+    rerender(
+      <MarkdownEditor
+        path="/vault/b.md"
+        value="other"
+        {...baseEditorProps()}
+      />,
+    );
+    rerender(
+      <MarkdownEditor
+        path="/vault/a.md"
+        value="hello world"
+        {...baseEditorProps()}
+      />,
+    );
 
     const restored = editorView(container).state.selection.main;
     expect(restored.anchor).toBe(0);
@@ -1053,22 +1224,47 @@ describe("MarkdownEditor: remembers cursor position across a file switch (F07 Ph
 
   it("ignores a cached position when the content length has changed since (stale guard)", () => {
     const { container, rerender } = render(
-      <MarkdownEditor path="/vault/a.md" value="hello world" {...baseEditorProps()} />,
+      <MarkdownEditor
+        path="/vault/a.md"
+        value="hello world"
+        {...baseEditorProps()}
+      />,
     );
     editorView(container).dispatch({ selection: { anchor: 8, head: 8 } });
 
-    rerender(<MarkdownEditor path="/vault/b.md" value="other" {...baseEditorProps()} />);
+    rerender(
+      <MarkdownEditor
+        path="/vault/b.md"
+        value="other"
+        {...baseEditorProps()}
+      />,
+    );
     // a.md's content changed length since it was last shown (e.g. edited elsewhere, or reloaded).
-    rerender(<MarkdownEditor path="/vault/a.md" value="hello world, edited" {...baseEditorProps()} />);
+    rerender(
+      <MarkdownEditor
+        path="/vault/a.md"
+        value="hello world, edited"
+        {...baseEditorProps()}
+      />,
+    );
 
     expect(editorView(container).state.selection.main.head).toBe(0); // falls back to the default, not an out-of-place restore
   });
 
   it("restores a cursor position on initial mount when a prior instance already cached one for this exact path/content", () => {
-    saveDocumentViewState("/vault/a.md", { anchor: 3, head: 3, scrollTop: 0, docLength: 11 });
+    saveDocumentViewState("/vault/a.md", {
+      anchor: 3,
+      head: 3,
+      scrollTop: 0,
+      docLength: 11,
+    });
 
     const { container } = render(
-      <MarkdownEditor path="/vault/a.md" value="hello world" {...baseEditorProps()} />,
+      <MarkdownEditor
+        path="/vault/a.md"
+        value="hello world"
+        {...baseEditorProps()}
+      />,
     );
 
     expect(editorView(container).state.selection.main.head).toBe(3);
@@ -1076,10 +1272,26 @@ describe("MarkdownEditor: remembers cursor position across a file switch (F07 Ph
 
   it("does not let undo history preservation regress: the fresh-history-per-file guarantee still holds", () => {
     const { container, rerender } = render(
-      <MarkdownEditor path="/vault/a.md" value="first file" {...baseEditorProps()} />,
+      <MarkdownEditor
+        path="/vault/a.md"
+        value="first file"
+        {...baseEditorProps()}
+      />,
     );
-    rerender(<MarkdownEditor path="/vault/b.md" value="second file" {...baseEditorProps()} />);
-    rerender(<MarkdownEditor path="/vault/a.md" value="first file" {...baseEditorProps()} />);
+    rerender(
+      <MarkdownEditor
+        path="/vault/b.md"
+        value="second file"
+        {...baseEditorProps()}
+      />,
+    );
+    rerender(
+      <MarkdownEditor
+        path="/vault/a.md"
+        value="first file"
+        {...baseEditorProps()}
+      />,
+    );
 
     const view = editorView(container);
     undo(view); // must not reach into "second file"'s history, or any other file's
@@ -1103,14 +1315,26 @@ describe("MarkdownEditor: Copy block link with a denied clipboard", () => {
     try {
       const value = "Only paragraph.";
       const { container, rerender } = render(
-        <MarkdownEditor path="/vault/a.md" value={value} {...baseEditorProps()} blockLinkCopyRequest={null} />,
+        <MarkdownEditor
+          path="/vault/a.md"
+          value={value}
+          {...baseEditorProps()}
+          blockLinkCopyRequest={null}
+        />,
       );
       rerender(
-        <MarkdownEditor path="/vault/a.md" value={value} {...baseEditorProps()} blockLinkCopyRequest={{ requestId: 1 }} />,
+        <MarkdownEditor
+          path="/vault/a.md"
+          value={value}
+          {...baseEditorProps()}
+          blockLinkCopyRequest={{ requestId: 1 }}
+        />,
       );
       await new Promise((resolve) => setTimeout(resolve, 20));
       expect(writes).toBe(1);
-      expect(editorView(container).state.doc.toString()).toMatch(/\^b-[a-f0-9]{8}$/);
+      expect(editorView(container).state.doc.toString()).toMatch(
+        /\^b-[a-f0-9]{8}$/,
+      );
       expect(unhandled).toEqual([]);
     } finally {
       process.off("unhandledRejection", onUnhandled);

@@ -16,9 +16,13 @@ window.matchMedia = vi.fn().mockImplementation((query: string) => ({
 })) as unknown as typeof window.matchMedia;
 
 const { PendingCapturesPanel } = await import("./PendingCapturesPanel");
-const { pendingCapturesStore, addPendingCapture, removePendingCapture, clearPendingCaptures, MAX_PENDING_CAPTURES } = await import(
-  "./pendingCaptures"
-);
+const {
+  pendingCapturesStore,
+  addPendingCapture,
+  removePendingCapture,
+  clearPendingCaptures,
+  MAX_PENDING_CAPTURES,
+} = await import("./pendingCaptures");
 
 describe("PendingCapturesPanel Accessibility (F05-FR-27)", () => {
   beforeEach(() => {
@@ -44,9 +48,9 @@ describe("PendingCapturesPanel Accessibility (F05-FR-27)", () => {
       text: "Test content",
       title: "Test title",
       source: "in-app",
-      mode: "new"
+      mode: "new",
     });
-    
+
     expect(capture).toBeDefined();
     expect(capture.id).toBeDefined();
     expect(capture.source).toBe("in-app");
@@ -54,7 +58,7 @@ describe("PendingCapturesPanel Accessibility (F05-FR-27)", () => {
     expect(capture.title).toBe("Test title");
     expect(capture.mode).toBe("new");
     expect(capture.status).toBe("pending");
-    
+
     expect(pendingCapturesStore.value).toHaveLength(1);
   });
 
@@ -63,11 +67,11 @@ describe("PendingCapturesPanel Accessibility (F05-FR-27)", () => {
       text: "Test content",
       title: "Test title",
       source: "in-app",
-      mode: "new"
+      mode: "new",
     });
-    
+
     expect(pendingCapturesStore.value).toHaveLength(1);
-    
+
     removePendingCapture(capture.id);
     expect(pendingCapturesStore.value).toHaveLength(0);
   });
@@ -79,20 +83,20 @@ describe("PendingCapturesPanel Accessibility (F05-FR-27)", () => {
         text: `Test content ${i}`,
         title: `Test title ${i}`,
         source: "in-app",
-        mode: "new"
+        mode: "new",
       });
     }
-    
+
     expect(pendingCapturesStore.value).toHaveLength(MAX_PENDING_CAPTURES);
-    
+
     // Adding one more should remove the oldest
     addPendingCapture({
       text: "New content",
       title: "New title",
       source: "in-app",
-      mode: "new"
+      mode: "new",
     });
-    
+
     // Should still be at max
     expect(pendingCapturesStore.value).toHaveLength(MAX_PENDING_CAPTURES);
   });
@@ -103,32 +107,32 @@ describe("PendingCapturesPanel Accessibility (F05-FR-27)", () => {
       text: "Test content 1",
       title: "Test title 1",
       source: "in-app",
-      mode: "new"
+      mode: "new",
     });
-    
+
     addPendingCapture({
       text: "Test content 2",
       title: "Test title 2",
       source: "in-app",
-      mode: "new"
+      mode: "new",
     });
-    
+
     expect(pendingCapturesStore.value).toHaveLength(2);
-    
+
     clearPendingCaptures();
     expect(pendingCapturesStore.value).toHaveLength(0);
   });
 
   it("should support all capture sources", () => {
     const sources = ["in-app", "deep-link", "android-share"] as const;
-    sources.forEach(source => {
+    sources.forEach((source) => {
       const capture = addPendingCapture({
         text: `Test content for ${source}`,
         title: `Test title for ${source}`,
         source,
-        mode: "new"
+        mode: "new",
       });
-      
+
       expect(capture.source).toBe(source);
       removePendingCapture(capture.id);
     });
@@ -136,14 +140,14 @@ describe("PendingCapturesPanel Accessibility (F05-FR-27)", () => {
 
   it("should support all capture modes", () => {
     const modes = ["append", "new", "date"] as const;
-    modes.forEach(mode => {
+    modes.forEach((mode) => {
       const capture = addPendingCapture({
         text: `Test content for ${mode}`,
         title: `Test title for ${mode}`,
         source: "in-app",
-        mode
+        mode,
       });
-      
+
       expect(capture.mode).toBe(mode);
       removePendingCapture(capture.id);
     });
@@ -154,17 +158,17 @@ describe("PendingCapturesPanel Accessibility (F05-FR-27)", () => {
       text: "Test content",
       // title is optional
       source: "in-app",
-      mode: "new"
+      mode: "new",
       // Note: targetNote, targetFolder, targetProfileId, sourceUrl are all optional
       // status is automatically set to "pending"
     });
-    
+
     expect(capture.text).toBe("Test content");
     expect(capture.title).toBeUndefined();
     expect(capture.sourceUrl).toBeUndefined();
     expect(capture.mode).toBe("new");
     expect(capture.status).toBe("pending");
-    
+
     removePendingCapture(capture.id);
   });
 
@@ -173,9 +177,9 @@ describe("PendingCapturesPanel Accessibility (F05-FR-27)", () => {
       text: "Test content",
       title: "Test title",
       source: "in-app",
-      mode: "new"
+      mode: "new",
     });
-    
+
     // All newly added captures should have pending status
     expect(capture.status).toBe("pending");
     removePendingCapture(capture.id);

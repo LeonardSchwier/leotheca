@@ -7,6 +7,7 @@
 ## Requirements
 
 Per roadmap entry:
+
 - Must run entirely on-device (NO network calls)
 - Must work on desktop (Tauri) and Android (Capacitor)
 - Dictated text should insert at cursor in active note
@@ -19,15 +20,17 @@ Per roadmap entry:
 ### Desktop (Tauri / Webview)
 
 #### Option 1: Web Speech API
+
 - **API:** `webkitSpeechRecognition` or `SpeechRecognition`
 - **Status:** Available in Chrome/Edge browsers
 - **Offline capability:** ❌ NO - Uses Google cloud by default
 - **Verdict:** NOT ACCEPTABLE - violates offline requirement
 
 #### Option 2: Tauri Native API + Platform SDKs
+
 - **Windows:** `Windows.Media.SpeechRecognition`
   - Supports on-device recognition
-  - Requires Windows 10+ 
+  - Requires Windows 10+
   - Offline language packs must be installed
   - API: Native Windows Runtime
 - **macOS:** Limited options
@@ -40,6 +43,7 @@ Per roadmap entry:
 **Verdict:** Desktop would require platform-specific native code via Tauri commands, with Windows being feasible but macOS/Linux problematic.
 
 #### Option 3: Bundle On-Device Model
+
 - **Whisper.cpp:** Open-source, can run on-device
 - **Size:** ~100-300MB for models
 - **Quality:** Good for English, varies for other languages
@@ -51,9 +55,10 @@ Per roadmap entry:
 ### Android (Capacitor)
 
 #### Option 1: Android SpeechRecognizer API
+
 - **API:** `android.speech.SpeechRecognizer`
 - **Offline capability:** ✅ YES - with `RECOGNIZER_INTENT_ACTION_RECOGNIZE_SPEECH` and `EXTRA_PREFER_OFFLINE`
-- **Requirements:** 
+- **Requirements:**
   - Device must have offline speech data downloaded
   - Android 6.0+ (API 23+)
   - User must have installed offline language pack
@@ -65,7 +70,8 @@ Per roadmap entry:
 **Verdict:** FEASIBLE - but requires device support verification
 
 #### Option 2: Capacitor Plugin
-- **Existing plugins:** 
+
+- **Existing plugins:**
   - `@capacitor-community/speech-recognition` - uses Android SpeechRecognizer
   - No verified offline capability in existing plugins
 - **Action needed:** Create or modify plugin to force offline mode
@@ -73,6 +79,7 @@ Per roadmap entry:
 **Verdict:** Would need custom plugin development
 
 #### Option 3: Bundle On-Device Model
+
 - Same as desktop (Whisper.cpp via JNI)
 - Or TensorFlow Lite Speech-to-Text
 
@@ -83,7 +90,9 @@ Per roadmap entry:
 ### Phase 1: Platform-Specific Native Implementation
 
 #### Android
+
 Use `android.speech.SpeechRecognizer` with offline mode:
+
 ```java
 Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
 intent.putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true);
@@ -91,31 +100,39 @@ intent.putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, context.getPackageName()
 ```
 
 **Pros:**
+
 - Uses built-in Android API
 - No additional binary size
 - Works if user has offline data
 
 **Cons:**
+
 - Not all devices support offline
 - Accuracy varies
 - Language dependent on user's installed packs
 
 #### Desktop Windows
+
 Use Windows Runtime API via Tauri command:
+
 ```rust
 use windows::Media::SpeechRecognition::*;
 ```
 
 **Pros:**
+
 - Native on-device capability
 - Good accuracy
 
 **Cons:**
+
 - Windows only
 - macOS/Linux would need different approaches
 
 ### Phase 2: Cross-Platform Bundle (Future)
+
 Bundle Whisper.cpp or similar with:
+
 - Small model for mobile
 - Medium model for desktop
 - Language pack selection
@@ -133,13 +150,13 @@ However, bundling Whisper.cpp adds ~100-300MB to the binary, which may be unacce
 
 ## Implementation Complexity
 
-| Platform | Complexity | Offline Feasible | Notes |
-|----------|------------|------------------|-------|
-| Android | Medium | ✅ Yes | Use SpeechRecognizer with EXTRA_PREFER_OFFLINE |
-| Windows | Medium | ✅ Yes | Windows.Media.SpeechRecognition |
-| macOS | High | ❌ No | No native offline API |
-| Linux | High | ❌ No | No standard API |
-| Web | Low | ❌ No | Web Speech API uses cloud |
+| Platform | Complexity | Offline Feasible | Notes                                          |
+| -------- | ---------- | ---------------- | ---------------------------------------------- |
+| Android  | Medium     | ✅ Yes           | Use SpeechRecognizer with EXTRA_PREFER_OFFLINE |
+| Windows  | Medium     | ✅ Yes           | Windows.Media.SpeechRecognition                |
+| macOS    | High       | ❌ No            | No native offline API                          |
+| Linux    | High       | ❌ No            | No standard API                                |
+| Web      | Low        | ❌ No            | Web Speech API uses cloud                      |
 
 ## Blockers
 
@@ -151,11 +168,13 @@ However, bundling Whisper.cpp adds ~100-300MB to the binary, which may be unacce
 ## Conclusion
 
 **Cannot fully implement in this environment** due to:
+
 - No real Android device for testing SpeechRecognizer offline mode
 - No macOS signing for native APIs
 - No way to verify actual offline behavior
 
 **Recommended next steps:**
+
 1. Create UI skeleton (button, recording indicator)
 2. Implement Android SpeechRecognizer integration with offline flag
 3. Document desktop requirements for future implementation

@@ -21,12 +21,7 @@ export const MAX_QUERY_DEPTH = 3;
 export const MAX_QUERY_CLAUSES = 100;
 
 export type SystemFieldName =
-  | "name"
-  | "path"
-  | "folder"
-  | "tag"
-  | "modified"
-  | "hasFrontmatter";
+  "name" | "path" | "folder" | "tag" | "modified" | "hasFrontmatter";
 
 export const SYSTEM_FIELD_NAMES: readonly SystemFieldName[] = [
   "name",
@@ -156,7 +151,15 @@ export const OPERATOR_GROUPS: Record<string, readonly QueryOperatorV1[]> = {
     "does-not-exist",
   ],
   boolean: ["is-true", "is-false", "exists", "does-not-exist"],
-  date: ["is", "before", "on-or-before", "after", "on-or-after", "exists", "does-not-exist"],
+  date: [
+    "is",
+    "before",
+    "on-or-before",
+    "after",
+    "on-or-after",
+    "exists",
+    "does-not-exist",
+  ],
   list: [
     "contains-item",
     "contains-all-items",
@@ -181,7 +184,10 @@ export const OPERATOR_GROUPS: Record<string, readonly QueryOperatorV1[]> = {
  * a "property" field (spec section 6.2's typeahead-selected custom key)
  * offers every family, since its actual type is only known from indexed
  * note values. */
-export const SYSTEM_FIELD_OPERATOR_FAMILIES: Record<SystemFieldName, keyof typeof OPERATOR_GROUPS> = {
+export const SYSTEM_FIELD_OPERATOR_FAMILIES: Record<
+  SystemFieldName,
+  keyof typeof OPERATOR_GROUPS
+> = {
   name: "string",
   path: "path",
   folder: "path",
@@ -191,14 +197,36 @@ export const SYSTEM_FIELD_OPERATOR_FAMILIES: Record<SystemFieldName, keyof typeo
 };
 
 export type CollectionViewV1 =
-  | { mode: "list"; groupBy?: string; groupOrder?: string[]; filters?: QueryClauseV1[] }
-  | { mode: "table"; columns?: string[]; groupBy?: string; groupOrder?: string[]; filters?: QueryClauseV1[] }
-  | { mode: "card"; fields?: string[]; groupBy?: string; groupOrder?: string[]; filters?: QueryClauseV1[] }
+  | {
+      mode: "list";
+      groupBy?: string;
+      groupOrder?: string[];
+      filters?: QueryClauseV1[];
+    }
+  | {
+      mode: "table";
+      columns?: string[];
+      groupBy?: string;
+      groupOrder?: string[];
+      filters?: QueryClauseV1[];
+    }
+  | {
+      mode: "card";
+      fields?: string[];
+      groupBy?: string;
+      groupOrder?: string[];
+      filters?: QueryClauseV1[];
+    }
   /** A read-only board grouped by one top-level indexed frontmatter key.
    * `groupOrder` is an optional per-view manual ordering of column labels
    * (set via the Group by menu); columns not listed fall back to the
    * derived (alphabetical) order. */
-  | { mode: "kanban"; groupBy: string; groupOrder?: string[]; filters?: QueryClauseV1[] };
+  | {
+      mode: "kanban";
+      groupBy: string;
+      groupOrder?: string[];
+      filters?: QueryClauseV1[];
+    };
 
 export type SortFieldV1 =
   | { kind: "system"; field: "name" | "path" | "folder" | "modified" }

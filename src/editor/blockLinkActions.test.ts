@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { blockLinkText, generateBlockId, resolveBlockLinkAtCursor, uniqueBlockId } from "./blockLinkActions";
+import {
+  blockLinkText,
+  generateBlockId,
+  resolveBlockLinkAtCursor,
+  uniqueBlockId,
+} from "./blockLinkActions";
 
 describe("generateBlockId", () => {
   it("produces a grammar-legal id shaped like the spec's own example", () => {
@@ -42,7 +47,10 @@ describe("blockLinkText", () => {
 describe("resolveBlockLinkAtCursor", () => {
   it("creates a block ID when the cursor is inside a markerless heading", () => {
     const source = "# A heading\n\nA paragraph.";
-    const resolution = resolveBlockLinkAtCursor(source, source.indexOf("heading"));
+    const resolution = resolveBlockLinkAtCursor(
+      source,
+      source.indexOf("heading"),
+    );
     expect(resolution?.linkText).toMatch(/^\[\[#\^b-[a-f0-9]{8}\]\]$/);
     expect(resolution?.insertion?.from).toBe(source.indexOf("\n"));
   });

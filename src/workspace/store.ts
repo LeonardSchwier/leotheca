@@ -10,7 +10,15 @@ import {
   unpinGroupTab,
   updateSplitRatio,
 } from "./documentGroups";
-import type { EditorGroupId, EditorGroupState, EditorLayoutState, OpenDocument, OpenTab, TabKind, ViewMode } from "./types";
+import type {
+  EditorGroupId,
+  EditorGroupState,
+  EditorLayoutState,
+  OpenDocument,
+  OpenTab,
+  TabKind,
+  ViewMode,
+} from "./types";
 
 /** Canonical open-document store. Editor groups hold only references to
  * these records, ensuring one content and save authority per path.
@@ -23,19 +31,29 @@ export const openDocuments = signal<OpenDocument[]>([]);
 export const openTabs = computed<OpenTab[]>(() => tabsForGroup("primary"));
 /** Primary group's active document path (F07 Phase 6: canonical
  * primary-group accessor). */
-export const activeTabPath = computed(() => editorLayout.value.groups.primary.activePath);
+export const activeTabPath = computed(
+  () => editorLayout.value.groups.primary.activePath,
+);
 /** The secondary group's own tab list (empty, not error, when no secondary
  * group exists), for the split-pane UI (F07 Phase 3). */
-export const secondaryOpenTabs = computed<OpenTab[]>(() => tabsForGroup("secondary"));
-export const secondaryActiveTabPath = computed(() => editorLayout.value.groups.secondary?.activePath ?? null);
+export const secondaryOpenTabs = computed<OpenTab[]>(() =>
+  tabsForGroup("secondary"),
+);
+export const secondaryActiveTabPath = computed(
+  () => editorLayout.value.groups.secondary?.activePath ?? null,
+);
 /** Logical editor group state (F07 Phase 1-5). The primary group's
  * accessors (openTabs, activeTabPath) are the canonical API per F07 Phase 6. */
-export const editorLayout = signal<EditorLayoutState>(createPrimaryEditorLayout([], null));
+export const editorLayout = signal<EditorLayoutState>(
+  createPrimaryEditorLayout([], null),
+);
 
 function tabsForGroup(groupId: EditorGroupId): OpenTab[] {
   const group = groupState(groupId);
   if (!group) return [];
-  const documentsByPath = new Map(openDocuments.value.map((document) => [document.path, document]));
+  const documentsByPath = new Map(
+    openDocuments.value.map((document) => [document.path, document]),
+  );
   return group.tabPaths.flatMap((path) => {
     const document = documentsByPath.get(path);
     return document ? [document] : [];
@@ -43,7 +61,9 @@ function tabsForGroup(groupId: EditorGroupId): OpenTab[] {
 }
 
 function groupState(groupId: EditorGroupId): EditorGroupState | undefined {
-  return groupId === "primary" ? editorLayout.value.groups.primary : editorLayout.value.groups.secondary;
+  return groupId === "primary"
+    ? editorLayout.value.groups.primary
+    : editorLayout.value.groups.secondary;
 }
 
 /** Which group currently owns an open path. Every already-open path belongs
@@ -53,7 +73,9 @@ function groupState(groupId: EditorGroupId): EditorGroupState | undefined {
  * "primary" for a path that is not open in either group (the caller's own
  * guard then no-ops, matching this file's existing behavior throughout). */
 function groupOwning(path: string): EditorGroupId {
-  return editorLayout.value.groups.secondary?.tabPaths.includes(path) ? "secondary" : "primary";
+  return editorLayout.value.groups.secondary?.tabPaths.includes(path)
+    ? "secondary"
+    : "primary";
 }
 
 /** Replaces one group's tab placement and (when given) the full canonical
@@ -63,18 +85,32 @@ function groupOwning(path: string): EditorGroupId {
  * list, which is what let a two-group layout collapse back into one before
  * this generalization (every mutation re-assigned every open path to
  * primary). Pinned paths are trimmed to whatever remains in `tabPaths`. */
-function setGroupTabs(groupId: EditorGroupId, tabPaths: string[], activePath: string | null, documents?: OpenDocument[]) {
+function setGroupTabs(
+  groupId: EditorGroupId,
+  tabPaths: string[],
+  activePath: string | null,
+  documents?: OpenDocument[],
+) {
   if (documents) openDocuments.value = documents;
   const layout = editorLayout.value;
-  const group = groupId === "primary" ? layout.groups.primary : layout.groups.secondary;
+  const group =
+    groupId === "primary" ? layout.groups.primary : layout.groups.secondary;
   if (!group) return;
-  const pinnedPaths = group.pinnedPaths.filter((path) => tabPaths.includes(path));
-  const updatedGroup: EditorGroupState = { ...group, tabPaths, pinnedPaths, activePath };
+  const pinnedPaths = group.pinnedPaths.filter((path) =>
+    tabPaths.includes(path),
+  );
+  const updatedGroup: EditorGroupState = {
+    ...group,
+    tabPaths,
+    pinnedPaths,
+    activePath,
+  };
   editorLayout.value = {
     ...layout,
     groups: {
       primary: groupId === "primary" ? updatedGroup : layout.groups.primary,
-      secondary: groupId === "secondary" ? updatedGroup : layout.groups.secondary,
+      secondary:
+        groupId === "secondary" ? updatedGroup : layout.groups.secondary,
     },
   };
 }
@@ -109,18 +145,45 @@ export function focusTab(path: string) {
  * regardless of which group is currently active; a genuinely new path opens
  * into the active group, so ordinary opens keep landing in primary until a
  * split exists and secondary becomes active). */
-export function openOrFocusTab(path: string, name: string, content: string, kind: TabKind, searchQuery?: string) {
-  const existing = openDocuments.value.find((document) => document.path === path);
-  const targetGroupId = existing ? groupOwning(path) : editorLayout.value.activeGroupId;
+export function openOrFocusTab(
+  path: string,
+  name: string,
+  content: string,
+  kind: TabKind,
+  searchQuery?: string,
+) {
+  const existing = openDocuments.value.find(
+    (document) => document.path === path,
+  );
+  const targetGroupId = existing
+    ? groupOwning(path)
+    : editorLayout.value.activeGroupId;
   const group = groupState(targetGroupId);
   if (!group) return;
   const documents = existing
-    ? openDocuments.value.map((document) => (document.path === path ? { ...document, searchQuery } : document))
-    : [...openDocuments.value, { path, name, content, kind, dirty: false, saving: false, saveError: null, searchQuery }];
+    ? openDocuments.value.map((document) =>
+        document.path === path ? { ...document, searchQuery } : document,
+      )
+    : [
+        ...openDocuments.value,
+        {
+          path,
+          name,
+          content,
+          kind,
+          dirty: false,
+          saving: false,
+          saveError: null,
+          searchQuery,
+        },
+      ];
   const tabPaths = existing ? group.tabPaths : [...group.tabPaths, path];
   batch(() => {
     setGroupTabs(targetGroupId, tabPaths, path, documents);
-    editorLayout.value = { ...editorLayout.value, activeGroupId: targetGroupId };
+    editorLayout.value = {
+      ...editorLayout.value,
+      activeGroupId: targetGroupId,
+    };
   });
 }
 
@@ -172,9 +235,12 @@ export function closeTab(path: string) {
   const group = groupState(groupId);
   if (!group || group.pinnedPaths.includes(path)) return;
   batch(() => {
-    const documents = openDocuments.value.filter((document) => document.path !== path);
+    const documents = openDocuments.value.filter(
+      (document) => document.path !== path,
+    );
     const tabPaths = group.tabPaths.filter((tabPath) => tabPath !== path);
-    const activePath = group.activePath === path ? (tabPaths.at(-1) ?? null) : group.activePath;
+    const activePath =
+      group.activePath === path ? (tabPaths.at(-1) ?? null) : group.activePath;
     setGroupTabs(groupId, tabPaths, activePath, documents);
   });
 }
@@ -189,7 +255,9 @@ export function closeOtherTabs(path: string) {
   batch(() => {
     const keep = new Set([path, ...group.pinnedPaths]);
     const groupPaths = new Set(group.tabPaths);
-    const documents = openDocuments.value.filter((document) => !groupPaths.has(document.path) || keep.has(document.path));
+    const documents = openDocuments.value.filter(
+      (document) => !groupPaths.has(document.path) || keep.has(document.path),
+    );
     const tabPaths = group.tabPaths.filter((tabPath) => keep.has(tabPath));
     setGroupTabs(groupId, tabPaths, path, documents);
   });
@@ -216,9 +284,15 @@ export function closeAllUnpinnedTabs(groupId: EditorGroupId = "primary") {
   batch(() => {
     const pinnedPaths = new Set(group.pinnedPaths);
     const groupPaths = new Set(group.tabPaths);
-    const documents = openDocuments.value.filter((document) => !groupPaths.has(document.path) || pinnedPaths.has(document.path));
+    const documents = openDocuments.value.filter(
+      (document) =>
+        !groupPaths.has(document.path) || pinnedPaths.has(document.path),
+    );
     const tabPaths = group.tabPaths.filter((path) => pinnedPaths.has(path));
-    const activePath = group.activePath && tabPaths.includes(group.activePath) ? group.activePath : (tabPaths.at(-1) ?? null);
+    const activePath =
+      group.activePath && tabPaths.includes(group.activePath)
+        ? group.activePath
+        : (tabPaths.at(-1) ?? null);
     setGroupTabs(groupId, tabPaths, activePath, documents);
   });
 }
@@ -227,8 +301,14 @@ export function closeAllUnpinnedTabs(groupId: EditorGroupId = "primary") {
  * current layout, keeping only pins for paths that are actually open (see
  * documentGroups.ts's restorePrimaryEditorLayout). Callers restore tabs
  * first, then call this once tabPaths reflects what actually reopened. */
-export function restoreEditorLayout(persisted: { pinnedPaths: readonly string[]; viewMode: ViewMode }) {
-  editorLayout.value = restorePrimaryEditorLayout(editorLayout.value, persisted);
+export function restoreEditorLayout(persisted: {
+  pinnedPaths: readonly string[];
+  viewMode: ViewMode;
+}) {
+  editorLayout.value = restorePrimaryEditorLayout(
+    editorLayout.value,
+    persisted,
+  );
 }
 
 /** Pins/unpins/closes a path in whichever group owns it -- these three
@@ -240,7 +320,11 @@ export function pinTab(path: string) {
 }
 
 export function unpinTab(path: string) {
-  editorLayout.value = unpinGroupTab(editorLayout.value, groupOwning(path), path);
+  editorLayout.value = unpinGroupTab(
+    editorLayout.value,
+    groupOwning(path),
+    path,
+  );
 }
 
 /** The only user-facing removal path for a pinned tab. */
@@ -257,7 +341,8 @@ export function unpinAndCloseTab(path: string) {
 /** Closes any open tab for `path` itself or for a file nested under it, in
  * either group (used when a folder is trashed). */
 export function closeTabsUnder(path: string) {
-  const isUnder = (tabPath: string) => tabPath === path || tabPath.startsWith(`${path}/`);
+  const isUnder = (tabPath: string) =>
+    tabPath === path || tabPath.startsWith(`${path}/`);
   const stillOpen = openDocuments.value.filter((t) => !isUnder(t.path));
   if (stillOpen.length === openDocuments.value.length) return;
   batch(() => {
@@ -266,7 +351,10 @@ export function closeTabsUnder(path: string) {
       if (!group) return;
       const tabPaths = group.tabPaths.filter((tabPath) => !isUnder(tabPath));
       if (tabPaths.length === group.tabPaths.length) return;
-      const activePath = group.activePath && isUnder(group.activePath) ? (tabPaths.at(-1) ?? null) : group.activePath;
+      const activePath =
+        group.activePath && isUnder(group.activePath)
+          ? (tabPaths.at(-1) ?? null)
+          : group.activePath;
       setGroupTabs(groupId, tabPaths, activePath);
     });
     openDocuments.value = stillOpen;
@@ -276,9 +364,17 @@ export function closeTabsUnder(path: string) {
 /** Updates any open tab (in either group) whose path is `oldPath` or nested
  * under it to point at `newPath` instead, preserving editor state across a
  * rename. */
-export function renameOpenTab(oldPath: string, newPath: string, newName: string) {
+export function renameOpenTab(
+  oldPath: string,
+  newPath: string,
+  newName: string,
+) {
   const rewrite = (tabPath: string) =>
-    tabPath === oldPath ? newPath : tabPath.startsWith(`${oldPath}/`) ? newPath + tabPath.slice(oldPath.length) : null;
+    tabPath === oldPath
+      ? newPath
+      : tabPath.startsWith(`${oldPath}/`)
+        ? newPath + tabPath.slice(oldPath.length)
+        : null;
 
   batch(() => {
     let changed = false;
@@ -286,7 +382,11 @@ export function renameOpenTab(oldPath: string, newPath: string, newName: string)
       const rewritten = rewrite(t.path);
       if (rewritten === null) return t;
       changed = true;
-      return { ...t, path: rewritten, name: rewritten === newPath ? newName : t.name };
+      return {
+        ...t,
+        path: rewritten,
+        name: rewritten === newPath ? newName : t.name,
+      };
     });
     if (!changed) return;
 
@@ -294,14 +394,26 @@ export function renameOpenTab(oldPath: string, newPath: string, newName: string)
     (["primary", "secondary"] as const).forEach((groupId) => {
       const group = groupState(groupId);
       if (!group) return;
-      const tabPaths = group.tabPaths.map((tabPath) => rewrite(tabPath) ?? tabPath);
-      const pinnedPaths = group.pinnedPaths.map((tabPath) => rewrite(tabPath) ?? tabPath);
-      const activePath = group.activePath ? (rewrite(group.activePath) ?? group.activePath) : group.activePath;
+      const tabPaths = group.tabPaths.map(
+        (tabPath) => rewrite(tabPath) ?? tabPath,
+      );
+      const pinnedPaths = group.pinnedPaths.map(
+        (tabPath) => rewrite(tabPath) ?? tabPath,
+      );
+      const activePath = group.activePath
+        ? (rewrite(group.activePath) ?? group.activePath)
+        : group.activePath;
       editorLayout.value = {
         ...editorLayout.value,
         groups: {
-          primary: groupId === "primary" ? { ...group, tabPaths, pinnedPaths, activePath } : editorLayout.value.groups.primary,
-          secondary: groupId === "secondary" ? { ...group, tabPaths, pinnedPaths, activePath } : editorLayout.value.groups.secondary,
+          primary:
+            groupId === "primary"
+              ? { ...group, tabPaths, pinnedPaths, activePath }
+              : editorLayout.value.groups.primary,
+          secondary:
+            groupId === "secondary"
+              ? { ...group, tabPaths, pinnedPaths, activePath }
+              : editorLayout.value.groups.secondary,
         },
       };
     });
@@ -347,7 +459,8 @@ export function moveActiveTabToOtherGroup() {
       editorLayout.value = createSplitLayout(layout, path);
       return;
     }
-    const targetGroupId: EditorGroupId = layout.activeGroupId === "primary" ? "secondary" : "primary";
+    const targetGroupId: EditorGroupId =
+      layout.activeGroupId === "primary" ? "secondary" : "primary";
     editorLayout.value = moveTabToGroup(layout, path, targetGroupId);
   });
 }
@@ -382,13 +495,22 @@ export function openInOtherGroup(
   if (!layout.splitEnabled) {
     editorLayout.value = createSplitLayout(layout);
   }
-  const sourceGroupId: EditorGroupId = sourceNotePath ? groupOwning(sourceNotePath) : editorLayout.value.activeGroupId;
-  const targetGroupId: EditorGroupId = sourceGroupId === "primary" ? "secondary" : "primary";
-  const existing = openDocuments.value.find((document) => document.path === path);
+  const sourceGroupId: EditorGroupId = sourceNotePath
+    ? groupOwning(sourceNotePath)
+    : editorLayout.value.activeGroupId;
+  const targetGroupId: EditorGroupId =
+    sourceGroupId === "primary" ? "secondary" : "primary";
+  const existing = openDocuments.value.find(
+    (document) => document.path === path,
+  );
   batch(() => {
     if (existing) {
       if (groupOwning(path) !== targetGroupId) {
-        editorLayout.value = moveTabToGroup(editorLayout.value, path, targetGroupId);
+        editorLayout.value = moveTabToGroup(
+          editorLayout.value,
+          path,
+          targetGroupId,
+        );
       } else {
         focusTab(path);
       }
@@ -397,13 +519,25 @@ export function openInOtherGroup(
     const group = groupState(targetGroupId)!;
     setGroupTabs(targetGroupId, [...group.tabPaths, path], path, [
       ...openDocuments.value,
-      { path, name, content, kind, dirty: false, saving: false, saveError: null },
+      {
+        path,
+        name,
+        content,
+        kind,
+        dirty: false,
+        saving: false,
+        saveError: null,
+      },
     ]);
     // Same reasoning as createSplitLayout/moveTabToGroup: this note was
     // just deliberately opened into targetGroupId, so the compact
     // switcher must follow it too, not leave a narrow window/Android
     // still pointed at whichever group was visible before.
-    editorLayout.value = { ...editorLayout.value, activeGroupId: targetGroupId, compactVisibleGroupId: targetGroupId };
+    editorLayout.value = {
+      ...editorLayout.value,
+      activeGroupId: targetGroupId,
+      compactVisibleGroupId: targetGroupId,
+    };
   });
 }
 
@@ -413,7 +547,8 @@ export function focusGroup(groupId: EditorGroupId) {
 
 export function focusOtherGroup() {
   const layout = editorLayout.value;
-  const other: EditorGroupId = layout.activeGroupId === "primary" ? "secondary" : "primary";
+  const other: EditorGroupId =
+    layout.activeGroupId === "primary" ? "secondary" : "primary";
   if (!groupState(other)) return;
   editorLayout.value = activateGroup(layout, other);
 }
@@ -437,7 +572,8 @@ export function setGroupViewMode(groupId: EditorGroupId, mode: ViewMode) {
     ...layout,
     groups: {
       primary: groupId === "primary" ? updatedGroup : layout.groups.primary,
-      secondary: groupId === "secondary" ? updatedGroup : layout.groups.secondary,
+      secondary:
+        groupId === "secondary" ? updatedGroup : layout.groups.secondary,
     },
   };
 }
@@ -449,10 +585,17 @@ export function setGroupViewMode(groupId: EditorGroupId, mode: ViewMode) {
 // reorder or move never crosses from one region into the other.
 
 function regionOf(group: EditorGroupState, pinned: boolean): string[] {
-  return pinned ? group.pinnedPaths : group.tabPaths.filter((path) => !group.pinnedPaths.includes(path));
+  return pinned
+    ? group.pinnedPaths
+    : group.tabPaths.filter((path) => !group.pinnedPaths.includes(path));
 }
 
-function applyReorderedRegion(groupId: EditorGroupId, group: EditorGroupState, pinned: boolean, reorderedRegion: string[]) {
+function applyReorderedRegion(
+  groupId: EditorGroupId,
+  group: EditorGroupState,
+  pinned: boolean,
+  reorderedRegion: string[],
+) {
   const pinnedPaths = pinned ? reorderedRegion : group.pinnedPaths;
   const tabPaths = pinned
     ? [...reorderedRegion, ...regionOf(group, false)]
@@ -463,7 +606,8 @@ function applyReorderedRegion(groupId: EditorGroupId, group: EditorGroupState, p
     ...layout,
     groups: {
       primary: groupId === "primary" ? updatedGroup : layout.groups.primary,
-      secondary: groupId === "secondary" ? updatedGroup : layout.groups.secondary,
+      secondary:
+        groupId === "secondary" ? updatedGroup : layout.groups.secondary,
     },
   };
 }
@@ -471,7 +615,10 @@ function applyReorderedRegion(groupId: EditorGroupId, group: EditorGroupState, p
 /** `Move tab left` / `Move tab right` (spec 7.2, section 13): swaps `path`
  * with its neighbor within its own pinned/unpinned region. A no-op at
  * either edge of that region, or for a path that isn't open. */
-export function reorderTabWithinGroup(path: string, direction: "left" | "right") {
+export function reorderTabWithinGroup(
+  path: string,
+  direction: "left" | "right",
+) {
   const groupId = groupOwning(path);
   const group = groupState(groupId);
   if (!group || !group.tabPaths.includes(path)) return;
@@ -481,7 +628,10 @@ export function reorderTabWithinGroup(path: string, direction: "left" | "right")
   const targetIndex = direction === "left" ? index - 1 : index + 1;
   if (targetIndex < 0 || targetIndex >= region.length) return;
   const reordered = [...region];
-  [reordered[index], reordered[targetIndex]] = [reordered[targetIndex], reordered[index]];
+  [reordered[index], reordered[targetIndex]] = [
+    reordered[targetIndex],
+    reordered[index],
+  ];
   applyReorderedRegion(groupId, group, pinned, reordered);
 }
 
@@ -498,13 +648,22 @@ export function moveTabWithinGroup(path: string, beforePath: string | null) {
   if (!group || !group.tabPaths.includes(path) || path === beforePath) return;
   const pinned = group.pinnedPaths.includes(path);
   if (beforePath !== null) {
-    if (!group.tabPaths.includes(beforePath) || group.pinnedPaths.includes(beforePath) !== pinned) return;
+    if (
+      !group.tabPaths.includes(beforePath) ||
+      group.pinnedPaths.includes(beforePath) !== pinned
+    )
+      return;
   }
   const region = regionOf(group, pinned);
   const withoutPath = region.filter((candidate) => candidate !== path);
-  const insertAt = beforePath === null ? withoutPath.length : withoutPath.indexOf(beforePath);
+  const insertAt =
+    beforePath === null ? withoutPath.length : withoutPath.indexOf(beforePath);
   if (insertAt === -1) return;
-  const reordered = [...withoutPath.slice(0, insertAt), path, ...withoutPath.slice(insertAt)];
+  const reordered = [
+    ...withoutPath.slice(0, insertAt),
+    path,
+    ...withoutPath.slice(insertAt),
+  ];
   applyReorderedRegion(groupId, group, pinned, reordered);
 }
 

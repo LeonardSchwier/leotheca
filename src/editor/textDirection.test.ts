@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { EditorState } from "@codemirror/state";
-import { addAutoTextDirection, buildTextDirectionDecorations, detectTextDirection } from "./textDirection";
+import {
+  addAutoTextDirection,
+  buildTextDirectionDecorations,
+  detectTextDirection,
+} from "./textDirection";
 
 describe("detectTextDirection", () => {
   it("detects plain Latin text as ltr", () => {
@@ -52,8 +56,14 @@ describe("buildTextDirectionDecorations", () => {
     return EditorState.create({ doc });
   }
 
-  function decoratedLineStarts(state: EditorState, visibleRange?: { from: number; to: number }) {
-    const decorations = buildTextDirectionDecorations(state, visibleRange ? [visibleRange] : undefined);
+  function decoratedLineStarts(
+    state: EditorState,
+    visibleRange?: { from: number; to: number },
+  ) {
+    const decorations = buildTextDirectionDecorations(
+      state,
+      visibleRange ? [visibleRange] : undefined,
+    );
     const starts: number[] = [];
     decorations.between(0, state.doc.length, (from) => {
       starts.push(from);
@@ -74,7 +84,8 @@ describe("buildTextDirectionDecorations", () => {
     const decorations = buildTextDirectionDecorations(state);
     let sawAttributes: Record<string, string> | undefined;
     decorations.between(0, state.doc.length, (_from, _to, value) => {
-      sawAttributes = (value.spec as { attributes?: Record<string, string> }).attributes;
+      sawAttributes = (value.spec as { attributes?: Record<string, string> })
+        .attributes;
     });
     expect(sawAttributes?.style).toContain("direction: rtl");
     expect(sawAttributes?.style).toContain("text-align: right");
@@ -98,35 +109,43 @@ describe("buildTextDirectionDecorations", () => {
     // Limiting the visible range to line 2 only must not report line 1's
     // rtl decoration, proving this is a real viewport-scoped scan and not
     // a full-document one that merely ignores the range argument.
-    const starts = decoratedLineStarts(state, { from: line2.from, to: line2.to });
+    const starts = decoratedLineStarts(state, {
+      from: line2.from,
+      to: line2.to,
+    });
     expect(starts).toEqual([]);
     expect(line1.from).not.toBe(line2.from);
   });
 });
 
 describe("addAutoTextDirection", () => {
-  it("adds dir=\"auto\" to a bare paragraph tag", () => {
+  it('adds dir="auto" to a bare paragraph tag', () => {
     expect(addAutoTextDirection("<p>שלום</p>")).toBe('<p dir="auto">שלום</p>');
   });
 
-  it("adds dir=\"auto\" to headings, list items, blockquotes, and table cells", () => {
+  it('adds dir="auto" to headings, list items, blockquotes, and table cells', () => {
     expect(addAutoTextDirection("<h1>x</h1>")).toBe('<h1 dir="auto">x</h1>');
     expect(addAutoTextDirection("<h6>x</h6>")).toBe('<h6 dir="auto">x</h6>');
     expect(addAutoTextDirection("<li>x</li>")).toBe('<li dir="auto">x</li>');
-    expect(addAutoTextDirection("<blockquote>x</blockquote>")).toBe('<blockquote dir="auto">x</blockquote>');
+    expect(addAutoTextDirection("<blockquote>x</blockquote>")).toBe(
+      '<blockquote dir="auto">x</blockquote>',
+    );
     expect(addAutoTextDirection("<td>x</td>")).toBe('<td dir="auto">x</td>');
     expect(addAutoTextDirection("<th>x</th>")).toBe('<th dir="auto">x</th>');
   });
 
   it("preserves existing attributes, inserting dir right after the tag name", () => {
-    expect(addAutoTextDirection('<h1 id="intro">x</h1>')).toBe('<h1 dir="auto" id="intro">x</h1>');
+    expect(addAutoTextDirection('<h1 id="intro">x</h1>')).toBe(
+      '<h1 dir="auto" id="intro">x</h1>',
+    );
     expect(addAutoTextDirection('<td style="text-align:right">x</td>')).toBe(
       '<td dir="auto" style="text-align:right">x</td>',
     );
   });
 
   it("never touches an inline tag like strong, em, code, or a", () => {
-    const html = "<p>a <strong>b</strong> <em>c</em> <code>d</code> <a href=\"x\">e</a></p>";
+    const html =
+      '<p>a <strong>b</strong> <em>c</em> <code>d</code> <a href="x">e</a></p>';
     const result = addAutoTextDirection(html);
     expect(result).not.toContain("<strong dir=");
     expect(result).not.toContain("<em dir=");
@@ -136,8 +155,12 @@ describe("addAutoTextDirection", () => {
   });
 
   it("does not duplicate dir on a tag that already declares one", () => {
-    expect(addAutoTextDirection('<p dir="ltr">x</p>')).toBe('<p dir="ltr">x</p>');
-    expect(addAutoTextDirection('<p dir="rtl" class="x">y</p>')).toBe('<p dir="rtl" class="x">y</p>');
+    expect(addAutoTextDirection('<p dir="ltr">x</p>')).toBe(
+      '<p dir="ltr">x</p>',
+    );
+    expect(addAutoTextDirection('<p dir="rtl" class="x">y</p>')).toBe(
+      '<p dir="rtl" class="x">y</p>',
+    );
   });
 
   it("still recognizes an existing dir attribute after a quoted value containing a literal >", () => {
@@ -148,24 +171,28 @@ describe("addAutoTextDirection", () => {
     // second, earlier dir="auto" that wins over the author's explicit
     // choice once a real parser (a browser, or DOMPurify) only keeps the
     // first of two same-named attributes.
-    expect(addAutoTextDirection('<p title="x>y" dir="ltr">z</p>')).toBe('<p title="x>y" dir="ltr">z</p>');
+    expect(addAutoTextDirection('<p title="x>y" dir="ltr">z</p>')).toBe(
+      '<p title="x>y" dir="ltr">z</p>',
+    );
     expect(addAutoTextDirection("<td title='x>y' dir=\"rtl\">z</td>")).toBe(
       "<td title='x>y' dir=\"rtl\">z</td>",
     );
   });
 
-  it("still adds dir=\"auto\" when a quoted attribute value contains a literal >", () => {
-    expect(addAutoTextDirection('<blockquote cite="a > b">x</blockquote>')).toBe(
-      '<blockquote dir="auto" cite="a > b">x</blockquote>',
-    );
+  it('still adds dir="auto" when a quoted attribute value contains a literal >', () => {
+    expect(
+      addAutoTextDirection('<blockquote cite="a > b">x</blockquote>'),
+    ).toBe('<blockquote dir="auto" cite="a > b">x</blockquote>');
   });
 
-  it("still adds dir=\"auto\" when an unrelated attribute merely ends in \"-dir\"", () => {
+  it('still adds dir="auto" when an unrelated attribute merely ends in "-dir"', () => {
     // A plain word-boundary check on "dir=" would also match inside
     // "data-dir=" (the hyphen-to-letter transition is itself a word
     // boundary), wrongly treating the tag as already having its own dir
     // attribute and skipping the injection.
-    expect(addAutoTextDirection('<p data-dir="x">y</p>')).toBe('<p dir="auto" data-dir="x">y</p>');
+    expect(addAutoTextDirection('<p data-dir="x">y</p>')).toBe(
+      '<p dir="auto" data-dir="x">y</p>',
+    );
   });
 
   it("leaves an escaped tag-like substring in rendered text content alone", () => {
@@ -173,7 +200,9 @@ describe("addAutoTextDirection", () => {
     // note text to "&lt;p&gt;"; this must never be rewritten as if it
     // were a real tag.
     const html = "<p>literal text: &lt;p&gt;</p>";
-    expect(addAutoTextDirection(html)).toBe('<p dir="auto">literal text: &lt;p&gt;</p>');
+    expect(addAutoTextDirection(html)).toBe(
+      '<p dir="auto">literal text: &lt;p&gt;</p>',
+    );
   });
 
   it("handles multiple block tags across a larger document", () => {

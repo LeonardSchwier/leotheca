@@ -70,13 +70,7 @@ describe("insertUnderHeading", () => {
   });
 
   it("handles a heading at the end of the document (append)", () => {
-    const doc = [
-      "# Doc",
-      "",
-      "## Last Section",
-      "",
-      "Body here",
-    ].join("\n");
+    const doc = ["# Doc", "", "## Last Section", "", "Body here"].join("\n");
 
     const result = insertUnderHeading({
       document: doc,
@@ -92,13 +86,7 @@ describe("insertUnderHeading", () => {
   });
 
   it("handles an empty section (append) by inserting right after the heading", () => {
-    const doc = [
-      "## Empty",
-      "",
-      "## Next",
-      "",
-      "Content",
-    ].join("\n");
+    const doc = ["## Empty", "", "## Next", "", "Content"].join("\n");
 
     const result = insertUnderHeading({
       document: doc,
@@ -117,13 +105,7 @@ describe("insertUnderHeading", () => {
   });
 
   it("respects exactLevel when set", () => {
-    const doc = [
-      "# Title",
-      "",
-      "## Sub",
-      "",
-      "Body",
-    ].join("\n");
+    const doc = ["# Title", "", "## Sub", "", "Body"].join("\n");
 
     // exactLevel 1 should match "# Title" not "## Sub"
     const r1 = insertUnderHeading({

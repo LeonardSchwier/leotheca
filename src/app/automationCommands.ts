@@ -11,8 +11,23 @@ export type AutomationCommand =
   | { kind: "open-favorites" }
   | { kind: "open-note"; path: string }
   | { kind: "new-note"; content: string }
-  | { kind: "capture"; text: string; title?: string; url?: string; mode?: "append" | "new" | "date"; profile?: string; open?: boolean }
-  | { kind: "insert-heading"; path: string; heading: string; content: string; position?: "prepend" | "append"; exactLevel?: number };
+  | {
+      kind: "capture";
+      text: string;
+      title?: string;
+      url?: string;
+      mode?: "append" | "new" | "date";
+      profile?: string;
+      open?: boolean;
+    }
+  | {
+      kind: "insert-heading";
+      path: string;
+      heading: string;
+      content: string;
+      position?: "prepend" | "append";
+      exactLevel?: number;
+    };
 
 /** Parses an incoming leotheca:// URL into a typed command, or null for
  * anything not recognized (a different scheme, an unknown command, or a
@@ -31,7 +46,10 @@ export function parseAutomationUrl(url: string): AutomationCommand | null {
     case "read-current-note":
       return { kind: "read-current-note" };
     case "new-note":
-      return { kind: "new-note", content: parsed.searchParams.get("content") ?? "" };
+      return {
+        kind: "new-note",
+        content: parsed.searchParams.get("content") ?? "",
+      };
     case "open-favorites":
       return { kind: "open-favorites" };
     case "open-note": {
@@ -71,13 +89,17 @@ export function parseAutomationUrl(url: string): AutomationCommand | null {
     }
     case "capture": {
       // F05: Support text, title, url, mode, profile, open parameters
-      const text = parsed.searchParams.get("text") ?? parsed.searchParams.get("content") ?? "";
+      const text =
+        parsed.searchParams.get("text") ??
+        parsed.searchParams.get("content") ??
+        "";
       const title = parsed.searchParams.get("title");
       const url = parsed.searchParams.get("url");
-      const mode = parsed.searchParams.get("mode") as "append" | "new" | "date" | null;
+      const mode = parsed.searchParams.get("mode") as
+        "append" | "new" | "date" | null;
       const profile = parsed.searchParams.get("profile");
       const open = parsed.searchParams.get("open") === "true";
-      
+
       // F05-FR-02/F05-FR-06: Validate payload size (32 KiB limit for text+title+url).
       // Spec section 5.2 documents `text` as a UTF-8 body and the 32 KiB
       // limit in bytes; JS string .length counts UTF-16 code units, which
@@ -86,13 +108,17 @@ export function parseAutomationUrl(url: string): AutomationCommand | null {
       // TextEncoder().encode(...).length gives the real UTF-8 byte size,
       // matching the pattern already used for the same reason in
       // MarkdownPreview.tsx's embed byte budget.
-      const payloadSize = new TextEncoder().encode(text + (title ?? "") + (url ?? "")).length;
+      const payloadSize = new TextEncoder().encode(
+        text + (title ?? "") + (url ?? ""),
+      ).length;
       const MAX_CAPTURE_PAYLOAD_SIZE = 32 * 1024; // 32 KiB
       if (payloadSize > MAX_CAPTURE_PAYLOAD_SIZE) {
-        console.warn(`F05: Capture payload size (${payloadSize}) exceeds 32 KiB limit`);
+        console.warn(
+          `F05: Capture payload size (${payloadSize}) exceeds 32 KiB limit`,
+        );
         return null; // Reject oversized payload
       }
-      
+
       return {
         kind: "capture",
         text,
@@ -100,7 +126,7 @@ export function parseAutomationUrl(url: string): AutomationCommand | null {
         ...(url && { url }),
         ...(mode && { mode }),
         ...(profile && { profile }),
-        ...(open && { open })
+        ...(open && { open }),
       };
     }
     case "insert-heading": {
@@ -116,7 +142,11 @@ export function parseAutomationUrl(url: string): AutomationCommand | null {
       if (path.length > MAX_PATH_LENGTH) return null;
 
       const position = parsed.searchParams.get("position");
-      if (position !== null && position !== "prepend" && position !== "append") {
+      if (
+        position !== null &&
+        position !== "prepend" &&
+        position !== "append"
+      ) {
         return null;
       }
 

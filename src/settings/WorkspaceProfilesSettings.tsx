@@ -9,7 +9,10 @@ import {
   workspaceProfiles,
 } from "./store";
 import { displayWorkspaceIcon } from "./workspaceProfiles";
-import { forgetWithUnsavedWorkConfirmation, workspaceIconGlyph } from "./WorkspaceSwitcher";
+import {
+  forgetWithUnsavedWorkConfirmation,
+  workspaceIconGlyph,
+} from "./WorkspaceSwitcher";
 
 function reportProfileWriteFailure(action: string): void {
   window.alert(`Could not ${action} workspace profile. Try again.`);
@@ -29,7 +32,8 @@ export function WorkspaceProfilesSettings() {
     if (next === null) return;
     try {
       const accepted = await renameWorkspaceProfile(id, next);
-      if (!accepted) window.alert("Use a name from 1 to 80 characters with no line breaks.");
+      if (!accepted)
+        window.alert("Use a name from 1 to 80 characters with no line breaks.");
     } catch {
       reportProfileWriteFailure("rename");
     }
@@ -64,35 +68,69 @@ export function WorkspaceProfilesSettings() {
   };
 
   return (
-    <section class="settings-section" aria-labelledby="workspace-profiles-heading">
+    <section
+      class="settings-section"
+      aria-labelledby="workspace-profiles-heading"
+    >
       <h3 id="workspace-profiles-heading">Workspace profiles</h3>
-      <p class="settings-hint">Rename and identify known workspaces. Forgetting a profile never deletes its files.</p>
+      <p class="settings-hint">
+        Rename and identify known workspaces. Forgetting a profile never deletes
+        its files.
+      </p>
       {workspaceProfiles.value.map((profile) => {
         const isActive = profile.id === activeWorkspaceId.value;
         return (
           <div class="settings-row" key={profile.id}>
             <span aria-hidden="true">{workspaceIconGlyph(profile.icon)}</span>
             <div>
-              <div class="settings-label">{profile.name}{isActive ? " (current)" : ""}</div>
-              {!profile.token && <div class="settings-hint">{profile.path}</div>}
+              <div class="settings-label">
+                {profile.name}
+                {isActive ? " (current)" : ""}
+              </div>
+              {!profile.token && (
+                <div class="settings-hint">{profile.path}</div>
+              )}
             </div>
-            <button type="button" onClick={() => void rename(profile.id, profile.name)}>Rename</button>
-            <button type="button" onClick={() => void relink(profile.id)}>Relink</button>
+            <button
+              type="button"
+              onClick={() => void rename(profile.id, profile.name)}
+            >
+              Rename
+            </button>
+            <button type="button" onClick={() => void relink(profile.id)}>
+              Relink
+            </button>
             <label>
               <span class="sr-only">Icon for {profile.name}</span>
               <select
                 aria-label={`Icon for ${profile.name}`}
                 value={displayWorkspaceIcon(profile.icon)}
-                onChange={(event) => void setIcon(profile.id, event.currentTarget.value as WorkspaceIcon)}
+                onChange={(event) =>
+                  void setIcon(
+                    profile.id,
+                    event.currentTarget.value as WorkspaceIcon,
+                  )
+                }
               >
-                {WORKSPACE_ICONS.map((icon) => <option key={icon} value={icon}>{icon}</option>)}
+                {WORKSPACE_ICONS.map((icon) => (
+                  <option key={icon} value={icon}>
+                    {icon}
+                  </option>
+                ))}
               </select>
             </label>
-            <button type="button" onClick={() => void forgetWithUnsavedWorkConfirmation(profile.id)}>Forget</button>
+            <button
+              type="button"
+              onClick={() => void forgetWithUnsavedWorkConfirmation(profile.id)}
+            >
+              Forget
+            </button>
           </div>
         );
       })}
-      <button type="button" onClick={() => void add()}>Add workspace</button>
+      <button type="button" onClick={() => void add()}>
+        Add workspace
+      </button>
     </section>
   );
 }

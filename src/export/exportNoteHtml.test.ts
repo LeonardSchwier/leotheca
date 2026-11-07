@@ -11,7 +11,9 @@ function fakeImageResponse(bytes: number[], type = "image/png"): Response {
 describe("inlineLocalImages", () => {
   it("replaces a non-data src with a data: URI fetched from that src", async () => {
     const fetchImpl = vi.fn(async (url: RequestInfo | URL) => {
-      expect(String(url)).toBe("asset://localhost/workspace/attachments/pic.png");
+      expect(String(url)).toBe(
+        "asset://localhost/workspace/attachments/pic.png",
+      );
       return fakeImageResponse([1, 2, 3]);
     });
 
@@ -41,15 +43,23 @@ describe("inlineLocalImages", () => {
       throw new Error("network-ish failure");
     });
 
-    const out = await inlineLocalImages('<img src="asset://localhost/missing.png">', { fetchImpl });
+    const out = await inlineLocalImages(
+      '<img src="asset://localhost/missing.png">',
+      { fetchImpl },
+    );
 
     expect(out).toContain('src="asset://localhost/missing.png"');
   });
 
   it("leaves the original src in place when the fetch resolves but is not ok", async () => {
-    const fetchImpl = vi.fn(async () => ({ ok: false, blob: vi.fn() }) as unknown as Response);
+    const fetchImpl = vi.fn(
+      async () => ({ ok: false, blob: vi.fn() }) as unknown as Response,
+    );
 
-    const out = await inlineLocalImages('<img src="asset://localhost/missing.png">', { fetchImpl });
+    const out = await inlineLocalImages(
+      '<img src="asset://localhost/missing.png">',
+      { fetchImpl },
+    );
 
     expect(out).toContain('src="asset://localhost/missing.png"');
   });
@@ -71,7 +81,9 @@ describe("inlineLocalImages", () => {
 
   it("does not fetch a file:// URL (CSP img-src is not the only defense)", async () => {
     const fetchImpl = vi.fn(async () => fakeImageResponse([1]));
-    const out = await inlineLocalImages('<img src="file:///etc/passwd">', { fetchImpl });
+    const out = await inlineLocalImages('<img src="file:///etc/passwd">', {
+      fetchImpl,
+    });
     expect(fetchImpl).not.toHaveBeenCalled();
     expect(out).toContain('src="file:///etc/passwd"');
   });
@@ -115,7 +127,9 @@ describe("inlineLocalImages", () => {
 
   it("returns unchanged HTML when there are no images", async () => {
     const fetchImpl = vi.fn();
-    const out = await inlineLocalImages("<p>Just text, no images.</p>", { fetchImpl });
+    const out = await inlineLocalImages("<p>Just text, no images.</p>", {
+      fetchImpl,
+    });
     expect(out).toBe("<p>Just text, no images.</p>");
     expect(fetchImpl).not.toHaveBeenCalled();
   });
@@ -160,12 +174,13 @@ describe("inlineLocalImages — faithful fragment pass-through (regression)", ()
 
   it("still inlines images while leaving the surrounding fragment byte-for-byte", async () => {
     const { deps } = realDeps();
-    const html = '<table><tr><td><img src="asset://image/1"></td></tr></table><p>after</p>';
+    const html =
+      '<table><tr><td><img src="asset://image/1"></td></tr></table><p>after</p>';
     const out = await inlineLocalImages(html, deps);
     // The img src is inlined to the data URI; the table/p structure is preserved
     // exactly as it was (no <tbody> injection, no reordering, no empty <p> insert).
     expect(out).toBe(
-      '<table><tr><td><img src="data:image/png;base64,AQID"></td></tr></table><p>after</p>'
+      '<table><tr><td><img src="data:image/png;base64,AQID"></td></tr></table><p>after</p>',
     );
   });
 
@@ -173,7 +188,9 @@ describe("inlineLocalImages — faithful fragment pass-through (regression)", ()
     const { deps } = realDeps();
     const html = '<img src="asset://image/2" alt="x" class="y">';
     const out = await inlineLocalImages(html, deps);
-    expect(out).toBe('<img src="data:image/png;base64,AQID" alt="x" class="y">');
+    expect(out).toBe(
+      '<img src="data:image/png;base64,AQID" alt="x" class="y">',
+    );
   });
 
   it("keeps data: src untouched and does not mutate surrounding markup", async () => {
@@ -191,7 +208,9 @@ describe("inlineLocalImages — faithful fragment pass-through (regression)", ()
     const html = '<img alt="use src= for details" src="asset://image/9">';
     const out = await inlineLocalImages(html, deps);
     // Only the real src attribute is inlined; alt is preserved verbatim.
-    expect(out).toBe('<img alt="use src= for details" src="data:image/png;base64,AQID">');
+    expect(out).toBe(
+      '<img alt="use src= for details" src="data:image/png;base64,AQID">',
+    );
   });
 
   it("inlines an image even when a preceding attribute value contains a literal '>'", async () => {
@@ -239,7 +258,9 @@ describe("inlineLocalImages — faithful fragment pass-through (regression)", ()
     // found and replaced; alt must be preserved verbatim.
     const html = '<img alt=\'see src="example" docs\' src="asset://image/11">';
     const out = await inlineLocalImages(html, deps);
-    expect(out).toBe("<img alt='see src=\"example\" docs' src=\"data:image/png;base64,AQID\">");
+    expect(out).toBe(
+      '<img alt=\'see src="example" docs\' src="data:image/png;base64,AQID">',
+    );
   });
 
   it("does not replace a src whose value is a data: URI that was never fetched", async () => {
@@ -248,9 +269,12 @@ describe("inlineLocalImages — faithful fragment pass-through (regression)", ()
     // fetched fine in the same document (defensive: the fetch list never
     // includes data: URIs, so there is no replacement to write anyway).
     const { deps, calls } = realDeps();
-    const html = '<img src="data:image/png;base64,AAAA"><img src="asset://image/12">';
+    const html =
+      '<img src="data:image/png;base64,AAAA"><img src="asset://image/12">';
     const out = await inlineLocalImages(html, deps);
-    expect(out).toBe('<img src="data:image/png;base64,AAAA"><img src="data:image/png;base64,AQID">');
+    expect(out).toBe(
+      '<img src="data:image/png;base64,AAAA"><img src="data:image/png;base64,AQID">',
+    );
     expect(calls).toEqual(["asset://image/12"]);
   });
 });

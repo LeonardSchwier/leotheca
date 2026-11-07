@@ -10,9 +10,13 @@
 
 import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import { SpeechController } from "../speech/speechController";
-import type { SpeechRecognitionController, SpeechRecognitionError } from "../speech/types";
+import type {
+  SpeechRecognitionController,
+  SpeechRecognitionError,
+} from "../speech/types";
 
-export type CaptureVoiceState = "idle" | "starting" | "recording" | "transcribing";
+export type CaptureVoiceState =
+  "idle" | "starting" | "recording" | "transcribing";
 
 /**
  * Appends dictated text after what the user already typed, on its own line,
@@ -36,7 +40,9 @@ export function describeVoiceError(error: SpeechRecognitionError): string {
     case "model_load_failed":
       return "The local speech model could not be loaded.";
     default:
-      return error.message || "Speech-to-text failed. Your typed text is unchanged.";
+      return (
+        error.message || "Speech-to-text failed. Your typed text is unchanged."
+      );
   }
 }
 
@@ -49,7 +55,11 @@ interface UseCaptureVoiceOptions {
   createController?: () => SpeechRecognitionController;
 }
 
-export function useCaptureVoice({ enabled, onTranscript, createController }: UseCaptureVoiceOptions) {
+export function useCaptureVoice({
+  enabled,
+  onTranscript,
+  createController,
+}: UseCaptureVoiceOptions) {
   const [state, setState] = useState<CaptureVoiceState>("idle");
   const [available, setAvailable] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -70,7 +80,9 @@ export function useCaptureVoice({ enabled, onTranscript, createController }: Use
       return;
     }
     let disposed = false;
-    const controller = (createControllerRef.current ?? (() => new SpeechController()))();
+    const controller = (
+      createControllerRef.current ?? (() => new SpeechController())
+    )();
     controllerRef.current = controller;
 
     const offResult = controller.onResult((result) => {
@@ -86,7 +98,13 @@ export function useCaptureVoice({ enabled, onTranscript, createController }: Use
     });
     const offState = controller.onStateChange((s) => {
       if (disposed) return;
-      if (s === "idle" || s === "starting" || s === "recording" || s === "transcribing") setState(s);
+      if (
+        s === "idle" ||
+        s === "starting" ||
+        s === "recording" ||
+        s === "transcribing"
+      )
+        setState(s);
       else setState("idle");
     });
 

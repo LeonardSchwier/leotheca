@@ -14,7 +14,9 @@ describe("parseSearchQuery", () => {
   });
 
   it("parses a single plain term as one positive text clause, lowercased", () => {
-    expect(parseSearchQuery("Foo")).toEqual([[{ kind: "text", value: "foo", negate: false }]]);
+    expect(parseSearchQuery("Foo")).toEqual([
+      [{ kind: "text", value: "foo", negate: false }],
+    ]);
   });
 
   it("ANDs space-separated terms into one group", () => {
@@ -27,31 +29,51 @@ describe("parseSearchQuery", () => {
   });
 
   it("parses a quoted phrase as one clause, spaces and all", () => {
-    expect(parseSearchQuery('"foo bar"')).toEqual([[{ kind: "text", value: "foo bar", negate: false }]]);
+    expect(parseSearchQuery('"foo bar"')).toEqual([
+      [{ kind: "text", value: "foo bar", negate: false }],
+    ]);
   });
 
   it("parses tag: and path: prefixes case-insensitively", () => {
-    expect(parseSearchQuery("tag:work")).toEqual([[{ kind: "tag", value: "work", negate: false }]]);
-    expect(parseSearchQuery("TAG:Work")).toEqual([[{ kind: "tag", value: "work", negate: false }]]);
-    expect(parseSearchQuery("path:journal")).toEqual([[{ kind: "path", value: "journal", negate: false }]]);
+    expect(parseSearchQuery("tag:work")).toEqual([
+      [{ kind: "tag", value: "work", negate: false }],
+    ]);
+    expect(parseSearchQuery("TAG:Work")).toEqual([
+      [{ kind: "tag", value: "work", negate: false }],
+    ]);
+    expect(parseSearchQuery("path:journal")).toEqual([
+      [{ kind: "path", value: "journal", negate: false }],
+    ]);
   });
 
   it("parses a negated text, tag:, or path: term", () => {
-    expect(parseSearchQuery("-foo")).toEqual([[{ kind: "text", value: "foo", negate: true }]]);
-    expect(parseSearchQuery("-tag:archived")).toEqual([[{ kind: "tag", value: "archived", negate: true }]]);
-    expect(parseSearchQuery("-path:old")).toEqual([[{ kind: "path", value: "old", negate: true }]]);
+    expect(parseSearchQuery("-foo")).toEqual([
+      [{ kind: "text", value: "foo", negate: true }],
+    ]);
+    expect(parseSearchQuery("-tag:archived")).toEqual([
+      [{ kind: "tag", value: "archived", negate: true }],
+    ]);
+    expect(parseSearchQuery("-path:old")).toEqual([
+      [{ kind: "path", value: "old", negate: true }],
+    ]);
   });
 
   it("parses a negated quoted phrase", () => {
-    expect(parseSearchQuery('-"foo bar"')).toEqual([[{ kind: "text", value: "foo bar", negate: true }]]);
+    expect(parseSearchQuery('-"foo bar"')).toEqual([
+      [{ kind: "text", value: "foo bar", negate: true }],
+    ]);
   });
 
   it("treats a bare 'tag:' with nothing after it as literal text", () => {
-    expect(parseSearchQuery("tag:")).toEqual([[{ kind: "text", value: "tag:", negate: false }]]);
+    expect(parseSearchQuery("tag:")).toEqual([
+      [{ kind: "text", value: "tag:", negate: false }],
+    ]);
   });
 
   it("treats a lone '-' as literal text, not an empty negation", () => {
-    expect(parseSearchQuery("-")).toEqual([[{ kind: "text", value: "-", negate: false }]]);
+    expect(parseSearchQuery("-")).toEqual([
+      [{ kind: "text", value: "-", negate: false }],
+    ]);
   });
 
   it("combines text, tag, and path terms in one AND group", () => {
@@ -91,11 +113,15 @@ describe("parseSearchQuery", () => {
   });
 
   it("tolerates an unterminated quote by taking the rest of the token", () => {
-    expect(parseSearchQuery('"unterminated')).toEqual([[{ kind: "text", value: "unterminated", negate: false }]]);
+    expect(parseSearchQuery('"unterminated')).toEqual([
+      [{ kind: "text", value: "unterminated", negate: false }],
+    ]);
   });
 
   it("keeps a quoted phrase containing a literal ' OR ' as one clause, not an OR split", () => {
-    expect(parseSearchQuery('"foo OR bar"')).toEqual([[{ kind: "text", value: "foo or bar", negate: false }]]);
+    expect(parseSearchQuery('"foo OR bar"')).toEqual([
+      [{ kind: "text", value: "foo or bar", negate: false }],
+    ]);
   });
 
   it("still splits on a real OR when one side is a quoted phrase containing a literal ' OR '", () => {
@@ -106,7 +132,9 @@ describe("parseSearchQuery", () => {
   });
 });
 
-function contextFor(overrides: Partial<SearchContext> & { content?: string | null } = {}): SearchContext {
+function contextFor(
+  overrides: Partial<SearchContext> & { content?: string | null } = {},
+): SearchContext {
   const { content, ...rest } = overrides;
   return {
     nameLower: "note.md",
@@ -128,7 +156,10 @@ describe("matchesSearchQuery", () => {
   });
 
   it("falls back to content when the name doesn't match", async () => {
-    const ctx = contextFor({ nameLower: "diary.md", content: "bought some milk today" });
+    const ctx = contextFor({
+      nameLower: "diary.md",
+      content: "bought some milk today",
+    });
     expect(await matchesSearchQuery(parseSearchQuery("milk"), ctx)).toBe(true);
   });
 
@@ -156,13 +187,23 @@ describe("matchesSearchQuery", () => {
   // didn't contain it, without checking a single file's real content.
   // See this file's own top-of-file comment for the full story.
   it("excludes a note whose real content contains a negated term", async () => {
-    const ctx = contextFor({ nameLower: "diary.md", content: "this note mentions badword right here" });
-    expect(await matchesSearchQuery(parseSearchQuery("-badword"), ctx)).toBe(false);
+    const ctx = contextFor({
+      nameLower: "diary.md",
+      content: "this note mentions badword right here",
+    });
+    expect(await matchesSearchQuery(parseSearchQuery("-badword"), ctx)).toBe(
+      false,
+    );
   });
 
   it("includes a note whose content genuinely does not contain a negated term", async () => {
-    const ctx = contextFor({ nameLower: "diary.md", content: "a perfectly ordinary day" });
-    expect(await matchesSearchQuery(parseSearchQuery("-badword"), ctx)).toBe(true);
+    const ctx = contextFor({
+      nameLower: "diary.md",
+      content: "a perfectly ordinary day",
+    });
+    expect(await matchesSearchQuery(parseSearchQuery("-badword"), ctx)).toBe(
+      true,
+    );
   });
 
   it("a negated term combined with an already-satisfied metadata clause still checks real content", async () => {
@@ -170,54 +211,90 @@ describe("matchesSearchQuery", () => {
     // satisfied from null content) would match here without ever
     // reading the file; the real content actually contains "badword",
     // so this must NOT match.
-    const ctx = contextFor({ tagsLower: ["work"], content: "contains badword" });
-    expect(await matchesSearchQuery(parseSearchQuery("tag:work -badword"), ctx)).toBe(false);
+    const ctx = contextFor({
+      tagsLower: ["work"],
+      content: "contains badword",
+    });
+    expect(
+      await matchesSearchQuery(parseSearchQuery("tag:work -badword"), ctx),
+    ).toBe(false);
   });
 
   it("matches tag: against an exact tag", async () => {
     const ctx = contextFor({ tagsLower: ["work"] });
-    expect(await matchesSearchQuery(parseSearchQuery("tag:work"), ctx)).toBe(true);
-    expect(await matchesSearchQuery(parseSearchQuery("tag:other"), ctx)).toBe(false);
+    expect(await matchesSearchQuery(parseSearchQuery("tag:work"), ctx)).toBe(
+      true,
+    );
+    expect(await matchesSearchQuery(parseSearchQuery("tag:other"), ctx)).toBe(
+      false,
+    );
   });
 
   it("matches tag: against a nested tag the same way the Tags panel aggregates", async () => {
     const ctx = contextFor({ tagsLower: ["work/project"] });
-    expect(await matchesSearchQuery(parseSearchQuery("tag:work"), ctx)).toBe(true);
-  });
-
-  it("does not let tag:work match a tag that merely starts with the same letters", async () => {
-    const ctx = contextFor({ tagsLower: ["workshop"] });
-    expect(await matchesSearchQuery(parseSearchQuery("tag:work"), ctx)).toBe(false);
-  });
-
-  it("excludes a note carrying a negated tag", async () => {
-    expect(await matchesSearchQuery(parseSearchQuery("-tag:archived"), contextFor({ tagsLower: ["archived"] }))).toBe(
-      false,
-    );
-    expect(await matchesSearchQuery(parseSearchQuery("-tag:archived"), contextFor({ tagsLower: ["active"] }))).toBe(
+    expect(await matchesSearchQuery(parseSearchQuery("tag:work"), ctx)).toBe(
       true,
     );
   });
 
+  it("does not let tag:work match a tag that merely starts with the same letters", async () => {
+    const ctx = contextFor({ tagsLower: ["workshop"] });
+    expect(await matchesSearchQuery(parseSearchQuery("tag:work"), ctx)).toBe(
+      false,
+    );
+  });
+
+  it("excludes a note carrying a negated tag", async () => {
+    expect(
+      await matchesSearchQuery(
+        parseSearchQuery("-tag:archived"),
+        contextFor({ tagsLower: ["archived"] }),
+      ),
+    ).toBe(false);
+    expect(
+      await matchesSearchQuery(
+        parseSearchQuery("-tag:archived"),
+        contextFor({ tagsLower: ["active"] }),
+      ),
+    ).toBe(true);
+  });
+
   it("matches path: against a substring of the path", async () => {
     const ctx = contextFor({ pathLower: "journal/2026/note.md" });
-    expect(await matchesSearchQuery(parseSearchQuery("path:journal"), ctx)).toBe(true);
-    expect(await matchesSearchQuery(parseSearchQuery("path:work"), ctx)).toBe(false);
+    expect(
+      await matchesSearchQuery(parseSearchQuery("path:journal"), ctx),
+    ).toBe(true);
+    expect(await matchesSearchQuery(parseSearchQuery("path:work"), ctx)).toBe(
+      false,
+    );
   });
 
   it("excludes a note whose path matches a negated path: filter", async () => {
     const ctx = contextFor({ pathLower: "archive/old.md" });
-    expect(await matchesSearchQuery(parseSearchQuery("-path:archive"), ctx)).toBe(false);
+    expect(
+      await matchesSearchQuery(parseSearchQuery("-path:archive"), ctx),
+    ).toBe(false);
   });
 
   it("requires every clause within a group (AND)", async () => {
-    const ctx = contextFor({ tagsLower: ["work"], nameLower: "note.md", content: "no match here" });
-    expect(await matchesSearchQuery(parseSearchQuery("tag:work foo"), ctx)).toBe(false);
+    const ctx = contextFor({
+      tagsLower: ["work"],
+      nameLower: "note.md",
+      content: "no match here",
+    });
+    expect(
+      await matchesSearchQuery(parseSearchQuery("tag:work foo"), ctx),
+    ).toBe(false);
   });
 
   it("matches if any OR group is fully satisfied", async () => {
     const ctx = contextFor({ tagsLower: ["personal"], nameLower: "note.md" });
-    expect(await matchesSearchQuery(parseSearchQuery("tag:work OR tag:personal"), ctx)).toBe(true);
+    expect(
+      await matchesSearchQuery(
+        parseSearchQuery("tag:work OR tag:personal"),
+        ctx,
+      ),
+    ).toBe(true);
   });
 
   it("checks a tag:/path: clause before a text clause regardless of the order typed", async () => {
@@ -241,7 +318,9 @@ describe("matchesSearchQuery", () => {
       return cached;
     };
     const ctx = contextFor({ nameLower: "note.md", getContentLower });
-    expect(await matchesSearchQuery(parseSearchQuery("foo bar"), ctx)).toBe(true);
+    expect(await matchesSearchQuery(parseSearchQuery("foo bar"), ctx)).toBe(
+      true,
+    );
     expect(reads).toBe(1);
   });
 });
@@ -258,8 +337,12 @@ describe("isExcludedDir", () => {
   const clauses = parseSearchQuery("-archive");
 
   it("returns false when there are no negated text clauses", () => {
-    expect(isExcludedDir(parseSearchQuery("foo"), "archive/note.md", "note.md")).toBe(false);
-    expect(isExcludedDir(parseSearchQuery("tag:work"), "archive/note.md", "note.md")).toBe(false);
+    expect(
+      isExcludedDir(parseSearchQuery("foo"), "archive/note.md", "note.md"),
+    ).toBe(false);
+    expect(
+      isExcludedDir(parseSearchQuery("tag:work"), "archive/note.md", "note.md"),
+    ).toBe(false);
   });
 
   it("excludes a file directly inside the matching folder", () => {
@@ -315,8 +398,22 @@ describe("scoreSearchResult", () => {
 
   it("scores a name match (10) higher than a content-only match (2) for the same term", () => {
     const query = parseSearchQuery("milk");
-    const nameHit = scoreSearchResult(query, "milk list.md", "lists/milk list.md", [], null, OLD);
-    const contentHit = scoreSearchResult(query, "diary.md", "diary.md", [], "bought some milk today", OLD);
+    const nameHit = scoreSearchResult(
+      query,
+      "milk list.md",
+      "lists/milk list.md",
+      [],
+      null,
+      OLD,
+    );
+    const contentHit = scoreSearchResult(
+      query,
+      "diary.md",
+      "diary.md",
+      [],
+      "bought some milk today",
+      OLD,
+    );
     expect(nameHit).toBe(10 + OLD / 1e10);
     expect(contentHit).toBe(2 + OLD / 1e10);
     expect(nameHit).toBeGreaterThan(contentHit);
@@ -324,15 +421,43 @@ describe("scoreSearchResult", () => {
 
   it("scores a path: clause (5) between a name and a content hit", () => {
     const query = parseSearchQuery("path:journal");
-    const pathHit = scoreSearchResult(query, "entry.md", "journal/entry.md", [], null, OLD);
+    const pathHit = scoreSearchResult(
+      query,
+      "entry.md",
+      "journal/entry.md",
+      [],
+      null,
+      OLD,
+    );
     expect(pathHit).toBe(5 + OLD / 1e10);
   });
 
   it("scores a matching tag: clause (5), including a nested child tag", () => {
     const query = parseSearchQuery("tag:work");
-    const exact = scoreSearchResult(query, "note.md", "notes/note.md", ["work"], null, OLD);
-    const nested = scoreSearchResult(query, "note.md", "notes/note.md", ["work/project"], null, OLD);
-    const unrelated = scoreSearchResult(query, "note.md", "notes/note.md", ["other"], null, OLD);
+    const exact = scoreSearchResult(
+      query,
+      "note.md",
+      "notes/note.md",
+      ["work"],
+      null,
+      OLD,
+    );
+    const nested = scoreSearchResult(
+      query,
+      "note.md",
+      "notes/note.md",
+      ["work/project"],
+      null,
+      OLD,
+    );
+    const unrelated = scoreSearchResult(
+      query,
+      "note.md",
+      "notes/note.md",
+      ["other"],
+      null,
+      OLD,
+    );
     expect(exact).toBe(5 + OLD / 1e10);
     expect(nested).toBe(5 + OLD / 1e10);
     expect(unrelated).toBe(OLD / 1e10);
@@ -340,19 +465,47 @@ describe("scoreSearchResult", () => {
 
   it("adds every matched clause's score rather than taking the best one", () => {
     const query = parseSearchQuery("milk path:lists");
-    const score = scoreSearchResult(query, "milk list.md", "lists/milk list.md", [], null, OLD);
+    const score = scoreSearchResult(
+      query,
+      "milk list.md",
+      "lists/milk list.md",
+      [],
+      null,
+      OLD,
+    );
     expect(score).toBe(15 + OLD / 1e10);
   });
 
   it("gives negated clauses zero ranking points, they only exclude", () => {
-    const score = scoreSearchResult(parseSearchQuery("-milk"), "milk list.md", "lists/milk list.md", [], "milk milk", OLD);
+    const score = scoreSearchResult(
+      parseSearchQuery("-milk"),
+      "milk list.md",
+      "lists/milk list.md",
+      [],
+      "milk milk",
+      OLD,
+    );
     expect(score).toBe(OLD / 1e10);
   });
 
   it("breaks ties on recency: a newer file with an equal term score wins", () => {
     const query = parseSearchQuery("milk");
-    const older = scoreSearchResult(query, "a.md", "a.md", [], "some milk", OLD);
-    const newer = scoreSearchResult(query, "b.md", "b.md", [], "some milk", NEW);
+    const older = scoreSearchResult(
+      query,
+      "a.md",
+      "a.md",
+      [],
+      "some milk",
+      OLD,
+    );
+    const newer = scoreSearchResult(
+      query,
+      "b.md",
+      "b.md",
+      [],
+      "some milk",
+      NEW,
+    );
     expect(older).toBe(2 + OLD / 1e10);
     expect(newer).toBe(2 + NEW / 1e10);
     expect(newer).toBeGreaterThan(older);
@@ -360,19 +513,47 @@ describe("scoreSearchResult", () => {
 
   it("keeps the term signal above the recency signal: a name match on an old file beats a content match on a new one", () => {
     const query = parseSearchQuery("milk");
-    const oldNameHit = scoreSearchResult(query, "milk list.md", "lists/milk list.md", [], null, OLD);
-    const newContentHit = scoreSearchResult(query, "diary.md", "diary.md", [], "some milk", NEW);
+    const oldNameHit = scoreSearchResult(
+      query,
+      "milk list.md",
+      "lists/milk list.md",
+      [],
+      null,
+      OLD,
+    );
+    const newContentHit = scoreSearchResult(
+      query,
+      "diary.md",
+      "diary.md",
+      [],
+      "some milk",
+      NEW,
+    );
     expect(oldNameHit).toBeGreaterThan(newContentHit);
   });
 
   it("scores a term that appears in both name and content as a name hit (strongest signal), not both", () => {
     const query = parseSearchQuery("milk");
-    const score = scoreSearchResult(query, "milk list.md", "lists/milk list.md", [], "extra milk", OLD);
+    const score = scoreSearchResult(
+      query,
+      "milk list.md",
+      "lists/milk list.md",
+      [],
+      "extra milk",
+      OLD,
+    );
     expect(score).toBe(10 + OLD / 1e10);
   });
 
   it("treats a missing mtime as zero recency without crashing", () => {
-    const score = scoreSearchResult(parseSearchQuery("milk"), "milk list.md", "lists/milk list.md", [], null, undefined);
+    const score = scoreSearchResult(
+      parseSearchQuery("milk"),
+      "milk list.md",
+      "lists/milk list.md",
+      [],
+      null,
+      undefined,
+    );
     expect(score).toBe(10);
   });
 });

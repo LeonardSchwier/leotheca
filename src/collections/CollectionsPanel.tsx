@@ -17,8 +17,16 @@ import {
   orderedCollections,
   updateCollection,
 } from "./collectionStore";
-import { buildNoteRecords, evaluateCollection, type NoteRecord } from "./collectionQuery";
-import { emptyQueryGroup, type QueryGroupV1, type SmartCollectionV1 } from "./collectionTypes";
+import {
+  buildNoteRecords,
+  evaluateCollection,
+  type NoteRecord,
+} from "./collectionQuery";
+import {
+  emptyQueryGroup,
+  type QueryGroupV1,
+  type SmartCollectionV1,
+} from "./collectionTypes";
 import { CollectionBuilder } from "./CollectionBuilder";
 import { CollectionResults } from "./CollectionResults";
 import "./collections.css";
@@ -27,12 +35,16 @@ export interface CollectionsPanelProps {
   onOpenFile: (path: string, name: string) => void | Promise<void>;
 }
 
-type BuilderState = { mode: "create" } | { mode: "edit"; collection: SmartCollectionV1 } | null;
+type BuilderState =
+  { mode: "create" } | { mode: "edit"; collection: SmartCollectionV1 } | null;
 type EditableProperty = Exclude<FrontmatterProperty, { kind: "readonly" }>;
 
 const propertyEditQueues = new Map<string, Promise<void>>();
 
-function enqueuePropertyEdit<T>(path: string, run: () => Promise<T>): Promise<T> {
+function enqueuePropertyEdit<T>(
+  path: string,
+  run: () => Promise<T>,
+): Promise<T> {
   const previous = propertyEditQueues.get(path) ?? Promise.resolve();
   const settled = previous.then(run, run);
   propertyEditQueues.set(
@@ -45,13 +57,28 @@ function enqueuePropertyEdit<T>(path: string, run: () => Promise<T>): Promise<T>
   return settled;
 }
 
-function sameEditableProperty(a: FrontmatterProperty | undefined, b: EditableProperty): a is EditableProperty {
+function sameEditableProperty(
+  a: FrontmatterProperty | undefined,
+  b: EditableProperty,
+): a is EditableProperty {
   if (!a || a.kind !== b.kind || a.key !== b.key) return false;
-  if (a.replaceRange.start !== b.replaceRange.start || a.replaceRange.end !== b.replaceRange.end) return false;
+  if (
+    a.replaceRange.start !== b.replaceRange.start ||
+    a.replaceRange.end !== b.replaceRange.end
+  )
+    return false;
   if (a.kind === "list" && b.kind === "list") {
-    return a.value.length === b.value.length && a.value.every((value, index) => value === b.value[index]);
+    return (
+      a.value.length === b.value.length &&
+      a.value.every((value, index) => value === b.value[index])
+    );
   }
-  return a.kind === "scalar" && b.kind === "scalar" && a.value === b.value && a.style === b.style;
+  return (
+    a.kind === "scalar" &&
+    b.kind === "scalar" &&
+    a.value === b.value &&
+    a.style === b.style
+  );
 }
 
 function replaceIndexedProperties(path: string, content: string): void {
@@ -81,7 +108,8 @@ async function editIndexedProperty(
     if (workspaceSession.value !== sessionAtStart) return "stale";
 
     const current = parseFrontmatterProperties(content).properties.find(
-      (property) => property.key.toLocaleLowerCase() === expected.key.toLocaleLowerCase(),
+      (property) =>
+        property.key.toLocaleLowerCase() === expected.key.toLocaleLowerCase(),
     );
     if (!sameEditableProperty(current, expected)) return "stale";
     if (current.kind === "list" && !Array.isArray(value)) return "error";
@@ -140,7 +168,11 @@ export function CollectionsPanel({ onOpenFile }: CollectionsPanelProps) {
           onCancel={() => setBuilder(null)}
           onSave={async ({ name, description, query }) => {
             if (builder.mode === "edit") {
-              await updateCollection(builder.collection.id, { name, description, query });
+              await updateCollection(builder.collection.id, {
+                name,
+                description,
+                query,
+              });
               setSelectedId(builder.collection.id);
             } else {
               const created = await createCollection(name, query, description);
@@ -157,20 +189,25 @@ export function CollectionsPanel({ onOpenFile }: CollectionsPanelProps) {
     <section class="collections-panel" aria-label="Collections">
       <div class="collections-header">
         <h2 class="collections-heading">Collections</h2>
-        <button class="collections-add-button" onClick={() => setBuilder({ mode: "create" })}>
+        <button
+          class="collections-add-button"
+          onClick={() => setBuilder({ mode: "create" })}
+        >
           + New collection
         </button>
       </div>
 
       {collectionsFileCorrupt.value && (
         <p class="collections-corrupt-warning" role="alert">
-          Some saved collections could not be read and were skipped. Saving any change here
-          rewrites the file without them.
+          Some saved collections could not be read and were skipped. Saving any
+          change here rewrites the file without them.
         </p>
       )}
 
       {collections.length === 0 ? (
-        <p class="empty-hint">Create a collection to build a reusable note view.</p>
+        <p class="empty-hint">
+          Create a collection to build a reusable note view.
+        </p>
       ) : (
         <ul class="collections-list" aria-label="Saved collections">
           {collections.map((collection) => {
@@ -180,7 +217,9 @@ export function CollectionsPanel({ onOpenFile }: CollectionsPanelProps) {
               <li key={collection.id} class="collections-item">
                 <button
                   class={`collections-item-open ${isSelected ? "active" : ""}`}
-                  onClick={() => setSelectedId(isSelected ? null : collection.id)}
+                  onClick={() =>
+                    setSelectedId(isSelected ? null : collection.id)
+                  }
                   aria-expanded={isSelected}
                 >
                   <span class="collections-item-name">{collection.name}</span>
@@ -213,7 +252,9 @@ export function CollectionsPanel({ onOpenFile }: CollectionsPanelProps) {
                       collection={collection}
                       results={results}
                       onOpenFile={onOpenFile}
-                      onViewChange={(view) => updateCollection(collection.id, { view })}
+                      onViewChange={(view) =>
+                        updateCollection(collection.id, { view })
+                      }
                       onEditProperty={editIndexedProperty}
                     />
                   </div>

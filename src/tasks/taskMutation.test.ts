@@ -14,7 +14,8 @@ const { readTextFile, writeTextFile } = vi.hoisted(() => ({
 // capability-aware writer is mapped to the same spy because this suite
 // tests task mutation ordering, while tauriBridge.test.ts owns containment.
 vi.mock("../workspace/tauriBridge", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../workspace/tauriBridge")>();
+  const actual =
+    await importOriginal<typeof import("../workspace/tauriBridge")>();
   return {
     ...actual,
     readTextFile,
@@ -40,7 +41,8 @@ window.matchMedia = vi.fn().mockImplementation((query: string) => ({
 
 const { toggleTaskCompletion } = await import("./taskMutation");
 const { createSaveCoordinator } = await import("../workspace/saveCoordinator");
-const { closeAllTabs, openOrFocusTab, openTabs, updateTabContent } = await import("../workspace/store");
+const { closeAllTabs, openOrFocusTab, openTabs, updateTabContent } =
+  await import("../workspace/store");
 const { linkIndex } = await import("../linking/store");
 const { workspaceSession } = await import("../settings/store");
 const { scanTasks } = await import("../markdown/tasks");
@@ -102,20 +104,27 @@ describe("toggleTaskCompletion: open (in-tab) note", () => {
     const openContent = "- [ ] Task\n";
     openDocument("/vault/a.md", openContent);
     const save = createSaveCoordinator();
-    await toggleTaskCompletion("/vault/a.md", scanTasks(openContent)[0], { save });
+    await toggleTaskCompletion("/vault/a.md", scanTasks(openContent)[0], {
+      save,
+    });
     expect(openTabs.value[0].content).toBe("- [x] Task\n");
 
     const doneContent = "- [X] Task\n";
     closeAllTabs();
     openDocument("/vault/a.md", doneContent);
-    await toggleTaskCompletion("/vault/a.md", scanTasks(doneContent)[0], { save });
+    await toggleTaskCompletion("/vault/a.md", scanTasks(doneContent)[0], {
+      save,
+    });
     expect(openTabs.value[0].content).toBe("- [ ] Task\n");
   });
 
   it("incrementally replaces only this note's tasks in the shared index on success", async () => {
     const content = "- [ ] One\n- [ ] Two\n";
     openDocument("/vault/a.md", content);
-    linkIndex.value = { ...emptyLinkIndex(), tasksByPath: new Map([["/vault/a.md", scanTasks(content)]]) };
+    linkIndex.value = {
+      ...emptyLinkIndex(),
+      tasksByPath: new Map([["/vault/a.md", scanTasks(content)]]),
+    };
     const save = createSaveCoordinator();
 
     await toggleTaskCompletion("/vault/a.md", scanTasks(content)[0], { save });
@@ -141,30 +150,48 @@ describe("toggleTaskCompletion: open (in-tab) note", () => {
   it("reports a save error without touching the index when the write fails", async () => {
     const content = "- [ ] Task\n";
     openDocument("/vault/a.md", content);
-    linkIndex.value = { ...emptyLinkIndex(), tasksByPath: new Map([["/vault/a.md", scanTasks(content)]]) };
+    linkIndex.value = {
+      ...emptyLinkIndex(),
+      tasksByPath: new Map([["/vault/a.md", scanTasks(content)]]),
+    };
     writeTextFile.mockRejectedValue(new Error("disk full"));
     const save = createSaveCoordinator();
 
-    const result = await toggleTaskCompletion("/vault/a.md", scanTasks(content)[0], { save });
+    const result = await toggleTaskCompletion(
+      "/vault/a.md",
+      scanTasks(content)[0],
+      { save },
+    );
 
     expect(result).toEqual({ status: "error", message: "disk full" });
     // The index still reflects the old (unsaved) state, not the failed edit.
-    expect(linkIndex.value.tasksByPath.get("/vault/a.md")?.[0].checked).toBe(false);
+    expect(linkIndex.value.tasksByPath.get("/vault/a.md")?.[0].checked).toBe(
+      false,
+    );
   });
 
   it("fails closed and skips the index update when the workspace session changes mid-write", async () => {
     const content = "- [ ] Task\n";
     openDocument("/vault/a.md", content);
-    linkIndex.value = { ...emptyLinkIndex(), tasksByPath: new Map([["/vault/a.md", scanTasks(content)]]) };
+    linkIndex.value = {
+      ...emptyLinkIndex(),
+      tasksByPath: new Map([["/vault/a.md", scanTasks(content)]]),
+    };
     writeTextFile.mockImplementation(async () => {
       workspaceSession.value = 1;
     });
     const save = createSaveCoordinator();
 
-    const result = await toggleTaskCompletion("/vault/a.md", scanTasks(content)[0], { save });
+    const result = await toggleTaskCompletion(
+      "/vault/a.md",
+      scanTasks(content)[0],
+      { save },
+    );
 
     expect(result).toEqual({ status: "stale" });
-    expect(linkIndex.value.tasksByPath.get("/vault/a.md")?.[0].checked).toBe(false);
+    expect(linkIndex.value.tasksByPath.get("/vault/a.md")?.[0].checked).toBe(
+      false,
+    );
   });
 });
 
@@ -174,11 +201,18 @@ describe("toggleTaskCompletion: closed note", () => {
     readTextFile.mockResolvedValue(content);
     const save = createSaveCoordinator();
 
-    const result = await toggleTaskCompletion("/vault/a.md", scanTasks(content)[0], { save });
+    const result = await toggleTaskCompletion(
+      "/vault/a.md",
+      scanTasks(content)[0],
+      { save },
+    );
 
     expect(result).toEqual({ status: "ok" });
     expect(readTextFile).toHaveBeenCalledWith("/vault/a.md");
-    expect(writeTextFile).toHaveBeenCalledWith("/vault/a.md", "- [x] Call the dentist\n");
+    expect(writeTextFile).toHaveBeenCalledWith(
+      "/vault/a.md",
+      "- [x] Call the dentist\n",
+    );
   });
 
   it("fails closed with no write when the file changed on disk since the task was indexed", async () => {
@@ -259,5 +293,4 @@ describe("toggleTaskCompletion: closed note", () => {
     expect(result).toEqual({ status: "stale" });
     expect(writeTextFile).not.toHaveBeenCalled();
   });
-
 });

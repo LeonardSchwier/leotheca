@@ -2,7 +2,10 @@ import { afterEach, describe, expect, it } from "vitest";
 import { linkIndex, type LinkIndex } from "../linking/store";
 import { parseWikiLinks } from "../linking/wikiSyntax";
 import { scanHeadings } from "../markdown/headings";
-import { classifyWikiLink, computeWorkspaceLinkDiagnostics } from "./diagnostics";
+import {
+  classifyWikiLink,
+  computeWorkspaceLinkDiagnostics,
+} from "./diagnostics";
 
 /** Builds a fixture `LinkIndex` from real note content, running the real
  * scanners (`parseWikiLinks`/`scanHeadings`) over each note rather than
@@ -25,7 +28,9 @@ function buildFixtureIndex(notes: Record<string, string>): LinkIndex {
     if (links.length > 0) wikiLinksByPath.set(path, links);
     const headings = scanHeadings(content);
     if (headings.length > 0) headingsByPath.set(path, headings);
-    const name = (path.split("/").pop() ?? path).replace(/\.md$/i, "").toLocaleLowerCase();
+    const name = (path.split("/").pop() ?? path)
+      .replace(/\.md$/i, "")
+      .toLocaleLowerCase();
     const existing = pathsByNoteName.get(name) ?? [];
     existing.push(path);
     pathsByNoteName.set(name, existing);
@@ -73,7 +78,9 @@ describe("classifyWikiLink", () => {
   it("classifies a wikilink to a nonexistent note as broken", () => {
     const index = buildFixtureIndex({ "/vault/A.md": "[[Missing]]" });
     const record = index.wikiLinksByPath!.get("/vault/A.md")![0];
-    expect(classifyWikiLink(record, "/vault/A.md", index).status).toBe("broken");
+    expect(classifyWikiLink(record, "/vault/A.md", index).status).toBe(
+      "broken",
+    );
   });
 
   it("classifies a heading-link to an existing heading as resolved", () => {
@@ -114,15 +121,21 @@ describe("classifyWikiLink", () => {
       "/vault/A.md": "# Intro\nSee [[#Intro]] and [[#Nope]].",
     });
     const records = index.wikiLinksByPath!.get("/vault/A.md")!;
-    expect(classifyWikiLink(records[0], "/vault/A.md", index).status).toBe("resolved");
-    expect(classifyWikiLink(records[1], "/vault/A.md", index).status).toBe("missing-heading");
+    expect(classifyWikiLink(records[0], "/vault/A.md", index).status).toBe(
+      "resolved",
+    );
+    expect(classifyWikiLink(records[1], "/vault/A.md", index).status).toBe(
+      "missing-heading",
+    );
   });
 
   it("classifies a malformed wikilink (an empty fragment marker) as broken", () => {
     const index = buildFixtureIndex({ "/vault/A.md": "[[Note#]]" });
     const record = index.wikiLinksByPath!.get("/vault/A.md")![0];
     expect(record.parseStatus).toBe("malformed");
-    expect(classifyWikiLink(record, "/vault/A.md", index).status).toBe("broken");
+    expect(classifyWikiLink(record, "/vault/A.md", index).status).toBe(
+      "broken",
+    );
   });
 
   it("classifies a block-id fragment link as resolved at the note level (block verification is a later phase)", () => {
@@ -179,7 +192,9 @@ describe("computeWorkspaceLinkDiagnostics", () => {
     const index = buildFixtureIndex({ "/vault/A.md": content });
     const diagnostics = computeWorkspaceLinkDiagnostics(index);
     expect(diagnostics[0].sourceFrom).toBe(content.indexOf("[[Missing]]"));
-    expect(diagnostics[0].sourceTo).toBe(content.indexOf("[[Missing]]") + "[[Missing]]".length);
+    expect(diagnostics[0].sourceTo).toBe(
+      content.indexOf("[[Missing]]") + "[[Missing]]".length,
+    );
   });
 
   it("sorts findings by source path, then by position within a note", () => {

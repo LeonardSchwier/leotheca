@@ -4,14 +4,26 @@ import { updateWorkspaceSettings, workspaceSettings } from "../settings/store";
 import type { GraphColorGroup } from "../settings/workspaceSettings";
 import { computeLayout, type Point } from "./layout";
 import { createGraphLayoutCoordinator } from "./layoutCoordinator";
-import { computeZoomTransform, findNodeAtWorld, screenToWorld, type Transform } from "./transform";
+import {
+  computeZoomTransform,
+  findNodeAtWorld,
+  screenToWorld,
+  type Transform,
+} from "./transform";
 import "./graph.css";
 
 // A small, muted palette in the same earthy register as the app's own
 // --accent (see styles/theme.css), cycled through as new color groups are
 // added rather than picking a random hue, so a freshly-added group's color
 // is at least predictable and never clashes wildly with the ones before it.
-const COLOR_GROUP_PALETTE = ["#b3541e", "#3f6b4f", "#3f5a8a", "#8a6f1e", "#7a3f6f", "#2f7a7a"];
+const COLOR_GROUP_PALETTE = [
+  "#b3541e",
+  "#3f6b4f",
+  "#3f5a8a",
+  "#8a6f1e",
+  "#7a3f6f",
+  "#2f7a7a",
+];
 // Matches workspace/Sidebar.tsx's own full-text-search debounce: without
 // it, every keystroke would reset the pan/zoom transform (see
 // layoutAndDraw below) and re-run the force-directed layout, which reads
@@ -42,7 +54,9 @@ function noteName(path: string): string {
  * empty space once a vault has more than a handful of notes — real signal
  * gets lost in noise, so these are hidden from the graph by default (the
  * "Show all notes" toggle brings them back). */
-export function computeConnectedPaths(backlinksByPath: Map<string, string[]>): Set<string> {
+export function computeConnectedPaths(
+  backlinksByPath: Map<string, string[]>,
+): Set<string> {
   const connected = new Set<string>();
   for (const [target, sources] of backlinksByPath) {
     if (sources.length === 0) continue;
@@ -97,9 +111,14 @@ export function filterGraphByQuery(
 ): { nodes: string[]; edges: [string, string][] } {
   const q = query.trim().toLowerCase();
   if (!q) return { nodes: nodePaths, edges };
-  const nodes = nodePaths.filter((path) => noteName(path).toLowerCase().includes(q));
+  const nodes = nodePaths.filter((path) =>
+    noteName(path).toLowerCase().includes(q),
+  );
   const nodeSet = new Set(nodes);
-  return { nodes, edges: edges.filter(([a, b]) => nodeSet.has(a) && nodeSet.has(b)) };
+  return {
+    nodes,
+    edges: edges.filter(([a, b]) => nodeSet.has(a) && nodeSet.has(b)),
+  };
 }
 
 /** The color `path`'s node should be drawn with: the first color group
@@ -108,7 +127,11 @@ export function filterGraphByQuery(
  * the note's display name, or `fallback` otherwise. A group with a blank
  * query never matches anything, so an empty "still being typed into" group
  * can't accidentally recolor the entire graph. */
-export function colorForPath(path: string, groups: GraphColorGroup[], fallback: string): string {
+export function colorForPath(
+  path: string,
+  groups: GraphColorGroup[],
+  fallback: string,
+): string {
   const name = noteName(path).toLowerCase();
   for (const group of groups) {
     const q = group.query.trim().toLowerCase();
@@ -123,7 +146,12 @@ export function colorForPath(path: string, groups: GraphColorGroup[], fallback: 
  * what counts as a visible node. */
 export function computeVisibleGraph(
   backlinksByPath: Map<string, string[]>,
-  options: { isLocal: boolean; focusPath?: string; showAll: boolean; filterQuery: string },
+  options: {
+    isLocal: boolean;
+    focusPath?: string;
+    showAll: boolean;
+    filterQuery: string;
+  },
 ): { nodes: string[]; edges: [string, string][] } {
   let nodePaths: string[];
   let edges: [string, string][];
@@ -133,7 +161,9 @@ export function computeVisibleGraph(
     edges = local.edges;
   } else {
     const connected = computeConnectedPaths(backlinksByPath);
-    nodePaths = options.showAll ? Array.from(backlinksByPath.keys()) : Array.from(connected);
+    nodePaths = options.showAll
+      ? Array.from(backlinksByPath.keys())
+      : Array.from(connected);
     // An edge's two endpoints are always in `connected` by construction
     // (that's exactly what makes them connected), so unlike nodePaths,
     // edges never need filtering for the showAll === false case.
@@ -146,7 +176,9 @@ export function computeVisibleGraph(
 }
 
 function readCssVar(name: string, fallback: string): string {
-  const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const value = getComputedStyle(document.documentElement)
+    .getPropertyValue(name)
+    .trim();
   return value || fallback;
 }
 
@@ -157,7 +189,9 @@ export function GraphView({ onOpenFile, onClose, focusPath }: GraphViewProps) {
   const edgesRef = useRef<[string, string][]>([]);
   const transformRef = useRef<Transform>({ offsetX: 0, offsetY: 0, scale: 1 });
   const draggingRef = useRef<{ x: number; y: number } | null>(null);
-  const activePointersRef = useRef<Map<number, { x: number; y: number }>>(new Map());
+  const activePointersRef = useRef<Map<number, { x: number; y: number }>>(
+    new Map(),
+  );
   const pinchStartRef = useRef<{
     dist: number;
     scale: number;
@@ -166,8 +200,10 @@ export function GraphView({ onOpenFile, onClose, focusPath }: GraphViewProps) {
     offsetX: number;
     offsetY: number;
   } | null>(null);
-  const layoutCoordinatorRef = useRef<ReturnType<typeof createGraphLayoutCoordinator>>();
-  if (!layoutCoordinatorRef.current) layoutCoordinatorRef.current = createGraphLayoutCoordinator();
+  const layoutCoordinatorRef =
+    useRef<ReturnType<typeof createGraphLayoutCoordinator>>();
+  if (!layoutCoordinatorRef.current)
+    layoutCoordinatorRef.current = createGraphLayoutCoordinator();
   const [showAll, setShowAll] = useState(false);
   const [mode, setMode] = useState<"workspace" | "local">("workspace");
   // filterInput reflects every keystroke immediately (so the text box never
@@ -208,7 +244,10 @@ export function GraphView({ onOpenFile, onClose, focusPath }: GraphViewProps) {
   const handleFilterInput = (value: string) => {
     setFilterInput(value);
     if (filterTimerRef.current) clearTimeout(filterTimerRef.current);
-    filterTimerRef.current = setTimeout(() => setFilterQuery(value), FILTER_DEBOUNCE_MS);
+    filterTimerRef.current = setTimeout(
+      () => setFilterQuery(value),
+      FILTER_DEBOUNCE_MS,
+    );
   };
 
   // Canvas rendering is imperative on purpose: it should never depend on
@@ -259,7 +298,10 @@ export function GraphView({ onOpenFile, onClose, focusPath }: GraphViewProps) {
     ctx.restore();
   };
 
-  const publishLayout = (edges: [string, string][], positions: Map<string, Point>) => {
+  const publishLayout = (
+    edges: [string, string][],
+    positions: Map<string, Point>,
+  ) => {
     edgesRef.current = edges;
     positionsRef.current = positions;
     transformRef.current = { offsetX: 0, offsetY: 0, scale: 1 };
@@ -292,9 +334,12 @@ export function GraphView({ onOpenFile, onClose, focusPath }: GraphViewProps) {
       publishLayout(edges, computeLayout(nodes, edges, width, height));
       return;
     }
-    layoutCoordinatorRef.current!.request({ nodes, edges, width, height }, (positions) => {
-      publishLayout(edges, positions);
-    });
+    layoutCoordinatorRef.current!.request(
+      { nodes, edges, width, height },
+      (positions) => {
+        publishLayout(edges, positions);
+      },
+    );
   };
 
   useEffect(() => {
@@ -330,8 +375,18 @@ export function GraphView({ onOpenFile, onClose, focusPath }: GraphViewProps) {
     if (!canvas) return null;
     const rect = canvas.getBoundingClientRect();
     const { scale } = transformRef.current;
-    const world = screenToWorld(clientX - rect.left, clientY - rect.top, transformRef.current);
-    const node = findNodeAtWorld(world.x, world.y, positionsRef.current, scale, NODE_HIT_RADIUS);
+    const world = screenToWorld(
+      clientX - rect.left,
+      clientY - rect.top,
+      transformRef.current,
+    );
+    const node = findNodeAtWorld(
+      world.x,
+      world.y,
+      positionsRef.current,
+      scale,
+      NODE_HIT_RADIUS,
+    );
     if (node) return node;
     // Labels are painted beside the dot, so they need their own hit area.
     // Approximate canvas text width deliberately errs on the generous side:
@@ -344,12 +399,23 @@ export function GraphView({ onOpenFile, onClose, focusPath }: GraphViewProps) {
       const width = (label.length * 7.2) / scale;
       const top = position.y - 10 / scale;
       const bottom = position.y + 7 / scale;
-      if (world.x >= left && world.x <= left + width && world.y >= top && world.y <= bottom) return path;
+      if (
+        world.x >= left &&
+        world.x <= left + width &&
+        world.y >= top &&
+        world.y <= bottom
+      )
+        return path;
     }
     return null;
   }
 
-  function applyZoom(clientX: number, clientY: number, newScale: number, base: Transform) {
+  function applyZoom(
+    clientX: number,
+    clientY: number,
+    newScale: number,
+    base: Transform,
+  ) {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
@@ -367,7 +433,12 @@ export function GraphView({ onOpenFile, onClose, focusPath }: GraphViewProps) {
   const handleWheel = (e: WheelEvent) => {
     e.preventDefault();
     const zoomFactor = Math.exp(-e.deltaY * 0.001);
-    applyZoom(e.clientX, e.clientY, transformRef.current.scale * zoomFactor, transformRef.current);
+    applyZoom(
+      e.clientX,
+      e.clientY,
+      transformRef.current.scale * zoomFactor,
+      transformRef.current,
+    );
   };
 
   const handlePointerDown = (e: PointerEvent) => {
@@ -398,7 +469,10 @@ export function GraphView({ onOpenFile, onClose, focusPath }: GraphViewProps) {
 
   const handlePointerMove = (e: PointerEvent) => {
     if (activePointersRef.current.has(e.pointerId)) {
-      activePointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      activePointersRef.current.set(e.pointerId, {
+        x: e.clientX,
+        y: e.clientY,
+      });
     }
 
     if (activePointersRef.current.size === 2 && pinchStartRef.current) {
@@ -444,25 +518,35 @@ export function GraphView({ onOpenFile, onClose, focusPath }: GraphViewProps) {
     const next: GraphColorGroup = {
       id: crypto.randomUUID(),
       query: "",
-      color: COLOR_GROUP_PALETTE[colorGroups.length % COLOR_GROUP_PALETTE.length],
+      color:
+        COLOR_GROUP_PALETTE[colorGroups.length % COLOR_GROUP_PALETTE.length],
     };
     void updateWorkspaceSettings({ graphColorGroups: [...colorGroups, next] });
   }
 
-  function updateColorGroup(id: string, patch: Partial<Pick<GraphColorGroup, "query" | "color">>) {
+  function updateColorGroup(
+    id: string,
+    patch: Partial<Pick<GraphColorGroup, "query" | "color">>,
+  ) {
     void updateWorkspaceSettings({
-      graphColorGroups: colorGroups.map((group) => (group.id === id ? { ...group, ...patch } : group)),
+      graphColorGroups: colorGroups.map((group) =>
+        group.id === id ? { ...group, ...patch } : group,
+      ),
     });
   }
 
   function removeColorGroup(id: string) {
-    void updateWorkspaceSettings({ graphColorGroups: colorGroups.filter((group) => group.id !== id) });
+    void updateWorkspaceSettings({
+      graphColorGroups: colorGroups.filter((group) => group.id !== id),
+    });
   }
 
   return (
     <div class="graph-view-overlay">
       <div class="graph-view-header">
-        <span class="graph-view-title">{isLocal ? `Local graph: ${noteName(focusPath!)}` : "Graph"}</span>
+        <span class="graph-view-title">
+          {isLocal ? `Local graph: ${noteName(focusPath!)}` : "Graph"}
+        </span>
         <div class="graph-view-header-actions">
           <input
             class="graph-filter-input"
@@ -470,14 +554,22 @@ export function GraphView({ onOpenFile, onClose, focusPath }: GraphViewProps) {
             placeholder="Filter notes…"
             aria-label="Filter graph notes"
             value={filterInput}
-            onInput={(e) => handleFilterInput((e.target as HTMLInputElement).value)}
+            onInput={(e) =>
+              handleFilterInput((e.target as HTMLInputElement).value)
+            }
           />
           {focusPath && (
             <div class="settings-switch">
-              <button class={mode === "workspace" ? "active" : ""} onClick={() => setMode("workspace")}>
+              <button
+                class={mode === "workspace" ? "active" : ""}
+                onClick={() => setMode("workspace")}
+              >
                 Workspace
               </button>
-              <button class={mode === "local" ? "active" : ""} onClick={() => setMode("local")}>
+              <button
+                class={mode === "local" ? "active" : ""}
+                onClick={() => setMode("local")}
+              >
                 This note
               </button>
             </div>
@@ -487,27 +579,39 @@ export function GraphView({ onOpenFile, onClose, focusPath }: GraphViewProps) {
               <input
                 type="checkbox"
                 checked={showAll}
-                onChange={(e) => setShowAll((e.target as HTMLInputElement).checked)}
+                onChange={(e) =>
+                  setShowAll((e.target as HTMLInputElement).checked)
+                }
               />
               Show all notes
             </label>
           )}
           <button
-            class={colorGroupsOpen ? "graph-color-groups-toggle active" : "graph-color-groups-toggle"}
+            class={
+              colorGroupsOpen
+                ? "graph-color-groups-toggle active"
+                : "graph-color-groups-toggle"
+            }
             aria-label="Color groups"
             title="Color groups"
             onClick={() => setColorGroupsOpen((open) => !open)}
           >
             Colors
           </button>
-          <button class="icon-button" aria-label="Close graph" title="Close graph" onClick={onClose}>
+          <button
+            class="icon-button"
+            aria-label="Close graph"
+            title="Close graph"
+            onClick={onClose}
+          >
             ×
           </button>
         </div>
       </div>
       {openError && (
         <p class="graph-view-error-message" role="alert">
-          Couldn't open "{openError}" — it may have been moved, renamed, or deleted.
+          Couldn't open "{openError}": it may have been moved, renamed, or
+          deleted.
         </p>
       )}
       {colorGroupsOpen && (
@@ -516,16 +620,28 @@ export function GraphView({ onOpenFile, onClose, focusPath }: GraphViewProps) {
             <div class="graph-color-group-row" key={group.id}>
               <input
                 type="color"
-                aria-label={group.query ? `Color for notes matching "${group.query}"` : "Color for new group"}
+                aria-label={
+                  group.query
+                    ? `Color for notes matching "${group.query}"`
+                    : "Color for new group"
+                }
                 value={group.color}
-                onInput={(e) => updateColorGroup(group.id, { color: (e.target as HTMLInputElement).value })}
+                onInput={(e) =>
+                  updateColorGroup(group.id, {
+                    color: (e.target as HTMLInputElement).value,
+                  })
+                }
               />
               <input
                 type="text"
                 class="graph-color-group-query"
                 placeholder="Notes containing…"
                 value={group.query}
-                onInput={(e) => updateColorGroup(group.id, { query: (e.target as HTMLInputElement).value })}
+                onInput={(e) =>
+                  updateColorGroup(group.id, {
+                    query: (e.target as HTMLInputElement).value,
+                  })
+                }
               />
               <button
                 class="graph-color-group-remove"

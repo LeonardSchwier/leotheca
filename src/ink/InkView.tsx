@@ -1,6 +1,6 @@
 /**
  * Freehand Phase 2b: InkView - Standalone drawing note viewer/editor
- * 
+ *
  * A workspace-integrated component for viewing and editing .ink files.
  * Owns the ink document state and persistence for a single file.
  */
@@ -13,7 +13,13 @@ import {
   createEmptyInkDocument,
   type DecodedInkDocument,
 } from "./inkDocument";
-import { createInkHistory, commitInkEdit, undoInkEdit, redoInkEdit, eraseInkAtPoint } from "./inkEditing";
+import {
+  createInkHistory,
+  commitInkEdit,
+  undoInkEdit,
+  redoInkEdit,
+  eraseInkAtPoint,
+} from "./inkEditing";
 import { InkSurface, type InkSurfaceTool } from "./InkSurface";
 import type { InkHistory } from "./inkEditing";
 
@@ -38,8 +44,12 @@ function decodeInkSource(source: string): DecodedInkDocument {
  * Freehand Phase 2b: Standalone drawing note viewer/editor
  */
 export function InkView({ path, source, onChange }: InkViewProps) {
-  const [decoded, setDecoded] = useState<DecodedInkDocument>(() => decodeInkSource(source));
-  const [history, setHistory] = useState<InkHistory>(() => createInkHistory(decoded.document.strokes));
+  const [decoded, setDecoded] = useState<DecodedInkDocument>(() =>
+    decodeInkSource(source),
+  );
+  const [history, setHistory] = useState<InkHistory>(() =>
+    createInkHistory(decoded.document.strokes),
+  );
   const [tool, setTool] = useState<InkSurfaceTool>("pen");
   const [color, setColor] = useState<string>("#1f2937");
   const [width, setWidth] = useState<number>(3);
@@ -52,28 +62,47 @@ export function InkView({ path, source, onChange }: InkViewProps) {
   }, [source, path]);
 
   // Handle stroke creation from InkSurface
-  const handleCommitStroke = useCallback((stroke: InkStroke) => {
-    const newStrokes = [...decoded.document.strokes, stroke];
-    const newDecoded: DecodedInkDocument = { ...decoded, document: { ...decoded.document, strokes: newStrokes } };
-    setDecoded(newDecoded);
-    setHistory(commitInkEdit(history, newStrokes));
-    onChange(serializeInkDocument(newDecoded));
-  }, [decoded, history, onChange]);
+  const handleCommitStroke = useCallback(
+    (stroke: InkStroke) => {
+      const newStrokes = [...decoded.document.strokes, stroke];
+      const newDecoded: DecodedInkDocument = {
+        ...decoded,
+        document: { ...decoded.document, strokes: newStrokes },
+      };
+      setDecoded(newDecoded);
+      setHistory(commitInkEdit(history, newStrokes));
+      onChange(serializeInkDocument(newDecoded));
+    },
+    [decoded, history, onChange],
+  );
 
   // Handle eraser input from InkSurface
-  const handleEraseAt = useCallback((point: InkPoint) => {
-    const newStrokes = eraseInkAtPoint(decoded.document.strokes, point, width);
-    const newDecoded: DecodedInkDocument = { ...decoded, document: { ...decoded.document, strokes: newStrokes } };
-    setDecoded(newDecoded);
-    setHistory(commitInkEdit(history, newStrokes));
-    onChange(serializeInkDocument(newDecoded));
-  }, [decoded, history, width, onChange]);
+  const handleEraseAt = useCallback(
+    (point: InkPoint) => {
+      const newStrokes = eraseInkAtPoint(
+        decoded.document.strokes,
+        point,
+        width,
+      );
+      const newDecoded: DecodedInkDocument = {
+        ...decoded,
+        document: { ...decoded.document, strokes: newStrokes },
+      };
+      setDecoded(newDecoded);
+      setHistory(commitInkEdit(history, newStrokes));
+      onChange(serializeInkDocument(newDecoded));
+    },
+    [decoded, history, width, onChange],
+  );
 
   // Handle undo
   const handleUndo = useCallback(() => {
     const newHistory = undoInkEdit(history);
     if (newHistory === history) return;
-    const newDecoded: DecodedInkDocument = { ...decoded, document: { ...decoded.document, strokes: newHistory.present } };
+    const newDecoded: DecodedInkDocument = {
+      ...decoded,
+      document: { ...decoded.document, strokes: newHistory.present },
+    };
     setHistory(newHistory);
     setDecoded(newDecoded);
     onChange(serializeInkDocument(newDecoded));
@@ -83,7 +112,10 @@ export function InkView({ path, source, onChange }: InkViewProps) {
   const handleRedo = useCallback(() => {
     const newHistory = redoInkEdit(history);
     if (newHistory === history) return;
-    const newDecoded: DecodedInkDocument = { ...decoded, document: { ...decoded.document, strokes: newHistory.present } };
+    const newDecoded: DecodedInkDocument = {
+      ...decoded,
+      document: { ...decoded.document, strokes: newHistory.present },
+    };
     setHistory(newHistory);
     setDecoded(newDecoded);
     onChange(serializeInkDocument(newDecoded));
@@ -109,8 +141,8 @@ export function InkView({ path, source, onChange }: InkViewProps) {
       <div class="ink-toolbar" role="toolbar" aria-label="Drawing tools">
         {/* Tool selection */}
         <div class="ink-tool-group" role="radiogroup" aria-label="Drawing tool">
-          <button 
-            type="button" 
+          <button
+            type="button"
             class={`ink-tool-button ${tool === "pen" ? "active" : ""}`}
             onClick={() => handleToolChange("pen")}
             aria-label="Pen tool"
@@ -118,8 +150,8 @@ export function InkView({ path, source, onChange }: InkViewProps) {
           >
             <span class="ink-tool-icon pen-icon" /> Pen
           </button>
-          <button 
-            type="button" 
+          <button
+            type="button"
             class={`ink-tool-button ${tool === "highlighter" ? "active" : ""}`}
             onClick={() => handleToolChange("highlighter")}
             aria-label="Highlighter tool"
@@ -127,8 +159,8 @@ export function InkView({ path, source, onChange }: InkViewProps) {
           >
             <span class="ink-tool-icon highlighter-icon" /> Highlighter
           </button>
-          <button 
-            type="button" 
+          <button
+            type="button"
             class={`ink-tool-button ${tool === "eraser" ? "active" : ""}`}
             onClick={() => handleToolChange("eraser")}
             aria-label="Eraser tool"
@@ -141,10 +173,12 @@ export function InkView({ path, source, onChange }: InkViewProps) {
         {/* Color selection */}
         <div class="ink-color-group" role="group" aria-label="Color selection">
           <label class="ink-color-button">
-            <input 
-              type="color" 
+            <input
+              type="color"
               value={color}
-              onInput={(e) => handleColorChange((e.target as HTMLInputElement).value)}
+              onInput={(e) =>
+                handleColorChange((e.target as HTMLInputElement).value)
+              }
               aria-label="Stroke color"
             />
           </label>
@@ -152,9 +186,11 @@ export function InkView({ path, source, onChange }: InkViewProps) {
 
         {/* Width selection */}
         <div class="ink-width-group" role="group" aria-label="Stroke width">
-          <select 
-            value={width} 
-            onChange={(e) => handleWidthChange(Number((e.target as HTMLSelectElement).value))}
+          <select
+            value={width}
+            onChange={(e) =>
+              handleWidthChange(Number((e.target as HTMLSelectElement).value))
+            }
             aria-label="Stroke width"
           >
             <option value="1">Thin</option>
@@ -166,8 +202,8 @@ export function InkView({ path, source, onChange }: InkViewProps) {
 
         {/* Action buttons */}
         <div class="ink-action-group" role="group" aria-label="Drawing actions">
-          <button 
-            type="button" 
+          <button
+            type="button"
             onClick={handleUndo}
             disabled={history.past.length === 0}
             aria-label="Undo"
@@ -175,8 +211,8 @@ export function InkView({ path, source, onChange }: InkViewProps) {
           >
             <span class="ink-action-icon undo-icon" /> Undo
           </button>
-          <button 
-            type="button" 
+          <button
+            type="button"
             onClick={handleRedo}
             disabled={history.future.length === 0}
             aria-label="Redo"

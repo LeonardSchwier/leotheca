@@ -50,6 +50,7 @@ Two paths, and which one first is a real decision, not just a formality:
    - License: MIT
    - Existing distribution: Linux (AppImage, Flatpak/Flathub), Android (F-Droid, Obtainium, direct APK)
    ```
+
 5. Address whatever their automated audit and human reviewers raise.
 
 This whole step — creating the tap repository or filing the official PR — needs the maintainer's own GitHub account, not something an agent should do unprompted. Everything in this directory is preparation only.

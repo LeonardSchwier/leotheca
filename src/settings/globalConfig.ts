@@ -1,4 +1,11 @@
-import { anyCorrupt, decodeBoolean, decodeEnum, decodeNullableString, decodeNumberInRange, decodeString } from "./decode";
+import {
+  anyCorrupt,
+  decodeBoolean,
+  decodeEnum,
+  decodeNullableString,
+  decodeNumberInRange,
+  decodeString,
+} from "./decode";
 import {
   getAppConfigFilePath,
   readTextFile,
@@ -118,7 +125,12 @@ function decodeWorkspaceProfile(raw: unknown): WorkspaceProfile | null {
   const path = decodeString(raw.path, "");
   const name = decodeString(raw.name, "");
   const icon = decodeString(raw.icon, "folder");
-  const lastOpenedAt = decodeNumberInRange(raw.lastOpenedAt, 0, Number.MAX_SAFE_INTEGER, 0);
+  const lastOpenedAt = decodeNumberInRange(
+    raw.lastOpenedAt,
+    0,
+    Number.MAX_SAFE_INTEGER,
+    0,
+  );
   const tokenCorrupt = raw.token !== undefined && typeof raw.token !== "string";
   if (id.corrupt || id.value === "") return null;
   if (path.corrupt || path.value === "") return null;
@@ -147,7 +159,10 @@ function decodeWorkspaceProfile(raw: unknown): WorkspaceProfile | null {
  * which always returns the first match, so the runtime view already
  * resolves a duplicate deterministically (section 18.3) without a
  * separate dedup pass or losing track of which record "won." */
-function decodeWorkspaceProfiles(raw: unknown): { value: WorkspaceProfile[]; corrupt: boolean } {
+function decodeWorkspaceProfiles(raw: unknown): {
+  value: WorkspaceProfile[];
+  corrupt: boolean;
+} {
   if (raw === undefined) return { value: [], corrupt: false };
   if (!Array.isArray(raw)) return { value: [], corrupt: true };
   const decoded = raw.map(decodeWorkspaceProfile);
@@ -186,12 +201,25 @@ export function decodeGlobalConfig(raw: string): {
   }
   const record = parsed;
 
-  const lastWorkspacePath = decodeNullableString(record.lastWorkspacePath, null);
-  const theme = decodeEnum(record.theme, THEME_PREFERENCES, DEFAULT_GLOBAL_CONFIG.theme);
-  const workspaceTokenCorrupt = record.workspaceToken !== undefined && typeof record.workspaceToken !== "string";
-  const hasV2Catalog = record.version === 2 && Array.isArray(record.workspaceProfiles);
+  const lastWorkspacePath = decodeNullableString(
+    record.lastWorkspacePath,
+    null,
+  );
+  const theme = decodeEnum(
+    record.theme,
+    THEME_PREFERENCES,
+    DEFAULT_GLOBAL_CONFIG.theme,
+  );
+  const workspaceTokenCorrupt =
+    record.workspaceToken !== undefined &&
+    typeof record.workspaceToken !== "string";
+  const hasV2Catalog =
+    record.version === 2 && Array.isArray(record.workspaceProfiles);
   const profiles = decodeWorkspaceProfiles(record.workspaceProfiles);
-  const activeWorkspaceId = decodeNullableString(record.activeWorkspaceId, null);
+  const activeWorkspaceId = decodeNullableString(
+    record.activeWorkspaceId,
+    null,
+  );
   const externalFileOpenEnabled = decodeBoolean(
     record.externalFileOpenEnabled,
     DEFAULT_GLOBAL_CONFIG.externalFileOpenEnabled,
@@ -223,7 +251,10 @@ export function decodeGlobalConfig(raw: string): {
         name,
         icon: "folder",
         path: lastWorkspacePath.value,
-        token: typeof record.workspaceToken === "string" ? record.workspaceToken : undefined,
+        token:
+          typeof record.workspaceToken === "string"
+            ? record.workspaceToken
+            : undefined,
         lastOpenedAt: Date.now(),
       },
     ];
@@ -244,7 +275,12 @@ export function decodeGlobalConfig(raw: string): {
   return {
     config,
     corrupt:
-      anyCorrupt(lastWorkspacePath, theme, activeWorkspaceId, externalFileOpenEnabled) ||
+      anyCorrupt(
+        lastWorkspacePath,
+        theme,
+        activeWorkspaceId,
+        externalFileOpenEnabled,
+      ) ||
       workspaceTokenCorrupt ||
       profiles.corrupt,
   };

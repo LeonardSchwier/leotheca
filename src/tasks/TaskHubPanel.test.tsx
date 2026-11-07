@@ -15,7 +15,8 @@ const { readTextFile, writeTextFile } = vi.hoisted(() => ({
 // write spy because this suite tests Task Hub behavior, while the bridge's
 // containment contract has dedicated tests in tauriBridge.test.ts.
 vi.mock("../workspace/tauriBridge", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../workspace/tauriBridge")>();
+  const actual =
+    await importOriginal<typeof import("../workspace/tauriBridge")>();
   return {
     ...actual,
     readTextFile,
@@ -46,7 +47,8 @@ const { flattenTasks, TaskHubPanel } = await import("./TaskHubPanel");
 const { linkIndex } = await import("../linking/store");
 const { outlineRevealRequest } = await import("../outline/outlineNavigation");
 const { createSaveCoordinator } = await import("../workspace/saveCoordinator");
-const { closeAllTabs, openOrFocusTab, openTabs, updateTabContent } = await import("../workspace/store");
+const { closeAllTabs, openOrFocusTab, openTabs, updateTabContent } =
+  await import("../workspace/store");
 const { workspaceSession } = await import("../settings/store");
 
 function emptyLinkIndex() {
@@ -61,8 +63,15 @@ function emptyLinkIndex() {
   };
 }
 
-function setTasksByPath(tasksByPath: Map<string, TaskRecord[]>, tagsByPath?: Map<string, string[]>) {
-  linkIndex.value = { ...emptyLinkIndex(), tasksByPath, tagsByPath: tagsByPath ?? new Map() };
+function setTasksByPath(
+  tasksByPath: Map<string, TaskRecord[]>,
+  tagsByPath?: Map<string, string[]>,
+) {
+  linkIndex.value = {
+    ...emptyLinkIndex(),
+    tasksByPath,
+    tagsByPath: tagsByPath ?? new Map(),
+  };
 }
 
 function openDocument(path: string, content: string) {
@@ -96,7 +105,9 @@ describe("TaskHubPanel", () => {
   });
 
   it("lists every found task with its checked state and note title", () => {
-    setTasksByPath(new Map([["/vault/a.md", scanTasks("- [ ] Open one\n- [x] Done one\n")]]));
+    setTasksByPath(
+      new Map([["/vault/a.md", scanTasks("- [ ] Open one\n- [x] Done one\n")]]),
+    );
     const { getByText, getByLabelText } = renderPanel();
     // Default status filter is Open, so only the open task shows by default.
     expect(getByText("Open one")).toBeTruthy();
@@ -118,11 +129,15 @@ describe("TaskHubPanel", () => {
   });
 
   it("reflects a completed task's checkbox as checked and an open task's as unchecked", () => {
-    setTasksByPath(new Map([["/vault/a.md", scanTasks("- [ ] Open\n- [x] Done\n")]]));
+    setTasksByPath(
+      new Map([["/vault/a.md", scanTasks("- [ ] Open\n- [x] Done\n")]]),
+    );
     const { getByLabelText, getByText } = renderPanel();
     fireEvent.click(getByText("All"));
     const openCheckbox = getByLabelText(/^Open task: Open/) as HTMLInputElement;
-    const doneCheckbox = getByLabelText(/^Completed task: Done/) as HTMLInputElement;
+    const doneCheckbox = getByLabelText(
+      /^Completed task: Done/,
+    ) as HTMLInputElement;
     expect(openCheckbox.checked).toBe(false);
     expect(doneCheckbox.checked).toBe(true);
   });
@@ -134,7 +149,9 @@ describe("TaskHubPanel", () => {
   });
 
   it("clicking a task row's label opens its note with the note's title (not the raw file name)", async () => {
-    setTasksByPath(new Map([["/vault/sub/My Note.md", scanTasks("- [ ] Do it\n")]]));
+    setTasksByPath(
+      new Map([["/vault/sub/My Note.md", scanTasks("- [ ] Do it\n")]]),
+    );
     const onOpenFile = vi.fn();
     const { getByText } = renderPanel({ onOpenFile });
     fireEvent.click(getByText("Do it"));
@@ -180,7 +197,9 @@ describe("TaskHubPanel", () => {
 
   it("shows an inline error instead of silently doing nothing when onOpenFile rejects", async () => {
     setTasksByPath(new Map([["/vault/My Note.md", scanTasks("- [ ] Task\n")]]));
-    const onOpenFile = vi.fn().mockRejectedValue(new Error("stale file handle"));
+    const onOpenFile = vi
+      .fn()
+      .mockRejectedValue(new Error("stale file handle"));
     const { getByText, findByRole } = renderPanel({ onOpenFile });
 
     fireEvent.click(getByText("Task"));
@@ -192,7 +211,10 @@ describe("TaskHubPanel", () => {
 
   it("clears a prior open error and re-attempts when the row's label is clicked again", async () => {
     setTasksByPath(new Map([["/vault/My Note.md", scanTasks("- [ ] Task\n")]]));
-    const onOpenFile = vi.fn().mockRejectedValueOnce(new Error("stale file handle")).mockResolvedValueOnce(undefined);
+    const onOpenFile = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("stale file handle"))
+      .mockResolvedValueOnce(undefined);
     const { getByText, findByRole, queryByRole } = renderPanel({ onOpenFile });
 
     fireEvent.click(getByText("Task"));
@@ -216,9 +238,13 @@ describe("TaskHubPanel", () => {
   });
 
   it("indents a nested task deeper than its parent", () => {
-    setTasksByPath(new Map([["/vault/a.md", scanTasks("- [ ] Parent\n  - [ ] Child\n")]]));
+    setTasksByPath(
+      new Map([["/vault/a.md", scanTasks("- [ ] Parent\n  - [ ] Child\n")]]),
+    );
     const { getByText } = renderPanel();
-    const parentRow = getByText("Parent").closest(".task-hub-row") as HTMLElement;
+    const parentRow = getByText("Parent").closest(
+      ".task-hub-row",
+    ) as HTMLElement;
     const childRow = getByText("Child").closest(".task-hub-row") as HTMLElement;
     const parentIndent = parseInt(parentRow.style.paddingLeft, 10);
     const childIndent = parseInt(childRow.style.paddingLeft, 10);
@@ -232,14 +258,18 @@ describe("TaskHubPanel", () => {
 // otherwise also match the Open status button, not just an open task).
 describe("TaskHubPanel: status filter", () => {
   it("defaults to Open, hiding completed tasks", () => {
-    setTasksByPath(new Map([["/vault/a.md", scanTasks("- [ ] Buy milk\n- [x] Mow lawn\n")]]));
+    setTasksByPath(
+      new Map([["/vault/a.md", scanTasks("- [ ] Buy milk\n- [x] Mow lawn\n")]]),
+    );
     const { queryByText } = renderPanel();
     expect(queryByText("Buy milk")).toBeTruthy();
     expect(queryByText("Mow lawn")).toBeNull();
   });
 
   it("Completed shows only completed tasks", () => {
-    setTasksByPath(new Map([["/vault/a.md", scanTasks("- [ ] Buy milk\n- [x] Mow lawn\n")]]));
+    setTasksByPath(
+      new Map([["/vault/a.md", scanTasks("- [ ] Buy milk\n- [x] Mow lawn\n")]]),
+    );
     const { getByRole, queryByText } = renderPanel();
     fireEvent.click(getByRole("radio", { name: "Completed" }));
     expect(queryByText("Buy milk")).toBeNull();
@@ -257,7 +287,9 @@ describe("TaskHubPanel: status filter", () => {
   it("shows a generic no-match state, with Clear filters, when a non-default filter combination matches nothing", () => {
     setTasksByPath(new Map([["/vault/a.md", scanTasks("- [ ] Buy milk\n")]]));
     const { getByLabelText, getByText, queryByText } = renderPanel();
-    fireEvent.input(getByLabelText("Search tasks"), { target: { value: "nonexistent" } });
+    fireEvent.input(getByLabelText("Search tasks"), {
+      target: { value: "nonexistent" },
+    });
     expect(getByText("No tasks match these filters.")).toBeTruthy();
     fireEvent.click(getByText("Clear filters"));
     expect(queryByText("Buy milk")).toBeTruthy();
@@ -274,7 +306,9 @@ describe("TaskHubPanel: text filter", () => {
     );
     const { getByLabelText, queryByText, getByRole } = renderPanel();
     fireEvent.click(getByRole("radio", { name: "All" }));
-    fireEvent.input(getByLabelText("Search tasks"), { target: { value: "DENTIST" } });
+    fireEvent.input(getByLabelText("Search tasks"), {
+      target: { value: "DENTIST" },
+    });
     expect(queryByText("Call the dentist")).toBeTruthy();
     expect(queryByText("Buy groceries")).toBeNull();
   });
@@ -332,9 +366,9 @@ describe("TaskHubPanel: grouping", () => {
     fireEvent.click(getByRole("radio", { name: "All" }));
     fireEvent.click(getByRole("button", { name: /^Filters/ }));
     fireEvent.change(getByLabelText("Group by"), { target: { value: "note" } });
-    const headings = Array.from(container.querySelectorAll(".task-hub-group-heading")).map(
-      (el) => el.textContent,
-    );
+    const headings = Array.from(
+      container.querySelectorAll(".task-hub-group-heading"),
+    ).map((el) => el.textContent);
     expect(headings).toEqual(["a", "b"]);
   });
 
@@ -349,7 +383,9 @@ describe("TaskHubPanel: grouping", () => {
     const { getByRole, getByLabelText, getByText } = renderPanel();
     fireEvent.click(getByRole("radio", { name: "All" }));
     fireEvent.click(getByRole("button", { name: /^Filters/ }));
-    fireEvent.change(getByLabelText("Group by"), { target: { value: "folder" } });
+    fireEvent.change(getByLabelText("Group by"), {
+      target: { value: "folder" },
+    });
     expect(getByText("/vault/projects")).toBeTruthy();
     expect(getByText("/vault")).toBeTruthy();
   });
@@ -363,7 +399,12 @@ describe("TaskHubPanel: toggle completion", () => {
     const { getByLabelText, queryByText, getByText } = renderPanel();
     fireEvent.click(getByLabelText(/^Open task: Call the dentist/));
 
-    await waitFor(() => expect(writeTextFile).toHaveBeenCalledWith("/vault/a.md", "- [x] Call the dentist\n"));
+    await waitFor(() =>
+      expect(writeTextFile).toHaveBeenCalledWith(
+        "/vault/a.md",
+        "- [x] Call the dentist\n",
+      ),
+    );
     // The write flipped it to completed; the default Open filter re-evaluates
     // against the freshly indexed state and the row leaves the visible list
     // (the same effect a completed-from-Open row has anywhere else in the
@@ -379,7 +420,9 @@ describe("TaskHubPanel: toggle completion", () => {
     const content = "- [ ] Task\n";
     setTasksByPath(new Map([["/vault/a.md", scanTasks(content)]]));
     let resolveRead: (value: string) => void = () => {};
-    readTextFile.mockReturnValue(new Promise((resolve) => (resolveRead = resolve)));
+    readTextFile.mockReturnValue(
+      new Promise((resolve) => (resolveRead = resolve)),
+    );
     const { getByRole, getByLabelText } = renderPanel();
     // Stay on the All filter so the row (about to become completed) is
     // still on screen to observe re-enabling, rather than leaving the
@@ -402,7 +445,11 @@ describe("TaskHubPanel: toggle completion", () => {
     const { getByLabelText, getByText } = renderPanel();
     fireEvent.click(getByLabelText(/^Open task: Call the dentist/));
 
-    await waitFor(() => expect(getByText("Task changed. Refresh the Task Hub and try again.")).toBeTruthy());
+    await waitFor(() =>
+      expect(
+        getByText("Task changed. Refresh the Task Hub and try again."),
+      ).toBeTruthy(),
+    );
     expect(writeTextFile).not.toHaveBeenCalled();
   });
 
@@ -426,7 +473,9 @@ describe("TaskHubPanel: toggle completion", () => {
     const { getByLabelText } = renderPanel();
     fireEvent.click(getByLabelText(/^Open task: Task/));
 
-    await waitFor(() => expect(writeTextFile).toHaveBeenCalledWith("/vault/a.md", "- [x] Task\n"));
+    await waitFor(() =>
+      expect(writeTextFile).toHaveBeenCalledWith("/vault/a.md", "- [x] Task\n"),
+    );
     expect(readTextFile).not.toHaveBeenCalled();
     expect(openTabs.value[0].content).toBe("- [x] Task\n");
   });
@@ -435,7 +484,9 @@ describe("TaskHubPanel: toggle completion", () => {
     const content = "- [ ] Task\n";
     setTasksByPath(new Map([["/vault/a.md", scanTasks(content)]]));
     let resolveRead: (value: string) => void = () => {};
-    readTextFile.mockReturnValue(new Promise((resolve) => (resolveRead = resolve)));
+    readTextFile.mockReturnValue(
+      new Promise((resolve) => (resolveRead = resolve)),
+    );
     const { getByLabelText } = renderPanel();
     const checkbox = getByLabelText(/^Open task: Task/) as HTMLInputElement;
     fireEvent.click(checkbox);
@@ -468,7 +519,9 @@ describe("flattenTasks (re-exported from taskQuery)", () => {
   });
 
   it("derives a note title from the file name without its extension", () => {
-    const entries = flattenTasks(new Map([["/vault/sub/My Note.md", scanTasks("- [ ] X\n")]]));
+    const entries = flattenTasks(
+      new Map([["/vault/sub/My Note.md", scanTasks("- [ ] X\n")]]),
+    );
     expect(entries[0].noteTitle).toBe("My Note");
   });
 });

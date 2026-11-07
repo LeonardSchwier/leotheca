@@ -11,7 +11,11 @@
  * CollectionResults.tsx call into these functions and receive the
  * updated query/view shapes back.
  */
-import type { QueryClauseV1, QueryGroupV1, SmartCollectionV1 } from "./collectionTypes";
+import type {
+  QueryClauseV1,
+  QueryGroupV1,
+  SmartCollectionV1,
+} from "./collectionTypes";
 
 /** Scope for a filter row: "all" applies to every view in the collection,
  * "this" applies only to the specific view being edited. */
@@ -66,7 +70,8 @@ export function addFilterRow(
   // `filters` array (added in this phase).
   const view = collection.view;
   const existingFilters: QueryClauseV1[] =
-    "filters" in view && Array.isArray((view as { filters?: QueryClauseV1[] }).filters)
+    "filters" in view &&
+    Array.isArray((view as { filters?: QueryClauseV1[] }).filters)
       ? (view as { filters: QueryClauseV1[] }).filters
       : [];
   const nextView = { ...view, filters: [...existingFilters, clause] };
@@ -103,7 +108,8 @@ export function removeFilterRow(
   // scope === "this"
   const view = collection.view;
   const existingFilters: QueryClauseV1[] =
-    "filters" in view && Array.isArray((view as { filters?: QueryClauseV1[] }).filters)
+    "filters" in view &&
+    Array.isArray((view as { filters?: QueryClauseV1[] }).filters)
       ? (view as { filters: QueryClauseV1[] }).filters
       : [];
   if (index < 0 || index >= existingFilters.length) return collection;
@@ -136,9 +142,10 @@ export function reorderFilterRow(
     const remainingIndices = children
       .map((child, i) => (child.type === "clause" ? i : -1))
       .filter((i) => i >= 0);
-    const targetPos = toIndex < fromIndex
-      ? remainingIndices[toIndex]
-      : remainingIndices[toIndex - 1] + 1;
+    const targetPos =
+      toIndex < fromIndex
+        ? remainingIndices[toIndex]
+        : remainingIndices[toIndex - 1] + 1;
     children.splice(targetPos, 0, moved);
     return { ...collection, query: { ...root, children } };
   }
@@ -146,7 +153,8 @@ export function reorderFilterRow(
   // scope === "this"
   const view = collection.view;
   const existingFilters: QueryClauseV1[] =
-    "filters" in view && Array.isArray((view as { filters?: QueryClauseV1[] }).filters)
+    "filters" in view &&
+    Array.isArray((view as { filters?: QueryClauseV1[] }).filters)
       ? (view as { filters: QueryClauseV1[] }).filters
       : [];
   if (fromIndex < 0 || fromIndex >= existingFilters.length) return collection;
@@ -176,7 +184,8 @@ export function moveFilterRowScope(
   } else {
     const view = collection.view;
     const filters: QueryClauseV1[] =
-      "filters" in view && Array.isArray((view as { filters?: QueryClauseV1[] }).filters)
+      "filters" in view &&
+      Array.isArray((view as { filters?: QueryClauseV1[] }).filters)
         ? (view as { filters: QueryClauseV1[] }).filters
         : [];
     clause = filters[index];
@@ -197,7 +206,8 @@ export function getFilterRowsState(
 
   const view = collection.view;
   const thisView: QueryClauseV1[] =
-    "filters" in view && Array.isArray((view as { filters?: QueryClauseV1[] }).filters)
+    "filters" in view &&
+    Array.isArray((view as { filters?: QueryClauseV1[] }).filters)
       ? (view as { filters: QueryClauseV1[] }).filters
       : [];
 

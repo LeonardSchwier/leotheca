@@ -31,7 +31,7 @@ export interface FilterRowsMenuProps {
 function clauseLabel(clause: QueryClauseV1): string {
   const field =
     clause.field.kind === "system"
-      ? clause.field.field[0]?.toUpperCase() ?? "?"
+      ? (clause.field.field[0]?.toUpperCase() ?? "?")
       : clause.field.key;
   const op = clause.operator[0]?.toUpperCase() ?? "";
   const val = clause.value

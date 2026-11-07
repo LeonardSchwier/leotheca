@@ -369,12 +369,12 @@ Layout is based on available CSS pixels, not a platform name. Increasing UI zoom
 
 ### 12.1 Layout classes
 
-| Class | Available width | Primary behavior |
-|---|---:|---|
-| Compact | `0px` to `719px` | Top bar, sheets, hidden desktop tab strip |
-| Medium | `720px` to `1099px` | Activity Rail, overlay Navigation Panel, overlay Inspector |
-| Wide | `1100px` to `1279px` | Activity Rail, docked Navigation Panel, overlay Inspector |
-| Expanded | `1280px` and above | Activity Rail, docked Navigation Panel, optional docked Inspector |
+| Class    |      Available width | Primary behavior                                                  |
+| -------- | -------------------: | ----------------------------------------------------------------- |
+| Compact  |     `0px` to `719px` | Top bar, sheets, hidden desktop tab strip                         |
+| Medium   |  `720px` to `1099px` | Activity Rail, overlay Navigation Panel, overlay Inspector        |
+| Wide     | `1100px` to `1279px` | Activity Rail, docked Navigation Panel, overlay Inspector         |
+| Expanded |   `1280px` and above | Activity Rail, docked Navigation Panel, optional docked Inspector |
 
 These thresholds are initial values. Implementation may adjust a threshold by up to 32 CSS pixels during visual QA if the resulting behavior is documented and the shared TypeScript and CSS definitions remain aligned.
 
@@ -382,16 +382,16 @@ These thresholds are initial values. Implementation may adjust a threshold by up
 
 Initial reference dimensions:
 
-| Element | Desktop reference | Compact reference |
-|---|---:|---:|
-| Global Top Bar | 44px | 52px plus safe-area inset |
-| Activity Rail | 48px | not shown |
-| Navigation Panel | 280px default, 220px to 400px | sheet width up to 100% |
-| Inspector | 320px default, 280px to 420px | sheet width up to 100% |
-| Tab Bar | 36px | replaced by Tab Switcher |
-| Document Header | 44px | combined with compact top region |
-| Tree row | 30px minimum | 44px minimum |
-| Desktop control | 32px minimum | 44px minimum touch target |
+| Element          |             Desktop reference |                Compact reference |
+| ---------------- | ----------------------------: | -------------------------------: |
+| Global Top Bar   |                          44px |        52px plus safe-area inset |
+| Activity Rail    |                          48px |                        not shown |
+| Navigation Panel | 280px default, 220px to 400px |           sheet width up to 100% |
+| Inspector        | 320px default, 280px to 420px |           sheet width up to 100% |
+| Tab Bar          |                          36px |         replaced by Tab Switcher |
+| Document Header  |                          44px | combined with compact top region |
+| Tree row         |                  30px minimum |                     44px minimum |
+| Desktop control  |                  32px minimum |        44px minimum touch target |
 
 Panel widths may be resized on pointer-based desktop layouts. Resize handles must be keyboard-operable or provide an accessible reset and size menu. Persistence across restarts is optional for the first release.
 
@@ -603,13 +603,13 @@ Compact behavior:
 
 The visual state must be derived from real persistence events and support:
 
-| State | Trigger | Visual treatment | Accessibility behavior |
-|---|---|---|---|
-| Clean | Last write completed, no local changes | Normally quiet | No repeated announcement |
-| Dirty | Local changes exist before write starts | Dot plus `Unsaved` where space allows | Accessible label contains `Unsaved changes` |
-| Saving | File write has started | Small spinner plus `Saving` | Announce only when unusually long |
-| Saved transient | Write completed successfully | `Saved` for about 1.5 seconds | Do not announce every autosave |
-| Error | Write failed | Persistent error icon and `Save failed` | Assertive but concise live announcement |
+| State           | Trigger                                 | Visual treatment                        | Accessibility behavior                      |
+| --------------- | --------------------------------------- | --------------------------------------- | ------------------------------------------- |
+| Clean           | Last write completed, no local changes  | Normally quiet                          | No repeated announcement                    |
+| Dirty           | Local changes exist before write starts | Dot plus `Unsaved` where space allows   | Accessible label contains `Unsaved changes` |
+| Saving          | File write has started                  | Small spinner plus `Saving`             | Announce only when unusually long           |
+| Saved transient | Write completed successfully            | `Saved` for about 1.5 seconds           | Do not announce every autosave              |
+| Error           | Write failed                            | Persistent error icon and `Save failed` | Assertive but concise live announcement     |
 
 A save error must offer a clear recovery action, such as Retry, and must remain visible until resolved, the tab closes with an explicit decision, or the user takes another existing recovery path.
 
@@ -648,21 +648,21 @@ Docking behavior:
 
 The refresh must explicitly preserve existing toolbar actions through the following mapping:
 
-| Current responsibility | New primary location |
-|---|---|
-| Sidebar toggle | Global Top Bar or selected Activity Rail destination |
-| Workspace identity/change | Workspace identity button |
-| Indexing status | Global Top Bar status |
-| Source, Split, Preview | Document Header view selector |
-| Bookmark current note | Document Header |
-| Open Bookmarks | Activity Rail or compact Navigation Sheet |
-| Open Tags | Activity Rail or compact Navigation Sheet |
-| Open Graph | Activity Rail or compact Navigation Sheet |
-| Command Palette | Global Top Bar and existing shortcut |
-| Help | Global Top Bar or compact Navigation Sheet |
-| Settings | Activity Rail bottom or compact Navigation Sheet |
-| Properties | Inspector |
-| Backlinks | Inspector |
+| Current responsibility    | New primary location                                 |
+| ------------------------- | ---------------------------------------------------- |
+| Sidebar toggle            | Global Top Bar or selected Activity Rail destination |
+| Workspace identity/change | Workspace identity button                            |
+| Indexing status           | Global Top Bar status                                |
+| Source, Split, Preview    | Document Header view selector                        |
+| Bookmark current note     | Document Header                                      |
+| Open Bookmarks            | Activity Rail or compact Navigation Sheet            |
+| Open Tags                 | Activity Rail or compact Navigation Sheet            |
+| Open Graph                | Activity Rail or compact Navigation Sheet            |
+| Command Palette           | Global Top Bar and existing shortcut                 |
+| Help                      | Global Top Bar or compact Navigation Sheet           |
+| Settings                  | Activity Rail bottom or compact Navigation Sheet     |
+| Properties                | Inspector                                            |
+| Backlinks                 | Inspector                                            |
 
 Before release, this table must be expanded into a complete parity inventory from the actual current application and checked item by item.
 
@@ -979,51 +979,51 @@ The following values define the initial implementation target. Final values may 
 
 #### Light theme
 
-| Token | Initial value | Role |
-|---|---|---|
-| `--color-canvas` | `#F6F5F2` | application background |
-| `--color-panel` | `#FCFBF9` | navigation and document surfaces |
-| `--color-raised` | `#FFFFFF` | floating menus and dialogs |
-| `--color-muted-surface` | `#EFEEEA` | low-emphasis region |
-| `--color-hover` | `#E9E7E1` | pointer hover |
-| `--color-selected` | `#E8E0D3` | selected warm-accent surface |
-| `--color-text` | `#25231F` | primary text |
-| `--color-text-secondary` | `#68635B` | secondary text |
-| `--color-text-muted` | `#756F66` | metadata only |
-| `--color-border` | `#D8D4CB` | standard border |
-| `--color-border-strong` | `#BEB8AD` | emphasized divider |
-| `--color-accent` | `#725331` | default Warm accent |
-| `--color-accent-hover` | `#5E4328` | warm accent hover |
-| `--color-accent-soft` | `#EDE3D5` | warm accent tint |
-| `--color-on-accent` | `#FFFFFF` | text on solid accent |
-| `--color-success` | `#2F6B4F` | success state |
-| `--color-warning` | `#8B6116` | warning state |
-| `--color-danger` | `#A43D35` | destructive and error state |
-| `--color-focus` | `#28647A` | focus ring |
+| Token                    | Initial value | Role                             |
+| ------------------------ | ------------- | -------------------------------- |
+| `--color-canvas`         | `#F6F5F2`     | application background           |
+| `--color-panel`          | `#FCFBF9`     | navigation and document surfaces |
+| `--color-raised`         | `#FFFFFF`     | floating menus and dialogs       |
+| `--color-muted-surface`  | `#EFEEEA`     | low-emphasis region              |
+| `--color-hover`          | `#E9E7E1`     | pointer hover                    |
+| `--color-selected`       | `#E8E0D3`     | selected warm-accent surface     |
+| `--color-text`           | `#25231F`     | primary text                     |
+| `--color-text-secondary` | `#68635B`     | secondary text                   |
+| `--color-text-muted`     | `#756F66`     | metadata only                    |
+| `--color-border`         | `#D8D4CB`     | standard border                  |
+| `--color-border-strong`  | `#BEB8AD`     | emphasized divider               |
+| `--color-accent`         | `#725331`     | default Warm accent              |
+| `--color-accent-hover`   | `#5E4328`     | warm accent hover                |
+| `--color-accent-soft`    | `#EDE3D5`     | warm accent tint                 |
+| `--color-on-accent`      | `#FFFFFF`     | text on solid accent             |
+| `--color-success`        | `#2F6B4F`     | success state                    |
+| `--color-warning`        | `#8B6116`     | warning state                    |
+| `--color-danger`         | `#A43D35`     | destructive and error state      |
+| `--color-focus`          | `#28647A`     | focus ring                       |
 
 #### Dark theme
 
-| Token | Initial value | Role |
-|---|---|---|
-| `--color-canvas` | `#171815` | application background |
-| `--color-panel` | `#1E201C` | navigation and document surfaces |
-| `--color-raised` | `#262824` | floating menus and dialogs |
-| `--color-muted-surface` | `#2B2D28` | low-emphasis region |
-| `--color-hover` | `#31332E` | pointer hover |
-| `--color-selected` | `#3A342B` | selected warm-accent surface |
-| `--color-text` | `#F0EEE7` | primary text |
-| `--color-text-secondary` | `#B8B4AA` | secondary text |
-| `--color-text-muted` | `#918C82` | metadata only |
-| `--color-border` | `#3B3D37` | standard border |
-| `--color-border-strong` | `#55574F` | emphasized divider |
-| `--color-accent` | `#D1AD77` | default Warm accent |
-| `--color-accent-hover` | `#E1C18D` | warm accent hover |
-| `--color-accent-soft` | `#3A3125` | warm accent tint |
-| `--color-on-accent` | `#1B1712` | text on solid accent |
-| `--color-success` | `#78B994` | success state |
-| `--color-warning` | `#D5A350` | warning state |
-| `--color-danger` | `#E07A70` | destructive and error state |
-| `--color-focus` | `#70B6CF` | focus ring |
+| Token                    | Initial value | Role                             |
+| ------------------------ | ------------- | -------------------------------- |
+| `--color-canvas`         | `#171815`     | application background           |
+| `--color-panel`          | `#1E201C`     | navigation and document surfaces |
+| `--color-raised`         | `#262824`     | floating menus and dialogs       |
+| `--color-muted-surface`  | `#2B2D28`     | low-emphasis region              |
+| `--color-hover`          | `#31332E`     | pointer hover                    |
+| `--color-selected`       | `#3A342B`     | selected warm-accent surface     |
+| `--color-text`           | `#F0EEE7`     | primary text                     |
+| `--color-text-secondary` | `#B8B4AA`     | secondary text                   |
+| `--color-text-muted`     | `#918C82`     | metadata only                    |
+| `--color-border`         | `#3B3D37`     | standard border                  |
+| `--color-border-strong`  | `#55574F`     | emphasized divider               |
+| `--color-accent`         | `#D1AD77`     | default Warm accent              |
+| `--color-accent-hover`   | `#E1C18D`     | warm accent hover                |
+| `--color-accent-soft`    | `#3A3125`     | warm accent tint                 |
+| `--color-on-accent`      | `#1B1712`     | text on solid accent             |
+| `--color-success`        | `#78B994`     | success state                    |
+| `--color-warning`        | `#D5A350`     | warning state                    |
+| `--color-danger`         | `#E07A70`     | destructive and error state      |
+| `--color-focus`          | `#70B6CF`     | focus ring                       |
 
 Accent mappings for Ocean, Forest, and Plum must define at least solid, hover, soft, and on-accent values in both themes. Every mapping must pass the same contrast gates as Warm.
 
@@ -1041,13 +1041,16 @@ Accent mappings for Ocean, Forest, and Plum must define at least solid, hover, s
 Font stacks:
 
 ```css
---font-ui: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
-  "Segoe UI", sans-serif;
---font-reading-sans: ui-sans-serif, system-ui, -apple-system,
-  BlinkMacSystemFont, "Segoe UI", sans-serif;
+--font-ui:
+  ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+  sans-serif;
+--font-reading-sans:
+  ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+  sans-serif;
 --font-reading-serif: ui-serif, Georgia, Cambria, "Times New Roman", serif;
---font-mono: "Source Code Pro", ui-monospace, SFMono-Regular, Consolas,
-  "Liberation Mono", monospace;
+--font-mono:
+  "Source Code Pro", ui-monospace, SFMono-Regular, Consolas, "Liberation Mono",
+  monospace;
 ```
 
 Reference size scale:
@@ -1936,23 +1939,23 @@ Documentation should explain behavior, not only appearance.
 
 ## 34. Risks and mitigations
 
-| Risk | Consequence | Mitigation |
-|---|---|---|
-| Large `App.tsx` and `App.css` changes create regressions | Lost actions or state coupling | Phase work, parity inventory, narrow component props, integration tests |
-| Shell state remounts CodeMirror | Lost selection, undo, composition, or performance | Keep editor ownership stable, assert view identity in tests |
-| Compact actions become hidden in overflow | Reduced discoverability | Preserve direct primary actions, labeled sheets, parity review |
-| Android keyboard and safe areas break overlays | Inaccessible fields or buttons | Physical-device test gate, shared inset tokens, back-order tests |
-| Accent variants fail contrast | Inaccessible selected and focus states | Semantic accent mapping and automated plus manual contrast review |
-| Too many new primitives create an internal framework | Slower development and abstraction burden | Add only reused primitives, prefer native semantics |
-| Animation reduces responsiveness | Lag and battery cost | Short CSS transform/opacity motion, reduced-motion support, budgets |
-| New preview font surprises existing users | Perceived loss of familiar appearance | Provide local Sans, Serif, and Mono choices, retain source mono |
-| Settings reorganization loses options | Functional regression | One-to-one settings inventory and category acceptance test |
-| Inspector relocation makes metadata less visible | Users miss Properties or Backlinks | Direct Document Header trigger, state badge where useful, Help update |
-| F20 is not ready when shell lands | Duplicate workspace UI | Stable workspace slot with temporary existing-folder adapter |
-| Logo project delays release | Visual inconsistency | Treat mark as companion, allow neutral local placeholder until release gate |
-| CSS and TypeScript breakpoints diverge | Incorrect overlay behavior | Central constants, boundary tests, documented thresholds |
-| Visual polish increases CSS size and complexity | Maintenance and startup regression | Token reuse, stylesheet split, size review, no framework dependency |
-| Menus and dialogs regress focus | Keyboard and screen-reader failure | Shared overlay primitives, component tests, manual accessibility pass |
+| Risk                                                     | Consequence                                       | Mitigation                                                                  |
+| -------------------------------------------------------- | ------------------------------------------------- | --------------------------------------------------------------------------- |
+| Large `App.tsx` and `App.css` changes create regressions | Lost actions or state coupling                    | Phase work, parity inventory, narrow component props, integration tests     |
+| Shell state remounts CodeMirror                          | Lost selection, undo, composition, or performance | Keep editor ownership stable, assert view identity in tests                 |
+| Compact actions become hidden in overflow                | Reduced discoverability                           | Preserve direct primary actions, labeled sheets, parity review              |
+| Android keyboard and safe areas break overlays           | Inaccessible fields or buttons                    | Physical-device test gate, shared inset tokens, back-order tests            |
+| Accent variants fail contrast                            | Inaccessible selected and focus states            | Semantic accent mapping and automated plus manual contrast review           |
+| Too many new primitives create an internal framework     | Slower development and abstraction burden         | Add only reused primitives, prefer native semantics                         |
+| Animation reduces responsiveness                         | Lag and battery cost                              | Short CSS transform/opacity motion, reduced-motion support, budgets         |
+| New preview font surprises existing users                | Perceived loss of familiar appearance             | Provide local Sans, Serif, and Mono choices, retain source mono             |
+| Settings reorganization loses options                    | Functional regression                             | One-to-one settings inventory and category acceptance test                  |
+| Inspector relocation makes metadata less visible         | Users miss Properties or Backlinks                | Direct Document Header trigger, state badge where useful, Help update       |
+| F20 is not ready when shell lands                        | Duplicate workspace UI                            | Stable workspace slot with temporary existing-folder adapter                |
+| Logo project delays release                              | Visual inconsistency                              | Treat mark as companion, allow neutral local placeholder until release gate |
+| CSS and TypeScript breakpoints diverge                   | Incorrect overlay behavior                        | Central constants, boundary tests, documented thresholds                    |
+| Visual polish increases CSS size and complexity          | Maintenance and startup regression                | Token reuse, stylesheet split, size review, no framework dependency         |
+| Menus and dialogs regress focus                          | Keyboard and screen-reader failure                | Shared overlay primitives, component tests, manual accessibility pass       |
 
 ## 35. Open design approvals
 
@@ -1992,29 +1995,29 @@ UX-01 is complete only when:
 
 Use this table during Phase 0 and expand it until every current action is represented.
 
-| Current surface | Current action | New surface | Pointer | Keyboard | Compact touch | Test ID | Status |
-|---|---|---|---|---|---|---|---|
-| Global toolbar | Toggle sidebar | Top Bar / Activity Rail | Yes | Yes | Yes | TBD | Pending |
-| Global toolbar | Source view | Document Header | Yes | Yes | Yes | TBD | Pending |
-| Global toolbar | Split view | Document Header | Yes | Yes | Yes | TBD | Pending |
-| Global toolbar | Preview view | Document Header | Yes | Yes | Yes | TBD | Pending |
-| Global toolbar | Bookmark note | Document Header | Yes | Yes | Yes | TBD | Pending |
-| Global toolbar | Open Bookmarks | Activity Rail | Yes | Yes | Yes | TBD | Pending |
-| Global toolbar | Open Tags | Activity Rail | Yes | Yes | Yes | TBD | Pending |
-| Global toolbar | Open Graph | Activity Rail | Yes | Yes | Yes | TBD | Pending |
-| Global toolbar | Command Palette | Top Bar | Yes | Yes | Yes | TBD | Pending |
-| Global toolbar | Help | Top Bar / Navigation Sheet | Yes | Yes | Yes | TBD | Pending |
-| Global toolbar | Settings | Activity Rail / Navigation Sheet | Yes | Yes | Yes | TBD | Pending |
-| File sidebar | New note | Navigation Panel | Yes | Yes | Yes | TBD | Pending |
-| File sidebar | New folder | Navigation Panel overflow | Yes | Yes | Yes | TBD | Pending |
-| File sidebar | Sort | Navigation Panel overflow | Yes | Yes | Yes | TBD | Pending |
-| File sidebar | Expand/collapse | Navigation Panel overflow | Yes | Yes | Yes | TBD | Pending |
-| Tab context menu | Rename | Tab menu / Tab Switcher | Yes | Yes | Yes | TBD | Pending |
-| Tab context menu | Close | Tab / Tab Switcher | Yes | Yes | Yes | TBD | Pending |
-| Tab context menu | Close others | Tab menu / Tab Switcher | Yes | Yes | Yes | TBD | Pending |
-| Tab context menu | Close all | Tab menu / Tab Switcher | Yes | Yes | Yes | TBD | Pending |
-| Properties | View/edit frontmatter | Inspector | Yes | Yes | Yes | TBD | Pending |
-| Backlinks | Navigate backlink | Inspector | Yes | Yes | Yes | TBD | Pending |
+| Current surface  | Current action        | New surface                      | Pointer | Keyboard | Compact touch | Test ID | Status  |
+| ---------------- | --------------------- | -------------------------------- | ------- | -------- | ------------- | ------- | ------- |
+| Global toolbar   | Toggle sidebar        | Top Bar / Activity Rail          | Yes     | Yes      | Yes           | TBD     | Pending |
+| Global toolbar   | Source view           | Document Header                  | Yes     | Yes      | Yes           | TBD     | Pending |
+| Global toolbar   | Split view            | Document Header                  | Yes     | Yes      | Yes           | TBD     | Pending |
+| Global toolbar   | Preview view          | Document Header                  | Yes     | Yes      | Yes           | TBD     | Pending |
+| Global toolbar   | Bookmark note         | Document Header                  | Yes     | Yes      | Yes           | TBD     | Pending |
+| Global toolbar   | Open Bookmarks        | Activity Rail                    | Yes     | Yes      | Yes           | TBD     | Pending |
+| Global toolbar   | Open Tags             | Activity Rail                    | Yes     | Yes      | Yes           | TBD     | Pending |
+| Global toolbar   | Open Graph            | Activity Rail                    | Yes     | Yes      | Yes           | TBD     | Pending |
+| Global toolbar   | Command Palette       | Top Bar                          | Yes     | Yes      | Yes           | TBD     | Pending |
+| Global toolbar   | Help                  | Top Bar / Navigation Sheet       | Yes     | Yes      | Yes           | TBD     | Pending |
+| Global toolbar   | Settings              | Activity Rail / Navigation Sheet | Yes     | Yes      | Yes           | TBD     | Pending |
+| File sidebar     | New note              | Navigation Panel                 | Yes     | Yes      | Yes           | TBD     | Pending |
+| File sidebar     | New folder            | Navigation Panel overflow        | Yes     | Yes      | Yes           | TBD     | Pending |
+| File sidebar     | Sort                  | Navigation Panel overflow        | Yes     | Yes      | Yes           | TBD     | Pending |
+| File sidebar     | Expand/collapse       | Navigation Panel overflow        | Yes     | Yes      | Yes           | TBD     | Pending |
+| Tab context menu | Rename                | Tab menu / Tab Switcher          | Yes     | Yes      | Yes           | TBD     | Pending |
+| Tab context menu | Close                 | Tab / Tab Switcher               | Yes     | Yes      | Yes           | TBD     | Pending |
+| Tab context menu | Close others          | Tab menu / Tab Switcher          | Yes     | Yes      | Yes           | TBD     | Pending |
+| Tab context menu | Close all             | Tab menu / Tab Switcher          | Yes     | Yes      | Yes           | TBD     | Pending |
+| Properties       | View/edit frontmatter | Inspector                        | Yes     | Yes      | Yes           | TBD     | Pending |
+| Backlinks        | Navigate backlink     | Inspector                        | Yes     | Yes      | Yes           | TBD     | Pending |
 
 ## Appendix B: Required visual reference states
 

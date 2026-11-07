@@ -50,7 +50,9 @@ export function WelcomeDialog() {
 
   const profiles = workspaceProfiles.value;
   const activeProfile = profiles.find((p) => p.id === activeWorkspaceId.value);
-  const otherProfiles = profiles.filter((p) => p.id !== activeWorkspaceId.value);
+  const otherProfiles = profiles.filter(
+    (p) => p.id !== activeWorkspaceId.value,
+  );
 
   const handleChoose = async () => {
     setLoading(true);
@@ -70,7 +72,8 @@ export function WelcomeDialog() {
       // feedback: a tap that visibly does nothing. Only fill in a generic
       // fallback when nothing more specific was already published.
       if (!workspaceSelectionError.value) {
-        workspaceSelectionError.value = "Could not open that folder. Try again or choose another folder.";
+        workspaceSelectionError.value =
+          "Could not open that folder. Try again or choose another folder.";
       }
     } finally {
       setLoading(false);
@@ -105,9 +108,14 @@ export function WelcomeDialog() {
       <div class="modal-overlay">
         <div class="modal welcome-dialog">
           <h2>Welcome to Leotheca</h2>
-          <p>Choose a folder on disk to use as your root workspace. You can change it later from Settings.</p>
+          <p>
+            Choose a folder on disk to use as your root workspace. You can
+            change it later from Settings.
+          </p>
           {workspaceSelectionError.value && (
-            <p role="alert" class="settings-error">{workspaceSelectionError.value}</p>
+            <p role="alert" class="settings-error">
+              {workspaceSelectionError.value}
+            </p>
           )}
           <button onClick={handleChoose} disabled={loading}>
             {loading ? "Opening folder picker…" : "Choose Folder"}
@@ -123,15 +131,26 @@ export function WelcomeDialog() {
         {activeProfile ? (
           <>
             <h2>Couldn't open "{activeProfile.name}"</h2>
-            <p>This workspace's folder may have moved, or access may have been revoked.</p>
+            <p>
+              This workspace's folder may have moved, or access may have been
+              revoked.
+            </p>
             {workspaceSelectionError.value && (
-              <p role="alert" class="settings-error">{workspaceSelectionError.value}</p>
+              <p role="alert" class="settings-error">
+                {workspaceSelectionError.value}
+              </p>
             )}
             <div class="workspace-launcher-actions">
-              <button onClick={() => void handleActivate(activeProfile.id)} disabled={activatingId === activeProfile.id}>
+              <button
+                onClick={() => void handleActivate(activeProfile.id)}
+                disabled={activatingId === activeProfile.id}
+              >
                 {activatingId === activeProfile.id ? "Retrying…" : "Retry"}
               </button>
-              <button onClick={() => void handleRelink(activeProfile.id)} disabled={relinking}>
+              <button
+                onClick={() => void handleRelink(activeProfile.id)}
+                disabled={relinking}
+              >
                 {relinking ? "Relinking…" : "Relink folder"}
               </button>
             </div>
@@ -140,23 +159,41 @@ export function WelcomeDialog() {
           <>
             <h2>Open a workspace</h2>
             {workspaceSelectionError.value && (
-              <p role="alert" class="settings-error">{workspaceSelectionError.value}</p>
+              <p role="alert" class="settings-error">
+                {workspaceSelectionError.value}
+              </p>
             )}
           </>
         )}
         {otherProfiles.length > 0 && (
           <>
-            <p class="workspace-launcher-label">{activeProfile ? "Or open a different workspace" : "Recent workspaces"}</p>
-            <div class="workspace-launcher-list" role="list" aria-label="Recent workspaces">
+            <p class="workspace-launcher-label">
+              {activeProfile
+                ? "Or open a different workspace"
+                : "Recent workspaces"}
+            </p>
+            <div
+              class="workspace-launcher-list"
+              role="list"
+              aria-label="Recent workspaces"
+            >
               {otherProfiles.map((profile) => (
-                <div class="workspace-switcher-row" role="listitem" key={profile.id}>
+                <div
+                  class="workspace-switcher-row"
+                  role="listitem"
+                  key={profile.id}
+                >
                   <button
                     class="workspace-switcher-row-button"
                     onClick={() => void handleActivate(profile.id)}
                     disabled={activatingId === profile.id}
                   >
-                    <span class="workspace-switcher-icon" aria-hidden="true">{workspaceIconGlyph(profile.icon)}</span>
-                    <span class="workspace-switcher-row-name">{profile.name}</span>
+                    <span class="workspace-switcher-icon" aria-hidden="true">
+                      {workspaceIconGlyph(profile.icon)}
+                    </span>
+                    <span class="workspace-switcher-row-name">
+                      {profile.name}
+                    </span>
                   </button>
                 </div>
               ))}

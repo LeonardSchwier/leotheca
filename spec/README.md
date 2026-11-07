@@ -13,16 +13,16 @@ The specifications are grounded in the repository state reviewed on 2026-09-01. 
 
 ## 2. Included specifications
 
-| Feature | Specification | Primary outcome |
-|---|---|---|
-| F02 | `f02-workspace-task-hub.md` | Workspace-wide task collection, filtering, navigation, and safe completion toggles |
-| F03 | `f03-link-integrity-refactor-center.md` | Rename-safe links, diagnostics, previewed bulk edits, and recovery |
-| F04 | `f04-heading-block-links-embeds.md` | Heading links, stable block references, and read-only transclusion |
-| F05 | `f05-universal-quick-capture-inbox.md` | In-app capture, local automation, Android sharing, and inbox append flows |
-| F06 | `f06-note-outline-heading-breadcrumbs.md` | Active-note outline, heading ancestry, source navigation, and copy-link actions |
-| F07 | `f07-split-panes-pinned-tabs.md` | Two editor groups, pane-aware tabs, pinning, resizing, and adaptive compact behavior |
-| F09 | `f09-smart-collections-property-views.md` | Saved metadata queries with list, table, and card views |
-| F11 | `f11-visual-markdown-table-editor.md` | Safe visual editing of ordinary GFM pipe tables |
+| Feature | Specification                             | Primary outcome                                                                      |
+| ------- | ----------------------------------------- | ------------------------------------------------------------------------------------ |
+| F02     | `f02-workspace-task-hub.md`               | Workspace-wide task collection, filtering, navigation, and safe completion toggles   |
+| F03     | `f03-link-integrity-refactor-center.md`   | Rename-safe links, diagnostics, previewed bulk edits, and recovery                   |
+| F04     | `f04-heading-block-links-embeds.md`       | Heading links, stable block references, and read-only transclusion                   |
+| F05     | `f05-universal-quick-capture-inbox.md`    | In-app capture, local automation, Android sharing, and inbox append flows            |
+| F06     | `f06-note-outline-heading-breadcrumbs.md` | Active-note outline, heading ancestry, source navigation, and copy-link actions      |
+| F07     | `f07-split-panes-pinned-tabs.md`          | Two editor groups, pane-aware tabs, pinning, resizing, and adaptive compact behavior |
+| F09     | `f09-smart-collections-property-views.md` | Saved metadata queries with list, table, and card views                              |
+| F11     | `f11-visual-markdown-table-editor.md`     | Safe visual editing of ordinary GFM pipe tables                                      |
 
 ## 3. Product boundaries shared by every feature
 
@@ -230,18 +230,18 @@ F07 must not be implemented in parallel with a conflicting `App.tsx`, `TabBar.ts
 
 ## 8. Storage ownership map
 
-| Data | Owner | Storage |
-|---|---|---|
-| Note text, task state, block IDs, tables | User Markdown | Existing `.md` files |
-| Workspace metadata cache | Workspace index | `<workspace>/.leotheca/workspace-index-cache.json` or a migrated equivalent |
-| Collections | F09 | `<workspace>/.leotheca/collections.json` |
-| Pane layout, pinned paths, last active group | F07 | `<workspace>/.leotheca/settings.json` |
-| Task Hub transient filter state | F02 | Workspace settings, only when persistence is useful |
-| Quick Capture configuration | F05 | Workspace settings plus F20 profile preference where profile-scoped |
-| Pending external captures | F05 | App-private, bounded, runtime-decoded queue until committed or discarded |
-| Refactor recovery journals | F03 | Temporary `<workspace>/.leotheca/transactions/` data, removed after commit or rollback |
-| Outline expansion state | F06 | In memory by note; optional bounded workspace setting if later approved |
-| Visual table draft | F11 | In memory only until Apply |
+| Data                                         | Owner           | Storage                                                                                |
+| -------------------------------------------- | --------------- | -------------------------------------------------------------------------------------- |
+| Note text, task state, block IDs, tables     | User Markdown   | Existing `.md` files                                                                   |
+| Workspace metadata cache                     | Workspace index | `<workspace>/.leotheca/workspace-index-cache.json` or a migrated equivalent            |
+| Collections                                  | F09             | `<workspace>/.leotheca/collections.json`                                               |
+| Pane layout, pinned paths, last active group | F07             | `<workspace>/.leotheca/settings.json`                                                  |
+| Task Hub transient filter state              | F02             | Workspace settings, only when persistence is useful                                    |
+| Quick Capture configuration                  | F05             | Workspace settings plus F20 profile preference where profile-scoped                    |
+| Pending external captures                    | F05             | App-private, bounded, runtime-decoded queue until committed or discarded               |
+| Refactor recovery journals                   | F03             | Temporary `<workspace>/.leotheca/transactions/` data, removed after commit or rollback |
+| Outline expansion state                      | F06             | In memory by note; optional bounded workspace setting if later approved                |
+| Visual table draft                           | F11             | In memory only until Apply                                                             |
 
 ## 9. Cross-feature rules
 

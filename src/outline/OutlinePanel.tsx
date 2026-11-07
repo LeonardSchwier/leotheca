@@ -1,7 +1,10 @@
 import { useEffect, useState } from "preact/hooks";
 import type { HeadingRecord } from "../markdown/headings";
 import { requestOutlineReveal } from "./outlineNavigation";
-import { announceOutline, headingNavigationAnnouncement } from "./outlineAnnouncements";
+import {
+  announceOutline,
+  headingNavigationAnnouncement,
+} from "./outlineAnnouncements";
 import { useNoteHeadings } from "./useNoteHeadings";
 import { OutlineRowContent } from "./OutlineRowContent";
 import { headingKeyId, LARGE_OUTLINE_THRESHOLD } from "./outlineVirtualization";
@@ -49,7 +52,8 @@ const FILTER_ANNOUNCE_DEBOUNCE_MS = 300;
  * F06-FR-15): one normalizer, not two. */
 export function computeDuplicateFlags(headings: HeadingRecord[]): boolean[] {
   const counts = new Map<string, number>();
-  for (const heading of headings) counts.set(heading.key, (counts.get(heading.key) ?? 0) + 1);
+  for (const heading of headings)
+    counts.set(heading.key, (counts.get(heading.key) ?? 0) + 1);
   return headings.map((heading) => (counts.get(heading.key) ?? 0) > 1);
 }
 
@@ -57,7 +61,10 @@ export function computeDuplicateFlags(headings: HeadingRecord[]): boolean[] {
  * matches, plus its full ancestor chain, per spec section 6.5
  * ("Matching rows remain visible with their ancestor chain"). Exported
  * for testing. */
-export function computeVisibleIndexes(headings: HeadingRecord[], filterLower: string): Set<number> {
+export function computeVisibleIndexes(
+  headings: HeadingRecord[],
+  filterLower: string,
+): Set<number> {
   const visible = new Set<number>();
   headings.forEach((heading, index) => {
     if (!heading.displayText.toLowerCase().includes(filterLower)) return;
@@ -76,8 +83,13 @@ export function computeVisibleIndexes(headings: HeadingRecord[], filterLower: st
  * "filter counts" live-region announcement describes matches, not the
  * larger visible set, so this is a separate, smaller count. Exported for
  * testing. */
-export function computeMatchCount(headings: HeadingRecord[], filterLower: string): number {
-  return headings.filter((heading) => heading.displayText.toLowerCase().includes(filterLower)).length;
+export function computeMatchCount(
+  headings: HeadingRecord[],
+  filterLower: string,
+): number {
+  return headings.filter((heading) =>
+    heading.displayText.toLowerCase().includes(filterLower),
+  ).length;
 }
 
 interface OutlineRowProps {
@@ -175,14 +187,21 @@ function OutlineRow({
  * and collapse state are component-local and reset automatically rather
  * than needing an explicit workspace-switch listener.
  */
-export function OutlinePanel({ content, noteTitle, canInsertLink = true, onNavigated }: OutlinePanelProps) {
+export function OutlinePanel({
+  content,
+  noteTitle,
+  canInsertLink = true,
+  onNavigated,
+}: OutlinePanelProps) {
   const headings = useNoteHeadings(content);
   const [filterText, setFilterText] = useState("");
   const [collapsedKeys, setCollapsedKeys] = useState<Set<string>>(new Set());
 
   const filterLower = filterText.trim().toLowerCase();
   const filterActive = filterLower.length > 0;
-  const visibleIndexes = filterActive ? computeVisibleIndexes(headings, filterLower) : null;
+  const visibleIndexes = filterActive
+    ? computeVisibleIndexes(headings, filterLower)
+    : null;
   const duplicateFlags = computeDuplicateFlags(headings);
   const rootIndexes: number[] = [];
   let hasAnyChildren = false;
@@ -218,7 +237,11 @@ export function OutlinePanel({ content, noteTitle, canInsertLink = true, onNavig
   function handleSelect(heading: HeadingRecord) {
     requestOutlineReveal(heading.contentFrom, heading.contentTo);
     announceOutline(
-      headingNavigationAnnouncement(heading.displayText || "heading", content, heading.contentFrom),
+      headingNavigationAnnouncement(
+        heading.displayText || "heading",
+        content,
+        heading.contentFrom,
+      ),
     );
     onNavigated?.();
   }
@@ -230,14 +253,21 @@ export function OutlinePanel({ content, noteTitle, canInsertLink = true, onNavig
         <span class="outline-count">{headings.length}</span>
         {hasAnyChildren && (
           <div class="outline-header-actions">
-            <button class="outline-text-button" onClick={() => setCollapsedKeys(new Set())}>
+            <button
+              class="outline-text-button"
+              onClick={() => setCollapsedKeys(new Set())}
+            >
               Expand all
             </button>
             <button
               class="outline-text-button"
               onClick={() =>
                 setCollapsedKeys(
-                  new Set(headings.filter((h) => h.childIndexes.length > 0).map(headingKeyId)),
+                  new Set(
+                    headings
+                      .filter((h) => h.childIndexes.length > 0)
+                      .map(headingKeyId),
+                  ),
                 )
               }
             >
@@ -252,7 +282,9 @@ export function OutlinePanel({ content, noteTitle, canInsertLink = true, onNavig
           type="text"
           placeholder="Filter headings"
           value={filterText}
-          onInput={(event) => setFilterText((event.target as HTMLInputElement).value)}
+          onInput={(event) =>
+            setFilterText((event.target as HTMLInputElement).value)
+          }
           aria-label="Filter headings"
         />
       )}

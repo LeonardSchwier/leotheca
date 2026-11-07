@@ -74,7 +74,11 @@ describe("checkSpelling", () => {
   });
 
   it("flags unknown accented words", () => {
-    const results = checkSpelling("café cffet", 0, mockChecker(new Set(["café"])));
+    const results = checkSpelling(
+      "café cffet",
+      0,
+      mockChecker(new Set(["café"])),
+    );
     expect(results).toHaveLength(1);
     expect(results[0].word).toBe("cffet");
   });
@@ -89,7 +93,11 @@ describe("checkSpelling", () => {
   });
 
   it("handles mixed-case words", () => {
-    const results = checkSpelling("Hello WORLD", 0, mockChecker(new Set(["hello", "world"])));
+    const results = checkSpelling(
+      "Hello WORLD",
+      0,
+      mockChecker(new Set(["hello", "world"])),
+    );
     // Mock checker lowercases, so both should pass
     expect(results).toHaveLength(0);
   });
@@ -97,7 +105,11 @@ describe("checkSpelling", () => {
   it("handles markdown inline syntax correctly", () => {
     // **bold** and *italic* markers are not word chars, so the words inside
     // are matched correctly
-    const results = checkSpelling("**bold** *italic*", 0, mockChecker(new Set(["bold", "italic"])));
+    const results = checkSpelling(
+      "**bold** *italic*",
+      0,
+      mockChecker(new Set(["bold", "italic"])),
+    );
     expect(results).toHaveLength(0);
   });
 
@@ -153,12 +165,16 @@ function viewWithDoc(text: string) {
 }
 
 /** Extract the lintSource function from a spellCheckExtension extension array. */
-function extractLinterSource(extensions: unknown): (view: unknown) => Promise<{ message: string }[]> {
+function extractLinterSource(
+  extensions: unknown,
+): (view: unknown) => Promise<{ message: string }[]> {
   // spellCheckExtension returns [ linter(...), lintGutter() ]. linter(...)
   // is itself an array [ lintConfig.of({source,config}), lintPlugin,
   // lintExtensions ]. The source lives on the first facet provider's value.
   const linterExt = (extensions as unknown[])[0] as unknown[];
-  const facetProvider = linterExt[0] as { value: { source: (v: unknown) => Promise<{ message: string }[]> } };
+  const facetProvider = linterExt[0] as {
+    value: { source: (v: unknown) => Promise<{ message: string }[]> };
+  };
   return facetProvider.value.source;
 }
 
@@ -176,14 +192,11 @@ describe("spellCheckExtension linter race (rm-f506e6522fb79cba)", () => {
     // value is null, so the second pass gets a real checker.
     let pass = 0;
     const workingChecker = mockChecker(new Set(["brown", "fox"]));
-    const extensions = spellCheckExtension(
-      () => {
-        pass += 1;
-        if (pass === 1) return null; // first pass: dictionary not yet loaded
-        return workingChecker; // later passes: dictionary loaded
-      },
-      true,
-    );
+    const extensions = spellCheckExtension(() => {
+      pass += 1;
+      if (pass === 1) return null; // first pass: dictionary not yet loaded
+      return workingChecker; // later passes: dictionary loaded
+    }, true);
 
     const lintSource = extractLinterSource(extensions) as (
       view: unknown,
@@ -209,13 +222,10 @@ describe("spellCheckExtension linter race (rm-f506e6522fb79cba)", () => {
     // the linter must keep returning [] on every pass without throwing or
     // attempting a real nspell parse.
     let callCount = 0;
-    const extensions = spellCheckExtension(
-      () => {
-        callCount += 1;
-        return null; // dictionary never loads
-      },
-      true,
-    );
+    const extensions = spellCheckExtension(() => {
+      callCount += 1;
+      return null; // dictionary never loads
+    }, true);
     const lintSource = extractLinterSource(extensions) as (
       view: unknown,
     ) => Promise<unknown[]>;

@@ -45,7 +45,15 @@ describe("openOrFocusTab", () => {
   it("opens a new tab and makes it active", () => {
     openOrFocusTab("/a.md", "a.md", "content", "text");
     expect(openTabs.value).toEqual([
-      { path: "/a.md", name: "a.md", content: "content", kind: "text", dirty: false, saving: false, saveError: null },
+      {
+        path: "/a.md",
+        name: "a.md",
+        content: "content",
+        kind: "text",
+        dirty: false,
+        saving: false,
+        saveError: null,
+      },
     ]);
     expect(activeTabPath.value).toBe("/a.md");
   });
@@ -121,7 +129,11 @@ describe("updateTabContent / markTabSaved", () => {
 
     markTabSaveError("/a.md", "disk full");
 
-    expect(openTabs.value[0]).toMatchObject({ dirty: true, saving: false, saveError: "disk full" });
+    expect(openTabs.value[0]).toMatchObject({
+      dirty: true,
+      saving: false,
+      saveError: "disk full",
+    });
   });
 
   it("markTabSaving only touches the matching tab, leaving others untouched", () => {
@@ -298,7 +310,15 @@ describe("renameOpenTab", () => {
     renameOpenTab("/old.md", "/new.md", "new.md");
 
     expect(openTabs.value).toEqual([
-      { path: "/new.md", name: "new.md", content: "content", kind: "text", dirty: false, saving: false, saveError: null },
+      {
+        path: "/new.md",
+        name: "new.md",
+        content: "content",
+        kind: "text",
+        dirty: false,
+        saving: false,
+        saveError: null,
+      },
     ]);
     expect(activeTabPath.value).toBe("/new.md");
   });
@@ -357,7 +377,10 @@ describe("splitRight", () => {
 
     splitRight("/c.md"); // must not re-run createSplitLayout and disturb placement ("/c.md" isn't even open)
 
-    expect(secondaryOpenTabs.value.map((t) => t.path)).toEqual(["/a.md", "/b.md"]);
+    expect(secondaryOpenTabs.value.map((t) => t.path)).toEqual([
+      "/a.md",
+      "/b.md",
+    ]);
     expect(openTabs.value).toEqual([]);
   });
 });
@@ -369,7 +392,10 @@ describe("openOrFocusTab routes through the active group (spec 7.1)", () => {
 
     openOrFocusTab("/b.md", "b.md", "new in the active group", "text");
 
-    expect(secondaryOpenTabs.value.map((t) => t.path)).toEqual(["/a.md", "/b.md"]);
+    expect(secondaryOpenTabs.value.map((t) => t.path)).toEqual([
+      "/a.md",
+      "/b.md",
+    ]);
     expect(openTabs.value).toEqual([]);
   });
 
@@ -381,7 +407,15 @@ describe("openOrFocusTab routes through the active group (spec 7.1)", () => {
     openOrFocusTab("/a.md", "a.md", "must not overwrite or duplicate", "text");
 
     expect(openTabs.value).toEqual([
-      { path: "/a.md", name: "a.md", content: "content", kind: "text", dirty: false, saving: false, saveError: null },
+      {
+        path: "/a.md",
+        name: "a.md",
+        content: "content",
+        kind: "text",
+        dirty: false,
+        saving: false,
+        saveError: null,
+      },
     ]);
     expect(secondaryOpenTabs.value).toEqual([]);
     expect(editorLayout.value.activeGroupId).toBe("primary"); // focusing it moved activation back from secondary
@@ -409,7 +443,9 @@ describe("moveActiveTabToOtherGroup", () => {
 
     expect(openTabs.value.map((t) => t.path)).toEqual(["/a.md"]);
     expect(secondaryOpenTabs.value).toEqual([]);
-    expect(openDocuments.value.find((d) => d.path === "/a.md")?.content).toBe("content stays put");
+    expect(openDocuments.value.find((d) => d.path === "/a.md")?.content).toBe(
+      "content stays put",
+    );
   });
 
   it("does nothing when the active group has no active tab", () => {
@@ -442,7 +478,9 @@ describe("openInOtherGroup", () => {
 
     expect(secondaryOpenTabs.value.map((t) => t.path)).toEqual(["/b.md"]);
     expect(openTabs.value.map((t) => t.path)).toEqual(["/a.md"]);
-    expect(openDocuments.value.find((d) => d.path === "/b.md")?.content).toBe("keep me");
+    expect(openDocuments.value.find((d) => d.path === "/b.md")?.content).toBe(
+      "keep me",
+    );
     expect(editorLayout.value.compactVisibleGroupId).toBe("secondary");
   });
 
@@ -461,9 +499,17 @@ describe("openInOtherGroup", () => {
     // Simulate the stale-activeGroupId race directly.
     editorLayout.value = { ...editorLayout.value, activeGroupId: "primary" };
 
-    openInOtherGroup("/target.md", "target.md", "ignored, already open", "text", "/clicked-in.md");
+    openInOtherGroup(
+      "/target.md",
+      "target.md",
+      "ignored, already open",
+      "text",
+      "/clicked-in.md",
+    );
 
-    expect(secondaryOpenTabs.value.map((t) => t.path)).toEqual(["/clicked-in.md"]);
+    expect(secondaryOpenTabs.value.map((t) => t.path)).toEqual([
+      "/clicked-in.md",
+    ]);
     expect(openTabs.value.map((t) => t.path)).toEqual(["/a.md", "/target.md"]);
   });
 });
@@ -483,9 +529,15 @@ describe("closeSecondaryGroup (merge into primary)", () => {
     expect(editorLayout.value.splitEnabled).toBe(false);
     expect(editorLayout.value.groups.secondary).toBeUndefined();
     expect(openTabs.value.map((t) => t.path)).toEqual([
-      "/p-pinned.md", "/s-pinned.md", "/p-plain.md", "/s-plain.md",
+      "/p-pinned.md",
+      "/s-pinned.md",
+      "/p-plain.md",
+      "/s-plain.md",
     ]);
-    expect(editorLayout.value.groups.primary.pinnedPaths).toEqual(["/p-pinned.md", "/s-pinned.md"]);
+    expect(editorLayout.value.groups.primary.pinnedPaths).toEqual([
+      "/p-pinned.md",
+      "/s-pinned.md",
+    ]);
   });
 });
 
@@ -558,7 +610,9 @@ describe("closeTabsUnder and renameOpenTab span both groups", () => {
     renameOpenTab("/old.md", "/new.md", "new.md");
 
     expect(secondaryOpenTabs.value.map((t) => t.path)).toEqual(["/new.md"]);
-    expect(editorLayout.value.groups.secondary?.pinnedPaths).toEqual(["/new.md"]);
+    expect(editorLayout.value.groups.secondary?.pinnedPaths).toEqual([
+      "/new.md",
+    ]);
     expect(secondaryActiveTabPath.value).toBe("/new.md");
   });
 });
@@ -630,7 +684,7 @@ describe("per-group view mode and split ratio", () => {
 
   it("setSplitRatio clamps and resetSplitRatio restores 0.5", () => {
     setSplitRatio(0.9);
-    expect(editorLayout.value.preferredRatio).toBe(0.70);
+    expect(editorLayout.value.preferredRatio).toBe(0.7);
 
     resetSplitRatio();
     expect(editorLayout.value.preferredRatio).toBe(0.5);
@@ -646,11 +700,19 @@ describe("reorderTabWithinGroup", () => {
     openOrFocusTab("/c.md", "c.md", "", "text");
 
     reorderTabWithinGroup("/b.md", "left");
-    expect(openTabs.value.map((t) => t.path)).toEqual(["/b.md", "/a.md", "/c.md"]);
+    expect(openTabs.value.map((t) => t.path)).toEqual([
+      "/b.md",
+      "/a.md",
+      "/c.md",
+    ]);
 
     reorderTabWithinGroup("/b.md", "right");
     reorderTabWithinGroup("/b.md", "right");
-    expect(openTabs.value.map((t) => t.path)).toEqual(["/a.md", "/c.md", "/b.md"]);
+    expect(openTabs.value.map((t) => t.path)).toEqual([
+      "/a.md",
+      "/c.md",
+      "/b.md",
+    ]);
   });
 
   it("is a no-op at either edge of the region", () => {
@@ -673,8 +735,15 @@ describe("reorderTabWithinGroup", () => {
 
     reorderTabWithinGroup("/a.md", "right"); // swaps within {a,b}, the pinned region
 
-    expect(openTabs.value.map((t) => t.path)).toEqual(["/b.md", "/a.md", "/c.md"]);
-    expect(editorLayout.value.groups.primary.pinnedPaths).toEqual(["/b.md", "/a.md"]);
+    expect(openTabs.value.map((t) => t.path)).toEqual([
+      "/b.md",
+      "/a.md",
+      "/c.md",
+    ]);
+    expect(editorLayout.value.groups.primary.pinnedPaths).toEqual([
+      "/b.md",
+      "/a.md",
+    ]);
   });
 
   it("reorders within whichever group the path belongs to", () => {
@@ -686,7 +755,10 @@ describe("reorderTabWithinGroup", () => {
 
     reorderTabWithinGroup("/b.md", "right");
 
-    expect(secondaryOpenTabs.value.map((t) => t.path)).toEqual(["/c.md", "/b.md"]);
+    expect(secondaryOpenTabs.value.map((t) => t.path)).toEqual([
+      "/c.md",
+      "/b.md",
+    ]);
     expect(openTabs.value.map((t) => t.path)).toEqual(["/a.md"]); // untouched
   });
 });
@@ -699,7 +771,11 @@ describe("moveTabWithinGroup", () => {
 
     moveTabWithinGroup("/c.md", "/a.md");
 
-    expect(openTabs.value.map((t) => t.path)).toEqual(["/c.md", "/a.md", "/b.md"]);
+    expect(openTabs.value.map((t) => t.path)).toEqual([
+      "/c.md",
+      "/a.md",
+      "/b.md",
+    ]);
   });
 
   it("moves a tab to the end of its region when beforePath is null", () => {
@@ -709,7 +785,11 @@ describe("moveTabWithinGroup", () => {
 
     moveTabWithinGroup("/a.md", null);
 
-    expect(openTabs.value.map((t) => t.path)).toEqual(["/b.md", "/c.md", "/a.md"]);
+    expect(openTabs.value.map((t) => t.path)).toEqual([
+      "/b.md",
+      "/c.md",
+      "/a.md",
+    ]);
   });
 
   it("does not implicitly pin or unpin: dropping across regions is a no-op", () => {

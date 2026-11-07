@@ -63,17 +63,22 @@ export function VirtualizedOutlineList({
 }: VirtualizedOutlineListProps) {
   const containerRef = useRef<HTMLUListElement | null>(null);
   const [scrollTop, setScrollTop] = useState(0);
-  const [viewportHeight, setViewportHeight] = useState(INITIAL_VIEWPORT_HEIGHT_PX);
+  const [viewportHeight, setViewportHeight] = useState(
+    INITIAL_VIEWPORT_HEIGHT_PX,
+  );
 
   const rows = useMemo(
-    () => flattenVisibleRows(headings, collapsedKeys, filterActive, visibleIndexes),
+    () =>
+      flattenVisibleRows(headings, collapsedKeys, filterActive, visibleIndexes),
     [headings, collapsedKeys, filterActive, visibleIndexes],
   );
 
   useEffect(() => {
     const container = containerRef.current;
     if (!container || typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(() => setViewportHeight(container.clientHeight));
+    const observer = new ResizeObserver(() =>
+      setViewportHeight(container.clientHeight),
+    );
     observer.observe(container);
     if (container.clientHeight > 0) setViewportHeight(container.clientHeight);
     return () => observer.disconnect();
@@ -86,7 +91,10 @@ export function VirtualizedOutlineList({
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-    const maxScrollTop = Math.max(0, rows.length * VIRTUAL_ROW_HEIGHT_PX - viewportHeight);
+    const maxScrollTop = Math.max(
+      0,
+      rows.length * VIRTUAL_ROW_HEIGHT_PX - viewportHeight,
+    );
     if (container.scrollTop > maxScrollTop) {
       container.scrollTop = maxScrollTop;
       setScrollTop(maxScrollTop);
@@ -106,35 +114,49 @@ export function VirtualizedOutlineList({
       class="outline-list outline-list--virtual"
       aria-label="Heading outline"
       ref={containerRef}
-      onScroll={(event) => setScrollTop((event.target as HTMLUListElement).scrollTop)}
+      onScroll={(event) =>
+        setScrollTop((event.target as HTMLUListElement).scrollTop)
+      }
     >
       {virtualWindow.topSpacerHeight > 0 && (
-        <li aria-hidden="true" style={{ height: `${virtualWindow.topSpacerHeight}px` }} />
+        <li
+          aria-hidden="true"
+          style={{ height: `${virtualWindow.topSpacerHeight}px` }}
+        />
       )}
-      {rows.slice(virtualWindow.startIndex, virtualWindow.endIndex).map(({ index, depth }) => {
-        const heading = headings[index];
-        const hasChildren = heading.childIndexes.length > 0;
-        const keyId = headingKeyId(heading);
-        const collapsed = !filterActive && collapsedKeys.has(keyId);
-        return (
-          <li key={index} class="outline-node" style={{ height: `${VIRTUAL_ROW_HEIGHT_PX}px` }}>
-            <OutlineRowContent
-              heading={heading}
-              depth={depth}
-              hasChildren={hasChildren}
-              collapsed={collapsed}
-              duplicate={duplicateFlags[index]}
-              noteTitle={noteTitle}
-              canInsertLink={canInsertLink}
-              onToggleCollapse={() => onToggleCollapse(keyId)}
-              onSelect={() => onSelect(heading)}
-              onInserted={onInserted}
-            />
-          </li>
-        );
-      })}
+      {rows
+        .slice(virtualWindow.startIndex, virtualWindow.endIndex)
+        .map(({ index, depth }) => {
+          const heading = headings[index];
+          const hasChildren = heading.childIndexes.length > 0;
+          const keyId = headingKeyId(heading);
+          const collapsed = !filterActive && collapsedKeys.has(keyId);
+          return (
+            <li
+              key={index}
+              class="outline-node"
+              style={{ height: `${VIRTUAL_ROW_HEIGHT_PX}px` }}
+            >
+              <OutlineRowContent
+                heading={heading}
+                depth={depth}
+                hasChildren={hasChildren}
+                collapsed={collapsed}
+                duplicate={duplicateFlags[index]}
+                noteTitle={noteTitle}
+                canInsertLink={canInsertLink}
+                onToggleCollapse={() => onToggleCollapse(keyId)}
+                onSelect={() => onSelect(heading)}
+                onInserted={onInserted}
+              />
+            </li>
+          );
+        })}
       {virtualWindow.bottomSpacerHeight > 0 && (
-        <li aria-hidden="true" style={{ height: `${virtualWindow.bottomSpacerHeight}px` }} />
+        <li
+          aria-hidden="true"
+          style={{ height: `${virtualWindow.bottomSpacerHeight}px` }}
+        />
       )}
     </ul>
   );

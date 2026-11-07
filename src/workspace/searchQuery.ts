@@ -114,7 +114,9 @@ export function parseSearchQuery(raw: string): SearchQuery {
   const query: SearchQuery = [];
   let groupTokens: string[] = [];
   const flush = () => {
-    const clauses = groupTokens.map(parseToken).filter((clause): clause is SearchClause => clause !== null);
+    const clauses = groupTokens
+      .map(parseToken)
+      .filter((clause): clause is SearchClause => clause !== null);
     if (clauses.length > 0) query.push(clauses);
     groupTokens = [];
   };
@@ -198,7 +200,10 @@ export interface SearchContext {
   getContentLower: () => Promise<string | null>;
 }
 
-async function clauseMatches(clause: SearchClause, ctx: SearchContext): Promise<boolean> {
+async function clauseMatches(
+  clause: SearchClause,
+  ctx: SearchContext,
+): Promise<boolean> {
   let matched: boolean;
   switch (clause.kind) {
     case "tag":
@@ -206,14 +211,18 @@ async function clauseMatches(clause: SearchClause, ctx: SearchContext): Promise<
       // (work/project), the same aggregation the Tags panel already does
       // (see tags/tags.ts's buildTagTree), so this filter agrees with
       // what the panel shows under that tag.
-      matched = ctx.tagsLower.some((tag) => tag === clause.value || tag.startsWith(`${clause.value}/`));
+      matched = ctx.tagsLower.some(
+        (tag) => tag === clause.value || tag.startsWith(`${clause.value}/`),
+      );
       break;
     case "path":
       matched = ctx.pathLower.includes(clause.value);
       break;
     case "text":
     default:
-      matched = ctx.nameLower.includes(clause.value) || ((await ctx.getContentLower())?.includes(clause.value) ?? false);
+      matched =
+        ctx.nameLower.includes(clause.value) ||
+        ((await ctx.getContentLower())?.includes(clause.value) ?? false);
       break;
   }
   return clause.negate ? !matched : matched;
@@ -225,7 +234,9 @@ async function clauseMatches(clause: SearchClause, ctx: SearchContext): Promise<
  * clause bails before ever considering a content read, regardless of
  * which order the user actually typed the terms in. */
 function cheapestFirst(group: SearchClause[]): SearchClause[] {
-  return [...group].sort((a, b) => Number(a.kind === "text") - Number(b.kind === "text"));
+  return [...group].sort(
+    (a, b) => Number(a.kind === "text") - Number(b.kind === "text"),
+  );
 }
 
 /** A note matches if it satisfies every clause in at least one OR-group.
@@ -233,7 +244,10 @@ function cheapestFirst(group: SearchClause[]): SearchClause[] {
  * (an unsatisfied clause skips the rest of the group), and content is
  * only ever read via ctx.getContentLower() when a `text` clause is
  * actually reached needing it, never assumed either way before that. */
-export async function matchesSearchQuery(query: SearchQuery, ctx: SearchContext): Promise<boolean> {
+export async function matchesSearchQuery(
+  query: SearchQuery,
+  ctx: SearchContext,
+): Promise<boolean> {
   for (const group of query) {
     let groupMatches = true;
     for (const clause of cheapestFirst(group)) {
@@ -307,7 +321,10 @@ export function scoreSearchResult(
         case "text": {
           if (nameLower.includes(clause.value)) {
             score += 10; // name hit: strongest signal
-          } else if (contentLower !== null && contentLower.includes(clause.value)) {
+          } else if (
+            contentLower !== null &&
+            contentLower.includes(clause.value)
+          ) {
             score += 2; // content hit: weaker signal
           }
           break;
@@ -318,7 +335,8 @@ export function scoreSearchResult(
         case "tag":
           if (
             tagsLower.some(
-              (tag) => tag === clause.value || tag.startsWith(`${clause.value}/`),
+              (tag) =>
+                tag === clause.value || tag.startsWith(`${clause.value}/`),
             )
           ) {
             score += 5;

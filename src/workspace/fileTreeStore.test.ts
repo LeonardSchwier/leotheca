@@ -178,7 +178,11 @@ describe("revealPathInSidebar", () => {
     expect(listDir).toHaveBeenCalledTimes(3);
     expect(listDir).toHaveBeenNthCalledWith(1, "/workspace", "/workspace/a");
     expect(listDir).toHaveBeenNthCalledWith(2, "/workspace", "/workspace/a/b");
-    expect(listDir).toHaveBeenNthCalledWith(3, "/workspace", "/workspace/a/b/c");
+    expect(listDir).toHaveBeenNthCalledWith(
+      3,
+      "/workspace",
+      "/workspace/a/b/c",
+    );
   });
 
   it("expands and loads the immediate parent of a top-level file", async () => {
@@ -211,9 +215,7 @@ describe("revealPathInSidebar", () => {
 
   it("does not reload ancestors that already have cached children", async () => {
     expandedDirs.value = new Set(["/workspace/a"]);
-    dirChildren.value = new Map([
-      ["/workspace/a", [entry("b", true)]],
-    ]);
+    dirChildren.value = new Map([["/workspace/a", [entry("b", true)]]]);
 
     await revealPathInSidebar("/workspace", "/workspace/a/b/note.md");
 
@@ -516,7 +518,10 @@ describe("listTemplates", () => {
     };
     listDir.mockResolvedValue([]);
     await listTemplates("/workspace");
-    expect(listDir).toHaveBeenCalledWith("/workspace", "/workspace/Notes/Snippets");
+    expect(listDir).toHaveBeenCalledWith(
+      "/workspace",
+      "/workspace/Notes/Snippets",
+    );
   });
 
   it("returns an empty list rather than throwing when the templates folder doesn't exist", async () => {
@@ -1143,7 +1148,12 @@ describe("F-005 follow-up: extension-less text files are content-searchable", as
     const entries = [
       { name: "README", path: "/workspace/README", isDir: false, size: 1024 },
       { name: "notes", path: "/workspace/notes", isDir: false, size: 2048 },
-      { name: "Makefile", path: "/workspace/Makefile", isDir: false, size: 512 },
+      {
+        name: "Makefile",
+        path: "/workspace/Makefile",
+        isDir: false,
+        size: 512,
+      },
     ];
     findAllFiles.mockResolvedValue(entries);
     mockFileContents(
@@ -1177,7 +1187,12 @@ describe("F-005 follow-up: extension-less text files are content-searchable", as
     // excluded from content matching entirely.
     findAllFiles.mockResolvedValue([
       { name: "notes", path: "/workspace/notes", isDir: true },
-      { name: "README", path: "/workspace/notes/README", isDir: false, size: 64 },
+      {
+        name: "README",
+        path: "/workspace/notes/README",
+        isDir: false,
+        size: 64,
+      },
     ]);
     mockFileContents({ "/workspace/notes/README": "found in nested readme" });
     await runSearch("/workspace", "nested readme");
@@ -1186,7 +1201,12 @@ describe("F-005 follow-up: extension-less text files are content-searchable", as
 
   it("still skips a known binary extension even when the name looks note-like", async () => {
     findAllFiles.mockResolvedValue([
-      { name: "archive.zip", path: "/workspace/archive.zip", isDir: false, size: 1024 },
+      {
+        name: "archive.zip",
+        path: "/workspace/archive.zip",
+        isDir: false,
+        size: 1024,
+      },
     ]);
     mockFileContents({ "/workspace/archive.zip": "zip bytes not text" });
     await runSearch("/workspace", "zip");
@@ -1584,9 +1604,8 @@ describe("recent-notes widget list-length contract", () => {
   });
 
   it("selectRecentNotes returns at most RECENT_NOTES_WIDGET_MAX entries", async () => {
-    const { RECENT_NOTES_WIDGET_MAX, selectRecentNotes } = await import(
-      "./fileTreeStore"
-    );
+    const { RECENT_NOTES_WIDGET_MAX, selectRecentNotes } =
+      await import("./fileTreeStore");
     // Build a file list longer than the cap.
     const total = RECENT_NOTES_WIDGET_MAX + 10;
     const files: FsEntry[] = Array.from({ length: total }, (_, i) => ({
@@ -1608,7 +1627,12 @@ describe("recent-notes widget list-length contract", () => {
     const { selectRecentNotes } = await import("./fileTreeStore");
     const files: FsEntry[] = [
       { name: "dir", path: "/workspace/dir", isDir: true, mtime: 9999 },
-      { name: "readme.txt", path: "/workspace/readme.txt", isDir: false, mtime: 9998 },
+      {
+        name: "readme.txt",
+        path: "/workspace/readme.txt",
+        isDir: false,
+        mtime: 9998,
+      },
       { name: "a.md", path: "/workspace/a.md", isDir: false, mtime: 100 },
       { name: "b.md", path: "/workspace/b.md", isDir: false, mtime: 200 },
     ];
@@ -1621,7 +1645,12 @@ describe("recent-notes widget list-length contract", () => {
     const { selectRecentNotes } = await import("./fileTreeStore");
     const files: FsEntry[] = [
       { name: "dir", path: "/workspace/dir", isDir: true, mtime: 9999 },
-      { name: "img.png", path: "/workspace/img.png", isDir: false, mtime: 9998 },
+      {
+        name: "img.png",
+        path: "/workspace/img.png",
+        isDir: false,
+        mtime: 9998,
+      },
     ];
     expect(selectRecentNotes(files)).toEqual([]);
   });
@@ -1629,8 +1658,18 @@ describe("recent-notes widget list-length contract", () => {
   it("disambiguates same-named notes in different folders by relative path", async () => {
     const { selectRecentNotes } = await import("./fileTreeStore");
     const files: FsEntry[] = [
-      { name: "Note.md", path: "/workspace/a/Note.md", isDir: false, mtime: 100 },
-      { name: "Note.md", path: "/workspace/b/Note.md", isDir: false, mtime: 200 },
+      {
+        name: "Note.md",
+        path: "/workspace/a/Note.md",
+        isDir: false,
+        mtime: 100,
+      },
+      {
+        name: "Note.md",
+        path: "/workspace/b/Note.md",
+        isDir: false,
+        mtime: 200,
+      },
     ];
     const result = selectRecentNotes(files, "/workspace");
     expect(result).toHaveLength(2);
@@ -1652,7 +1691,12 @@ describe("recent-notes widget list-length contract", () => {
   it("handles deeply nested notes with correct relative path labels", async () => {
     const { selectRecentNotes } = await import("./fileTreeStore");
     const files: FsEntry[] = [
-      { name: "deep.md", path: "/workspace/x/y/deep.md", isDir: false, mtime: 100 },
+      {
+        name: "deep.md",
+        path: "/workspace/x/y/deep.md",
+        isDir: false,
+        mtime: 100,
+      },
     ];
     const result = selectRecentNotes(files, "/workspace");
     expect(result[0].label).toBe("x/y/deep");
@@ -1798,8 +1842,8 @@ describe("runSearch – folder + contents exclusion", () => {
     const ws = "/workspace";
     findAllFiles.mockResolvedValue([
       { name: "archive", path: `${ws}/archive`, isDir: true },
-      { name: "old.md",    path: `${ws}/archive/old.md`, isDir: false },
-      { name: "root.md",   path: `${ws}/root.md`, isDir: false },
+      { name: "old.md", path: `${ws}/archive/old.md`, isDir: false },
+      { name: "root.md", path: `${ws}/root.md`, isDir: false },
     ]);
     await runSearch(ws, "-archive");
     const names = searchResults.value?.map((e) => e.name) ?? [];
@@ -1812,10 +1856,10 @@ describe("runSearch – folder + contents exclusion", () => {
     // Expected: root.md only.
     const ws = "/workspace";
     findAllFiles.mockResolvedValue([
-      { name: "archive",  path: `${ws}/archive`, isDir: true },
-      { name: "sub",      path: `${ws}/archive/sub`, isDir: true },
-      { name: "deep.md",  path: `${ws}/archive/sub/deep.md`, isDir: false },
-      { name: "root.md",  path: `${ws}/root.md`, isDir: false },
+      { name: "archive", path: `${ws}/archive`, isDir: true },
+      { name: "sub", path: `${ws}/archive/sub`, isDir: true },
+      { name: "deep.md", path: `${ws}/archive/sub/deep.md`, isDir: false },
+      { name: "root.md", path: `${ws}/root.md`, isDir: false },
     ]);
     await runSearch(ws, "-archive");
     expect(searchResults.value?.map((e) => e.name)).toEqual(["root.md"]);
@@ -1828,14 +1872,14 @@ describe("runSearch – folder + contents exclusion", () => {
     const ws = "/workspace";
     findAllFiles.mockResolvedValue([
       { name: "archivex", path: `${ws}/archivex`, isDir: true },
-      { name: "note.md",  path: `${ws}/archivex/note.md`, isDir: false },
-      { name: "archive",  path: `${ws}/archive`, isDir: true },
-      { name: "old.md",   path: `${ws}/archive/old.md`, isDir: false },
-      { name: "root.md",  path: `${ws}/root.md`, isDir: false },
+      { name: "note.md", path: `${ws}/archivex/note.md`, isDir: false },
+      { name: "archive", path: `${ws}/archive`, isDir: true },
+      { name: "old.md", path: `${ws}/archive/old.md`, isDir: false },
+      { name: "root.md", path: `${ws}/root.md`, isDir: false },
     ]);
     await runSearch(ws, "-archive");
     const names = searchResults.value?.map((e) => e.name) ?? [];
-    expect(names).toContain("note.md");   // archivex/note.md is kept
+    expect(names).toContain("note.md"); // archivex/note.md is kept
     expect(names).not.toContain("old.md"); // archive/old.md is excluded
     expect(names).toContain("root.md");
   });
@@ -1848,8 +1892,8 @@ describe("runSearch – folder + contents exclusion", () => {
     const ws = "/workspace";
     findAllFiles.mockResolvedValue([
       { name: "archive.md", path: `${ws}/archive.md`, isDir: false },
-      { name: "archive",    path: `${ws}/archive`, isDir: true },
-      { name: "old.md",     path: `${ws}/archive/old.md`, isDir: false },
+      { name: "archive", path: `${ws}/archive`, isDir: true },
+      { name: "old.md", path: `${ws}/archive/old.md`, isDir: false },
     ]);
     // Note: the text clause "archive" (negated) will also filter on content.
     // archive.md's content is empty (mock returns []), so it would be excluded
@@ -1869,10 +1913,10 @@ describe("runSearch – folder + contents exclusion", () => {
     // Expected: root.md and top/ (the top dir itself is not inside "middle").
     const ws = "/workspace";
     findAllFiles.mockResolvedValue([
-      { name: "top",      path: `${ws}/top`, isDir: true },
-      { name: "middle",   path: `${ws}/top/middle`, isDir: true },
-      { name: "bottom.md",path: `${ws}/top/middle/bottom.md`, isDir: false },
-      { name: "root.md",  path: `${ws}/root.md`, isDir: false },
+      { name: "top", path: `${ws}/top`, isDir: true },
+      { name: "middle", path: `${ws}/top/middle`, isDir: true },
+      { name: "bottom.md", path: `${ws}/top/middle/bottom.md`, isDir: false },
+      { name: "root.md", path: `${ws}/root.md`, isDir: false },
     ]);
     await runSearch(ws, "-middle");
     const names = searchResults.value?.map((e) => e.name) ?? [];
@@ -1888,7 +1932,7 @@ describe("runSearch – folder + contents exclusion", () => {
     const ws = "/workspace";
     findAllFiles.mockResolvedValue([
       { name: "Archive", path: `${ws}/Archive`, isDir: true },
-      { name: "old.md",  path: `${ws}/Archive/old.md`, isDir: false },
+      { name: "old.md", path: `${ws}/Archive/old.md`, isDir: false },
       { name: "root.md", path: `${ws}/root.md`, isDir: false },
     ]);
     await runSearch(ws, "-archive");
@@ -1912,7 +1956,10 @@ describe("runSearch: search result sort order", () => {
     ]);
     mockFileContents({ [`${ws}/diary.md`]: "Bought some milk today." });
     await runSearch(ws, "milk");
-    expect(searchResults.value?.map((e) => e.name)).toEqual(["milk list.md", "diary.md"]);
+    expect(searchResults.value?.map((e) => e.name)).toEqual([
+      "milk list.md",
+      "diary.md",
+    ]);
   });
 
   it("sorts by name A→Z regardless of discovery order when mode is name", async () => {
@@ -1923,10 +1970,16 @@ describe("runSearch: search result sort order", () => {
       { name: "diary.md", path: `${ws}/diary.md`, isDir: false },
     ]);
     mockFileContents({ [`${ws}/diary.md`]: "Bought some milk today." });
-    workspaceSettings.value = { ...DEFAULT_WORKSPACE_SETTINGS, searchSortMode: "name" };
+    workspaceSettings.value = {
+      ...DEFAULT_WORKSPACE_SETTINGS,
+      searchSortMode: "name",
+    };
     await runSearch(ws, "milk");
     // Alphabetical: diary.md before milk list.md
-    expect(searchResults.value?.map((e) => e.name)).toEqual(["diary.md", "milk list.md"]);
+    expect(searchResults.value?.map((e) => e.name)).toEqual([
+      "diary.md",
+      "milk list.md",
+    ]);
   });
 
   it("sorts by mtime descending when mode is modified", async () => {
@@ -1936,17 +1989,29 @@ describe("runSearch: search result sort order", () => {
     findAllFiles.mockResolvedValue([
       { name: "old.md", path: `${ws}/old.md`, isDir: false, mtime: OLD },
       { name: "new.md", path: `${ws}/new.md`, isDir: false, mtime: NEW },
-      { name: "milk.md", path: `${ws}/milk.md`, isDir: false, mtime: OLD + 1000 },
+      {
+        name: "milk.md",
+        path: `${ws}/milk.md`,
+        isDir: false,
+        mtime: OLD + 1000,
+      },
     ]);
     mockFileContents({
       [`${ws}/old.md`]: "milk",
       [`${ws}/new.md`]: "milk",
       [`${ws}/milk.md`]: "milk",
     });
-    workspaceSettings.value = { ...DEFAULT_WORKSPACE_SETTINGS, searchSortMode: "modified" };
+    workspaceSettings.value = {
+      ...DEFAULT_WORKSPACE_SETTINGS,
+      searchSortMode: "modified",
+    };
     await runSearch(ws, "milk");
     // Newest first: new.md, milk.md, old.md
-    expect(searchResults.value?.map((e) => e.name)).toEqual(["new.md", "milk.md", "old.md"]);
+    expect(searchResults.value?.map((e) => e.name)).toEqual([
+      "new.md",
+      "milk.md",
+      "old.md",
+    ]);
   });
 
   it("matches content in name mode too (sorting, not restricting) — name mode still reads content for matching", async () => {
@@ -1956,10 +2021,16 @@ describe("runSearch: search result sort order", () => {
       { name: "diary.md", path: `${ws}/diary.md`, isDir: false },
     ]);
     mockFileContents({ [`${ws}/diary.md`]: "Bought some milk today." });
-    workspaceSettings.value = { ...DEFAULT_WORKSPACE_SETTINGS, searchSortMode: "name" };
+    workspaceSettings.value = {
+      ...DEFAULT_WORKSPACE_SETTINGS,
+      searchSortMode: "name",
+    };
     await runSearch(ws, "milk");
     // Both match (one by name, one by content); name mode sorts alphabetically
-    expect(searchResults.value?.map((e) => e.name)).toEqual(["diary.md", "milk list.md"]);
+    expect(searchResults.value?.map((e) => e.name)).toEqual([
+      "diary.md",
+      "milk list.md",
+    ]);
   });
 });
 
@@ -2001,7 +2072,9 @@ describe("native failures on fire-and-forget entrypoints", () => {
   });
 
   it("runSearch resolves when the native file walk fails, and clears stale results and the busy flag", async () => {
-    findAllFiles.mockRejectedValue(new Error("walk failed: folder access revoked"));
+    findAllFiles.mockRejectedValue(
+      new Error("walk failed: folder access revoked"),
+    );
     await expect(runSearch("/workspace", "milk")).resolves.toBeUndefined();
     expect(searchInProgress.value).toBe(false);
     expect(searchResults.value).toBeNull();

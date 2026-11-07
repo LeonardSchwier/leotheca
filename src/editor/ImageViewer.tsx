@@ -16,7 +16,10 @@ export function ImageViewer({ path, onClose }: ImageViewerProps) {
   const [error, setError] = useState<string | null>(null);
   const [scale, setScale] = useState<number>(1);
   const [isDragging, setIsDragging] = useState<boolean>(false);
-  const [position, setPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [position, setPosition] = useState<{ x: number; y: number }>({
+    x: 0,
+    y: 0,
+  });
   const containerRef = useRef<HTMLDivElement>(null);
   const dragStartPos = useRef<{ x: number; y: number } | null>(null);
 
@@ -54,49 +57,61 @@ export function ImageViewer({ path, onClose }: ImageViewerProps) {
     setPosition({ x: 0, y: 0 });
   }, []);
 
-  const handleMouseDown = useCallback((e: MouseEvent) => {
-    if (e.button === 0) {
-      setIsDragging(true);
-      dragStartPos.current = { x: e.clientX - position.x, y: e.clientY - position.y };
-      e.preventDefault();
-    }
-  }, [position.x, position.y]);
+  const handleMouseDown = useCallback(
+    (e: MouseEvent) => {
+      if (e.button === 0) {
+        setIsDragging(true);
+        dragStartPos.current = {
+          x: e.clientX - position.x,
+          y: e.clientY - position.y,
+        };
+        e.preventDefault();
+      }
+    },
+    [position.x, position.y],
+  );
 
-  const handleMouseMove = useCallback((e: MouseEvent) => {
-    if (isDragging && dragStartPos.current) {
-      setPosition({
-        x: e.clientX - dragStartPos.current.x,
-        y: e.clientY - dragStartPos.current.y,
-      });
-    }
-  }, [isDragging]);
+  const handleMouseMove = useCallback(
+    (e: MouseEvent) => {
+      if (isDragging && dragStartPos.current) {
+        setPosition({
+          x: e.clientX - dragStartPos.current.x,
+          y: e.clientY - dragStartPos.current.y,
+        });
+      }
+    },
+    [isDragging],
+  );
 
   const handleMouseUp = useCallback(() => {
     setIsDragging(false);
     dragStartPos.current = null;
   }, []);
 
-  const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    switch (e.key) {
-      case "Escape":
-        // Only dismiss when this viewer is a transient surface with a caller
-        // to hand back to; a bare ImageViewer (no onClose) has nothing to
-        // close and must not swallow Escape from any surrounding context.
-        if (onClose) onClose();
-        break;
-      case "+":
-      case "=":
-        handleZoomIn();
-        break;
-      case "-":
-      case "_":
-        handleZoomOut();
-        break;
-      case "0":
-        handleReset();
-        break;
-    }
-  }, [onClose, handleZoomIn, handleZoomOut, handleReset]);
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      switch (e.key) {
+        case "Escape":
+          // Only dismiss when this viewer is a transient surface with a caller
+          // to hand back to; a bare ImageViewer (no onClose) has nothing to
+          // close and must not swallow Escape from any surrounding context.
+          if (onClose) onClose();
+          break;
+        case "+":
+        case "=":
+          handleZoomIn();
+          break;
+        case "-":
+        case "_":
+          handleZoomOut();
+          break;
+        case "0":
+          handleReset();
+          break;
+      }
+    },
+    [onClose, handleZoomIn, handleZoomOut, handleReset],
+  );
 
   useEffect(() => {
     if (isDragging) {
@@ -122,7 +137,12 @@ export function ImageViewer({ path, onClose }: ImageViewerProps) {
         <div class="image-viewer image-viewer-error">
           <p>{error}</p>
           {onClose && (
-            <button class="image-viewer-button image-viewer-close" onClick={onClose} title="Close" aria-label="Close">
+            <button
+              class="image-viewer-button image-viewer-close"
+              onClick={onClose}
+              title="Close"
+              aria-label="Close"
+            >
               ×
             </button>
           )}
@@ -154,9 +174,30 @@ export function ImageViewer({ path, onClose }: ImageViewerProps) {
         />
       </div>
       <div class="image-viewer-controls">
-        <button class="image-viewer-button" onClick={handleZoomOut} title="Zoom out" aria-label="Zoom out">−</button>
-        <button class="image-viewer-button" onClick={handleReset} title="Reset zoom" aria-label="Reset zoom">1:1</button>
-        <button class="image-viewer-button" onClick={handleZoomIn} title="Zoom in" aria-label="Zoom in">+</button>
+        <button
+          class="image-viewer-button"
+          onClick={handleZoomOut}
+          title="Zoom out"
+          aria-label="Zoom out"
+        >
+          −
+        </button>
+        <button
+          class="image-viewer-button"
+          onClick={handleReset}
+          title="Reset zoom"
+          aria-label="Reset zoom"
+        >
+          1:1
+        </button>
+        <button
+          class="image-viewer-button"
+          onClick={handleZoomIn}
+          title="Zoom in"
+          aria-label="Zoom in"
+        >
+          +
+        </button>
         {onClose && (
           <button
             class="image-viewer-button image-viewer-close"

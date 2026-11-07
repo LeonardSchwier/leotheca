@@ -13,10 +13,18 @@ vi.mock("../settings/store", () => ({
 }));
 
 import { FileContextMenu } from "./FileContextMenu";
-import { closeContextMenu, contextMenuPos, contextMenuTarget } from "./fileTreeStore";
+import {
+  closeContextMenu,
+  contextMenuPos,
+  contextMenuTarget,
+} from "./fileTreeStore";
 import type { FsEntry } from "./types";
 
-const file: FsEntry = { name: "note.md", path: "/vault/notes/note.md", isDir: false };
+const file: FsEntry = {
+  name: "note.md",
+  path: "/vault/notes/note.md",
+  isDir: false,
+};
 const dir: FsEntry = { name: "notes", path: "/vault/notes", isDir: true };
 
 afterEach(() => {
@@ -30,7 +38,13 @@ function noop() {}
 describe("FileContextMenu", () => {
   it("renders nothing when no entry is targeted", () => {
     const { container } = render(
-      <FileContextMenu rootPath="/vault" onNewNote={noop} onNewFolder={noop} onRename={noop} onDelete={noop} />,
+      <FileContextMenu
+        rootPath="/vault"
+        onNewNote={noop}
+        onNewFolder={noop}
+        onRename={noop}
+        onDelete={noop}
+      />,
     );
     expect(container.querySelector(".context-menu")).toBeNull();
   });
@@ -39,7 +53,13 @@ describe("FileContextMenu", () => {
     contextMenuTarget.value = file;
     contextMenuPos.value = { x: 42, y: 99 };
     const { container } = render(
-      <FileContextMenu rootPath="/vault" onNewNote={noop} onNewFolder={noop} onRename={noop} onDelete={noop} />,
+      <FileContextMenu
+        rootPath="/vault"
+        onNewNote={noop}
+        onNewFolder={noop}
+        onRename={noop}
+        onDelete={noop}
+      />,
     );
     const menu = container.querySelector(".context-menu") as HTMLElement;
     expect(menu.style.left).toBe("42px");
@@ -49,7 +69,13 @@ describe("FileContextMenu", () => {
   it("only offers New Note / New Folder for a directory target", () => {
     contextMenuTarget.value = file;
     const { queryByText } = render(
-      <FileContextMenu rootPath="/vault" onNewNote={noop} onNewFolder={noop} onRename={noop} onDelete={noop} />,
+      <FileContextMenu
+        rootPath="/vault"
+        onNewNote={noop}
+        onNewFolder={noop}
+        onRename={noop}
+        onDelete={noop}
+      />,
     );
     expect(queryByText("New Note")).toBeNull();
     expect(queryByText("New Folder")).toBeNull();
@@ -59,7 +85,13 @@ describe("FileContextMenu", () => {
     contextMenuTarget.value = dir;
     const onNewNote = vi.fn();
     const { getByText } = render(
-      <FileContextMenu rootPath="/vault" onNewNote={onNewNote} onNewFolder={noop} onRename={noop} onDelete={noop} />,
+      <FileContextMenu
+        rootPath="/vault"
+        onNewNote={onNewNote}
+        onNewFolder={noop}
+        onRename={noop}
+        onDelete={noop}
+      />,
     );
     fireEvent.click(getByText("New Note"));
     expect(onNewNote).toHaveBeenCalledWith("/vault/notes");
@@ -70,7 +102,13 @@ describe("FileContextMenu", () => {
     contextMenuTarget.value = dir;
     const onNewFolder = vi.fn();
     const { getByText } = render(
-      <FileContextMenu rootPath="/vault" onNewNote={noop} onNewFolder={onNewFolder} onRename={noop} onDelete={noop} />,
+      <FileContextMenu
+        rootPath="/vault"
+        onNewNote={noop}
+        onNewFolder={onNewFolder}
+        onRename={noop}
+        onDelete={noop}
+      />,
     );
     fireEvent.click(getByText("New Folder"));
     expect(onNewFolder).toHaveBeenCalledWith("/vault/notes");
@@ -81,7 +119,13 @@ describe("FileContextMenu", () => {
     contextMenuTarget.value = file;
     const onRename = vi.fn();
     const { getByText } = render(
-      <FileContextMenu rootPath="/vault" onNewNote={noop} onNewFolder={noop} onRename={onRename} onDelete={noop} />,
+      <FileContextMenu
+        rootPath="/vault"
+        onNewNote={noop}
+        onNewFolder={noop}
+        onRename={onRename}
+        onDelete={noop}
+      />,
     );
     fireEvent.click(getByText("Rename"));
     expect(onRename).toHaveBeenCalledWith(file);
@@ -92,7 +136,13 @@ describe("FileContextMenu", () => {
     contextMenuTarget.value = file;
     const onDelete = vi.fn();
     const { getByText } = render(
-      <FileContextMenu rootPath="/vault" onNewNote={noop} onNewFolder={noop} onRename={noop} onDelete={onDelete} />,
+      <FileContextMenu
+        rootPath="/vault"
+        onNewNote={noop}
+        onNewFolder={noop}
+        onRename={noop}
+        onDelete={onDelete}
+      />,
     );
     fireEvent.click(getByText("Delete"));
     expect(onDelete).toHaveBeenCalledWith(file);
@@ -104,7 +154,13 @@ describe("FileContextMenu", () => {
     Object.assign(navigator, { clipboard: { writeText } });
     contextMenuTarget.value = file;
     const { getByText } = render(
-      <FileContextMenu rootPath="/vault" onNewNote={noop} onNewFolder={noop} onRename={noop} onDelete={noop} />,
+      <FileContextMenu
+        rootPath="/vault"
+        onNewNote={noop}
+        onNewFolder={noop}
+        onRename={noop}
+        onDelete={noop}
+      />,
     );
     fireEvent.click(getByText("Copy Relative Path"));
     await Promise.resolve();
@@ -116,7 +172,13 @@ describe("FileContextMenu", () => {
     contextMenuTarget.value = file;
     const onDelete = vi.fn();
     const { queryByText } = render(
-      <FileContextMenu rootPath="/vault" onNewNote={noop} onNewFolder={noop} onRename={noop} onDelete={onDelete} />,
+      <FileContextMenu
+        rootPath="/vault"
+        onNewNote={noop}
+        onNewFolder={noop}
+        onRename={noop}
+        onDelete={onDelete}
+      />,
     );
     expect(queryByText("Delete")).toBeTruthy();
 
@@ -128,7 +190,9 @@ describe("FileContextMenu", () => {
 
 describe("FileContextMenu: rejected clipboard write", () => {
   it("Copy Relative Path does not leak an unhandled rejection and still closes the menu", async () => {
-    const writeText = vi.fn().mockRejectedValue(new DOMException("denied", "NotAllowedError"));
+    const writeText = vi
+      .fn()
+      .mockRejectedValue(new DOMException("denied", "NotAllowedError"));
     Object.assign(navigator, { clipboard: { writeText } });
     const unhandled: unknown[] = [];
     const onUnhandled = (reason: unknown) => unhandled.push(reason);
@@ -136,7 +200,13 @@ describe("FileContextMenu: rejected clipboard write", () => {
     try {
       contextMenuTarget.value = file;
       const { getByText } = render(
-        <FileContextMenu rootPath="/vault" onNewNote={noop} onNewFolder={noop} onRename={noop} onDelete={noop} />,
+        <FileContextMenu
+          rootPath="/vault"
+          onNewNote={noop}
+          onNewFolder={noop}
+          onRename={noop}
+          onDelete={noop}
+        />,
       );
       fireEvent.click(getByText("Copy Relative Path"));
       await new Promise((resolve) => setTimeout(resolve, 20));

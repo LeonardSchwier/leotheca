@@ -42,7 +42,10 @@ const ANDROID_SYNTHETIC_WORKSPACE_ROOT = "/workspace";
  * plain "Workspace". Mirrors `globalConfig.ts`'s own legacy-migration
  * naming exactly, so a freshly added profile and a migrated one pick a
  * default name the same way. */
-export function defaultProfileName(path: string, suggestedName?: string): string {
+export function defaultProfileName(
+  path: string,
+  suggestedName?: string,
+): string {
   const suggested = suggestedName ? normalizeProfileName(suggestedName) : null;
   if (suggested) return suggested;
   if (path !== ANDROID_SYNTHETIC_WORKSPACE_ROOT) {
@@ -76,7 +79,10 @@ export function displayWorkspaceIcon(icon: string): WorkspaceIcon {
  * and a real case-insensitive-filesystem normalizer needs a platform
  * signal this frontend does not currently expose (disclosed narrowing,
  * see ROADMAP.md). */
-export function workspaceLocatorKey(path: string, token: string | undefined): string {
+export function workspaceLocatorKey(
+  path: string,
+  token: string | undefined,
+): string {
   return token ? `token:${token}` : `path:${path}`;
 }
 
@@ -96,10 +102,15 @@ export function findProfileByLocator(
  * name and then stable ID. Returns a new array; never mutates its input,
  * since callers hold this as `readonly WorkspaceProfileView[]` signal
  * state. */
-export function sortWorkspaceProfiles(profiles: readonly WorkspaceProfile[]): WorkspaceProfile[] {
+export function sortWorkspaceProfiles(
+  profiles: readonly WorkspaceProfile[],
+): WorkspaceProfile[] {
   return [...profiles].sort((a, b) => {
-    if (a.lastOpenedAt !== b.lastOpenedAt) return b.lastOpenedAt - a.lastOpenedAt;
-    const nameCompare = a.name.toLocaleLowerCase().localeCompare(b.name.toLocaleLowerCase());
+    if (a.lastOpenedAt !== b.lastOpenedAt)
+      return b.lastOpenedAt - a.lastOpenedAt;
+    const nameCompare = a.name
+      .toLocaleLowerCase()
+      .localeCompare(b.name.toLocaleLowerCase());
     if (nameCompare !== 0) return nameCompare;
     return a.id.localeCompare(b.id);
   });
@@ -109,12 +120,18 @@ export function sortWorkspaceProfiles(profiles: readonly WorkspaceProfile[]): Wo
  * Desktop only, the folder basename and full path text. An Android
  * profile's `path` is always the synthetic `/workspace` root and its
  * `token` is never searchable, so only `name` ever matches for one. */
-export function matchesWorkspaceSearch(profile: WorkspaceProfile, query: string): boolean {
+export function matchesWorkspaceSearch(
+  profile: WorkspaceProfile,
+  query: string,
+): boolean {
   const q = query.trim().toLocaleLowerCase();
   if (q === "") return true;
   // Fuzzy match on name (subsequence or substring)
   if (fuzzyScore(q, profile.name.toLocaleLowerCase()) >= 1) return true;
   if (profile.token) return false;
   const basename = profile.path.split("/").filter(Boolean).pop() ?? "";
-  return basename.toLocaleLowerCase().includes(q) || profile.path.toLocaleLowerCase().includes(q);
+  return (
+    basename.toLocaleLowerCase().includes(q) ||
+    profile.path.toLocaleLowerCase().includes(q)
+  );
 }

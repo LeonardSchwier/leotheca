@@ -69,7 +69,7 @@ export function fuzzyScore(query: string, target: string): number {
 export function fuzzyFilter<T>(
   query: string,
   items: T[],
-  getLabel: (item: T) => string
+  getLabel: (item: T) => string,
 ): T[] {
   if (!query) return items;
   const scored: { item: T; score: number }[] = [];

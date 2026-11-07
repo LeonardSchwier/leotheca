@@ -1,12 +1,31 @@
 import { useEffect, useRef } from "preact/hooks";
-import { Compartment, EditorSelection, EditorState, Transaction } from "@codemirror/state";
-import { EditorView, keymap, lineNumbers, highlightActiveLine, drawSelection } from "@codemirror/view";
+import {
+  Compartment,
+  EditorSelection,
+  EditorState,
+  Transaction,
+} from "@codemirror/state";
+import {
+  EditorView,
+  keymap,
+  lineNumbers,
+  highlightActiveLine,
+  drawSelection,
+} from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
-import { searchKeymap, search, setSearchQuery, SearchQuery } from "@codemirror/search";
+import {
+  searchKeymap,
+  search,
+  setSearchQuery,
+  SearchQuery,
+} from "@codemirror/search";
 import { markdown } from "@codemirror/lang-markdown";
 import { languages } from "@codemirror/language-data";
 import { copyTextToClipboard } from "../lib/clipboard";
-import { syntaxHighlighting, defaultHighlightStyle } from "@codemirror/language";
+import {
+  syntaxHighlighting,
+  defaultHighlightStyle,
+} from "@codemirror/language";
 import {
   autocompletion,
   completionKeymap,
@@ -19,19 +38,37 @@ import { fuzzyScore } from "../fuzzyMatch";
 import { scanHeadings, type HeadingRecord } from "../markdown/headings";
 import { scanBlockIds, type BlockRecord } from "../markdown/blocks";
 import { readTextFile } from "../workspace/tauriBridge";
-import { livePreviewExtension, highlightMarkdownExtension } from "./livePreview";
+import {
+  livePreviewExtension,
+  highlightMarkdownExtension,
+} from "./livePreview";
 import { textDirectionExtension } from "./textDirection";
 import { attachmentsInsertText, type PastedOrDroppedFile } from "./attachments";
 import { minimalChange } from "./textDiff";
 import { parseSnippets, snippetExpansion } from "./snippets";
-import { HIGHLIGHT_COLOR_CHOICES, insertHighlightColor } from "./highlightColors";
+import {
+  HIGHLIGHT_COLOR_CHOICES,
+  insertHighlightColor,
+} from "./highlightColors";
 import { resolveBlockLinkAtCursor } from "./blockLinkActions";
-import type { BlockLinkCopyRequest, BlockLinkCreateRequest } from "./blockLinkRequest";
-import { tableEditAtCursor, type MarkdownTableCommand } from "../markdown/tableCommands";
+import type {
+  BlockLinkCopyRequest,
+  BlockLinkCreateRequest,
+} from "./blockLinkRequest";
+import {
+  tableEditAtCursor,
+  type MarkdownTableCommand,
+} from "../markdown/tableCommands";
 import { slashCommandCompletions } from "./slashCommands";
 import type { TableCommandRequest } from "./tableCommandRequest";
-import { getDocumentViewState, saveDocumentViewState } from "../editorGroups/documentViewState";
-import { spellCheckExtension, createNspellChecker } from "../spellcheck/spellCheck";
+import {
+  getDocumentViewState,
+  saveDocumentViewState,
+} from "../editorGroups/documentViewState";
+import {
+  spellCheckExtension,
+  createNspellChecker,
+} from "../spellcheck/spellCheck";
 
 export interface MarkdownEditorProps {
   path: string;
@@ -113,7 +150,9 @@ export interface MarkdownEditorProps {
  * headingLinkCompletions below), not a note name still being typed, and a
  * note name can never itself contain `#` (spec/f04-heading-block-links-
  * embeds.md section 5.2 reserves it as the fragment separator). */
-export function wikilinkCompletions(context: CompletionContext): CompletionResult | null {
+export function wikilinkCompletions(
+  context: CompletionContext,
+): CompletionResult | null {
   const match = context.matchBefore(/\[\[([^[\]\n#]*)$/);
   if (!match) return null;
 
@@ -121,7 +160,12 @@ export function wikilinkCompletions(context: CompletionContext): CompletionResul
   const from = match.from + 2;
 
   const seenLabels = new Set<string>();
-  const scored: { label: string; apply: string; type: string; score: number }[] = [];
+  const scored: {
+    label: string;
+    apply: string;
+    type: string;
+    score: number;
+  }[] = [];
   const addOption = (label: string | undefined) => {
     if (!label || seenLabels.has(label)) return;
     const lower = label.toLowerCase();
@@ -141,7 +185,11 @@ export function wikilinkCompletions(context: CompletionContext): CompletionResul
 
   if (scored.length === 0) return null;
   scored.sort((a, b) => b.score - a.score);
-  return { from, options: scored.map(({ label, apply, type }) => ({ label, apply, type })), filter: false };
+  return {
+    from,
+    options: scored.map(({ label, apply, type }) => ({ label, apply, type })),
+    filter: false,
+  };
 }
 
 /** Matches the trigger point for F04 Phase 2's heading completion: `[[`,
@@ -188,7 +236,9 @@ function headingCompletionOption(heading: HeadingRecord, isDuplicate: boolean) {
  * read, yields no suggestions rather than an error.
  */
 export function headingLinkCompletions(path: string) {
-  return async function (context: CompletionContext): Promise<CompletionResult | null> {
+  return async function (
+    context: CompletionContext,
+  ): Promise<CompletionResult | null> {
     const match = context.matchBefore(HEADING_LINK_TRIGGER);
     if (!match) return null;
     const groups = HEADING_LINK_TRIGGER.exec(match.text);
@@ -219,12 +269,20 @@ export function headingLinkCompletions(path: string) {
     const query = headingQuery.trim().toLowerCase();
     const occurrenceCounts = new Map<string, number>();
     for (const heading of headings) {
-      occurrenceCounts.set(heading.key, (occurrenceCounts.get(heading.key) ?? 0) + 1);
+      occurrenceCounts.set(
+        heading.key,
+        (occurrenceCounts.get(heading.key) ?? 0) + 1,
+      );
     }
 
     const options = headings
       .filter((heading) => heading.displayText.toLowerCase().includes(query))
-      .map((heading) => headingCompletionOption(heading, (occurrenceCounts.get(heading.key) ?? 0) > 1));
+      .map((heading) =>
+        headingCompletionOption(
+          heading,
+          (occurrenceCounts.get(heading.key) ?? 0) > 1,
+        ),
+      );
 
     if (options.length === 0) return null;
     return { from, options, filter: false };
@@ -244,8 +302,13 @@ const BLOCK_LINK_TRIGGER = /\[\[([^[\]\n#]*)#\^([^[\]\n]*)$/;
  * preview of the block's own content and its line number in `detail`
  * ("a short sanitized plain-text preview and line number... does not show
  * full sensitive note bodies beyond the local UI"). */
-function blockCompletionOption(block: BlockRecord, previewText: string, isDuplicate: boolean) {
-  const preview = previewText.length > 60 ? `${previewText.slice(0, 60)}…` : previewText;
+function blockCompletionOption(
+  block: BlockRecord,
+  previewText: string,
+  isDuplicate: boolean,
+) {
+  const preview =
+    previewText.length > 60 ? `${previewText.slice(0, 60)}…` : previewText;
   return {
     label: block.id,
     apply: `${block.id}]]`,
@@ -268,7 +331,9 @@ function blockCompletionOption(block: BlockRecord, previewText: string, isDuplic
  * ROADMAP.md), not attempted here.
  */
 export function blockLinkCompletions(path: string) {
-  return async function (context: CompletionContext): Promise<CompletionResult | null> {
+  return async function (
+    context: CompletionContext,
+  ): Promise<CompletionResult | null> {
     const match = context.matchBefore(BLOCK_LINK_TRIGGER);
     if (!match) return null;
     const groups = BLOCK_LINK_TRIGGER.exec(match.text);
@@ -299,7 +364,10 @@ export function blockLinkCompletions(path: string) {
     const query = idQuery.trim().toLowerCase();
     const occurrenceCounts = new Map<string, number>();
     for (const block of blocks) {
-      occurrenceCounts.set(block.key, (occurrenceCounts.get(block.key) ?? 0) + 1);
+      occurrenceCounts.set(
+        block.key,
+        (occurrenceCounts.get(block.key) ?? 0) + 1,
+      );
     }
 
     const options = blocks
@@ -339,7 +407,10 @@ export function blockLinkCompletions(path: string) {
  */
 export function highlightColorCompletions() {
   return function (context: CompletionContext): CompletionResult | null {
-    const m = context.state.sliceDoc(Math.max(0, context.pos - 40), context.pos);
+    const m = context.state.sliceDoc(
+      Math.max(0, context.pos - 40),
+      context.pos,
+    );
     // The `==` must be a standalone two-char token: `==` preceded by
     // start-of-line/whitespace (not `===`, not mid-word like `abc==`),
     // followed by zero or more chars that are neither `=` nor whitespace
@@ -358,7 +429,11 @@ export function highlightColorCompletions() {
       // previously-typed recognized color emoji when re-coloring to plain,
       // so "Highlight (plain)" undoes an accidental color instead of
       // re-emitting it on top.
-      { label: "Highlight (plain)", apply: insertHighlightColor(typed, undefined).text, type: "text" },
+      {
+        label: "Highlight (plain)",
+        apply: insertHighlightColor(typed, undefined).text,
+        type: "text",
+      },
       ...HIGHLIGHT_COLOR_CHOICES.map((choice) => ({
         label: `Highlight (${choice.label})`,
         apply: insertHighlightColor(typed, choice.color).text,
@@ -381,7 +456,9 @@ function pasteImageFiles(clipboardData: DataTransfer): File[] {
 }
 
 function droppedImageFiles(dataTransfer: DataTransfer): File[] {
-  return Array.from(dataTransfer.files).filter((file) => file.type.startsWith("image/"));
+  return Array.from(dataTransfer.files).filter((file) =>
+    file.type.startsWith("image/"),
+  );
 }
 
 interface AttachmentSettings {
@@ -396,21 +473,27 @@ interface SnippetSettings {
 }
 
 function snippetKeymap(settingsRef: { current: SnippetSettings }) {
-  return keymap.of([{
-    key: "Tab",
-    run(view) {
-      if (!settingsRef.current.enabled || !view.state.selection.main.empty) return false;
-      const cursor = view.state.selection.main.from;
-      const expansion = snippetExpansion(view.state.doc.sliceString(0, cursor), parseSnippets(settingsRef.current.source));
-      if (!expansion) return false;
-      const from = expansion.from;
-      view.dispatch({
-        changes: { from, to: cursor, insert: expansion.replacement },
-        selection: { anchor: from + expansion.replacement.length },
-      });
-      return true;
+  return keymap.of([
+    {
+      key: "Tab",
+      run(view) {
+        if (!settingsRef.current.enabled || !view.state.selection.main.empty)
+          return false;
+        const cursor = view.state.selection.main.from;
+        const expansion = snippetExpansion(
+          view.state.doc.sliceString(0, cursor),
+          parseSnippets(settingsRef.current.source),
+        );
+        if (!expansion) return false;
+        const from = expansion.from;
+        view.dispatch({
+          changes: { from, to: cursor, insert: expansion.replacement },
+          selection: { anchor: from + expansion.replacement.length },
+        });
+        return true;
+      },
     },
-  }]);
+  ]);
 }
 
 /**
@@ -421,7 +504,10 @@ function snippetKeymap(settingsRef: { current: SnippetSettings }) {
  * only rebuilt when `path` changes (see the useEffect below), but
  * workspace settings can change while the same note stays open.
  */
-function imageAttachmentExtension(path: string, settingsRef: { current: AttachmentSettings }) {
+function imageAttachmentExtension(
+  path: string,
+  settingsRef: { current: AttachmentSettings },
+) {
   async function insertFiles(view: EditorView, files: File[], atPos: number) {
     if (files.length === 0) return;
     const { workspaceRoot, attachmentsFolder } = settingsRef.current;
@@ -449,7 +535,8 @@ function imageAttachmentExtension(path: string, settingsRef: { current: Attachme
 
   return EditorView.domEventHandlers({
     paste(event, view) {
-      if (!settingsRef.current.pasteImagesEnabled || !event.clipboardData) return false;
+      if (!settingsRef.current.pasteImagesEnabled || !event.clipboardData)
+        return false;
       const files = pasteImageFiles(event.clipboardData);
       if (files.length === 0) return false;
 
@@ -458,13 +545,15 @@ function imageAttachmentExtension(path: string, settingsRef: { current: Attachme
       return true;
     },
     drop(event, view) {
-      if (!settingsRef.current.pasteImagesEnabled || !event.dataTransfer) return false;
+      if (!settingsRef.current.pasteImagesEnabled || !event.dataTransfer)
+        return false;
       const files = droppedImageFiles(event.dataTransfer);
       if (files.length === 0) return false;
 
       event.preventDefault();
       const pos =
-        view.posAtCoords({ x: event.clientX, y: event.clientY }) ?? view.state.selection.main.from;
+        view.posAtCoords({ x: event.clientX, y: event.clientY }) ??
+        view.state.selection.main.from;
       void insertFiles(view, files, pos);
       return true;
     },
@@ -491,7 +580,10 @@ function buildExtensions(
   spellcheckDicRef: { current: string },
 ) {
   return [
-    readOnlyCompartment.of([EditorState.readOnly.of(false), EditorView.editable.of(true)]),
+    readOnlyCompartment.of([
+      EditorState.readOnly.of(false),
+      EditorView.editable.of(true),
+    ]),
     searchCompartment.of([search()]),
     EditorState.transactionFilter.of((transaction) => {
       if (
@@ -514,9 +606,25 @@ function buildExtensions(
     // native find-in-page, screen readers) is unaffected.
     drawSelection(),
     history(),
-    autocompletion({ override: [slashCommandCompletions, wikilinkCompletions, headingLinkCompletions(path), blockLinkCompletions(path), highlightColorCompletions()] }),
-    keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap, ...completionKeymap]),
-    markdown({ codeLanguages: languages, extensions: [highlightMarkdownExtension] }),
+    autocompletion({
+      override: [
+        slashCommandCompletions,
+        wikilinkCompletions,
+        headingLinkCompletions(path),
+        blockLinkCompletions(path),
+        highlightColorCompletions(),
+      ],
+    }),
+    keymap.of([
+      ...defaultKeymap,
+      ...historyKeymap,
+      ...searchKeymap,
+      ...completionKeymap,
+    ]),
+    markdown({
+      codeLanguages: languages,
+      extensions: [highlightMarkdownExtension],
+    }),
     syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
     livePreviewExtension,
     textDirectionExtension,
@@ -562,7 +670,10 @@ function buildExtensions(
       "&": { height: "100%", fontSize: "var(--content-font-size)" },
       "&.cm-focused": { outlineColor: "var(--color-focus)" },
       ".cm-scroller": { fontFamily: "var(--font-mono)", lineHeight: "1.6" },
-      ".cm-content": { padding: "var(--space-4)", caretColor: "var(--color-focus)" },
+      ".cm-content": {
+        padding: "var(--space-4)",
+        caretColor: "var(--color-focus)",
+      },
       ".cm-cursor, .cm-dropCursor": { borderLeftColor: "var(--color-focus)" },
       ".cm-gutters": {
         backgroundColor: "var(--bg-sunken) !important",
@@ -595,19 +706,16 @@ function buildExtensions(
     // than surfacing an error to the user. The dictionary is loaded
     // synchronously on first lint pass; readTextFile is a Tauri bridge
     // call (microseconds in desktop context).
-    spellCheckExtension(
-      () => {
-        // readTextFile is async (Tauri bridge). The linter's lintSource
-        // is async, so we can't block here. Instead we store the
-        // dictionary contents in a ref that the linter closure reads.
-        // The mount effect populates them before the first lint pass.
-        const aff = spellcheckAffRef.current;
-        const dic = spellcheckDicRef.current;
-        if (!aff || !dic) return null;
-        return createNspellChecker(aff, dic);
-      },
-      spellcheckEnabled,
-    ),
+    spellCheckExtension(() => {
+      // readTextFile is async (Tauri bridge). The linter's lintSource
+      // is async, so we can't block here. Instead we store the
+      // dictionary contents in a ref that the linter closure reads.
+      // The mount effect populates them before the first lint pass.
+      const aff = spellcheckAffRef.current;
+      const dic = spellcheckDicRef.current;
+      if (!aff || !dic) return null;
+      return createNspellChecker(aff, dic);
+    }, spellcheckEnabled),
   ];
 }
 
@@ -657,10 +765,17 @@ export function MarkdownEditor({
     attachmentsFolder,
     pasteImagesEnabled,
   });
-  attachmentSettingsRef.current = { workspaceRoot, attachmentsFolder, pasteImagesEnabled };
+  attachmentSettingsRef.current = {
+    workspaceRoot,
+    attachmentsFolder,
+    pasteImagesEnabled,
+  };
   const readOnlyCompartmentRef = useRef(new Compartment());
   const searchCompartmentRef = useRef(new Compartment());
-  const snippetSettingsRef = useRef<SnippetSettings>({ enabled: snippetsEnabled, source: snippets });
+  const snippetSettingsRef = useRef<SnippetSettings>({
+    enabled: snippetsEnabled,
+    source: snippets,
+  });
   snippetSettingsRef.current = { enabled: snippetsEnabled, source: snippets };
   const spellcheckAffRef = useRef("");
   const spellcheckDicRef = useRef("");
@@ -687,7 +802,9 @@ export function MarkdownEditor({
         // Missing or unreadable dictionary — spellcheck stays off.
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [spellcheckEnabled, workspaceRootPath]);
 
   // Creates the CodeMirror view once and keeps it alive for the component's
@@ -724,7 +841,12 @@ export function MarkdownEditor({
     // does nothing for a path with no cached entry or changed content.
     const initialCached = getDocumentViewState(path, value.length);
     if (initialCached) {
-      view.dispatch({ selection: EditorSelection.single(initialCached.anchor, initialCached.head) });
+      view.dispatch({
+        selection: EditorSelection.single(
+          initialCached.anchor,
+          initialCached.head,
+        ),
+      });
       view.scrollDOM.scrollTop = initialCached.scrollTop;
     }
 
@@ -732,7 +854,9 @@ export function MarkdownEditor({
 
     // Set search query if provided when opening from search results
     if (searchQuery) {
-      view.dispatch({ effects: setSearchQuery.of(new SearchQuery({ search: searchQuery })) });
+      view.dispatch({
+        effects: setSearchQuery.of(new SearchQuery({ search: searchQuery })),
+      });
     }
 
     return () => {
@@ -801,7 +925,9 @@ export function MarkdownEditor({
 
     const cached = getDocumentViewState(path, value.length);
     if (cached) {
-      view.dispatch({ selection: EditorSelection.single(cached.anchor, cached.head) });
+      view.dispatch({
+        selection: EditorSelection.single(cached.anchor, cached.head),
+      });
       view.scrollDOM.scrollTop = cached.scrollTop;
     }
 
@@ -809,7 +935,9 @@ export function MarkdownEditor({
 
     // Set search query if provided when switching files
     if (searchQuery) {
-      view.dispatch({ effects: setSearchQuery.of(new SearchQuery({ search: searchQuery })) });
+      view.dispatch({
+        effects: setSearchQuery.of(new SearchQuery({ search: searchQuery })),
+      });
     }
     previousPathForViewStateRef.current = path;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -818,10 +946,12 @@ export function MarkdownEditor({
   useEffect(() => {
     const view = viewRef.current;
     if (!view) return;
-    view.dispatch({ effects: readOnlyCompartmentRef.current.reconfigure([
-      EditorState.readOnly.of(false),
-      EditorView.editable.of(true),
-    ]) });
+    view.dispatch({
+      effects: readOnlyCompartmentRef.current.reconfigure([
+        EditorState.readOnly.of(false),
+        EditorView.editable.of(true),
+      ]),
+    });
   }, []);
 
   // Syncs an external content change (currently only the Properties panel
@@ -843,7 +973,10 @@ export function MarkdownEditor({
     const change = minimalChange(current, value);
     // This is an authoritative parent-state synchronization (the lock
     // marker itself reaches the editor this way), not a user mutation.
-    view.dispatch({ changes: change, annotations: Transaction.remote.of(true) });
+    view.dispatch({
+      changes: change,
+      annotations: Transaction.remote.of(true),
+    });
   }, [value]);
 
   // Reveals an outline-requested range: moves the selection there and
@@ -854,7 +987,8 @@ export function MarkdownEditor({
   const lastRevealIdRef = useRef<number | null>(null);
   useEffect(() => {
     const view = viewRef.current;
-    if (!view || !reveal || reveal.requestId === lastRevealIdRef.current) return;
+    if (!view || !reveal || reveal.requestId === lastRevealIdRef.current)
+      return;
     lastRevealIdRef.current = reveal.requestId;
     const docLength = view.state.doc.length;
     const from = Math.min(Math.max(reveal.from, 0), docLength);
@@ -875,7 +1009,12 @@ export function MarkdownEditor({
   const lastInsertIdRef = useRef<number | null>(null);
   useEffect(() => {
     const view = viewRef.current;
-    if (!view || !insertRequest || insertRequest.requestId === lastInsertIdRef.current) return;
+    if (
+      !view ||
+      !insertRequest ||
+      insertRequest.requestId === lastInsertIdRef.current
+    )
+      return;
     lastInsertIdRef.current = insertRequest.requestId;
     const { from, to } = view.state.selection.main;
     view.dispatch({
@@ -910,10 +1049,18 @@ export function MarkdownEditor({
     }
     lastBlockLinkRequestIdRef.current = blockLinkCopyRequest.requestId;
     const cursor = view.state.selection.main.head;
-    const resolution = resolveBlockLinkAtCursor(view.state.doc.toString(), cursor);
+    const resolution = resolveBlockLinkAtCursor(
+      view.state.doc.toString(),
+      cursor,
+    );
     if (!resolution) return;
     if (resolution.insertion) {
-      view.dispatch({ changes: { from: resolution.insertion.from, insert: resolution.insertion.text } });
+      view.dispatch({
+        changes: {
+          from: resolution.insertion.from,
+          insert: resolution.insertion.text,
+        },
+      });
     }
     void copyTextToClipboard(resolution.linkText);
   }, [blockLinkCopyRequest]);
@@ -932,15 +1079,24 @@ export function MarkdownEditor({
     if (
       !view ||
       !blockLinkCreateRequest ||
-      blockLinkCreateRequest.requestId === lastBlockLinkCreateRequestIdRef.current
+      blockLinkCreateRequest.requestId ===
+        lastBlockLinkCreateRequestIdRef.current
     ) {
       return;
     }
     lastBlockLinkCreateRequestIdRef.current = blockLinkCreateRequest.requestId;
     const cursor = view.state.selection.main.head;
-    const resolution = resolveBlockLinkAtCursor(view.state.doc.toString(), cursor);
+    const resolution = resolveBlockLinkAtCursor(
+      view.state.doc.toString(),
+      cursor,
+    );
     if (!resolution?.insertion) return;
-    view.dispatch({ changes: { from: resolution.insertion.from, insert: resolution.insertion.text } });
+    view.dispatch({
+      changes: {
+        from: resolution.insertion.from,
+        insert: resolution.insertion.text,
+      },
+    });
   }, [blockLinkCreateRequest]);
 
   const lastTableCommandRequestIdRef = useRef<number | null>(null);

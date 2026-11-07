@@ -14,7 +14,8 @@ export function parseSnippets(source: string): EditorSnippet[] {
     if (separator < 1) continue;
     const trigger = line.slice(0, separator).trim();
     const replacement = line.slice(separator + 1);
-    if (!/^[a-z0-9_-]+$/i.test(trigger) || !replacement || seen.has(trigger)) continue;
+    if (!/^[a-z0-9_-]+$/i.test(trigger) || !replacement || seen.has(trigger))
+      continue;
     seen.add(trigger);
     snippets.push({ trigger, replacement });
   }
@@ -31,5 +32,8 @@ export function snippetExpansion(
   if (!match) return null;
   const snippet = snippets.find((candidate) => candidate.trigger === match[1]);
   if (!snippet) return null;
-  return { from: textBeforeCursor.length - match[0].length, replacement: snippet.replacement };
+  return {
+    from: textBeforeCursor.length - match[0].length,
+    replacement: snippet.replacement,
+  };
 }

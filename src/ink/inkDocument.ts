@@ -87,7 +87,12 @@ function validStroke(value: unknown): value is InkStroke {
 
 function decodeViewport(value: unknown): InkViewport {
   if (!isRecord(value)) return { ...DEFAULT_VIEWPORT };
-  if (!finiteNumber(value.x) || !finiteNumber(value.y) || !finiteNumber(value.zoom) || value.zoom <= 0) {
+  if (
+    !finiteNumber(value.x) ||
+    !finiteNumber(value.y) ||
+    !finiteNumber(value.zoom) ||
+    value.zoom <= 0
+  ) {
     return { ...DEFAULT_VIEWPORT };
   }
   return { x: value.x, y: value.y, zoom: value.zoom };
@@ -107,7 +112,8 @@ export function decodeInkDocument(source: string): DecodedInkDocument | null {
     return null;
   }
   if (!isRecord(parsed)) return null;
-  if (parsed.strokes !== undefined && !Array.isArray(parsed.strokes)) return null;
+  if (parsed.strokes !== undefined && !Array.isArray(parsed.strokes))
+    return null;
 
   const strokes: InkStroke[] = [];
   const unknownStrokes: Record<string, unknown>[] = [];
@@ -116,7 +122,9 @@ export function decodeInkDocument(source: string): DecodedInkDocument | null {
     else if (isRecord(candidate)) unknownStrokes.push(candidate);
   }
 
-  const version = finiteNumber(parsed.version) ? parsed.version : INK_DOCUMENT_VERSION;
+  const version = finiteNumber(parsed.version)
+    ? parsed.version
+    : INK_DOCUMENT_VERSION;
   return {
     document: {
       version,

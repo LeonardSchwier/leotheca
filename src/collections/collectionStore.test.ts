@@ -31,7 +31,8 @@ window.matchMedia = vi.fn().mockImplementation((query: string) => ({
 })) as unknown as typeof window.matchMedia;
 
 const { workspacePath } = await import("../settings/store");
-const { collectionsFile, createCollection, resetCollections } = await import("./collectionStore");
+const { collectionsFile, createCollection, resetCollections } =
+  await import("./collectionStore");
 const { emptyQueryGroup } = await import("./collectionTypes");
 
 describe("collectionStore: concurrent saves", () => {
@@ -62,14 +63,16 @@ describe("collectionStore: concurrent saves", () => {
         resolveFirstWrite = resolve;
       });
     });
-    writeWorkspaceTextFile.mockImplementationOnce((_root, _path, content: string) => {
-      secondWriteStarted = true;
-      // By the time the second (queued) write actually runs, it must
-      // reflect the fully up-to-date state (both collections), not a stale
-      // snapshot captured back when it was originally queued.
-      expect(JSON.parse(content).collections).toHaveLength(2);
-      return Promise.resolve();
-    });
+    writeWorkspaceTextFile.mockImplementationOnce(
+      (_root, _path, content: string) => {
+        secondWriteStarted = true;
+        // By the time the second (queued) write actually runs, it must
+        // reflect the fully up-to-date state (both collections), not a stale
+        // snapshot captured back when it was originally queued.
+        expect(JSON.parse(content).collections).toHaveLength(2);
+        return Promise.resolve();
+      },
+    );
 
     const p1 = createCollection("First", emptyQueryGroup());
     await Promise.resolve();

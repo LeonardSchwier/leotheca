@@ -19,7 +19,9 @@ type PlatformState = {
 
 function mockCapacitor(state: PlatformState) {
   vi.spyOn(Capacitor, "isNativePlatform").mockReturnValue(state.isNative);
-  vi.spyOn(Capacitor, "getPlatform").mockReturnValue(state.platform as ReturnType<typeof Capacitor.getPlatform>);
+  vi.spyOn(Capacitor, "getPlatform").mockReturnValue(
+    state.platform as ReturnType<typeof Capacitor.getPlatform>,
+  );
   Object.defineProperty(navigator, "userAgent", {
     value: state.userAgent,
     writable: true,
@@ -93,7 +95,11 @@ describe("platform detection (value correctness)", () => {
   });
 
   it("isMobile: false on desktop Windows", async () => {
-    mockCapacitor({ isNative: false, platform: "web", userAgent: "Windows NT 10" });
+    mockCapacitor({
+      isNative: false,
+      platform: "web",
+      userAgent: "Windows NT 10",
+    });
     const { isMobile } = await import("./platform");
     expect(isMobile()).toBe(false);
   });

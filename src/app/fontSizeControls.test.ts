@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { nextFontSize, FONT_SIZE_STEP, type FontSizeAction } from "./fontSizeControls";
-import { MIN_FONT_SIZE, MAX_FONT_SIZE, DEFAULT_WORKSPACE_SETTINGS } from "../settings/workspaceSettings";
+import {
+  nextFontSize,
+  FONT_SIZE_STEP,
+  type FontSizeAction,
+} from "./fontSizeControls";
+import {
+  MIN_FONT_SIZE,
+  MAX_FONT_SIZE,
+  DEFAULT_WORKSPACE_SETTINGS,
+} from "../settings/workspaceSettings";
 
 describe("FONT_SIZE_STEP", () => {
   it("is 1 px", () => {

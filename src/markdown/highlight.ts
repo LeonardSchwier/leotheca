@@ -81,6 +81,9 @@ export function detectHighlightColor(content: string): DetectedHighlight {
  * given detected color, shared by both the Preview `<mark>` renderer and
  * the editor's live-decoration pass so the two surfaces' class naming can
  * never drift apart. */
-export function highlightClassName(baseClass: string, color: string | undefined): string {
+export function highlightClassName(
+  baseClass: string,
+  color: string | undefined,
+): string {
   return color ? `${baseClass} ${baseClass}-${color}` : baseClass;
 }

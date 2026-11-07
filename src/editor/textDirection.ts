@@ -1,5 +1,11 @@
 import type { EditorState, Range } from "@codemirror/state";
-import { Decoration, type DecorationSet, EditorView, ViewPlugin, type ViewUpdate } from "@codemirror/view";
+import {
+  Decoration,
+  type DecorationSet,
+  EditorView,
+  ViewPlugin,
+  type ViewUpdate,
+} from "@codemirror/view";
 
 /**
  * Right-to-left (RTL) text-direction support for a note's own content,
@@ -128,11 +134,17 @@ export const textDirectionExtension = [
     class {
       decorations: DecorationSet;
       constructor(view: EditorView) {
-        this.decorations = buildTextDirectionDecorations(view.state, view.visibleRanges);
+        this.decorations = buildTextDirectionDecorations(
+          view.state,
+          view.visibleRanges,
+        );
       }
       update(update: ViewUpdate) {
         if (update.docChanged || update.viewportChanged) {
-          this.decorations = buildTextDirectionDecorations(update.view.state, update.view.visibleRanges);
+          this.decorations = buildTextDirectionDecorations(
+            update.view.state,
+            update.view.visibleRanges,
+          );
         }
       }
     },
@@ -194,5 +206,8 @@ const BLOCK_TAG_PATTERN = new RegExp(
  * pattern (matching a real `<` tag-open byte) never touches.
  */
 export function addAutoTextDirection(html: string): string {
-  return html.replace(BLOCK_TAG_PATTERN, (_match, tag: string, rest: string) => `<${tag} dir="auto"${rest}>`);
+  return html.replace(
+    BLOCK_TAG_PATTERN,
+    (_match, tag: string, rest: string) => `<${tag} dir="auto"${rest}>`,
+  );
 }

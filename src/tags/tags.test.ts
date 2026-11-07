@@ -11,11 +11,16 @@ describe("extractInlineTags", () => {
   });
 
   it("extracts multiple tags from the same line", () => {
-    expect(extractInlineTags("#work and #journal today.")).toEqual(["work", "journal"]);
+    expect(extractInlineTags("#work and #journal today.")).toEqual([
+      "work",
+      "journal",
+    ]);
   });
 
   it("extracts a nested tag as one string", () => {
-    expect(extractInlineTags("Filed under #work/project-x.")).toEqual(["work/project-x"]);
+    expect(extractInlineTags("Filed under #work/project-x.")).toEqual([
+      "work/project-x",
+    ]);
   });
 
   it("does not treat a heading marker as a tag", () => {
@@ -35,9 +40,14 @@ describe("extractInlineTags", () => {
   });
 
   it("does not match inside a fenced code block", () => {
-    const body = ["```c", "#include <stdio.h>", "#define FOO 1", "```", "", "#real-tag outside."].join(
-      "\n",
-    );
+    const body = [
+      "```c",
+      "#include <stdio.h>",
+      "#define FOO 1",
+      "```",
+      "",
+      "#real-tag outside.",
+    ].join("\n");
     expect(extractInlineTags(body)).toEqual(["real-tag"]);
   });
 
@@ -52,7 +62,9 @@ describe("extractInlineTags", () => {
   });
 
   it("does not match a tag immediately after a slash (a URL fragment)", () => {
-    expect(extractInlineTags("See example.com/#section for details.")).toEqual([]);
+    expect(extractInlineTags("See example.com/#section for details.")).toEqual(
+      [],
+    );
   });
 
   it("matches a tag at the very start of a line with no preceding character", () => {
@@ -68,13 +80,17 @@ describe("extractInlineTags", () => {
   });
 
   it("extracts a nested tag with a non-ASCII segment", () => {
-    expect(extractInlineTags("#projet/résumé filed.")).toEqual(["projet/résumé"]);
+    expect(extractInlineTags("#projet/résumé filed.")).toEqual([
+      "projet/résumé",
+    ]);
   });
 });
 
 describe("extractTags", () => {
   it("returns an empty array for a note with no tags anywhere", () => {
-    expect(extractTags("---\ncreated: 2026-08-27\n---\n\nJust a note.")).toEqual([]);
+    expect(
+      extractTags("---\ncreated: 2026-08-27\n---\n\nJust a note."),
+    ).toEqual([]);
   });
 
   it("combines frontmatter tags and inline tags", () => {
@@ -124,7 +140,10 @@ describe("buildTagTree", () => {
     expect(tree[0].fullTag).toBe("work");
     expect(tree[0].paths).toEqual([]);
     expect(tree[0].children).toHaveLength(1);
-    expect(tree[0].children[0]).toMatchObject({ segment: "project", fullTag: "work/project" });
+    expect(tree[0].children[0]).toMatchObject({
+      segment: "project",
+      fullTag: "work/project",
+    });
   });
 
   it("a parent node's allPaths aggregates its own and every descendant's paths", () => {
@@ -136,7 +155,9 @@ describe("buildTagTree", () => {
     );
     const work = tree.find((node) => node.fullTag === "work")!;
     expect(work.paths).toEqual(["/vault/a.md"]);
-    expect(new Set(work.allPaths)).toEqual(new Set(["/vault/a.md", "/vault/b.md"]));
+    expect(new Set(work.allPaths)).toEqual(
+      new Set(["/vault/a.md", "/vault/b.md"]),
+    );
   });
 
   it("does not double-count a note tagged with both a parent and a child tag", () => {

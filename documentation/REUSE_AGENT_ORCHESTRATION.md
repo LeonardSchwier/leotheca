@@ -35,23 +35,23 @@ The process uses a shared roadmap and ordinary non-forced Git pushes. It coordin
 
 Copy these files from the source repository and keep their relative paths:
 
-| Source asset | Destination | Setup action |
-| --- | --- | --- |
-| `CONSTITUTION.md` | `CONSTITUTION.md` | Copy, then replace the JSON configuration and remove this repository's product-specific wording. |
-| `AGENTS.md` | `AGENTS.md` | Copy and retain as the universal entrypoint. |
-| `CLAUDE.md` | `CLAUDE.md` | Copy only if the new repository uses Claude Code; it is a short forwarder to `AGENTS.md`. |
-| `scripts/agent_ledger.py` | Same path | Copy unchanged. |
-| `scripts/test_agent_ledger.py` | Same path | Copy unchanged. |
-| `scripts/README.md` | Same path | Copy and adjust only links/commands if paths change. |
-| `.github/workflows/agent-policy.yml` | Same path | Copy, then update its path filters if the adopted files live elsewhere. |
-| `skills/README.md` | Same path | Copy and retain as the skill index. |
-| `skills/autonomous-roadmap-delivery.md` | Same path | Copy unchanged except configured variable names. |
-| `skills/roadmap-workflow.md` | Same path | Copy unchanged except configured variable names. |
-| `skills/verification-suite.md` | Same path | Copy and replace every command, runtime, workflow name, and expected job with the new repository's truth. |
-| `skills/ci-failure-triage.md` | Same path | Copy unchanged except workflow references. |
-| `skills/merge-conflict-resolution.md` | Same path | Copy unchanged except remote/main names. |
-| `skills/maintenance-review.md` | Same path | Copy unchanged except product risk areas. |
-| `skills/phase-splitting-large-specs.md` | Same path | Copy if the new repository has large specifications. |
+| Source asset                            | Destination       | Setup action                                                                                              |
+| --------------------------------------- | ----------------- | --------------------------------------------------------------------------------------------------------- |
+| `CONSTITUTION.md`                       | `CONSTITUTION.md` | Copy, then replace the JSON configuration and remove this repository's product-specific wording.          |
+| `AGENTS.md`                             | `AGENTS.md`       | Copy and retain as the universal entrypoint.                                                              |
+| `CLAUDE.md`                             | `CLAUDE.md`       | Copy only if the new repository uses Claude Code; it is a short forwarder to `AGENTS.md`.                 |
+| `scripts/agent_ledger.py`               | Same path         | Copy unchanged.                                                                                           |
+| `scripts/test_agent_ledger.py`          | Same path         | Copy unchanged.                                                                                           |
+| `scripts/README.md`                     | Same path         | Copy and adjust only links/commands if paths change.                                                      |
+| `.github/workflows/agent-policy.yml`    | Same path         | Copy, then update its path filters if the adopted files live elsewhere.                                   |
+| `skills/README.md`                      | Same path         | Copy and retain as the skill index.                                                                       |
+| `skills/autonomous-roadmap-delivery.md` | Same path         | Copy unchanged except configured variable names.                                                          |
+| `skills/roadmap-workflow.md`            | Same path         | Copy unchanged except configured variable names.                                                          |
+| `skills/verification-suite.md`          | Same path         | Copy and replace every command, runtime, workflow name, and expected job with the new repository's truth. |
+| `skills/ci-failure-triage.md`           | Same path         | Copy unchanged except workflow references.                                                                |
+| `skills/merge-conflict-resolution.md`   | Same path         | Copy unchanged except remote/main names.                                                                  |
+| `skills/maintenance-review.md`          | Same path         | Copy unchanged except product risk areas.                                                                 |
+| `skills/phase-splitting-large-specs.md` | Same path         | Copy if the new repository has large specifications.                                                      |
 
 Do **not** copy these as defaults:
 
@@ -68,14 +68,14 @@ Create a small project-specific `documentation/PROJECT_RULES.md`. It should stat
 
 At the top of the copied `CONSTITUTION.md`, replace every field in the fenced JSON configuration:
 
-| Field | Set it to |
-| --- | --- |
-| `project_name`, `repository` | The new project and `owner/repository`. |
-| `remote`, `main_branch` | The actual Git remote and integration branch. |
-| `roadmap_file`, `changelog_file`, `skills_dir`, `handoff_dir` | Real repository-relative paths. |
-| `product_rules_file`, `architecture_file`, `decisions_file` | New project documents, or create them before agents start. |
-| `lease_minutes`, `heartbeat_minutes`, `clock_skew_minutes` | Keep the safe defaults unless the new environment has a measured reason to change them. The lease must exceed heartbeat plus clock skew. |
-| `ci_poll_seconds`, `ci_wait_minutes`, `setup_minutes`, `contention_retries` | The new runner's actual CI/setup budget. |
+| Field                                                                       | Set it to                                                                                                                                |
+| --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `project_name`, `repository`                                                | The new project and `owner/repository`.                                                                                                  |
+| `remote`, `main_branch`                                                     | The actual Git remote and integration branch.                                                                                            |
+| `roadmap_file`, `changelog_file`, `skills_dir`, `handoff_dir`               | Real repository-relative paths.                                                                                                          |
+| `product_rules_file`, `architecture_file`, `decisions_file`                 | New project documents, or create them before agents start.                                                                               |
+| `lease_minutes`, `heartbeat_minutes`, `clock_skew_minutes`                  | Keep the safe defaults unless the new environment has a measured reason to change them. The lease must exceed heartbeat plus clock skew. |
+| `ci_poll_seconds`, `ci_wait_minutes`, `setup_minutes`, `contention_retries` | The new runner's actual CI/setup budget.                                                                                                 |
 
 Keep the helper's config markers and fenced JSON exactly once. The helper reads that block and fails closed when it is malformed.
 

@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { computeLayout } from "./layout";
 
-function distance(a: { x: number; y: number }, b: { x: number; y: number }): number {
+function distance(
+  a: { x: number; y: number },
+  b: { x: number; y: number },
+): number {
   return Math.hypot(a.x - b.x, a.y - b.y);
 }
 
@@ -40,7 +43,12 @@ describe("computeLayout", () => {
   });
 
   it("ignores edges that reference an unknown node instead of crashing", () => {
-    const positions = computeLayout(["/a.md", "/b.md"], [["/a.md", "/missing.md"]], 800, 600);
+    const positions = computeLayout(
+      ["/a.md", "/b.md"],
+      [["/a.md", "/missing.md"]],
+      800,
+      600,
+    );
     expect(positions.size).toBe(2);
   });
 

@@ -27,4 +27,4 @@ snapcraft publish
 ## Files
 
 - `snapcraft.yaml` — manifest (draft, needs pre-built binary URL)
-- `leotheca.desktop` — symlink to `flatpak/com.leonardschwier.leotheca.desktop`
+- `leotheca.desktop`: symlink to `flatpak/com.leonardschwier.leotheca.desktop`

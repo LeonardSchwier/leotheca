@@ -98,7 +98,10 @@ function savePendingCapturesToStorage(): void {
   try {
     if (typeof window !== "undefined" && window.localStorage) {
       const captures = pendingCapturesStore.value;
-      window.localStorage.setItem(PENDING_CAPTURES_STORAGE_KEY, JSON.stringify(captures));
+      window.localStorage.setItem(
+        PENDING_CAPTURES_STORAGE_KEY,
+        JSON.stringify(captures),
+      );
     }
   } catch (error) {
     console.warn("Failed to save pending captures to storage:", error);
@@ -123,67 +126,111 @@ export function getPendingCaptures(): PendingCapture[] {
  * Add a new pending capture
  * Enforces maximum count, text size, and attachment limits
  */
-export function addPendingCapture(capture: Omit<PendingCapture, "id" | "receivedAt" | "status">): PendingCapture {
+export function addPendingCapture(
+  capture: Omit<PendingCapture, "id" | "receivedAt" | "status">,
+): PendingCapture {
   // Get current captures
   let captures = pendingCapturesStore.value;
-  
+
   // Enforce maximum count limit - remove oldest captures until we have room
   while (captures.length >= MAX_PENDING_CAPTURES) {
-    const oldest = captures.reduce((oldest, current) => 
-      current.receivedAt < oldest.receivedAt ? current : oldest
+    const oldest = captures.reduce((oldest, current) =>
+      current.receivedAt < oldest.receivedAt ? current : oldest,
     );
     removePendingCapture(oldest.id);
     captures = pendingCapturesStore.value; // Update after removal
   }
-  
+
   // F05-FR-14: Enforce individual capture size limit
   if (capture.text.length > MAX_INDIVIDUAL_CAPTURE_SIZE) {
-    console.warn(`F05: Individual capture text size (${capture.text.length}) exceeds ${MAX_INDIVIDUAL_CAPTURE_SIZE} byte limit`);
-    throw new Error(`Capture text exceeds maximum size of ${MAX_INDIVIDUAL_CAPTURE_SIZE} bytes`);
+    console.warn(
+      `F05: Individual capture text size (${capture.text.length}) exceeds ${MAX_INDIVIDUAL_CAPTURE_SIZE} byte limit`,
+    );
+    throw new Error(
+      `Capture text exceeds maximum size of ${MAX_INDIVIDUAL_CAPTURE_SIZE} bytes`,
+    );
   }
 
   // F05-FR-14: Enforce attachment count limit per capture
-  if (capture.attachments && capture.attachments.length > MAX_ATTACHMENTS_PER_CAPTURE) {
-    console.warn(`F05: Attachment count (${capture.attachments.length}) exceeds ${MAX_ATTACHMENTS_PER_CAPTURE} limit`);
-    throw new Error(`Capture attachments exceed maximum count of ${MAX_ATTACHMENTS_PER_CAPTURE}`);
+  if (
+    capture.attachments &&
+    capture.attachments.length > MAX_ATTACHMENTS_PER_CAPTURE
+  ) {
+    console.warn(
+      `F05: Attachment count (${capture.attachments.length}) exceeds ${MAX_ATTACHMENTS_PER_CAPTURE} limit`,
+    );
+    throw new Error(
+      `Capture attachments exceed maximum count of ${MAX_ATTACHMENTS_PER_CAPTURE}`,
+    );
   }
 
   // F05-FR-14: Enforce individual attachment size limit
   if (capture.attachments) {
     for (const attachment of capture.attachments) {
       if (attachment.fileSize > MAX_ATTACHMENT_SIZE) {
-        console.warn(`F05: Individual attachment size (${attachment.fileSize}) exceeds ${MAX_ATTACHMENT_SIZE} byte limit`);
-        throw new Error(`Attachment exceeds maximum size of ${MAX_ATTACHMENT_SIZE} bytes`);
+        console.warn(
+          `F05: Individual attachment size (${attachment.fileSize}) exceeds ${MAX_ATTACHMENT_SIZE} byte limit`,
+        );
+        throw new Error(
+          `Attachment exceeds maximum size of ${MAX_ATTACHMENT_SIZE} bytes`,
+        );
       }
     }
   }
 
   // Enforce text size limit - remove oldest captures until we have enough space
   let totalTextSize = captures.reduce((sum, c) => sum + c.text.length, 0);
-  while (totalTextSize + capture.text.length > MAX_PENDING_TEXT_SIZE && captures.length > 0) {
-    const sorted = [...captures].sort((a, b) => new Date(a.receivedAt).getTime() - new Date(b.receivedAt).getTime());
+  while (
+    totalTextSize + capture.text.length > MAX_PENDING_TEXT_SIZE &&
+    captures.length > 0
+  ) {
+    const sorted = [...captures].sort(
+      (a, b) =>
+        new Date(a.receivedAt).getTime() - new Date(b.receivedAt).getTime(),
+    );
     const oldest = sorted[0];
     removePendingCapture(oldest.id);
     captures = pendingCapturesStore.value; // Update after removal
     totalTextSize = captures.reduce((sum, c) => sum + c.text.length, 0);
   }
-  
+
   // F05-FR-14: Enforce total attachment size limit across all pending captures
-  const captureAttachmentsSize = capture.attachments?.reduce((sum, a) => sum + a.fileSize, 0) || 0;
-  let totalAttachmentsSize = captures.reduce((sum, c) => sum + (c.attachments?.reduce((attSum, a) => attSum + a.fileSize, 0) || 0), 0);
-  
-  while (totalAttachmentsSize + captureAttachmentsSize > MAX_TOTAL_PENDING_ATTACHMENT_SIZE && captures.length > 0) {
-    const sorted = [...captures].sort((a, b) => new Date(a.receivedAt).getTime() - new Date(b.receivedAt).getTime());
+  const captureAttachmentsSize =
+    capture.attachments?.reduce((sum, a) => sum + a.fileSize, 0) || 0;
+  let totalAttachmentsSize = captures.reduce(
+    (sum, c) =>
+      sum + (c.attachments?.reduce((attSum, a) => attSum + a.fileSize, 0) || 0),
+    0,
+  );
+
+  while (
+    totalAttachmentsSize + captureAttachmentsSize >
+      MAX_TOTAL_PENDING_ATTACHMENT_SIZE &&
+    captures.length > 0
+  ) {
+    const sorted = [...captures].sort(
+      (a, b) =>
+        new Date(a.receivedAt).getTime() - new Date(b.receivedAt).getTime(),
+    );
     const oldest = sorted[0];
     removePendingCapture(oldest.id);
     captures = pendingCapturesStore.value; // Update after removal
-    totalAttachmentsSize = captures.reduce((sum, c) => sum + (c.attachments?.reduce((attSum, a) => attSum + a.fileSize, 0) || 0), 0);
+    totalAttachmentsSize = captures.reduce(
+      (sum, c) =>
+        sum +
+        (c.attachments?.reduce((attSum, a) => attSum + a.fileSize, 0) || 0),
+      0,
+    );
   }
-  
+
   // F05-FR-14: Enforce per-capture attachment size limit
   if (captureAttachmentsSize > MAX_CAPTURE_ATTACHMENTS_SIZE) {
-    console.warn(`F05: Capture attachment size (${captureAttachmentsSize}) exceeds ${MAX_CAPTURE_ATTACHMENTS_SIZE} byte limit`);
-    throw new Error(`Capture attachments exceed maximum size of ${MAX_CAPTURE_ATTACHMENTS_SIZE} bytes`);
+    console.warn(
+      `F05: Capture attachment size (${captureAttachmentsSize}) exceeds ${MAX_CAPTURE_ATTACHMENTS_SIZE} byte limit`,
+    );
+    throw new Error(
+      `Capture attachments exceed maximum size of ${MAX_CAPTURE_ATTACHMENTS_SIZE} bytes`,
+    );
   }
 
   const newCapture: PendingCapture = {
@@ -211,9 +258,9 @@ export function addPendingCapture(capture: Omit<PendingCapture, "id" | "received
       fileName: sanitizeAttachmentFilename(attachment.fileName),
     })),
   };
-  
+
   pendingCapturesStore.value = [...captures, newCapture];
-  
+
   return newCapture;
 }
 
@@ -222,36 +269,40 @@ export function addPendingCapture(capture: Omit<PendingCapture, "id" | "received
  */
 export function removePendingCapture(captureId: string): boolean {
   const captures = pendingCapturesStore.value;
-  const index = captures.findIndex(c => c.id === captureId);
-  
+  const index = captures.findIndex((c) => c.id === captureId);
+
   if (index !== -1) {
     const newCaptures = [...captures];
     newCaptures.splice(index, 1);
     pendingCapturesStore.value = newCaptures;
     return true;
   }
-  
+
   return false;
 }
 
 /**
  * Update a pending capture status
  */
-export function updatePendingCaptureStatus(captureId: string, status: PendingCapture["status"], error?: string): boolean {
+export function updatePendingCaptureStatus(
+  captureId: string,
+  status: PendingCapture["status"],
+  error?: string,
+): boolean {
   const captures = pendingCapturesStore.value;
-  const index = captures.findIndex(c => c.id === captureId);
-  
+  const index = captures.findIndex((c) => c.id === captureId);
+
   if (index !== -1) {
     const newCaptures = [...captures];
     newCaptures[index] = {
       ...newCaptures[index],
       status,
-      ...(error && { lastError: error })
+      ...(error && { lastError: error }),
     };
     pendingCapturesStore.value = newCaptures;
     return true;
   }
-  
+
   return false;
 }
 
@@ -277,36 +328,61 @@ export function sanitizeAttachmentFilename(filename: string): string {
   if (!filename || filename.trim() === "") {
     return "capture";
   }
-  
+
   // Remove path separators and control characters
   let sanitized = filename
     .replace(/[/\\:*?"<>|]/g, "_")
-    .split("").filter(c => c.charCodeAt(0) >= 32 || c.charCodeAt(0) === 9).join(""); // Keep printable + tab
-  
+    .split("")
+    .filter((c) => c.charCodeAt(0) >= 32 || c.charCodeAt(0) === 9)
+    .join(""); // Keep printable + tab
+
   // Remove bidirectional control characters
   sanitized = sanitized.replace(/[\u202A-\u202E\u2066-\u2069]/g, "");
-  
+
   // Remove reserved names on Windows
-  const reservedNames = ["CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9"];
+  const reservedNames = [
+    "CON",
+    "PRN",
+    "AUX",
+    "NUL",
+    "COM1",
+    "COM2",
+    "COM3",
+    "COM4",
+    "COM5",
+    "COM6",
+    "COM7",
+    "COM8",
+    "COM9",
+    "LPT1",
+    "LPT2",
+    "LPT3",
+    "LPT4",
+    "LPT5",
+    "LPT6",
+    "LPT7",
+    "LPT8",
+    "LPT9",
+  ];
   for (const reserved of reservedNames) {
     if (sanitized.toUpperCase() === reserved) {
       sanitized = "_" + sanitized;
     }
   }
-  
+
   // Remove leading/trailing dots and spaces
   sanitized = sanitized.replace(/^[.\s]+/, "").replace(/[.\s]+$/, "");
-  
+
   // If empty after sanitization, use default
   if (!sanitized || sanitized.trim() === "") {
     sanitized = "capture";
   }
-  
+
   // Truncate to reasonable length (max 128 chars)
   if (sanitized.length > 128) {
     sanitized = sanitized.substring(0, 128);
   }
-  
+
   return sanitized;
 }
 
@@ -314,15 +390,20 @@ export function sanitizeAttachmentFilename(filename: string): string {
  * Generate a fingerprint for attachment content to support retry matching
  * F05-FR-17: Attachment retry shall reuse an existing planned file only when its fingerprint matches
  */
-export async function generateAttachmentFingerprint(filePath: string, bridgeReadFile: (path: string) => Promise<Uint8Array>): Promise<string> {
+export async function generateAttachmentFingerprint(
+  filePath: string,
+  bridgeReadFile: (path: string) => Promise<Uint8Array>,
+): Promise<string> {
   try {
     const content = await bridgeReadFile(filePath);
     const size = content.length;
-    
+
     // Create a simple fingerprint based on size and first 16 bytes
     const header = content.slice(0, 16);
-    const headerHex = Array.from(header).map(b => b.toString(16).padStart(2, "0")).join("");
-    
+    const headerHex = Array.from(header)
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+
     return `${size}-${headerHex}`;
   } catch (error) {
     // F05-AC-25: Don't log raw errors that may contain sensitive data

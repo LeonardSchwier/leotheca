@@ -27,7 +27,9 @@ export interface NoteTimeline {
 }
 
 function validMtime(value: number | undefined): number | null {
-  return value !== undefined && Number.isFinite(value) && value >= 0 ? value : null;
+  return value !== undefined && Number.isFinite(value) && value >= 0
+    ? value
+    : null;
 }
 
 function utcDay(mtime: number | null): string | null {
@@ -62,7 +64,10 @@ export function buildNoteTimeline(
       incomingLinkCount.set(target, (incomingLinkCount.get(target) ?? 0) + 1);
     }
   }
-  edges.sort((a, b) => a.source.localeCompare(b.source) || a.target.localeCompare(b.target));
+  edges.sort(
+    (a, b) =>
+      a.source.localeCompare(b.source) || a.target.localeCompare(b.target),
+  );
 
   const notes = paths.map((path) => {
     const modified = validMtime(mtimeByPath?.get(path));
@@ -75,7 +80,8 @@ export function buildNoteTimeline(
     };
   });
   notes.sort((a, b) => {
-    if (a.modified === null && b.modified === null) return a.path.localeCompare(b.path);
+    if (a.modified === null && b.modified === null)
+      return a.path.localeCompare(b.path);
     if (a.modified === null) return 1;
     if (b.modified === null) return -1;
     return b.modified - a.modified || a.path.localeCompare(b.path);

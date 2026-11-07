@@ -168,12 +168,22 @@ function splitLines(content: string): LineInfo[] {
   while (pos < content.length) {
     const newlineIndex = content.indexOf("\n", pos);
     if (newlineIndex === -1) {
-      lines.push({ text: content.slice(pos), start: pos, end: content.length, lineNumber });
+      lines.push({
+        text: content.slice(pos),
+        start: pos,
+        end: content.length,
+        lineNumber,
+      });
       break;
     }
     let lineEnd = newlineIndex;
     if (lineEnd > pos && content[lineEnd - 1] === "\r") lineEnd -= 1;
-    lines.push({ text: content.slice(pos, lineEnd), start: pos, end: lineEnd, lineNumber });
+    lines.push({
+      text: content.slice(pos, lineEnd),
+      start: pos,
+      end: lineEnd,
+      lineNumber,
+    });
     pos = newlineIndex + 1;
     lineNumber += 1;
   }
@@ -199,7 +209,8 @@ const BLOCK_ID_RE = /[ \t]+\^([A-Za-z0-9][A-Za-z0-9-]{0,63})[ \t]*$/;
 // unlike BLOCK_ID_RE above it requires no preceding text on that line,
 // only up to 3 leading spaces (matching CommonMark's own leaf-block
 // indentation allowance) before the caret.
-const STANDALONE_BLOCK_ID_RE = /^ {0,3}\^([A-Za-z0-9][A-Za-z0-9-]{0,63})[ \t]*$/;
+const STANDALONE_BLOCK_ID_RE =
+  /^ {0,3}\^([A-Za-z0-9][A-Za-z0-9-]{0,63})[ \t]*$/;
 
 /**
  * Scans a Markdown document for every eligible block (a paragraph, a
@@ -273,7 +284,12 @@ export function scanBlocks(content: string): ScannedBlock[] {
   // Unlike `recordInline`, `contentTo` never depends on whether a marker
   // was actually found: the marker, when present, is always a wholly
   // separate line, never part of the fenced block's own content.
-  function recordFencedCode(blockFrom: number, blockTo: number, closeLine: LineInfo, markerLine?: LineInfo): void {
+  function recordFencedCode(
+    blockFrom: number,
+    blockTo: number,
+    closeLine: LineInfo,
+    markerLine?: LineInfo,
+  ): void {
     if (markerLine) {
       const idMatch = STANDALONE_BLOCK_ID_RE.exec(markerLine.text);
       if (idMatch) {
@@ -354,7 +370,11 @@ export function scanBlocks(content: string): ScannedBlock[] {
   // block itself always recorded either way) by exactly the one line
   // right after it, per spec 7.2's "immediately following line," or by
   // `flushPendingFencedCode` below when no such line ever arrives.
-  let pendingFencedCode: { blockFrom: number; blockTo: number; closeLine: LineInfo } | null = null;
+  let pendingFencedCode: {
+    blockFrom: number;
+    blockTo: number;
+    closeLine: LineInfo;
+  } | null = null;
 
   function flushPendingFencedCode(markerLine?: LineInfo): void {
     if (!pendingFencedCode) return;
@@ -380,9 +400,18 @@ export function scanBlocks(content: string): ScannedBlock[] {
     if (inFence) {
       flushParagraph();
       const close = FENCE_RE.exec(line.text);
-      if (close && close[1][0] === fenceChar && close[1].length >= fenceLength && line.text.trim() === close[1]) {
+      if (
+        close &&
+        close[1][0] === fenceChar &&
+        close[1].length >= fenceLength &&
+        line.text.trim() === close[1]
+      ) {
         inFence = false;
-        pendingFencedCode = { blockFrom: fenceStartLine!.start, blockTo: line.end, closeLine: line };
+        pendingFencedCode = {
+          blockFrom: fenceStartLine!.start,
+          blockTo: line.end,
+          closeLine: line,
+        };
       }
       continue;
     }
@@ -430,7 +459,10 @@ export function scanBlocks(content: string): ScannedBlock[] {
     const commentStartMatch = COMMENT_START_RE.exec(line.text);
     if (commentStartMatch) {
       flushParagraph();
-      const closeOnSameLine = line.text.indexOf("-->", commentStartMatch[0].length);
+      const closeOnSameLine = line.text.indexOf(
+        "-->",
+        commentStartMatch[0].length,
+      );
       if (closeOnSameLine === -1) inComment = true;
       continue;
     }
@@ -467,7 +499,12 @@ export function scanBlocks(content: string): ScannedBlock[] {
     if (BLOCKQUOTE_RE.test(line.text)) {
       flushParagraph();
       const prefixMatch = BLOCKQUOTE_PREFIX_RE.exec(line.text)!;
-      openBlock = { kind: "blockquote", contentFrom: line.start + prefixMatch[0].length, indentWidth: 0, lines: [line] };
+      openBlock = {
+        kind: "blockquote",
+        contentFrom: line.start + prefixMatch[0].length,
+        indentWidth: 0,
+        lines: [line],
+      };
       continue;
     }
 
@@ -502,7 +539,11 @@ export function scanBlocks(content: string): ScannedBlock[] {
       line: heading.line,
       column: heading.column,
       marker: heading.blockId
-        ? { id: heading.blockId.id, idFrom: heading.blockId.idFrom, idTo: heading.blockId.idTo }
+        ? {
+            id: heading.blockId.id,
+            idFrom: heading.blockId.idFrom,
+            idTo: heading.blockId.idTo,
+          }
         : undefined,
     });
   }
@@ -553,6 +594,11 @@ export function scanBlockIds(content: string): BlockRecord[] {
  * Blocks are non-overlapping and returned in source order by `scanBlocks`,
  * so the first one containing `offset` is the only one that can.
  */
-export function findBlockAtOffset(content: string, offset: number): ScannedBlock | undefined {
-  return scanBlocks(content).find((block) => offset >= block.sourceFrom && offset <= block.sourceTo);
+export function findBlockAtOffset(
+  content: string,
+  offset: number,
+): ScannedBlock | undefined {
+  return scanBlocks(content).find(
+    (block) => offset >= block.sourceFrom && offset <= block.sourceTo,
+  );
 }

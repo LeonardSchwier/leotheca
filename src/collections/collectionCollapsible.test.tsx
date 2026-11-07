@@ -2,7 +2,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render } from "@testing-library/preact";
 import { parseFrontmatterProperties } from "../editor/frontmatterEdits";
-import { CollectionResults, FOLDER_GROUP_BY, groupResults } from "./CollectionResults";
+import {
+  CollectionResults,
+  FOLDER_GROUP_BY,
+  groupResults,
+} from "./CollectionResults";
 import type { NoteRecord } from "./collectionQuery";
 import type { SmartCollectionV1 } from "./collectionTypes";
 
@@ -141,7 +145,11 @@ describe("Collapsible groups in table view", () => {
   it("renders collapsible property groups around table rows", () => {
     const { getAllByRole, getByRole } = render(
       <CollectionResults
-        collection={collection({ mode: "table", columns: ["status"], groupBy: "status" })}
+        collection={collection({
+          mode: "table",
+          columns: ["status"],
+          groupBy: "status",
+        })}
         results={[
           note("a/Alpha.md", "---\nstatus: Work\n---\n"),
           note("b/Beta.md", "---\nstatus: Home\n---\n"),
@@ -153,12 +161,18 @@ describe("Collapsible groups in table view", () => {
       />,
     );
 
-    const headings = getAllByRole("heading", { level: 3 }).map((h) => h.textContent);
+    const headings = getAllByRole("heading", { level: 3 }).map(
+      (h) => h.textContent,
+    );
     expect(headings).toContain("Work (1)");
     expect(headings).toContain("Home (1)");
     expect(headings).toContain("Unassigned (1)");
 
-    expect(getByRole("button", { name: /collapse Work/i }) || getByRole("button", { name: /collapse Home/i }) || getByRole("button", { name: /collapse Unassigned/i })).toBeTruthy();
+    expect(
+      getByRole("button", { name: /collapse Work/i }) ||
+        getByRole("button", { name: /collapse Home/i }) ||
+        getByRole("button", { name: /collapse Unassigned/i }),
+    ).toBeTruthy();
   });
 });
 
@@ -166,7 +180,11 @@ describe("Collapsible groups in card view", () => {
   it("renders collapsible property groups around cards", () => {
     const { getAllByRole } = render(
       <CollectionResults
-        collection={collection({ mode: "card", fields: ["status"], groupBy: "status" })}
+        collection={collection({
+          mode: "card",
+          fields: ["status"],
+          groupBy: "status",
+        })}
         results={[
           note("Projects/Alpha.md", "---\nstatus: Work\n---\n"),
           note("Projects/Beta.md", "---\nstatus: Work\n---\n"),
@@ -178,7 +196,9 @@ describe("Collapsible groups in card view", () => {
       />,
     );
 
-    const headings = getAllByRole("heading", { level: 3 }).map((h) => h.textContent);
+    const headings = getAllByRole("heading", { level: 3 }).map(
+      (h) => h.textContent,
+    );
     expect(headings).toContain("Work (2)");
     expect(headings).toContain("Unassigned (1)");
   });
@@ -211,9 +231,15 @@ describe("Grouping selector and persistence across view modes", () => {
     );
 
     fireEvent.click(getByRole("radio", { name: "Table" }));
-    expect(onViewChange).toHaveBeenLastCalledWith({ mode: "table", groupBy: FOLDER_GROUP_BY });
+    expect(onViewChange).toHaveBeenLastCalledWith({
+      mode: "table",
+      groupBy: FOLDER_GROUP_BY,
+    });
     fireEvent.click(getByRole("radio", { name: "Cards" }));
-    expect(onViewChange).toHaveBeenLastCalledWith({ mode: "card", groupBy: FOLDER_GROUP_BY });
+    expect(onViewChange).toHaveBeenLastCalledWith({
+      mode: "card",
+      groupBy: FOLDER_GROUP_BY,
+    });
   });
 
   it("clears grouping to an ungrouped view when the selector is set to Ungrouped", () => {

@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "preact/hooks";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "preact/hooks";
 import { memo } from "preact/compat";
 import {
   dirChildren,
@@ -33,7 +39,7 @@ export function FileTree({ rootPath, onOpenFile }: FileTreeProps) {
   useEffect(() => {
     // Reading workspaceSession.value here ensures we get the current session
     // even when rootPath hasn't changed but the session has.
-    void (workspaceSession.value);
+    void workspaceSession.value;
     void expandFirstLevel(rootPath);
   }, [rootPath]);
 
@@ -66,101 +72,105 @@ export function FileTree({ rootPath, onOpenFile }: FileTreeProps) {
 
   // Keyboard navigation handler attached to the tree container.
   // Uses roving tabindex: only the focused treeitem has tabindex=0.
-  const handleKeyDown = useCallback(
-    (e: KeyboardEvent) => {
-      const tree = treeRef.current;
-      if (!tree) return;
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    const tree = treeRef.current;
+    if (!tree) return;
 
-      const treeItems = getVisibleTreeItems(tree);
-      if (treeItems.length === 0) return;
+    const treeItems = getVisibleTreeItems(tree);
+    if (treeItems.length === 0) return;
 
-      // Find the currently focused item within the tree.
-      let focusedIndex = -1;
-      for (let i = 0; i < treeItems.length; i++) {
-        if (treeItems[i] === document.activeElement) {
-          focusedIndex = i;
-          break;
-        }
+    // Find the currently focused item within the tree.
+    let focusedIndex = -1;
+    for (let i = 0; i < treeItems.length; i++) {
+      if (treeItems[i] === document.activeElement) {
+        focusedIndex = i;
+        break;
       }
+    }
 
-      const focusItem = (idx: number) => {
-        const clamped = Math.max(0, Math.min(idx, treeItems.length - 1));
-        // Update roving tabindex
-        treeItems.forEach((el) => el.setAttribute("tabindex", "-1"));
-        treeItems[clamped].setAttribute("tabindex", "0");
-        treeItems[clamped].focus();
-      };
+    const focusItem = (idx: number) => {
+      const clamped = Math.max(0, Math.min(idx, treeItems.length - 1));
+      // Update roving tabindex
+      treeItems.forEach((el) => el.setAttribute("tabindex", "-1"));
+      treeItems[clamped].setAttribute("tabindex", "0");
+      treeItems[clamped].focus();
+    };
 
-      switch (e.key) {
-        case "ArrowDown":
-          e.preventDefault();
-          focusItem(focusedIndex + 1);
-          return;
-        case "ArrowUp":
-          e.preventDefault();
-          focusItem(focusedIndex - 1);
-          return;
-        case "Home":
-          e.preventDefault();
-          focusItem(0);
-          return;
-        case "End":
-          e.preventDefault();
-          focusItem(treeItems.length - 1);
-          return;
-        case "ArrowRight": {
-          e.preventDefault();
-          if (focusedIndex === -1) return;
-          const item = treeItems[focusedIndex];
-          const path = item.getAttribute("data-tree-path");
-          if (!path) return;
-          // If collapsed, expand; if already expanded, move to first child.
-          if (item.getAttribute("aria-expanded") === "false") {
-            item.click();
-          } else if (item.getAttribute("aria-expanded") === "true") {
-            const firstChild = treeItems[focusedIndex + 1];
-            // Only move down if the next item is actually a child (deeper indent).
-            if (firstChild && parseInt(firstChild.getAttribute("data-tree-depth") || "0") > parseInt(item.getAttribute("data-tree-depth") || "0")) {
-              focusItem(focusedIndex + 1);
+    switch (e.key) {
+      case "ArrowDown":
+        e.preventDefault();
+        focusItem(focusedIndex + 1);
+        return;
+      case "ArrowUp":
+        e.preventDefault();
+        focusItem(focusedIndex - 1);
+        return;
+      case "Home":
+        e.preventDefault();
+        focusItem(0);
+        return;
+      case "End":
+        e.preventDefault();
+        focusItem(treeItems.length - 1);
+        return;
+      case "ArrowRight": {
+        e.preventDefault();
+        if (focusedIndex === -1) return;
+        const item = treeItems[focusedIndex];
+        const path = item.getAttribute("data-tree-path");
+        if (!path) return;
+        // If collapsed, expand; if already expanded, move to first child.
+        if (item.getAttribute("aria-expanded") === "false") {
+          item.click();
+        } else if (item.getAttribute("aria-expanded") === "true") {
+          const firstChild = treeItems[focusedIndex + 1];
+          // Only move down if the next item is actually a child (deeper indent).
+          if (
+            firstChild &&
+            parseInt(firstChild.getAttribute("data-tree-depth") || "0") >
+              parseInt(item.getAttribute("data-tree-depth") || "0")
+          ) {
+            focusItem(focusedIndex + 1);
+          }
+        }
+        return;
+      }
+      case "ArrowLeft": {
+        e.preventDefault();
+        if (focusedIndex === -1) return;
+        const item = treeItems[focusedIndex];
+        const path = item.getAttribute("data-tree-path");
+        if (!path) return;
+        if (item.getAttribute("aria-expanded") === "true") {
+          // Collapse this folder.
+          item.click();
+        } else {
+          // Move to parent: find the nearest preceding item with lower depth.
+          const myDepth = parseInt(item.getAttribute("data-tree-depth") || "0");
+          for (let i = focusedIndex - 1; i >= 0; i--) {
+            if (
+              parseInt(treeItems[i].getAttribute("data-tree-depth") || "0") <
+              myDepth
+            ) {
+              focusItem(i);
+              return;
             }
           }
-          return;
+          // No parent found (we're at root level); stay put.
         }
-        case "ArrowLeft": {
-          e.preventDefault();
-          if (focusedIndex === -1) return;
-          const item = treeItems[focusedIndex];
-          const path = item.getAttribute("data-tree-path");
-          if (!path) return;
-          if (item.getAttribute("aria-expanded") === "true") {
-            // Collapse this folder.
-            item.click();
-          } else {
-            // Move to parent: find the nearest preceding item with lower depth.
-            const myDepth = parseInt(item.getAttribute("data-tree-depth") || "0");
-            for (let i = focusedIndex - 1; i >= 0; i--) {
-              if (parseInt(treeItems[i].getAttribute("data-tree-depth") || "0") < myDepth) {
-                focusItem(i);
-                return;
-              }
-            }
-            // No parent found (we're at root level); stay put.
-          }
-          return;
-        }
-        case "Enter":
-        case " ":
-          e.preventDefault();
-          if (focusedIndex !== -1) {
-            treeItems[focusedIndex].click();
-          }
-          return;
-        default:
-          return;
+        return;
       }
-    },
-    []
-  );
+      case "Enter":
+      case " ":
+        e.preventDefault();
+        if (focusedIndex !== -1) {
+          treeItems[focusedIndex].click();
+        }
+        return;
+      default:
+        return;
+    }
+  }, []);
 
   if (!entries) return null;
 
@@ -255,12 +265,15 @@ const FileTreeNodeComponent = function FileTreeNode({
           openContextMenu(entry, e.clientX, e.clientY);
         }}
       >
-        <span class="file-tree-marker">{entry.isDir ? (expanded ? "▾" : "▸") : ""}</span>
+        <span class="file-tree-marker">
+          {entry.isDir ? (expanded ? "▾" : "▸") : ""}
+        </span>
         {entry.name}
       </button>
       {openError && (
         <p class="file-tree-open-error" role="alert">
-          Couldn't open "{entry.name}" — it may have been moved, renamed, or deleted.
+          Couldn't open "{entry.name}": it may have been moved, renamed, or
+          deleted.
         </p>
       )}
       {renderedChildren}
@@ -269,13 +282,16 @@ const FileTreeNodeComponent = function FileTreeNode({
 };
 
 // Memoize the FileTreeNode component to prevent re-renders when props haven't changed
-export const FileTreeNode = memo(FileTreeNodeComponent, (prevProps, nextProps) => {
-  // Only re-render if entry, onOpenFile, or depth changes
-  return (
-    prevProps.entry.path === nextProps.entry.path &&
-    prevProps.entry.name === nextProps.entry.name &&
-    prevProps.entry.isDir === nextProps.entry.isDir &&
-    prevProps.onOpenFile === nextProps.onOpenFile &&
-    prevProps.depth === nextProps.depth
-  );
-});
+export const FileTreeNode = memo(
+  FileTreeNodeComponent,
+  (prevProps, nextProps) => {
+    // Only re-render if entry, onOpenFile, or depth changes
+    return (
+      prevProps.entry.path === nextProps.entry.path &&
+      prevProps.entry.name === nextProps.entry.name &&
+      prevProps.entry.isDir === nextProps.entry.isDir &&
+      prevProps.onOpenFile === nextProps.onOpenFile &&
+      prevProps.depth === nextProps.depth
+    );
+  },
+);

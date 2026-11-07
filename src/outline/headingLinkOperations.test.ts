@@ -66,7 +66,9 @@ describe("insertHeadingLink", () => {
 
 describe("headingLinkDisabledReason", () => {
   it("returns undefined for a normal, unique heading", () => {
-    expect(headingLinkDisabledReason(heading("## Milestones\n"), false)).toBeUndefined();
+    expect(
+      headingLinkDisabledReason(heading("## Milestones\n"), false),
+    ).toBeUndefined();
   });
 
   it("returns a reason for an untitled (empty) heading", () => {

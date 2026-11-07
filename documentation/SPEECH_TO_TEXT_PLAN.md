@@ -8,6 +8,7 @@
 ## Requirement Recap
 
 From roadmap item:
+
 - Must run **entirely on-device** (NO network calls)
 - CONSTITUTION.md: "Offline by design" is absolute, permanent prohibition
 - Must work on desktop (Tauri) and Android (Capacitor)
@@ -21,13 +22,13 @@ After evaluating options, **Whisper.cpp** is the best fit:
 
 ### Why Whisper.cpp?
 
-| Criteria | Whisper.cpp | Web Speech API | Native Platform APIs |
-|----------|-------------|----------------|---------------------|
-| Offline | ✅ Yes | ❌ No (cloud) | ⚠️ Partial |
-| Cross-platform | ✅ Yes (C++) | ✅ Yes (JS) | ❌ No |
-| Bundle size | ~50-200MB (model) | ✅ Tiny | ✅ Tiny |
-| Quality | ✅ Good | ✅ Good | ⚠️ Varies |
-| Integration | ✅ FFI from Rust/Java | ✅ Direct | ⚠️ Platform-specific |
+| Criteria       | Whisper.cpp           | Web Speech API | Native Platform APIs |
+| -------------- | --------------------- | -------------- | -------------------- |
+| Offline        | ✅ Yes                | ❌ No (cloud)  | ⚠️ Partial           |
+| Cross-platform | ✅ Yes (C++)          | ✅ Yes (JS)    | ❌ No                |
+| Bundle size    | ~50-200MB (model)     | ✅ Tiny        | ✅ Tiny              |
+| Quality        | ✅ Good               | ✅ Good        | ⚠️ Varies            |
+| Integration    | ✅ FFI from Rust/Java | ✅ Direct      | ⚠️ Platform-specific |
 
 ### Whisper.cpp Details
 
@@ -43,6 +44,7 @@ After evaluating options, **Whisper.cpp** is the best fit:
 ### Offline Guarantee
 
 Whisper.cpp:
+
 - ✅ Runs entirely locally
 - ✅ No network calls
 - ✅ No telemetry
@@ -67,6 +69,7 @@ src-tauri/src/
 ```
 
 Rust FFI binding:
+
 ```rust
 // Use cc crate for C++ binding
 #[allow(non_snake_case)]
@@ -80,6 +83,7 @@ mod whisper {
 ```
 
 Tauri command:
+
 ```rust
 #[tauri::command]
 async fn transcribe_audio(path: String) -> Result<String, String> {
@@ -93,6 +97,7 @@ async fn transcribe_audio(path: String) -> Result<String, String> {
 Two approaches:
 
 **Approach 1: JNI Binding**
+
 ```
 android/app/src/main/jni/
   whisper.cpp (vendored)
@@ -101,6 +106,7 @@ android/app/src/main/jni/
 ```
 
 Java interface:
+
 ```java
 public class WhisperWrapper {
     public static native String transcribe(String audioPath, String modelPath);
@@ -109,17 +115,21 @@ public class WhisperWrapper {
 ```
 
 Capacitor plugin:
+
 ```typescript
 @NativePlugin()
 export class SpeechRecognitionPlugin {
   @PluginMethod()
-  public async transcribe(options: { audioPath: string }): Promise<{ text: string }> {
+  public async transcribe(options: {
+    audioPath: string;
+  }): Promise<{ text: string }> {
     return WhisperWrapper.transcribe(options.audioPath);
   }
 }
 ```
 
 **Approach 2: Use existing WhisperKotlin**
+
 - https://github.com/argenon/WhisperKotlin
 - Already provides Kotlin API for Whisper
 - MIT license
@@ -128,20 +138,24 @@ export class SpeechRecognitionPlugin {
 ### Option B: Platform-Specific Native APIs (Partial)
 
 #### Android
+
 ```java
 // Use android.speech.SpeechRecognizer with EXTRA_PREFER_OFFLINE
 Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
 intent.putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true);
 ```
+
 - ✅ Works offline IF user has downloaded language pack
 - ❌ Not guaranteed to work on all devices
 - ❌ Language limited to user's installed packs
 - ❌ Cannot control model quality
 
 #### Desktop Windows
+
 ```rust
 use windows::Media::SpeechRecognition::*;
 ```
+
 - ✅ Works offline IF offline language pack installed
 - ❌ Windows only
 - ❌ macOS/Linux: No native offline API
@@ -153,6 +167,7 @@ use windows::Media::SpeechRecognition::*;
 ### Phase 1: Desktop Only (Tauri + Whisper.cpp)
 
 **Scope:**
+
 - Bundle whisper.cpp with tiny model (~39MB)
 - Implement Rust FFI binding
 - Add Tauri command for speech recognition
@@ -160,6 +175,7 @@ use windows::Media::SpeechRecognition::*;
 - Insert text at cursor in active editor
 
 **Files to create/modify:**
+
 - `src-tauri/src/whisper.rs` - FFI bindings
 - `src-tauri/src/commands.rs` - Add `transcribe_audio` command
 - `src-tauri/Cargo.toml` - Add cc dependency
@@ -172,11 +188,13 @@ use windows::Media::SpeechRecognition::*;
 ### Phase 2: Android (Capacitor + Whisper.cpp JNI)
 
 **Scope:**
+
 - Add JNI binding for whisper.cpp
 - Create Capacitor plugin for speech recognition
 - Wire into Android share intent handling
 
 **Files to create/modify:**
+
 - `android/app/src/main/jni/whisper-jni.cpp`
 - `android/app/src/main/java/.../WhisperWrapper.java`
 - `android/app/src/main/java/.../SpeechRecognitionPlugin.java`
@@ -194,12 +212,12 @@ use windows::Media::SpeechRecognition::*;
 
 ### Model Size vs Quality Tradeoff
 
-| Model | Size | RAM | VRAM | Quality | Use Case |
-|-------|------|-----|------|---------|----------|
-| tiny | 39MB | 200MB | 1GB | ⭐⭐ | Quick notes, simple dictation |
-| base | 75MB | 400MB | 1.4GB | ⭐⭐⭐ | General use |
-| small | 244MB | 1.5GB | 2GB | ⭐⭐⭐⭐ | High accuracy |
-| medium | 769MB | 5GB | 5GB | ⭐⭐⭐⭐⭐ | Professional transcription |
+| Model  | Size  | RAM   | VRAM  | Quality    | Use Case                      |
+| ------ | ----- | ----- | ----- | ---------- | ----------------------------- |
+| tiny   | 39MB  | 200MB | 1GB   | ⭐⭐       | Quick notes, simple dictation |
+| base   | 75MB  | 400MB | 1.4GB | ⭐⭐⭐     | General use                   |
+| small  | 244MB | 1.5GB | 2GB   | ⭐⭐⭐⭐   | High accuracy                 |
+| medium | 769MB | 5GB   | 5GB   | ⭐⭐⭐⭐⭐ | Professional transcription    |
 
 **Recommendation:** Start with tiny model for both platforms. Allow user to optionally download larger models.
 
@@ -214,10 +232,12 @@ use windows::Media::SpeechRecognition::*;
 ### Audio Capture
 
 **Desktop (Tauri):**
+
 - Use Web Audio API via Tauri webview
 - Or native audio capture (more complex)
 
 **Android:**
+
 - Use `MediaRecorder` API
 - Or `AudioRecord` for lower-level access
 
@@ -255,11 +275,13 @@ use windows::Media::SpeechRecognition::*;
 ### Model Distribution
 
 **Option 1: Bundle with app**
+
 - ✅ Guaranteed offline
 - ✅ No download needed
 - ❌ Larger app size
 
 **Option 2: User downloads models**
+
 - ✅ Smaller initial download
 - ✅ User chooses model size
 - ⚠️ Need checksum verification
@@ -347,12 +369,14 @@ If bundling Whisper.cpp is too large:
 ## Decision
 
 **Recommended path:**
+
 1. Start with **Phase 1 (Desktop + Whisper.cpp + tiny model)**
 2. Verify offline behavior and performance
 3. Proceed to **Phase 2 (Android)**
 4. Add **Phase 3 (Model management)** as optional enhancement
 
 **Estimated effort:**
+
 - Phase 1: 2-3 days
 - Phase 2: 2-3 days
 - Phase 3: 1-2 days
@@ -362,6 +386,7 @@ If bundling Whisper.cpp is too large:
 ## Next Action
 
 To implement Phase 1:
+
 1. Clone whisper.cpp into src-tauri
 2. Set up CMake or direct compilation
 3. Create Rust FFI bindings

@@ -7,7 +7,8 @@ describe("scanBlockIds", () => {
   });
 
   it("recognizes a block ID on a single-line paragraph", () => {
-    const source = "This decision remains valid for the first release. ^release-decision";
+    const source =
+      "This decision remains valid for the first release. ^release-decision";
     const [block] = scanBlockIds(source);
     expect(block.id).toBe("release-decision");
     expect(block.key).toBe("release-decision");
@@ -20,7 +21,8 @@ describe("scanBlockIds", () => {
   });
 
   it("recognizes a block ID on the last line of a multi-line paragraph", () => {
-    const source = "First line of the paragraph.\nSecond line ends here. ^multi-line-id";
+    const source =
+      "First line of the paragraph.\nSecond line ends here. ^multi-line-id";
     const [block] = scanBlockIds(source);
     expect(block.id).toBe("multi-line-id");
     expect(source.slice(block.sourceFrom, block.sourceTo)).toBe(source);
@@ -43,7 +45,8 @@ describe("scanBlockIds", () => {
   });
 
   it("does not require a marker to be present: plain paragraphs are not recorded", () => {
-    const source = "A paragraph.\n\nAnother paragraph.\n\n- A list item, not a paragraph.";
+    const source =
+      "A paragraph.\n\nAnother paragraph.\n\n- A list item, not a paragraph.";
     expect(scanBlockIds(source)).toEqual([]);
   });
 
@@ -71,7 +74,9 @@ describe("scanBlockIds", () => {
   });
 
   it("attaches a marker whose block is an ATX heading", () => {
-    const [block] = scanBlockIds("## Architecture boundary ^architecture-boundary");
+    const [block] = scanBlockIds(
+      "## Architecture boundary ^architecture-boundary",
+    );
     expect(block.kind).toBe("heading");
     expect(block.id).toBe("architecture-boundary");
   });
@@ -81,7 +86,9 @@ describe("scanBlockIds", () => {
     const [block] = scanBlockIds(source);
     expect(block.kind).toBe("list-item");
     expect(block.id).toBe("local-first");
-    expect(source.slice(block.contentFrom, block.contentTo)).toBe("The user owns the Markdown files.");
+    expect(source.slice(block.contentFrom, block.contentTo)).toBe(
+      "The user owns the Markdown files.",
+    );
     expect(source.slice(block.sourceFrom, block.sourceTo)).toBe(source);
   });
 
@@ -90,7 +97,9 @@ describe("scanBlockIds", () => {
     const [block] = scanBlockIds(source);
     expect(block.kind).toBe("blockquote");
     expect(block.id).toBe("principle");
-    expect(source.slice(block.contentFrom, block.contentTo)).toBe("A quoted principle.");
+    expect(source.slice(block.contentFrom, block.contentTo)).toBe(
+      "A quoted principle.",
+    );
   });
 
   it("does not attach a marker inside a fenced code block", () => {
@@ -109,7 +118,9 @@ describe("scanBlockIds", () => {
     const [block] = scanBlockIds(source);
     expect(block.kind).toBe("fenced-code");
     expect(block.id).toBe("code-example");
-    expect(source.slice(block.contentFrom, block.contentTo)).toBe("```\nconst x = 1;\n```");
+    expect(source.slice(block.contentFrom, block.contentTo)).toBe(
+      "```\nconst x = 1;\n```",
+    );
     expect(source.slice(block.sourceFrom, block.sourceTo)).toBe(source);
   });
 
@@ -156,7 +167,8 @@ describe("scanBlockIds", () => {
   });
 
   it("skips a multi-line HTML comment entirely", () => {
-    const source = "<!--\nHidden text. ^hidden-id\n-->\n\nVisible text. ^visible-id";
+    const source =
+      "<!--\nHidden text. ^hidden-id\n-->\n\nVisible text. ^visible-id";
     const [block] = scanBlockIds(source);
     expect(block.id).toBe("visible-id");
   });
@@ -164,12 +176,17 @@ describe("scanBlockIds", () => {
   it("still scans a paragraph with a trailing inline HTML comment", () => {
     const source = "Some paragraph text <!-- note -->";
     const [block] = scanBlocks(source);
-    expect(block).toMatchObject({ kind: "paragraph", sourceFrom: 0, sourceTo: source.length });
+    expect(block).toMatchObject({
+      kind: "paragraph",
+      sourceFrom: 0,
+      sourceTo: source.length,
+    });
     expect(findBlockAtOffset(source, 0)).toEqual(block);
   });
 
   it("still continues a list item across a continuation line with a trailing inline HTML comment", () => {
-    const source = "- First line\n  second line <!-- note --> with the id. ^with-comment";
+    const source =
+      "- First line\n  second line <!-- note --> with the id. ^with-comment";
     const [block] = scanBlockIds(source);
     expect(block.kind).toBe("list-item");
     expect(block.id).toBe("with-comment");
@@ -189,7 +206,9 @@ describe("scanBlockIds", () => {
     const source = "Real paragraph content. ^real-id\nSetext Title\n===";
     const [block] = scanBlockIds(source);
     expect(block.id).toBe("real-id");
-    expect(source.slice(block.contentFrom, block.contentTo)).toBe("Real paragraph content.");
+    expect(source.slice(block.contentFrom, block.contentTo)).toBe(
+      "Real paragraph content.",
+    );
   });
 
   it("does not absorb a bare setext-underline-shaped line into the next paragraph when nothing precedes it", () => {
@@ -251,8 +270,18 @@ describe("scanBlockIds", () => {
       "> A blockquote. ^eligible-blockquote",
     ].join("\n");
     const blocks = scanBlockIds(source);
-    expect(blocks.map((b) => b.id)).toEqual(["eligible-heading", "eligible-paragraph", "eligible-list-item", "eligible-blockquote"]);
-    expect(blocks.map((b) => b.kind)).toEqual(["heading", "paragraph", "list-item", "blockquote"]);
+    expect(blocks.map((b) => b.id)).toEqual([
+      "eligible-heading",
+      "eligible-paragraph",
+      "eligible-list-item",
+      "eligible-blockquote",
+    ]);
+    expect(blocks.map((b) => b.kind)).toEqual([
+      "heading",
+      "paragraph",
+      "list-item",
+      "blockquote",
+    ]);
   });
 
   it("rejects a list item marker with no real text before it (bullet's own separator space doesn't count)", () => {
@@ -264,7 +293,8 @@ describe("scanBlockIds", () => {
   });
 
   it("attaches a marker on an indented list-item continuation line to the item it continues (F04 Phase 3e)", () => {
-    const source = "- First line of the item\n  continuation with the id. ^continued-id";
+    const source =
+      "- First line of the item\n  continuation with the id. ^continued-id";
     const [block] = scanBlockIds(source);
     expect(block.kind).toBe("list-item");
     expect(block.id).toBe("continued-id");
@@ -275,7 +305,8 @@ describe("scanBlockIds", () => {
   });
 
   it("continues a list item across more than one continuation line", () => {
-    const source = "- First line\n  second line\n  third line with the id. ^three-lines";
+    const source =
+      "- First line\n  second line\n  third line with the id. ^three-lines";
     const [block] = scanBlockIds(source);
     expect(block.kind).toBe("list-item");
     expect(block.id).toBe("three-lines");
@@ -285,14 +316,16 @@ describe("scanBlockIds", () => {
   });
 
   it("ends list-item continuation at a blank line, not attaching a marker on the far side of it", () => {
-    const source = "- First line of the item\n\n  Not a continuation. ^after-blank";
+    const source =
+      "- First line of the item\n\n  Not a continuation. ^after-blank";
     const [block] = scanBlockIds(source);
     expect(block.kind).toBe("paragraph");
     expect(block.id).toBe("after-blank");
   });
 
   it("ends list-item continuation on an under-indented non-blank line", () => {
-    const source = "- First line of the item\nunder-indented text. ^under-indented";
+    const source =
+      "- First line of the item\nunder-indented text. ^under-indented";
     const [block] = scanBlockIds(source);
     expect(block.kind).toBe("paragraph");
     expect(block.id).toBe("under-indented");
@@ -304,11 +337,14 @@ describe("scanBlockIds", () => {
     expect(blocks).toHaveLength(1);
     expect(blocks[0].kind).toBe("list-item");
     expect(blocks[0].id).toBe("second-item");
-    expect(source.slice(blocks[0].sourceFrom, blocks[0].sourceTo)).toBe("- Second item with the id. ^second-item");
+    expect(source.slice(blocks[0].sourceFrom, blocks[0].sourceTo)).toBe(
+      "- Second item with the id. ^second-item",
+    );
   });
 
   it("continues a blockquote across a re-prefixed '>' continuation line", () => {
-    const source = "> First line of the quote\n> second line with the id. ^quoted-two-lines";
+    const source =
+      "> First line of the quote\n> second line with the id. ^quoted-two-lines";
     const [block] = scanBlockIds(source);
     expect(block.kind).toBe("blockquote");
     expect(block.id).toBe("quoted-two-lines");
@@ -318,37 +354,47 @@ describe("scanBlockIds", () => {
   });
 
   it("continues a blockquote through lazy continuation (a following line with no '>' prefix)", () => {
-    const source = "> First line of the quote\nlazy continuation with the id. ^lazy-quote";
+    const source =
+      "> First line of the quote\nlazy continuation with the id. ^lazy-quote";
     const [block] = scanBlockIds(source);
     expect(block.kind).toBe("blockquote");
     expect(block.id).toBe("lazy-quote");
   });
 
   it("ends blockquote continuation at a blank line", () => {
-    const source = "> First line of the quote\n\nNot part of the quote. ^after-quote-blank";
+    const source =
+      "> First line of the quote\n\nNot part of the quote. ^after-quote-blank";
     const [block] = scanBlockIds(source);
     expect(block.kind).toBe("paragraph");
     expect(block.id).toBe("after-quote-blank");
   });
 
   it("ends blockquote continuation when the continuation line starts a fenced code block", () => {
-    const source = "> First line of the quote\n```\ncode ^inside-fence\n```\n\nAfter. ^after-fence-in-quote";
+    const source =
+      "> First line of the quote\n```\ncode ^inside-fence\n```\n\nAfter. ^after-fence-in-quote";
     const blocks = scanBlockIds(source);
     expect(blocks).toHaveLength(1);
     expect(blocks[0].id).toBe("after-fence-in-quote");
   });
 
   it("supports *, +, and ordered markers for list-item blocks, not just -", () => {
-    const source = "* Star item. ^star-id\n\n+ Plus item. ^plus-id\n\n1. Ordered item. ^ordered-id";
+    const source =
+      "* Star item. ^star-id\n\n+ Plus item. ^plus-id\n\n1. Ordered item. ^ordered-id";
     const blocks = scanBlockIds(source);
-    expect(blocks.map((b) => b.id)).toEqual(["star-id", "plus-id", "ordered-id"]);
+    expect(blocks.map((b) => b.id)).toEqual([
+      "star-id",
+      "plus-id",
+      "ordered-id",
+    ]);
     expect(blocks.every((b) => b.kind === "list-item")).toBe(true);
   });
 
   it("trims extra whitespace after the list/blockquote marker from the content range", () => {
     const listSource = "-   Extra spaces after the bullet. ^spaced-list";
     const [listBlock] = scanBlockIds(listSource);
-    expect(listSource.slice(listBlock.contentFrom, listBlock.contentTo)).toBe("Extra spaces after the bullet.");
+    expect(listSource.slice(listBlock.contentFrom, listBlock.contentTo)).toBe(
+      "Extra spaces after the bullet.",
+    );
   });
 });
 
@@ -370,7 +416,9 @@ describe("scanBlocks (F04 Phase 5d: markerless boundaries too)", () => {
     expect(blocks).toHaveLength(2);
     expect(blocks[0].kind).toBe("list-item");
     expect(blocks[0].marker).toBeUndefined();
-    expect(source.slice(blocks[0].contentFrom, blocks[0].contentTo)).toBe("A list item with no marker");
+    expect(source.slice(blocks[0].contentFrom, blocks[0].contentTo)).toBe(
+      "A list item with no marker",
+    );
     expect(blocks[1].kind).toBe("blockquote");
     expect(blocks[1].marker).toBeUndefined();
   });
@@ -400,14 +448,18 @@ describe("scanBlocks (F04 Phase 5d: markerless boundaries too)", () => {
     const source = "```\nfirst\n```\n```\nsecond\n```";
     const blocks = scanBlocks(source);
     expect(blocks).toHaveLength(2);
-    expect(blocks.every((b) => b.kind === "fenced-code" && !b.marker)).toBe(true);
+    expect(blocks.every((b) => b.kind === "fenced-code" && !b.marker)).toBe(
+      true,
+    );
   });
 
   it("still returns marker info for a block that has a valid marker", () => {
     const source = "A marked paragraph. ^has-marker";
     const [block] = scanBlocks(source);
     expect(block.marker?.id).toBe("has-marker");
-    expect(source.slice(block.marker!.idFrom, block.marker!.idTo)).toBe("^has-marker");
+    expect(source.slice(block.marker!.idFrom, block.marker!.idTo)).toBe(
+      "^has-marker",
+    );
   });
 
   it("scanBlockIds and scanBlocks agree on every marked block (thin-filter equivalence)", () => {
@@ -426,7 +478,9 @@ describe("scanBlocks (F04 Phase 5d: markerless boundaries too)", () => {
     const ids = scanBlockIds(source);
     const markedBoundaries = scanBlocks(source).filter((b) => b.marker);
     expect(markedBoundaries).toHaveLength(4);
-    expect(ids.map((b) => b.id)).toEqual(markedBoundaries.map((b) => b.marker!.id));
+    expect(ids.map((b) => b.id)).toEqual(
+      markedBoundaries.map((b) => b.marker!.id),
+    );
   });
 });
 
@@ -436,7 +490,9 @@ describe("findBlockAtOffset", () => {
     const offset = source.indexOf("Second") + 3;
     const block = findBlockAtOffset(source, offset);
     expect(block?.kind).toBe("paragraph");
-    expect(source.slice(block!.sourceFrom, block!.sourceTo)).toBe("Second paragraph, no marker yet.");
+    expect(source.slice(block!.sourceFrom, block!.sourceTo)).toBe(
+      "Second paragraph, no marker yet.",
+    );
   });
 
   it("finds the already-marked block containing the offset and reports its existing marker", () => {
@@ -451,7 +507,9 @@ describe("findBlockAtOffset", () => {
     const offset = source.indexOf("cursor");
     const block = findBlockAtOffset(source, offset);
     expect(block?.kind).toBe("list-item");
-    expect(source.slice(block!.sourceFrom, block!.sourceTo)).toBe("- Second item, cursor here");
+    expect(source.slice(block!.sourceFrom, block!.sourceTo)).toBe(
+      "- Second item, cursor here",
+    );
   });
 
   it("finds a fenced code block when the offset is inside the fence", () => {
@@ -463,8 +521,12 @@ describe("findBlockAtOffset", () => {
 
   it("finds a heading block and still returns undefined for a blank line between blocks", () => {
     const source = "# A heading\n\nA paragraph.";
-    expect(findBlockAtOffset(source, source.indexOf("heading"))?.kind).toBe("heading");
-    expect(findBlockAtOffset(source, source.indexOf("\n\n") + 1)).toBeUndefined();
+    expect(findBlockAtOffset(source, source.indexOf("heading"))?.kind).toBe(
+      "heading",
+    );
+    expect(
+      findBlockAtOffset(source, source.indexOf("\n\n") + 1),
+    ).toBeUndefined();
   });
 
   it("returns undefined for an offset past the end of the document", () => {

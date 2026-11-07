@@ -18,7 +18,7 @@ import {
   MAX_ATTACHMENT_SIZE,
   MAX_CAPTURE_ATTACHMENTS_SIZE,
   sanitizeAttachmentFilename,
-  PendingAttachment
+  PendingAttachment,
 } from "./pendingCaptures";
 
 describe("pendingCaptures", () => {
@@ -35,9 +35,9 @@ describe("pendingCaptures", () => {
     const capture = addPendingCapture({
       source: "in-app",
       text: "Test capture content",
-      mode: "new"
+      mode: "new",
     });
-    
+
     expect(capture.id).toBeDefined();
     expect(capture.receivedAt).toBeDefined();
     expect(capture.status).toBe("pending");
@@ -52,12 +52,12 @@ describe("pendingCaptures", () => {
       source: "deep-link",
       text: "Test capture with profile",
       mode: "append",
-      targetProfileId: profileId
+      targetProfileId: profileId,
     });
-    
+
     expect(capture.targetProfileId).toBe(profileId);
     expect(capture.mode).toBe("append");
-    
+
     // Verify it's stored correctly in the store
     const captures = getPendingCaptures();
     expect(captures[0].targetProfileId).toBe(profileId);
@@ -69,7 +69,7 @@ describe("pendingCaptures", () => {
       addPendingCapture({
         source: "in-app",
         text: largeText,
-        mode: "new"
+        mode: "new",
       });
     }).toThrow();
   });
@@ -79,24 +79,32 @@ describe("pendingCaptures", () => {
     const capture = addPendingCapture({
       source: "in-app",
       text: text,
-      mode: "new"
+      mode: "new",
     });
     expect(capture.text).toBe(text);
   });
 
   it("should return all captures", () => {
     addPendingCapture({ source: "in-app", text: "Capture 1", mode: "new" });
-    addPendingCapture({ source: "deep-link", text: "Capture 2", mode: "append" });
-    
+    addPendingCapture({
+      source: "deep-link",
+      text: "Capture 2",
+      mode: "append",
+    });
+
     const captures = getPendingCaptures();
     expect(captures).toHaveLength(2);
   });
 
   it("should remove pending capture", () => {
-    const capture = addPendingCapture({ source: "in-app", text: "Test capture", mode: "append" });
-    
+    const capture = addPendingCapture({
+      source: "in-app",
+      text: "Test capture",
+      mode: "append",
+    });
+
     expect(getPendingCaptures()).toHaveLength(1);
-    
+
     const removed = removePendingCapture(capture.id);
     expect(removed).toBe(true);
     expect(getPendingCaptures()).toHaveLength(0);
@@ -108,11 +116,19 @@ describe("pendingCaptures", () => {
   });
 
   it("should update capture status", () => {
-    const capture = addPendingCapture({ source: "deep-link", text: "Test capture", mode: "append" });
-    
-    const updated = updatePendingCaptureStatus(capture.id, "failed", "Test error");
+    const capture = addPendingCapture({
+      source: "deep-link",
+      text: "Test capture",
+      mode: "append",
+    });
+
+    const updated = updatePendingCaptureStatus(
+      capture.id,
+      "failed",
+      "Test error",
+    );
     expect(updated).toBe(true);
-    
+
     const captures = getPendingCaptures();
     expect(captures[0].status).toBe("failed");
     expect(captures[0].lastError).toBe("Test error");
@@ -120,17 +136,17 @@ describe("pendingCaptures", () => {
 
   it("should return correct capture count", () => {
     expect(getPendingCaptureCount()).toBe(0);
-    
+
     addPendingCapture({ source: "in-app", text: "Capture 1", mode: "new" });
     expect(getPendingCaptureCount()).toBe(1);
-    
+
     addPendingCapture({ source: "in-app", text: "Capture 2", mode: "append" });
     expect(getPendingCaptureCount()).toBe(2);
   });
 
   it("should check if there are pending captures", () => {
     expect(hasPendingCaptures()).toBe(false);
-    
+
     addPendingCapture({ source: "in-app", text: "Capture 1", mode: "new" });
     expect(hasPendingCaptures()).toBe(true);
   });
@@ -141,10 +157,10 @@ describe("pendingCaptures", () => {
       addPendingCapture({
         source: "in-app",
         text: `Capture ${i}`,
-        mode: "new"
+        mode: "new",
       });
     }
-    
+
     // Should not exceed the maximum
     const captures = getPendingCaptures();
     expect(captures.length).toBeLessThanOrEqual(MAX_PENDING_CAPTURES);
@@ -159,17 +175,20 @@ describe("pendingCaptures", () => {
         addPendingCapture({
           source: "in-app",
           text: largeText,
-          mode: "new"
+          mode: "new",
         });
       } catch (error) {
         // If we hit the total text size limit, break early
-        if (error instanceof Error && error.message.includes("Capture text exceeds maximum size")) {
+        if (
+          error instanceof Error &&
+          error.message.includes("Capture text exceeds maximum size")
+        ) {
           break;
         }
         throw error;
       }
     }
-    
+
     const captures = getPendingCaptures();
     const totalTextSize = captures.reduce((sum, c) => sum + c.text.length, 0);
     expect(totalTextSize).toBeLessThanOrEqual(MAX_PENDING_TEXT_SIZE);
@@ -184,9 +203,9 @@ describe("pendingCaptures", () => {
       sourceUrl: "https://example.com",
       targetNote: "Inbox.md",
       targetFolder: "Captures",
-      openAfterCommit: true
+      openAfterCommit: true,
     });
-    
+
     expect(capture.title).toBe("Test Title");
     expect(capture.sourceUrl).toBe("https://example.com");
     expect(capture.targetNote).toBe("Inbox.md");
@@ -195,23 +214,35 @@ describe("pendingCaptures", () => {
   });
 
   it("should handle multiple captures", () => {
-    const capture1 = addPendingCapture({ source: "in-app", text: "First", mode: "new" });
-    const capture2 = addPendingCapture({ source: "deep-link", text: "Second", mode: "append" });
-    
+    const capture1 = addPendingCapture({
+      source: "in-app",
+      text: "First",
+      mode: "new",
+    });
+    const capture2 = addPendingCapture({
+      source: "deep-link",
+      text: "Second",
+      mode: "append",
+    });
+
     const captures = getPendingCaptures();
     expect(captures).toHaveLength(2);
-    expect(captures.some(c => c.id === capture1.id)).toBe(true);
-    expect(captures.some(c => c.id === capture2.id)).toBe(true);
+    expect(captures.some((c) => c.id === capture1.id)).toBe(true);
+    expect(captures.some((c) => c.id === capture2.id)).toBe(true);
   });
 
   // F05-FR-15: Attachment filename sanitization tests
   describe("attachment filename sanitization", () => {
     it("should sanitize filenames with path separators", () => {
-      expect(sanitizeAttachmentFilename("path/to/file.jpg")).toBe("path_to_file.jpg");
+      expect(sanitizeAttachmentFilename("path/to/file.jpg")).toBe(
+        "path_to_file.jpg",
+      );
     });
 
     it("should sanitize filenames with control characters", () => {
-      expect(sanitizeAttachmentFilename("file\x00name.jpg")).toBe("filename.jpg");
+      expect(sanitizeAttachmentFilename("file\x00name.jpg")).toBe(
+        "filename.jpg",
+      );
     });
 
     it("should sanitize Windows reserved names", () => {
@@ -221,7 +252,9 @@ describe("pendingCaptures", () => {
     });
 
     it("should sanitize filenames with special characters", () => {
-      expect(sanitizeAttachmentFilename("file:*?\"<>|name.jpg")).toBe("file_______name.jpg");
+      expect(sanitizeAttachmentFilename('file:*?"<>|name.jpg')).toBe(
+        "file_______name.jpg",
+      );
     });
 
     it("should handle empty filenames", () => {
@@ -256,15 +289,15 @@ describe("pendingCaptures", () => {
           fileName: "photo1.jpg",
           fileSize: 1024, // 1KB
           fingerprint: "1024-abc123",
-          mimeType: "image/jpeg"
-        }
+          mimeType: "image/jpeg",
+        },
       ];
-      
+
       const capture = addPendingCapture({
         source: "android-share",
         text: "Capture with attachment",
         mode: "new",
-        attachments
+        attachments,
       });
 
       expect(capture.attachments).toHaveLength(1);
@@ -310,7 +343,7 @@ describe("pendingCaptures", () => {
           fileName: `photo${i}.jpg`,
           fileSize: 1024,
           fingerprint: `1024-fingerprint${i}`,
-          mimeType: "image/jpeg"
+          mimeType: "image/jpeg",
         });
       }
 
@@ -319,7 +352,7 @@ describe("pendingCaptures", () => {
           source: "android-share",
           text: "Too many attachments",
           mode: "new",
-          attachments: tooManyAttachments
+          attachments: tooManyAttachments,
         });
       }).toThrow();
     });
@@ -332,8 +365,8 @@ describe("pendingCaptures", () => {
           fileName: "huge.jpg",
           fileSize: MAX_ATTACHMENT_SIZE + 1,
           fingerprint: "huge-fingerprint",
-          mimeType: "image/jpeg"
-        }
+          mimeType: "image/jpeg",
+        },
       ];
 
       expect(() => {
@@ -341,7 +374,7 @@ describe("pendingCaptures", () => {
           source: "android-share",
           text: "Oversized attachment",
           mode: "new",
-          attachments: oversizedAttachments
+          attachments: oversizedAttachments,
         });
       }).toThrow();
     });
@@ -354,8 +387,8 @@ describe("pendingCaptures", () => {
           fileName: "large1.jpg",
           fileSize: MAX_CAPTURE_ATTACHMENTS_SIZE,
           fingerprint: "large-fingerprint1",
-          mimeType: "image/jpeg"
-        }
+          mimeType: "image/jpeg",
+        },
       ];
 
       expect(() => {
@@ -363,7 +396,7 @@ describe("pendingCaptures", () => {
           source: "android-share",
           text: "Oversized total",
           mode: "new",
-          attachments: largeAttachments
+          attachments: largeAttachments,
         });
       }).toThrow();
     });
@@ -373,7 +406,7 @@ describe("pendingCaptures", () => {
       const capture = addPendingCapture({
         source: "in-app",
         text: "No attachments",
-        mode: "new"
+        mode: "new",
       });
 
       expect(capture.attachments).toBeUndefined();

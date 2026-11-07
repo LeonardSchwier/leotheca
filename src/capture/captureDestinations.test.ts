@@ -8,18 +8,22 @@ import {
   resolveDatePattern,
   hasDateTokens,
   DATE_TOKENS,
-  isValidDestinationMode
+  isValidDestinationMode,
 } from "./captureDestinations";
 
 describe("validateDatePattern", () => {
   it("accepts valid date tokens", () => {
-    DATE_TOKENS.forEach(token => {
+    DATE_TOKENS.forEach((token) => {
       expect(validateDatePattern(`test/${token}/file.md`)).toBe(true);
     });
   });
 
   it("accepts multiple date tokens in one pattern", () => {
-    expect(validateDatePattern("{{date:YYYY}}/{{date:YYYY-MM}}/{{date:YYYY-MM-DD}}.md")).toBe(true);
+    expect(
+      validateDatePattern(
+        "{{date:YYYY}}/{{date:YYYY-MM}}/{{date:YYYY-MM-DD}}.md",
+      ),
+    ).toBe(true);
   });
 
   it("accepts patterns without date tokens", () => {
@@ -35,7 +39,9 @@ describe("validateDatePattern", () => {
   });
 
   it("rejects mixed valid and invalid tokens", () => {
-    expect(validateDatePattern("{{date:YYYY-MM-DD}}/{{unknown:token}}.md")).toBe(false);
+    expect(
+      validateDatePattern("{{date:YYYY-MM-DD}}/{{unknown:token}}.md"),
+    ).toBe(false);
   });
 });
 
@@ -61,7 +67,10 @@ describe("resolveDatePattern", () => {
 
   it("resolves multiple tokens in one pattern", () => {
     const date = new Date("2026-09-06T12:00:00Z");
-    const result = resolveDatePattern("{{date:YYYY}}/{{date:YYYY-MM}}/{{date:YYYY-MM-DD}}.md", date);
+    const result = resolveDatePattern(
+      "{{date:YYYY}}/{{date:YYYY-MM}}/{{date:YYYY-MM-DD}}.md",
+      date,
+    );
     expect(result.path).toBe("2026/2026-09/2026-09-06.md");
   });
 
@@ -81,15 +90,17 @@ describe("resolveDatePattern", () => {
     const result = resolveDatePattern("Daily/{{date:YYYY-MM-DD}}.md");
     const today = new Date();
     const expectedYear = today.getFullYear();
-    const expectedMonth = String(today.getMonth() + 1).padStart(2, '0');
-    const expectedDay = String(today.getDate()).padStart(2, '0');
-    expect(result.path).toBe(`Daily/${expectedYear}-${expectedMonth}-${expectedDay}.md`);
+    const expectedMonth = String(today.getMonth() + 1).padStart(2, "0");
+    const expectedDay = String(today.getDate()).padStart(2, "0");
+    expect(result.path).toBe(
+      `Daily/${expectedYear}-${expectedMonth}-${expectedDay}.md`,
+    );
   });
 });
 
 describe("hasDateTokens", () => {
   it("returns true for patterns with date tokens", () => {
-    DATE_TOKENS.forEach(token => {
+    DATE_TOKENS.forEach((token) => {
       expect(hasDateTokens(`path/${token}/file.md`)).toBe(true);
     });
   });
@@ -101,7 +112,9 @@ describe("hasDateTokens", () => {
   });
 
   it("returns true for patterns with multiple tokens", () => {
-    expect(hasDateTokens("{{date:YYYY}}/{{date:MM}}/{{date:DD}}.md")).toBe(true);
+    expect(hasDateTokens("{{date:YYYY}}/{{date:MM}}/{{date:DD}}.md")).toBe(
+      true,
+    );
   });
 });
 

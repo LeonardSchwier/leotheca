@@ -17,7 +17,10 @@ import type { WorkspaceSettings } from "../settings/workspaceSettings";
 import { DEFAULT_WORKSPACE_SETTINGS } from "../settings/workspaceSettings";
 
 // Helper to create a basic editor layout state
-function createEditorLayout(tabPaths: string[], activePath: string | null): EditorLayoutState {
+function createEditorLayout(
+  tabPaths: string[],
+  activePath: string | null,
+): EditorLayoutState {
   return {
     activeGroupId: "primary",
     splitEnabled: false,
@@ -37,7 +40,11 @@ function createEditorLayout(tabPaths: string[], activePath: string | null): Edit
 
 function createSplitEditorLayout(
   primaryPinnedPaths: string[],
-  secondary: { tabPaths: string[]; pinnedPaths: string[]; activePath: string | null },
+  secondary: {
+    tabPaths: string[];
+    pinnedPaths: string[];
+    activePath: string | null;
+  },
 ): EditorLayoutState {
   const layout = createEditorLayout(["note1.md"], "note1.md");
   layout.groups.primary.pinnedPaths = primaryPinnedPaths;
@@ -61,30 +68,52 @@ describe("editorLayoutMigrator", () => {
 
   it("should migrate tabPaths correctly", () => {
     const layout = createEditorLayout(["note1.md", "note2.md"], "note1.md");
-    const migrated = editorLayoutMigrator.migrate(layout, "note1.md", "renamed.md");
-    
-    expect(migrated.groups.primary.tabPaths).toEqual(["renamed.md", "note2.md"]);
+    const migrated = editorLayoutMigrator.migrate(
+      layout,
+      "note1.md",
+      "renamed.md",
+    );
+
+    expect(migrated.groups.primary.tabPaths).toEqual([
+      "renamed.md",
+      "note2.md",
+    ]);
     expect(migrated.groups.primary.activePath).toBe("renamed.md");
   });
 
   it("should migrate activePath correctly", () => {
     const layout = createEditorLayout(["note1.md", "note2.md"], "note2.md");
-    const migrated = editorLayoutMigrator.migrate(layout, "note2.md", "renamed.md");
-    
-    expect(migrated.groups.primary.tabPaths).toEqual(["note1.md", "renamed.md"]);
+    const migrated = editorLayoutMigrator.migrate(
+      layout,
+      "note2.md",
+      "renamed.md",
+    );
+
+    expect(migrated.groups.primary.tabPaths).toEqual([
+      "note1.md",
+      "renamed.md",
+    ]);
     expect(migrated.groups.primary.activePath).toBe("renamed.md");
   });
 
   it("should not modify layout when path is not found", () => {
     const layout = createEditorLayout(["note1.md", "note2.md"], "note1.md");
-    const migrated = editorLayoutMigrator.migrate(layout, "nonexistent.md", "renamed.md");
-    
+    const migrated = editorLayoutMigrator.migrate(
+      layout,
+      "nonexistent.md",
+      "renamed.md",
+    );
+
     expect(migrated).toEqual(layout);
   });
 
   it("should handle empty tabPaths", () => {
     const layout = createEditorLayout([], null);
-    const migrated = editorLayoutMigrator.migrate(layout, "note1.md", "renamed.md");
+    const migrated = editorLayoutMigrator.migrate(
+      layout,
+      "note1.md",
+      "renamed.md",
+    );
 
     expect(migrated.groups.primary.tabPaths).toEqual([]);
     expect(migrated.groups.primary.activePath).toBe(null);
@@ -101,9 +130,16 @@ describe("editorLayoutMigrator", () => {
       pinnedPaths: [],
       activePath: null,
     });
-    const migrated = editorLayoutMigrator.migrate(layout, "note1.md", "renamed.md");
+    const migrated = editorLayoutMigrator.migrate(
+      layout,
+      "note1.md",
+      "renamed.md",
+    );
 
-    expect(migrated.groups.primary.pinnedPaths).toEqual(["renamed.md", "other.md"]);
+    expect(migrated.groups.primary.pinnedPaths).toEqual([
+      "renamed.md",
+      "other.md",
+    ]);
   });
 
   it("should migrate the secondary (split-view) group's tabPaths, pinnedPaths, and activePath", () => {
@@ -112,16 +148,27 @@ describe("editorLayoutMigrator", () => {
       pinnedPaths: ["note1.md"],
       activePath: "note1.md",
     });
-    const migrated = editorLayoutMigrator.migrate(layout, "note1.md", "renamed.md");
+    const migrated = editorLayoutMigrator.migrate(
+      layout,
+      "note1.md",
+      "renamed.md",
+    );
 
-    expect(migrated.groups.secondary?.tabPaths).toEqual(["renamed.md", "note2.md"]);
+    expect(migrated.groups.secondary?.tabPaths).toEqual([
+      "renamed.md",
+      "note2.md",
+    ]);
     expect(migrated.groups.secondary?.pinnedPaths).toEqual(["renamed.md"]);
     expect(migrated.groups.secondary?.activePath).toBe("renamed.md");
   });
 
   it("should leave a layout with no secondary group unaffected", () => {
     const layout = createEditorLayout(["note1.md"], "note1.md");
-    const migrated = editorLayoutMigrator.migrate(layout, "note1.md", "renamed.md");
+    const migrated = editorLayoutMigrator.migrate(
+      layout,
+      "note1.md",
+      "renamed.md",
+    );
 
     expect(migrated.groups.secondary).toBeUndefined();
   });
@@ -138,16 +185,39 @@ describe("bookmarksMigrator", () => {
   });
 
   it("should migrate file bookmark paths correctly", () => {
-    const fileBookmark1: Bookmark = { id: "1", kind: "file", label: "Note 1", path: "note1.md" };
-    const fileBookmark2: Bookmark = { id: "2", kind: "file", label: "Note 2", path: "note2.md" };
-    const searchBookmark: Bookmark = { id: "3", kind: "search", label: "Search", query: "test" };
-    const bookmarks: Bookmark[] = [fileBookmark1, fileBookmark2, searchBookmark];
-    const migrated = bookmarksMigrator.migrate(bookmarks, "note1.md", "renamed.md");
-    
+    const fileBookmark1: Bookmark = {
+      id: "1",
+      kind: "file",
+      label: "Note 1",
+      path: "note1.md",
+    };
+    const fileBookmark2: Bookmark = {
+      id: "2",
+      kind: "file",
+      label: "Note 2",
+      path: "note2.md",
+    };
+    const searchBookmark: Bookmark = {
+      id: "3",
+      kind: "search",
+      label: "Search",
+      query: "test",
+    };
+    const bookmarks: Bookmark[] = [
+      fileBookmark1,
+      fileBookmark2,
+      searchBookmark,
+    ];
+    const migrated = bookmarksMigrator.migrate(
+      bookmarks,
+      "note1.md",
+      "renamed.md",
+    );
+
     const migratedFile1 = migrated[0] as Extract<Bookmark, { kind: "file" }>;
     const migratedFile2 = migrated[1] as Extract<Bookmark, { kind: "file" }>;
     const migratedSearch = migrated[2] as Extract<Bookmark, { kind: "search" }>;
-    
+
     expect(migratedFile1.path).toBe("renamed.md");
     expect(migratedFile2.path).toBe("note2.md");
     expect(migratedSearch.query).toBe("test");
@@ -157,15 +227,23 @@ describe("bookmarksMigrator", () => {
     const bookmarks: Bookmark[] = [
       { id: "1", kind: "search", label: "Search", query: "test" },
     ];
-    const migrated = bookmarksMigrator.migrate(bookmarks, "note1.md", "renamed.md");
-    
+    const migrated = bookmarksMigrator.migrate(
+      bookmarks,
+      "note1.md",
+      "renamed.md",
+    );
+
     expect(migrated).toEqual(bookmarks);
   });
 
   it("should handle empty bookmarks array", () => {
     const bookmarks: Bookmark[] = [];
-    const migrated = bookmarksMigrator.migrate(bookmarks, "note1.md", "renamed.md");
-    
+    const migrated = bookmarksMigrator.migrate(
+      bookmarks,
+      "note1.md",
+      "renamed.md",
+    );
+
     expect(migrated).toEqual([]);
   });
 });
@@ -179,8 +257,12 @@ describe("workspaceSettingsMigrator", () => {
 
   it("should return settings unchanged when no path matches", () => {
     const settings = { ...DEFAULT_WORKSPACE_SETTINGS };
-    const migrated = workspaceSettingsMigrator.migrate(settings, "note1.md", "renamed.md");
-    
+    const migrated = workspaceSettingsMigrator.migrate(
+      settings,
+      "note1.md",
+      "renamed.md",
+    );
+
     expect(migrated).toEqual(settings);
   });
 
@@ -189,8 +271,12 @@ describe("workspaceSettingsMigrator", () => {
       ...DEFAULT_WORKSPACE_SETTINGS,
       lastOpenPaths: ["note1.md", "note2.md"],
     };
-    const migrated = workspaceSettingsMigrator.migrate(settings, "note1.md", "renamed.md");
-    
+    const migrated = workspaceSettingsMigrator.migrate(
+      settings,
+      "note1.md",
+      "renamed.md",
+    );
+
     expect(migrated.lastOpenPaths).toEqual(["renamed.md", "note2.md"]);
     expect(migrated.lastActivePath).toBe(null);
   });
@@ -201,8 +287,12 @@ describe("workspaceSettingsMigrator", () => {
       lastOpenPaths: [],
       lastActivePath: "note1.md",
     };
-    const migrated = workspaceSettingsMigrator.migrate(settings, "note1.md", "renamed.md");
-    
+    const migrated = workspaceSettingsMigrator.migrate(
+      settings,
+      "note1.md",
+      "renamed.md",
+    );
+
     expect(migrated.lastOpenPaths).toEqual([]);
     expect(migrated.lastActivePath).toBe("renamed.md");
   });
@@ -213,9 +303,15 @@ describe("workspaceSettingsMigrator", () => {
       ...DEFAULT_WORKSPACE_SETTINGS,
       editorLayout: layout,
     };
-    const migrated = workspaceSettingsMigrator.migrate(settings, "note1.md", "renamed.md");
-    
-    expect(migrated.editorLayout?.groups.primary.tabPaths[0]).toBe("renamed.md");
+    const migrated = workspaceSettingsMigrator.migrate(
+      settings,
+      "note1.md",
+      "renamed.md",
+    );
+
+    expect(migrated.editorLayout?.groups.primary.tabPaths[0]).toBe(
+      "renamed.md",
+    );
     expect(migrated.editorLayout?.groups.primary.activePath).toBe("renamed.md");
   });
 });
@@ -224,7 +320,7 @@ describe("findMigrator", () => {
   it("should find the correct migrator for editor layout", () => {
     const layout = createEditorLayout(["note1.md"], "note1.md");
     const migrator = findMigrator(layout);
-    
+
     expect(migrator).toBeDefined();
     expect(migrator?.id).toBe("editor-layout");
   });
@@ -234,7 +330,7 @@ describe("findMigrator", () => {
       { id: "1", kind: "file", label: "Note 1", path: "note1.md" },
     ];
     const migrator = findMigrator(bookmarks);
-    
+
     expect(migrator).toBeDefined();
     expect(migrator?.id).toBe("bookmarks");
   });
@@ -242,7 +338,7 @@ describe("findMigrator", () => {
   it("should find the correct migrator for workspace settings", () => {
     const settings = DEFAULT_WORKSPACE_SETTINGS;
     const migrator = findMigrator(settings);
-    
+
     expect(migrator).toBeDefined();
     expect(migrator?.id).toBe("workspace-settings");
   });
@@ -250,7 +346,7 @@ describe("findMigrator", () => {
   it("should return undefined for unknown metadata", () => {
     const unknown = { custom: "object" };
     const migrator = findMigrator(unknown);
-    
+
     expect(migrator).toBeUndefined();
   });
 });
@@ -258,17 +354,30 @@ describe("findMigrator", () => {
 describe("migrateMetadata", () => {
   it("should migrate editor layout through unknown type", () => {
     const layout = createEditorLayout(["note1.md"], "note1.md");
-    const migrated = migrateMetadata(layout, "note1.md", "renamed.md") as EditorLayoutState;
-    
+    const migrated = migrateMetadata(
+      layout,
+      "note1.md",
+      "renamed.md",
+    ) as EditorLayoutState;
+
     expect(migrated.groups.primary.tabPaths).toEqual(["renamed.md"]);
     expect(migrated.groups.primary.activePath).toBe("renamed.md");
   });
 
   it("should migrate bookmark arrays through unknown type", () => {
-    const fileBookmark: Bookmark = { id: "1", kind: "file", label: "Note 1", path: "note1.md" };
+    const fileBookmark: Bookmark = {
+      id: "1",
+      kind: "file",
+      label: "Note 1",
+      path: "note1.md",
+    };
     const bookmarks: Bookmark[] = [fileBookmark];
-    const migrated = migrateMetadata(bookmarks, "note1.md", "renamed.md") as Bookmark[];
-    
+    const migrated = migrateMetadata(
+      bookmarks,
+      "note1.md",
+      "renamed.md",
+    ) as Bookmark[];
+
     const migratedFile = migrated[0] as Extract<Bookmark, { kind: "file" }>;
     expect(migratedFile.path).toBe("renamed.md");
   });
@@ -277,9 +386,13 @@ describe("migrateMetadata", () => {
     const layout1 = createEditorLayout(["note1.md"], "note1.md");
     const layout2 = createEditorLayout(["note1.md"], "note1.md");
     const metadataArray = [layout1, layout2];
-    
-    const migrated = migrateMetadata(metadataArray, "note1.md", "renamed.md") as EditorLayoutState[];
-    
+
+    const migrated = migrateMetadata(
+      metadataArray,
+      "note1.md",
+      "renamed.md",
+    ) as EditorLayoutState[];
+
     expect(migrated[0].groups.primary.tabPaths[0]).toBe("renamed.md");
     expect(migrated[1].groups.primary.tabPaths[0]).toBe("renamed.md");
   });
@@ -287,7 +400,7 @@ describe("migrateMetadata", () => {
   it("should return unchanged data for unknown metadata", () => {
     const unknown = { custom: "object", path: "note1.md" };
     const migrated = migrateMetadata(unknown, "note1.md", "renamed.md");
-    
+
     expect(migrated).toEqual(unknown);
   });
 });
@@ -295,15 +408,29 @@ describe("migrateMetadata", () => {
 describe("createMetadataMigrationPlan", () => {
   it("should create a complete migration plan", () => {
     const layout = createEditorLayout(["note1.md"], "note1.md");
-    const fileBookmark: Bookmark = { id: "1", kind: "file", label: "Note 1", path: "note1.md" };
+    const fileBookmark: Bookmark = {
+      id: "1",
+      kind: "file",
+      label: "Note 1",
+      path: "note1.md",
+    };
     const bookmarks: Bookmark[] = [fileBookmark];
     const settings = DEFAULT_WORKSPACE_SETTINGS;
-    
-    const plan = createMetadataMigrationPlan(layout, bookmarks, settings, "note1.md", "renamed.md");
-    
+
+    const plan = createMetadataMigrationPlan(
+      layout,
+      bookmarks,
+      settings,
+      "note1.md",
+      "renamed.md",
+    );
+
     // Check that the plan contains migrated metadata
     expect(plan.editorLayout.groups.primary.tabPaths[0]).toBe("renamed.md");
-    const migratedBookmark = plan.bookmarks[0] as Extract<Bookmark, { kind: "file" }>;
+    const migratedBookmark = plan.bookmarks[0] as Extract<
+      Bookmark,
+      { kind: "file" }
+    >;
     expect(migratedBookmark.path).toBe("renamed.md");
     expect(plan.workspaceSettings).toEqual(settings);
   });

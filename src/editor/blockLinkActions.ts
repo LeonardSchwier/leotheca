@@ -1,4 +1,8 @@
-import { findBlockAtOffset, scanBlockIds, type ScannedBlock } from "../markdown/blocks";
+import {
+  findBlockAtOffset,
+  scanBlockIds,
+  type ScannedBlock,
+} from "../markdown/blocks";
 import { serializeWikiLink } from "../linking/wikiSyntax";
 
 /**
@@ -85,7 +89,10 @@ export function uniqueBlockId(existingKeys: ReadonlySet<string>): string {
  * wikiSyntax.ts's `serializeWikiLink`, F04's one allowed creator of
  * `[[...]]` link text (spec section 2), never by string concatenation. */
 export function blockLinkText(id: string): string {
-  return serializeWikiLink({ noteTarget: "", fragment: { kind: "block", value: id } });
+  return serializeWikiLink({
+    noteTarget: "",
+    fragment: { kind: "block", value: id },
+  });
 }
 
 /** What to insert into the document, and where, to give `block` (which
@@ -119,13 +126,19 @@ export interface BlockLinkResolution {
  * is itself ambiguous (see the module doc comment's second disclosed
  * narrowing above).
  */
-export function resolveBlockLinkAtCursor(content: string, cursorOffset: number): BlockLinkResolution | undefined {
+export function resolveBlockLinkAtCursor(
+  content: string,
+  cursorOffset: number,
+): BlockLinkResolution | undefined {
   const block = findBlockAtOffset(content, cursorOffset);
   if (!block) return undefined;
 
   const keyOccurrences = new Map<string, number>();
   for (const existing of scanBlockIds(content)) {
-    keyOccurrences.set(existing.key, (keyOccurrences.get(existing.key) ?? 0) + 1);
+    keyOccurrences.set(
+      existing.key,
+      (keyOccurrences.get(existing.key) ?? 0) + 1,
+    );
   }
 
   if (block.marker) {

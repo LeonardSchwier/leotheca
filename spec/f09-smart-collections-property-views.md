@@ -156,14 +156,14 @@ A `not` node is not included in the first release. Equivalent common cases are c
 
 System fields:
 
-| Field | Type | Notes |
-|---|---|---|
-| Note name | String | Filename without `.md` |
-| Path | String or path | Normalized workspace-relative path |
-| Folder | Path | Parent folder |
-| Tag | String list | Frontmatter and supported inline tags from shared index |
-| Modified | Date-time | Filesystem modification time when available |
-| Has frontmatter | Boolean | Whether supported frontmatter exists |
+| Field           | Type           | Notes                                                   |
+| --------------- | -------------- | ------------------------------------------------------- |
+| Note name       | String         | Filename without `.md`                                  |
+| Path            | String or path | Normalized workspace-relative path                      |
+| Folder          | Path           | Parent folder                                           |
+| Tag             | String list    | Frontmatter and supported inline tags from shared index |
+| Modified        | Date-time      | Filesystem modification time when available             |
+| Has frontmatter | Boolean        | Whether supported frontmatter exists                    |
 
 Property field:
 
@@ -554,7 +554,14 @@ interface IndexedProperty {
   key: string;
   normalizedKey: string;
   exists: true;
-  type: "string" | "number" | "boolean" | "date" | "datetime" | "list" | "unsupported";
+  type:
+    | "string"
+    | "number"
+    | "boolean"
+    | "date"
+    | "datetime"
+    | "list"
+    | "unsupported";
   value?: string | number | boolean | string[];
   rawValue: string;
   editable: boolean;
@@ -831,16 +838,16 @@ The query engine is pure and operates on metadata records. UI components do not 
 
 ## 23. Risks and mitigations
 
-| Risk | Impact | Mitigation |
-|---|---|---|
-| Type inference surprises users | Incorrect results | Quoted strings remain strings, mixed-type warnings, explicit typed clause selection |
-| Query engine becomes unsafe or complex | Security and maintenance risk | Typed AST, allowlisted operators, no scripts, regex, or SQL |
-| Inline editing damages frontmatter | Data loss | Reuse lossless parser, exact ranges, conflicts, unsupported values read-only |
-| Collection file corruption loses views | Lost UI metadata | Runtime decoding, valid-sibling preservation, last-known-good backup, no silent reset |
-| Result view loads note bodies | Memory and privacy cost | Metadata-only results and lazy note opening |
-| Path move silently broadens query | Incorrect membership | F03 typed adapter and previewed clause migration |
-| Large collections lag | Poor UX | Shared index, optional postings, debounce, stable selectors, virtualization |
-| Property edit removes focused row | Accessibility issue | Durable-save gate and defined focus movement |
+| Risk                                   | Impact                        | Mitigation                                                                            |
+| -------------------------------------- | ----------------------------- | ------------------------------------------------------------------------------------- |
+| Type inference surprises users         | Incorrect results             | Quoted strings remain strings, mixed-type warnings, explicit typed clause selection   |
+| Query engine becomes unsafe or complex | Security and maintenance risk | Typed AST, allowlisted operators, no scripts, regex, or SQL                           |
+| Inline editing damages frontmatter     | Data loss                     | Reuse lossless parser, exact ranges, conflicts, unsupported values read-only          |
+| Collection file corruption loses views | Lost UI metadata              | Runtime decoding, valid-sibling preservation, last-known-good backup, no silent reset |
+| Result view loads note bodies          | Memory and privacy cost       | Metadata-only results and lazy note opening                                           |
+| Path move silently broadens query      | Incorrect membership          | F03 typed adapter and previewed clause migration                                      |
+| Large collections lag                  | Poor UX                       | Shared index, optional postings, debounce, stable selectors, virtualization           |
+| Property edit removes focused row      | Accessibility issue           | Durable-save gate and defined focus movement                                          |
 
 ## 24. Documentation changes
 

@@ -89,7 +89,9 @@ function detectLineEnding(document: string): string {
  *
  * @throws {Error} When no matching heading is found.
  */
-export function insertUnderHeading(options: InsertHeadingOptions): InsertHeadingResult {
+export function insertUnderHeading(
+  options: InsertHeadingOptions,
+): InsertHeadingResult {
   const {
     document,
     heading,

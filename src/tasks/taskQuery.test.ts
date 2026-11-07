@@ -11,7 +11,9 @@ import {
   type TaskHubQuery,
 } from "./taskQuery";
 
-function tasksByPathOf(entries: Array<[string, string]>): Map<string, ReturnType<typeof scanTasks>> {
+function tasksByPathOf(
+  entries: Array<[string, string]>,
+): Map<string, ReturnType<typeof scanTasks>> {
   return new Map(entries.map(([path, content]) => [path, scanTasks(content)]));
 }
 
@@ -35,7 +37,9 @@ describe("flattenTasks", () => {
   });
 
   it("derives a note title from the file name without its extension", () => {
-    const entries = flattenTasks(tasksByPathOf([["/vault/sub/My Note.md", "- [ ] X\n"]]));
+    const entries = flattenTasks(
+      tasksByPathOf([["/vault/sub/My Note.md", "- [ ] X\n"]]),
+    );
     expect(entries[0].noteTitle).toBe("My Note");
   });
 });
@@ -55,16 +59,25 @@ describe("totalTaskCount", () => {
 });
 
 describe("matchesTaskQuery: status", () => {
-  const tasksByPath = tasksByPathOf([["/vault/a.md", "- [ ] Open\n- [x] Done\n"]]);
+  const tasksByPath = tasksByPathOf([
+    ["/vault/a.md", "- [ ] Open\n- [x] Done\n"],
+  ]);
   const [openEntry, doneEntry] = flattenTasks(tasksByPath);
 
   it("defaults to open only", () => {
-    expect(matchesTaskQuery(openEntry, DEFAULT_TASK_HUB_QUERY, new Map())).toBe(true);
-    expect(matchesTaskQuery(doneEntry, DEFAULT_TASK_HUB_QUERY, new Map())).toBe(false);
+    expect(matchesTaskQuery(openEntry, DEFAULT_TASK_HUB_QUERY, new Map())).toBe(
+      true,
+    );
+    expect(matchesTaskQuery(doneEntry, DEFAULT_TASK_HUB_QUERY, new Map())).toBe(
+      false,
+    );
   });
 
   it("completed shows only checked tasks", () => {
-    const query: TaskHubQuery = { ...DEFAULT_TASK_HUB_QUERY, status: "completed" };
+    const query: TaskHubQuery = {
+      ...DEFAULT_TASK_HUB_QUERY,
+      status: "completed",
+    };
     expect(matchesTaskQuery(openEntry, query, new Map())).toBe(false);
     expect(matchesTaskQuery(doneEntry, query, new Map())).toBe(true);
   });
@@ -85,8 +98,14 @@ describe("matchesTaskQuery: path prefixes", () => {
   const entries = flattenTasks(tasksByPath);
 
   it("matches a note under the given prefix, not a note that merely starts with the same text", () => {
-    const query: TaskHubQuery = { ...DEFAULT_TASK_HUB_QUERY, status: "all", pathPrefixes: ["/vault/projects"] };
-    const matched = entries.filter((e) => matchesTaskQuery(e, query, new Map()));
+    const query: TaskHubQuery = {
+      ...DEFAULT_TASK_HUB_QUERY,
+      status: "all",
+      pathPrefixes: ["/vault/projects"],
+    };
+    const matched = entries.filter((e) =>
+      matchesTaskQuery(e, query, new Map()),
+    );
     expect(matched.map((e) => e.path)).toEqual(["/vault/projects/a.md"]);
   });
 
@@ -96,13 +115,20 @@ describe("matchesTaskQuery: path prefixes", () => {
       status: "all",
       pathPrefixes: ["/vault/projects", "/vault/journal.md"],
     };
-    const matched = entries.filter((e) => matchesTaskQuery(e, query, new Map()));
-    expect(matched.map((e) => e.path).sort()).toEqual(["/vault/journal.md", "/vault/projects/a.md"]);
+    const matched = entries.filter((e) =>
+      matchesTaskQuery(e, query, new Map()),
+    );
+    expect(matched.map((e) => e.path).sort()).toEqual([
+      "/vault/journal.md",
+      "/vault/projects/a.md",
+    ]);
   });
 
   it("empty prefixes means no restriction", () => {
     const query: TaskHubQuery = { ...DEFAULT_TASK_HUB_QUERY, status: "all" };
-    expect(entries.every((e) => matchesTaskQuery(e, query, new Map()))).toBe(true);
+    expect(entries.every((e) => matchesTaskQuery(e, query, new Map()))).toBe(
+      true,
+    );
   });
 });
 
@@ -119,39 +145,72 @@ describe("matchesTaskQuery: tags (AND across the selected set)", () => {
   const entries = flattenTasks(tasksByPath);
 
   it("requires every listed tag on the note", () => {
-    const query: TaskHubQuery = { ...DEFAULT_TASK_HUB_QUERY, status: "all", tags: ["work", "urgent"] };
-    const matched = entries.filter((e) => matchesTaskQuery(e, query, tagsByPath));
+    const query: TaskHubQuery = {
+      ...DEFAULT_TASK_HUB_QUERY,
+      status: "all",
+      tags: ["work", "urgent"],
+    };
+    const matched = entries.filter((e) =>
+      matchesTaskQuery(e, query, tagsByPath),
+    );
     expect(matched.map((e) => e.path)).toEqual(["/vault/a.md"]);
   });
 
   it("is case-insensitive", () => {
-    const query: TaskHubQuery = { ...DEFAULT_TASK_HUB_QUERY, status: "all", tags: ["WORK"] };
-    const matched = entries.filter((e) => matchesTaskQuery(e, query, tagsByPath));
-    expect(matched.map((e) => e.path).sort()).toEqual(["/vault/a.md", "/vault/b.md"]);
+    const query: TaskHubQuery = {
+      ...DEFAULT_TASK_HUB_QUERY,
+      status: "all",
+      tags: ["WORK"],
+    };
+    const matched = entries.filter((e) =>
+      matchesTaskQuery(e, query, tagsByPath),
+    );
+    expect(matched.map((e) => e.path).sort()).toEqual([
+      "/vault/a.md",
+      "/vault/b.md",
+    ]);
   });
 });
 
 describe("matchesTaskQuery: text", () => {
-  const tasksByPath = tasksByPathOf([["/vault/sub/Meeting Notes.md", "- [ ] Call the dentist\n"]]);
+  const tasksByPath = tasksByPathOf([
+    ["/vault/sub/Meeting Notes.md", "- [ ] Call the dentist\n"],
+  ]);
   const entries = flattenTasks(tasksByPath);
 
   it("matches task text case-insensitively", () => {
-    const query: TaskHubQuery = { ...DEFAULT_TASK_HUB_QUERY, status: "all", text: "DENTIST" };
+    const query: TaskHubQuery = {
+      ...DEFAULT_TASK_HUB_QUERY,
+      status: "all",
+      text: "DENTIST",
+    };
     expect(matchesTaskQuery(entries[0], query, new Map())).toBe(true);
   });
 
   it("matches note title", () => {
-    const query: TaskHubQuery = { ...DEFAULT_TASK_HUB_QUERY, status: "all", text: "meeting" };
+    const query: TaskHubQuery = {
+      ...DEFAULT_TASK_HUB_QUERY,
+      status: "all",
+      text: "meeting",
+    };
     expect(matchesTaskQuery(entries[0], query, new Map())).toBe(true);
   });
 
   it("matches path", () => {
-    const query: TaskHubQuery = { ...DEFAULT_TASK_HUB_QUERY, status: "all", text: "/sub/" };
+    const query: TaskHubQuery = {
+      ...DEFAULT_TASK_HUB_QUERY,
+      status: "all",
+      text: "/sub/",
+    };
     expect(matchesTaskQuery(entries[0], query, new Map())).toBe(true);
   });
 
   it("excludes a non-matching term", () => {
-    const query: TaskHubQuery = { ...DEFAULT_TASK_HUB_QUERY, status: "all", text: "grocery" };
+    const query: TaskHubQuery = {
+      ...DEFAULT_TASK_HUB_QUERY,
+      status: "all",
+      text: "grocery",
+    };
     expect(matchesTaskQuery(entries[0], query, new Map())).toBe(false);
   });
 });
@@ -169,7 +228,10 @@ describe("sortTaskEntries", () => {
 
   it("text order sorts case-insensitively by task text", () => {
     const sorted = sortTaskEntries(entries, "text");
-    expect(sorted.map((e) => e.task.text)).toEqual(["Apple task", "Zebra task"]);
+    expect(sorted.map((e) => e.task.text)).toEqual([
+      "Apple task",
+      "Zebra task",
+    ]);
   });
 
   it("text order breaks ties by path and source order", () => {
@@ -203,8 +265,13 @@ describe("groupTaskEntries", () => {
 
   it("groupBy note produces one group per note, sorted by path", () => {
     const groups = groupTaskEntries(entries, "note");
-    expect(groups.map((g) => g.key)).toEqual(["/vault/journal.md", "/vault/projects/a.md"]);
-    expect(groups.find((g) => g.key === "/vault/projects/a.md")?.entries).toHaveLength(2);
+    expect(groups.map((g) => g.key)).toEqual([
+      "/vault/journal.md",
+      "/vault/projects/a.md",
+    ]);
+    expect(
+      groups.find((g) => g.key === "/vault/projects/a.md")?.entries,
+    ).toHaveLength(2);
   });
 
   it("groupBy folder groups notes in the same folder together", () => {
@@ -218,7 +285,10 @@ describe("groupTaskEntries", () => {
   it("preserves incoming order within each group", () => {
     const groups = groupTaskEntries(entries, "note");
     const projectsGroup = groups.find((g) => g.key === "/vault/projects/a.md");
-    expect(projectsGroup?.entries.map((e) => e.task.text)).toEqual(["A1", "A2"]);
+    expect(projectsGroup?.entries.map((e) => e.task.text)).toEqual([
+      "A1",
+      "A2",
+    ]);
   });
 });
 
@@ -228,7 +298,12 @@ describe("queryTasks (full pipeline)", () => {
       ["/vault/b.md", "- [ ] Zebra\n- [x] Done in b\n"],
       ["/vault/a.md", "- [ ] Apple\n"],
     ]);
-    const query: TaskHubQuery = { ...DEFAULT_TASK_HUB_QUERY, status: "open", sortBy: "text", groupBy: "note" };
+    const query: TaskHubQuery = {
+      ...DEFAULT_TASK_HUB_QUERY,
+      status: "open",
+      sortBy: "text",
+      groupBy: "note",
+    };
     const groups = queryTasks(tasksByPath, new Map(), query);
 
     // Completed task in b.md is excluded by the open-status filter.

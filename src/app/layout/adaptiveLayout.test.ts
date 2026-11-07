@@ -19,7 +19,9 @@ describe("classifyLayout", () => {
     expect(classifyLayout(LAYOUT_BREAKPOINTS.wideMin)).toBe("wide");
     expect(classifyLayout(LAYOUT_BREAKPOINTS.expandedMin - 1)).toBe("wide");
     expect(classifyLayout(LAYOUT_BREAKPOINTS.expandedMin)).toBe("expanded");
-    expect(classifyLayout(LAYOUT_BREAKPOINTS.expandedMin + 1000)).toBe("expanded");
+    expect(classifyLayout(LAYOUT_BREAKPOINTS.expandedMin + 1000)).toBe(
+      "expanded",
+    );
   });
 });
 

@@ -32,7 +32,8 @@ describe("headingInsertCommit", () => {
 
     expect(mockReadTextFile).toHaveBeenCalledWith("/ws/notes/Todo.md");
     expect(mockWriteWorkspaceTextFile).toHaveBeenCalled();
-    const callArgs = (mockWriteWorkspaceTextFile as unknown as Mock).mock.calls[0];
+    const callArgs = (mockWriteWorkspaceTextFile as unknown as Mock).mock
+      .calls[0];
     expect(callArgs[0]).toBe("/ws");
     expect(callArgs[1]).toBe("notes/Todo.md");
     expect(callArgs[2]).toContain("New line");
@@ -102,7 +103,10 @@ describe("headingInsertCommit", () => {
       content: "New",
     });
 
-    expect(mockWriteTextFile).toHaveBeenCalledWith("/n.md", expect.stringContaining("New"));
+    expect(mockWriteTextFile).toHaveBeenCalledWith(
+      "/n.md",
+      expect.stringContaining("New"),
+    );
   });
 
   it("supports prepend position end-to-end", async () => {
@@ -126,7 +130,8 @@ describe("headingInsertCommit", () => {
       workspaceRoot: "/ws",
     });
 
-    const written = (mockWriteWorkspaceTextFile as unknown as Mock).mock.calls[0][2];
+    const written = (mockWriteWorkspaceTextFile as unknown as Mock).mock
+      .calls[0][2];
     const lines = written.split("\n");
     const newIdx = lines.indexOf("New line");
     const oldIdx = lines.indexOf("Old line");

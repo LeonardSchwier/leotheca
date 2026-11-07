@@ -6,7 +6,7 @@ export interface SpeechRecognitionOptions {
   /** Language code for speech recognition (e.g., 'en', 'es', 'fr') */
   language?: string;
   /** Model size to use (tiny, base, small, medium) - affects accuracy and performance */
-  modelSize?: 'tiny' | 'base' | 'small' | 'medium';
+  modelSize?: "tiny" | "base" | "small" | "medium";
 }
 
 export interface SpeechRecognitionResult {
@@ -20,19 +20,21 @@ export interface SpeechRecognitionResult {
 
 export interface SpeechRecognitionError {
   /** Error code */
-  code: 'permission_denied' | 'no_microphone' | 'not_supported' | 'model_load_failed' | 'recognition_failed' | 'unknown';
+  code:
+    | "permission_denied"
+    | "no_microphone"
+    | "not_supported"
+    | "model_load_failed"
+    | "recognition_failed"
+    | "unknown";
   /** Human-readable error message */
   message: string;
   /** Whether this error is fatal (requires user action) */
   isFatal: boolean;
 }
 
-export type SpeechRecognitionState = 
-  | 'idle'
-  | 'starting'
-  | 'recording'
-  | 'transcribing'
-  | 'error';
+export type SpeechRecognitionState =
+  "idle" | "starting" | "recording" | "transcribing" | "error";
 
 export interface SpeechOptions {
   models: unknown[];

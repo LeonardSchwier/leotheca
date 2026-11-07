@@ -78,65 +78,75 @@ export function TabBar({
       {tabs.map((tab) => {
         const pinned = pinnedPaths.includes(tab.path);
         return (
-        <div
-          key={tab.path}
-          class={`tab ${tab.path === activePath ? "tab-active" : ""} ${draggingPath === tab.path ? "tab-dragging" : ""}`}
-          onClick={() => onSelect(tab.path)}
-          onContextMenu={(e) => {
-            e.preventDefault();
-            setMenu({ x: e.clientX, y: e.clientY, path: tab.path });
-          }}
-          draggable={!!onReorder}
-          onDragStart={
-            onReorder
-              ? (e) => {
-                  e.dataTransfer?.setData("text/plain", tab.path);
-                  if (e.dataTransfer) e.dataTransfer.effectAllowed = "move";
-                  setDraggingPath(tab.path);
-                }
-              : undefined
-          }
-          onDragEnd={onReorder ? () => setDraggingPath(null) : undefined}
-          onDragOver={
-            onReorder
-              ? (e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                }
-              : undefined
-          }
-          onDrop={
-            onReorder
-              ? (e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  const dragged = e.dataTransfer?.getData("text/plain");
-                  if (dragged && dragged !== tab.path) onReorder(dragged, tab.path);
-                  setDraggingPath(null);
-                }
-              : undefined
-          }
-        >
-          <span class="tab-name">
-            {tab.name}
-            {tab.dirty ? " •" : ""}
-          </span>
-          {pinned && <span class="tab-pin" aria-label={`${tab.name} is pinned`}>Pinned</span>}
-          {!pinned && <button
-            class="tab-close"
-            onClick={(e) => {
-              e.stopPropagation();
-              onClose(tab.path);
+          <div
+            key={tab.path}
+            class={`tab ${tab.path === activePath ? "tab-active" : ""} ${draggingPath === tab.path ? "tab-dragging" : ""}`}
+            onClick={() => onSelect(tab.path)}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              setMenu({ x: e.clientX, y: e.clientY, path: tab.path });
             }}
-            aria-label={`Close ${tab.name}`}
+            draggable={!!onReorder}
+            onDragStart={
+              onReorder
+                ? (e) => {
+                    e.dataTransfer?.setData("text/plain", tab.path);
+                    if (e.dataTransfer) e.dataTransfer.effectAllowed = "move";
+                    setDraggingPath(tab.path);
+                  }
+                : undefined
+            }
+            onDragEnd={onReorder ? () => setDraggingPath(null) : undefined}
+            onDragOver={
+              onReorder
+                ? (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }
+                : undefined
+            }
+            onDrop={
+              onReorder
+                ? (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const dragged = e.dataTransfer?.getData("text/plain");
+                    if (dragged && dragged !== tab.path)
+                      onReorder(dragged, tab.path);
+                    setDraggingPath(null);
+                  }
+                : undefined
+            }
           >
-            x
-          </button>}
-        </div>
-      );
+            <span class="tab-name">
+              {tab.name}
+              {tab.dirty ? " •" : ""}
+            </span>
+            {pinned && (
+              <span class="tab-pin" aria-label={`${tab.name} is pinned`}>
+                Pinned
+              </span>
+            )}
+            {!pinned && (
+              <button
+                class="tab-close"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onClose(tab.path);
+                }}
+                aria-label={`Close ${tab.name}`}
+              >
+                x
+              </button>
+            )}
+          </div>
+        );
       })}
       {menu && (
-        <div class="context-menu" style={{ left: `${menu.x}px`, top: `${menu.y}px` }}>
+        <div
+          class="context-menu"
+          style={{ left: `${menu.x}px`, top: `${menu.y}px` }}
+        >
           <button
             onClick={() => {
               const tab = tabs.find((t) => t.path === menu.path);
@@ -150,7 +160,9 @@ export function TabBar({
           {pinnedPaths.includes(menu.path) ? (
             <>
               <button onClick={() => onUnpin(menu.path)}>Unpin</button>
-              <button onClick={() => onUnpinAndClose(menu.path)}>Unpin and close</button>
+              <button onClick={() => onUnpinAndClose(menu.path)}>
+                Unpin and close
+              </button>
             </>
           ) : (
             <>
@@ -160,7 +172,12 @@ export function TabBar({
           )}
           <button
             onClick={() => onCloseOthers(menu.path)}
-            disabled={!tabs.some((tab) => tab.path !== menu.path && !pinnedPaths.includes(tab.path))}
+            disabled={
+              !tabs.some(
+                (tab) =>
+                  tab.path !== menu.path && !pinnedPaths.includes(tab.path),
+              )
+            }
           >
             Close Others
           </button>

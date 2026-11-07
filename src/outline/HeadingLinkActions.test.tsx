@@ -30,11 +30,18 @@ describe("HeadingLinkActions: a rejected clipboard write on Copy link", () => {
     const unhandled = vi.fn();
     window.addEventListener("unhandledrejection", unhandled);
     const { getByRole } = render(
-      <HeadingLinkActions heading={heading} noteTitle="My Note" duplicate={false} canInsertLink={true} />,
+      <HeadingLinkActions
+        heading={heading}
+        noteTitle="My Note"
+        duplicate={false}
+        canInsertLink={true}
+      />,
     );
 
     await act(async () => {
-      fireEvent.click(getByRole("button", { name: "Copy link to Section one" }));
+      fireEvent.click(
+        getByRole("button", { name: "Copy link to Section one" }),
+      );
       await Promise.resolve();
       await Promise.resolve();
       await Promise.resolve();
@@ -42,38 +49,60 @@ describe("HeadingLinkActions: a rejected clipboard write on Copy link", () => {
 
     window.removeEventListener("unhandledrejection", unhandled);
     expect(unhandled).not.toHaveBeenCalled();
-    expect(outlineAnnouncement.value?.message).toBe("Couldn't copy link to Section one.");
+    expect(outlineAnnouncement.value?.message).toBe(
+      "Couldn't copy link to Section one.",
+    );
   });
 
-  it("leaves the button reading \"Copy link\", never a stuck \"Copied\"", async () => {
+  it('leaves the button reading "Copy link", never a stuck "Copied"', async () => {
     setRejectingClipboard(new Error("clipboard write denied"));
     const { getByRole } = render(
-      <HeadingLinkActions heading={heading} noteTitle="My Note" duplicate={false} canInsertLink={true} />,
+      <HeadingLinkActions
+        heading={heading}
+        noteTitle="My Note"
+        duplicate={false}
+        canInsertLink={true}
+      />,
     );
 
     await act(async () => {
-      fireEvent.click(getByRole("button", { name: "Copy link to Section one" }));
+      fireEvent.click(
+        getByRole("button", { name: "Copy link to Section one" }),
+      );
       await Promise.resolve();
       await Promise.resolve();
       await Promise.resolve();
     });
 
-    expect(getByRole("button", { name: "Copy link to Section one" }).textContent).toBe("Copy link");
+    expect(
+      getByRole("button", { name: "Copy link to Section one" }).textContent,
+    ).toBe("Copy link");
   });
 
-  it("still announces success once and shows \"Copied\" when the clipboard write succeeds", async () => {
+  it('still announces success once and shows "Copied" when the clipboard write succeeds', async () => {
     setResolvingClipboard();
     const { getByRole } = render(
-      <HeadingLinkActions heading={heading} noteTitle="My Note" duplicate={false} canInsertLink={true} />,
+      <HeadingLinkActions
+        heading={heading}
+        noteTitle="My Note"
+        duplicate={false}
+        canInsertLink={true}
+      />,
     );
 
     await act(async () => {
-      fireEvent.click(getByRole("button", { name: "Copy link to Section one" }));
+      fireEvent.click(
+        getByRole("button", { name: "Copy link to Section one" }),
+      );
       await Promise.resolve();
       await Promise.resolve();
     });
 
-    expect(getByRole("button", { name: "Copy link to Section one" }).textContent).toBe("Copied");
-    expect(outlineAnnouncement.value?.message).toBe("Copied link to Section one.");
+    expect(
+      getByRole("button", { name: "Copy link to Section one" }).textContent,
+    ).toBe("Copied");
+    expect(outlineAnnouncement.value?.message).toBe(
+      "Copied link to Section one.",
+    );
   });
 });

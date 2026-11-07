@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import type { JSX } from "preact";
 import type { PageViewport, PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist";
-import { pdfjsLib, PDFJS_CMAP_URL, PDFJS_ICC_URL, PDFJS_STANDARD_FONT_DATA_URL, PDFJS_WASM_URL } from "./pdfWorker";
+import {
+  pdfjsLib,
+  PDFJS_CMAP_URL,
+  PDFJS_ICC_URL,
+  PDFJS_STANDARD_FONT_DATA_URL,
+  PDFJS_WASM_URL,
+} from "./pdfWorker";
 import "./pdfViewer.css";
 import {
   applyAnnotationsToPdf,
@@ -35,7 +41,10 @@ import type {
   ShapeSubtype,
   ViewportRect,
 } from "./pdfAnnotations";
-import { readBinaryFile, writeActiveWorkspaceBinaryFile } from "../workspace/tauriBridge";
+import {
+  readBinaryFile,
+  writeActiveWorkspaceBinaryFile,
+} from "../workspace/tauriBridge";
 import { InkSurface } from "../ink/InkSurface";
 import type { InkPoint, InkStroke } from "../ink/inkDocument";
 
@@ -61,8 +70,17 @@ interface OverlayRect extends ViewportRect {
  * markup tools above. */
 type DrawingTool = MarkupSubtype | "Ink" | "StickyNote" | ShapeSubtype;
 
-const MARKUP_TOOLS: ReadonlySet<DrawingTool> = new Set(["Highlight", "Underline", "StrikeOut"]);
-const SHAPE_TOOLS: ReadonlySet<DrawingTool> = new Set<DrawingTool>(["Square", "Circle", "Line", "Polygon"]);
+const MARKUP_TOOLS: ReadonlySet<DrawingTool> = new Set([
+  "Highlight",
+  "Underline",
+  "StrikeOut",
+]);
+const SHAPE_TOOLS: ReadonlySet<DrawingTool> = new Set<DrawingTool>([
+  "Square",
+  "Circle",
+  "Line",
+  "Polygon",
+]);
 
 function isMarkupTool(tool: DrawingTool | null): tool is MarkupSubtype {
   return tool !== null && MARKUP_TOOLS.has(tool);
@@ -148,15 +166,31 @@ function computeOverlays(
   for (const saved of savedAnnotations) {
     if (saved.pageIndex !== pageIndex) continue;
     for (const rect of quadPointsToViewportRects(saved.quadPoints, viewport)) {
-      rects.push({ ...rect, subtype: saved.subtype, color: saved.color, opacity: saved.opacity, saved: true });
+      rects.push({
+        ...rect,
+        subtype: saved.subtype,
+        color: saved.color,
+        opacity: saved.opacity,
+        saved: true,
+      });
     }
   }
   for (const pending of pendingAnnotations) {
     if (pending.pageIndex !== pageIndex) continue;
     const color = pending.color ?? DEFAULT_MARKUP_COLOR[pending.subtype];
-    const opacity = pending.opacity ?? (pending.subtype === "Highlight" ? 0.4 : 1);
-    for (const rect of quadPointsToViewportRects(pending.quadPoints, viewport)) {
-      rects.push({ ...rect, subtype: pending.subtype, color, opacity, saved: false });
+    const opacity =
+      pending.opacity ?? (pending.subtype === "Highlight" ? 0.4 : 1);
+    for (const rect of quadPointsToViewportRects(
+      pending.quadPoints,
+      viewport,
+    )) {
+      rects.push({
+        ...rect,
+        subtype: pending.subtype,
+        color,
+        opacity,
+        saved: false,
+      });
     }
   }
 
@@ -168,7 +202,10 @@ function computeOverlays(
     for (const stroke of ink.inkList) {
       const points: ViewportPoint[] = [];
       for (let i = 0; i + 1 < stroke.length; i += 2) {
-        const [x, y] = viewport.convertToViewportPoint(stroke[i], stroke[i + 1]);
+        const [x, y] = viewport.convertToViewportPoint(
+          stroke[i],
+          stroke[i + 1],
+        );
         points.push({ x, y });
       }
       if (points.length > 0) inkStrokes.push({ points, color, width });
@@ -182,7 +219,10 @@ function computeOverlays(
     const width = shape.width ?? DEFAULT_SHAPE_WIDTH;
     const points: ViewportPoint[] = [];
     for (let i = 0; i + 1 < shape.points.length; i += 2) {
-      const [x, y] = viewport.convertToViewportPoint(shape.points[i], shape.points[i + 1]);
+      const [x, y] = viewport.convertToViewportPoint(
+        shape.points[i],
+        shape.points[i + 1],
+      );
       points.push({ x, y });
     }
     shapes.push({ subtype: shape.subtype, points, color, width });
@@ -203,7 +243,10 @@ function computeOverlays(
  * relative to the page container's own top-left corner -- the same
  * viewport-pixel space `rectToQuadPoints`/`viewport.convertToPdfPoint`
  * already work in. */
-function pointFromEvent(event: { clientX: number; clientY: number }, container: HTMLElement): ViewportPoint {
+function pointFromEvent(
+  event: { clientX: number; clientY: number },
+  container: HTMLElement,
+): ViewportPoint {
   const rect = container.getBoundingClientRect();
   return { x: event.clientX - rect.left, y: event.clientY - rect.top };
 }
@@ -237,7 +280,13 @@ function renderShapeSvg(shape: ShapeOverlay, key: string) {
     // A real <polygon> (spec: Polygon annotations are closed shapes,
     // unlike PolyLine) auto-closes back to the first vertex, including
     // for the still-in-progress draft preview.
-    return <polygon key={key} points={shape.points.map((p) => `${p.x},${p.y}`).join(" ")} {...common} />;
+    return (
+      <polygon
+        key={key}
+        points={shape.points.map((p) => `${p.x},${p.y}`).join(" ")}
+        {...common}
+      />
+    );
   }
   const [a, b] = shape.points;
   if (!a || !b) return null;
@@ -247,10 +296,19 @@ function renderShapeSvg(shape: ShapeOverlay, key: string) {
   const height = Math.abs(b.y - a.y);
   if (shape.subtype === "Circle") {
     return (
-      <ellipse key={key} cx={x + width / 2} cy={y + height / 2} rx={width / 2} ry={height / 2} {...common} />
+      <ellipse
+        key={key}
+        cx={x + width / 2}
+        cy={y + height / 2}
+        rx={width / 2}
+        ry={height / 2}
+        {...common}
+      />
     );
   }
-  return <rect key={key} x={x} y={y} width={width} height={height} {...common} />;
+  return (
+    <rect key={key} x={x} y={y} width={width} height={height} {...common} />
+  );
 }
 
 /**
@@ -299,26 +357,47 @@ export function PdfViewer({ path }: PdfViewerProps) {
   const [pageInput, setPageInput] = useState("1");
   const [scale, setScale] = useState(DEFAULT_SCALE);
   const [activeTool, setActiveTool] = useState<DrawingTool | null>(null);
-  const [pendingAnnotations, setPendingAnnotations] = useState<PendingAnnotation[]>([]);
-  const [savedAnnotations, setSavedAnnotations] = useState<SavedAnnotation[]>([]);
+  const [pendingAnnotations, setPendingAnnotations] = useState<
+    PendingAnnotation[]
+  >([]);
+  const [savedAnnotations, setSavedAnnotations] = useState<SavedAnnotation[]>(
+    [],
+  );
   const [pendingInk, setPendingInk] = useState<PendingInkAnnotation[]>([]);
   const [savedInk, setSavedInk] = useState<SavedInkAnnotation[]>([]);
-  const [pendingStickyNotes, setPendingStickyNotes] = useState<PendingStickyNote[]>([]);
-  const [savedStickyNotes, setSavedStickyNotes] = useState<SavedStickyNote[]>([]);
-  const [pendingShapes, setPendingShapes] = useState<PendingShapeAnnotation[]>([]);
+  const [pendingStickyNotes, setPendingStickyNotes] = useState<
+    PendingStickyNote[]
+  >([]);
+  const [savedStickyNotes, setSavedStickyNotes] = useState<SavedStickyNote[]>(
+    [],
+  );
+  const [pendingShapes, setPendingShapes] = useState<PendingShapeAnnotation[]>(
+    [],
+  );
   const [savedShapes, setSavedShapes] = useState<SavedShapeAnnotation[]>([]);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchStatus, setSearchStatus] = useState<"idle" | "searching" | "done">("idle");
+  const [searchStatus, setSearchStatus] = useState<
+    "idle" | "searching" | "done"
+  >("idle");
   const [matchingPages, setMatchingPages] = useState<number[]>([]);
   const [matchIndex, setMatchIndex] = useState(0);
   const [overlayRects, setOverlayRects] = useState<OverlayRect[]>([]);
-  const [inkOverlayStrokes, setInkOverlayStrokes] = useState<InkOverlayStroke[]>([]);
+  const [inkOverlayStrokes, setInkOverlayStrokes] = useState<
+    InkOverlayStroke[]
+  >([]);
   const [shapeOverlays, setShapeOverlays] = useState<ShapeOverlay[]>([]);
   const [stickyOverlays, setStickyOverlays] = useState<StickyNoteOverlay[]>([]);
-  const [shapeDraft, setShapeDraft] = useState<{ subtype: ShapeSubtype; points: ViewportPoint[] } | null>(null);
-  const [stickyDraft, setStickyDraft] = useState<{ domX: number; domY: number; text: string } | null>(null);
+  const [shapeDraft, setShapeDraft] = useState<{
+    subtype: ShapeSubtype;
+    points: ViewportPoint[];
+  } | null>(null);
+  const [stickyDraft, setStickyDraft] = useState<{
+    domX: number;
+    domY: number;
+    text: string;
+  } | null>(null);
 
   const docRef = useRef<PDFDocumentProxy | null>(null);
   const bytesRef = useRef<Uint8Array | null>(null);
@@ -328,7 +407,10 @@ export function PdfViewer({ path }: PdfViewerProps) {
   const viewportRef = useRef<PageViewport | null>(null);
   const textLayerTaskRef = useRef<{ cancel(): void } | null>(null);
   const renderGenerationRef = useRef(0);
-  const shapeDragRef = useRef<{ subtype: ShapeSubtype; start: ViewportPoint } | null>(null);
+  const shapeDragRef = useRef<{
+    subtype: ShapeSubtype;
+    start: ViewportPoint;
+  } | null>(null);
 
   // Load the document fresh whenever the open path changes.
   useEffect(() => {
@@ -378,12 +460,13 @@ export function PdfViewer({ path }: PdfViewerProps) {
       bytesRef.current = bytes;
       docRef.current = doc;
       setNumPages(doc.numPages);
-      const [existingMarkup, existingInk, existingSticky, existingShapes] = await Promise.all([
-        readMarkupAnnotations(bytes),
-        readInkAnnotations(bytes),
-        readStickyNotes(bytes),
-        readShapeAnnotations(bytes),
-      ]);
+      const [existingMarkup, existingInk, existingSticky, existingShapes] =
+        await Promise.all([
+          readMarkupAnnotations(bytes),
+          readInkAnnotations(bytes),
+          readStickyNotes(bytes),
+          readShapeAnnotations(bytes),
+        ]);
       if (cancelled) return;
       setSavedAnnotations(existingMarkup);
       setSavedInk(existingInk);
@@ -442,8 +525,14 @@ export function PdfViewer({ path }: PdfViewerProps) {
 
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
-      const transform = outputScale !== 1 ? [outputScale, 0, 0, outputScale, 0, 0] : undefined;
-      renderTask = page.render({ canvas, canvasContext: ctx, viewport, transform });
+      const transform =
+        outputScale !== 1 ? [outputScale, 0, 0, outputScale, 0, 0] : undefined;
+      renderTask = page.render({
+        canvas,
+        canvasContext: ctx,
+        viewport,
+        transform,
+      });
       await renderTask.promise;
       if (renderGenerationRef.current !== generation) return;
 
@@ -478,16 +567,20 @@ export function PdfViewer({ path }: PdfViewerProps) {
       }
 
       const pageIndex = pageNum - 1;
-      const { rects, inkStrokes, shapes, stickies } = computeOverlays(viewport, pageIndex, {
-        savedAnnotations,
-        pendingAnnotations,
-        savedInk,
-        pendingInk,
-        savedShapes,
-        pendingShapes,
-        savedStickyNotes,
-        pendingStickyNotes,
-      });
+      const { rects, inkStrokes, shapes, stickies } = computeOverlays(
+        viewport,
+        pageIndex,
+        {
+          savedAnnotations,
+          pendingAnnotations,
+          savedInk,
+          pendingInk,
+          savedShapes,
+          pendingShapes,
+          savedStickyNotes,
+          pendingStickyNotes,
+        },
+      );
       setOverlayRects(rects);
       setInkOverlayStrokes(inkStrokes);
       setShapeOverlays(shapes);
@@ -528,16 +621,20 @@ export function PdfViewer({ path }: PdfViewerProps) {
   useEffect(() => {
     const viewport = viewportRef.current;
     if (!viewport || status !== "ready") return;
-    const { rects, inkStrokes, shapes, stickies } = computeOverlays(viewport, pageNum - 1, {
-      savedAnnotations,
-      pendingAnnotations,
-      savedInk,
-      pendingInk,
-      savedShapes,
-      pendingShapes,
-      savedStickyNotes,
-      pendingStickyNotes,
-    });
+    const { rects, inkStrokes, shapes, stickies } = computeOverlays(
+      viewport,
+      pageNum - 1,
+      {
+        savedAnnotations,
+        pendingAnnotations,
+        savedInk,
+        pendingInk,
+        savedShapes,
+        pendingShapes,
+        savedStickyNotes,
+        pendingStickyNotes,
+      },
+    );
     setOverlayRects(rects);
     setInkOverlayStrokes(inkStrokes);
     setShapeOverlays(shapes);
@@ -568,7 +665,8 @@ export function PdfViewer({ path }: PdfViewerProps) {
   const handleMarkupMouseUp = useCallback(() => {
     if (!isMarkupTool(activeTool)) return;
     const selection = window.getSelection();
-    if (!selection || selection.isCollapsed || selection.rangeCount === 0) return;
+    if (!selection || selection.isCollapsed || selection.rangeCount === 0)
+      return;
     const container = textLayerRef.current;
     const viewport = viewportRef.current;
     if (!container || !viewport) return;
@@ -588,13 +686,21 @@ export function PdfViewer({ path }: PdfViewerProps) {
     }
     if (lineRects.length === 0) return;
 
-    const quadPoints = lineRects.flatMap((rect) => rectToQuadPoints(rect, viewport));
-    setPendingAnnotations((prev) => [...prev, { pageIndex: pageNum - 1, subtype: activeTool, quadPoints }]);
+    const quadPoints = lineRects.flatMap((rect) =>
+      rectToQuadPoints(rect, viewport),
+    );
+    setPendingAnnotations((prev) => [
+      ...prev,
+      { pageIndex: pageNum - 1, subtype: activeTool, quadPoints },
+    ]);
     selection.removeAllRanges();
   }, [activeTool, pageNum]);
 
   const pendingCount =
-    pendingAnnotations.length + pendingInk.length + pendingStickyNotes.length + pendingShapes.length;
+    pendingAnnotations.length +
+    pendingInk.length +
+    pendingStickyNotes.length +
+    pendingShapes.length;
 
   const handleSave = useCallback(async () => {
     if (pendingCount === 0 || !bytesRef.current) return;
@@ -620,10 +726,23 @@ export function PdfViewer({ path }: PdfViewerProps) {
       // four times per save instead of once -- fine at the annotation
       // counts a real editing session produces.
       let nextBytes = bytesRef.current;
-      if (committedAnnotations.length > 0) nextBytes = await applyAnnotationsToPdf(nextBytes, committedAnnotations);
-      if (committedInk.length > 0) nextBytes = await applyInkAnnotationsToPdf(nextBytes, committedInk);
-      if (committedStickyNotes.length > 0) nextBytes = await applyStickyNotesToPdf(nextBytes, committedStickyNotes);
-      if (committedShapes.length > 0) nextBytes = await applyShapeAnnotationsToPdf(nextBytes, committedShapes);
+      if (committedAnnotations.length > 0)
+        nextBytes = await applyAnnotationsToPdf(
+          nextBytes,
+          committedAnnotations,
+        );
+      if (committedInk.length > 0)
+        nextBytes = await applyInkAnnotationsToPdf(nextBytes, committedInk);
+      if (committedStickyNotes.length > 0)
+        nextBytes = await applyStickyNotesToPdf(
+          nextBytes,
+          committedStickyNotes,
+        );
+      if (committedShapes.length > 0)
+        nextBytes = await applyShapeAnnotationsToPdf(
+          nextBytes,
+          committedShapes,
+        );
 
       await writeActiveWorkspaceBinaryFile(path, nextBytes);
       bytesRef.current = nextBytes;
@@ -637,23 +756,43 @@ export function PdfViewer({ path }: PdfViewerProps) {
       setSavedInk(ink);
       setSavedStickyNotes(sticky);
       setSavedShapes(shapes);
-      setPendingAnnotations((prev) => prev.filter((item) => !committedAnnotations.includes(item)));
-      setPendingInk((prev) => prev.filter((item) => !committedInk.includes(item)));
-      setPendingStickyNotes((prev) => prev.filter((item) => !committedStickyNotes.includes(item)));
-      setPendingShapes((prev) => prev.filter((item) => !committedShapes.includes(item)));
+      setPendingAnnotations((prev) =>
+        prev.filter((item) => !committedAnnotations.includes(item)),
+      );
+      setPendingInk((prev) =>
+        prev.filter((item) => !committedInk.includes(item)),
+      );
+      setPendingStickyNotes((prev) =>
+        prev.filter((item) => !committedStickyNotes.includes(item)),
+      );
+      setPendingShapes((prev) =>
+        prev.filter((item) => !committedShapes.includes(item)),
+      );
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : String(error));
     } finally {
       setSaving(false);
     }
-  }, [path, pendingCount, pendingAnnotations, pendingInk, pendingStickyNotes, pendingShapes]);
+  }, [
+    path,
+    pendingCount,
+    pendingAnnotations,
+    pendingInk,
+    pendingStickyNotes,
+    pendingShapes,
+  ]);
 
   const handleCommitInkStroke = useCallback(
     (stroke: InkStroke) => {
       const viewport = viewportRef.current;
       if (!viewport) return;
-      const flat = stroke.points.flatMap((point: InkPoint) => viewport.convertToPdfPoint(point.x, point.y));
-      setPendingInk((prev) => [...prev, { pageIndex: pageNum - 1, inkList: [flat] }]);
+      const flat = stroke.points.flatMap((point: InkPoint) =>
+        viewport.convertToPdfPoint(point.x, point.y),
+      );
+      setPendingInk((prev) => [
+        ...prev,
+        { pageIndex: pageNum - 1, inkList: [flat] },
+      ]);
     },
     [pageNum],
   );
@@ -670,13 +809,19 @@ export function PdfViewer({ path }: PdfViewerProps) {
     [activeTool],
   );
 
-  const handleShapeDragMove = useCallback((event: JSX.TargetedPointerEvent<HTMLDivElement>) => {
-    if (!shapeDragRef.current) return;
-    const container = pageContainerRef.current;
-    if (!container) return;
-    const point = pointFromEvent(event, container);
-    setShapeDraft({ subtype: shapeDragRef.current.subtype, points: [shapeDragRef.current.start, point] });
-  }, []);
+  const handleShapeDragMove = useCallback(
+    (event: JSX.TargetedPointerEvent<HTMLDivElement>) => {
+      if (!shapeDragRef.current) return;
+      const container = pageContainerRef.current;
+      if (!container) return;
+      const point = pointFromEvent(event, container);
+      setShapeDraft({
+        subtype: shapeDragRef.current.subtype,
+        points: [shapeDragRef.current.start, point],
+      });
+    },
+    [],
+  );
 
   // A drag gesture can be interrupted without ever delivering a pointerup
   // (an OS/browser context switch, a multi-touch conflict, the tab losing
@@ -701,12 +846,19 @@ export function PdfViewer({ path }: PdfViewerProps) {
       const end = pointFromEvent(event, container);
       // A drag shorter than this is almost certainly a stray click, not
       // an intended (degenerate, invisible) shape.
-      if (Math.abs(end.x - drag.start.x) < 3 && Math.abs(end.y - drag.start.y) < 3) return;
+      if (
+        Math.abs(end.x - drag.start.x) < 3 &&
+        Math.abs(end.y - drag.start.y) < 3
+      )
+        return;
       const points = [
         ...viewport.convertToPdfPoint(drag.start.x, drag.start.y),
         ...viewport.convertToPdfPoint(end.x, end.y),
       ];
-      setPendingShapes((prev) => [...prev, { pageIndex: pageNum - 1, subtype: drag.subtype, points }]);
+      setPendingShapes((prev) => [
+        ...prev,
+        { pageIndex: pageNum - 1, subtype: drag.subtype, points },
+      ]);
     },
     [pageNum],
   );
@@ -720,7 +872,10 @@ export function PdfViewer({ path }: PdfViewerProps) {
       if (activeTool === "Polygon") {
         setShapeDraft((prev) => ({
           subtype: "Polygon",
-          points: prev && prev.subtype === "Polygon" ? [...prev.points, point] : [point],
+          points:
+            prev && prev.subtype === "Polygon"
+              ? [...prev.points, point]
+              : [point],
         }));
         return;
       }
@@ -739,8 +894,13 @@ export function PdfViewer({ path }: PdfViewerProps) {
       setShapeDraft(null);
       return;
     }
-    const points = shapeDraft.points.flatMap((point) => viewport.convertToPdfPoint(point.x, point.y));
-    setPendingShapes((prev) => [...prev, { pageIndex: pageNum - 1, subtype: "Polygon", points }]);
+    const points = shapeDraft.points.flatMap((point) =>
+      viewport.convertToPdfPoint(point.x, point.y),
+    );
+    setPendingShapes((prev) => [
+      ...prev,
+      { pageIndex: pageNum - 1, subtype: "Polygon", points },
+    ]);
     setShapeDraft(null);
   }, [shapeDraft, pageNum]);
 
@@ -750,8 +910,14 @@ export function PdfViewer({ path }: PdfViewerProps) {
       setStickyDraft(null);
       return;
     }
-    const [x, y] = viewport.convertToPdfPoint(stickyDraft.domX, stickyDraft.domY);
-    setPendingStickyNotes((prev) => [...prev, { pageIndex: pageNum - 1, x, y, contents: stickyDraft.text }]);
+    const [x, y] = viewport.convertToPdfPoint(
+      stickyDraft.domX,
+      stickyDraft.domY,
+    );
+    setPendingStickyNotes((prev) => [
+      ...prev,
+      { pageIndex: pageNum - 1, x, y, contents: stickyDraft.text },
+    ]);
     setStickyDraft(null);
   }, [stickyDraft, pageNum]);
 
@@ -769,7 +935,9 @@ export function PdfViewer({ path }: PdfViewerProps) {
       for (let p = 1; p <= doc.numPages; p++) {
         const page = await doc.getPage(p);
         const content = await page.getTextContent();
-        const text = (content.items as PdfTextItem[]).map((item) => item.str ?? "").join(" ");
+        const text = (content.items as PdfTextItem[])
+          .map((item) => item.str ?? "")
+          .join(" ");
         if (text.toLowerCase().includes(needle)) pages.push(p);
       }
       if (docRef.current !== doc) return; // path changed mid-search
@@ -784,7 +952,8 @@ export function PdfViewer({ path }: PdfViewerProps) {
   const jumpToMatch = useCallback(
     (direction: 1 | -1) => {
       if (matchingPages.length === 0) return;
-      const nextIndex = (matchIndex + direction + matchingPages.length) % matchingPages.length;
+      const nextIndex =
+        (matchIndex + direction + matchingPages.length) % matchingPages.length;
       setMatchIndex(nextIndex);
       goToPage(matchingPages[nextIndex]);
     },
@@ -802,7 +971,12 @@ export function PdfViewer({ path }: PdfViewerProps) {
   return (
     <div class="pdf-viewer">
       <div class="pdf-toolbar">
-        <button type="button" onClick={() => goToPage(pageNum - 1)} disabled={pageNum <= 1} aria-label="Previous page">
+        <button
+          type="button"
+          onClick={() => goToPage(pageNum - 1)}
+          disabled={pageNum <= 1}
+          aria-label="Previous page"
+        >
           ‹
         </button>
         <input
@@ -817,19 +991,36 @@ export function PdfViewer({ path }: PdfViewerProps) {
           }}
         />
         <span class="pdf-page-count">/ {numPages || "…"}</span>
-        <button type="button" onClick={() => goToPage(pageNum + 1)} disabled={pageNum >= numPages} aria-label="Next page">
+        <button
+          type="button"
+          onClick={() => goToPage(pageNum + 1)}
+          disabled={pageNum >= numPages}
+          aria-label="Next page"
+        >
           ›
         </button>
 
         <span class="pdf-toolbar-divider" />
 
-        <button type="button" onClick={() => setScale((s) => clampScale(s / ZOOM_STEP))} aria-label="Zoom out">
+        <button
+          type="button"
+          onClick={() => setScale((s) => clampScale(s / ZOOM_STEP))}
+          aria-label="Zoom out"
+        >
           −
         </button>
-        <button type="button" onClick={() => setScale(DEFAULT_SCALE)} aria-label="Reset zoom">
+        <button
+          type="button"
+          onClick={() => setScale(DEFAULT_SCALE)}
+          aria-label="Reset zoom"
+        >
           {Math.round(scale * 100)}%
         </button>
-        <button type="button" onClick={() => setScale((s) => clampScale(s * ZOOM_STEP))} aria-label="Zoom in">
+        <button
+          type="button"
+          onClick={() => setScale((s) => clampScale(s * ZOOM_STEP))}
+          aria-label="Zoom in"
+        >
           +
         </button>
 
@@ -845,7 +1036,11 @@ export function PdfViewer({ path }: PdfViewerProps) {
             if (e.key === "Enter") void runSearch(searchQuery);
           }}
         />
-        <button type="button" onClick={() => void runSearch(searchQuery)} aria-label="Search">
+        <button
+          type="button"
+          onClick={() => void runSearch(searchQuery)}
+          aria-label="Search"
+        >
           Search
         </button>
         {searchStatus === "done" && (
@@ -857,10 +1052,18 @@ export function PdfViewer({ path }: PdfViewerProps) {
         )}
         {matchingPages.length > 1 && (
           <>
-            <button type="button" onClick={() => jumpToMatch(-1)} aria-label="Previous match">
+            <button
+              type="button"
+              onClick={() => jumpToMatch(-1)}
+              aria-label="Previous match"
+            >
               ↑
             </button>
-            <button type="button" onClick={() => jumpToMatch(1)} aria-label="Next match">
+            <button
+              type="button"
+              onClick={() => jumpToMatch(1)}
+              aria-label="Next match"
+            >
               ↓
             </button>
           </>
@@ -926,13 +1129,23 @@ export function PdfViewer({ path }: PdfViewerProps) {
           </button>
         ))}
         {activeTool === "Polygon" && shapeDraft?.subtype === "Polygon" && (
-          <button type="button" onClick={handleFinishPolygon} disabled={shapeDraft.points.length < 3}>
+          <button
+            type="button"
+            onClick={handleFinishPolygon}
+            disabled={shapeDraft.points.length < 3}
+          >
             Finish shape ({shapeDraft.points.length})
           </button>
         )}
 
-        <button type="button" onClick={() => void handleSave()} disabled={pendingCount === 0 || saving}>
-          {saving ? "Saving…" : `Save annotations${pendingCount ? ` (${pendingCount})` : ""}`}
+        <button
+          type="button"
+          onClick={() => void handleSave()}
+          disabled={pendingCount === 0 || saving}
+        >
+          {saving
+            ? "Saving…"
+            : `Save annotations${pendingCount ? ` (${pendingCount})` : ""}`}
         </button>
       </div>
 
@@ -958,9 +1171,16 @@ export function PdfViewer({ path }: PdfViewerProps) {
           onPointerCancel={handleShapeDragCancel}
         >
           <canvas ref={canvasRef} class="pdf-page-canvas" />
-          <div ref={textLayerRef} class={`pdf-text-layer${activeTool ? " pdf-text-layer-marking" : ""}`} />
+          <div
+            ref={textLayerRef}
+            class={`pdf-text-layer${activeTool ? " pdf-text-layer-marking" : ""}`}
+          />
           {activeTool === "Ink" && (
-            <InkSurface strokes={[]} tool="pen" onCommitStroke={handleCommitInkStroke} />
+            <InkSurface
+              strokes={[]}
+              tool="pen"
+              onCommitStroke={handleCommitInkStroke}
+            />
           )}
           <div class="pdf-annotation-overlay">
             {overlayRects.map((rect, i) => (
@@ -1006,12 +1226,19 @@ export function PdfViewer({ path }: PdfViewerProps) {
                 stroke-linejoin="round"
               />
             ))}
-            {shapeOverlays.map((shape, i) => renderShapeSvg(shape, `shape-${i}`))}
+            {shapeOverlays.map((shape, i) =>
+              renderShapeSvg(shape, `shape-${i}`),
+            )}
             {shapeDraft && shapeDraft.points.length > 0 && (
               <g class="pdf-shape-draft">
                 {shapeDraft.subtype === "Polygon"
                   ? renderShapeSvg(
-                      { subtype: "Polygon", points: shapeDraft.points, color: DEFAULT_SHAPE_COLOR, width: DEFAULT_SHAPE_WIDTH },
+                      {
+                        subtype: "Polygon",
+                        points: shapeDraft.points,
+                        color: DEFAULT_SHAPE_COLOR,
+                        width: DEFAULT_SHAPE_WIDTH,
+                      },
                       "shape-draft",
                     )
                   : shapeDraft.points.length === 2 &&
@@ -1034,7 +1261,11 @@ export function PdfViewer({ path }: PdfViewerProps) {
                 key={i}
                 class="pdf-sticky-note-icon"
                 title={note.contents}
-                style={{ left: `${note.x}px`, top: `${note.y - STICKY_NOTE_OVERLAY_SIZE}px`, backgroundColor: rgbCss(note.color) }}
+                style={{
+                  left: `${note.x}px`,
+                  top: `${note.y - STICKY_NOTE_OVERLAY_SIZE}px`,
+                  backgroundColor: rgbCss(note.color),
+                }}
               >
                 🗒
               </div>
@@ -1044,13 +1275,22 @@ export function PdfViewer({ path }: PdfViewerProps) {
           {stickyDraft && (
             <div
               class="pdf-sticky-note-draft"
-              style={{ left: `${stickyDraft.domX}px`, top: `${stickyDraft.domY}px` }}
+              style={{
+                left: `${stickyDraft.domX}px`,
+                top: `${stickyDraft.domY}px`,
+              }}
             >
               <textarea
                 autoFocus
                 value={stickyDraft.text}
                 placeholder="Note text…"
-                onInput={(e) => setStickyDraft((d) => (d ? { ...d, text: (e.target as HTMLTextAreaElement).value } : d))}
+                onInput={(e) =>
+                  setStickyDraft((d) =>
+                    d
+                      ? { ...d, text: (e.target as HTMLTextAreaElement).value }
+                      : d,
+                  )
+                }
                 onKeyDown={(e) => {
                   if (e.key === "Escape") {
                     e.preventDefault();

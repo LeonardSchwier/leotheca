@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { announceOutline, headingNavigationAnnouncement, lineNumberAt, outlineAnnouncement } from "./outlineAnnouncements";
+import {
+  announceOutline,
+  headingNavigationAnnouncement,
+  lineNumberAt,
+  outlineAnnouncement,
+} from "./outlineAnnouncements";
 
 describe("lineNumberAt", () => {
   it("returns 1 for an offset on the first line", () => {

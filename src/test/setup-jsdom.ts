@@ -33,11 +33,24 @@ import { afterEach, beforeAll } from "vitest";
 
 /** A DOM-rect-like object with all geometry fields zeroed. */
 const zeroRect: {
-  left: number; right: number; top: number; bottom: number;
-  width: number; height: number; x: number; y: number;
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+  width: number;
+  height: number;
+  x: number;
+  y: number;
   toJSON: () => Record<string, number>;
 } = {
-  left: 0, right: 0, top: 0, bottom: 0, width: 0, height: 0, x: 0, y: 0,
+  left: 0,
+  right: 0,
+  top: 0,
+  bottom: 0,
+  width: 0,
+  height: 0,
+  x: 0,
+  y: 0,
   toJSON: () => ({ left: 0, right: 0, top: 0, bottom: 0, width: 0, height: 0 }),
 };
 
@@ -48,7 +61,9 @@ const emptyClientRectList = (): {
   [Symbol.iterator]: () => Iterator<never>;
 } => ({
   length: 0,
-  item: () => { throw new Error("empty list"); },
+  item: () => {
+    throw new Error("empty list");
+  },
   [Symbol.iterator]: function* () {},
 });
 
@@ -59,10 +74,20 @@ const emptyClientRectList = (): {
  */
 interface Stubbable {
   prototype?: {
-    getClientRects?: () => { length: number; item: (i: number) => never; [Symbol.iterator]: () => Iterator<never> };
+    getClientRects?: () => {
+      length: number;
+      item: (i: number) => never;
+      [Symbol.iterator]: () => Iterator<never>;
+    };
     getBoundingClientRect?: () => {
-      left: number; right: number; top: number; bottom: number;
-      width: number; height: number; x: number; y: number;
+      left: number;
+      right: number;
+      top: number;
+      bottom: number;
+      width: number;
+      height: number;
+      x: number;
+      y: number;
       toJSON: () => Record<string, number>;
     };
   };
@@ -81,7 +106,9 @@ function globalCtor(name: string): Stubbable | undefined {
 }
 
 /** Install the zero-rect + empty-list stubs on a prototype if missing. */
-function installRectStubs(proto: NonNullable<Stubbable["prototype"]> | undefined): void {
+function installRectStubs(
+  proto: NonNullable<Stubbable["prototype"]> | undefined,
+): void {
   if (!proto) return;
   if (typeof proto.getClientRects !== "function") {
     proto.getClientRects = emptyClientRectList;

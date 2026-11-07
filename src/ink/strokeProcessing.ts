@@ -29,10 +29,22 @@ export function normalizeInkSample(sample: RawInkSample): InkPoint {
   };
 }
 
-function catmullRom(a: number, b: number, c: number, d: number, t: number): number {
+function catmullRom(
+  a: number,
+  b: number,
+  c: number,
+  d: number,
+  t: number,
+): number {
   const t2 = t * t;
   const t3 = t2 * t;
-  return 0.5 * ((2 * b) + (-a + c) * t + (2 * a - 5 * b + 4 * c - d) * t2 + (-a + 3 * b - 3 * c + d) * t3);
+  return (
+    0.5 *
+    (2 * b +
+      (-a + c) * t +
+      (2 * a - 5 * b + 4 * c - d) * t2 +
+      (-a + 3 * b - 3 * c + d) * t3)
+  );
 }
 
 function lerp(a: number, b: number, t: number): number {
@@ -45,8 +57,12 @@ function lerp(a: number, b: number, t: number): number {
  * pressure, tilt and time interpolate linearly so those physical values never
  * overshoot their measured ranges merely because the path is smoothed.
  */
-export function smoothInkPoints(points: readonly InkPoint[], subdivisions = 4): InkPoint[] {
-  if (points.length <= 2 || subdivisions <= 1) return points.map((point) => ({ ...point }));
+export function smoothInkPoints(
+  points: readonly InkPoint[],
+  subdivisions = 4,
+): InkPoint[] {
+  if (points.length <= 2 || subdivisions <= 1)
+    return points.map((point) => ({ ...point }));
 
   const result: InkPoint[] = [{ ...points[0] }];
   for (let index = 0; index < points.length - 1; index += 1) {
@@ -79,9 +95,16 @@ export function smoothInkPoints(points: readonly InkPoint[], subdivisions = 4): 
  * Continuous brush width derived from pressure and stylus tilt. Pressure owns
  * most of the variation; a flatter pen can broaden the mark by at most 20%.
  */
-export function inkWidthAtPoint(baseWidth: number, point: Pick<InkPoint, "pressure" | "tiltX" | "tiltY">): number {
+export function inkWidthAtPoint(
+  baseWidth: number,
+  point: Pick<InkPoint, "pressure" | "tiltX" | "tiltY">,
+): number {
   const safeBase = Math.max(0.1, finiteOr(baseWidth, 1));
   const pressure = clamp(finiteOr(point.pressure, 0.5), 0, 1);
-  const tiltMagnitude = clamp(Math.hypot(finiteOr(point.tiltX, 0), finiteOr(point.tiltY, 0)) / 90, 0, 1);
+  const tiltMagnitude = clamp(
+    Math.hypot(finiteOr(point.tiltX, 0), finiteOr(point.tiltY, 0)) / 90,
+    0,
+    1,
+  );
   return safeBase * (0.3 + pressure * 0.7) * (1 + tiltMagnitude * 0.2);
 }

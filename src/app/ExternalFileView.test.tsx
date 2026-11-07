@@ -44,7 +44,8 @@ const baseProps = {
 };
 
 const externalPath = "/outside/vault/my-note.md";
-const content = "# My External Note\n\nSome body text.\n\n## Subsection\n\nMore text.";
+const content =
+  "# My External Note\n\nSome body text.\n\n## Subsection\n\nMore text.";
 
 function renderView(overrides: Record<string, unknown> = {}) {
   return render(
@@ -72,7 +73,9 @@ describe("ExternalFileView", () => {
 
   it("has outline and backlinks toggle buttons", () => {
     renderView();
-    expect(screen.getByRole("button", { name: "Show note outline" })).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Show note outline" }),
+    ).toBeTruthy();
     expect(screen.getByRole("button", { name: "Show backlinks" })).toBeTruthy();
   });
 
@@ -86,7 +89,9 @@ describe("ExternalFileView", () => {
     expect(screen.getAllByText("Subsection").length).toBeGreaterThanOrEqual(1);
     // "My External Note" appears in both the <h1> body heading and the
     // outline row — verify at least two matches.
-    expect(screen.getAllByText("My External Note").length).toBeGreaterThanOrEqual(2);
+    expect(
+      screen.getAllByText("My External Note").length,
+    ).toBeGreaterThanOrEqual(2);
   });
 
   it("shows 'No headings' placeholder in Outline when the file has no headings", async () => {
@@ -105,9 +110,7 @@ describe("ExternalFileView", () => {
   it("shows backlinks for an external file when other vault notes link to it", async () => {
     linkIndex.value = {
       ...emptyLinkIndex(),
-      backlinksByPath: new Map([
-        [externalPath, ["/vault/linked-note.md"]],
-      ]),
+      backlinksByPath: new Map([[externalPath, ["/vault/linked-note.md"]]]),
     } as LinkIndex;
     renderView();
     await clickToggle("Show backlinks");
@@ -117,6 +120,8 @@ describe("ExternalFileView", () => {
 
   it("shows the Open-containing-folder button", () => {
     renderView();
-    expect(screen.getByText(/Open containing folder as a workspace/i)).toBeTruthy();
+    expect(
+      screen.getByText(/Open containing folder as a workspace/i),
+    ).toBeTruthy();
   });
 });

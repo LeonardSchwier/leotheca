@@ -21,14 +21,14 @@ Use whenever a relevant hosted check fails or local checks expose a main regress
 2. Compare the candidate with its base and the latest success of the same job/workflow. Reproduce with the same command and pinned environment where possible.
 3. Classify from evidence:
 
-| Classification | Evidence and response |
-| --- | --- |
-| Candidate/integration bug | Failing behavior relates to changed code, caller, generated output, or conflict resolution. Fix under the current lease, rerun affected checks, and inspect the new SHA. |
-| Existing main bug | Reproduces on the base or predates this candidate. Claim one deduplicated main repair item. If another live worker owns it, avoid that scope. |
-| Dependency/pin/generated-file mismatch | Compare exact source pins, lockfiles, tool versions, and generated inputs. Use packaging-submission-pipelines.md where relevant. Fix the inputs or generator use. |
-| Possible transient infrastructure failure | One diagnostic rerun of the failed job is allowed after reading the error. A later pass is evidence of recovery, not proof the system can never flake. |
-| Reproducible external failure or missing runner access | Record actual errors and attempted alternatives. Use the bounded verification fallback, preserve a retry condition, and continue another task. |
-| Still unknown | Keep investigating within the setup/wait budget. Do not label a failure external merely because it is inconvenient. |
+| Classification                                         | Evidence and response                                                                                                                                                    |
+| ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Candidate/integration bug                              | Failing behavior relates to changed code, caller, generated output, or conflict resolution. Fix under the current lease, rerun affected checks, and inspect the new SHA. |
+| Existing main bug                                      | Reproduces on the base or predates this candidate. Claim one deduplicated main repair item. If another live worker owns it, avoid that scope.                            |
+| Dependency/pin/generated-file mismatch                 | Compare exact source pins, lockfiles, tool versions, and generated inputs. Use packaging-submission-pipelines.md where relevant. Fix the inputs or generator use.        |
+| Possible transient infrastructure failure              | One diagnostic rerun of the failed job is allowed after reading the error. A later pass is evidence of recovery, not proof the system can never flake.                   |
+| Reproducible external failure or missing runner access | Record actual errors and attempted alternatives. Use the bounded verification fallback, preserve a retry condition, and continue another task.                           |
+| Still unknown                                          | Keep investigating within the setup/wait budget. Do not label a failure external merely because it is inconvenient.                                                      |
 
 A matching rerun failure does not mathematically exclude flakiness; it does mean blind reruns are no longer useful. Read the source, environment, and logs. Do not repeatedly rerun full workflows to avoid debugging.
 

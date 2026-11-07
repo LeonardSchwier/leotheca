@@ -6,7 +6,9 @@ const { readTextFile, writeTextFile } = vi.hoisted(() => ({
   readTextFile: vi.fn<(path: string) => Promise<string>>(async () => {
     throw new Error("not found");
   }),
-  writeTextFile: vi.fn<(path: string, contents: string) => Promise<void>>(async () => {}),
+  writeTextFile: vi.fn<(path: string, contents: string) => Promise<void>>(
+    async () => {},
+  ),
 }));
 
 vi.mock("../workspace/tauriBridge", () => ({
@@ -46,12 +48,19 @@ describe("BookmarksPanel", () => {
     );
     expect(getByText("No bookmarks yet.")).toBeTruthy();
     expect(getByRole("region", { name: "No bookmarks yet." })).toBeTruthy();
-    expect(getByText("Bookmark a note or saved search to find it here.")).toBeTruthy();
+    expect(
+      getByText("Bookmark a note or saved search to find it here."),
+    ).toBeTruthy();
   });
 
   it("lists file and search bookmarks with their kind badge", () => {
     bookmarks.value = [
-      { id: "1", kind: "file", label: "My Note", path: "/vault/notes/my-note.md" },
+      {
+        id: "1",
+        kind: "file",
+        label: "My Note",
+        path: "/vault/notes/my-note.md",
+      },
       { id: "2", kind: "search", label: "TODOs", query: "TODO" },
     ];
     const { getByText, getAllByText } = render(
@@ -65,21 +74,35 @@ describe("BookmarksPanel", () => {
 
   it("opening a file bookmark calls onOpenFile with the path and its basename", () => {
     bookmarks.value = [
-      { id: "1", kind: "file", label: "My Note", path: "/vault/notes/my-note.md" },
+      {
+        id: "1",
+        kind: "file",
+        label: "My Note",
+        path: "/vault/notes/my-note.md",
+      },
     ];
     const onOpenFile = vi.fn();
     const onRunSearch = vi.fn();
-    const { getByText } = render(<BookmarksPanel onOpenFile={onOpenFile} onRunSearch={onRunSearch} />);
+    const { getByText } = render(
+      <BookmarksPanel onOpenFile={onOpenFile} onRunSearch={onRunSearch} />,
+    );
     fireEvent.click(getByText("My Note"));
-    expect(onOpenFile).toHaveBeenCalledWith("/vault/notes/my-note.md", "my-note.md");
+    expect(onOpenFile).toHaveBeenCalledWith(
+      "/vault/notes/my-note.md",
+      "my-note.md",
+    );
     expect(onRunSearch).not.toHaveBeenCalled();
   });
 
   it("opening a search bookmark calls onRunSearch with its query, not onOpenFile", () => {
-    bookmarks.value = [{ id: "2", kind: "search", label: "TODOs", query: "TODO" }];
+    bookmarks.value = [
+      { id: "2", kind: "search", label: "TODOs", query: "TODO" },
+    ];
     const onOpenFile = vi.fn();
     const onRunSearch = vi.fn();
-    const { getByText } = render(<BookmarksPanel onOpenFile={onOpenFile} onRunSearch={onRunSearch} />);
+    const { getByText } = render(
+      <BookmarksPanel onOpenFile={onOpenFile} onRunSearch={onRunSearch} />,
+    );
     fireEvent.click(getByText("TODOs"));
     expect(onRunSearch).toHaveBeenCalledWith("TODO");
     expect(onOpenFile).not.toHaveBeenCalled();
@@ -87,7 +110,12 @@ describe("BookmarksPanel", () => {
 
   it("shows an inline error instead of failing silently when a bookmark's target can't be opened", async () => {
     bookmarks.value = [
-      { id: "1", kind: "file", label: "Deleted Note", path: "/vault/deleted-note.md" },
+      {
+        id: "1",
+        kind: "file",
+        label: "Deleted Note",
+        path: "/vault/deleted-note.md",
+      },
     ];
     const onOpenFile = vi.fn(async () => {
       throw new Error("not found");
@@ -146,9 +174,9 @@ describe("BookmarksPanel", () => {
       />,
     );
 
-    expect(getByLabelText("Show \"Deep Note\" in the sidebar tree")).toBeTruthy();
+    expect(getByLabelText('Show "Deep Note" in the sidebar tree')).toBeTruthy();
     // Search bookmarks get no reveal button — it has no folder to show.
-    expect(queryByLabelText("Show \"TODOs\" in the sidebar tree")).toBeNull();
+    expect(queryByLabelText('Show "TODOs" in the sidebar tree')).toBeNull();
   });
 
   it("does not render an 'Open in sidebar' button when onRevealInSidebar is omitted", async () => {
@@ -158,7 +186,7 @@ describe("BookmarksPanel", () => {
     const { queryByLabelText } = render(
       <BookmarksPanel onOpenFile={vi.fn()} onRunSearch={vi.fn()} />,
     );
-    expect(queryByLabelText("Show \"Deep Note\" in the sidebar tree")).toBeNull();
+    expect(queryByLabelText('Show "Deep Note" in the sidebar tree')).toBeNull();
   });
 
   it("calls onRevealInSidebar with the file's absolute path when its button is clicked", async () => {
@@ -173,7 +201,9 @@ describe("BookmarksPanel", () => {
         onRevealInSidebar={onRevealInSidebar}
       />,
     );
-    await fireEvent.click(getByLabelText("Show \"Deep Note\" in the sidebar tree"));
+    await fireEvent.click(
+      getByLabelText('Show "Deep Note" in the sidebar tree'),
+    );
     expect(onRevealInSidebar).toHaveBeenCalledTimes(1);
     expect(onRevealInSidebar).toHaveBeenCalledWith("/vault/a/b/deep.md");
   });

@@ -1,11 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { decodeCollectionsFile } from "./collectionDecode";
-import { MAX_QUERY_CLAUSES, type CollectionViewV1, type QueryGroupV1, type SmartCollectionV1 } from "./collectionTypes";
+import {
+  MAX_QUERY_CLAUSES,
+  type CollectionViewV1,
+  type QueryGroupV1,
+  type SmartCollectionV1,
+} from "./collectionTypes";
 import { FOLDER_GROUP_BY, groupResults } from "./CollectionResults";
 import type { NoteRecord } from "./collectionQuery";
 import type { FrontmatterProperty } from "../editor/frontmatterEdits";
 
-function validCollection(overrides: Partial<SmartCollectionV1> = {}): SmartCollectionV1 {
+function validCollection(
+  overrides: Partial<SmartCollectionV1> = {},
+): SmartCollectionV1 {
   return {
     id: "c1",
     name: "Active work",
@@ -40,7 +47,9 @@ function fileWith(collections: unknown[], order?: string[]): string {
 
 describe("decodeCollectionsFile: valid input", () => {
   it("decodes a well-formed file without flagging corruption", () => {
-    const { file, corrupt } = decodeCollectionsFile(fileWith([validCollection()]));
+    const { file, corrupt } = decodeCollectionsFile(
+      fileWith([validCollection()]),
+    );
     expect(corrupt).toBe(false);
     expect(file.collections).toHaveLength(1);
     expect(file.collections[0].name).toBe("Active work");
@@ -71,24 +80,35 @@ describe("decodeCollectionsFile: valid input", () => {
         },
       ],
     };
-    const { file, corrupt } = decodeCollectionsFile(fileWith([validCollection({ query: nested })]));
+    const { file, corrupt } = decodeCollectionsFile(
+      fileWith([validCollection({ query: nested })]),
+    );
     expect(corrupt).toBe(false);
     expect(file.collections[0].query).toEqual(nested);
   });
 
   it("decodes a board view with its required grouping property", () => {
     const { file, corrupt } = decodeCollectionsFile(
-      fileWith([validCollection({ view: { mode: "kanban", groupBy: "status" } })]),
+      fileWith([
+        validCollection({ view: { mode: "kanban", groupBy: "status" } }),
+      ]),
     );
     expect(corrupt).toBe(false);
-    expect(file.collections[0].view).toEqual({ mode: "kanban", groupBy: "status" });
+    expect(file.collections[0].view).toEqual({
+      mode: "kanban",
+      groupBy: "status",
+    });
   });
 
   it("decodes a board view with a manual groupOrder and keeps it intact", () => {
     const { file, corrupt } = decodeCollectionsFile(
       fileWith([
         validCollection({
-          view: { mode: "kanban", groupBy: "status", groupOrder: ["Done", "Active"] },
+          view: {
+            mode: "kanban",
+            groupBy: "status",
+            groupOrder: ["Done", "Active"],
+          },
         }),
       ]),
     );
@@ -104,7 +124,11 @@ describe("decodeCollectionsFile: valid input", () => {
     const { file, corrupt } = decodeCollectionsFile(
       fileWith([
         validCollection({
-          view: { mode: "list", groupBy: "status", groupOrder: ["In Progress"] },
+          view: {
+            mode: "list",
+            groupBy: "status",
+            groupOrder: ["In Progress"],
+          },
         }),
       ]),
     );
@@ -118,30 +142,42 @@ describe("decodeCollectionsFile: valid input", () => {
 
   it("drops a malformed groupOrder (non-array) without flagging the whole collection corrupt", () => {
     const raw = validCollection({
-      view: { mode: "kanban", groupBy: "status", groupOrder: "not-an-array" } as unknown as CollectionViewV1,
+      view: {
+        mode: "kanban",
+        groupBy: "status",
+        groupOrder: "not-an-array",
+      } as unknown as CollectionViewV1,
     }) as unknown as Record<string, unknown>;
     const { file, corrupt } = decodeCollectionsFile(fileWith([raw]));
     // A bad groupOrder must not corrupt the collection: groupBy and mode survive.
     expect(corrupt).toBe(false);
-    expect(file.collections[0].view).toEqual({ mode: "kanban", groupBy: "status" });
+    expect(file.collections[0].view).toEqual({
+      mode: "kanban",
+      groupBy: "status",
+    });
   });
 
   it("drops non-string entries from groupOrder while keeping the valid ones", () => {
     const raw = validCollection({
-      view: { mode: "kanban", groupBy: "status", groupOrder: ["Done", 42, "", "Active"] as unknown as string[] },
+      view: {
+        mode: "kanban",
+        groupBy: "status",
+        groupOrder: ["Done", 42, "", "Active"] as unknown as string[],
+      },
     }) as unknown as Record<string, unknown>;
     const { file, corrupt } = decodeCollectionsFile(fileWith([raw]));
     expect(corrupt).toBe(false);
-    expect((file.collections[0].view as { groupOrder?: string[] }).groupOrder).toEqual([
-      "Done",
-      "Active",
-    ]);
+    expect(
+      (file.collections[0].view as { groupOrder?: string[] }).groupOrder,
+    ).toEqual(["Done", "Active"]);
   });
 });
 
 describe("decodeCollectionsFile: missing input", () => {
   it("returns an empty, non-corrupt file when the collections/order fields are entirely absent", () => {
-    const { file, corrupt } = decodeCollectionsFile(JSON.stringify({ version: 1 }));
+    const { file, corrupt } = decodeCollectionsFile(
+      JSON.stringify({ version: 1 }),
+    );
     expect(corrupt).toBe(false);
     expect(file.collections).toEqual([]);
     expect(file.order).toEqual([]);
@@ -185,7 +221,9 @@ describe("decodeCollectionsFile: malformed input", () => {
   it("drops a collection with a missing or blank id without discarding valid siblings", () => {
     const noId = validCollection({ id: "" });
     const good = validCollection({ id: "c2", name: "Good" });
-    const { file, corrupt } = decodeCollectionsFile(fileWith([noId, good], ["c2"]));
+    const { file, corrupt } = decodeCollectionsFile(
+      fileWith([noId, good], ["c2"]),
+    );
     expect(corrupt).toBe(true);
     expect(file.collections).toHaveLength(1);
     expect(file.collections[0].id).toBe("c2");
@@ -194,7 +232,9 @@ describe("decodeCollectionsFile: malformed input", () => {
   it("drops a duplicate id, keeping the first occurrence", () => {
     const first = validCollection({ id: "dup", name: "First" });
     const second = validCollection({ id: "dup", name: "Second" });
-    const { file, corrupt } = decodeCollectionsFile(fileWith([first, second], ["dup"]));
+    const { file, corrupt } = decodeCollectionsFile(
+      fileWith([first, second], ["dup"]),
+    );
     expect(corrupt).toBe(true);
     expect(file.collections).toHaveLength(1);
     expect(file.collections[0].name).toBe("First");
@@ -209,7 +249,11 @@ describe("decodeCollectionsFile: malformed input", () => {
         type: "group",
         operator: "and",
         children: [
-          { type: "clause", field: { kind: "system", field: "name" }, operator: "is-not" },
+          {
+            type: "clause",
+            field: { kind: "system", field: "name" },
+            operator: "is-not",
+          },
           {
             type: "clause",
             field: { kind: "system", field: "hasFrontmatter" },
@@ -222,7 +266,9 @@ describe("decodeCollectionsFile: malformed input", () => {
     expect(corrupt).toBe(true);
     const query = file.collections[0].query as QueryGroupV1;
     expect(query.children).toHaveLength(1);
-    expect((query.children[0] as { operator: string }).operator).toBe("is-true");
+    expect((query.children[0] as { operator: string }).operator).toBe(
+      "is-true",
+    );
   });
 
   it("still decodes a value-less clause for an operator that genuinely takes no value", () => {
@@ -230,7 +276,13 @@ describe("decodeCollectionsFile: malformed input", () => {
       query: {
         type: "group",
         operator: "and",
-        children: [{ type: "clause", field: { kind: "system", field: "tag" }, operator: "is-empty" }],
+        children: [
+          {
+            type: "clause",
+            field: { kind: "system", field: "tag" },
+            operator: "is-empty",
+          },
+        ],
       },
     });
     const { file, corrupt } = decodeCollectionsFile(fileWith([raw]));
@@ -245,7 +297,11 @@ describe("decodeCollectionsFile: malformed input", () => {
         type: "group",
         operator: "and",
         children: [
-          { type: "clause", field: { kind: "system", field: "tag" }, operator: "not-a-real-operator" },
+          {
+            type: "clause",
+            field: { kind: "system", field: "tag" },
+            operator: "not-a-real-operator",
+          },
           {
             type: "clause",
             field: { kind: "system", field: "hasFrontmatter" },
@@ -262,7 +318,9 @@ describe("decodeCollectionsFile: malformed input", () => {
   });
 
   it("drops the whole collection when its query is fundamentally unparseable", () => {
-    const raw = validCollection({ query: "not a query" as unknown as QueryGroupV1 });
+    const raw = validCollection({
+      query: "not a query" as unknown as QueryGroupV1,
+    });
     const { file, corrupt } = decodeCollectionsFile(fileWith([raw]));
     expect(corrupt).toBe(true);
     expect(file.collections).toEqual([]);
@@ -271,7 +329,11 @@ describe("decodeCollectionsFile: malformed input", () => {
   it("rejects a group nested deeper than MAX_QUERY_DEPTH", () => {
     // Build a group nested one level past the allowed depth: root (0) ->
     // 1 -> 2 -> 3 -> 4 (rejected, since MAX_QUERY_DEPTH is 3 below root).
-    let deepest: QueryGroupV1 = { type: "group", operator: "and", children: [] };
+    let deepest: QueryGroupV1 = {
+      type: "group",
+      operator: "and",
+      children: [],
+    };
     for (let i = 0; i < 5; i++) {
       deepest = { type: "group", operator: "and", children: [deepest] };
     }
@@ -288,7 +350,9 @@ describe("decodeCollectionsFile: malformed input", () => {
       field: { kind: "system" as const, field: "hasFrontmatter" as const },
       operator: "exists" as const,
     }));
-    const raw = validCollection({ query: { type: "group", operator: "and", children } });
+    const raw = validCollection({
+      query: { type: "group", operator: "and", children },
+    });
     const { file, corrupt } = decodeCollectionsFile(fileWith([raw]));
     expect(corrupt).toBe(true);
     const query = file.collections[0].query as QueryGroupV1;
@@ -313,14 +377,25 @@ describe("decodeCollectionsFile: malformed input", () => {
 
   it("drops an invalid sort entry but keeps the collection", () => {
     const raw = validCollection() as unknown as Record<string, unknown>;
-    raw.sort = [{ field: { kind: "system", field: "modified" }, direction: "asc", missing: "last" }, "garbage"];
+    raw.sort = [
+      {
+        field: { kind: "system", field: "modified" },
+        direction: "asc",
+        missing: "last",
+      },
+      "garbage",
+    ];
     const { file, corrupt } = decodeCollectionsFile(fileWith([raw]));
     expect(corrupt).toBe(true);
     expect(file.collections[0].sort).toHaveLength(1);
   });
 
   it("flags an unrecognized top-level version as corrupt but still decodes what it can", () => {
-    const raw = { version: 99, collections: [validCollection()], order: ["c1"] };
+    const raw = {
+      version: 99,
+      collections: [validCollection()],
+      order: ["c1"],
+    };
     const { file, corrupt } = decodeCollectionsFile(JSON.stringify(raw));
     expect(corrupt).toBe(true);
     expect(file.version).toBe(1);
@@ -328,7 +403,9 @@ describe("decodeCollectionsFile: malformed input", () => {
   });
 
   it("does not crash and returns an empty file for a non-object collections array entry", () => {
-    const { file, corrupt } = decodeCollectionsFile(fileWith([null, 42, "x"], []));
+    const { file, corrupt } = decodeCollectionsFile(
+      fileWith([null, 42, "x"], []),
+    );
     expect(corrupt).toBe(true);
     expect(file.collections).toEqual([]);
   });
@@ -364,10 +441,7 @@ describe("groupResults — folder-based grouping", () => {
 
   it("places root-level notes (empty folder) in Unassigned", () => {
     const columns = groupResults(
-      [
-        noteWithFolder("", "root-note"),
-        noteWithFolder("Projects", "deep"),
-      ],
+      [noteWithFolder("", "root-note"), noteWithFolder("Projects", "deep")],
       FOLDER_GROUP_BY,
     );
     expect(columns.map((c) => c.label)).toEqual(["Projects", "Unassigned"]);
@@ -377,10 +451,7 @@ describe("groupResults — folder-based grouping", () => {
 
   it("trims whitespace in folder paths before grouping", () => {
     const columns = groupResults(
-      [
-        noteWithFolder("  Projects  ", "a"),
-        noteWithFolder("Projects", "b"),
-      ],
+      [noteWithFolder("  Projects  ", "a"), noteWithFolder("Projects", "b")],
       FOLDER_GROUP_BY,
     );
     // Both should land in the same "Projects" column.

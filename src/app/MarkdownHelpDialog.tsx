@@ -19,8 +19,14 @@ const ENTRIES: { syntax: string; result: string }[] = [
   { syntax: "```\ncode block\n```", result: "Fenced code block" },
   { syntax: "[text](url)", result: "Link" },
   { syntax: "[[Note Name]]", result: "Link to another note" },
-  { syntax: "[[Note Name|Label]]", result: "Link to another note with custom text" },
-  { syntax: "[[Note Name#Heading]]", result: "Link to a heading in another note" },
+  {
+    syntax: "[[Note Name|Label]]",
+    result: "Link to another note with custom text",
+  },
+  {
+    syntax: "[[Note Name#Heading]]",
+    result: "Link to a heading in another note",
+  },
   { syntax: "[[#Heading]]", result: "Link to a heading in this note" },
   { syntax: "![alt](path)", result: "Image" },
   { syntax: "---", result: "Horizontal rule" },
@@ -33,7 +39,11 @@ export function MarkdownHelpDialog({ onClose }: MarkdownHelpDialogProps) {
       <div class="modal markdown-help" onClick={(e) => e.stopPropagation()}>
         <div class="modal-header">
           <h2>Markdown formatting</h2>
-          <button class="modal-close" aria-label="Close Markdown help" onClick={onClose}>
+          <button
+            class="modal-close"
+            aria-label="Close Markdown help"
+            onClick={onClose}
+          >
             x
           </button>
         </div>

@@ -18,7 +18,11 @@
  * which by construction means an invalid document is never overwritten.
  */
 
-import { dirname, isPathWithinWorkspace, resolvePathWithinWorkspace } from "../workspace/paths";
+import {
+  dirname,
+  isPathWithinWorkspace,
+  resolvePathWithinWorkspace,
+} from "../workspace/paths";
 
 export interface CanvasNode {
   id: string;
@@ -41,7 +45,8 @@ export interface CanvasDocument {
 export const CANVAS_VERSION = 1;
 
 function isValidNode(entry: unknown): entry is CanvasNode {
-  if (typeof entry !== "object" || entry === null || Array.isArray(entry)) return false;
+  if (typeof entry !== "object" || entry === null || Array.isArray(entry))
+    return false;
   const candidate = entry as Record<string, unknown>;
   return (
     typeof candidate.id === "string" &&
@@ -66,7 +71,8 @@ function recordId(entry: Record<string, unknown>): string | null {
 }
 
 function isValidEdgeShape(entry: unknown): entry is CanvasEdge {
-  if (typeof entry !== "object" || entry === null || Array.isArray(entry)) return false;
+  if (typeof entry !== "object" || entry === null || Array.isArray(entry))
+    return false;
   const candidate = entry as Record<string, unknown>;
   return (
     typeof candidate.from === "string" &&
@@ -105,7 +111,8 @@ export function decodeCanvas(source: string): DecodedCanvas | null {
   } catch {
     return null;
   }
-  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return null;
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed))
+    return null;
   const record = parsed as Record<string, unknown>;
 
   const rawNodes = record.nodes;
@@ -140,7 +147,12 @@ export function decodeCanvas(source: string): DecodedCanvas | null {
     }
   }
 
-  return { document: { nodes, edges }, extraFields: record, unknownNodes, unknownEdges };
+  return {
+    document: { nodes, edges },
+    extraFields: record,
+    unknownNodes,
+    unknownEdges,
+  };
 }
 
 /** Re-serializes a decoded canvas, appending preserved unknown node/edge
@@ -152,7 +164,10 @@ export function decodeCanvas(source: string): DecodedCanvas | null {
  * choice F-008's `decodeWorkspaceSettings` makes for its own `version`
  * field. */
 export function serializeCanvas(decoded: DecodedCanvas): string {
-  const versionField = decoded.extraFields.version === undefined ? { version: CANVAS_VERSION } : {};
+  const versionField =
+    decoded.extraFields.version === undefined
+      ? { version: CANVAS_VERSION }
+      : {};
   return JSON.stringify(
     {
       ...decoded.extraFields,
@@ -183,7 +198,11 @@ export function resolveCanvasFileReference(
   filePath: string,
 ): string | null {
   if (!filePath) return null;
-  const relative = resolvePathWithinWorkspace(workspaceRoot, dirname(canvasPath), filePath);
+  const relative = resolvePathWithinWorkspace(
+    workspaceRoot,
+    dirname(canvasPath),
+    filePath,
+  );
   if (relative) return relative;
   return isPathWithinWorkspace(workspaceRoot, filePath) ? filePath : null;
 }

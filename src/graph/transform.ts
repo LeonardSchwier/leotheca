@@ -15,7 +15,11 @@ export interface Transform {
 
 /** Converts a canvas-relative screen point to world (pre-pan/zoom)
  * coordinates, the inverse of the translate+scale draw() applies. */
-export function screenToWorld(screenX: number, screenY: number, transform: Transform): Point {
+export function screenToWorld(
+  screenX: number,
+  screenY: number,
+  transform: Transform,
+): Point {
   return {
     x: (screenX - transform.offsetX) / transform.scale,
     y: (screenY - transform.offsetY) / transform.scale,
@@ -36,7 +40,8 @@ export function findNodeAtWorld(
   hitRadius: number,
 ): string | null {
   for (const [path, pos] of positions) {
-    if (Math.hypot(pos.x - worldX, pos.y - worldY) < hitRadius / scale) return path;
+    if (Math.hypot(pos.x - worldX, pos.y - worldY) < hitRadius / scale)
+      return path;
   }
   return null;
 }

@@ -45,11 +45,16 @@ function successfulEdit(): CollectionResultsProps["onEditProperty"] {
 /** jsdom does not implement the DataTransfer constructor. The component
  * reads `event.dataTransfer.getData("text/leotheca-kanban-note")` in
  * its drop handler, so a minimal mock is sufficient. */
-function mockDataTransfer(): { getData: (t: string) => string; setData: (t: string, v: string) => void } {
+function mockDataTransfer(): {
+  getData: (t: string) => string;
+  setData: (t: string, v: string) => void;
+} {
   const store = new Map<string, string>();
   return {
     getData: (type: string) => store.get(type) ?? "",
-    setData: (type: string, value: string) => { store.set(type, value); },
+    setData: (type: string, value: string) => {
+      store.set(type, value);
+    },
   };
 }
 
@@ -87,11 +92,15 @@ describe("Kanban drag-and-drop (property-grouped board)", () => {
   });
 
   it("calls onEditProperty with the target column value when a card is dropped", async () => {
-    const onEditProperty = vi.fn<CollectionResultsProps["onEditProperty"]>(successfulEdit());
+    const onEditProperty =
+      vi.fn<CollectionResultsProps["onEditProperty"]>(successfulEdit());
     const { getByRole } = render(
       <CollectionResults
         collection={collection({ mode: "kanban", groupBy: "status" })}
-        results={[note("Alpha.md", "---\nstatus: active\n---\n"), note("Beta.md", "---\nstatus: done\n---\n")]}
+        results={[
+          note("Alpha.md", "---\nstatus: active\n---\n"),
+          note("Beta.md", "---\nstatus: done\n---\n"),
+        ]}
         onOpenFile={vi.fn()}
         onViewChange={vi.fn()}
         onEditProperty={onEditProperty}
@@ -113,7 +122,8 @@ describe("Kanban drag-and-drop (property-grouped board)", () => {
   });
 
   it("removes the property value when dropping onto Unassigned", async () => {
-    const onEditProperty = vi.fn<CollectionResultsProps["onEditProperty"]>(successfulEdit());
+    const onEditProperty =
+      vi.fn<CollectionResultsProps["onEditProperty"]>(successfulEdit());
     const { getByRole } = render(
       <CollectionResults
         collection={collection({ mode: "kanban", groupBy: "status" })}
@@ -138,7 +148,8 @@ describe("Kanban drag-and-drop (property-grouped board)", () => {
   });
 
   it("does not call onEditProperty when dropping a card on its own column", async () => {
-    const onEditProperty = vi.fn<CollectionResultsProps["onEditProperty"]>(successfulEdit());
+    const onEditProperty =
+      vi.fn<CollectionResultsProps["onEditProperty"]>(successfulEdit());
     const { getByRole } = render(
       <CollectionResults
         collection={collection({ mode: "kanban", groupBy: "status" })}
@@ -161,7 +172,9 @@ describe("Kanban drag-and-drop (property-grouped board)", () => {
   });
 
   it("handles edit failure without crashing", async () => {
-    const onEditProperty = vi.fn<CollectionResultsProps["onEditProperty"]>(async () => "error");
+    const onEditProperty = vi.fn<CollectionResultsProps["onEditProperty"]>(
+      async () => "error",
+    );
     const { getByRole } = render(
       <CollectionResults
         collection={collection({ mode: "kanban", groupBy: "status" })}

@@ -1093,6 +1093,7 @@ These are current behavior, recorded honestly. None was fixed by the change that
 Newest first. Each entry is `YYYY-MM-DD: what changed in behavior, contracts, formats, build or release`. See `skills/master-spec-maintenance.md`.
 
 <!-- change-log:start -->
+- 2026-11-07: Release workflow: the macOS DMG is now attached to the release. The `macos-dmg` artifact keeps its `dmg/` subfolder (it uploads the DMG and the `.app` together), so the publish pattern `artifacts/macos-dmg/*.dmg` matched nothing and the DMG was silently omitted; the pattern is now `artifacts/macos-dmg/dmg/*.dmg`. No application behavior changed.
 - 2026-11-07: Release workflow: the rolling `dev-build` is now a normal release marked Latest (`make_latest`) instead of a prerelease, so the Releases page and Obtainium show the newest build; the outdated `v1.0.0` release and tag were removed. No application behavior changed.
 - 2026-11-07: Security: `list_dir` now checks both `path` and `workspaceRoot` against the native `ActiveWorkspaceRoot` (or the app config dir) like its sibling read commands, so a compromised webview can no longer list an arbitrary directory by passing the same value twice. No change for normal workspace use.
 - 2026-11-07: Build and process: the pre-commit and CI secret scan no longer flags the ledger helper's own 32-hex claim token in `ROADMAP.md` `agent-state` lines (`lineSecretProblems` in `scripts/check-rules.mjs`); real secrets on those lines or elsewhere are still flagged. No application behavior changed.

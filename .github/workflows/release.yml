@@ -475,5 +475,5 @@ jobs:
             artifacts/linux-appimage/*.AppImage
             artifacts/android-debug-apk/*.apk
             artifacts/flatpak-bundle/*.flatpak
-            artifacts/macos-dmg/*.dmg
+            artifacts/macos-dmg/dmg/*.dmg
             artifacts/windows-msi/*.msi

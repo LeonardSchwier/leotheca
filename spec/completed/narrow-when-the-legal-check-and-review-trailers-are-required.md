@@ -37,4 +37,10 @@ No UI surface.
 
 ## Evidence
 
-Filled at finish.
+| Claim                  | Evidence                                                                                                                       | Result                                                    |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------- |
+| Acceptance criteria    | vitest check-rules.test.js plus trailersCli.test.js 38 passed (4 red against the original check-rules.mjs); tested SHA d7e6002 | observed, new tests red against the original, green after |
+| Gate                   | lint, tsc, unittest, vitest via pre-push, `check-rules.mjs trailers` and `deps`                                                | green, landed as d7e6002                                  |
+| Hosted runs of d7e6002 | hosted CI pending; run ids in `.agents/handoffs/rm-acf217768abf87cb.md`                                                        | pending                                                   |
+| Review                 | self-review, no second model                                                                                                   | closed                                                    |
+| Legal/text check       | Legal/text check: 5 verified, 0 fixed, 0 open                                                                                  | recorded                                                  |

@@ -102,13 +102,13 @@ Only now start a work branch from that confirmed main commit in the implementati
 git switch -c "$WORK_BRANCH" "$REMOTE/$MAIN_BRANCH"
 ```
 
-**If push loses a race:** do not merge or cherry-pick the losing claim commit onto new main. Its eligibility decision is stale. Keep the local failed commit if needed for diagnosis, switch the clean control tree to newly fetched main, and rerun the helper. If another agent owns this item or overlapping scope, choose another. After `contention_retries` immediate races, do read-only preparation before retrying rather than flooding main.
+**If push loses a race:** do not merge or cherry-pick the losing claim commit onto the new ledger tip. Its eligibility decision is stale. Keep the local failed commit if needed for diagnosis, switch the clean control tree to newly fetched main, and rerun the helper. If another agent owns this item or overlapping scope, choose another. After `contention_retries` immediate races, do read-only preparation before retrying rather than flooding main.
 
 **If push result is ambiguous:** fetch and inspect the token on the remote ledger branch first. A timeout may occur after the server accepted the commit. If the exact token is present and valid, you own it; if not, resolve from fresh main. An authentication/protection rejection is an external capability blocker, not a reason to force.
 
 ## 4. Implement and keep the lease alive
 
-Write acceptance criteria in the per-task handoff, implement one coherent slice, add regression tests, and update required docs. Keep the roadmap item `🚧` until post-push verification completes.
+Write acceptance criteria in the per-task handoff, implement one coherent slice, add regression tests, and update required docs. Keep the roadmap item `🚧` until the pull request is merged.
 
 Every `heartbeat_minutes`, perform a fresh control transaction with:
 
@@ -142,22 +142,13 @@ Stage explicit paths, inspect the staged diff, and commit the complete implement
 git diff --cached --check
 git diff --cached
 git commit
-CANDIDATE_SHA=$(git rev-parse HEAD)
-git push "$REMOTE" "HEAD:refs/heads/$MAIN_BRANCH"
 ```
 
-This refspec pushes the current candidate. `git push origin main` from a feature branch can push an unrelated stale local main.
+Then follow `pull-request-delivery.md`: push the work branch, open the pull request, switch on auto-merge, and keep renewing the lease until it merges. Main is never pushed directly.
 
-If main moved and the push is rejected, fetch, recheck the remote token/scope, merge, resolve, and retest. Recheck even if the merge is textually clean. Never repeatedly push a stale candidate. If only ownership metadata changed, verify that fact with a diff and rerun ledger validation; it does not require rebuilding unchanged application code. Code/test/build changes require affected checks again.
+If main moved and the queue or the PR reports a conflict, fetch, recheck the remote token and scope on the ledger branch, merge main into the work branch, resolve, and retest. Recheck even if the merge is textually clean. Never repeatedly push a stale candidate.
 
-Confirm actual delivery:
-
-```sh
-git fetch "$REMOTE" "$MAIN_BRANCH"
-git merge-base --is-ancestor "$CANDIDATE_SHA" "$REMOTE/$MAIN_BRANCH"
-```
-
-A newer main can legitimately contain your commit as an ancestor. Inspect your changes on that main; do not require that your commit remain its tip. Record the landed SHA immediately in the next control handoff. Inspect CI for that SHA and repair failures under the same claim.
+Confirm actual delivery: the PR is `MERGED` (`gh pr view "$PR" --json state,mergeCommit`). Record the merge commit SHA in the next control handoff, inspect the runs that start on main for it, and repair failures under the same claim.
 
 ## 6. Finish or defer
 

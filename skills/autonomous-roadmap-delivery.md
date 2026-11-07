@@ -30,7 +30,7 @@ can you fetch/push; execute project checks; read hosted workflow runs/jobs/logs;
 
 A runner's startup prompt should say:
 
-> Read AGENTS.md and CONSTITUTION.md from current main. Run the autonomous session loop for the available budget. Claim one item at a time with an expiring lease; implement, test, review, push directly to main, inspect/fix available CI, then continue. If features are unavailable, use the maintenance review skill. Before ending, publish a checkpoint/handoff and release unfinished work.
+> Read AGENTS.md and CONSTITUTION.md from current main. Run the autonomous session loop for the available budget. Claim one item at a time with an expiring lease; implement, test, review, deliver through a pull request and the merge queue, inspect/fix its checks, then continue. If features are unavailable, use the maintenance review skill. Before ending, publish a checkpoint/handoff and release unfinished work.
 
 This is a prompt for existing runners, not a newly installed scheduler. Different providers must use independent sessions/checkouts and the same remote ledger.
 
@@ -41,7 +41,7 @@ This is a prompt for existing runners, not a newly installed scheduler. Differen
 3. Run stages 2-4 of `pdlc-playbook.md`: write the spec with acceptance criteria and tests, record grill rulings and the design-system check. Read the relevant code before editing.
 4. Implement; checkpoint valuable progress; renew leases at the configured interval.
 5. Test and review; fix ordinary engineering failures yourself. Do not release work just because the first test or merge failed.
-6. Integrate current main, retest, and push. Record the landed SHA and inspect its checks; if hosted CI has not reported within `ci_wait_minutes`, finish with `hosted CI pending` and append the run ids to the handoff file later.
+6. Integrate current main, retest, and deliver through a pull request (`pull-request-delivery.md`). Record the merge SHA and inspect the checks that start on main; if hosted CI has not reported within `ci_wait_minutes`, finish with `hosted CI pending` and append the run ids to the handoff file later.
 7. Finish only with evidence (playbook stages 6-7, spec archived to `spec/completed/`), or block with a precise deferred-verification record.
 8. Immediately refresh and repeat. One completed item is one iteration, not a reason to end.
 

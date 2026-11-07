@@ -34,6 +34,15 @@ while read -r local_ref local_sha remote_ref remote_sha; do
   fi
   checked=1
 
+  # Main changes only through a merged pull request (skills/pull-request-delivery.md).
+  case "$remote_ref" in
+    refs/heads/main | refs/heads/master)
+      echo "pre-push: BLOCKED direct push to $remote_ref. Push your work branch and open a pull request with auto-merge." >&2
+      failed=1
+      continue
+      ;;
+  esac
+
   base="$remote_sha"
   if [ "$base" = "$ZERO" ] || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
     # New branch: compare against main, falling back to the tip commit alone.

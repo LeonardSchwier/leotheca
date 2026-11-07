@@ -40,16 +40,23 @@ function repoWithVerify(verifyScript) {
   return { dir, git, head: git("rev-parse", "HEAD") };
 }
 
-function push({ dir, head }) {
+function push({ dir, head }, ref = "refs/heads/agent/rm-x/abc") {
   return spawnSync("bash", ["hooks/pre-push"], {
     cwd: dir,
     env: cleanGitEnv(),
     encoding: "utf8",
-    input: `refs/heads/main ${head} refs/heads/main ${ZERO}\n`,
+    input: `${ref} ${head} ${ref} ${ZERO}\n`,
   });
 }
 
 describe("hooks/pre-push guard", () => {
+  it("refuses a direct push to main", () => {
+    const repo = repoWithVerify("#!/usr/bin/env bash\nexit 0\n");
+    const result = push(repo, "refs/heads/main");
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("direct push to refs/heads/main");
+  });
+
   it("lets a clean verification through", () => {
     const repo = repoWithVerify("#!/usr/bin/env bash\nexit 0\n");
     const result = push(repo);

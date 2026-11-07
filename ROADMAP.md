@@ -38,9 +38,6 @@ Items with an owner. An expired lease means the item can be recovered.
 
 Items nobody owns. Take the first one that fits.
 
-- 🚧 **Align packaging versions with VERSION**: `snap/snapcraft.yaml` and `packaging/homebrew/leotheca.rb` still declare 0.1.0 and `flatpak/README.md` explains a `v0.1.0` tag that was never cut, while `VERSION` is 1.0.0. Align the numbers and rewrite the Flatpak paragraph truthfully (no release tag exists; the rolling dev-build is the only release). Verify every statement against the repository.
-  <!-- agent-state: {"schema":1,"id":"rm-5d0e7ab93a652e83","state":"claimed","touch":[".agents/handoffs","flatpak/README.md","master-spec.md","packaging","snap/snapcraft.yaml"],"resources":[],"owner":"claude-code-pdlc-20261106T231246Z-fcf4c9d1","token":"24737ba54928dccbbf6c5145f88bc837","branch":"agent/rm-5d0e7ab93a652e83/24737ba54928","claimed_at":"2026-11-07T19:05:22Z","heartbeat_at":"2026-11-07T19:05:22Z","lease_until":"2026-11-07T20:35:22Z"} -->
-  Agent: claude-code-pdlc-20261106T231246Z-fcf4c9d1 | item: rm-5d0e7ab93a652e83 | lease until: 2026-11-07T20:35:22Z
 - ⬜ **Android camera capture**: Take a photo directly from the "Insert attachment" toolbar. Status: open.
   <!-- agent-state: {"schema":1,"id":"rm-5fc96a0db16f2169","state":"open","touch":[],"resources":["triage-recovery"],"note":"Triage 2026-11-06T23:25Z by claude-code-triage: previous owner hermes-20261030T080439Z-0fdb1a0c lease expired 2026-10-30. No remote or local branch and no handoff exist. Main has no cameraCapture.ts or CameraCapturePlugin; the WIP the 2026-11-01 weekly review saw was uncommitted and is not recoverable. Restart from main. Device-side testing needs an Android device or emulator with camera; split JS bridge and unit tests from device verification.","released_at":"2026-11-06T23:22:16Z"} -->
   Agent: unclaimed | item: rm-5fc96a0db16f2169
@@ -88,6 +85,11 @@ Items that wait for access or a decision outside the repository.
 - ⏸ **Compatibility layer**: Load community extension manifests; gated on maintainer approval of the third-party-code security model.
 
 ## Implemented
+
+- ✅ **Align packaging versions with VERSION**: `snap/snapcraft.yaml` and `packaging/homebrew/leotheca.rb` still declare 0.1.0 and `flatpak/README.md` explains a `v0.1.0` tag that was never cut, while `VERSION` is 1.0.0. Align the numbers and rewrite the Flatpak paragraph truthfully (no release tag exists; the rolling dev-build is the only release). Verify every statement against the repository.
+  <!-- agent-state: {"schema":1,"id":"rm-5d0e7ab93a652e83","state":"done","touch":[".agents/handoffs","flatpak/README.md","master-spec.md","packaging","snap/snapcraft.yaml"],"resources":[],"note":"Merged as PR 70 (ee79eea): snap and cask at 1.0.0, Flatpak README and STATUS truthful; 22 required PR checks green; hosted CI pending for post-merge runs, ids in handoff","completed_at":"2026-11-07T19:16:28Z","completed_by":"claude-code-pdlc-20261106T231246Z-fcf4c9d1","branch":"agent/rm-5d0e7ab93a652e83/24737ba54928"} -->
+  Agent: completed by claude-code-pdlc-20261106T231246Z-fcf4c9d1 | item: rm-5d0e7ab93a652e83
+
 
 - ✅ **Apply the npm audit fixes, regenerate the Flatpak sources and add the audit gate**: Follow-up of the blocked audit triage item; the owner allowed cloning flatpak-builder-tools on 2026-11-07. `npm audit fix --omit=dev` clears all 8 findings; regenerate `flatpak/node-sources.json` per `flatpak/README.md`, verify, add the blocking `npm audit --omit=dev --audit-level=high` CI job, deliver by pull request. See `.agents/handoffs/rm-f8a170274cf969d1.md`.
   <!-- agent-state: {"schema":1,"id":"rm-f9fa3bc295a46b46","state":"done","touch":[".agents/handoffs",".github/workflows/audit.yml","flatpak/node-sources.json","master-spec.md","package-lock.json","package.json"],"resources":[],"note":"Merged as PR 68 (ead4256): npm audit clean (0 of 8 left), Flatpak node sources regenerated, weekly audit workflow added; 23 required PR checks green; hosted CI pending for post-merge runs, ids in handoff","completed_at":"2026-11-07T19:01:13Z","completed_by":"claude-code-pdlc-20261106T231246Z-fcf4c9d1","branch":"agent/rm-f9fa3bc295a46b46/7997c5aedaf4"} -->

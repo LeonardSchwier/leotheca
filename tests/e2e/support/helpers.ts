@@ -12,17 +12,23 @@ export async function openNote(page: Page, relative: string) {
   await treeItem(page, relative).click();
 }
 
-export async function setViewMode(page: Page, mode: "Source" | "Split" | "Preview") {
+export async function setViewMode(
+  page: Page,
+  mode: "Source" | "Split" | "Preview",
+) {
   await page.getByRole("radio", { name: mode }).click();
 }
 
-export const searchBox = (page: Page) => page.getByPlaceholder("Search notes...");
+export const searchBox = (page: Page) =>
+  page.getByPlaceholder("Search notes...");
 
 /** Names shown by the search results list, in order. */
 export const searchResultNames = (page: Page) =>
-  page.locator(".search-results .file-tree-item").evaluateAll((items) =>
-    items.map((item) => (item.childNodes[0]?.textContent ?? "").trim()),
-  );
+  page
+    .locator(".search-results .file-tree-item")
+    .evaluateAll((items) =>
+      items.map((item) => (item.childNodes[0]?.textContent ?? "").trim()),
+    );
 
 /**
  * Opens the Tags panel and returns to Files. The app builds its link/tag index

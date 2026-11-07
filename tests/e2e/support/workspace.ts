@@ -39,12 +39,28 @@ export const NOTE_FILES: Record<string, string> = {
     "#project #pelican",
     "",
   ].join("\n"),
-  "projects/retro.md": ["# Retro", "", "The pelican team met. Nothing about walrus.", "", "#project", ""].join("\n"),
-  "research/walrus.md": ["# Walrus Facts", "", "The walrus has tusks.", "", "#research", ""].join("\n"),
+  "projects/retro.md": [
+    "# Retro",
+    "",
+    "The pelican team met. Nothing about walrus.",
+    "",
+    "#project",
+    "",
+  ].join("\n"),
+  "research/walrus.md": [
+    "# Walrus Facts",
+    "",
+    "The walrus has tusks.",
+    "",
+    "#research",
+    "",
+  ].join("\n"),
   "inbox/draft.md": ["# Draft", "", "Disposable note.", ""].join("\n"),
 };
 
-export function bridgeOptions(overrides: Partial<BridgeMockOptions> = {}): BridgeMockOptions {
+export function bridgeOptions(
+  overrides: Partial<BridgeMockOptions> = {},
+): BridgeMockOptions {
   return {
     root: WORKSPACE_ROOT,
     configDir: CONFIG_DIR,

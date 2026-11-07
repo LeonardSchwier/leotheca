@@ -13,7 +13,10 @@ export default defineConfig({
   // No retries anywhere: a test that needs a second attempt is flaky and must be fixed.
   retries: 0,
   workers: isCi ? 2 : undefined,
-  reporter: [["list"], ["html", { open: "never", outputFolder: "playwright-report" }]],
+  reporter: [
+    ["list"],
+    ["html", { open: "never", outputFolder: "playwright-report" }],
+  ],
   outputDir: "test-results",
   use: {
     baseURL: `http://127.0.0.1:${PORT}`,
@@ -26,7 +29,15 @@ export default defineConfig({
     timezoneId: "UTC",
     reducedMotion: "reduce",
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"], viewport: { width: 1280, height: 800 } } }],
+  projects: [
+    {
+      name: "chromium",
+      use: {
+        ...devices["Desktop Chrome"],
+        viewport: { width: 1280, height: 800 },
+      },
+    },
+  ],
   webServer: {
     // Drives the production bundle (vite build), not the dev server, so the
     // suite exercises what actually ships, including the strict CSP.

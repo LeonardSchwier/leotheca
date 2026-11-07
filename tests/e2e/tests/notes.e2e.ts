@@ -7,8 +7,13 @@ test("opening a note shows it in a tab with its text", async ({ app }) => {
   await openNote(page, "projects/retro.md");
 
   await expect(page.locator(".tab-active .tab-name")).toHaveText("retro.md");
-  await expect(page.locator(".cm-content")).toContainText("The pelican team met.");
-  await expect(treeItem(page, "projects/retro.md")).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator(".cm-content")).toContainText(
+    "The pelican team met.",
+  );
+  await expect(treeItem(page, "projects/retro.md")).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
 
   await page.getByRole("button", { name: "Close retro.md" }).click();
   await expect(page.locator(".tab")).toHaveCount(0);
@@ -19,14 +24,19 @@ test("creating a note writes a new file and opens it", async ({ app }) => {
   const { page } = app;
   await page.goto("/");
 
-  await page.locator(".sidebar-toolbar").getByRole("button", { name: "New note" }).click();
+  await page
+    .locator(".sidebar-toolbar")
+    .getByRole("button", { name: "New note" })
+    .click();
   const prompt = page.locator(".name-prompt");
   await expect(prompt.getByRole("heading", { name: "New note" })).toBeVisible();
   await prompt.getByPlaceholder("note-name").fill("fresh-idea");
   await prompt.getByRole("button", { name: "Create" }).click();
 
   await expect(treeItem(page, "fresh-idea.md")).toBeVisible();
-  await expect(page.locator(".tab-active .tab-name")).toHaveText("fresh-idea.md");
+  await expect(page.locator(".tab-active .tab-name")).toHaveText(
+    "fresh-idea.md",
+  );
   expect(await app.file(abs("fresh-idea.md"))).toBeDefined();
 });
 
@@ -43,14 +53,20 @@ test("typing in the editor autosaves to the native file", async ({ app }) => {
   await page.keyboard.insertText(" Autosaved sentence about pelicans.");
 
   await expect
-    .poll(() => app.file(abs("inbox/draft.md")), { message: "autosave reached the native side" })
+    .poll(() => app.file(abs("inbox/draft.md")), {
+      message: "autosave reached the native side",
+    })
     .toContain("Autosaved sentence about pelicans.");
   // The original text was kept, not replaced.
   expect(await app.file(abs("inbox/draft.md"))).toContain("Disposable note.");
-  await expect(page.locator(".document-header-savestate")).toHaveClass(/savestate-clean/);
+  await expect(page.locator(".document-header-savestate")).toHaveClass(
+    /savestate-clean/,
+  );
 });
 
-test("renaming a note moves the file and keeps the content", async ({ app }) => {
+test("renaming a note moves the file and keeps the content", async ({
+  app,
+}) => {
   const { page } = app;
   await page.goto("/");
 
@@ -78,6 +94,8 @@ test("deleting a note moves it to the workspace trash", async ({ app }) => {
   await expect(treeItem(page, "inbox/draft.md")).toHaveCount(0);
   await expect(page.locator(".tab")).toHaveCount(0);
   expect(await app.file(abs("inbox/draft.md"))).toBeUndefined();
-  expect(await app.file(abs(".trash/inbox/draft.md"))).toContain("Disposable note.");
+  expect(await app.file(abs(".trash/inbox/draft.md"))).toContain(
+    "Disposable note.",
+  );
   expect((await app.calls("trash_path")).length).toBe(1);
 });

@@ -8,7 +8,14 @@ platforms: [linux, macos, windows]
 metadata:
   hermes:
     tags: [verification, ci, testing, quality, leotheca]
-    related_skills: [pre-push-verification, ci-failure-triage, change-quality-gates, persistence-implementation, security-and-static-analysis]
+    related_skills:
+      [
+        pre-push-verification,
+        ci-failure-triage,
+        change-quality-gates,
+        persistence-implementation,
+        security-and-static-analysis,
+      ]
 ---
 
 <!--
@@ -24,7 +31,7 @@ ANDROID_CHECKS = ./gradlew testDebugUnitTest; ./gradlew assembleDebug
 POLICY_TEST = python3 -m unittest discover -s scripts -p 'test_agent_ledger.py' -v
 CI_WORKFLOW = .github/workflows/ci.yml
 POLICY_WORKFLOW = .github/workflows/agent-policy.yml
-CI_EXPECTED_JOBS = frontend, backend, android, appimage-smoke, validation
+CI_EXPECTED_JOBS = frontend, e2e, backend, android, appimage-smoke, validation
 RUNTIMES = use versions in CI_WORKFLOW (currently Node 22, stable Rust, JDK 21)
 -->
 
@@ -34,16 +41,16 @@ Use the command variables above, checking the workflow and package scripts if th
 
 ## Applicable checks
 
-| Changed surface | Required evidence |
-| --- | --- |
-| Claim, heartbeat, finish, handoff only | Helper validates state; inspect changed item and diff; no application rebuild for unchanged code. |
-| Markdown instructions/docs only | Check referenced paths/commands and consistency; inspect full diff and git diff --check. Policy changes also run POLICY_TEST. |
-| Lease helper or policy workflow | POLICY_TEST, syntax/CLI smoke checks, actual local competing-push test, and policy workflow when accessible. |
-| Frontend, frontend tests, dependencies, shared configuration | FRONTEND_SETUP and every FRONTEND_CHECK; targeted behavior/regression tests. |
-| Rust source, bridge contract, native dependencies | Applicable frontend checks plus RUST_CHECKS from RUST_CWD. |
-| Android/native bridge or Android build configuration | Applicable frontend checks, ANDROID_PREPARE, ANDROID_CHECKS from ANDROID_CWD. |
+| Changed surface                                                                                                                                                     | Required evidence                                                                                                                                                                                                                                                                 |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Claim, heartbeat, finish, handoff only                                                                                                                              | Helper validates state; inspect changed item and diff; no application rebuild for unchanged code.                                                                                                                                                                                 |
+| Markdown instructions/docs only                                                                                                                                     | Check referenced paths/commands and consistency; inspect full diff and git diff --check. Policy changes also run POLICY_TEST.                                                                                                                                                     |
+| Lease helper or policy workflow                                                                                                                                     | POLICY_TEST, syntax/CLI smoke checks, actual local competing-push test, and policy workflow when accessible.                                                                                                                                                                      |
+| Frontend, frontend tests, dependencies, shared configuration                                                                                                        | FRONTEND_SETUP and every FRONTEND_CHECK; targeted behavior/regression tests.                                                                                                                                                                                                      |
+| Rust source, bridge contract, native dependencies                                                                                                                   | Applicable frontend checks plus RUST_CHECKS from RUST_CWD.                                                                                                                                                                                                                        |
+| Android/native bridge or Android build configuration                                                                                                                | Applicable frontend checks, ANDROID_PREPARE, ANDROID_CHECKS from ANDROID_CWD.                                                                                                                                                                                                     |
 | Security/static analysis: `src-tauri/**`, Tauri capabilities, Capacitor plugins/AndroidManifest, IPC/invoke wrappers, any new dependency, any secret-bearing config | `skills/security-and-static-analysis.md`: Tier 1 guidance-mode review (or the recorded checklist fallback when it cannot run), plus each available static-analysis tool it lists for the surface. Confirmed high/critical blocks landing; never record an audit that did not run. |
-| Packaging/release/workflow changes | Exact affected workflow/jobs or equivalent local build. Use packaging skill for source-pin checks. |
+| Packaging/release/workflow changes                                                                                                                                  | Exact affected workflow/jobs or equivalent local build. Use packaging skill for source-pin checks.                                                                                                                                                                                |
 
 A shared API/data-format change affects both platforms even if only one file changed. Include its callers and platform contract tests. Inspect the candidate diff for generated changes after build/sync. Stage only intended files.
 
@@ -65,16 +72,16 @@ Do not change a lockfile just to accommodate the sandbox, install guessed depend
 
 ## Decide whether to land and finish
 
-| Evidence available | Landing and completion rule |
-| --- | --- |
-| All applicable local checks and review pass; no known code failure | Push directly to main. A duplicate branch CI run is optional. Inspect main CI if accessible. |
-| Some applicable local checks unavailable; hosted branch checks accessible | Push checkpoint/candidate to its unique work branch; obtain missing evidence for that exact candidate before landing. Keep renewing. |
-| Hosted CI unavailable/absent; all applicable checks pass locally | Land and finish as **locally verified; hosted CI unavailable/absent**, with evidence and reason. Never label it hosted green. |
-| Hosted CI queued or running beyond ci_wait_minutes | Preserve SHA/run IDs; if fully verified locally, landing is allowed. Leave hosted verification pending, block/release, and continue other work. A later worker checks that run. |
-| An unaffected platform/packaging check is unavailable, but all changed behavior passes executable tests | A small, reversible change may land with a **verification-deferred** handoff. Keep the task blocked, not done, until missing evidence is resolved. |
-| Core changed behavior cannot be tested locally or remotely | Keep code on its checkpoint branch. Block/release and choose a task that can be tested here. Documentation/inspection alone is not proof of new application behavior. |
-| A known code/test failure, security/data-loss risk without adequate tests, incompatible migration, or unreviewed conflict exists | Do not land it. Fix it, or checkpoint/block and continue another runnable scope. |
-| Proven hosted infrastructure failure; all applicable checks pass locally | Local evidence may permit landing/finishing with an explicit infrastructure limitation. Record a separate deduplicated CI repair item. An application failure is never relabeled infrastructure to qualify. |
+| Evidence available                                                                                                               | Landing and completion rule                                                                                                                                                                                 |
+| -------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| All applicable local checks and review pass; no known code failure                                                               | Push directly to main. A duplicate branch CI run is optional. Inspect main CI if accessible.                                                                                                                |
+| Some applicable local checks unavailable; hosted branch checks accessible                                                        | Push checkpoint/candidate to its unique work branch; obtain missing evidence for that exact candidate before landing. Keep renewing.                                                                        |
+| Hosted CI unavailable/absent; all applicable checks pass locally                                                                 | Land and finish as **locally verified; hosted CI unavailable/absent**, with evidence and reason. Never label it hosted green.                                                                               |
+| Hosted CI queued or running beyond ci_wait_minutes                                                                               | Preserve SHA/run IDs; if fully verified locally, landing is allowed. Leave hosted verification pending, block/release, and continue other work. A later worker checks that run.                             |
+| An unaffected platform/packaging check is unavailable, but all changed behavior passes executable tests                          | A small, reversible change may land with a **verification-deferred** handoff. Keep the task blocked, not done, until missing evidence is resolved.                                                          |
+| Core changed behavior cannot be tested locally or remotely                                                                       | Keep code on its checkpoint branch. Block/release and choose a task that can be tested here. Documentation/inspection alone is not proof of new application behavior.                                       |
+| A known code/test failure, security/data-loss risk without adequate tests, incompatible migration, or unreviewed conflict exists | Do not land it. Fix it, or checkpoint/block and continue another runnable scope.                                                                                                                            |
+| Proven hosted infrastructure failure; all applicable checks pass locally                                                         | Local evidence may permit landing/finishing with an explicit infrastructure limitation. Record a separate deduplicated CI repair item. An application failure is never relabeled infrastructure to qualify. |
 
 Deferred landing is limited to independently useful, reversible changes with executable evidence for the changed behavior and no known defect. It never covers missing tests for persistence migrations, filesystem mutation, security boundaries, or a new native contract. State exactly which check is missing and why it cannot plausibly conceal an untested change at that boundary.
 

@@ -38,16 +38,16 @@ Real Tauri/WebKit driving, Android, visual-regression screenshots, performance b
 
 ## Rulings
 
-| Q | Decision | Why | Cost if wrong |
-| --- | --- | --- | --- |
-| Reuse the Python script or port it? | Port its journeys to TypeScript Playwright Test; keep the Python files, add a pointer comment. | CI needs the test runner's traces, parallelism, auto-wait and `forbidOnly`; the Python script uses fixed sleeps. Deleting `tests/ui` also removes `record_demo.py` users, so leave it. | Duplicate maintenance; low. |
-| Root dependency or separate package? | Separate `tests/e2e` package. | Keeps flatpak node sources, root audit and root lockfile untouched, and avoids the root `package.json` that the Git-hooks claim holds. | A second `npm ci`; low. |
-| Dev server or production bundle? | `vite build` then `vite preview`. | Tests what ships, including the strict CSP. | Build adds about 30 s. |
-| Retries to hide flakiness? | None. | Tests must be deterministic; a retry hides a real race. | A flake costs a rerun and a fix. |
-| How to avoid unmocked-bridge silent passes? | Fixture fails the test if the app calls a command the mock lacks. | Prevents mock drift from hiding crashes. | New app commands need mock entries. |
-| Required job? | Add to `validation.needs` and its result check. | "Required" in this repo means the aggregate. | None. |
-| Browser binary in CI | `npx playwright install --with-deps chromium`. | Official path; no random installers. | Slower job. |
-| Add to pre-push gate? | No; Git-hooks item owns it and claims `scripts/verify-fast.sh`. | Avoid overlapping edits. | Follow-up item note. |
+| Q                                           | Decision                                                                                       | Why                                                                                                                                                                                    | Cost if wrong                       |
+| ------------------------------------------- | ---------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| Reuse the Python script or port it?         | Port its journeys to TypeScript Playwright Test; keep the Python files, add a pointer comment. | CI needs the test runner's traces, parallelism, auto-wait and `forbidOnly`; the Python script uses fixed sleeps. Deleting `tests/ui` also removes `record_demo.py` users, so leave it. | Duplicate maintenance; low.         |
+| Root dependency or separate package?        | Separate `tests/e2e` package.                                                                  | Keeps flatpak node sources, root audit and root lockfile untouched, and avoids the root `package.json` that the Git-hooks claim holds.                                                 | A second `npm ci`; low.             |
+| Dev server or production bundle?            | `vite build` then `vite preview`.                                                              | Tests what ships, including the strict CSP.                                                                                                                                            | Build adds about 30 s.              |
+| Retries to hide flakiness?                  | None.                                                                                          | Tests must be deterministic; a retry hides a real race.                                                                                                                                | A flake costs a rerun and a fix.    |
+| How to avoid unmocked-bridge silent passes? | Fixture fails the test if the app calls a command the mock lacks.                              | Prevents mock drift from hiding crashes.                                                                                                                                               | New app commands need mock entries. |
+| Required job?                               | Add to `validation.needs` and its result check.                                                | "Required" in this repo means the aggregate.                                                                                                                                           | None.                               |
+| Browser binary in CI                        | `npx playwright install --with-deps chromium`.                                                 | Official path; no random installers.                                                                                                                                                   | Slower job.                         |
+| Add to pre-push gate?                       | No; Git-hooks item owns it and claims `scripts/verify-fast.sh`.                                | Avoid overlapping edits.                                                                                                                                                               | Follow-up item note.                |
 
 ## Design system
 

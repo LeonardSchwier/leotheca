@@ -84,11 +84,13 @@ export function bridgeMockInPage(opts: BridgeMockOptions): void {
   const exists = (p: string) => files.has(p) || dirs.has(p);
   const inside = (parent: string, p: string) => p.startsWith(parent + "/");
   const resolveIn = (workspaceRoot: string, relativePath: string) => {
-    if (relativePath.split("/").includes("..")) fail("outside_workspace", relativePath);
+    if (relativePath.split("/").includes(".."))
+      fail("outside_workspace", relativePath);
     return join(workspaceRoot, relativePath);
   };
 
-  for (const [rel, content] of Object.entries(opts.files)) putFile(join(root, rel), content);
+  for (const [rel, content] of Object.entries(opts.files))
+    putFile(join(root, rel), content);
   for (const d of opts.dirs ?? []) ensureDir(join(root, d));
   ensureDir(root);
 
@@ -97,14 +99,24 @@ export function bridgeMockInPage(opts: BridgeMockOptions): void {
     theme: opts.theme ?? "system",
     activeWorkspaceId: "ws-e2e",
     workspaceProfiles: [
-      { id: "ws-e2e", name: "E2E Notes", path: root, icon: "book", lastOpenedAt: 1 },
+      {
+        id: "ws-e2e",
+        name: "E2E Notes",
+        path: root,
+        icon: "book",
+        lastOpenedAt: 1,
+      },
     ],
     lastWorkspacePath: root,
     externalFileOpenEnabled: true,
   };
   putFile(join(opts.configDir, "config.json"), JSON.stringify(config, null, 2));
 
-  const entry = (path: string) => ({ name: baseName(path), path, isDir: dirs.has(path) });
+  const entry = (path: string) => ({
+    name: baseName(path),
+    path,
+    isDir: dirs.has(path),
+  });
   const visible = (path: string, base: string) =>
     !path
       .slice(base.length + 1)
@@ -112,15 +124,24 @@ export function bridgeMockInPage(opts: BridgeMockOptions): void {
       .some((segment) => segment.startsWith("."));
 
   const listDir = (path: string) => {
-    const out = new Map<string, { name: string; path: string; isDir: boolean }>();
-    for (const d of dirs) if (parentOf(d) === path && !baseName(d).startsWith(".")) out.set(d, entry(d));
-    for (const f of files.keys()) if (parentOf(f) === path && !baseName(f).startsWith(".")) out.set(f, entry(f));
+    const out = new Map<
+      string,
+      { name: string; path: string; isDir: boolean }
+    >();
+    for (const d of dirs)
+      if (parentOf(d) === path && !baseName(d).startsWith("."))
+        out.set(d, entry(d));
+    for (const f of files.keys())
+      if (parentOf(f) === path && !baseName(f).startsWith("."))
+        out.set(f, entry(f));
     return [...out.values()].sort((a, b) =>
       a.isDir !== b.isDir ? (a.isDir ? -1 : 1) : a.name.localeCompare(b.name),
     );
   };
   const walkFiles = (base: string) =>
-    [...files.keys()].filter((f) => inside(base, f) && visible(f, base)).map(entry);
+    [...files.keys()]
+      .filter((f) => inside(base, f) && visible(f, base))
+      .map(entry);
 
   const move = (from: string, to: string) => {
     if (!exists(from)) fail("io_failure", `No such file or directory: ${from}`);
@@ -147,12 +168,14 @@ export function bridgeMockInPage(opts: BridgeMockOptions): void {
   const remove = (path: string) => {
     files.delete(path);
     for (const f of [...files.keys()]) if (inside(path, f)) files.delete(f);
-    for (const d of [...dirs]) if (d === path || inside(path, d)) dirs.delete(d);
+    for (const d of [...dirs])
+      if (d === path || inside(path, d)) dirs.delete(d);
   };
 
   const readText = (path: string) => {
     const content = files.get(path);
-    if (content === undefined) fail("io_failure", `No such file or directory: ${path}`);
+    if (content === undefined)
+      fail("io_failure", `No such file or directory: ${path}`);
     return content as string;
   };
 
@@ -160,14 +183,18 @@ export function bridgeMockInPage(opts: BridgeMockOptions): void {
 
   const commands: Record<string, (a: Args) => unknown> = {
     list_dir: (a) => listDir(a.path),
-    find_markdown_files: (a) => walkFiles(a.path).filter((e) => e.name.endsWith(".md")),
+    find_markdown_files: (a) =>
+      walkFiles(a.path).filter((e) => e.name.endsWith(".md")),
     find_all_files: (a) => walkFiles(a.path),
     find_all_entries: (a) => [
       ...walkFiles(a.path),
-      ...[...dirs].filter((d) => inside(a.path, d) && visible(d, a.path)).map(entry),
+      ...[...dirs]
+        .filter((d) => inside(a.path, d) && visible(d, a.path))
+        .map(entry),
     ],
     read_text_file: (a) => readText(a.path),
-    read_text_files_batch: (a) => (a.paths as string[]).map((p) => files.get(p) ?? null),
+    read_text_files_batch: (a) =>
+      (a.paths as string[]).map((p) => files.get(p) ?? null),
     read_binary_file: (a) => [...new TextEncoder().encode(readText(a.path))],
     write_text_file: (a) => void putFile(a.path, a.contents),
     write_binary_file: (a) =>
@@ -190,7 +217,8 @@ export function bridgeMockInPage(opts: BridgeMockOptions): void {
       putFile(target, new TextDecoder().decode(new Uint8Array(a.data)));
     },
     create_dir: (a) => void ensureDir(a.path),
-    create_workspace_dir: (a) => void ensureDir(resolveIn(a.workspaceRoot, a.relativePath)),
+    create_workspace_dir: (a) =>
+      void ensureDir(resolveIn(a.workspaceRoot, a.relativePath)),
     create_workspace_dir_new: (a) => {
       const target = resolveIn(a.workspaceRoot, a.relativePath);
       if (exists(target)) fail("already_exists", a.relativePath);
@@ -200,7 +228,10 @@ export function bridgeMockInPage(opts: BridgeMockOptions): void {
     // side joins and confines them); the plain one takes absolute paths.
     rename_path: (a) => void move(a.from, a.to),
     rename_workspace_path: (a) =>
-      void move(resolveIn(a.workspaceRoot, a.from), resolveIn(a.workspaceRoot, a.to)),
+      void move(
+        resolveIn(a.workspaceRoot, a.from),
+        resolveIn(a.workspaceRoot, a.to),
+      ),
     rename_workspace_path_no_replace: (a) => {
       const from = resolveIn(a.workspaceRoot, a.from);
       const to = resolveIn(a.workspaceRoot, a.to);
@@ -208,9 +239,12 @@ export function bridgeMockInPage(opts: BridgeMockOptions): void {
       move(from, to);
     },
     trash_path: (a) => {
-      const relative = (a.path as string).slice((a.workspaceRoot as string).length + 1);
+      const relative = (a.path as string).slice(
+        (a.workspaceRoot as string).length + 1,
+      );
       let dest = join(a.workspaceRoot, ".trash", relative);
-      if (exists(dest)) dest = join(parentOf(dest), `${Date.now()}-${baseName(dest)}`);
+      if (exists(dest))
+        dest = join(parentOf(dest), `${Date.now()}-${baseName(dest)}`);
       move(a.path, dest);
     },
     delete_path_permanent: (a) => void remove(a.path),
@@ -220,10 +254,14 @@ export function bridgeMockInPage(opts: BridgeMockOptions): void {
       const notes = walkFiles(a.path).filter((e) => e.name.endsWith(".md"));
       const lines = notes.map((n) => readText(n.path).split("\n").length);
       return {
-        folderCount: [...dirs].filter((d) => inside(a.path, d) && visible(d, a.path)).length,
+        folderCount: [...dirs].filter(
+          (d) => inside(a.path, d) && visible(d, a.path),
+        ).length,
         noteCount: notes.length,
         imageCount: 0,
-        averageLinesPerNote: lines.length ? lines.reduce((s, n) => s + n, 0) / lines.length : 0,
+        averageLinesPerNote: lines.length
+          ? lines.reduce((s, n) => s + n, 0) / lines.length
+          : 0,
         oldestNoteDate: null,
         newestNoteDate: null,
       };
@@ -253,7 +291,11 @@ export function bridgeMockInPage(opts: BridgeMockOptions): void {
   };
 
   const invoke = async (cmd: string, args: Args = {}) => {
-    calls.push({ seq: ++seq, cmd, args: JSON.parse(JSON.stringify(args ?? {})) });
+    calls.push({
+      seq: ++seq,
+      cmd,
+      args: JSON.parse(JSON.stringify(args ?? {})),
+    });
     const handler = commands[cmd];
     if (!handler) {
       unhandled.push(cmd);
@@ -268,7 +310,10 @@ export function bridgeMockInPage(opts: BridgeMockOptions): void {
       transformCallback: () => nextCallbackId++,
       unregisterCallback: () => undefined,
       convertFileSrc: (path: string) => `blob:e2e-${encodeURIComponent(path)}`,
-      metadata: { currentWindow: { label: "main" }, currentWebview: { label: "main" } },
+      metadata: {
+        currentWindow: { label: "main" },
+        currentWebview: { label: "main" },
+      },
     },
   });
   Object.defineProperty(window, "__TAURI_EVENT_PLUGIN_INTERNALS__", {

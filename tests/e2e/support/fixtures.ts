@@ -1,5 +1,9 @@
 import { expect, test as base, type Page } from "@playwright/test";
-import { bridgeMockInPage, type BridgeMockOptions, type BridgeState } from "./bridgeMock.js";
+import {
+  bridgeMockInPage,
+  type BridgeMockOptions,
+  type BridgeState,
+} from "./bridgeMock.js";
 import { bridgeOptions } from "./workspace.js";
 
 /** Handle on the running app: the page plus its mocked native bridge. */
@@ -29,7 +33,10 @@ export class App {
   }
 }
 
-export const test = base.extend<{ bridge: Partial<BridgeMockOptions>; app: App }>({
+export const test = base.extend<{
+  bridge: Partial<BridgeMockOptions>;
+  app: App;
+}>({
   bridge: [{}, { option: true }],
 
   app: async ({ page, context, baseURL, bridge }, use) => {
@@ -42,7 +49,11 @@ export const test = base.extend<{ bridge: Partial<BridgeMockOptions>; app: App }
     await context.route("**/*", (route) => {
       const url = route.request().url();
       requests.push(url);
-      if (url.startsWith(origin) || url.startsWith("data:") || url.startsWith("blob:")) {
+      if (
+        url.startsWith(origin) ||
+        url.startsWith("data:") ||
+        url.startsWith("blob:")
+      ) {
         return route.continue();
       }
       problems.push(`network request left the app: ${url}`);
@@ -54,7 +65,9 @@ export const test = base.extend<{ bridge: Partial<BridgeMockOptions>; app: App }
         problems.push(`console.${message.type()}: ${message.text()}`);
       }
     });
-    page.on("pageerror", (error) => problems.push(`uncaught: ${error.message}`));
+    page.on("pageerror", (error) =>
+      problems.push(`uncaught: ${error.message}`),
+    );
 
     await page.addInitScript(bridgeMockInPage, bridgeOptions(bridge));
     // The unhandled-rejection listener must exist before the app boots.
@@ -67,9 +80,15 @@ export const test = base.extend<{ bridge: Partial<BridgeMockOptions>; app: App }
     const app = new App(page, problems, requests);
     await use(app);
 
-    const state = await page.evaluate(() => window.__e2eBridge.unhandled).catch(() => []);
-    if (state.length > 0) problems.push(`unmocked native commands: ${state.join(", ")}`);
-    expect(problems, "console errors, rejections, offsite requests, unmocked commands").toEqual([]);
+    const state = await page
+      .evaluate(() => window.__e2eBridge.unhandled)
+      .catch(() => []);
+    if (state.length > 0)
+      problems.push(`unmocked native commands: ${state.join(", ")}`);
+    expect(
+      problems,
+      "console errors, rejections, offsite requests, unmocked commands",
+    ).toEqual([]);
   },
 });
 

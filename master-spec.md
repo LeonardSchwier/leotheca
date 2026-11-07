@@ -948,7 +948,7 @@ Only numbers that exist in code, configuration or an observed run appear here. N
 
 | Workflow | Trigger | Does |
 | --- | --- | --- |
-| `ci.yml` | Push (ignoring `ROADMAP.md` and `.agents/handoffs/**`), PR, call | Jobs `frontend`, `backend`, `android`, `appimage-smoke`, `validation` |
+| `ci.yml` | Push (ignoring `ROADMAP.md` and `.agents/handoffs/**`), PR, call | Jobs `frontend`, `e2e`, `backend`, `android`, `appimage-smoke`, `validation` (`validation` requires every other job) |
 | `rules.yml` | Push, PR, weekly schedule | Commit convention, added-line rules, secret-shaped tokens, dependency intake, fast-forward-only main, prettier on changed files, licenses, action pinning, `npm audit` (reported, non-blocking until triaged) |
 | `agent-policy.yml` | Push and PR on policy paths | Python helper tests, ledger and roadmap format |
 | `release.yml` | Tag `v*`, implementation push to main, manual | Builds Linux, Android, Flatpak, macOS, Windows, then publishes |
@@ -969,7 +969,8 @@ Only numbers that exist in code, configuration or an observed run appear here. N
 | Rust | `#[cfg(test)]` modules | 94 `#[test]` attributes (counted, not run in this pass) |
 | Java | `android/app/src/test` | 3 files, run by `./gradlew testDebugUnitTest` in CI |
 | Python policy | `scripts/test_*.py` | Run by `agent-policy.yml` |
-| End to end | `tests/ui/leotheca_e2e_test.py` | Playwright against Vite with `tests/ui/tauriMock.js`; not in CI |
+| End to end | `tests/e2e` | Playwright smoke suite, 14 journeys (boot, navigation, rendering, view modes, search, note create/edit/rename/delete, settings/theme) against the built frontend with an in-page stateful bridge mock; a test fails on console errors, off-site requests or unmocked native commands; required CI job `e2e` uploads traces on failure |
+| End to end (legacy) | `tests/ui/leotheca_e2e_test.py` | Playwright against Vite with `tests/ui/tauriMock.js`; not in CI |
 | Smoke | `ci.yml` | AppImage launch for 15 s under xvfb, APK install on an API 35 emulator |
 
 Vitest uses jsdom. DOMPurify requires it: happy-dom strips all tags. `src/test/setup-jsdom.ts` provides DOM polyfills. Bridge tests use faithful fakes at the boundary (`capacitorMutationContract.test.ts`, `tauriBridge.test.ts`). A bug fix MUST include a regression test shown to fail without the fix.
@@ -1092,6 +1093,7 @@ These are current behavior, recorded honestly. None was fixed by the change that
 Newest first. Each entry is `YYYY-MM-DD: what changed in behavior, contracts, formats, build or release`. See `skills/master-spec-maintenance.md`.
 
 <!-- change-log:start -->
+- 2026-11-07: Build and process: Playwright end-to-end smoke suite (`tests/e2e`, 14 journeys) and a required `e2e` job in `ci.yml` that uploads traces on failure. No application behavior changed.
 - 2026-11-07: Crash hardening (Android): `pickFolder` and `exportHtml` reject instead of throwing when the device has no document picker; share-intent extras are read defensively and styled text is kept; a restored activity no longer replays its share intent; `onNewIntent` is null-safe.
 - 2026-11-07: Desktop "Import Markdown vault..." command (`import_markdown_vault`, `cancel_markdown_import`, setting `markdownImportEnabled`, FR-IMPORT) copies a vault folder into `Imported/<name>`, converts three syntaxes and reports every outcome.
 - 2026-11-07: Build and process: versioned git hooks (pre-commit, commit-msg, fast pre-push) enabled through `npm run hooks:install`, `scripts/check-rules.mjs` mechanical rule checks, `scripts/guard-command.mjs`, and the `rules.yml` CI workflow. No application behavior changed.

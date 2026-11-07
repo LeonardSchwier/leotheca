@@ -4,12 +4,12 @@ Leotheca is built and maintained by autonomous coding agents under a written, pa
 
 ## 1. Summary
 
-| | |
-| --- | --- |
-| **Thesis** | Agents deliver at a steady pace only if the process is stricter than a human team's, not looser. Every rule that matters is therefore enforced by something that cannot be talked out of it, with agents doing the judgment work between those controls. |
-| **Operating model** | A "dark factory": agents pick work, specify, build, test, review and push directly to `main` without a human approval step. Review is a separate agent pass, not a person. The owner sets direction and policy, and reads outcomes. |
-| **What keeps it safe** | One ownership ledger, one constitution, tests that must fail before a fix, hooks and CI that re-check what agents report, and a rule that completion needs evidence, not confidence. |
-| **Design stance** | Opinionated: spec before code, decisions recorded as rulings, no waiting on people, and no "done" without a named command and its observed output. |
+|                        |                                                                                                                                                                                                                                                          |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Thesis**             | Agents deliver at a steady pace only if the process is stricter than a human team's, not looser. Every rule that matters is therefore enforced by something that cannot be talked out of it, with agents doing the judgment work between those controls. |
+| **Operating model**    | A "dark factory": agents pick work, specify, build, test, review and push directly to `main` without a human approval step. Review is a separate agent pass, not a person. The owner sets direction and policy, and reads outcomes.                      |
+| **What keeps it safe** | One ownership ledger, one constitution, tests that must fail before a fix, hooks and CI that re-check what agents report, and a rule that completion needs evidence, not confidence.                                                                     |
+| **Design stance**      | Opinionated: spec before code, decisions recorded as rulings, no waiting on people, and no "done" without a named command and its observed output.                                                                                                       |
 
 Entry points: [`AGENTS.md`](../AGENTS.md) (startup sequence), [`CONSTITUTION.md`](../CONSTITUTION.md) (policy), [`skills/README.md`](../skills/README.md) (runbooks).
 
@@ -31,13 +31,13 @@ flowchart LR
 
 Agentic controls make judgments. Non-agentic controls cannot be argued with. Quality at scale comes from the second kind bounding the first.
 
-| Agentic (judgment) | Non-agentic (enforcement) |
-| --- | --- |
-| Scan competitor changelogs and write backlog entries | Entry format checked in CI by [`scripts/check_roadmap_format.py`](../scripts/check_roadmap_format.py) |
-| Write the spec, interrogate it, and rule on open questions | Ownership and leases only change through [`scripts/agent_ledger.py`](../scripts/agent_ledger.py), which has its own tests |
-| Independent review of the diff by a fresh agent | Pre-commit, commit-msg and pre-push hooks in [`hooks/`](../hooks/README.md), plus a CI backstop in `.github/workflows/rules.yml` |
-| Crash-hunting passes in idle time | Type check, lint, unit tests and builds in `.github/workflows/ci.yml` |
-| Security review of changed trust boundaries | Policy workflow `.github/workflows/agent-policy.yml`, including the master-spec check |
+| Agentic (judgment)                                         | Non-agentic (enforcement)                                                                                                        |
+| ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| Scan competitor changelogs and write backlog entries       | Entry format checked in CI by [`scripts/check_roadmap_format.py`](../scripts/check_roadmap_format.py)                            |
+| Write the spec, interrogate it, and rule on open questions | Ownership and leases only change through [`scripts/agent_ledger.py`](../scripts/agent_ledger.py), which has its own tests        |
+| Independent review of the diff by a fresh agent            | Pre-commit, commit-msg and pre-push hooks in [`hooks/`](../hooks/README.md), plus a CI backstop in `.github/workflows/rules.yml` |
+| Crash-hunting passes in idle time                          | Type check, lint, unit tests and builds in `.github/workflows/ci.yml`                                                            |
+| Security review of changed trust boundaries                | Policy workflow `.github/workflows/agent-policy.yml`, including the master-spec check                                            |
 
 ## 4. Stage by stage
 
@@ -103,15 +103,15 @@ The process is provider-neutral and also designed to run from the author's local
 
 ## 7. Limits and open gaps
 
-| Gap | State |
-| --- | --- |
-| End-to-end smoke suite | A browser journey suite exists on a checkpoint branch (11 of 14 journeys passing at last run) but is not on `main` and not a CI job. `tests/ui` holds an older script. |
-| Hosted CI evidence | At the time of writing several landed commits had CI queued, so they are not claimed as hosted-green. |
-| Security tooling | The security-audit workflow is documented but no full audit has been run. Secret scanning, dependency auditing as a blocking gate, and SAST tools are seeded in the roadmap, not wired. `npm audit` currently reports findings that are untriaged. |
-| Design system adoption | Leoforma is published; the app does not yet consume it as a pinned dependency. |
-| Legal and text-rights check, database best-practice skill | Both skills are in the repository and the legal check is step 5 of stage 6. They are procedures run by agents, with no hook or CI job enforcing them yet. |
-| Enforcement model | The ledger is a cooperative protocol among compliant runners, not a server-enforced boundary. Branch protection is not used. |
-| Independence of review | Review is by a separate agent, which reduces but does not remove correlated errors with the author model. |
+| Gap                                                       | State                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| End-to-end smoke suite                                    | 14 journeys are on `main` (`tests/e2e`) and run as the required `e2e` CI job, which uploads traces on failure (green on `07f7a65`). They are not yet in the pre-push gate (no root `test:e2e` script). One finding is open: after an edit is pending, a second key press freezes headless Chromium with no cause found, so the autosave test inserts text in one input event. `tests/ui` holds an older script outside CI. |
+| Hosted CI evidence                                        | At the time of writing several landed commits had CI queued, so they are not claimed as hosted-green.                                                                                                                                                                                                                                                                                                                      |
+| Security tooling                                          | The security-audit workflow is documented but no full audit has been run. Secret scanning, dependency auditing as a blocking gate, and SAST tools are seeded in the roadmap, not wired. `npm audit` currently reports findings that are untriaged.                                                                                                                                                                         |
+| Design system adoption                                    | Leoforma is published; the app does not yet consume it as a pinned dependency.                                                                                                                                                                                                                                                                                                                                             |
+| Legal and text-rights check, database best-practice skill | Both skills are in the repository and the legal check is step 5 of stage 6. They are procedures run by agents, with no hook or CI job enforcing them yet.                                                                                                                                                                                                                                                                  |
+| Enforcement model                                         | The ledger is a cooperative protocol among compliant runners, not a server-enforced boundary. Branch protection is not used.                                                                                                                                                                                                                                                                                               |
+| Independence of review                                    | Review is by a separate agent, which reduces but does not remove correlated errors with the author model.                                                                                                                                                                                                                                                                                                                  |
 
 ## 8. Check these claims yourself
 

@@ -67,3 +67,37 @@ test("view modes switch between source, split and preview", async ({ app }) => {
   );
   await expect(page.locator(".cm-content")).toContainText("# Welcome");
 });
+
+test("a mermaid diagram renders as a zoomable figure that follows the theme", async ({
+  app,
+}) => {
+  const { page } = app;
+  await page.goto("/");
+  await openNote(page, "projects/plan.md");
+  await setViewMode(page, "Preview");
+
+  const figure = page.locator(".markdown-preview .mermaid-figure");
+  await expect(figure.locator(".mermaid-canvas svg")).toBeVisible();
+
+  await figure.getByRole("button", { name: "Zoom in" }).click();
+  await expect(figure.locator(".mermaid-canvas")).toHaveCSS(
+    "transform",
+    /^matrix\(1\.25, 0, 0, 1\.25, /,
+  );
+  await figure.getByRole("button", { name: "Reset zoom" }).click();
+  await expect(figure).toHaveAttribute("data-zoomed", "false");
+
+  await figure.getByRole("button", { name: "Full screen" }).click();
+  await expect(figure).toHaveClass(/mermaid-fullscreen/);
+  await page.keyboard.press("Escape");
+  await expect(figure).not.toHaveClass(/mermaid-fullscreen/);
+
+  // Flipping the app theme redraws the diagram in the matching mermaid theme.
+  const before = await figure.locator(".mermaid-canvas svg").innerHTML();
+  await page.evaluate(() =>
+    document.documentElement.setAttribute("data-theme", "dark"),
+  );
+  await expect
+    .poll(async () => figure.locator(".mermaid-canvas svg").innerHTML())
+    .not.toBe(before);
+});

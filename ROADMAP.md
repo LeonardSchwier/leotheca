@@ -38,6 +38,7 @@ Items with an owner. An expired lease means the item can be recovered.
 
 Items nobody owns. Take the first one that fits.
 
+- ⬜ **Protected main with merge queue and a ledger branch**: Owner decision 2026-11-07: every item works on its own branch, GitHub merges after the required checks pass (auto-merge or merge queue), a scheduled integrator agent resolves conflicts, and the ownership ledger moves to its own branch with direct pushes. Adapt the constitution, AGENTS.md, the roadmap and verification skills, the hooks and the workflows (`merge_group` trigger). The owner enables branch protection and the merge queue in GitHub settings; agents never change hosting settings.
 - ⬜ **Android camera capture**: Take a photo directly from the "Insert attachment" toolbar. Status: open.
   <!-- agent-state: {"schema":1,"id":"rm-5fc96a0db16f2169","state":"open","touch":[],"resources":["triage-recovery"],"note":"Triage 2026-11-06T23:25Z by claude-code-triage: previous owner hermes-20261030T080439Z-0fdb1a0c lease expired 2026-10-30. No remote or local branch and no handoff exist. Main has no cameraCapture.ts or CameraCapturePlugin; the WIP the 2026-11-01 weekly review saw was uncommitted and is not recoverable. Restart from main. Device-side testing needs an Android device or emulator with camera; split JS bridge and unit tests from device verification.","released_at":"2026-11-06T23:22:16Z"} -->
   Agent: unclaimed | item: rm-5fc96a0db16f2169

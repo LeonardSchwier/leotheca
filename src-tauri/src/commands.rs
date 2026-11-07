@@ -552,8 +552,38 @@ pub fn find_all_entries(
 /// itself an escaping symlink is skipped rather than erroring the whole
 /// listing, mirroring `is_symlink_escaping_workspace`'s existing skip
 /// policy in the four walks above.
+/// Both the directory and the containment root arrive from the frontend, so
+/// each is checked against the native `ActiveWorkspaceRoot` (or the app config
+/// dir) the way every sibling read command checks its `path`. Without this a
+/// compromised webview could list any readable directory by passing the same
+/// value as `path` and `workspace_root`.
+fn check_list_dir_allowed(
+    path: &Path,
+    workspace_root: &Path,
+    active_workspace_root: Option<&Path>,
+    app_config_dir: Option<&Path>,
+) -> Result<(), String> {
+    check_unscoped_path_allowed(workspace_root, active_workspace_root, app_config_dir)?;
+    check_unscoped_path_allowed(path, active_workspace_root, app_config_dir)
+}
+
 #[tauri::command]
-pub fn list_dir(path: String, workspace_root: String) -> Result<Vec<FsEntry>, String> {
+pub fn list_dir(
+    path: String,
+    workspace_root: String,
+    app: tauri::AppHandle,
+    active_root: tauri::State<'_, ActiveWorkspaceRoot>,
+) -> Result<Vec<FsEntry>, String> {
+    check_list_dir_allowed(
+        Path::new(&path),
+        Path::new(&workspace_root),
+        active_workspace_root_snapshot(&active_root).as_deref(),
+        app.path().app_config_dir().ok().as_deref(),
+    )?;
+    list_dir_core(path, workspace_root)
+}
+
+fn list_dir_core(path: String, workspace_root: String) -> Result<Vec<FsEntry>, String> {
     let canonical_root = fs::canonicalize(&workspace_root)
         .map_err(|e| format!("workspace root \"{workspace_root}\" is not accessible: {e}"))?;
     let dir = Path::new(&path);
@@ -1374,6 +1404,72 @@ mod tests {
     use std::fs::File;
 
     #[test]
+    fn check_list_dir_allowed_rejects_the_same_outside_directory_passed_as_path_and_root() {
+        let base =
+            std::env::temp_dir().join(format!("leotheca-test-listdir-gate-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&base);
+        let workspace = base.join("workspace");
+        let outside = base.join("outside");
+        fs::create_dir_all(&workspace).unwrap();
+        fs::create_dir_all(&outside).unwrap();
+
+        let result = check_list_dir_allowed(&outside, &outside, Some(&workspace), None);
+
+        assert!(result.is_err(), "{result:?}");
+        fs::remove_dir_all(&base).unwrap();
+    }
+
+    #[test]
+    fn check_list_dir_allowed_rejects_an_outside_path_under_a_valid_workspace_root() {
+        let base = std::env::temp_dir().join(format!(
+            "leotheca-test-listdir-gate2-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&base);
+        let workspace = base.join("workspace");
+        let outside = base.join("outside");
+        fs::create_dir_all(&workspace).unwrap();
+        fs::create_dir_all(&outside).unwrap();
+
+        let result = check_list_dir_allowed(&outside, &workspace, Some(&workspace), None);
+
+        assert!(result.is_err(), "{result:?}");
+        fs::remove_dir_all(&base).unwrap();
+    }
+
+    #[test]
+    fn check_list_dir_allowed_rejects_everything_when_no_workspace_is_active() {
+        let base = std::env::temp_dir().join(format!(
+            "leotheca-test-listdir-gate3-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&base);
+        fs::create_dir_all(&base).unwrap();
+
+        let result = check_list_dir_allowed(&base, &base, None, None);
+
+        assert!(result.is_err(), "{result:?}");
+        fs::remove_dir_all(&base).unwrap();
+    }
+
+    #[test]
+    fn check_list_dir_allowed_accepts_a_subfolder_of_the_active_workspace() {
+        let base = std::env::temp_dir().join(format!(
+            "leotheca-test-listdir-gate4-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&base);
+        let workspace = base.join("workspace");
+        let sub = workspace.join("notes");
+        fs::create_dir_all(&sub).unwrap();
+
+        let result = check_list_dir_allowed(&sub, &workspace, Some(&workspace), None);
+
+        assert!(result.is_ok(), "{result:?}");
+        fs::remove_dir_all(&base).unwrap();
+    }
+
+    #[test]
     fn normalize_separators_for_platform_rewrites_backslashes_only_when_windows() {
         // The whole reason this takes "is Windows" as a parameter instead
         // of an internal #[cfg(windows)] check: this project's CI only
@@ -1403,7 +1499,7 @@ mod tests {
         File::create(tmp.join("aaa-file.md")).unwrap();
         File::create(tmp.join(".hidden")).unwrap();
 
-        let entries = list_dir(
+        let entries = list_dir_core(
             tmp.to_string_lossy().to_string(),
             tmp.to_string_lossy().to_string(),
         )
@@ -1426,7 +1522,7 @@ mod tests {
         fs::create_dir_all(tmp.join("a-folder")).unwrap();
         File::create(tmp.join("a-file.md")).unwrap();
 
-        let entries = list_dir(
+        let entries = list_dir_core(
             tmp.to_string_lossy().to_string(),
             tmp.to_string_lossy().to_string(),
         )
@@ -2603,7 +2699,7 @@ mod tests {
         std::os::unix::fs::symlink(&outside, root.join("escape-dir")).unwrap();
         std::os::unix::fs::symlink(outside.join("secret.md"), root.join("escape-file.md")).unwrap();
 
-        let entries = list_dir(
+        let entries = list_dir_core(
             root.to_string_lossy().to_string(),
             root.to_string_lossy().to_string(),
         )
@@ -2645,7 +2741,7 @@ mod tests {
         fs::write(outside.join("secret.md"), "TOP SECRET").unwrap();
         std::os::unix::fs::symlink(&outside, root.join("escape-dir")).unwrap();
 
-        let result = list_dir(
+        let result = list_dir_core(
             root.join("escape-dir").to_string_lossy().to_string(),
             root.to_string_lossy().to_string(),
         );

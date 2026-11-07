@@ -375,7 +375,7 @@ All return `Result<T, String>` unless noted. `FsEntry` is `{ name, path, isDir, 
 | Command | Input | Output | Gate | Errors and notes |
 | --- | --- | --- | --- | --- |
 | `set_active_workspace_root` | `path: string\|null` | `()` | Sets the gate | Poisoned mutex error. Path is not validated. Asset scope errors ignored. |
-| `list_dir` | `path, workspaceRoot` | `FsEntry[]` | Canonical start with `workspaceRoot` | Dirs then files, case-folded name order, no dotfiles, no escaping symlinks. |
+| `list_dir` | `path, workspaceRoot` | `FsEntry[]` | `path` and `workspaceRoot` must both lie inside the active workspace or the app config dir (checked natively against `ActiveWorkspaceRoot`); canonical start with `workspaceRoot` | Dirs then files, case-folded name order, no dotfiles, no escaping symlinks. |
 | `find_markdown_files` | `path` | `FsEntry[]` with size | Unscoped | Depth 40, `.md` case-insensitive. |
 | `find_all_files` | `path` | `FsEntry[]` with size | Unscoped | Files only. |
 | `find_all_entries` | `path` | `FsEntry[]` | Unscoped | Directories included. |
@@ -1060,7 +1060,7 @@ These are current behavior, recorded honestly. None was fixed by the change that
 
 | ID | Finding | Evidence | Severity |
 | --- | --- | --- | --- |
-| KG-001 | Scoped desktop commands trust the frontend-supplied `workspace_root` and do not compare it with `ActiveWorkspaceRoot`. `list_dir` does the same. `init_speech_recognition` and `check_whisper_models` accept arbitrary paths. A compromised renderer could use them, though CSP limits how that happens. | Traced in `commands.rs`, `workspace_mutations.rs`, `speech_commands.rs` | Medium |
+| KG-001 | Scoped desktop commands trust the frontend-supplied `workspace_root` and do not compare it with `ActiveWorkspaceRoot`. `init_speech_recognition` and `check_whisper_models` accept arbitrary paths. A compromised renderer could use them, though CSP limits how that happens. | Traced in `commands.rs`, `workspace_mutations.rs`, `speech_commands.rs` | Medium |
 | KG-002 | `lib.rs` manages `WhisperState`, but speech commands request `State<Arc<Mutex<WhisperState>>>`. Those are different types, so Tauri cannot supply the state. Desktop speech is unavailable regardless, since no whisper backend is compiled by default. | Traced. Runtime invoke result Unverified. | Medium |
 | KG-003 | Android native plugin methods accept any URI string with no allow-list. Protection is the OS grant and the JS layer. | Traced | Medium |
 | KG-004 | `applyCustomCss` calls `resolvePath(customCssPath, workspacePath)` and `isPathWithinWorkspace(absolutePath, workspacePath)`, reversing both signatures. It tries to read the workspace folder itself, so with a real filesystem custom CSS never applies. | Observed: a probe with real path functions read `/ws`. | High for that feature |
@@ -1093,6 +1093,7 @@ These are current behavior, recorded honestly. None was fixed by the change that
 Newest first. Each entry is `YYYY-MM-DD: what changed in behavior, contracts, formats, build or release`. See `skills/master-spec-maintenance.md`.
 
 <!-- change-log:start -->
+- 2026-11-07: Security: `list_dir` now checks both `path` and `workspaceRoot` against the native `ActiveWorkspaceRoot` (or the app config dir) like its sibling read commands, so a compromised webview can no longer list an arbitrary directory by passing the same value twice. No change for normal workspace use.
 - 2026-11-07: Build and process: the pre-commit and CI secret scan no longer flags the ledger helper's own 32-hex claim token in `ROADMAP.md` `agent-state` lines (`lineSecretProblems` in `scripts/check-rules.mjs`); real secrets on those lines or elsewhere are still flagged. No application behavior changed.
 - 2026-11-07: Fixed after the Leoforma move: the Ocean, Forest and Plum accent choices now set Leoforma's `--ds-color-accent*` tokens, so Leoforma's Button and other shared components follow the workspace accent as the app's own controls do. Without it they stayed on the default gold. Added `src/styles/theme.test.ts` (FR-THEME-002 is the setting).
 - 2026-11-07: Build: removed the in-repo design system copy `packages/design-system` and its vitest exclusion; Leoforma is the only source. No application behavior changed.

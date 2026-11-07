@@ -7,7 +7,7 @@
   "workspace_settings_dir": ".leotheca",
   "remote": "origin",
   "main_branch": "main",
-  "ledger_branch": "ledger",
+  "ledger_branch": "agent-ledger",
   "roadmap_file": "ROADMAP.md",
   "changelog_file": "CHANGELOG.md",
   "product_rules_file": "documentation/PROJECT_RULES.md",

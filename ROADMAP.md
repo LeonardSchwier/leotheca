@@ -124,6 +124,8 @@ Minor bugs, UX improvements, and performance.
 
   </details>
 
+- ⬜ **Sniff-test pass on README, screenshots and repository root**: The README is the front page of a repository used as a hiring reference, so every claim must be true and checkable. Re-verify the install section after the rolling-release change, the feature, platform and offline claims and the badges, add a short summary at the top, regenerate the stale screenshots from the current app, tidy the root, and fix stale statements in CONTRIBUTING.md and ARCHITECTURE.md.
+
 ## Weekly Code Review
 
 _2026-10-11 · scope: 79 commits since 2026-10-04 · 159 test files / 3021 tests (3 skipped) · tsc --noEmit clean · vite build OK_

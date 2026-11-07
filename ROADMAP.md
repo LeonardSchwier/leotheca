@@ -92,16 +92,6 @@ Minor bugs, UX improvements, and performance.
 - ⬜ **Master specification for spec-driven rebuilds**: Write master-spec.md, a full specification of the application's current behavior sufficient to rebuild it, and add a constitution rule plus a CI check so every implementation push to main updates it.
   <!-- agent-state: {"schema":1,"id":"rm-e0a353c57cfd59e2","state":"open","touch":[".github/workflows/agent-policy.yml","master-spec.md","scripts/check_master_spec.py","scripts/test_check_master_spec.py","skills/master-spec-maintenance.md","spec/master"],"resources":["master-spec"],"note":"Landed 2ddb675 (master-spec.md, checker, CI job, skill). Remaining: constitution rule + playbook link, blocked by live claim on CONSTITUTION.md; see handoff.","released_at":"2026-11-06T23:29:31Z"} -->
   Agent: unclaimed | item: rm-e0a353c57cfd59e2
-- 🚧 **Serialise release publish of the dev-build release**: The publish job in .github/workflows/release.yml failed once with Not Found on update-a-release-asset when two runs overlapped. Add a concurrency group with cancel-in-progress false so publishes queue instead of racing.
-  <!-- agent-state: {"schema":1,"id":"rm-c8ffcf5d6f415fd5","state":"claimed","touch":[".github/workflows/release.yml","master-spec.md"],"resources":["release-pipeline"],"owner":"claude-code-pointers-20261107T081216Z-830cdb5e","token":"44bd8d02383af8c41240e0ef29b5a6ed","branch":"agent/rm-c8ffcf5d6f415fd5/44bd8d02383a","claimed_at":"2026-11-07T09:00:25Z","heartbeat_at":"2026-11-07T09:00:25Z","lease_until":"2026-11-07T10:30:25Z"} -->
-  Agent: claude-code-pointers-20261107T081216Z-830cdb5e | item: rm-c8ffcf5d6f415fd5 | lease until: 2026-11-07T10:30:25Z
-
-  <details>
-  <summary>Scope and validation</summary>
-
-  Touches .github/workflows/release.yml and the workflow table in master-spec.md with a change log line. Validation: YAML parse of the workflow, then read the hosted Release run for the landed SHA and confirm the publish job passes.
-
-  </details>
 - ⬜ **Gate the list_dir desktop command with the active workspace root**: `list_dir(path, workspace_root)` in src-tauri/src/commands.rs takes both the directory and its containment root from the frontend and never consults ActiveWorkspaceRoot, so a compromised webview can list any readable directory by passing the same value twice. Every sibling command (find_*, read_*, workspace_stats) gates `path` with check_unscoped_path_allowed.
 
   <details>
@@ -370,6 +360,18 @@ _Review only — no fixes implemented this pass._
   - ✅ Completed 2026-11-06 — commit c137d45. New sixth widget in the family that DISPLAYS one chosen note's title + markdown-stripped content preview on the home screen. `LeothecaViewNoteWidgetProvider.java` (renders stored `{title, path}`, capped dependency-free `stripMarkdownForWidget` preview, deep-links a tap to `leotheca://select-widget-note`, degrades to a "tap to choose a note" prompt when nothing chosen/unreadable); `FolderAccessPlugin.setViewNote` (stores the note + nudges all placed instances, same division of labour as the favorites/recent widgets); `capacitorBridgeImpl.setViewNoteWidget` (best-effort TS wrapper); new `leotheca_widget_view_note` layout + `leotheca_widget_view_note_info` (110×90 content widget); receiver registered in AndroidManifest. Tests (TDD, written first): 5 new resource-contract tests in WidgetResourcesUnitTest. Gates: Android `:app:testDebugUnitTest` green, `npx tsc --noEmit` clean, `npx vitest run` 3221/3221 (171 files), `npx vite build` OK.
 
 ## Implemented
+
+- ✅ **Serialise release publish of the dev-build release**: The publish job in .github/workflows/release.yml failed once with Not Found on update-a-release-asset when two runs overlapped. Add a concurrency group with cancel-in-progress false so publishes queue instead of racing.
+  <!-- agent-state: {"schema":1,"id":"rm-c8ffcf5d6f415fd5","state":"done","touch":[".github/workflows/release.yml","master-spec.md"],"resources":["release-pipeline"],"note":"Landed 145fb1e: publish job concurrency group per release, cancel-in-progress false; master-spec updated. YAML parse, prettier, check_master_spec local; hosted Release run 42357877866 success incl. publish; Rules and Agent policy success; CI in progress. Race not reproduced.","completed_at":"2026-11-07T09:11:20Z","completed_by":"claude-code-pointers-20261107T081216Z-830cdb5e","branch":"agent/rm-c8ffcf5d6f415fd5/44bd8d02383a"} -->
+  Agent: completed by claude-code-pointers-20261107T081216Z-830cdb5e | item: rm-c8ffcf5d6f415fd5
+
+  <details>
+  <summary>Scope and validation</summary>
+
+  Touches .github/workflows/release.yml and the workflow table in master-spec.md with a change log line. Validation: YAML parse of the workflow, then read the hosted Release run for the landed SHA and confirm the publish job passes.
+
+  </details>
+
 
 - ✅ **Shared design system package**: Create a public design system repository with tokens and Preact components, derived from Leotheca's current look with a warm, calm editorial direction, and make the app import it as a pinned, reproducible dependency that still builds offline. Replaces hand-rolled theme tokens without behavior changes.
   <!-- agent-state: {"schema":1,"id":"rm-4cc29a2e6a26d6b3","state":"done","touch":[".agents/handoffs/rm-4cc29a2e6a26d6b3.md","spec/completed","spec/shared-design-system-package.md"],"resources":[],"note":"Fulfilled by the Leoforma extraction and adoption. The design system is the public repo LeonardSchwier/leoforma (MIT, tag v0.1.1 with built dist); the app consumes it as a pinned dependency (tarball URL, lockfile sha512, offline-reproducible Flatpak entries) under item rm-2f5b2690e4717485; packages/design-system is removed from this repo. Hosted on dc5b56f: CI, Release, Rules, Agent policy all success. Open leftovers tracked separately: Sheet, EmptyState, StatusIndicator and icon set still app-local; tag-archive integrity fragility.","completed_at":"2026-11-07T09:04:54Z","completed_by":"claude-code-pdlc-20261106T231246Z-fcf4c9d1","branch":"agent/rm-4cc29a2e6a26d6b3/4eec781fa82f"} -->

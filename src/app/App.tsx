@@ -23,6 +23,7 @@ import { ImageViewer } from "../editor/ImageViewer";
 import { ImageViewerOverlay } from "../editor/ImageViewerOverlay";
 import { PdfViewer } from "../pdf/PdfViewer";
 import { printNoteHtml } from "../export/printNote";
+import { exportNotePdf } from "../export/pdfExport";
 import {
   inlineLocalImages,
   buildExportDocument,
@@ -1317,6 +1318,28 @@ export function App() {
                     return;
                   }
                   printNoteHtml(current.name, container.innerHTML);
+                },
+              },
+              {
+                id: "export-note-pdf",
+                label: "Export note to PDF…",
+                run: () => {
+                  const container = document.querySelector<HTMLElement>(
+                    "#primary-editor-panes .markdown-preview",
+                  );
+                  if (!container) {
+                    window.alert(
+                      "Switch to Preview or Split view to export this note.",
+                    );
+                    return;
+                  }
+                  void exportNotePdf(current.name, container.innerHTML).catch(
+                    (e) => {
+                      window.alert(
+                        `Couldn't export note: ${e instanceof Error ? e.message : String(e)}`,
+                      );
+                    },
+                  );
                 },
               },
               {

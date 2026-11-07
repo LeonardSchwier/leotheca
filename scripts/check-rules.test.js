@@ -18,7 +18,7 @@ import {
   changedDeps,
   hasIntakeLine,
 } from "./check-rules.mjs";
-import { checkCommitMessage } from "./commit-msg-check.mjs";
+import { checkCommitMessage, identityWarning } from "./commit-msg-check.mjs";
 
 const DASH = String.fromCharCode(0x2014);
 const trailer = "Co-Authored-By: Some Agent <noreply@example.com>";
@@ -362,5 +362,32 @@ describe("reflection line on archived specs", () => {
     expect(
       reflectionProblems([{ path: "spec/open.md", content: "no reflection" }]),
     ).toEqual([]);
+  });
+});
+
+describe("agent identity warning", () => {
+  const agentMsg =
+    "feat: x\n\nCo-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>\n";
+  it("warns when an agent commit uses a personal noreply address", () => {
+    expect(
+      identityWarning(
+        agentMsg,
+        "Leonard <leonard@users.noreply.github.com> 1 +0000",
+      ),
+    ).toContain("agent-git-env.sh");
+  });
+  it("stays quiet for the agent identity and for human commits", () => {
+    expect(
+      identityWarning(
+        agentMsg,
+        "Claude Code (agent) <noreply@anthropic.com> 1 +0000",
+      ),
+    ).toBeNull();
+    expect(
+      identityWarning(
+        "feat: x\n\nAuthored-By: human\n",
+        "Leonard <leonard@users.noreply.github.com> 1 +0000",
+      ),
+    ).toBeNull();
   });
 });

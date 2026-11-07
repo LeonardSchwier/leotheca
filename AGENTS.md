@@ -6,7 +6,7 @@ Read `CONSTITUTION.md` in full. Load its top variables, then its configured prod
 
 You have standing authorization to finish repository work. Code reaches main only through a pull request that you open and that the merge queue merges after the required checks pass (`skills/pull-request-delivery.md`). Never push to main. Do not wait for human review. Stay within product rules and actual tool permissions.
 
-1. Work in your own clone. Run `npm run hooks:install` once (after `npm ci`); never bypass a hook (see `hooks/README.md`). Create a unique session ID. Use a separate clean control worktree for claims so unfinished code cannot enter a claim commit.
+1. Commit as the agent, not as a person: `source scripts/agent-git-env.sh` sets author and committer to `Claude Code (agent) <noreply@anthropic.com>`; the `Co-Authored-By` trailer still names the exact model. Work in your own clone. Run `npm run hooks:install` once (after `npm ci`); never bypass a hook (see `hooks/README.md`). Create a unique session ID. Use a separate clean control worktree for claims so unfinished code cannot enter a claim commit.
 2. Fetch main. Read Open entries and pending verification handoffs. Choose the first runnable, non-overlapping item. Read `skills/autonomous-roadmap-delivery.md` for the loop and `skills/roadmap-workflow.md` for exact claim/push steps.
 3. Run the lease helper in the control worktree, commit only its roadmap change, push normally, then fetch and confirm your token. Start implementation only after that succeeds. If you lose the race, rebuild from fresh main and choose again.
 4. Read relevant source, callers, tests, and spec. Write acceptance criteria and claim touch paths plus shared resources. Build the complete change and regression tests.

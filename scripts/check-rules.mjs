@@ -630,11 +630,24 @@ function checkWorkflows() {
 // records what changed, the evidence, and how dangerous the merge is.
 export const PR_BODY_HEADINGS = ["Summary", "Evidence", "Merge danger"];
 
+// Scans instead of using a regex, so an unterminated "<!--" drops the rest of
+// the text and no half-removed marker survives.
+function stripHtmlComments(text) {
+  let out = "";
+  let at = 0;
+  for (;;) {
+    const open = text.indexOf("<!--", at);
+    if (open < 0) return out + text.slice(at);
+    out += text.slice(at, open);
+    const close = text.indexOf("-->", open + 4);
+    if (close < 0) return out;
+    at = close + 3;
+  }
+}
+
 export function prBodyProblems(body) {
   // Comments in the template are instructions, not content.
-  const text = String(body ?? "")
-    .replace(/\r/g, "")
-    .replace(/<!--[\s\S]*?-->/g, "");
+  const text = stripHtmlComments(String(body ?? "").replace(/\r/g, ""));
   const problems = [];
   for (const name of PR_BODY_HEADINGS) {
     const re = new RegExp(`^#{1,6}[ \\t]+${name}[ \\t]*$`, "im");

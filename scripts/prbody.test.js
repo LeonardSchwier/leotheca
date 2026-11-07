@@ -51,6 +51,10 @@ describe("pull request body rule", () => {
     expect(prBodyProblems(body)).toHaveLength(3);
   });
 
+  it("drops an unterminated comment and leaves no marker behind", () => {
+    expect(prBodyProblems(`${good}\n<!-- ## Nope`)).toEqual([]);
+  });
+
   it("reads the body from the PR_BODY env var and exits non-zero without headings", () => {
     const script = resolve(process.cwd(), "scripts/check-rules.mjs");
     const run = (body) =>

@@ -36,9 +36,6 @@ Items nobody owns. Take the first one that fits.
   <!-- agent-state: {"schema":1,"id":"rm-166ef9a028950ee5","state":"claimed","touch":["src/settings/WorkspaceSwitcher.test.tsx"],"resources":[],"owner":"claude-code-reviewaxes-20261107T225137Z","token":"554d67236af235fde0491fc03a3be5dc","branch":"agent/rm-166ef9a028950ee5/554d67236af2","claimed_at":"2026-11-07T23:12:09Z","heartbeat_at":"2026-11-07T23:12:09Z","lease_until":"2026-11-08T00:42:09Z"} -->
   Agent: claude-code-reviewaxes-20261107T225137Z | item: rm-166ef9a028950ee5 | lease until: 2026-11-08T00:42:09Z
 
-- 🚧 **Move the PDF export spec from the ledger branch to main**: The PDF export agent archived `spec/completed/pdf-export-for-notes.md` on the ledger branch, so a ledger push that merges main looks like an application change and runs the full gate. Add the file to main by pull request and remove it from the ledger branch; tell agents in `skills/roadmap-workflow.md` that spec archives travel with the code pull request.
-  <!-- agent-state: {"schema":1,"id":"rm-8260073f3367dc1c","state":"claimed","touch":["spec/completed/pdf-export-for-notes.md","spec/pdf-export-for-notes.md"],"resources":[],"owner":"claude-code-pdlc-20261106T231246Z-fcf4c9d1","token":"01aa66c356fbab48606573c779602078","branch":"agent/rm-8260073f3367dc1c/01aa66c356fb","claimed_at":"2026-11-07T23:14:18Z","heartbeat_at":"2026-11-07T23:14:18Z","lease_until":"2026-11-08T00:44:18Z"} -->
-  Agent: claude-code-pdlc-20261106T231246Z-fcf4c9d1 | item: rm-8260073f3367dc1c | lease until: 2026-11-08T00:44:18Z
 - ⬜ **Adopt a shared glossary that the PDLC maintains by itself**: Idea from the public MIT-licensed `mattpocock/skills` repository (ubiquitous language, ADRs inline), made automatic.
 
   <details>
@@ -83,6 +80,11 @@ Items that wait for access or a decision outside the repository.
 - ⏸ **Compatibility layer**: Load community extension manifests; gated on maintainer approval of the third-party-code security model.
 
 ## Implemented
+
+- ✅ **Move the PDF export spec from the ledger branch to main**: The PDF export agent archived `spec/completed/pdf-export-for-notes.md` on the ledger branch, so a ledger push that merges main looks like an application change and runs the full gate. Add the file to main by pull request and remove it from the ledger branch; tell agents in `skills/roadmap-workflow.md` that spec archives travel with the code pull request.
+  <!-- agent-state: {"schema":1,"id":"rm-8260073f3367dc1c","state":"done","touch":["spec/completed/pdf-export-for-notes.md","spec/pdf-export-for-notes.md"],"resources":[],"note":"Merged as PR 92 (c4f6bf4): PDF export spec archived on main, removed from the ledger branch; hosted CI pending for post-merge runs, ids in handoff","completed_at":"2026-11-07T23:27:45Z","completed_by":"claude-code-pdlc-20261106T231246Z-fcf4c9d1","branch":"agent/rm-8260073f3367dc1c/01aa66c356fb"} -->
+  Agent: completed by claude-code-pdlc-20261106T231246Z-fcf4c9d1 | item: rm-8260073f3367dc1c
+
 
 - ✅ **Review on two axes: standards and spec**: Idea from `mattpocock/skills` (`code-review` skill), made automatic. Split the review stage of the verification skill into a Standards pass (repo rules, smells) and a Spec pass (does the diff implement the acceptance criteria), run as separate subagents or passes so neither pollutes the other, and record both in the `Review:` trailer and the spec evidence table. Keep it runnable by the small local model.
   <!-- agent-state: {"schema":1,"id":"rm-4951084b07a113bf","state":"done","touch":["CHANGELOG.md","master-spec.md","skills/change-quality-gates.md","skills/pdlc-playbook.md","skills/verification-suite.md"],"resources":[],"note":"Landed in PR 90, merge 7a3a6e1479ed89a54c63c6481d017ef65cf1089c. Standards and Spec review passes split in skills/verification-suite.md and skills/pdlc-playbook.md (Review trailer and evidence table). Tests: docs-only, prettier and rules checks, hosted CI PR run 42423085656 green after a rerun of an unrelated flaky frontend error (hosted CI pending on main, run ids in handoff)","completed_at":"2026-11-07T23:11:38Z","completed_by":"claude-code-reviewaxes-20261107T225137Z","branch":"agent/rm-4951084b07a113bf/d00381cf190a"} -->

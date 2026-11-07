@@ -38,3 +38,6 @@ Reuse/Add/Change: adds the package only; no app caller changed.
 ## Evidence
 
 See `.agents/handoffs/rm-4cc29a2e6a26d6b3.md`.
+
+## Evidence
+Fulfilled by the Leoforma extraction and adoption. The design system is the public repo LeonardSchwier/leoforma (MIT, tag v0.1.1 with built dist); the app consumes it as a pinned dependency (tarball URL, lockfile sha512, offline-reproducible Flatpak entries) under item rm-2f5b2690e4717485; packages/design-system is removed from this repo. Hosted on dc5b56f: CI, Release, Rules, Agent policy all success. Open leftovers tracked separately: Sheet, EmptyState, StatusIndicator and icon set still app-local; tag-archive integrity fragility.

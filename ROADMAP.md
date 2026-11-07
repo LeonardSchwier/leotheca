@@ -32,10 +32,8 @@ Items with an owner. An expired lease means the item can be recovered.
 
 Items nobody owns. Take the first one that fits.
 
+- ⬜ **Remove voice dictation and microphone access**: Owner decision 2026-11-07: Leotheca will have no camera and no voice dictation, because both need access that can invade privacy. Remove the dictation feature (src/speech, the desktop whisper commands in src-tauri/src/speech_commands.rs, the Android SpeechRecognitionPlugin and capacitorSpeechBridge, the palette and settings entries), drop the RECORD_AUDIO and MODIFY_AUDIO_SETTINGS permissions from the Android manifest, update master-spec.md, README and CHANGELOG, and state the privacy stance (no camera, no microphone) in documentation/PROJECT_RULES.md and the README.
 - ⬜ **Retire the legacy tests/ui script**: `tests/ui` holds about 28 Python Playwright tests against a Tauri mock, outside CI; `tests/e2e` has 16 journeys. Map each legacy test to an e2e journey (add the missing ones) or drop it with a stated reason, then delete `tests/ui`, its eslint entry and the `documentation/TESTING.md` section.
-- ⬜ **Android camera capture**: Take a photo directly from the "Insert attachment" toolbar. Status: open.
-  <!-- agent-state: {"schema":1,"id":"rm-5fc96a0db16f2169","state":"open","touch":[],"resources":["triage-recovery"],"note":"Triage 2026-11-06T23:25Z by claude-code-triage: previous owner hermes-20261030T080439Z-0fdb1a0c lease expired 2026-10-30. No remote or local branch and no handoff exist. Main has no cameraCapture.ts or CameraCapturePlugin; the WIP the 2026-11-01 weekly review saw was uncommitted and is not recoverable. Restart from main. Device-side testing needs an Android device or emulator with camera; split JS bridge and unit tests from device verification.","released_at":"2026-11-06T23:22:16Z"} -->
-  Agent: unclaimed | item: rm-5fc96a0db16f2169
 - ⬜ **Minimalistic Nordic UI theme**: Redesign Leotheca's visual system around a minimal Nordic idiom -- a restrained cool light palette (frost white, soft greys, fog blue, a single muted accent), low-contrast light mode plus a dark "polar night" companion, generous whitespace, calm restrained typography, and reduced chrome (fewer borders, subtle elevation, quiet borders) across the desktop and Android UIs.
   <details>
   <summary>Scope and constraints</summary>
@@ -63,7 +61,6 @@ Items that wait for access or a decision outside the repository.
 - ⏸ **F-Droid submission**: Build pipeline is ready; the actual F-Droid build and submission attempt has not been made. Blocked on external submission access.
 - ⏸ **Flatpak folder-dialog verification**: Desktop-portal file dialogs need an end-to-end smoke test on a real Wayland and X11 session. Blocked: no interactive desktop available in the sandbox.
 - ⏸ **Android print & HTML export**: Code landed but never registered with the Capacitor bridge; on-device verification still outstanding. Blocked on a physical Android device.
-- ⏸ **Android speech-to-text**: Plugin was never registered with the Capacitor bridge; on-device confirmation still outstanding. Blocked on a physical Android device.
 - ⏸ **Android folder-picker display name**: Picker always labels a new workspace "Workspace" instead of the real folder name. Blocked: needs on-device verification.
 - ⏸ **Android home-screen widgets**: Recent-notes widget has a full-workspace re-walk performance issue and colliding labels; "favorites" hamburger bug under investigation. Blocked: investigation in progress.
 - ⏸ **Compatibility layer**: Load community extension manifests; gated on maintainer approval of the third-party-code security model.

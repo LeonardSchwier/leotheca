@@ -1,34 +1,24 @@
 import { describe, expect, it, beforeAll, afterAll } from "vitest";
-import { execFileSync, spawnSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
+import { makeTempRepo, runNode } from "./testGit.js";
 
 const CLI = join(process.cwd(), "scripts", "check-rules.mjs");
 
 describe("check-rules trailers in a real git repository", () => {
   let repo;
-  const git = (...args) =>
-    execFileSync("git", args, { cwd: repo, encoding: "utf8" }).trim();
+  let git;
   const commit = (message) => {
     git("add", "-A");
-    git("commit", "-q", "--no-verify", "-m", message);
+    git("commit", "-q", "-m", message);
     return git("rev-parse", "HEAD");
   };
-  const trailers = (base, head) =>
-    spawnSync("node", [CLI, "trailers", base, head], {
-      cwd: repo,
-      encoding: "utf8",
-    });
+  const trailers = (base, head) => runNode([CLI, "trailers", base, head], repo);
 
   let base;
   beforeAll(() => {
-    repo = mkdtempSync(join(tmpdir(), "trailers-cli-"));
-    git("init", "-q");
-    git("config", "user.name", "Test");
-    git("config", "user.email", "test@example.com");
-    git("config", "commit.gpgsign", "false");
+    ({ dir: repo, git } = makeTempRepo("trailers-cli-"));
     mkdirSync(join(repo, "website"));
     writeFileSync(join(repo, "website", "index.html"), "<p>hello</p>\n");
     writeFileSync(join(repo, "README.md"), "# one\n");

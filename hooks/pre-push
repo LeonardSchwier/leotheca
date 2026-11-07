@@ -15,6 +15,12 @@ failed=0
 app_changed=0
 checked=0
 
+# Snapshot before anything runs: a test or script run by this gate must not
+# change HEAD or the local git identity (git exports GIT_DIR into hooks, and a
+# test that ran git without clearing it once emptied main). Checked at the end.
+head_before="$(git rev-parse HEAD 2>/dev/null || true)"
+user_before="$(git config --local --get user.name 2>/dev/null || true)"
+
 while read -r local_ref local_sha remote_ref remote_sha; do
   [ -z "${local_sha:-}" ] && continue
   if [ "$local_sha" = "$ZERO" ]; then # branch deletion
@@ -75,4 +81,11 @@ else
     echo "          Full pipeline: PREPUSH_FULL=1 git push" >&2
     exit 1
   }
+fi
+
+head_after="$(git rev-parse HEAD 2>/dev/null || true)"
+user_after="$(git config --local --get user.name 2>/dev/null || true)"
+if [ "$head_after" != "$head_before" ] || [ "$user_after" != "$user_before" ]; then
+  echo "pre-push: the checks changed the repository (HEAD $head_before -> $head_after, user.name [$user_before] -> [$user_after]); a test is not isolated. Refusing to push." >&2
+  exit 1
 fi

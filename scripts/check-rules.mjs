@@ -508,6 +508,42 @@ function checkTrailers([base, head]) {
   );
 }
 
+// A spec newly archived under spec/completed/ must end with a reflection: what
+// the item taught about the process, and what was done about it
+// (skills/pdlc-playbook.md, stage 8).
+export const REFLECTION_RE = /^Reflection: \S.{20,}/m;
+export function reflectionProblems(files) {
+  return files
+    .filter(
+      ({ path }) => path.startsWith("spec/completed/") && path.endsWith(".md"),
+    )
+    .filter(({ content }) => !REFLECTION_RE.test(content))
+    .map(
+      ({ path }) =>
+        `${path}: no "Reflection: <finding> -> <applied|seeded|none: reason>" line`,
+    );
+}
+
+function checkReflection([base, head]) {
+  const baseRev = /^0+$/.test(base) || !isValidRev(base) ? `${head}~1` : base;
+  const paths = git([
+    "diff",
+    "--name-only",
+    "--diff-filter=AR",
+    `${baseRev}..${head}`,
+  ])
+    .split("\n")
+    .filter((p) => p.startsWith("spec/completed/") && p.endsWith(".md"));
+  const files = paths.map((path) => ({
+    path,
+    content: showAt(head, path) ?? "",
+  }));
+  return report(
+    "Specs archived without a Reflection line",
+    reflectionProblems(files),
+  );
+}
+
 // SPDX identifiers acceptable for a free-software, source-built MIT project.
 // Anything else (including a missing license field) needs a human decision.
 const LICENSE_ALLOWED = new Set([
@@ -604,6 +640,8 @@ function main(argv) {
       return checkDeps(rest);
     case "trailers":
       return checkTrailers(rest);
+    case "reflection":
+      return checkReflection(rest);
     case "secrets":
       return checkLines(rest);
     case "licenses":
@@ -612,7 +650,7 @@ function main(argv) {
       return checkWorkflows();
     default:
       console.error(
-        "usage: check-rules.mjs lines|files|format (--staged | <base> <head>) | commits <base> <head> | deps <base> <head> | trailers <base> <head> | licenses | workflows",
+        "usage: check-rules.mjs lines|files|format (--staged | <base> <head>) | commits <base> <head> | deps <base> <head> | trailers <base> <head> | reflection <base> <head> | licenses | workflows",
       );
       return 2;
   }

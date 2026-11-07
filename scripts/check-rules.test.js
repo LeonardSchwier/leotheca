@@ -12,6 +12,7 @@ import {
   lineSecretProblems,
   requiredTrailers,
   trailerProblems,
+  reflectionProblems,
   parsePackageDeps,
   parseCargoDeps,
   changedDeps,
@@ -332,5 +333,34 @@ describe("evidence trailers", () => {
     expect(trailerProblems(["src/App.tsx", "ROADMAP.md"], "feat: x\n")).toEqual(
       [],
     );
+  });
+});
+
+describe("reflection line on archived specs", () => {
+  const ok =
+    "Evidence...\n\nReflection: prettier reflows legacy lines -> none: the rule is right.\n";
+  it("accepts a spec with a reflection", () => {
+    expect(
+      reflectionProblems([{ path: "spec/completed/a.md", content: ok }]),
+    ).toEqual([]);
+  });
+  it("reports a spec without one", () => {
+    const problems = reflectionProblems([
+      { path: "spec/completed/b.md", content: "# Spec\n\n## Evidence\nok\n" },
+    ]);
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toContain("spec/completed/b.md");
+  });
+  it("rejects an empty or one-word reflection", () => {
+    for (const body of ["Reflection:\n", "Reflection: none\n"]) {
+      expect(
+        reflectionProblems([{ path: "spec/completed/c.md", content: body }]),
+      ).toHaveLength(1);
+    }
+  });
+  it("ignores files outside spec/completed", () => {
+    expect(
+      reflectionProblems([{ path: "spec/open.md", content: "no reflection" }]),
+    ).toEqual([]);
   });
 });

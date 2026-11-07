@@ -3,8 +3,10 @@
 //! Exposes whisper.cpp functionality to the frontend via Tauri's command system.
 //! This provides fully offline speech recognition.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
+
+use tauri::Manager;
 
 use whisper_ffi::WhisperModel;
 
@@ -18,15 +20,52 @@ pub struct WhisperState {
     pub whisper_model: Option<WhisperModel>,
 }
 
+/// The only models the app knows, with the file name each one has on disk.
+const WHISPER_MODELS: [(&str, &str, u32); 4] = [
+    ("tiny", "ggml-tiny.bin", 39),
+    ("base", "ggml-base.bin", 75),
+    ("small", "ggml-small.bin", 244),
+    ("medium", "ggml-medium.bin", 769),
+];
+
+/// Directory below the app data directory that holds the model files.
+const WHISPER_MODEL_DIR: &str = "whisper-models";
+
+/// Directory that holds the model files: `<app_data_dir>/whisper-models`.
+fn whisper_model_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    let base = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("Cannot resolve the app data directory: {e}"))?;
+    Ok(base.join(WHISPER_MODEL_DIR))
+}
+
+/// Resolve a model name from the allow-list to a file below `dir`.
+///
+/// The frontend never supplies a path: an unknown name, including anything
+/// that looks like a path, is refused.
+fn resolve_whisper_model(dir: &Path, name: &str) -> Result<PathBuf, String> {
+    WHISPER_MODELS
+        .iter()
+        .find(|(n, _, _)| *n == name)
+        .map(|(_, file, _)| dir.join(file))
+        .ok_or_else(|| {
+            format!("Unknown whisper model \"{name}\". Use one of: tiny, base, small, medium.")
+        })
+}
+
 /// Initialize whisper model.
 ///
 /// Loads the whisper model from the specified path.
 /// Uses stub implementations when whisper.cpp source is not available.
 #[tauri::command]
 pub async fn init_speech_recognition(
-    model_path: String,
+    app: tauri::AppHandle,
+    model: String,
     state: tauri::State<'_, Arc<Mutex<WhisperState>>>,
 ) -> Result<(), String> {
+    let model_file = resolve_whisper_model(&whisper_model_dir(&app)?, &model)?;
+    let model_path = model_file.to_string_lossy().into_owned();
     let mut state_guard = state
         .lock()
         .map_err(|_| "Failed to lock whisper state".to_string())?;
@@ -130,32 +169,26 @@ pub async fn get_whisper_models() -> Result<Vec<WhisperModelInfo>, String> {
     ])
 }
 
-/// Check for available whisper model files in the application directory
+/// Check for available whisper model files in `<app_data_dir>/whisper-models`
 #[tauri::command]
-pub async fn check_whisper_models(app_dir: String) -> Result<Vec<WhisperModelFile>, String> {
-    let mut models = Vec::new();
+pub async fn check_whisper_models(app: tauri::AppHandle) -> Result<Vec<WhisperModelFile>, String> {
+    let dir = whisper_model_dir(&app)?;
+    Ok(list_whisper_models(&dir))
+}
 
-    // Check for model files in the specified directory
-    let model_files = vec![
-        ("ggml-tiny.bin", "tiny", 39),
-        ("ggml-base.bin", "base", 75),
-        ("ggml-small.bin", "small", 244),
-        ("ggml-medium.bin", "medium", 769),
-    ];
-
-    for (filename, name, size_mb) in model_files {
-        let model_path = Path::new(&app_dir).join(filename);
-        let exists = model_path.exists();
-
-        models.push(WhisperModelFile {
-            path: model_path.to_string_lossy().into_owned(),
-            name: name.to_string(),
-            size_mb,
-            exists,
-        });
-    }
-
-    Ok(models)
+fn list_whisper_models(dir: &Path) -> Vec<WhisperModelFile> {
+    WHISPER_MODELS
+        .iter()
+        .map(|(name, file, size_mb)| {
+            let model_path = dir.join(file);
+            WhisperModelFile {
+                exists: model_path.exists(),
+                path: model_path.to_string_lossy().into_owned(),
+                name: (*name).to_string(),
+                size_mb: *size_mb,
+            }
+        })
+        .collect()
 }
 
 /// Supported languages for speech recognition
@@ -234,6 +267,45 @@ impl Default for AudioCaptureConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn model_names_resolve_inside_the_model_directory() {
+        let dir = Path::new("/data/whisper-models");
+        for (name, file, _) in WHISPER_MODELS {
+            assert_eq!(resolve_whisper_model(dir, name).unwrap(), dir.join(file));
+        }
+    }
+
+    #[test]
+    fn paths_and_unknown_names_are_refused() {
+        let dir = Path::new("/data/whisper-models");
+        for bad in [
+            "",
+            "huge",
+            "../../etc/passwd",
+            "/etc/passwd",
+            "ggml-tiny.bin",
+            "tiny/../base",
+            "TINY",
+            "tiny\0",
+        ] {
+            assert!(resolve_whisper_model(dir, bad).is_err(), "accepted {bad:?}");
+        }
+    }
+
+    #[test]
+    fn listing_reports_existence_inside_the_directory_only() {
+        let dir = std::env::temp_dir().join(format!("leotheca-whisper-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("ggml-base.bin"), b"x").unwrap();
+        let listed = list_whisper_models(&dir);
+        std::fs::remove_dir_all(&dir).unwrap();
+        assert_eq!(listed.len(), 4);
+        for m in &listed {
+            assert_eq!(m.exists, m.name == "base");
+            assert!(m.path.starts_with(dir.to_string_lossy().as_ref()));
+        }
+    }
 
     /// Maintenance-review regression: `transcribe_audio` used to fabricate
     /// text like "[Transcribed text from 3200ms of audio]" instead of

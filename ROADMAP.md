@@ -38,9 +38,6 @@ Items with an owner. An expired lease means the item can be recovered.
 
 Items nobody owns. Take the first one that fits.
 
-- 🚧 **Move the ownership ledger to a ledger branch**: Phase 2 of `documentation/BRANCH_MODEL.md`. `agent_ledger.py`, the roadmap and handoff skills and the agent-policy workflow work against `origin/ledger`; `ROADMAP.md` on main becomes a generated snapshot written by the integrator. Must land before the owner enables the main ruleset, because claims and heartbeats may no longer push to main.
-  <!-- agent-state: {"schema":1,"id":"rm-7033cafff45bf6ac","state":"claimed","touch":[".agents/handoffs",".github/workflows/agent-policy.yml","AGENTS.md","CONSTITUTION.md","documentation/BRANCH_MODEL.md","skills/autonomous-roadmap-delivery.md","skills/roadmap-workflow.md"],"resources":[],"owner":"claude-code-pdlc-20261106T231246Z-fcf4c9d1","token":"e843a3371b9bc93016767e02fd3bec5e","branch":"agent/rm-7033cafff45bf6ac/e843a3371b9b","claimed_at":"2026-11-07T15:43:03Z","heartbeat_at":"2026-11-07T15:43:03Z","lease_until":"2026-11-07T17:13:03Z"} -->
-  Agent: claude-code-pdlc-20261106T231246Z-fcf4c9d1 | item: rm-7033cafff45bf6ac | lease until: 2026-11-07T17:13:03Z
 - ⬜ **Switch the delivery protocol to pull requests and the merge queue**: Phase 4 of `documentation/BRANCH_MODEL.md`. Rewrite the constitution, AGENTS.md, roadmap-workflow, autonomous-roadmap-delivery, pre-push-verification and verification-suite skills and the pre-push hook so a finished item is a merged PR (auto-merge, `gh pr create`, queue), not a push to main. Depends on the ledger branch item and on the owner enabling the ruleset.
 - ⬜ **Add the scheduled integrator agent**: Phase 5 of `documentation/BRANCH_MODEL.md`. A scheduled agent that finds PRs that are red or conflicting, repairs them on the PR branch under a fresh claim of the same item, and re-queues. It never merges by hand and never bypasses a check. Depends on the pull request protocol item.
 - ⬜ **Android camera capture**: Take a photo directly from the "Insert attachment" toolbar. Status: open.
@@ -104,6 +101,11 @@ Items that wait for access or a decision outside the repository.
 - ⏸ **Compatibility layer**: Load community extension manifests; gated on maintainer approval of the third-party-code security model.
 
 ## Implemented
+
+- ✅ **Move the ownership ledger to a ledger branch**: Phase 2 of `documentation/BRANCH_MODEL.md`. `agent_ledger.py`, the roadmap and handoff skills and the agent-policy workflow work against `origin/ledger`; `ROADMAP.md` on main becomes a generated snapshot written by the integrator. Must land before the owner enables the main ruleset, because claims and heartbeats may no longer push to main.
+  <!-- agent-state: {"schema":1,"id":"rm-7033cafff45bf6ac","state":"done","touch":[".agents/handoffs",".github/workflows/agent-policy.yml","AGENTS.md","CONSTITUTION.md","documentation/BRANCH_MODEL.md","skills/autonomous-roadmap-delivery.md","skills/roadmap-workflow.md"],"resources":[],"note":"Landed 94c5abf: ledger on branch agent-ledger, constitution, roadmap-workflow skill, weekly audit and BRANCH_MODEL.md updated; hosted CI pending, run ids in handoff","completed_at":"2026-11-07T15:45:47Z","completed_by":"claude-code-pdlc-20261106T231246Z-fcf4c9d1","branch":"agent/rm-7033cafff45bf6ac/e843a3371b9b"} -->
+  Agent: completed by claude-code-pdlc-20261106T231246Z-fcf4c9d1 | item: rm-7033cafff45bf6ac
+
 
 - ✅ **Record the merge_group triggers in the master specification**: CI, Rules and Agent policy now also run on `merge_group`, and Agent policy runs on every pull request. The master-spec CI rule requires the CI table and change log to say so.
   <!-- agent-state: {"schema":1,"id":"rm-3fcd297d9abb1177","state":"done","touch":[".agents/handoffs","master-spec.md"],"resources":[],"note":"Landed 893b203: master-spec CI table and change log record the merge_group triggers; hosted CI pending, run ids in handoff","completed_at":"2026-11-07T14:54:14Z","completed_by":"claude-code-pdlc-20261106T231246Z-fcf4c9d1","branch":"agent/rm-3fcd297d9abb1177/baa4e69a22d5"} -->

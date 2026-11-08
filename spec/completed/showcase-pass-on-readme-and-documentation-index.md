@@ -26,3 +26,5 @@ No app UI change; screenshots show existing UI with sample notes.
 Link check script printed nothing and exited 0. `ls -l documentation/screenshots`: largest file 107929 bytes. `gh release list` shows only `dev-build`. Latest runs of CodeQL, Semgrep, gitleaks and audit workflows are successful.
 
 Reflection: the README claimed server protection by implication through the branch model; a status table forced the check -> none: applied in the README itself.
+
+Glossary: none (no new project term)

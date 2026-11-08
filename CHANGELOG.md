@@ -8,6 +8,7 @@
 
 ### Maintenance
 
+- **Dev-dependency advisories cleared**: A root `overrides` entry moves `minimatch` to 11.0.5, so `npm audit` reports 0 vulnerabilities (it listed 10 moderate findings in the lint stack). ESLint, typescript-eslint and the Capacitor CLI run unchanged on it; no application code changed.
 - **glib advisory in the delivery notes**: The PDLC security tooling row names the open `glib` advisory, why it waits on Tauri moving to gtk-rs 0.20, and the roadmap item that repeats the check.
 - **glib advisory documented, not fixable yet**: `cargo audit` still warns about RUSTSEC-2024-0429 (`glib` 0.18.5). Every Linux part of Tauri (tauri 2.12.5, wry 0.57.1, tao 0.37.2, muda 0.21.2) still requires gtk-rs 0.18, so no upgrade lifts it; the unsound iterator is not used by our code. The reason and the check to repeat are in the security notes and the roadmap.
 - **Android signature check reads the newer apksigner output**: The release check that refuses debug-signed APKs failed on a correctly signed test build because newer Android build-tools print the signer as `V2 Signer: certificate ...`. It now understands both formats and still fails closed.

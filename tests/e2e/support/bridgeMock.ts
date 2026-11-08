@@ -268,6 +268,7 @@ export function bridgeMockInPage(opts: BridgeMockOptions): void {
     },
     set_active_workspace_root: () => null,
     take_pending_open_file: () => null,
+    take_pending_quick_capture: () => false,
     pick_and_read_external_markdown_file: () => null,
     export_text_file_via_dialog: () => false,
     "plugin:app|version": () => "0.0.0-e2e",

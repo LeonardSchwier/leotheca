@@ -24,6 +24,7 @@
 
 ### New Features
 
+- **Quick Capture from the OS**: `leotheca --capture` opens the capture sheet in a fresh or running desktop instance, Android gains a Quick Capture launcher shortcut next to the widget, and a widget tap on a cold start now opens the sheet instead of silently queueing. The sheet still asks you to review before anything is written. Not yet verified on a real Android device; appending before the app has loaded is a separate open item.
 - **Mermaid diagrams follow the theme and can be zoomed**: Diagrams in Preview are drawn in the app's light or dark theme (and redrawn when you switch), fill the note width, and have zoom in/out/reset, Ctrl/Cmd+wheel zoom, drag to pan and a full-screen view. A diagram with a syntax error now shows what went wrong above its source. Everything stays offline.
 - **PDF export (desktop)**: the command "Export note to PDF…" prints the rendered note on A4 pages with sensible page breaks, wrapped code, scaled images and diagrams and rendered math; choose "Save as PDF" in the print dialog. Android is a separate item.
 - **Markdown vault import**: Desktop command "Import Markdown vault..." copies a folder of Markdown notes into `Imported/<folder name>` in the open workspace without changing the source or overwriting any file, rewrites only attachment embeds, nested heading links and `%%comments%%`, and shows a report of what was converted, kept, unsupported, renamed, skipped or failed. Can be switched off in Settings.

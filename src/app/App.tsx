@@ -94,6 +94,8 @@ import {
 import { CompactGroupSwitcher } from "../editorGroups/CompactGroupSwitcher";
 import {
   onExternalFileOpen,
+  onQuickCaptureLaunch,
+  takePendingQuickCapture,
   readTextFile,
   takePendingExternalFile,
 } from "../workspace/tauriBridge";
@@ -709,6 +711,13 @@ export function App() {
         const profile = command.profile; // F05-FR-08: Target profile UUID
         const shouldOpen = command.open ?? true;
 
+        // A cold start from the Android widget or launcher shortcut fires
+        // this command through CapacitorApp.getLaunchUrl() before
+        // initSettings has restored workspacePath. Hold it like the
+        // new-note and open-note commands do, so the capture sheet opens
+        // instead of the capture being queued as if no workspace existed.
+        await waitForSettingsLoaded();
+
         // F05-FR-03: External deep-link captures shall require user review before writing
         if (!workspacePath.value) {
           // Queue capture if no workspace is available
@@ -874,6 +883,30 @@ export function App() {
       unlisten();
     };
   }, [handleExternalFileOpen]);
+
+  /** Desktop `leotheca --capture`: opens the capture sheet for review once
+   * the workspace is restored. No workspace is a silent no-op (a bare launch
+   * carries no content worth queueing), and nothing is ever written here. */
+  const handleQuickCaptureLaunch = useCallback(async () => {
+    await waitForSettingsLoaded();
+    if (!workspacePath.value) return;
+    openCaptureSheet();
+  }, []);
+
+  useEffect(() => {
+    if (Capacitor.isNativePlatform()) return;
+    let cancelled = false;
+    void takePendingQuickCapture().then((requested) => {
+      if (!cancelled && requested) void handleQuickCaptureLaunch();
+    });
+    const unlisten = onQuickCaptureLaunch(
+      () => void handleQuickCaptureLaunch(),
+    );
+    return () => {
+      cancelled = true;
+      unlisten();
+    };
+  }, [handleQuickCaptureLaunch]);
 
   const handleCloseExternalFile = useCallback(() => {
     setExternalFile(null);

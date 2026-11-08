@@ -11,3 +11,7 @@ A warm `new-note` launch is handled by the already-running app and needs no extr
 A background tracker watches only for that predicted file to appear in the granted workspace root. The overlay is removed shortly after the file appears, or after a bounded 12-second timeout if creation fails or the provider becomes unavailable. The tracker never creates, edits, caches, uploads, or otherwise owns note content. If there is no valid persisted workspace grant, no overlay is shown and the existing app behavior is left unchanged.
 
 `NewNoteColdStartTrackerTest` covers deep-link recognition and quick-note name prediction. The Android CI job compiles the activity, runs JVM tests, builds the debug APK, and installs it in an emulator. This is not physical Android-device verification.
+
+## Quick Capture entry points
+
+The quick-capture widget and the static launcher shortcut (`res/xml/shortcuts.xml`, long-press the app icon) both fire `leotheca://capture` through the pure `QuickCaptureLaunch` constant. The web layer waits for settings, then opens the capture sheet for review; nothing is appended until the user confirms, and no permission is added. `QuickCaptureLaunchTest` and `WidgetResourcesUnitTest` check the URL and resources on the JVM. UNVERIFIED on a device: widget placement, shortcut appearance on real launchers, and cold-start timing. Appending to the inbox before the WebView has loaded is not implemented; see the blocked roadmap item.

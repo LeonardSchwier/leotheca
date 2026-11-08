@@ -8,6 +8,7 @@
 
 ### Maintenance
 
+- **Android signature check reads the newer apksigner output**: The release check that refuses debug-signed APKs failed on a correctly signed test build because newer Android build-tools print the signer as `V2 Signer: certificate ...`. It now understands both formats and still fails closed.
 - **Android test APK without signing secrets**: Until the maintainer adds the release key, the `dev-build` release now carries `leotheca-dev-build-android-TEST-ephemeral-key.apk`, signed with a random throw-away key generated during that build. Android treats every build as a different app: uninstall the previous one before installing the next, there are no in-place updates, and Obtainium and F-Droid cannot track it. It is for trying the app; the release key (four repository secrets) still produces `leotheca-<tag>-android.apk`, and an APK signed with the public debug key is still never published. The hosted build step is untested until its first run.
 - **Snap draft: no network plug, pinned Node.js**: `snap/snapcraft.yaml` no longer asks for the `network` plug (the app is offline by design) and installs Node.js 22.23.2 from a SHA-256-verified archive instead of piping the nvm install script into bash. The snap is a draft that no CI job builds, and this change was not built.
 - **Quick Look preview escapes quotes in links**: The source of the macOS Quick Look generator (not built or shipped by any workflow yet) now writes a double quote in a link target or label as `&quot;`, so a crafted link can no longer end the `href` attribute.

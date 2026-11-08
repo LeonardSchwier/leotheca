@@ -24,13 +24,18 @@ export function normalizeSha256(value) {
 export function parseCertificates(output) {
   const certs = new Map();
   for (const line of String(output).split(/\r?\n/)) {
+    // Older apksigner prints "Signer #1 certificate DN: ..."; newer build-tools
+    // print "V2 Signer: certificate DN: ..." (one block per signature scheme).
     const m =
-      /^Signer #(\d+) certificate (DN|SHA-256 digest):\s*(.+?)\s*$/.exec(line);
+      /^(?:Signer #(\d+)|(V\d+(?:\.\d+)? Signer)):? certificate (DN|SHA-256 digest):\s*(.+?)\s*$/.exec(
+        line,
+      );
     if (!m) continue;
-    const cert = certs.get(m[1]) ?? { signer: m[1], sha256: "", dn: "" };
-    if (m[2] === "DN") cert.dn = m[3];
-    else cert.sha256 = normalizeSha256(m[3]);
-    certs.set(m[1], cert);
+    const id = m[1] ?? m[2];
+    const cert = certs.get(id) ?? { signer: id, sha256: "", dn: "" };
+    if (m[3] === "DN") cert.dn = m[4];
+    else cert.sha256 = normalizeSha256(m[4]);
+    certs.set(id, cert);
   }
   return [...certs.values()];
 }

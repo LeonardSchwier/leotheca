@@ -23,7 +23,7 @@ jobs:
       image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-50
       options: --privileged
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Lint AppStream metadata
         run: flatpak-builder-lint appstream flatpak/com.leonardschwier.leotheca.metainfo.xml

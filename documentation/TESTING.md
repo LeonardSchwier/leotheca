@@ -77,6 +77,16 @@ Five jobs, all must pass:
 | **appimage-smoke** | Full AppImage build, extract, launch under `xvfb` (15s timeout)  |
 | **validation**     | Requires all four jobs above to succeed                          |
 
+### Tooling downloads: cache and retry
+
+The Tauri bundler downloads its tools (AppRun, linuxdeploy, the WiX tools) and the Gradle wrapper downloads the Gradle distribution on first use. Both come from release CDNs that answer 502, 503 or 504 now and then, which used to fail a run for a reason outside the code. The workflows therefore:
+
+- cache `~/.cache/tauri` (Windows: `~/AppData/Local/tauri`) with `actions/cache`, keyed on `package-lock.json` (the Tauri CLI version), in `appimage-smoke` and the `linux` and `windows` jobs of the release workflow;
+- cache `~/.gradle/wrapper/dists`, keyed on `gradle-wrapper.properties`, and warm the wrapper up with `./gradlew --version` before the real Gradle call, in the `android` jobs;
+- run the Tauri bundling, the warm-up and the pinned release-binary downloads of the secret scan and cargo-audit through `scripts/retry.sh` (three attempts, 20 s and 60 s apart).
+
+A 5xx while downloading is retried. A real compile or test failure fails the step, with the same exit code, after the two retries; the retry never turns a failure into a pass. A SHA-256 mismatch of a pinned binary is checked after the download, outside the retry, and fails at once. A missing cache only makes the run slower.
+
 Badge: [![CI](https://github.com/LeonardSchwier/leotheca/actions/workflows/ci.yml/badge.svg)](https://github.com/LeonardSchwier/leotheca/actions/workflows/ci.yml)
 
 ## UI Verification (Manual / Agent)

@@ -39,7 +39,9 @@ Items nobody owns. Take the first one that fits.
   <!-- agent-state: {"schema":1,"id":"rm-1154fe029f40163d","state":"claimed","touch":["documentation/AGENTIC_PDLC.md"],"resources":["security-audit"],"owner":"claude-code-tier2b-20261108T014325Z-5a0d195a","token":"079fcaa8c7a098953f58bdcae2c1abf1","branch":"agent/rm-1154fe029f40163d/079fcaa8c7a0","claimed_at":"2026-11-08T01:43:45Z","heartbeat_at":"2026-11-08T02:08:23Z","lease_until":"2026-11-08T03:38:23Z"} -->
   Agent: claude-code-tier2b-20261108T014325Z-5a0d195a | item: rm-1154fe029f40163d | lease until: 2026-11-08T03:38:23Z
 
-- ⬜ **Run a scheduled architecture survey that seeds roadmap items**: Idea from `mattpocock/skills` (`improve-codebase-architecture`, `codebase-design`), made automatic. Add a maintenance skill that surveys the code for shallow modules and duplicated seams, writes its candidates as cited roadmap seeds (never a human questionnaire), and runs from the integrator or maintenance pass about weekly. Record the vocabulary (deep module, seam) in the glossary.
+- 🚧 **Run a scheduled architecture survey that seeds roadmap items**: Idea from `mattpocock/skills` (`improve-codebase-architecture`, `codebase-design`), made automatic. Add a maintenance skill that surveys the code for shallow modules and duplicated seams, writes its candidates as cited roadmap seeds (never a human questionnaire), and runs from the integrator or maintenance pass about weekly. Record the vocabulary (deep module, seam) in the glossary.
+  <!-- agent-state: {"schema":1,"id":"rm-39ee4e781c845c36","state":"claimed","touch":["GLOSSARY.md","skills/architecture-survey.md","skills/integrator.md","skills/maintenance-review.md"],"resources":[],"owner":"claude-code-reviewaxes-20261107T225137Z","token":"353042fa24d9b6d05dcb38137cb1add9","branch":"agent/rm-39ee4e781c845c36/353042fa24d9","claimed_at":"2026-11-08T05:13:38Z","heartbeat_at":"2026-11-08T05:13:38Z","lease_until":"2026-11-08T06:43:38Z"} -->
+  Agent: claude-code-reviewaxes-20261107T225137Z | item: rm-39ee4e781c845c36 | lease until: 2026-11-08T06:43:38Z
 
 ### Blocked
 

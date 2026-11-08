@@ -23,11 +23,14 @@ name: Release
 # jobs succeed; their absence is recorded in the release body.
 #
 # Status: Linux (AppImage) is a real build, no secrets required. Android is
-# published only when the four ANDROID_KEYSTORE_* / ANDROID_KEY_* repository
-# secrets exist; the maintainer generates and stores them, an agent never
-# fabricates them. Without them the Android job still compiles the release
-# build, prints why no APK is published, and the release has no Android asset.
-# A debug-signed APK is never published: the publish job fails on one.
+# signed with the maintainer key when the four ANDROID_KEYSTORE_* / ANDROID_KEY_*
+# repository secrets exist (published as leotheca-<tag>-android.apk); the
+# maintainer generates and stores them, an agent never fabricates them.
+# Without them the Android job creates a throw-away keystore inside the job
+# (random password, never printed, never stored, new key every run) and signs a
+# TEST build with it, published as leotheca-<tag>-android-TEST-ephemeral-key.apk.
+# Android sees each such build as a different app. A debug-signed APK is never
+# published: the publish job fails on one.
 #
 # Flatpak uses the flatpak/flatpak-github-actions/flatpak-builder action
 # (session 55), which runs inside a container image that already bundles
@@ -339,6 +342,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       signed: ${{ steps.signing.outputs.signed }}
+      ephemeral: ${{ steps.signing.outputs.ephemeral }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -361,7 +365,7 @@ jobs:
       - run: npm ci
       - run: npx vite build
       - run: npx cap sync android
-      - name: Decide whether this run can sign a release APK
+      - name: Choose the release key (maintainer key, else a throw-away test key)
         id: signing
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
@@ -370,32 +374,67 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           missing=""
+          present=0
           for name in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
-            if [ -z "${!name}" ]; then missing="$missing $name"; fi
+            if [ -z "${!name}" ]; then missing="$missing $name"; else present=$((present + 1)); fi
           done
-          if [ -n "$missing" ]; then
-            echo "android-release-signing: NOT signing. Missing repository secrets:$missing."
-            echo "::warning title=Android APK not published::Missing repository secrets:$missing. The release APK is built unsigned for a compile check only and no Android asset is published. The debug key is never used for a published build."
-            echo "signed=false" >> "$GITHUB_OUTPUT"
+          if [ "$present" -eq 4 ]; then
+            keystore="$RUNNER_TEMP/leotheca-release.keystore"
+            printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$keystore"
+            test -s "$keystore"
+            echo "::add-mask::$ANDROID_KEY_ALIAS"
+            echo "signed=true" >> "$GITHUB_OUTPUT"
+            echo "ephemeral=false" >> "$GITHUB_OUTPUT"
+            echo "keystore=$keystore" >> "$GITHUB_OUTPUT"
+            echo "android-release-signing: all four secrets present, signing the release APK."
             exit 0
           fi
-          keystore="$RUNNER_TEMP/leotheca-release.keystore"
-          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$keystore"
+          if [ "$present" -ne 0 ]; then
+            echo "::error::android-release-signing: only part of the signing secrets is set (missing:$missing). Set all four or none."
+            exit 1
+          fi
+          # No secrets: sign a TEST build with a key made here and thrown away
+          # with the runner. The password is random, masked, written only to a
+          # file in RUNNER_TEMP, and never printed or uploaded. The key is new
+          # on every run, so Android treats every build as a different app.
+          keystore="$RUNNER_TEMP/leotheca-ephemeral.keystore"
+          passfile="$RUNNER_TEMP/leotheca-ephemeral.pass"
+          rm -f "$keystore" "$passfile"
+          (umask 077 && openssl rand -hex 24 > "$passfile")
+          test -s "$passfile"
+          echo "::add-mask::$(cat "$passfile")"
+          keytool -genkeypair -keystore "$keystore" -storetype PKCS12 \
+            -storepass:file "$passfile" -keypass:file "$passfile" \
+            -alias leotheca-test -keyalg RSA -keysize 2048 -validity 365 \
+            -dname "CN=Leotheca TEST ephemeral key, O=not a release key" > /dev/null
           test -s "$keystore"
-          echo "::add-mask::$ANDROID_KEY_ALIAS"
-          echo "signed=true" >> "$GITHUB_OUTPUT"
+          echo "signed=false" >> "$GITHUB_OUTPUT"
+          echo "ephemeral=true" >> "$GITHUB_OUTPUT"
           echo "keystore=$keystore" >> "$GITHUB_OUTPUT"
-          echo "android-release-signing: all four secrets present, signing the release APK."
+          echo "passfile=$passfile" >> "$GITHUB_OUTPUT"
+          echo "android-release-signing: no signing secrets. Building a TEST apk signed with a throw-away key generated in this job."
+          echo "::warning title=Android TEST apk::No Android signing secrets are set. The published APK is signed with a throw-away key made in this job, so every build is a different app to Android (uninstall before installing the next). It is named leotheca-<tag>-android-TEST-ephemeral-key.apk. The debug key is never used."
       - name: Build release APK
         working-directory: android
         env:
           LEOTHECA_KEYSTORE_FILE: ${{ steps.signing.outputs.keystore }}
-          LEOTHECA_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          LEOTHECA_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          LEOTHECA_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: ./gradlew assembleRelease
+          KEY_PASSWORD_FILE: ${{ steps.signing.outputs.passfile }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -n "$KEY_PASSWORD_FILE" ]; then
+            LEOTHECA_KEYSTORE_PASSWORD="$(cat "$KEY_PASSWORD_FILE")"
+            LEOTHECA_KEY_PASSWORD="$LEOTHECA_KEYSTORE_PASSWORD"
+            LEOTHECA_KEY_ALIAS=leotheca-test
+          else
+            LEOTHECA_KEYSTORE_PASSWORD="$KEYSTORE_PASSWORD"
+            LEOTHECA_KEY_PASSWORD="$KEY_PASSWORD"
+            LEOTHECA_KEY_ALIAS="$KEY_ALIAS"
+          fi
+          export LEOTHECA_KEYSTORE_FILE LEOTHECA_KEYSTORE_PASSWORD LEOTHECA_KEY_ALIAS LEOTHECA_KEY_PASSWORD
+          ./gradlew assembleRelease
       - name: Verify the APK is signed and is not debug-signed
-        if: steps.signing.outputs.signed == 'true'
         run: |
           apksigner="$(ls -d "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -n 1)"
           apk=android/app/build/outputs/apk/release/app-release.apk
@@ -405,7 +444,6 @@ jobs:
           "$apksigner" verify --print-certs "$apk" | tee "$RUNNER_TEMP/apk-certs.txt"
           node scripts/verifyApkNotDebugSigned.mjs --debug-sha256 "$debug_sha" < "$RUNNER_TEMP/apk-certs.txt"
       - uses: actions/upload-artifact@v4
-        if: steps.signing.outputs.signed == 'true'
         with:
           name: android-release-apk
           path: android/app/build/outputs/apk/release/app-release.apk
@@ -482,12 +520,13 @@ jobs:
             node scripts/verifyApkNotDebugSigned.mjs --debug-sha256 "$debug_sha" < "$RUNNER_TEMP/certs.txt"
           done < <(find artifacts -name '*.apk' -type f)
           if [ "$found" = 0 ]; then
-            echo "No Android APK among the artifacts: none will be published (the android job had no release signing secrets)."
+            echo "No Android APK among the artifacts: none will be published."
           fi
       - name: Determine this run's release identity
         id: release
         run: |
           if [ "${{ github.ref_type }}" = "tag" ]; then
+            tag="${{ github.ref_name }}"
             echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
             echo "name=Leotheca ${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
             echo "draft=true" >> "$GITHUB_OUTPUT"
@@ -495,6 +534,7 @@ jobs:
             echo "make_latest=legacy" >> "$GITHUB_OUTPUT"
             body=""
           else
+            tag=dev-build
             echo "tag=dev-build" >> "$GITHUB_OUTPUT"
             echo "name=Development build ($(date -u +%Y-%m-%d), ${GITHUB_SHA::7})" >> "$GITHUB_OUTPUT"
             echo "draft=false" >> "$GITHUB_OUTPUT"
@@ -502,10 +542,12 @@ jobs:
             echo "make_latest=true" >> "$GITHUB_OUTPUT"
             body="Automatically rebuilt from the latest push to main (commit ${GITHUB_SHA}). This is the rolling release: it always holds the newest build of main, it is unreviewed, and there are no other releases at the moment. The macOS and Windows builds are unsigned and un-notarized (no code-signing certificate is configured yet): macOS will show an \"unidentified developer\" Gatekeeper warning on first open, and Windows may show a SmartScreen warning."
           fi
-          if [ "${{ needs.android.outputs.signed }}" = "true" ]; then
+          if [ "${{ needs.android.outputs.ephemeral }}" = "true" ]; then
+            body="${body}"$'\n\n'"The Android file in this run (leotheca-${tag}-android-TEST-ephemeral-key.apk) is a TEST build. It is signed with a random throw-away key made during this build, because the maintainer's release key is not configured. Android treats every such build as a different app: uninstall the previous one before installing the next, there are no in-place updates, and Obtainium and F-Droid cannot track it. The public debug key is never used."
+          elif [ "${{ needs.android.outputs.signed }}" = "true" ]; then
             body="${body}"$'\n\n'"The Android APK in this run is signed with the maintainer's release key."
           else
-            body="${body}"$'\n\n'"No Android APK is included in this run: the release signing key is not configured on the release runner, and a debug-signed APK is never published."
+            body="${body}"$'\n\n'"No Android APK is included in this run: the android job did not produce a signed APK."
           fi
           if [ "${{ needs.flatpak.result }}" != "success" ]; then
             body="${body}"$'\n\n'"Flatpak bundle not included in this run: the flatpak build job failed (see this commit's Actions run), a pre-existing issue already tracked in ROADMAP.md, not something this release broke."
@@ -529,7 +571,9 @@ jobs:
       - name: Name the Android artifact after the release
         run: |
           if [ -f artifacts/android-release-apk/app-release.apk ]; then
-            mv artifacts/android-release-apk/app-release.apk "artifacts/android-release-apk/leotheca-${{ steps.release.outputs.tag }}-android.apk"
+            suffix=""
+            if [ "${{ needs.android.outputs.ephemeral }}" = "true" ]; then suffix="-TEST-ephemeral-key"; fi
+            mv artifacts/android-release-apk/app-release.apk "artifacts/android-release-apk/leotheca-${{ steps.release.outputs.tag }}-android${suffix}.apk"
           fi
       - name: Delete the previous dev-build release and tag, if any
         if: steps.release.outputs.tag == 'dev-build'

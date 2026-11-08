@@ -16,20 +16,20 @@ The CI workflows that check the packaging inputs are `flathub-submission-verify.
 
 ## Release channel today
 
-There is no versioned release tag. The only tag is the rolling `dev-build`, which every push to `main` replaces. It is published as a normal release marked Latest and carries the Android APK only when the release signing secrets exist (see below), AppImage, Flatpak bundle, macOS universal DMG and Windows MSI. The `v1.0.0` tag and release were deleted on 2026-11-07.
+There is no versioned release tag. The only tag is the rolling `dev-build`, which every push to `main` replaces. It is published as a normal release marked Latest and carries an Android APK (properly signed when the release signing secrets exist, otherwise a TEST build, see below), AppImage, Flatpak bundle, macOS universal DMG and Windows MSI. The `v1.0.0` tag and release were deleted on 2026-11-07.
 
 ## Android release signing
 
-Published Android builds are never signed with the debug key. `android/app/build.gradle` signs the `release` type from environment variables only; `release.yml` fills them from repository secrets, verifies the result with `apksigner verify --print-certs` and `scripts/verifyApkNotDebugSigned.mjs`, and the publish job re-checks every APK. When the secrets are absent the build still compiles but no APK is uploaded or published, the job log carries a warning naming the missing secrets, and the release notes say no APK is included. Today none of the secrets exist, so the `dev-build` release has no Android asset. F-Droid is unaffected: it builds the unsigned `release` type itself.
+Published Android builds are never signed with the debug key. `android/app/build.gradle` signs the `release` type from environment variables only; `release.yml` fills them from repository secrets, verifies the result with `apksigner verify --print-certs` and `scripts/verifyApkNotDebugSigned.mjs`, and the publish job re-checks every APK. When the secrets are absent the job generates a throw-away keystore with `keytool` (random password from `openssl rand`, masked, never printed, never stored beyond the job; a new key on every run), signs the release APK with it through the same `LEOTHECA_KEYSTORE_*` path, and the publish job attaches it as `leotheca-<tag>-android-TEST-ephemeral-key.apk`. The release notes and the job log say it is a test build. A properly signed build keeps the name `leotheca-<tag>-android.apk`. Because the key differs on every build, Android treats each build as a different app: uninstall before installing the next one, there are no in-place updates, and Obtainium and F-Droid cannot track it. It exists so the owner can try the app; the real release key comes from the four secrets. The refusal to publish debug-key-signed APKs is unchanged and applies to both builds. Today none of the secrets exist, so `dev-build` carries the TEST file. F-Droid is unaffected: it builds the unsigned `release` type itself.
 
 Owner checklist (an agent cannot do these):
 
 1. Generate a key, once, and keep a backup outside GitHub: `keytool -genkeypair -v -keystore leotheca-release.jks -alias leotheca -keyalg RSA -keysize 4096 -validity 10000`. Never commit it. Losing it means installed users must uninstall to update.
 2. In GitHub, Settings, Secrets and variables, Actions, add four repository secrets: `ANDROID_KEYSTORE_BASE64` (output of `base64 -w0 leotheca-release.jks`), `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` (here `leotheca`) and `ANDROID_KEY_PASSWORD`.
-3. Push to main (or re-run the Release workflow on a push event) and confirm the log line `android-release-signing: all four secrets present` and an APK named `leotheca-dev-build-android.apk` on the release. Check it with `apksigner verify --print-certs`.
-4. Anyone who installed an earlier debug-signed dev-build APK must uninstall it once, because the signature changes.
+3. Push to main (or re-run the Release workflow on a push event) and confirm the log line `android-release-signing: all four secrets present` and an APK named `leotheca-dev-build-android.apk` (no `TEST` in the name) on the release. Check it with `apksigner verify --print-certs`.
+4. Anyone who installed an earlier debug-signed or TEST dev-build APK must uninstall it once, because the signature changes.
 
-Not verified in the repository: the Gradle signing block and the workflow steps have not run against a real key or a hosted runner. The comparison logic is unit-tested (`scripts/verifyApkNotDebugSigned.test.js`).
+Not verified in the repository: the Gradle signing block, the throw-away key step and the workflow steps have not run against a real key or a hosted runner. The comparison logic is unit-tested (`scripts/verifyApkNotDebugSigned.test.js`).
 
 ## What is missing before an external request
 

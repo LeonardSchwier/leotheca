@@ -26,6 +26,11 @@ export default tseslint.config(
       // wasm loader glue for its JBIG2/OpenJPEG decoders) -- third-party
       // build output served as static assets, not this project's source.
       "public/pdfjs/",
+      // Playwright's HTML report and traces: a failed local e2e run leaves a
+      // bundled report here, and walking it fails the whole lint (and the
+      // pre-push gate) with thousands of errors in code nobody wrote.
+      "tests/e2e/playwright-report/",
+      "tests/e2e/test-results/",
     ],
   },
   js.configs.recommended,
@@ -73,10 +78,7 @@ export default tseslint.config(
     // so they need Node's own globals rather than the browser ones the rest
     // of this config never had to declare because tseslint's TS-aware rules
     // cover src/**/*.{ts,tsx} instead of relying on eslint's no-undef there.
-    // tests/ui/*.js (Playwright/headless-browser E2E harness support, e.g.
-    // tauriMock.js) is the same kind of plain CommonJS Node script, loaded
-    // by the E2E Python driver rather than bundled with the app.
-    files: ["scripts/**/*.{js,mjs}", "tests/ui/**/*.js"],
+    files: ["scripts/**/*.{js,mjs}"],
     languageOptions: {
       globals: {
         console: "readonly",

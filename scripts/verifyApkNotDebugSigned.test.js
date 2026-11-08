@@ -40,6 +40,19 @@ describe("parseCertificates", () => {
 });
 
 describe("findDebugSigningProblems", () => {
+  it("reads the output format of newer build-tools (V2 Signer: ...)", () => {
+    const out = (digest, dn) =>
+      `V2 Signer: certificate DN: ${dn}\nV2 Signer: certificate SHA-256 digest: ${digest}\nV2 Signer: certificate SHA-1 digest: 00\n`;
+    expect(
+      findDebugSigningProblems(out("bb".repeat(32), "CN=Leotheca TEST"), [
+        DEBUG,
+      ]),
+    ).toEqual([]);
+    expect(
+      findDebugSigningProblems(out(DEBUG_PLAIN, "CN=Android Debug"), [DEBUG])
+        .length,
+    ).toBeGreaterThan(0);
+  });
   it("passes a release certificate", () => {
     expect(findDebugSigningProblems(printed(RELEASE), [DEBUG])).toEqual([]);
   });

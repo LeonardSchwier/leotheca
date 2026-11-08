@@ -27,11 +27,6 @@ Items with an owner. An expired lease means the item can be recovered.
 
 ### Available
 
-- 🚧 **Correct the README Android install notes after the signing change**: README.md still tells readers to download `leotheca-dev-build-android-DEBUG-UNSIGNED.apk` and calls the Android build a debug-signed APK (status table rows, the Direct APK and Obtainium install notes). PR 105 removed that asset: the release now has an Android APK only when the owner has added the four signing secrets. State that truthfully, link packaging/STATUS.md, keep the unverified Obtainium sentence honest.
-  <!-- agent-state: {"schema":1,"id":"rm-c8c7c73354642e8a","state":"claimed","touch":["README.md"],"resources":[],"owner":"claude-code-pdlc-20261106T231246Z-fcf4c9d1","token":"70ee7599f198ba311c31c297b03b88c8","branch":"agent/rm-c8c7c73354642e8a/70ee7599f198","claimed_at":"2026-11-08T05:30:24Z","heartbeat_at":"2026-11-08T05:30:24Z","lease_until":"2026-11-08T07:00:24Z"} -->
-  Agent: claude-code-pdlc-20261106T231246Z-fcf4c9d1 | item: rm-c8c7c73354642e8a | lease until: 2026-11-08T07:00:24Z
-
-Items nobody owns. Take the first one that fits.
 
 - ⬜ **Update the PDLC end-to-end row after tests/ui retirement**: The row still names `tests/ui` as an open leftover and the typing freeze as unexplained. `tests/ui` is deleted (PR 107), the freeze is characterised as a Chromium style and layout loop with no app cause (PR 104), and each e2e run now gets its own preview port (PR 95). Correct the row and the roadmap pointer.
 - 🚧 **Run a deeper second Tier 2 audit on the uncovered areas**: The first Tier 2 audit (2026-11-08) was condensed and left out the PDF viewer, canvas, ink, frontmatter handling, the Android plugin Java and the packaging scripts, and ran no verifier wave or coverage critic. Run the security-audit skill again focused on those areas with the verifier wave, keep the report outside the repository, seed one item per confirmed finding of medium or higher, and update the PDLC Security tooling row.
@@ -60,6 +55,13 @@ Items that wait for access or a decision outside the repository.
 - ⏸ **Compatibility layer**: Load community extension manifests; gated on maintainer approval of the third-party-code security model.
 
 ## Implemented
+
+- ✅ **Correct the README Android install notes after the signing change**: README.md still tells readers to download `leotheca-dev-build-android-DEBUG-UNSIGNED.apk` and calls the Android build a debug-signed APK (status table rows, the Direct APK and Obtainium install notes). PR 105 removed that asset: the release now has an Android APK only when the owner has added the four signing secrets. State that truthfully, link packaging/STATUS.md, keep the unverified Obtainium sentence honest.
+  <!-- agent-state: {"schema":1,"id":"rm-c8c7c73354642e8a","state":"done","touch":["README.md"],"resources":[],"note":"Merged as PR 115 (488f2fa): README Android notes match the release workflow; hosted CI pending for post-merge runs, ids in handoff","completed_at":"2026-11-08T05:43:54Z","completed_by":"claude-code-pdlc-20261106T231246Z-fcf4c9d1","branch":"agent/rm-c8c7c73354642e8a/70ee7599f198"} -->
+  Agent: completed by claude-code-pdlc-20261106T231246Z-fcf4c9d1 | item: rm-c8c7c73354642e8a
+
+Items nobody owns. Take the first one that fits.
+
 
 - ✅ **Quick Capture: launch from the OS without waiting for the app to load**: Market Solution #2 1.14 Mobile (Oct 5, 2026) lets iOS Quick Capture create a note from the Lock Screen, Control Center, Home Screen widget, or a Shortcut before the vault has even loaded. Leotheca's Quick Capture exists as an in-app sheet plus deep links/share intents, but every path requires the app to be running first; capturing straight from a widget/shortcuts entry that appends to the inbox note (opt-in, plain-file, offline, togglable) completes the existing capture feature without a new convention. (Competitor scan, Market Solution #2 changelog 1.14 Mobile, 2026-10-05)
   <!-- agent-state: {"schema":1,"id":"rm-9a637eae859ce76e","state":"done","touch":["CHANGELOG.md","README.md","android/app/src","documentation/ANDROID_WIDGETS.md","master-spec.md","spec/completed/quick-capture-launch-from-the-os-without-waiting-for-the-app-to-load.md","src-tauri/src/lib.rs","src-tauri/src/quick_capture_launch.rs","src/app/App.test.tsx","src/app/App.tsx","src/app/rename_autosave.test.tsx","src/workspace","tests/e2e/support/bridgeMock.ts"],"resources":["quick-capture-os-launch"],"note":"Merged as a3cea8d6476094611dc83a577d257eef681580eb via PR 114. Cold capture deep link waits for settings, desktop --capture flag, Android launcher shortcut; local tsc, eslint, vitest 3320, cargo 154, clippy, e2e 17, JUnit 32 pass; hosted CI green on the PR. Device behavior UNVERIFIED, split into a blocked item.","completed_at":"2026-11-08T05:29:54Z","completed_by":"claude-code-qcos-20261108T051356Z-3514988e","branch":"agent/rm-9a637eae859ce76e/9a631e7e37b5"} -->

@@ -29,6 +29,12 @@ android {
             keyPassword 'android'
         }
     }
+    lint {
+        // Reviewed leftovers live in lint-baseline.xml (see master-spec.md change log
+        // for the reason of each group). New findings of any kind still fail the job.
+        baseline = file("lint-baseline.xml")
+        abortOnError = true
+    }
     buildTypes {
         debug {
             signingConfig signingConfigs.debug

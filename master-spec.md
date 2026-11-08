@@ -164,7 +164,7 @@ Only Linux CI builds and launches a desktop artifact as a smoke test. macOS and 
 4. `settingsLoaded` becomes true whether or not this succeeded. Automation commands await it through `waitForSettingsLoaded()`.
 5. Pending external files, deep links and Android share data are consumed.
 
-**Desktop process setup.** `main.rs` sets `WEBKIT_DISABLE_WEBGL`, `WEBKIT_DISABLE_COMPOSITING_MODE` and `WEBKIT_DISABLE_GPU` to `1` before launching. The window is titled Leotheca, 1200x800, minimum 720x480. Plugins are single-instance (desktop), dialog, fs, deep-link and clipboard-manager. Release builds use `panic = "abort"`, LTO, one codegen unit, `opt-level = "s"` and stripping.
+**Desktop process setup.** `main.rs` sets `WEBKIT_DISABLE_WEBGL`, `WEBKIT_DISABLE_COMPOSITING_MODE` and `WEBKIT_DISABLE_GPU` to `1` before launching. The window is titled Leotheca, 1200x800, minimum 720x480. Plugins are single-instance (desktop), dialog, deep-link and clipboard-manager. No file-system plugin is registered (the `tauri-plugin-fs` crate remains only as a library dependency of `tauri-plugin-dialog`), no capability grants an `fs:` permission, and all file work goes through the app's own scoped commands. Release builds use `panic = "abort"`, LTO, one codegen unit, `opt-level = "s"` and stripping.
 
 ## 6. Data model and on-disk formats
 
@@ -783,6 +783,7 @@ The URL parser is not the security boundary. The native gate on the eventual rea
 
 | ID | Requirement | Acceptance | Test |
 | --- | --- | --- | --- |
+| FR-SEC-FSPLUGIN-001 | The desktop app MUST NOT register Tauri's file-system plugin nor list it as a direct Rust or npm dependency, and no capability MUST grant an `fs:` permission. | Given the manifests, `lib.rs` and the capability files, When scanned, Then none names the plugin or an `fs:` permission. | `scripts/noFsPlugin.test.js` |
 | FR-PRIV-001 | The app MUST NOT access the camera or the microphone on any platform: no audio or video capture API, no speech engine, no `RECORD_AUDIO`, `MODIFY_AUDIO_SETTINGS` or `CAMERA` permission. | Given the sources and the Android manifest, When scanned, Then none of those appear. | `scripts/noMicrophone.test.js` |
 | FR-PRIV-002 | A settings file written by an older version that still carries `speechToTextEnabled` MUST load without corruption and the key MUST be dropped. | Given a stored `speechToTextEnabled`, When loaded, Then corrupt is false and the key is absent. | `src/settings/workspaceSettings.test.ts` |
 | FR-PRIV-003 | The settings panel MUST NOT offer a dictation switch. | Given the panel, When rendered, Then no speech-to-text row exists. | `src/settings/SettingsPanelCurrentTests.tsx` |
@@ -1154,4 +1155,6 @@ Newest first. Each entry is `YYYY-MM-DD: what changed in behavior, contracts, fo
 - 2026-11-08: Desktop: the ten scoped file commands (`*_workspace_*`, `trash_path`) refuse a `workspace_root` that is not the native `ActiveWorkspaceRoot`, or any root while no workspace is open (audit finding F1, KG-001 resolved). The invoke arguments are unchanged.
 - 2026-11-08: Security: the desktop capability file no longer grants any `fs:` permission, and the workspace grant registry file name (`workspace-grants.json` and spellings sharing its prefix) is refused by the unscoped and both scoped path gates, so the webview cannot read or rewrite the registry even where the app data dir equals the app config dir (Windows, macOS). Audit finding F2, KG-013 resolved.
 - 2026-11-08: Release: the publish gate and the signed android job read the debug certificate SHA-256 with a whitespace-tolerant pattern. `keytool` indents the line with a tab, so the old pattern found nothing and the publish job failed on every main commit after the signing change, leaving the rolling dev-build stale. A clear error is printed when the certificate cannot be read. No application behavior changed.
+- 2026-11-08: Security: the inert `tauri-plugin-fs` is no longer registered and `tauri-plugin-fs` and `@tauri-apps/plugin-fs` are removed from `Cargo.toml` and `package.json` (the lockfiles and the Flatpak npm source list follow). The crate remains in `Cargo.lock` only as a library of `tauri-plugin-dialog`, which exposes no file command. Guarded by `scripts/noFsPlugin.test.js`.
+- 2026-11-08: Security (macOS Quick Look source, unbuilt and unshipped): `LeothecaMarkdownQLPreviewGenerator.m` and its Python reference in `scripts/test_ql_converter.py` escape `"` as `&quot;` so a link target cannot end the `href` attribute. No CI job builds the generator, so the Objective-C change is untested. No application behavior changed.
 <!-- change-log:end -->

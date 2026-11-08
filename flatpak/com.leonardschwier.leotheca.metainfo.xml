@@ -32,15 +32,15 @@
 
   <screenshots>
     <screenshot type="default">
-      <image>https://raw.githubusercontent.com/LeonardSchwier/leotheca/main/assets/screenshots/split-view.png</image>
+      <image>https://raw.githubusercontent.com/LeonardSchwier/leotheca/main/documentation/screenshots/split-view.png</image>
       <caption>Split view: source and rendered preview side by side, with wikilinks and backlinks</caption>
     </screenshot>
     <screenshot>
-      <image>https://raw.githubusercontent.com/LeonardSchwier/leotheca/main/assets/screenshots/graph-view.png</image>
+      <image>https://raw.githubusercontent.com/LeonardSchwier/leotheca/main/documentation/screenshots/graph-view.png</image>
       <caption>The graph view, showing how notes connect via wikilinks</caption>
     </screenshot>
     <screenshot>
-      <image>https://raw.githubusercontent.com/LeonardSchwier/leotheca/main/assets/screenshots/settings.png</image>
+      <image>https://raw.githubusercontent.com/LeonardSchwier/leotheca/main/documentation/screenshots/settings.png</image>
       <caption>Settings: theme, font size, zoom, workspace statistics, and keyboard shortcuts</caption>
     </screenshot>
   </screenshots>

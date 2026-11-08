@@ -4,6 +4,7 @@
 
 ### Maintenance
 
+- **Desktop file commands bound to the open workspace**: The commands that create, write, rename, move to trash or delete inside a workspace now check, in the native app, that the folder they are given is the workspace that is open, and refuse any other folder. Before, the check relied on the web layer alone. Nothing changes for normal use.
 - **Shared glossary**: `GLOSSARY.md` lists the domain and process terms of Leotheca. Agents read it at startup, the spec grill stage extends it, and the Rules check `glossary` fails an archived spec without a `Glossary:` line.
 - **Voice dictation and microphone access removed**: Leotheca now uses neither the camera nor the microphone, because that access can invade privacy. The optional speech-to-text dictation (editor button, Quick Capture voice note, desktop whisper commands, Android recognizer) and the Android `RECORD_AUDIO` and `MODIFY_AUDIO_SETTINGS` permissions are gone, along with the unused native whisper build code. An old "Speech-to-text dictation" setting in a settings file is ignored and dropped. The README and the product rules now state the stance: no camera, no microphone, no network.
 - **Capture no longer stalls on long runs of blank lines**: Trailing blank lines are removed in linear time. A note ending in tens of thousands of newlines followed by text used to freeze the capture sheet for seconds. Static security analysis (ESLint security rules, Semgrep, CodeQL) now runs on the sources.

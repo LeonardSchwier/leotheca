@@ -362,7 +362,7 @@ Two gates exist on desktop:
 - **Unscoped gate** `check_unscoped_path_allowed`: the target, after resolving its nearest existing ancestor and any symlink, MUST be inside the `ActiveWorkspaceRoot` set by `set_active_workspace_root`, or inside the app config directory. `set_active_workspace_root` accepts a root only when it resolves (canonical path) to an entry of the native workspace grant registry.
 - **Scoped gate** `resolve_within_workspace(root, relative)`: rejects empty, absolute, root or prefix components and any `..`, then resolves against the canonical `root`, including a final symlink.
 
-The scoped gate takes `workspace_root` from the frontend and does not compare it with `ActiveWorkspaceRoot`. See KG-001.
+**Root binding.** The ten scoped commands (every `*_workspace_*` command and `trash_path`) also take `workspace_root` from the frontend, so each first calls `require_active_workspace_root`: the canonical `workspace_root` MUST equal the canonical `ActiveWorkspaceRoot`. Any other folder, a missing folder, a poisoned state or no open workspace is refused before the disk is touched (plain string error in `commands.rs`, `outside_workspace:` code in `workspace_mutations.rs`). Equivalent spellings of the active root (trailing separator, `..`, symlink) pass. The JavaScript arguments are unchanged; Tauri injects the state. Resolved KG-001.
 
 `set_active_workspace_root` also swaps asset protocol scope: `forbid_directory` on the old root and `allow_directory` on the new root. Static scope is `[]`.
 
@@ -391,16 +391,16 @@ All return `Result<T, String>` unless noted. `FsEntry` is `{ name, path, isDir, 
 | `create_dir` | `path` | `()` | Unscoped | `create_dir_all`. |
 | `rename_path` | `from, to` | `()` | Unscoped, both | Replaces per OS `rename`. |
 | `delete_path_permanent` | `path` | `()` | Unscoped | Recursive for directories. |
-| `trash_path` | `workspaceRoot, path` | `()` | Scoped | See 6.10. |
-| `write_workspace_text_file` | `workspaceRoot, relativePath, contents` | `()` | Scoped | Overwrite, atomic. |
-| `write_workspace_binary_file` | `workspaceRoot, relativePath, data` | `()` | Scoped | Overwrite, atomic. |
-| `create_workspace_dir` | `workspaceRoot, relativePath` | `()` | Scoped | |
-| `rename_workspace_path` | `workspaceRoot, from, to` | `()` | Scoped, both | Creates target parents. May replace. |
-| `delete_workspace_path_permanent` | `workspaceRoot, relativePath` | `()` | Scoped | |
-| `create_workspace_text_file_new` | `workspaceRoot, relativePath, contents` | `()` | Scoped, coded | `create_new`; removes partial on failure. |
-| `create_workspace_binary_file_new` | `workspaceRoot, relativePath, data` | `()` | Scoped, coded | As above. |
-| `create_workspace_dir_new` | `workspaceRoot, relativePath` | `()` | Scoped, coded | Target must not exist. |
-| `rename_workspace_path_no_replace` | `workspaceRoot, from, to` | `()` | Scoped, coded | OS-level no-replace. |
+| `trash_path` | `workspaceRoot, path` | `()` | Scoped, root = active root | See 6.10. |
+| `write_workspace_text_file` | `workspaceRoot, relativePath, contents` | `()` | Scoped, root = active root | Overwrite, atomic. |
+| `write_workspace_binary_file` | `workspaceRoot, relativePath, data` | `()` | Scoped, root = active root | Overwrite, atomic. |
+| `create_workspace_dir` | `workspaceRoot, relativePath` | `()` | Scoped, root = active root | |
+| `rename_workspace_path` | `workspaceRoot, from, to` | `()` | Scoped, both, root = active root | Creates target parents. May replace. |
+| `delete_workspace_path_permanent` | `workspaceRoot, relativePath` | `()` | Scoped, root = active root | |
+| `create_workspace_text_file_new` | `workspaceRoot, relativePath, contents` | `()` | Scoped, coded, root = active root | `create_new`; removes partial on failure. |
+| `create_workspace_binary_file_new` | `workspaceRoot, relativePath, data` | `()` | Scoped, coded, root = active root | As above. |
+| `create_workspace_dir_new` | `workspaceRoot, relativePath` | `()` | Scoped, coded, root = active root | Target must not exist. |
+| `rename_workspace_path_no_replace` | `workspaceRoot, from, to` | `()` | Scoped, coded, root = active root | OS-level no-replace. |
 | `export_text_file_via_dialog` | `defaultFileName, contents` | `boolean` | User picks | `false` on cancel. HTML filter. |
 | `import_markdown_vault` | `targetFolder` | `ImportReport\|null` | User picks source; target scoped | Native folder dialog supplies the source (never the webview). `null` on cancel. Emits `markdown-import-progress`. Desktop only; other platforms return an error. |
 | `cancel_markdown_import` | none | `()` | none | Sets the cancel flag of the running import. |
@@ -1062,7 +1062,6 @@ These are current behavior, recorded honestly. None was fixed by the change that
 
 | ID | Finding | Evidence | Severity |
 | --- | --- | --- | --- |
-| KG-001 | Scoped desktop commands trust the frontend-supplied `workspace_root` and do not compare it with `ActiveWorkspaceRoot`. | Traced in `commands.rs`, `workspace_mutations.rs` | Medium |
 | KG-003 | Android native plugin methods accept any URI string with no allow-list. Protection is the OS grant and the JS layer. | Traced | Medium |
 | KG-004 | `applyCustomCss` calls `resolvePath(customCssPath, workspacePath)` and `isPathWithinWorkspace(absolutePath, workspacePath)`, reversing both signatures. It tries to read the workspace folder itself, so with a real filesystem custom CSS never applies. | Observed: a probe with real path functions read `/ws`. | High for that feature |
 | KG-005 | `decodeWorkspaceSettings` omits `mermaidRenderingEnabled` from its normalized object. A missing key stays `undefined`, so Settings highlights neither option, and a bad value such as `"yes"` stays in memory, though corrupt is set. Preview treats `undefined` as on. | Observed by probe | Low |
@@ -1139,4 +1138,5 @@ Newest first. Each entry is `YYYY-MM-DD: what changed in behavior, contracts, fo
 - 2026-11-08: Documentation: the README screenshots move from `assets/screenshots` to `documentation/screenshots` (new: command palette) and the Flatpak metainfo screenshot URLs follow. No application behavior changed.
 - 2026-11-08: Process: the Rules workflow and the pre-push hook run `check-rules.mjs glossary`, which fails a spec newly archived under `spec/completed/` without a `Glossary:` line; `GLOSSARY.md` holds the shared terms.
 - 2026-11-08: Process: `rules.yml` and the pre-push hook run `check-rules.mjs shape`, which fails when a skill lacks frontmatter with name and description or exceeds 200 lines, or when AGENTS.md exceeds 40 or CONSTITUTION.md exceeds 200 lines. No application behavior changed.
+- 2026-11-08: Desktop: the ten scoped file commands (`*_workspace_*`, `trash_path`) refuse a `workspace_root` that is not the native `ActiveWorkspaceRoot`, or any root while no workspace is open (audit finding F1, KG-001 resolved). The invoke arguments are unchanged.
 <!-- change-log:end -->

@@ -13,6 +13,7 @@ import {
   requiredTrailers,
   trailerProblems,
   reflectionProblems,
+  shapeProblems,
   glossaryProblems,
   parsePackageDeps,
   parseCargoDeps,
@@ -416,5 +417,43 @@ describe("glossary line on archived specs", () => {
     expect(
       glossaryProblems([{ path: "spec/open.md", content: "no glossary" }]),
     ).toEqual([]);
+  });
+});
+
+describe("shape of skills and entry files", () => {
+  const good = "---\nname: x\ndescription: does a thing\n---\n\n# X\n";
+  it("accepts a skill with frontmatter and a sensible length", () => {
+    expect(shapeProblems([{ path: "skills/x.md", content: good }])).toEqual([]);
+  });
+  it("reports a skill without frontmatter, name or description", () => {
+    expect(
+      shapeProblems([{ path: "skills/a.md", content: "# A\n" }]),
+    ).toHaveLength(1);
+    expect(
+      shapeProblems([
+        { path: "skills/b.md", content: "---\nname: b\n---\n\n# B\n" },
+      ]),
+    ).toEqual(["skills/b.md: frontmatter has no description"]);
+  });
+  it("reports a skill that is too long and ignores the index", () => {
+    const long = good + "line\n".repeat(250);
+    expect(
+      shapeProblems([{ path: "skills/long.md", content: long }]).join(),
+    ).toContain("split it");
+    expect(
+      shapeProblems([{ path: "skills/README.md", content: "# Index\n" }]),
+    ).toEqual([]);
+  });
+  it("keeps AGENTS.md and the constitution short", () => {
+    const many = (n) => "line\n".repeat(n);
+    expect(
+      shapeProblems([{ path: "AGENTS.md", content: many(41) }]),
+    ).toHaveLength(1);
+    expect(shapeProblems([{ path: "AGENTS.md", content: many(40) }])).toEqual(
+      [],
+    );
+    expect(
+      shapeProblems([{ path: "CONSTITUTION.md", content: many(201) }]),
+    ).toHaveLength(1);
   });
 });

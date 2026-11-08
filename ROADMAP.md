@@ -27,6 +27,7 @@ Items with an owner. An expired lease means the item can be recovered.
 
 ### Available
 
+- ⬜ **Remove the inert tauri-plugin-fs**: PR 108 removed every `fs:` permission and shielded the grant store, so `tauri-plugin-fs` is still registered but grants the WebView nothing. Remove the Rust crate, the registration, the capability remnants and the JS package `@tauri-apps/plugin-fs` (if nothing imports it), regenerate lockfiles and the Flatpak source lists.
 
 
 

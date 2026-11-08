@@ -29,9 +29,6 @@ Items with an owner. An expired lease means the item can be recovered.
 
 
 - ⬜ **Update the PDLC end-to-end row after tests/ui retirement**: The row still names `tests/ui` as an open leftover and the typing freeze as unexplained. `tests/ui` is deleted (PR 107), the freeze is characterised as a Chromium style and layout loop with no app cause (PR 104), and each e2e run now gets its own preview port (PR 95). Correct the row and the roadmap pointer.
-- 🚧 **Run a deeper second Tier 2 audit on the uncovered areas**: The first Tier 2 audit (2026-11-08) was condensed and left out the PDF viewer, canvas, ink, frontmatter handling, the Android plugin Java and the packaging scripts, and ran no verifier wave or coverage critic. Run the security-audit skill again focused on those areas with the verifier wave, keep the report outside the repository, seed one item per confirmed finding of medium or higher, and update the PDLC Security tooling row.
-  <!-- agent-state: {"schema":1,"id":"rm-1154fe029f40163d","state":"claimed","touch":["CHANGELOG.md","documentation/AGENTIC_PDLC.md","master-spec.md","spec","src/capture/captureTemplate.test.ts","src/capture/captureTemplate.ts"],"resources":[],"owner":"claude-code-pdlc-20261106T231246Z-fcf4c9d1","token":"5a965927fb6d340f8704318f03afab55","branch":"agent/rm-1154fe029f40163d/5a965927fb6d","claimed_at":"2026-11-08T07:42:43Z","heartbeat_at":"2026-11-08T07:42:43Z","lease_until":"2026-11-08T09:12:43Z"} -->
-  Agent: claude-code-pdlc-20261106T231246Z-fcf4c9d1 | item: rm-1154fe029f40163d | lease until: 2026-11-08T09:12:43Z
 
 
 ### Blocked
@@ -55,6 +52,11 @@ Items that wait for access or a decision outside the repository.
 - ⏸ **Compatibility layer**: Load community extension manifests; gated on maintainer approval of the third-party-code security model.
 
 ## Implemented
+
+- ✅ **Run a deeper second Tier 2 audit on the uncovered areas**: The first Tier 2 audit (2026-11-08) was condensed and left out the PDF viewer, canvas, ink, frontmatter handling, the Android plugin Java and the packaging scripts, and ran no verifier wave or coverage critic. Run the security-audit skill again focused on those areas with the verifier wave, keep the report outside the repository, seed one item per confirmed finding of medium or higher, and update the PDLC Security tooling row.
+  <!-- agent-state: {"schema":1,"id":"rm-1154fe029f40163d","state":"done","touch":["CHANGELOG.md","documentation/AGENTIC_PDLC.md","master-spec.md","spec","src/capture/captureTemplate.test.ts","src/capture/captureTemplate.ts"],"resources":[],"note":"Merged as PR 117 (3585790): second Tier 2 audit (source review, 3 low findings, L1 fixed); PDLC rows for security tooling and e2e updated; hosted CI pending for post-merge runs, ids in handoff","completed_at":"2026-11-08T07:53:47Z","completed_by":"claude-code-pdlc-20261106T231246Z-fcf4c9d1","branch":"agent/rm-1154fe029f40163d/5a965927fb6d"} -->
+  Agent: completed by claude-code-pdlc-20261106T231246Z-fcf4c9d1 | item: rm-1154fe029f40163d
+
 
 - ✅ **Fix the Release publish gate that cannot read the debug certificate**: Since PR 105 the Release workflow fails in the publish job on every main commit: the step that extracts the debug keystore SHA-256 with `sed -n 's/^ *SHA256: *//p'` finds nothing because `keytool` indents that line with a tab, so `test -n "$debug_sha"` exits 1 silently and the rolling dev-build is no longer refreshed. Accept any whitespace in both places (publish gate and signed android job), print a clear error when the certificate cannot be read, and prove the extraction on the checked-in keystore.
   <!-- agent-state: {"schema":1,"id":"rm-99bf0a19eb99b499","state":"done","touch":[".github/workflows/release.yml","master-spec.md","scripts/verifyApkNotDebugSigned.mjs"],"resources":[],"note":"Merged as PR 116 (2724946): publish gate reads the debug certificate with a tab-tolerant pattern; the hosted publish job after merge is the final proof; hosted CI pending for post-merge runs, ids in handoff","completed_at":"2026-11-08T05:55:24Z","completed_by":"claude-code-pdlc-20261106T231246Z-fcf4c9d1","branch":"agent/rm-99bf0a19eb99b499/3099a6757819"} -->

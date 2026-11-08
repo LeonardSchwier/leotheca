@@ -26,6 +26,15 @@ function pad(n: number): string {
 }
 
 /**
+ * Title and URL arrive from a share sender and are usually substituted into a
+ * template's frontmatter, where a line break would start a new key. Collapse
+ * every run of line breaks (and the other Unicode line separators) to one space.
+ */
+function singleLine(value: string): string {
+  return value.replace(/[\r\n\u2028\u2029\u0085]+/g, " ").trim();
+}
+
+/**
  * Renders `template` for one capture. Substitution is a single pass over the
  * template, so values (including the capture body) are never re-scanned and a
  * body containing "{{title}}" stays literal. Unknown placeholders are left as-is.
@@ -42,8 +51,8 @@ export function renderCaptureTemplate(
   const dateText = `${when.getFullYear()}-${pad(when.getMonth() + 1)}-${pad(when.getDate())}`;
   const timeText = `${pad(when.getHours())}:${pad(when.getMinutes())}`;
   const body = values.content.trim();
-  const url = values.url?.trim() ?? "";
-  const title = values.title?.trim() ?? "";
+  const url = singleLine(values.url ?? "");
+  const title = singleLine(values.title ?? "");
 
   let usedContent = false;
   let usedUrl = false;

@@ -4,6 +4,7 @@
 
 ### Maintenance
 
+- **Capture templates keep shared titles and links on one line**: A title or link with line breaks, as another app can send through Share, can no longer start a new line (a new property) in a template's frontmatter.
 - **Editor typing freeze in the end-to-end suite characterised**: The freeze that hangs headless Chromium after an edit is a browser style and layout loop that no application script causes; it also occurs in the newest Chromium and a headed browser. The finding and the measurements are recorded in the archived spec.
 - **End-to-end runs no longer share a server port**: The Playwright suite serves the build on a port of its own per run (or the one in `E2E_PORT`), so several checkouts can run the pre-push gate at the same time without testing each other's build.
 - **Shared glossary**: `GLOSSARY.md` lists the domain and process terms of Leotheca. Agents read it at startup, the spec grill stage extends it, and the Rules check `glossary` fails an archived spec without a `Glossary:` line.

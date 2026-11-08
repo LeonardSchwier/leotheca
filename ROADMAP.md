@@ -53,6 +53,11 @@ Items that wait for access or a decision outside the repository.
 
 ## Implemented
 
+- ✅ **Restore the reference-implementation callout in the README**: The showcase pass replaced the explicit note that this repository is a reference implementation of the agentic PDLC with a softer sentence. The owner wants the explicit callout back, prominent at the top, linking `documentation/AGENTIC_PDLC.md`, and restated in the GitHub description.
+  <!-- agent-state: {"schema":1,"id":"rm-c06ea7b83a7b49ec","state":"done","touch":["README.md","documentation/AGENTIC_PDLC.md"],"resources":[],"note":"Merged as PR 125 (497f820): explicit reference-implementation callout for the agentic PDLC restored at the top of the README and in the deep dive; hosted CI pending for post-merge runs, ids in handoff","completed_at":"2026-11-08T11:17:22Z","completed_by":"claude-code-pdlc-20261106T231246Z-fcf4c9d1","branch":"agent/rm-c06ea7b83a7b49ec/f78f2a4c48cb"} -->
+  Agent: completed by claude-code-pdlc-20261106T231246Z-fcf4c9d1 | item: rm-c06ea7b83a7b49ec
+
+
 - ✅ **Fix the new dev-dependency advisories**: `npm audit --omit=dev` is clean, but `npm audit` now reports 15 dev-only findings: 3 high with non-breaking fixes (brace-expansion, source-map-js, zod) and 12 moderate that need major upgrades of the lint stack. Apply the non-breaking fixes, regenerate the Flatpak node sources, and document the remaining 12 as accepted dev-only risk.
   <!-- agent-state: {"schema":1,"id":"rm-3be6d9d5bfd522c0","state":"done","touch":["flatpak/node-sources.json","master-spec.md","package-lock.json","package.json","skills/security-and-static-analysis.md"],"resources":[],"note":"Landed in PR 126, merge sha e7e5f61ec824cb16ebb4a6a6560e86143f9f8cb3; runs 42472997223 and 42473001133 (CI, appimage-smoke passed after the GitHub outage cleared); npm audit 15 -\u003e 10 moderate, 0 high, prod clean; 10 moderate (eslint/typescript-eslint/minimatch) documented as accepted dev-only risk; tsc, lint, vitest 3326, build, e2e 17 passed.","completed_at":"2026-11-08T10:59:04Z","completed_by":"claude-code-devadv-20261108T104511Z-90d0ecf7","branch":"agent/rm-3be6d9d5bfd522c0/c2428cc1a2c2"} -->
   Agent: completed by claude-code-devadv-20261108T104511Z-90d0ecf7 | item: rm-3be6d9d5bfd522c0
@@ -94,9 +99,6 @@ Items that wait for access or a decision outside the repository.
 
 Items nobody owns. Take the first one that fits.
 
-- 🚧 **Restore the reference-implementation callout in the README**: The showcase pass replaced the explicit note that this repository is a reference implementation of the agentic PDLC with a softer sentence. The owner wants the explicit callout back, prominent at the top, linking `documentation/AGENTIC_PDLC.md`, and restated in the GitHub description.
-  <!-- agent-state: {"schema":1,"id":"rm-c06ea7b83a7b49ec","state":"claimed","touch":["README.md","documentation/AGENTIC_PDLC.md"],"resources":[],"owner":"claude-code-pdlc-20261106T231246Z-fcf4c9d1","token":"f78f2a4c48cbf1308da265915ebdb0b4","branch":"agent/rm-c06ea7b83a7b49ec/f78f2a4c48cb","claimed_at":"2026-11-08T10:05:12Z","heartbeat_at":"2026-11-08T10:05:12Z","lease_until":"2026-11-08T11:35:12Z"} -->
-  Agent: claude-code-pdlc-20261106T231246Z-fcf4c9d1 | item: rm-c06ea7b83a7b49ec | lease until: 2026-11-08T11:35:12Z
 - ⬜ **Pin the rustup installer in the snap build**: After the Node.js archive was pinned by SHA-256 (PR 121), the same build script still installs Rust through an unverified `rustup` download piped into the shell. Verify the installer or a pinned toolchain archive by hash, or use the packaged Rust toolchain; the snap cannot be built here, so state that clearly.
   <!-- agent-state: {"schema":1,"id":"rm-569261b25b0a4b29","state":"open","touch":["master-spec.md","scripts/test_snapcraft.py","snap/snapcraft.yaml"],"resources":[],"note":"Pull request 122 is open with auto-merge enabled; GitHub-side 504 on the AppImage tooling download blocks its hosted check. Released to free the single claim; whoever finishes it must re-claim and record the merge sha.","released_at":"2026-11-08T10:05:02Z"} -->
   Agent: unclaimed | item: rm-569261b25b0a4b29

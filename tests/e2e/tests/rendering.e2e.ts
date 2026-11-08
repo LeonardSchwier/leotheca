@@ -1,4 +1,5 @@
 import { expect, test } from "../support/fixtures.js";
+import { NOTE_FILES } from "../support/workspace.js";
 import {
   buildIndexViaTagsPanel,
   openNote,
@@ -100,4 +101,44 @@ test("a mermaid diagram renders as a zoomable figure that follows the theme", as
   await expect
     .poll(async () => figure.locator(".mermaid-canvas svg").innerHTML())
     .not.toBe(before);
+});
+
+test.describe("text structure", () => {
+  test.use({
+    bridge: {
+      files: {
+        ...NOTE_FILES,
+        "syntax.md": [
+          "# Top",
+          "",
+          "## Second level",
+          "",
+          "### Third level",
+          "",
+          "Use `npm ci` before the build.",
+          "",
+          "> A quoted remark",
+          "",
+        ].join("\n"),
+      },
+    },
+  });
+
+  test("preview renders nested headings, inline code and block quotes", async ({
+    app,
+  }) => {
+    const { page } = app;
+    await page.goto("/");
+    await openNote(page, "syntax.md");
+    await setViewMode(page, "Preview");
+
+    const preview = page.locator(".markdown-preview");
+    await expect(preview.locator("h1")).toHaveText("Top");
+    await expect(preview.locator("h2")).toHaveText("Second level");
+    await expect(preview.locator("h3")).toHaveText("Third level");
+    await expect(preview.locator("p code")).toHaveText("npm ci");
+    await expect(preview.locator("blockquote")).toContainText(
+      "A quoted remark",
+    );
+  });
 });

@@ -8,6 +8,7 @@
 
 ### Maintenance
 
+- **glib advisory in the delivery notes**: The PDLC security tooling row names the open `glib` advisory, why it waits on Tauri moving to gtk-rs 0.20, and the roadmap item that repeats the check.
 - **glib advisory documented, not fixable yet**: `cargo audit` still warns about RUSTSEC-2024-0429 (`glib` 0.18.5). Every Linux part of Tauri (tauri 2.12.5, wry 0.57.1, tao 0.37.2, muda 0.21.2) still requires gtk-rs 0.18, so no upgrade lifts it; the unsound iterator is not used by our code. The reason and the check to repeat are in the security notes and the roadmap.
 - **Android signature check reads the newer apksigner output**: The release check that refuses debug-signed APKs failed on a correctly signed test build because newer Android build-tools print the signer as `V2 Signer: certificate ...`. It now understands both formats and still fails closed.
 - **Android test APK without signing secrets**: Until the maintainer adds the release key, the `dev-build` release now carries `leotheca-dev-build-android-TEST-ephemeral-key.apk`, signed with a random throw-away key generated during that build. Android treats every build as a different app: uninstall the previous one before installing the next, there are no in-place updates, and Obtainium and F-Droid cannot track it. It is for trying the app; the release key (four repository secrets) still produces `leotheca-<tag>-android.apk`, and an APK signed with the public debug key is still never published. The hosted build step is untested until its first run.

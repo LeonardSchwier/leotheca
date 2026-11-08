@@ -3,7 +3,9 @@
 # Leotheca
 
 **In short:** Leotheca is a free and open source markdown viewer and editor for a local folder of plain text notes, for Linux, macOS, Windows and Android. It is offline and private by design: **no camera, no microphone, no network**, no account, no telemetry and no sync service of its own ([how that is enforced](#why-this-exists)).
-It is also a worked example of how a strong, agent-run project is built: see [why this repository is built this way](#why-this-repository-is-built-this-way).
+
+> **Reference implementation of an agentic PDLC** (product development lifecycle; this also covers what is called agentic engineering, agentic SDLC and vibe coding, here done with written specs, enforced controls and evidence instead of guesswork). Besides being a note app, this repository is a worked example of delivering software with autonomous coding agents: an ownership ledger on its own branch, spec-first delivery, tests that fail before the fix, hooks and CI that re-check what agents report, two independent review passes, delivery by pull request, automatic security scanning, and a reflection at the end of every item. Read the stage-by-stage description in [`documentation/AGENTIC_PDLC.md`](documentation/AGENTIC_PDLC.md); the rules are in [`CONSTITUTION.md`](CONSTITUTION.md) and the branch model in [`documentation/BRANCH_MODEL.md`](documentation/BRANCH_MODEL.md). [Why this repository is built this way](#why-this-repository-is-built-this-way).
+
 Only a rolling dev build exists, no versioned release ([status](#status)). Build from source with [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 [![License: MIT](https://img.shields.io/github/license/LeonardSchwier/leotheca)](LICENSE)

@@ -28,9 +28,6 @@ Items with an owner. An expired lease means the item can be recovered.
 ### Available
 
 
-- 🚧 **Update the PDLC end-to-end row after tests/ui retirement**: The row still names `tests/ui` as an open leftover and the typing freeze as unexplained. `tests/ui` is deleted (PR 107), the freeze is characterised as a Chromium style and layout loop with no app cause (PR 104), and each e2e run now gets its own preview port (PR 95). Correct the row and the roadmap pointer.
-  <!-- agent-state: {"schema":1,"id":"rm-d48ddf605a4a7b14","state":"claimed","touch":[],"resources":["pdlc-e2e-row"],"owner":"claude-code-pdlc-20261106T231246Z-fcf4c9d1","token":"0ba66a1a1dedead66d953c8e2e0e65ce","branch":"agent/rm-d48ddf605a4a7b14/0ba66a1a1ded","claimed_at":"2026-11-08T07:54:41Z","heartbeat_at":"2026-11-08T07:54:41Z","lease_until":"2026-11-08T09:24:41Z"} -->
-  Agent: claude-code-pdlc-20261106T231246Z-fcf4c9d1 | item: rm-d48ddf605a4a7b14 | lease until: 2026-11-08T09:24:41Z
 
 
 ### Blocked
@@ -54,6 +51,11 @@ Items that wait for access or a decision outside the repository.
 - ⏸ **Compatibility layer**: Load community extension manifests; gated on maintainer approval of the third-party-code security model.
 
 ## Implemented
+
+- ✅ **Update the PDLC end-to-end row after tests/ui retirement**: The row still names `tests/ui` as an open leftover and the typing freeze as unexplained. `tests/ui` is deleted (PR 107), the freeze is characterised as a Chromium style and layout loop with no app cause (PR 104), and each e2e run now gets its own preview port (PR 95). Correct the row and the roadmap pointer.
+  <!-- agent-state: {"schema":1,"id":"rm-d48ddf605a4a7b14","state":"done","touch":[],"resources":["pdlc-e2e-row"],"note":"Done in PR 117 (3585790): the end-to-end row now says 17 journeys, tests/ui deleted, freeze characterised as a browser issue, per-run preview port; hosted CI evidence in the handoff of the audit item rm-1154fe029f40163d","completed_at":"2026-11-08T07:54:43Z","completed_by":"claude-code-pdlc-20261106T231246Z-fcf4c9d1","branch":"agent/rm-d48ddf605a4a7b14/0ba66a1a1ded"} -->
+  Agent: completed by claude-code-pdlc-20261106T231246Z-fcf4c9d1 | item: rm-d48ddf605a4a7b14
+
 
 - ✅ **Run a deeper second Tier 2 audit on the uncovered areas**: The first Tier 2 audit (2026-11-08) was condensed and left out the PDF viewer, canvas, ink, frontmatter handling, the Android plugin Java and the packaging scripts, and ran no verifier wave or coverage critic. Run the security-audit skill again focused on those areas with the verifier wave, keep the report outside the repository, seed one item per confirmed finding of medium or higher, and update the PDLC Security tooling row.
   <!-- agent-state: {"schema":1,"id":"rm-1154fe029f40163d","state":"done","touch":["CHANGELOG.md","documentation/AGENTIC_PDLC.md","master-spec.md","spec","src/capture/captureTemplate.test.ts","src/capture/captureTemplate.ts"],"resources":[],"note":"Merged as PR 117 (3585790): second Tier 2 audit (source review, 3 low findings, L1 fixed); PDLC rows for security tooling and e2e updated; hosted CI pending for post-merge runs, ids in handoff","completed_at":"2026-11-08T07:53:47Z","completed_by":"claude-code-pdlc-20261106T231246Z-fcf4c9d1","branch":"agent/rm-1154fe029f40163d/5a965927fb6d"} -->

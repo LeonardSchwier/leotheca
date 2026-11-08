@@ -59,7 +59,8 @@
     "preact": "^10.25.1"
   },
   "overrides": {
-    "semver": "^7.5.2"
+    "semver": "^7.5.2",
+    "minimatch": "^11.0.5"
   },
   "devDependencies": {
     "@capacitor/cli": "^7.6.10",

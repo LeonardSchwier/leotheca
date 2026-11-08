@@ -111,7 +111,7 @@ const OPTIONAL_FEATURE_OPTIONS: { value: boolean; label: string }[] = [
   { value: false, label: "Off" },
 ];
 const ACCENT_OPTIONS: { value: AccentColor; label: string }[] = [
-  { value: "warm", label: "Warm" },
+  { value: "warm", label: "Fog" },
   { value: "ocean", label: "Ocean" },
   { value: "forest", label: "Forest" },
   { value: "plum", label: "Plum" },

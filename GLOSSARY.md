@@ -48,3 +48,11 @@ The shared vocabulary of Leotheca. Read it at session start (`AGENTS.md`). Use t
 | Spec             | The file `spec/<slug>.md` written before implementation; it moves to `spec/completed/` when the item is archived.                      | `skills/pdlc-playbook.md`         |
 | Grill            | Stage 3 of the playbook: questions answered in writing as rulings before building.                                                     | `skills/pdlc-playbook.md`         |
 | Evidence trailer | A commit trailer such as `Legal-Check:`, `Review:`, `Database-Review:` or `Dependency-intake:`, checked by `check-rules.mjs trailers`. | `skills/pdlc-playbook.md`         |
+
+## Architecture
+
+| Term           | Meaning                                                                                                 | Source                          |
+| -------------- | ------------------------------------------------------------------------------------------------------- | ------------------------------- |
+| Deep module    | A module with a small interface and much behavior behind it, so callers learn little and gain a lot.    | `skills/architecture-survey.md` |
+| Shallow module | A module whose interface is about as large as its body, so it hides almost nothing.                     | `skills/architecture-survey.md` |
+| Seam           | The place where two parts meet and where behavior can be swapped or tested without editing either part. | `skills/architecture-survey.md` |

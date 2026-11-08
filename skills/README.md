@@ -21,6 +21,7 @@ Each runbook carries standard SKILL.md YAML frontmatter (name, description, vers
 | Keep the app crash-free, hunt proactively or react; fix the class, ship the regression test | [crash-freedom.md](crash-freedom.md)                                   |
 | Main moves or a merge conflicts                                                             | [merge-conflict-resolution.md](merge-conflict-resolution.md)           |
 | No feature work is currently runnable                                                       | [maintenance-review.md](maintenance-review.md)                         |
+| Weekly survey for shallow modules and duplicated seams that seeds roadmap items             | [architecture-survey.md](architecture-survey.md)                       |
 | One specification is too large for a session                                                | [phase-splitting-large-specs.md](phase-splitting-large-specs.md)       |
 | Change a native/IPC/persistence bridge or sensitive-data path                               | [change-quality-gates.md](change-quality-gates.md)                     |
 | Any change touches shipped text, assets, docs or dependencies (every change, in stage 6)    | [text-rights-and-legal-check.md](text-rights-and-legal-check.md)       |

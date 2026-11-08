@@ -24,9 +24,6 @@ Findings of past reviews. They are kept outside this ledger so the entries stay 
 
 Items with an owner. An expired lease means the item can be recovered.
 
-- 🚧 **Quick Capture: launch from the OS without waiting for the app to load**: Market Solution #2 1.14 Mobile (Oct 5, 2026) lets iOS Quick Capture create a note from the Lock Screen, Control Center, Home Screen widget, or a Shortcut before the vault has even loaded. Leotheca's Quick Capture exists as an in-app sheet plus deep links/share intents, but every path requires the app to be running first; capturing straight from a widget/shortcuts entry that appends to the inbox note (opt-in, plain-file, offline, togglable) completes the existing capture feature without a new convention. (Competitor scan, Market Solution #2 changelog 1.14 Mobile, 2026-10-05)
-  <!-- agent-state: {"schema":1,"id":"rm-9a637eae859ce76e","state":"claimed","touch":["CHANGELOG.md","README.md","android/app/src","documentation/ANDROID_WIDGETS.md","master-spec.md","spec/completed/quick-capture-launch-from-the-os-without-waiting-for-the-app-to-load.md","src-tauri/src/lib.rs","src-tauri/src/quick_capture_launch.rs","src/app/App.test.tsx","src/app/App.tsx","src/app/rename_autosave.test.tsx","src/workspace","tests/e2e/support/bridgeMock.ts"],"resources":["quick-capture-os-launch"],"owner":"claude-code-qcos-20261108T051356Z-3514988e","token":"9a631e7e37b5eb7135639cfec01365f4","branch":"agent/rm-9a637eae859ce76e/9a631e7e37b5","claimed_at":"2026-11-08T05:13:56Z","heartbeat_at":"2026-11-08T05:24:50Z","lease_until":"2026-11-08T06:54:50Z"} -->
-  Agent: claude-code-qcos-20261108T051356Z-3514988e | item: rm-9a637eae859ce76e | lease until: 2026-11-08T06:54:50Z
 
 ### Available
 
@@ -44,6 +41,12 @@ Items nobody owns. Take the first one that fits.
 
 Items that wait for access or a decision outside the repository.
 
+- ⏸ **Verify Quick Capture OS entry points on a device and build the native pre-load append**: The landed slice (PR 114) opens the capture sheet from `leotheca --capture`, the Android widget and a launcher shortcut, but nothing is verified on a device and nothing is appended before the WebView has loaded. Blocked on a physical Android device and a desktop session.
+  <details>
+  <summary>Verification steps and remaining build</summary>
+
+  Android device: install the debug APK, add the Quick Capture widget, tap it from a force-stopped app and confirm the capture sheet opens after the workspace restores; long-press the app icon and confirm a Quick Capture shortcut appears and does the same; confirm no new permission prompt. Desktop (Linux, Windows, macOS): with the app closed run `leotheca --capture` and confirm the sheet opens; with the app running run it again and confirm the window is raised and the sheet opens. Remaining build after that: an opt-in native append (SAF write of a plain-file inbox line from Java before the WebView starts), with no camera, microphone, network or AI.
+  </details>
 - ⏸ **macOS signing & notarization**: Ship signed, notarized DMGs so Gatekeeper does not warn. Blocked on Apple Developer Program credentials from the maintainer.
 - ⏸ **Fedora Wayland AppImage**: WebKit/EGL crash leaves a blank window on Fedora. Blocked: needs a clean Fedora desktop to diagnose and verify the fix.
 - ⏸ **Flathub submission**: Manifest and CI build are green; the actual submission to Flathub has not been made. Blocked on external submission access.
@@ -55,6 +58,11 @@ Items that wait for access or a decision outside the repository.
 - ⏸ **Compatibility layer**: Load community extension manifests; gated on maintainer approval of the third-party-code security model.
 
 ## Implemented
+
+- ✅ **Quick Capture: launch from the OS without waiting for the app to load**: Market Solution #2 1.14 Mobile (Oct 5, 2026) lets iOS Quick Capture create a note from the Lock Screen, Control Center, Home Screen widget, or a Shortcut before the vault has even loaded. Leotheca's Quick Capture exists as an in-app sheet plus deep links/share intents, but every path requires the app to be running first; capturing straight from a widget/shortcuts entry that appends to the inbox note (opt-in, plain-file, offline, togglable) completes the existing capture feature without a new convention. (Competitor scan, Market Solution #2 changelog 1.14 Mobile, 2026-10-05)
+  <!-- agent-state: {"schema":1,"id":"rm-9a637eae859ce76e","state":"done","touch":["CHANGELOG.md","README.md","android/app/src","documentation/ANDROID_WIDGETS.md","master-spec.md","spec/completed/quick-capture-launch-from-the-os-without-waiting-for-the-app-to-load.md","src-tauri/src/lib.rs","src-tauri/src/quick_capture_launch.rs","src/app/App.test.tsx","src/app/App.tsx","src/app/rename_autosave.test.tsx","src/workspace","tests/e2e/support/bridgeMock.ts"],"resources":["quick-capture-os-launch"],"note":"Merged as a3cea8d6476094611dc83a577d257eef681580eb via PR 114. Cold capture deep link waits for settings, desktop --capture flag, Android launcher shortcut; local tsc, eslint, vitest 3320, cargo 154, clippy, e2e 17, JUnit 32 pass; hosted CI green on the PR. Device behavior UNVERIFIED, split into a blocked item.","completed_at":"2026-11-08T05:29:54Z","completed_by":"claude-code-qcos-20261108T051356Z-3514988e","branch":"agent/rm-9a637eae859ce76e/9a631e7e37b5"} -->
+  Agent: completed by claude-code-qcos-20261108T051356Z-3514988e | item: rm-9a637eae859ce76e
+
 
 - ✅ **Run a scheduled architecture survey that seeds roadmap items**: Idea from `mattpocock/skills` (`improve-codebase-architecture`, `codebase-design`), made automatic. Add a maintenance skill that surveys the code for shallow modules and duplicated seams, writes its candidates as cited roadmap seeds (never a human questionnaire), and runs from the integrator or maintenance pass about weekly. Record the vocabulary (deep module, seam) in the glossary.
   <!-- agent-state: {"schema":1,"id":"rm-39ee4e781c845c36","state":"done","touch":["GLOSSARY.md","skills/architecture-survey.md","skills/integrator.md","skills/maintenance-review.md"],"resources":[],"note":"Landed in PR 113, merge 9289080dfbeaf24566b16c8340700dd4809835a6: skills/architecture-survey.md, weekly wiring in maintenance-review.md and integrator.md, GLOSSARY.md Architecture terms. Docs-only; PR checks green; hosted CI pending on main, run ids in handoff","completed_at":"2026-11-08T05:27:32Z","completed_by":"claude-code-reviewaxes-20261107T225137Z","branch":"agent/rm-39ee4e781c845c36/353042fa24d9"} -->

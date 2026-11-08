@@ -27,9 +27,6 @@ Items with an owner. An expired lease means the item can be recovered.
 
 ### Available
 
-- 🚧 **Remove the inert tauri-plugin-fs**: PR 108 removed every `fs:` permission and shielded the grant store, so `tauri-plugin-fs` is still registered but grants the WebView nothing. Remove the Rust crate, the registration, the capability remnants and the JS package `@tauri-apps/plugin-fs` (if nothing imports it), regenerate lockfiles and the Flatpak source lists.
-  <!-- agent-state: {"schema":1,"id":"rm-80aaaa54493fb118","state":"claimed","touch":["CHANGELOG.md","GLOSSARY.md","documentation/ARCHITECTURE.md","flatpak/cargo-sources.json","flatpak/node-sources.json","master-spec.md","package-lock.json","package.json","scripts","spec","src-tauri/Cargo.lock","src-tauri/Cargo.toml","src-tauri/capabilities","src-tauri/src/lib.rs","tests"],"resources":["tauri-plugins"],"owner":"claude-code-nofsplugin-20261108T075530Z-bb360933","token":"5e72dcae7896cfd44717a40056c0a2b0","branch":"agent/rm-80aaaa54493fb118/5e72dcae7896","claimed_at":"2026-11-08T07:55:58Z","heartbeat_at":"2026-11-08T08:04:13Z","lease_until":"2026-11-08T09:34:13Z"} -->
-  Agent: claude-code-nofsplugin-20261108T075530Z-bb360933 | item: rm-80aaaa54493fb118 | lease until: 2026-11-08T09:34:13Z
 
 
 
@@ -54,6 +51,11 @@ Items that wait for access or a decision outside the repository.
 - ⏸ **Compatibility layer**: Load community extension manifests; gated on maintainer approval of the third-party-code security model.
 
 ## Implemented
+
+- ✅ **Remove the inert tauri-plugin-fs**: PR 108 removed every `fs:` permission and shielded the grant store, so `tauri-plugin-fs` is still registered but grants the WebView nothing. Remove the Rust crate, the registration, the capability remnants and the JS package `@tauri-apps/plugin-fs` (if nothing imports it), regenerate lockfiles and the Flatpak source lists.
+  <!-- agent-state: {"schema":1,"id":"rm-80aaaa54493fb118","state":"done","touch":["CHANGELOG.md","GLOSSARY.md","documentation/ARCHITECTURE.md","flatpak/cargo-sources.json","flatpak/node-sources.json","master-spec.md","package-lock.json","package.json","scripts","spec","src-tauri/Cargo.lock","src-tauri/Cargo.toml","src-tauri/capabilities","src-tauri/src/lib.rs","tests"],"resources":["tauri-plugins"],"note":"Merged as PR 118 (4ca1c91): tauri-plugin-fs removed from Cargo.toml, lib.rs, package.json and the lockfiles with a guard test; hosted CI pending for post-merge runs, ids in handoff","completed_at":"2026-11-08T08:11:27Z","completed_by":"claude-code-nofsplugin-20261108T075530Z-bb360933","branch":"agent/rm-80aaaa54493fb118/5e72dcae7896"} -->
+  Agent: completed by claude-code-nofsplugin-20261108T075530Z-bb360933 | item: rm-80aaaa54493fb118
+
 
 - ✅ **Update the PDLC end-to-end row after tests/ui retirement**: The row still names `tests/ui` as an open leftover and the typing freeze as unexplained. `tests/ui` is deleted (PR 107), the freeze is characterised as a Chromium style and layout loop with no app cause (PR 104), and each e2e run now gets its own preview port (PR 95). Correct the row and the roadmap pointer.
   <!-- agent-state: {"schema":1,"id":"rm-d48ddf605a4a7b14","state":"done","touch":[],"resources":["pdlc-e2e-row"],"note":"Done in PR 117 (3585790): the end-to-end row now says 17 journeys, tests/ui deleted, freeze characterised as a browser issue, per-run preview port; hosted CI evidence in the handoff of the audit item rm-1154fe029f40163d","completed_at":"2026-11-08T07:54:43Z","completed_by":"claude-code-pdlc-20261106T231246Z-fcf4c9d1","branch":"agent/rm-d48ddf605a4a7b14/0ba66a1a1ded"} -->

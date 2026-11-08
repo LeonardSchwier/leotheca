@@ -32,6 +32,24 @@ Items with an owner. An expired lease means the item can be recovered.
 
 Items nobody owns. Take the first one that fits.
 
+- ⬜ **Bind the workspace-scoped file commands to the active workspace root**: Tier 2 audit 2026-11-08 finding F1 (needs_validation, medium-class). Six `*_workspace_*` commands and `trash_path` (src-tauri/src/commands.rs:1144-1230, 1381) trust the webview-supplied `workspace_root` and never compare it to `ActiveWorkspaceRoot`; their unscoped siblings do.
+  <details>
+  <summary>Validation plan</summary>
+
+  Cause: a script in the webview could name any directory as the root; no script-execution entry was found (DOMPurify and CSP hold), so this is a missing last-line control. Impact: write, rename or delete outside the granted workspace if the webview is ever compromised. Plan: add a failing-first Rust test that calls the command logic with a root different from the active one and expects an error; then inject `tauri::State<ActiveWorkspaceRoot>` into the six commands (the frontend contract stays unchanged) and reject a root that is not the canonical active root. Same pattern as the list_dir gate. Full audit output is kept outside the repository.
+  </details>
+- ⬜ **Scope the Tauri fs plugin permissions and separate the grant store from webview-writable directories**: Tier 2 audit 2026-11-08 finding F2 (needs_validation, medium-class). src-tauri/capabilities/default.json grants fs permissions with no visible scope, and `workspace-grants.json` may share a directory with what `write_text_file` accepts on Windows and macOS.
+  <details>
+  <summary>Validation plan</summary>
+
+  Cause: webview script might rewrite the native-only grant store (src-tauri/src/workspace_grants.rs). Impact: widening the active workspace to a whole home directory after a restart. Plan: read the generated fs permission schema in src-tauri/gen/schemas for the pinned plugin version, record the real default scope, and resolve `app_config_dir` and `app_data_dir` per OS in a unit test. Then drop the fs plugin permissions the app does not call from JavaScript (all file access goes through custom commands), and keep the grant file outside any directory `write_text_file` accepts. Failing-first: a test that `check_unscoped_path_allowed` rejects the grant-store path.
+  </details>
+- ⬜ **Stop signing published Android builds with the public debug keystore**: Tier 2 audit 2026-11-08 finding F3 (confirmed, medium). android/app/build.gradle:24-34 signs with the committed debug keystore (well-known passwords) and .github/workflows/release.yml:343-367 publishes that APK to the dev-build release. Anyone can build a higher-versionCode APK signed with the same key that Android accepts as an in-place update, inheriting the app's private data and workspace grant.
+  <details>
+  <summary>Validation plan</summary>
+
+  Impact is limited to users who installed a published dev-build APK; confirm how the build is distributed and by whom it is installed. Fix: sign release builds with a maintainer-held key stored as a repository secret (see the existing macOS signing item for the credentials pattern), keep the debug key for local builds only, and label unsigned CI builds as non-updatable. Check with `apksigner verify --print-certs` on the produced artifact. Blocked on maintainer key generation for the final step.
+  </details>
 - 🚧 **Showcase pass on README and documentation index**: Make the README a verifiable showcase: crisp top section, a section on why the repository is built this way (linking the PDLC, branch model and constitution), a status table checked against the repo and CI, fictional-content screenshots under documentation/screenshots/ with a regeneration note, and a documentation index that links every document in documentation/ with no dead links.
   <!-- agent-state: {"schema":1,"id":"rm-943ba2c688bfa47e","state":"claimed","touch":["README.md","assets/screenshots","documentation/README.md","documentation/TESTING.md","documentation/screenshots","flatpak/com.leonardschwier.leotheca.metainfo.xml","tests/e2e/screenshots.mjs"],"resources":[],"owner":"claude-code-readme-20261107T233419Z-4bdc7de1","token":"7407cdf726c1121451a1c38ef3eab94c","branch":"agent/rm-943ba2c688bfa47e/7407cdf726c1","claimed_at":"2026-11-07T23:34:41Z","heartbeat_at":"2026-11-07T23:34:41Z","lease_until":"2026-11-08T01:04:41Z"} -->
   Agent: claude-code-readme-20261107T233419Z-4bdc7de1 | item: rm-943ba2c688bfa47e | lease until: 2026-11-08T01:04:41Z

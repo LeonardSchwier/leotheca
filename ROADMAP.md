@@ -43,13 +43,6 @@ Items nobody owns. Take the first one that fits.
   Agent: claude-code-reviewaxes-20261107T225137Z | item: rm-166ef9a028950ee5 | lease until: 2026-11-08T00:42:09Z
 
 - ⬜ **Run a scheduled architecture survey that seeds roadmap items**: Idea from `mattpocock/skills` (`improve-codebase-architecture`, `codebase-design`), made automatic. Add a maintenance skill that surveys the code for shallow modules and duplicated seams, writes its candidates as cited roadmap seeds (never a human questionnaire), and runs from the integrator or maintenance pass about weekly. Record the vocabulary (deep module, seam) in the glossary.
-- 🚧 **Minimalistic Nordic UI theme**: Redesign Leotheca's visual system around a minimal Nordic idiom -- a restrained cool light palette (frost white, soft greys, fog blue, a single muted accent), low-contrast light mode plus a dark "polar night" companion, generous whitespace, calm restrained typography, and reduced chrome (fewer borders, subtle elevation, quiet borders) across the desktop and Android UIs.
-  <!-- agent-state: {"schema":1,"id":"rm-248e06c0b3c3c3ee","state":"claimed","touch":["spec/completed/minimalistic-nordic-ui-theme.md"],"resources":[],"owner":"claude-code-nordic-20261108T014440Z-2af96cae-r2","token":"1283c0460c102d43e74e19c772c600bf","branch":"agent/rm-248e06c0b3c3c3ee/1283c0460c10","claimed_at":"2026-11-08T05:12:36Z","heartbeat_at":"2026-11-08T05:12:36Z","lease_until":"2026-11-08T06:42:36Z"} -->
-  Agent: claude-code-nordic-20261108T014440Z-2af96cae-r2 | item: rm-248e06c0b3c3c3ee | lease until: 2026-11-08T06:42:36Z
-  <details>
-  <summary>Scope and constraints</summary>
-  Owner request (2026-10-31): the current look is busy and busy-looking; the goal is a calm, minimal, Scandinavian feel. Constrain to theming (CSS variables, icon weights, border/elevation tokens); no behavioral changes. Keep all existing accessibility contrasts within WCAG AA, honor the existing dark-mode mechanism, and keep the Markdown editor/preview readable. Verification must include visual regression checks for both light and dark modes on desktop and Android.
-  </details>
 
 ### Blocked
 
@@ -66,6 +59,15 @@ Items that wait for access or a decision outside the repository.
 - ⏸ **Compatibility layer**: Load community extension manifests; gated on maintainer approval of the third-party-code security model.
 
 ## Implemented
+
+- ✅ **Minimalistic Nordic UI theme**: Redesign Leotheca's visual system around a minimal Nordic idiom -- a restrained cool light palette (frost white, soft greys, fog blue, a single muted accent), low-contrast light mode plus a dark "polar night" companion, generous whitespace, calm restrained typography, and reduced chrome (fewer borders, subtle elevation, quiet borders) across the desktop and Android UIs.
+  <!-- agent-state: {"schema":1,"id":"rm-248e06c0b3c3c3ee","state":"done","touch":["spec/completed/minimalistic-nordic-ui-theme.md"],"resources":[],"note":"Merged PR 110 as 0514a92 (squash). Contrast: lowest text 4.66:1 light, 4.73:1 dark, strong border \u003e=3.12:1; tsc, eslint, 3304 unit, 17 e2e green; PR checks green; Android device rendering unverified; hosted CI on main pending","completed_at":"2026-11-08T05:12:39Z","completed_by":"claude-code-nordic-20261108T014440Z-2af96cae-r2","branch":"agent/rm-248e06c0b3c3c3ee/1283c0460c10"} -->
+  Agent: completed by claude-code-nordic-20261108T014440Z-2af96cae-r2 | item: rm-248e06c0b3c3c3ee
+  <details>
+  <summary>Scope and constraints</summary>
+  Owner request (2026-10-31): the current look is busy and busy-looking; the goal is a calm, minimal, Scandinavian feel. Constrain to theming (CSS variables, icon weights, border/elevation tokens); no behavioral changes. Keep all existing accessibility contrasts within WCAG AA, honor the existing dark-mode mechanism, and keep the Markdown editor/preview readable. Verification must include visual regression checks for both light and dark modes on desktop and Android.
+  </details>
+
 
 - ✅ **Stop signing published Android builds with the public debug keystore**: Tier 2 audit 2026-11-08 finding F3 (confirmed, medium). android/app/build.gradle:24-34 signs with the committed debug keystore (well-known passwords) and .github/workflows/release.yml:343-367 publishes that APK to the dev-build release. Anyone can build a higher-versionCode APK signed with the same key that Android accepts as an in-place update, inheriting the app's private data and workspace grant.
   <!-- agent-state: {"schema":1,"id":"rm-85105ec27e17422a","state":"done","touch":[".github/workflows/release.yml","CHANGELOG.md","SECURITY.md","android/app/build.gradle","master-spec.md","packaging/STATUS.md","scripts/verifyApkNotDebugSigned.mjs","scripts/verifyApkNotDebugSigned.test.js","spec/completed/stop-signing-published-android-builds-with-the-public-debug-keystore.md","spec/stop-signing-published-android-builds-with-the-public-debug-keystore.md"],"resources":["android-signing"],"note":"Merged as PR 105 (d50e652eb39a48eed4ebc3e8f05cf12fc6c37388): release build type signs only from repository secrets or publishes no APK, publish job fails on the debug certificate, DEBUG-UNSIGNED asset removed, owner checklist in packaging/STATUS.md; verifier script 10 tests, scripts 182 passed, tsc/lint/e2e green; Gradle and hosted steps unverified (no SDK, no secrets); hosted CI pending, run ids in the handoff","completed_at":"2026-11-08T02:02:06Z","completed_by":"claude-code-apksign-20261108T004435Z-088a3aa2","branch":"agent/rm-85105ec27e17422a/31a2f47fe0dc"} -->

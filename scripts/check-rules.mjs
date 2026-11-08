@@ -579,6 +579,58 @@ function checkGlossary([base, head]) {
   );
 }
 
+// The shape of what agents read first. A 27B local model follows short files
+// with a clear description; a long skill is split, not tolerated. Limits are
+// set just above today's largest files so they stop growth rather than demand
+// a rewrite (skills/README.md, "Shape of a skill").
+export const SHAPE_LIMITS = {
+  skillLines: 200,
+  agentsLines: 40,
+  constitutionLines: 200,
+};
+export function shapeProblems(files) {
+  const problems = [];
+  for (const { path, content } of files) {
+    const lines = content.split("\n").length - (content.endsWith("\n") ? 1 : 0);
+    if (/^skills\/[^/]+\.md$/.test(path) && path !== "skills/README.md") {
+      const fm = /^---\n([\s\S]*?)\n---\n/.exec(content);
+      if (!fm) problems.push(`${path}: no YAML frontmatter at the top`);
+      else {
+        for (const key of ["name", "description"]) {
+          if (!new RegExp(`^${key}: \\S`, "m").test(fm[1]))
+            problems.push(`${path}: frontmatter has no ${key}`);
+        }
+      }
+      if (lines > SHAPE_LIMITS.skillLines)
+        problems.push(
+          `${path}: ${lines} lines, over the skill limit of ${SHAPE_LIMITS.skillLines}; split it`,
+        );
+    } else if (path === "AGENTS.md" && lines > SHAPE_LIMITS.agentsLines) {
+      problems.push(
+        `AGENTS.md: ${lines} lines, over ${SHAPE_LIMITS.agentsLines}; link to a skill instead`,
+      );
+    } else if (
+      path === "CONSTITUTION.md" &&
+      lines > SHAPE_LIMITS.constitutionLines
+    ) {
+      problems.push(
+        `CONSTITUTION.md: ${lines} lines, over ${SHAPE_LIMITS.constitutionLines}; move detail into a skill`,
+      );
+    }
+  }
+  return problems;
+}
+
+function checkShape() {
+  const names = readdirSync("skills")
+    .filter((n) => n.endsWith(".md"))
+    .map((n) => `skills/${n}`);
+  const files = [...names, "AGENTS.md", "CONSTITUTION.md"]
+    .filter((p) => existsSync(p))
+    .map((path) => ({ path, content: readFileSync(path, "utf8") }));
+  return report("Skill and entry file shape", shapeProblems(files));
+}
+
 // SPDX identifiers acceptable for a free-software, source-built MIT project.
 // Anything else (including a missing license field) needs a human decision.
 const LICENSE_ALLOWED = new Set([
@@ -725,6 +777,8 @@ function main(argv) {
       return checkReflection(rest);
     case "glossary":
       return checkGlossary(rest);
+    case "shape":
+      return checkShape();
     case "secrets":
       return checkLines(rest);
     case "licenses":
@@ -735,7 +789,7 @@ function main(argv) {
       return checkPrBody();
     default:
       console.error(
-        "usage: check-rules.mjs lines|files|format (--staged | <base> <head>) | commits <base> <head> | deps <base> <head> | trailers <base> <head> | reflection <base> <head> | glossary <base> <head> | licenses | workflows | prbody (body in env PR_BODY)",
+        "usage: check-rules.mjs lines|files|format (--staged | <base> <head>) | commits <base> <head> | deps <base> <head> | trailers <base> <head> | reflection <base> <head> | glossary <base> <head> | shape | licenses | workflows | prbody (body in env PR_BODY)",
       );
       return 2;
   }

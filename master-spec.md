@@ -362,7 +362,7 @@ Two gates exist on desktop:
 - **Unscoped gate** `check_unscoped_path_allowed`: the target, after resolving its nearest existing ancestor and any symlink, MUST be inside the `ActiveWorkspaceRoot` set by `set_active_workspace_root`, or inside the app config directory. `set_active_workspace_root` accepts a root only when it resolves (canonical path) to an entry of the native workspace grant registry.
 - **Scoped gate** `resolve_within_workspace(root, relative)`: rejects empty, absolute, root or prefix components and any `..`, then resolves against the canonical `root`, including a final symlink.
 
-The scoped gate takes `workspace_root` from the frontend and does not compare it with `ActiveWorkspaceRoot`. See KG-001.
+**Root binding.** The ten scoped commands (every `*_workspace_*` command and `trash_path`) also take `workspace_root` from the frontend, so each first calls `require_active_workspace_root`: the canonical `workspace_root` MUST equal the canonical `ActiveWorkspaceRoot`. Any other folder, a missing folder, a poisoned state or no open workspace is refused before the disk is touched (plain string error in `commands.rs`, `outside_workspace:` code in `workspace_mutations.rs`). Equivalent spellings of the active root (trailing separator, `..`, symlink) pass. The JavaScript arguments are unchanged; Tauri injects the state. Resolved KG-001.
 
 `set_active_workspace_root` also swaps asset protocol scope: `forbid_directory` on the old root and `allow_directory` on the new root. Static scope is `[]`.
 
@@ -391,16 +391,16 @@ All return `Result<T, String>` unless noted. `FsEntry` is `{ name, path, isDir, 
 | `create_dir` | `path` | `()` | Unscoped | `create_dir_all`. |
 | `rename_path` | `from, to` | `()` | Unscoped, both | Replaces per OS `rename`. |
 | `delete_path_permanent` | `path` | `()` | Unscoped | Recursive for directories. |
-| `trash_path` | `workspaceRoot, path` | `()` | Scoped | See 6.10. |
-| `write_workspace_text_file` | `workspaceRoot, relativePath, contents` | `()` | Scoped | Overwrite, atomic. |
-| `write_workspace_binary_file` | `workspaceRoot, relativePath, data` | `()` | Scoped | Overwrite, atomic. |
-| `create_workspace_dir` | `workspaceRoot, relativePath` | `()` | Scoped | |
-| `rename_workspace_path` | `workspaceRoot, from, to` | `()` | Scoped, both | Creates target parents. May replace. |
-| `delete_workspace_path_permanent` | `workspaceRoot, relativePath` | `()` | Scoped | |
-| `create_workspace_text_file_new` | `workspaceRoot, relativePath, contents` | `()` | Scoped, coded | `create_new`; removes partial on failure. |
-| `create_workspace_binary_file_new` | `workspaceRoot, relativePath, data` | `()` | Scoped, coded | As above. |
-| `create_workspace_dir_new` | `workspaceRoot, relativePath` | `()` | Scoped, coded | Target must not exist. |
-| `rename_workspace_path_no_replace` | `workspaceRoot, from, to` | `()` | Scoped, coded | OS-level no-replace. |
+| `trash_path` | `workspaceRoot, path` | `()` | Scoped, root = active root | See 6.10. |
+| `write_workspace_text_file` | `workspaceRoot, relativePath, contents` | `()` | Scoped, root = active root | Overwrite, atomic. |
+| `write_workspace_binary_file` | `workspaceRoot, relativePath, data` | `()` | Scoped, root = active root | Overwrite, atomic. |
+| `create_workspace_dir` | `workspaceRoot, relativePath` | `()` | Scoped, root = active root | |
+| `rename_workspace_path` | `workspaceRoot, from, to` | `()` | Scoped, both, root = active root | Creates target parents. May replace. |
+| `delete_workspace_path_permanent` | `workspaceRoot, relativePath` | `()` | Scoped, root = active root | |
+| `create_workspace_text_file_new` | `workspaceRoot, relativePath, contents` | `()` | Scoped, coded, root = active root | `create_new`; removes partial on failure. |
+| `create_workspace_binary_file_new` | `workspaceRoot, relativePath, data` | `()` | Scoped, coded, root = active root | As above. |
+| `create_workspace_dir_new` | `workspaceRoot, relativePath` | `()` | Scoped, coded, root = active root | Target must not exist. |
+| `rename_workspace_path_no_replace` | `workspaceRoot, from, to` | `()` | Scoped, coded, root = active root | OS-level no-replace. |
 | `export_text_file_via_dialog` | `defaultFileName, contents` | `boolean` | User picks | `false` on cancel. HTML filter. |
 | `import_markdown_vault` | `targetFolder` | `ImportReport\|null` | User picks source; target scoped | Native folder dialog supplies the source (never the webview). `null` on cancel. Emits `markdown-import-progress`. Desktop only; other platforms return an error. |
 | `cancel_markdown_import` | none | `()` | none | Sets the cancel flag of the running import. |
@@ -1065,7 +1065,6 @@ These are current behavior, recorded honestly. None was fixed by the change that
 
 | ID | Finding | Evidence | Severity |
 | --- | --- | --- | --- |
-| KG-001 | Scoped desktop commands trust the frontend-supplied `workspace_root` and do not compare it with `ActiveWorkspaceRoot`. | Traced in `commands.rs`, `workspace_mutations.rs` | Medium |
 | KG-003 | Android native plugin methods accept any URI string with no allow-list. Protection is the OS grant and the JS layer. | Traced | Medium |
 | KG-004 | `applyCustomCss` calls `resolvePath(customCssPath, workspacePath)` and `isPathWithinWorkspace(absolutePath, workspacePath)`, reversing both signatures. It tries to read the workspace folder itself, so with a real filesystem custom CSS never applies. | Observed: a probe with real path functions read `/ws`. | High for that feature |
 | KG-005 | `decodeWorkspaceSettings` omits `mermaidRenderingEnabled` from its normalized object. A missing key stays `undefined`, so Settings highlights neither option, and a bad value such as `"yes"` stays in memory, though corrupt is set. Preview treats `undefined` as on. | Observed by probe | Low |
@@ -1138,6 +1137,7 @@ Newest first. Each entry is `YYYY-MM-DD: what changed in behavior, contracts, fo
 - 2026-11-07: Dependencies: `tokio` 1.53.1 to 1.54.1 (RUSTSEC-2026-0386, unsound) in `src-tauri/Cargo.lock`; `flatpak/cargo-sources.json` regenerated. No application behavior changed; 134 Rust tests pass.
 - 2026-11-07: Process: the root `package.json` gains `test:e2e` (`npm --prefix tests/e2e test`), so the pre-push gate runs the Playwright smoke suite when a browser is installed. No application behavior changed.
 - 2026-11-08: Process: the Playwright e2e config takes its preview-server port from `E2E_PORT`, or derives one per run from the process id, and reuses a running server only when `E2E_PORT` is set, so concurrent pre-push gates no longer collide. No application behavior changed.
+- 2026-11-08: Process: the typing freeze in the e2e editor test is characterised (a Chromium style and layout storm that no script causes; it also occurs in Chromium 158 and in a headed browser) and documented in its spec; the autosave test keeps inserting text in one input event. No application behavior changed.
 - 2026-11-07: Security tooling: `eslint-plugin-security` joins `npm run lint` (new dev dependency, shipped code only) and the `codeql` and `semgrep` workflows are added. One real defect was fixed: stripping trailing newlines from capture content used a backtracking regex that needed about 8 seconds for 60,000 newlines followed by text; `src/lib/trimTrailingNewlines.ts` does it in linear time. No other behavior changed.
 - 2026-11-07: Process: `.github/pull_request_template.md` (Summary, Evidence, Merge danger, evidence trailers) replaces the checklist template, `skills/pull-request-delivery.md` has the agent fill it into its `--body-file`, and `rules.yml` gains a `pr-body` job (`check-rules.mjs prbody`, body read from `PR_BODY`) that fails a pull request without the three headings. No application behavior changed.
 - 2026-11-08: Documentation: the README screenshots move from `assets/screenshots` to `documentation/screenshots` (new: command palette) and the Flatpak metainfo screenshot URLs follow. No application behavior changed.
@@ -1145,4 +1145,5 @@ Newest first. Each entry is `YYYY-MM-DD: what changed in behavior, contracts, fo
 - 2026-11-08: Android lint: new `android-lint.yml` workflow runs `./gradlew lint` and uploads the reports. The first hosted run (AGP 8.7.2) found 0 errors and 36 warnings, none about the manifest, exported components or permissions. Fixed: three `DefaultLocale` warnings (`toLowerCase()` on file names now uses `Locale.ROOT`, so a Turkish default locale cannot break the `.md` extension checks). Baselined in `android/app/lint-baseline.xml`, 33 warnings, each group reviewed: `GradleDependency` (4; androidx bumps are the Dependabot and Capacitor upgrade path, not a lint concern), `UnusedResources` (5; Capacitor template files `activity_main`, `config.xml`, two strings and one style, kept so `cap sync` stays clean), `IconLauncherShape`, `IconDuplicates`, `IconDuplicatesConfig`, `IconDipSize`, `IconLocation` (13; stock Capacitor launcher and splash bitmaps, owned by the icon item), `MonochromeLauncherIcon` (2) and `ObsoleteSdkInt` (1) (cosmetic, themed-icon work is a separate item), `HardcodedText` (7; widget preview text in layouts, to move into string resources with the widget localisation), `Overdraw` (1; widget background is intentional). Any new finding fails the job. No application behavior changed.
 - 2026-11-08: Process: `rules.yml` and the pre-push hook run `check-rules.mjs shape`, which fails when a skill lacks frontmatter with name and description or exceeds 200 lines, or when AGENTS.md exceeds 40 or CONSTITUTION.md exceeds 200 lines. No application behavior changed.
 - 2026-11-08: Security: published Android builds are no longer signed with the public debug keystore. The release job signs `assembleRelease` from four repository secrets, or publishes no Android asset and says why; the publish job fails on any APK with the debug certificate (`scripts/verifyApkNotDebugSigned.mjs`). The `DEBUG-UNSIGNED` asset is gone. Owner action: add the four secrets (see `packaging/STATUS.md`); until then the Latest release has no APK.
+- 2026-11-08: Desktop: the ten scoped file commands (`*_workspace_*`, `trash_path`) refuse a `workspace_root` that is not the native `ActiveWorkspaceRoot`, or any root while no workspace is open (audit finding F1, KG-001 resolved). The invoke arguments are unchanged.
 <!-- change-log:end -->

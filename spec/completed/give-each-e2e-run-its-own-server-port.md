@@ -43,3 +43,5 @@ No UI surface.
 | full suite                          | `npm run test:e2e`                                                                          | see handoff                                                                |
 
 Reflection: two agents' gates sharing a fixed port showed that every shared local resource a check binds needs a per-run default, not only the ledger -> none: no process rule needed beyond this fix.
+
+Glossary: none, the item adds no domain or process term

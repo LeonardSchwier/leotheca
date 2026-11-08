@@ -27,9 +27,6 @@ Items with an owner. An expired lease means the item can be recovered.
 
 ### Available
 
-- 🚧 **Fix the new dev-dependency advisories**: `npm audit --omit=dev` is clean, but `npm audit` now reports 15 dev-only findings: 3 high with non-breaking fixes (brace-expansion, source-map-js, zod) and 12 moderate that need major upgrades of the lint stack. Apply the non-breaking fixes, regenerate the Flatpak node sources, and document the remaining 12 as accepted dev-only risk.
-  <!-- agent-state: {"schema":1,"id":"rm-3be6d9d5bfd522c0","state":"claimed","touch":["flatpak/node-sources.json","master-spec.md","package-lock.json","package.json","skills/security-and-static-analysis.md"],"resources":[],"owner":"claude-code-devadv-20261108T104511Z-90d0ecf7","token":"c2428cc1a2c24007c1319d60fc750de9","branch":"agent/rm-3be6d9d5bfd522c0/c2428cc1a2c2","claimed_at":"2026-11-08T10:45:17Z","heartbeat_at":"2026-11-08T10:49:23Z","lease_until":"2026-11-08T12:19:23Z"} -->
-  Agent: claude-code-devadv-20261108T104511Z-90d0ecf7 | item: rm-3be6d9d5bfd522c0 | lease until: 2026-11-08T12:19:23Z
 
 
 
@@ -55,6 +52,11 @@ Items that wait for access or a decision outside the repository.
 - ⏸ **Compatibility layer**: Load community extension manifests; gated on maintainer approval of the third-party-code security model.
 
 ## Implemented
+
+- ✅ **Fix the new dev-dependency advisories**: `npm audit --omit=dev` is clean, but `npm audit` now reports 15 dev-only findings: 3 high with non-breaking fixes (brace-expansion, source-map-js, zod) and 12 moderate that need major upgrades of the lint stack. Apply the non-breaking fixes, regenerate the Flatpak node sources, and document the remaining 12 as accepted dev-only risk.
+  <!-- agent-state: {"schema":1,"id":"rm-3be6d9d5bfd522c0","state":"done","touch":["flatpak/node-sources.json","master-spec.md","package-lock.json","package.json","skills/security-and-static-analysis.md"],"resources":[],"note":"Landed in PR 126, merge sha e7e5f61ec824cb16ebb4a6a6560e86143f9f8cb3; runs 42472997223 and 42473001133 (CI, appimage-smoke passed after the GitHub outage cleared); npm audit 15 -\u003e 10 moderate, 0 high, prod clean; 10 moderate (eslint/typescript-eslint/minimatch) documented as accepted dev-only risk; tsc, lint, vitest 3326, build, e2e 17 passed.","completed_at":"2026-11-08T10:59:04Z","completed_by":"claude-code-devadv-20261108T104511Z-90d0ecf7","branch":"agent/rm-3be6d9d5bfd522c0/c2428cc1a2c2"} -->
+  Agent: completed by claude-code-devadv-20261108T104511Z-90d0ecf7 | item: rm-3be6d9d5bfd522c0
+
 
 - ✅ **Remove the snap network plug and pin the nvm installer**: Finding L3 of the second Tier 2 audit (low): `snap/snapcraft.yaml` grants network access although the app is offline by design, and its build pipes an unhashed nvm install script into bash. Drop the plug if nothing needs it and verify the installer by hash or use a packaged Node.
   <!-- agent-state: {"schema":1,"id":"rm-e70ed13419a2d0e4","state":"done","touch":["CHANGELOG.md","master-spec.md","scripts/test_snapcraft.py","snap","spec/completed/remove-the-snap-network-plug-and-pin-the-nvm-installer.md"],"resources":[],"note":"Merged as a13b41a93d7c0ea3720c63ccd82092e8dbacaf8b via PR 121. Network plug removed; Node.js 22.23.2 from SHA-256-verified archive (amd64, arm64); 3 tests failed first, pass; YAML parses, bash -n ok; hosted CI green. Snap NOT built (no snapcraft).","completed_at":"2026-11-08T08:35:50Z","completed_by":"claude-code-lowfind-20261108T075541Z-795dc6b7","branch":"agent/rm-e70ed13419a2d0e4/c34042a22ac8"} -->

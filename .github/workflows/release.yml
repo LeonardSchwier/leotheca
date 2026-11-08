@@ -22,14 +22,12 @@ name: Release
 # Flatpak, macOS, and Windows artifacts are included when their own build
 # jobs succeed; their absence is recorded in the release body.
 #
-# Status: Linux (AppImage) is a real, signed-by-nobody-needed build, no
-# secrets required. Android currently only produces a debug-signed APK
-# (unsigned for real distribution purposes): a proper release needs a
-# signing keystore the maintainer generates and stores as repository
-# secrets, not something an agent should fabricate. Until that exists, the
-# release this workflow creates is a draft (not published automatically)
-# specifically so the maintainer reviews and relabels the Android asset
-# before anyone downloads it as if it were a real signed release.
+# Status: Linux (AppImage) is a real build, no secrets required. Android is
+# published only when the four ANDROID_KEYSTORE_* / ANDROID_KEY_* repository
+# secrets exist; the maintainer generates and stores them, an agent never
+# fabricates them. Without them the Android job still compiles the release
+# build, prints why no APK is published, and the release has no Android asset.
+# A debug-signed APK is never published: the publish job fails on one.
 #
 # Flatpak uses the flatpak/flatpak-github-actions/flatpak-builder action
 # (session 55), which runs inside a container image that already bundles
@@ -339,6 +337,8 @@ jobs:
 
   android:
     runs-on: ubuntu-latest
+    outputs:
+      signed: ${{ steps.signing.outputs.signed }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -361,13 +361,54 @@ jobs:
       - run: npm ci
       - run: npx vite build
       - run: npx cap sync android
-      - name: Build debug APK
+      - name: Decide whether this run can sign a release APK
+        id: signing
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          missing=""
+          for name in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+            if [ -z "${!name}" ]; then missing="$missing $name"; fi
+          done
+          if [ -n "$missing" ]; then
+            echo "android-release-signing: NOT signing. Missing repository secrets:$missing."
+            echo "::warning title=Android APK not published::Missing repository secrets:$missing. The release APK is built unsigned for a compile check only and no Android asset is published. The debug key is never used for a published build."
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          keystore="$RUNNER_TEMP/leotheca-release.keystore"
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$keystore"
+          test -s "$keystore"
+          echo "::add-mask::$ANDROID_KEY_ALIAS"
+          echo "signed=true" >> "$GITHUB_OUTPUT"
+          echo "keystore=$keystore" >> "$GITHUB_OUTPUT"
+          echo "android-release-signing: all four secrets present, signing the release APK."
+      - name: Build release APK
         working-directory: android
-        run: ./gradlew assembleDebug
+        env:
+          LEOTHECA_KEYSTORE_FILE: ${{ steps.signing.outputs.keystore }}
+          LEOTHECA_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          LEOTHECA_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          LEOTHECA_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: ./gradlew assembleRelease
+      - name: Verify the APK is signed and is not debug-signed
+        if: steps.signing.outputs.signed == 'true'
+        run: |
+          apksigner="$(ls -d "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -n 1)"
+          apk=android/app/build/outputs/apk/release/app-release.apk
+          test -f "$apk"
+          debug_sha="$(keytool -list -v -keystore android/debug.keystore -storepass android | sed -n 's/^ *SHA256: *//p' | head -n 1)"
+          test -n "$debug_sha"
+          "$apksigner" verify --print-certs "$apk" | tee "$RUNNER_TEMP/apk-certs.txt"
+          node scripts/verifyApkNotDebugSigned.mjs --debug-sha256 "$debug_sha" < "$RUNNER_TEMP/apk-certs.txt"
       - uses: actions/upload-artifact@v4
+        if: steps.signing.outputs.signed == 'true'
         with:
-          name: android-debug-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          name: android-release-apk
+          path: android/app/build/outputs/apk/release/app-release.apk
 
   flatpak:
     runs-on: ubuntu-latest
@@ -416,9 +457,33 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
+      - name: Refuse to publish any debug-signed APK
+        # Last gate before release. Whatever APK sits in the downloaded
+        # artifacts, from whichever job, must carry a non-debug signature.
+        run: |
+          debug_sha="$(keytool -list -v -keystore android/debug.keystore -storepass android | sed -n 's/^ *SHA256: *//p' | head -n 1)"
+          test -n "$debug_sha"
+          apksigner="$(ls -d "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -n 1)"
+          found=0
+          while IFS= read -r apk; do
+            found=1
+            echo "Checking $apk"
+            if ! "$apksigner" verify --print-certs "$apk" > "$RUNNER_TEMP/certs.txt"; then
+              echo "::error::$apk has no valid signature, refusing to publish it."
+              exit 1
+            fi
+            cat "$RUNNER_TEMP/certs.txt"
+            node scripts/verifyApkNotDebugSigned.mjs --debug-sha256 "$debug_sha" < "$RUNNER_TEMP/certs.txt"
+          done < <(find artifacts -name '*.apk' -type f)
+          if [ "$found" = 0 ]; then
+            echo "No Android APK among the artifacts: none will be published (the android job had no release signing secrets)."
+          fi
       - name: Determine this run's release identity
         id: release
         run: |
@@ -435,7 +500,12 @@ jobs:
             echo "draft=false" >> "$GITHUB_OUTPUT"
             echo "prerelease=false" >> "$GITHUB_OUTPUT"
             echo "make_latest=true" >> "$GITHUB_OUTPUT"
-            body="Automatically rebuilt from the latest push to main (commit ${GITHUB_SHA}). This is the rolling release: it always holds the newest build of main, it is unreviewed, and there are no other releases at the moment. The Android APK is debug-signed and unsigned, for testing only. The macOS and Windows builds are unsigned and un-notarized (no code-signing certificate is configured yet): macOS will show an \"unidentified developer\" Gatekeeper warning on first open, and Windows may show a SmartScreen warning."
+            body="Automatically rebuilt from the latest push to main (commit ${GITHUB_SHA}). This is the rolling release: it always holds the newest build of main, it is unreviewed, and there are no other releases at the moment. The macOS and Windows builds are unsigned and un-notarized (no code-signing certificate is configured yet): macOS will show an \"unidentified developer\" Gatekeeper warning on first open, and Windows may show a SmartScreen warning."
+          fi
+          if [ "${{ needs.android.outputs.signed }}" = "true" ]; then
+            body="${body}"$'\n\n'"The Android APK in this run is signed with the maintainer's release key."
+          else
+            body="${body}"$'\n\n'"No Android APK is included in this run: the release signing key is not configured on the release runner, and a debug-signed APK is never published."
           fi
           if [ "${{ needs.flatpak.result }}" != "success" ]; then
             body="${body}"$'\n\n'"Flatpak bundle not included in this run: the flatpak build job failed (see this commit's Actions run), a pre-existing issue already tracked in ROADMAP.md, not something this release broke."
@@ -456,8 +526,11 @@ jobs:
             echo "$body"
             echo "RELEASE_BODY_EOF"
           } >> "$GITHUB_OUTPUT"
-      - name: Rename Android artifact to make its debug/unsigned status unmistakable
-        run: mv artifacts/android-debug-apk/app-debug.apk "artifacts/android-debug-apk/leotheca-${{ steps.release.outputs.tag }}-android-DEBUG-UNSIGNED.apk"
+      - name: Name the Android artifact after the release
+        run: |
+          if [ -f artifacts/android-release-apk/app-release.apk ]; then
+            mv artifacts/android-release-apk/app-release.apk "artifacts/android-release-apk/leotheca-${{ steps.release.outputs.tag }}-android.apk"
+          fi
       - name: Delete the previous dev-build release and tag, if any
         if: steps.release.outputs.tag == 'dev-build'
         env:
@@ -473,7 +546,7 @@ jobs:
           make_latest: ${{ steps.release.outputs.make_latest }}
           files: |
             artifacts/linux-appimage/*.AppImage
-            artifacts/android-debug-apk/*.apk
+            artifacts/android-release-apk/*.apk
             artifacts/flatpak-bundle/*.flatpak
             artifacts/macos-dmg/dmg/*.dmg
             artifacts/windows-msi/*.msi

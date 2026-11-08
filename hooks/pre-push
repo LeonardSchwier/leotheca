@@ -73,6 +73,9 @@ while read -r local_ref local_sha remote_ref remote_sha; do
   app_base="$base"
   ledger_ref="refs/heads/$(grep -o '"ledger_branch": "[^"]*"' CONSTITUTION.md | sed 's/.*: "//;s/"$//')"
   if [ "$remote_ref" = "$ledger_ref" ]; then
+    # A tree that fetched only the ledger branch has an old origin/main and would
+    # judge the merged-in main commits as application changes. Refresh it first.
+    git fetch -q origin main >/dev/null 2>&1 || true
     mb="$(git merge-base "$local_sha" origin/main 2>/dev/null || true)"
     [ -n "$mb" ] && app_base="$mb"
   fi

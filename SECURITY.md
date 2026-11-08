@@ -23,6 +23,8 @@ Leotheca is built to run locally and without a network. It stores notes as plain
 - Exported Android components, intent filters or file providers that expose note data to other apps.
 - Secrets or credentials committed to this repository, and weaknesses in the build, release or CI workflows that could alter published artifacts.
 
+Android release signing: published Android APKs are signed only with a maintainer-held release key stored as repository secrets. Earlier `dev-build` APKs were signed with the public debug key committed in `android/debug.keystore`; treat any such APK as untrusted and uninstall it. The release workflow now publishes no Android asset when the key is absent and fails if an APK carries the debug certificate. See `packaging/STATUS.md` for the key set-up.
+
 Out of scope: vulnerabilities that need a device the attacker already controls (for example, root access to the user's files), issues in third-party dependencies with no demonstrated effect on Leotheca (report those upstream), and the unsigned macOS and Windows installers, which are a documented limitation in the README.
 
 ## What to expect

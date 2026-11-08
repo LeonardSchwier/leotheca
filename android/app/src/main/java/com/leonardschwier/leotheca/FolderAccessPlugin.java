@@ -17,6 +17,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.Locale;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -169,7 +170,7 @@ public class FolderAccessPlugin extends Plugin {
     static final long MAX_READ_FILE_BYTES = 8 * 1024 * 1024;
 
     private static boolean isImageName(String name) {
-        String lower = name.toLowerCase();
+        String lower = name.toLowerCase(Locale.ROOT);
         return lower.endsWith(".png") || lower.endsWith(".jpg") || lower.endsWith(".jpeg")
             || lower.endsWith(".gif") || lower.endsWith(".webp") || lower.endsWith(".svg")
             || lower.endsWith(".bmp") || lower.endsWith(".ico");
@@ -199,7 +200,7 @@ public class FolderAccessPlugin extends Plugin {
                         imageCount
                     );
                 }
-            } else if (name.toLowerCase().endsWith(".md")) {
+            } else if (name.toLowerCase(Locale.ROOT).endsWith(".md")) {
                 JSObject entry = new JSObject();
                 entry.put("relativePath", relativePrefix.isEmpty() ? name : relativePrefix + "/" + name);
                 entry.put("uri", child.getUri().toString());

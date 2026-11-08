@@ -48,8 +48,10 @@ test("typing in the editor autosaves to the native file", async ({ app }) => {
   const editor = page.locator(".cm-content");
   await editor.click();
   await page.keyboard.press("Control+End");
-  // insertText sends one input event. Pressing several keys one after another freezes headless
-  // Chromium once an edit is pending (see the handoff for rm-57a389f7112eb947); not hidden, tracked.
+  // One insertText, not several key presses: once an edit is pending, the next key press (or, after
+  // a few edits, the next insertText) hangs headless Chromium in roughly half of the runs. The page
+  // is stuck in a style and layout storm with no script running; see
+  // spec/completed/find-the-cause-of-the-editor-typing-freeze-in-headless-chromium.md.
   await page.keyboard.insertText(" Autosaved sentence about pelicans.");
 
   await expect

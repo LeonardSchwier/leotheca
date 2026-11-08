@@ -15,6 +15,7 @@ import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -363,7 +364,7 @@ public class CaptureIntentHandler {
         if (filename == null) return "jpg"; // Default
         int lastDot = filename.lastIndexOf('.');
         if (lastDot > 0 && lastDot < filename.length() - 1) {
-            return filename.substring(lastDot + 1).toLowerCase();
+            return filename.substring(lastDot + 1).toLowerCase(Locale.ROOT);
         }
         return "jpg"; // Default for images
     }

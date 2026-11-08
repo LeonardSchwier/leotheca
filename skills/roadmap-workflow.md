@@ -33,7 +33,7 @@ Set `REMOTE`, `MAIN_BRANCH`, `LEDGER_BRANCH`, `ROADMAP_FILE`, and `TOOL_NAME` fr
 REPO_ROOT=$(git rev-parse --show-toplevel)
 AGENT_ID="$TOOL_NAME-$(date -u +%Y%m%dT%H%M%SZ)-$(python3 -c 'import secrets; print(secrets.token_hex(4))')"
 CONTROL_DIR="$REPO_ROOT-control-$AGENT_ID"
-git fetch "$REMOTE" "$LEDGER_BRANCH"
+git fetch "$REMOTE" "$LEDGER_BRANCH" "$MAIN_BRANCH"
 git worktree add --detach "$CONTROL_DIR" "$REMOTE/$LEDGER_BRANCH"
 ```
 
@@ -63,7 +63,7 @@ Start **every** claim/renew/release/block/finish transaction from a clean contro
 
 ```sh
 test -z "$(git -C "$CONTROL_DIR" status --porcelain)" || exit 1
-git fetch "$REMOTE" "$LEDGER_BRANCH"
+git fetch "$REMOTE" "$LEDGER_BRANCH" "$MAIN_BRANCH"
 BASE=$(git rev-parse "$REMOTE/$LEDGER_BRANCH")
 git -C "$CONTROL_DIR" switch --detach "$BASE"
 ```
@@ -90,7 +90,7 @@ git -C "$CONTROL_DIR" push "$REMOTE" "HEAD:refs/heads/$LEDGER_BRANCH"
 Check the command's exit status. If it succeeded, fetch again, switch the clean control tree to the fresh remote ledger branch, and confirm:
 
 ```sh
-git fetch "$REMOTE" "$LEDGER_BRANCH"
+git fetch "$REMOTE" "$LEDGER_BRANCH" "$MAIN_BRANCH"
 git -C "$CONTROL_DIR" switch --detach "$REMOTE/$LEDGER_BRANCH"
 python3 "$REPO_ROOT/scripts/agent_ledger.py" --root "$CONTROL_DIR" check \
   --id "$TASK_ID" --token "$TOKEN" --margin-minutes 10

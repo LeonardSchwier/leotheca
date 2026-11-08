@@ -27,7 +27,9 @@ Items with an owner. An expired lease means the item can be recovered.
 
 ### Available
 
-- ⬜ **Remove the inert tauri-plugin-fs**: PR 108 removed every `fs:` permission and shielded the grant store, so `tauri-plugin-fs` is still registered but grants the WebView nothing. Remove the Rust crate, the registration, the capability remnants and the JS package `@tauri-apps/plugin-fs` (if nothing imports it), regenerate lockfiles and the Flatpak source lists.
+- 🚧 **Remove the inert tauri-plugin-fs**: PR 108 removed every `fs:` permission and shielded the grant store, so `tauri-plugin-fs` is still registered but grants the WebView nothing. Remove the Rust crate, the registration, the capability remnants and the JS package `@tauri-apps/plugin-fs` (if nothing imports it), regenerate lockfiles and the Flatpak source lists.
+  <!-- agent-state: {"schema":1,"id":"rm-80aaaa54493fb118","state":"claimed","touch":["CHANGELOG.md","GLOSSARY.md","documentation/ARCHITECTURE.md","flatpak/cargo-sources.json","flatpak/node-sources.json","master-spec.md","package-lock.json","package.json","scripts","spec","src-tauri/Cargo.lock","src-tauri/Cargo.toml","src-tauri/capabilities","src-tauri/src/lib.rs","tests"],"resources":["tauri-plugins"],"owner":"claude-code-nofsplugin-20261108T075530Z-bb360933","token":"5e72dcae7896cfd44717a40056c0a2b0","branch":"agent/rm-80aaaa54493fb118/5e72dcae7896","claimed_at":"2026-11-08T07:55:58Z","heartbeat_at":"2026-11-08T07:55:58Z","lease_until":"2026-11-08T09:25:58Z"} -->
+  Agent: claude-code-nofsplugin-20261108T075530Z-bb360933 | item: rm-80aaaa54493fb118 | lease until: 2026-11-08T09:25:58Z
 
 
 

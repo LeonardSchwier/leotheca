@@ -39,9 +39,6 @@ Items nobody owns. Take the first one that fits.
   <!-- agent-state: {"schema":1,"id":"rm-1154fe029f40163d","state":"claimed","touch":["documentation/AGENTIC_PDLC.md"],"resources":["security-audit"],"owner":"claude-code-tier2b-20261108T014325Z-5a0d195a","token":"079fcaa8c7a098953f58bdcae2c1abf1","branch":"agent/rm-1154fe029f40163d/079fcaa8c7a0","claimed_at":"2026-11-08T01:43:45Z","heartbeat_at":"2026-11-08T02:08:23Z","lease_until":"2026-11-08T03:38:23Z"} -->
   Agent: claude-code-tier2b-20261108T014325Z-5a0d195a | item: rm-1154fe029f40163d | lease until: 2026-11-08T03:38:23Z
 
-- 🚧 **Run a scheduled architecture survey that seeds roadmap items**: Idea from `mattpocock/skills` (`improve-codebase-architecture`, `codebase-design`), made automatic. Add a maintenance skill that surveys the code for shallow modules and duplicated seams, writes its candidates as cited roadmap seeds (never a human questionnaire), and runs from the integrator or maintenance pass about weekly. Record the vocabulary (deep module, seam) in the glossary.
-  <!-- agent-state: {"schema":1,"id":"rm-39ee4e781c845c36","state":"claimed","touch":["GLOSSARY.md","skills/architecture-survey.md","skills/integrator.md","skills/maintenance-review.md"],"resources":[],"owner":"claude-code-reviewaxes-20261107T225137Z","token":"353042fa24d9b6d05dcb38137cb1add9","branch":"agent/rm-39ee4e781c845c36/353042fa24d9","claimed_at":"2026-11-08T05:13:38Z","heartbeat_at":"2026-11-08T05:13:38Z","lease_until":"2026-11-08T06:43:38Z"} -->
-  Agent: claude-code-reviewaxes-20261107T225137Z | item: rm-39ee4e781c845c36 | lease until: 2026-11-08T06:43:38Z
 
 ### Blocked
 
@@ -58,6 +55,11 @@ Items that wait for access or a decision outside the repository.
 - ⏸ **Compatibility layer**: Load community extension manifests; gated on maintainer approval of the third-party-code security model.
 
 ## Implemented
+
+- ✅ **Run a scheduled architecture survey that seeds roadmap items**: Idea from `mattpocock/skills` (`improve-codebase-architecture`, `codebase-design`), made automatic. Add a maintenance skill that surveys the code for shallow modules and duplicated seams, writes its candidates as cited roadmap seeds (never a human questionnaire), and runs from the integrator or maintenance pass about weekly. Record the vocabulary (deep module, seam) in the glossary.
+  <!-- agent-state: {"schema":1,"id":"rm-39ee4e781c845c36","state":"done","touch":["GLOSSARY.md","skills/architecture-survey.md","skills/integrator.md","skills/maintenance-review.md"],"resources":[],"note":"Landed in PR 113, merge 9289080dfbeaf24566b16c8340700dd4809835a6: skills/architecture-survey.md, weekly wiring in maintenance-review.md and integrator.md, GLOSSARY.md Architecture terms. Docs-only; PR checks green; hosted CI pending on main, run ids in handoff","completed_at":"2026-11-08T05:27:32Z","completed_by":"claude-code-reviewaxes-20261107T225137Z","branch":"agent/rm-39ee4e781c845c36/353042fa24d9"} -->
+  Agent: completed by claude-code-reviewaxes-20261107T225137Z | item: rm-39ee4e781c845c36
+
 
 - ✅ **Stop the flaky unhandled cancelAnimationFrame error in WorkspaceSwitcher.test.tsx**: CI run 42423085656 failed once with `ReferenceError: cancelAnimationFrame is not defined` raised by a preact hooks timer (Timeout.r) after the jsdom environment was torn down, although all 3334 tests passed. Fix by letting the pending after-paint timer run before teardown (await it in an afterAll) or mock the frame functions; acceptance: the file runs 20 times in a row with no unhandled error.
   <!-- agent-state: {"schema":1,"id":"rm-166ef9a028950ee5","state":"done","touch":["src/settings/WorkspaceSwitcher.test.tsx"],"resources":[],"note":"Landed in PR 91, merge 306efe31d77569873fcb42151a238cf883c58f4e: afterAll waits for preact after-paint timer in WorkspaceSwitcher.test.tsx. Test-only; passes 6 of 6 local runs, error never reproduced locally. hosted CI pending on main, run ids in handoff","completed_at":"2026-11-08T05:13:31Z","completed_by":"claude-code-reviewaxes-20261107T225137Z","branch":"agent/rm-166ef9a028950ee5/ae3439770fdc"} -->

@@ -27,6 +27,22 @@ Items with an owner. An expired lease means the item can be recovered.
 
 ### Available
 
+- ⬜ **Resolve the glib advisory in the Rust dependency tree**: `cargo audit` reports RUSTSEC-2024-0429 (unsound `glib::VariantStrIter`, glib 0.18.5, fixed in glib >= 0.20) and Dependabot's security update for the cargo `glib` crate in `src-tauri` fails. Find which crates pull glib and whether a newer tauri, wry, tao or gtk-rs release lifts it; apply a compatible bump (with the paired JS packages) or document precisely what blocks it.
+
+  <details>
+  <summary>Scope and acceptance</summary>
+
+  Record the `cargo audit` result before and after, the `cargo tree -i glib` chain and the upstream versions checked (tauri, tauri-runtime-wry, wry, tao, muda, gtk, webkit2gtk). If a compatible upgrade exists, apply it with regenerated Cargo.lock, flatpak sources and master-spec entry. If not, document the blocker in the PDLC Security tooling row and the audit notes and seed the revisit item.
+  </details>
+
+- ⬜ **Revisit glib when tauri ships gtk-rs 0.20**: As of 2026-11-08 every Linux path in the Tauri stack (tauri 2.12.5, tauri-runtime-wry 2.12.3, wry 0.57.1, tao 0.37.2, muda 0.21.2) still requires gtk ^0.18 and webkit2gtk 2.0.x, which pin glib 0.18.5 (RUSTSEC-2024-0429). Repeat the check and upgrade when one of them moves to a patched glib.
+
+  <details>
+  <summary>The exact check to repeat</summary>
+
+  For `tauri`, `tauri-runtime-wry`, `wry`, `tao`, `muda`, `tray-icon` read the latest release's dependencies on crates.io (`https://crates.io/api/v1/crates/<crate>/<version>/dependencies`) and look for `gtk`, `gdk*`, `webkit2gtk` or `glib` requirements above 0.18 (gtk 0.19 and glib 0.22 exist but nothing in the Tauri stack uses them). Also check `cargo tree -i glib` in `src-tauri` after `cargo update`, and the Tauri tracking issue for the gtk4 migration. When glib resolves to >= 0.20, bump the Rust crates and the paired JS packages, regenerate `Cargo.lock` and `flatpak/cargo-sources.json`, and run `cargo audit`.
+  </details>
+
 - 🚧 **Make the CI bundling steps survive tooling download outages**: Hosted runs failed with `failed to bundle project: http status: 504` (Tauri tool downloads in the appimage-smoke, linux and windows jobs) and a Gradle distribution download timeout (android jobs). Cache the Tauri tool directory and the Gradle wrapper distribution, and retry the downloading steps through `scripts/retry.sh`; real compile or test failures are not retried.
   <!-- agent-state: {"schema":1,"id":"rm-144bb82db634e10d","state":"claimed","touch":[".github/workflows/audit.yml",".github/workflows/ci.yml",".github/workflows/gitleaks.yml","CHANGELOG.md","master-spec.md","scripts/retry.sh","scripts/retry.test.js"],"resources":["ci-tooling-downloads"],"note":"Reclaiming with enlarged scope (gitleaks and audit workflows)","owner":"claude-code-ciresil-20261108T115221Z-b1c976d7-b","token":"557b67c5013f0118d14f4d4cf6f0d73a","branch":"agent/rm-144bb82db634e10d/557b67c5013f","claimed_at":"2026-11-08T12:18:39Z","heartbeat_at":"2026-11-08T12:18:39Z","lease_until":"2026-11-08T13:48:39Z"} -->
   Agent: claude-code-ciresil-20261108T115221Z-b1c976d7-b | item: rm-144bb82db634e10d | lease until: 2026-11-08T13:48:39Z

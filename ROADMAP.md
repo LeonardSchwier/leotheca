@@ -27,6 +27,8 @@ Items with an owner. An expired lease means the item can be recovered.
 
 ### Available
 
+- ⬜ **Fix the new dev-dependency advisories**: `npm audit --omit=dev` is clean, but `npm audit` now reports 15 dev-only findings: 3 high with non-breaking fixes (brace-expansion, source-map-js, zod) and 12 moderate that need major upgrades of the lint stack. Apply the non-breaking fixes, regenerate the Flatpak node sources, and document the remaining 12 as accepted dev-only risk.
+
 
 
 

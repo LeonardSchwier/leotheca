@@ -544,6 +544,41 @@ function checkReflection([base, head]) {
   );
 }
 
+// A spec newly archived under spec/completed/ must say which glossary terms it
+// added or sharpened, or "none" (skills/pdlc-playbook.md, stage 3; GLOSSARY.md).
+export const GLOSSARY_RE = /^Glossary: \S/m;
+export function glossaryProblems(files) {
+  return files
+    .filter(
+      ({ path }) => path.startsWith("spec/completed/") && path.endsWith(".md"),
+    )
+    .filter(({ content }) => !GLOSSARY_RE.test(content))
+    .map(
+      ({ path }) =>
+        `${path}: no "Glossary: <added terms | none>" line (see GLOSSARY.md)`,
+    );
+}
+
+function checkGlossary([base, head]) {
+  const baseRev = /^0+$/.test(base) || !isValidRev(base) ? `${head}~1` : base;
+  const paths = git([
+    "diff",
+    "--name-only",
+    "--diff-filter=AR",
+    `${baseRev}..${head}`,
+  ])
+    .split("\n")
+    .filter((p) => p.startsWith("spec/completed/") && p.endsWith(".md"));
+  const files = paths.map((path) => ({
+    path,
+    content: showAt(head, path) ?? "",
+  }));
+  return report(
+    "Specs archived without a Glossary line",
+    glossaryProblems(files),
+  );
+}
+
 // SPDX identifiers acceptable for a free-software, source-built MIT project.
 // Anything else (including a missing license field) needs a human decision.
 const LICENSE_ALLOWED = new Set([
@@ -688,6 +723,8 @@ function main(argv) {
       return checkTrailers(rest);
     case "reflection":
       return checkReflection(rest);
+    case "glossary":
+      return checkGlossary(rest);
     case "secrets":
       return checkLines(rest);
     case "licenses":
@@ -698,7 +735,7 @@ function main(argv) {
       return checkPrBody();
     default:
       console.error(
-        "usage: check-rules.mjs lines|files|format (--staged | <base> <head>) | commits <base> <head> | deps <base> <head> | trailers <base> <head> | reflection <base> <head> | licenses | workflows | prbody (body in env PR_BODY)",
+        "usage: check-rules.mjs lines|files|format (--staged | <base> <head>) | commits <base> <head> | deps <base> <head> | trailers <base> <head> | reflection <base> <head> | glossary <base> <head> | licenses | workflows | prbody (body in env PR_BODY)",
       );
       return 2;
   }

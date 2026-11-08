@@ -1,4 +1,4 @@
-use crate::workspace_grants::WorkspaceGrants;
+use crate::workspace_grants::{is_grant_store_name, WorkspaceGrants};
 use serde::Serialize;
 use std::fs;
 use std::path::{Component, Path, PathBuf};
@@ -792,9 +792,23 @@ fn nearest_existing_ancestor(path: &Path) -> (PathBuf, PathBuf) {
 /// naturally fails it, and a non-dangling one is checked the same way as
 /// any other target.
 fn resolve_within_workspace(workspace_root: &str, relative_path: &str) -> Result<PathBuf, String> {
+    let resolved = resolve_within_workspace_unchecked(workspace_root, relative_path)?;
+    if is_grant_store_name(&resolved) {
+        return Err("that file is reserved for the application".to_string());
+    }
+    Ok(resolved)
+}
+
+fn resolve_within_workspace_unchecked(
+    workspace_root: &str,
+    relative_path: &str,
+) -> Result<PathBuf, String> {
     let relative = Path::new(relative_path);
     if relative.as_os_str().is_empty() {
         return Err("a workspace-relative path may not be empty".to_string());
+    }
+    if is_grant_store_name(relative) {
+        return Err("that file is reserved for the application".to_string());
     }
     if relative.is_absolute()
         || relative
@@ -1041,6 +1055,16 @@ fn check_unscoped_path_allowed(
     active_workspace_root: Option<&Path>,
     app_config_dir: Option<&Path>,
 ) -> Result<(), String> {
+    // The grant registry is native-only state. Checked before both
+    // allow-lists, on the spelled name and on the symlink-resolved one,
+    // because the registry can sit inside either of them.
+    if is_grant_store_name(target)
+        || canonicalize_existing_or_ancestor(target)
+            .map(|resolved| is_grant_store_name(&resolved))
+            .unwrap_or(false)
+    {
+        return Err("that file is reserved for the application".to_string());
+    }
     if let Some(root) = active_workspace_root {
         if let Ok(canonical_root) = fs::canonicalize(root) {
             if is_within_canonical_root(target, &canonical_root) {
@@ -3542,5 +3566,122 @@ mod active_root_binding_tests {
         assert!(require_active_workspace_root(&s(&active), None).is_err());
         assert!(require_active_workspace_root(&s(&active), Some(&active)).is_ok());
         cleanup(&[&active, &other]);
+    }
+}
+
+/// Audit 2026-11-08 finding F2 (KG-013): the webview has no fs-plugin access
+/// and cannot reach the workspace grant registry through any path gate.
+#[cfg(test)]
+mod grant_store_protection_tests {
+    use super::*;
+    use crate::workspace_grants::GRANTS_FILE_NAME;
+
+    fn dir(name: &str) -> PathBuf {
+        let root =
+            std::env::temp_dir().join(format!("leotheca-test-f2-{name}-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        root
+    }
+
+    #[test]
+    fn the_capability_file_grants_no_fs_permission() {
+        let text = include_str!("../capabilities/default.json");
+        let value: serde_json::Value = serde_json::from_str(text).unwrap();
+        let permissions: Vec<String> = value["permissions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|p| p.as_str().unwrap().to_string())
+            .collect();
+        assert!(
+            permissions.iter().all(|p| !p.starts_with("fs:")),
+            "the frontend calls no fs plugin command: {permissions:?}"
+        );
+        let allowed = [
+            "core:default",
+            "core:path:default",
+            "dialog:default",
+            "deep-link:default",
+            "clipboard-manager:allow-write-text",
+        ];
+        for permission in &permissions {
+            assert!(
+                allowed.contains(&permission.as_str()),
+                "unreviewed permission {permission}"
+            );
+        }
+    }
+
+    #[test]
+    fn the_unscoped_gate_refuses_the_registry_file_inside_the_config_dir() {
+        // Windows and macOS: config dir and data dir are one folder.
+        let config = dir("gate-config");
+        let registry = config.join(GRANTS_FILE_NAME);
+        fs::write(&registry, "{}").unwrap();
+        assert!(check_unscoped_path_allowed(&registry, None, Some(&config)).is_err());
+        assert!(
+            check_unscoped_path_allowed(&config.join("config.json"), None, Some(&config)).is_ok()
+        );
+        let _ = fs::remove_dir_all(config);
+    }
+
+    #[test]
+    fn the_unscoped_gate_refuses_the_registry_even_inside_the_active_workspace() {
+        // A user may grant a folder that contains the app data dir.
+        let workspace = dir("gate-workspace");
+        let registry = workspace.join("appdata").join(GRANTS_FILE_NAME);
+        fs::create_dir_all(registry.parent().unwrap()).unwrap();
+        fs::write(&registry, "{}").unwrap();
+        assert!(check_unscoped_path_allowed(&registry, Some(&workspace), None).is_err());
+        assert!(
+            check_unscoped_path_allowed(&workspace.join("note.md"), Some(&workspace), None).is_ok()
+        );
+        let _ = fs::remove_dir_all(workspace);
+    }
+
+    #[test]
+    fn the_unscoped_gate_refuses_registry_spellings_and_a_missing_registry() {
+        let config = dir("gate-spellings");
+        for name in [
+            "WORKSPACE-GRANTS.JSON",
+            "workspace-grants.json.tmp",
+            "workspace-grants.json.",
+            "workspace-grants.json::$DATA",
+        ] {
+            assert!(
+                check_unscoped_path_allowed(&config.join(name), None, Some(&config)).is_err(),
+                "{name} must be refused"
+            );
+        }
+        // Not yet created (first run) is refused as well: no forging.
+        assert!(!config.join(GRANTS_FILE_NAME).exists());
+        assert!(
+            check_unscoped_path_allowed(&config.join(GRANTS_FILE_NAME), None, Some(&config))
+                .is_err()
+        );
+        let _ = fs::remove_dir_all(config);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn the_unscoped_gate_refuses_a_symlink_to_the_registry() {
+        let config = dir("gate-symlink");
+        let registry = config.join(GRANTS_FILE_NAME);
+        fs::write(&registry, "{}").unwrap();
+        let link = config.join("innocent.json");
+        std::os::unix::fs::symlink(&registry, &link).unwrap();
+        assert!(check_unscoped_path_allowed(&link, None, Some(&config)).is_err());
+        let _ = fs::remove_dir_all(config);
+    }
+
+    #[test]
+    fn the_scoped_gate_refuses_the_registry_name_inside_a_workspace() {
+        let workspace = dir("scoped");
+        let root = workspace.to_string_lossy().to_string();
+        assert!(resolve_within_workspace(&root, GRANTS_FILE_NAME).is_err());
+        assert!(resolve_within_workspace(&root, "data/Workspace-Grants.json").is_err());
+        assert!(resolve_within_workspace(&root, "note.md").is_ok());
+        let _ = fs::remove_dir_all(workspace);
     }
 }

@@ -27,7 +27,9 @@ Items with an owner. An expired lease means the item can be recovered.
 
 ### Available
 
-- ⬜ **Fix the new dev-dependency advisories**: `npm audit --omit=dev` is clean, but `npm audit` now reports 15 dev-only findings: 3 high with non-breaking fixes (brace-expansion, source-map-js, zod) and 12 moderate that need major upgrades of the lint stack. Apply the non-breaking fixes, regenerate the Flatpak node sources, and document the remaining 12 as accepted dev-only risk.
+- 🚧 **Fix the new dev-dependency advisories**: `npm audit --omit=dev` is clean, but `npm audit` now reports 15 dev-only findings: 3 high with non-breaking fixes (brace-expansion, source-map-js, zod) and 12 moderate that need major upgrades of the lint stack. Apply the non-breaking fixes, regenerate the Flatpak node sources, and document the remaining 12 as accepted dev-only risk.
+  <!-- agent-state: {"schema":1,"id":"rm-3be6d9d5bfd522c0","state":"claimed","touch":["flatpak/node-sources.json","master-spec.md","package-lock.json","package.json","skills/security-and-static-analysis.md"],"resources":[],"owner":"claude-code-devadv-20261108T104511Z-90d0ecf7","token":"c2428cc1a2c24007c1319d60fc750de9","branch":"agent/rm-3be6d9d5bfd522c0/c2428cc1a2c2","claimed_at":"2026-11-08T10:45:17Z","heartbeat_at":"2026-11-08T10:45:17Z","lease_until":"2026-11-08T12:15:17Z"} -->
+  Agent: claude-code-devadv-20261108T104511Z-90d0ecf7 | item: rm-3be6d9d5bfd522c0 | lease until: 2026-11-08T12:15:17Z
 
 
 

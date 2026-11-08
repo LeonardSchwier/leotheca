@@ -62,9 +62,6 @@ Items nobody owns. Take the first one that fits.
   <summary>Scope and constraints</summary>
   Owner request (2026-10-31): the current look is busy and busy-looking; the goal is a calm, minimal, Scandinavian feel. Constrain to theming (CSS variables, icon weights, border/elevation tokens); no behavioral changes. Keep all existing accessibility contrasts within WCAG AA, honor the existing dark-mode mechanism, and keep the Markdown editor/preview readable. Verification must include visual regression checks for both light and dark modes on desktop and Android.
   </details>
-- 🚧 **Master specification for spec-driven rebuilds**: Write master-spec.md, a full specification of the application's current behavior sufficient to rebuild it, and add a constitution rule plus a CI check so every implementation push to main updates it.
-  <!-- agent-state: {"schema":1,"id":"rm-e0a353c57cfd59e2","state":"claimed","touch":[],"resources":["master-spec-closure"],"note":"Landed 2ddb675 (master-spec.md, checker, CI job, skill). Remaining: constitution rule + playbook link, blocked by live claim on CONSTITUTION.md; see handoff.","owner":"claude-code-pdlc-20261106T231246Z-fcf4c9d1","token":"d35b493ce1a81d771ea8999032e47a1a","branch":"agent/rm-e0a353c57cfd59e2/d35b493ce1a8","claimed_at":"2026-11-08T01:43:12Z","heartbeat_at":"2026-11-08T01:43:12Z","lease_until":"2026-11-08T03:13:12Z"} -->
-  Agent: claude-code-pdlc-20261106T231246Z-fcf4c9d1 | item: rm-e0a353c57cfd59e2 | lease until: 2026-11-08T03:13:12Z
 
 ### Blocked
 
@@ -81,6 +78,11 @@ Items that wait for access or a decision outside the repository.
 - ⏸ **Compatibility layer**: Load community extension manifests; gated on maintainer approval of the third-party-code security model.
 
 ## Implemented
+
+- ✅ **Master specification for spec-driven rebuilds**: Write master-spec.md, a full specification of the application's current behavior sufficient to rebuild it, and add a constitution rule plus a CI check so every implementation push to main updates it.
+  <!-- agent-state: {"schema":1,"id":"rm-e0a353c57cfd59e2","state":"done","touch":[],"resources":["master-spec-closure"],"note":"Already delivered earlier: master-spec.md (1145 lines, requirement ids, traceability block, change log), the constitution Master specification rule, and scripts/check_master_spec.py enforced in the agent-policy workflow on every pull request and push; verified 2026-11-08 against the repository, no new code","completed_at":"2026-11-08T01:43:25Z","completed_by":"claude-code-pdlc-20261106T231246Z-fcf4c9d1","branch":"agent/rm-e0a353c57cfd59e2/d35b493ce1a8"} -->
+  Agent: completed by claude-code-pdlc-20261106T231246Z-fcf4c9d1 | item: rm-e0a353c57cfd59e2
+
 
 - ✅ **Bring the PDLC gap table up to date with what landed on 2026-11-08**: Rows for Security tooling (Android lint wired, Tier 2 audit done with partial coverage), the end-to-end suite (`tests/ui` and typing freeze state), review axes, glossary, shape lint and the pull request template drifted from the code. Re-read each row against the repo and CI and correct it; add a second, deeper Tier 2 audit item for the areas the first one did not cover (PDF viewer, canvas, ink, frontmatter, Android plugin Java, packaging scripts).
   <!-- agent-state: {"schema":1,"id":"rm-e72d3ed5d834fe4c","state":"done","touch":["documentation/AGENTIC_PDLC.md"],"resources":[],"note":"Merged as PR 106 (90bf2f0): four gap rows corrected against the repository; hosted CI pending for post-merge runs, ids in handoff","completed_at":"2026-11-08T01:40:38Z","completed_by":"claude-code-pdlc-20261106T231246Z-fcf4c9d1","branch":"agent/rm-e72d3ed5d834fe4c/eb45f2a7b5e2"} -->

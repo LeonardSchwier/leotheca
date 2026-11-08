@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="quick_capture"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_quick_capture_short"
+        android:shortcutLongLabel="@string/shortcut_quick_capture_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:data="leotheca://capture"
+            android:targetPackage="com.leonardschwier.leotheca"
+            android:targetClass="com.leonardschwier.leotheca.MainActivity" />
+    </shortcut>
+</shortcuts>

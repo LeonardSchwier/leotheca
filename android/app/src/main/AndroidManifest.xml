@@ -29,6 +29,8 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="leotheca" />
             </intent-filter>
+            <!-- Quick Capture launcher shortcut (long-press the app icon). -->
+            <meta-data android:name="android.app.shortcuts" android:resource="@xml/shortcuts" />
             
             <!-- F05: Android share target support -->
             <intent-filter>

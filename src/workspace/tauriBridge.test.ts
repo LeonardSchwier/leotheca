@@ -56,6 +56,8 @@ vi.mock("./tauriBridgeImpl", () => ({
   updateFavoritesWidget: vi.fn(),
   takePendingExternalFile: vi.fn(),
   onExternalFileOpen: vi.fn(),
+  takePendingQuickCapture: vi.fn(),
+  onQuickCaptureLaunch: vi.fn(),
   setActiveWorkspaceRoot: setActiveWorkspaceRootImpl,
 }));
 vi.mock("./capacitorBridgeImpl", () => ({}));

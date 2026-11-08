@@ -133,12 +133,17 @@ jobs:
       - name: Install Linux dependencies
         run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev libayatana-appindicator3-dev build-essential libssl-dev squashfs-tools p7zip-full
       - run: npm ci
+      - name: Cache the Tauri bundling tools
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/tauri
+          key: tauri-tools-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
       - name: Build AppImage
         run: |
           # Build a fresh AppDir. Fedora's bundled linuxdeploy can fail after
           # producing it, so validate that usable output before continuing.
           cd src-tauri && cargo clean && cd ..
-          npx tauri build --bundles appimage || {
+          scripts/retry.sh npx tauri build --bundles appimage || {
             test -x src-tauri/target/release/bundle/appimage/Leotheca.AppDir/AppRun
             test -x src-tauri/target/release/bundle/appimage/Leotheca.AppDir/usr/bin/leotheca
           }
@@ -331,8 +336,14 @@ jobs:
         with:
           workspaces: src-tauri
       - run: npm ci
+      - name: Cache the Tauri bundling tools
+        uses: actions/cache@v4
+        with:
+          path: ~/AppData/Local/tauri
+          key: tauri-tools-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
       - name: Build MSI
-        run: npx tauri build --bundles msi
+        shell: bash
+        run: scripts/retry.sh npx tauri build --bundles msi
       - uses: actions/upload-artifact@v4
         with:
           name: windows-msi
@@ -365,6 +376,14 @@ jobs:
       - run: npm ci
       - run: npx vite build
       - run: npx cap sync android
+      - name: Cache the Gradle wrapper distribution
+        uses: actions/cache@v4
+        with:
+          path: ~/.gradle/wrapper/dists
+          key: gradle-wrapper-${{ runner.os }}-${{ hashFiles('android/gradle/wrapper/gradle-wrapper.properties') }}
+      - name: Warm up the Gradle wrapper (downloads the distribution, retried)
+        working-directory: android
+        run: ../scripts/retry.sh ./gradlew --version
       - name: Choose the release key (maintainer key, else a throw-away test key)
         id: signing
         env:

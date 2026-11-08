@@ -27,6 +27,8 @@ Items with an owner. An expired lease means the item can be recovered.
 
 ### Available
 
+- ⬜ **Always publish an installable Android test APK without real signing secrets**: When the four Android signing secrets are absent, the release job generates a throw-away keystore inside the job and publishes the APK as `leotheca-<tag>-android-TEST-ephemeral-key.apk`; a properly signed build keeps `leotheca-<tag>-android.apk`. The debug-key refusal stays.
+
 
 
 

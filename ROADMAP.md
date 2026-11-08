@@ -88,6 +88,7 @@ Items that wait for access or a decision outside the repository.
 
 Items nobody owns. Take the first one that fits.
 
+- ⬜ **Restore the reference-implementation callout in the README**: The showcase pass replaced the explicit note that this repository is a reference implementation of the agentic PDLC with a softer sentence. The owner wants the explicit callout back, prominent at the top, linking `documentation/AGENTIC_PDLC.md`, and restated in the GitHub description.
 - 🚧 **Pin the rustup installer in the snap build**: After the Node.js archive was pinned by SHA-256 (PR 121), the same build script still installs Rust through an unverified `rustup` download piped into the shell. Verify the installer or a pinned toolchain archive by hash, or use the packaged Rust toolchain; the snap cannot be built here, so state that clearly.
   <!-- agent-state: {"schema":1,"id":"rm-569261b25b0a4b29","state":"claimed","touch":["master-spec.md","scripts/test_snapcraft.py","snap/snapcraft.yaml"],"resources":[],"owner":"claude-code-pdlc-20261106T231246Z-fcf4c9d1","token":"c6d53baba4ed65b05f7384a3f8811e53","branch":"agent/rm-569261b25b0a4b29/c6d53baba4ed","claimed_at":"2026-11-08T08:42:56Z","heartbeat_at":"2026-11-08T08:42:56Z","lease_until":"2026-11-08T10:12:56Z"} -->
   Agent: claude-code-pdlc-20261106T231246Z-fcf4c9d1 | item: rm-569261b25b0a4b29 | lease until: 2026-11-08T10:12:56Z

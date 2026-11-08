@@ -168,6 +168,8 @@
     NSString *escaped = [markdown stringByReplacingOccurrencesOfString:@"&" withString:@"&amp;"];
     escaped = [escaped stringByReplacingOccurrencesOfString:@"<" withString:@"&lt;"];
     escaped = [escaped stringByReplacingOccurrencesOfString:@">" withString:@"&gt;"];
+    // Quotes too, so a link target cannot end the double-quoted href attribute
+    escaped = [escaped stringByReplacingOccurrencesOfString:@"\"" withString:@"&quot;"];
 
     // Code blocks (```...```)
     escaped = [escaped stringByReplacingOccurrencesOfString:@"```([^`]*)```"

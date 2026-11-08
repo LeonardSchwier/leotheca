@@ -34,3 +34,7 @@ Each runbook carries standard SKILL.md YAML frontmatter (name, description, vers
 The old `multi-agent-autonomous-coordination.md` path redirects to the current workflow. There is no second coordination protocol. `scripts/agent_ledger.py` replaces the old abandoned-claim shell script; its behavior tests cover expiry, ownership and competing pushes.
 
 Maintain these runbooks under a normal scoped claim. Preserve verified domain knowledge and concrete failure lessons. Do not restore obsolete human gates, private coordination logs, or unconditional hosted-CI requirements.
+
+## Shape of a skill
+
+A skill is read by a model that may have 27 billion parameters, so it stays short: YAML frontmatter with `name` and `description` at the top, at most 200 lines, the steps first and the reasons after. `AGENTS.md` stays under 40 lines and `CONSTITUTION.md` under 200; detail moves into a skill that they link. `node scripts/check-rules.mjs shape` enforces this in the pre-push hook and in the Rules workflow.

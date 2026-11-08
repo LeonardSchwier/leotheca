@@ -27,15 +27,6 @@ Items with an owner. An expired lease means the item can be recovered.
 
 ### Available
 
-- 🚧 **Resolve the glib advisory in the Rust dependency tree**: `cargo audit` reports RUSTSEC-2024-0429 (unsound `glib::VariantStrIter`, glib 0.18.5, fixed in glib >= 0.20) and Dependabot's security update for the cargo `glib` crate in `src-tauri` fails. Find which crates pull glib and whether a newer tauri, wry, tao or gtk-rs release lifts it; apply a compatible bump (with the paired JS packages) or document precisely what blocks it.
-  <!-- agent-state: {"schema":1,"id":"rm-0df1e4c4be37751c","state":"claimed","touch":[".agents/handoffs","CHANGELOG.md","master-spec.md","skills/security-and-static-analysis.md"],"resources":[],"owner":"claude-code-glib-20261108T122245Z-651b41e0","token":"4133db95210957e903ddb0831a010531","branch":"agent/rm-0df1e4c4be37751c/4133db952109","claimed_at":"2026-11-08T12:23:37Z","heartbeat_at":"2026-11-08T12:26:38Z","lease_until":"2026-11-08T13:56:38Z"} -->
-  Agent: claude-code-glib-20261108T122245Z-651b41e0 | item: rm-0df1e4c4be37751c | lease until: 2026-11-08T13:56:38Z
-
-  <details>
-  <summary>Scope and acceptance</summary>
-
-  Record the `cargo audit` result before and after, the `cargo tree -i glib` chain and the upstream versions checked (tauri, tauri-runtime-wry, wry, tao, muda, gtk, webkit2gtk). If a compatible upgrade exists, apply it with regenerated Cargo.lock, flatpak sources and master-spec entry. If not, document the blocker in the PDLC Security tooling row and the audit notes and seed the revisit item.
-  </details>
 
 - ⬜ **Revisit glib when tauri ships gtk-rs 0.20**: As of 2026-11-08 every Linux path in the Tauri stack (tauri 2.12.5, tauri-runtime-wry 2.12.3, wry 0.57.1, tao 0.37.2, muda 0.21.2) still requires gtk ^0.18 and webkit2gtk 2.0.x, which pin glib 0.18.5 (RUSTSEC-2024-0429). Repeat the check and upgrade when one of them moves to a patched glib.
 - 🚧 **Upgrade the lint stack to clear the remaining dev-dependency advisories**: `npm audit` reports 10 moderate dev-only findings (eslint, @eslint/js, @eslint/config-array, typescript-eslint, minimatch) for GHSA-g3hv-75wg-m249 (minimatch >= 7.0.0, < 11.0.1). The newest eslint, @eslint/config-array and typescript-estree still depend on minimatch ^10, so no major upgrade fixes it; a root `overrides` entry for minimatch ^11.0.5 does, if the whole lint still passes. Apply it, regenerate the Flatpak node sources, and update the advisory notes.
@@ -78,6 +69,17 @@ Items that wait for access or a decision outside the repository.
 - ⏸ **Compatibility layer**: Load community extension manifests; gated on maintainer approval of the third-party-code security model.
 
 ## Implemented
+
+- ✅ **Resolve the glib advisory in the Rust dependency tree**: `cargo audit` reports RUSTSEC-2024-0429 (unsound `glib::VariantStrIter`, glib 0.18.5, fixed in glib >= 0.20) and Dependabot's security update for the cargo `glib` crate in `src-tauri` fails. Find which crates pull glib and whether a newer tauri, wry, tao or gtk-rs release lifts it; apply a compatible bump (with the paired JS packages) or document precisely what blocks it.
+  <!-- agent-state: {"schema":1,"id":"rm-0df1e4c4be37751c","state":"done","touch":[".agents/handoffs","CHANGELOG.md","master-spec.md","skills/security-and-static-analysis.md"],"resources":[],"note":"Outcome: advisory RUSTSEC-2024-0429 (glib 0.18.5) is not fixable yet; every current tauri 2.12.5, tauri-runtime-wry 2.12.3, wry 0.57.1, tao 0.37.2, muda 0.21.2 requires gtk ^0.18; no Tauri major exists. cargo audit before and after: 0 vulnerabilities, same warnings. Documented in the security notes (PR 130, merged f5fc33e01a8db39812a382964107c68ce3eac6cb, all required checks green); PDLC Security tooling row and the revisit item follow.","completed_at":"2026-11-08T12:33:58Z","completed_by":"claude-code-glib-20261108T122245Z-651b41e0","branch":"agent/rm-0df1e4c4be37751c/4133db952109"} -->
+  Agent: completed by claude-code-glib-20261108T122245Z-651b41e0 | item: rm-0df1e4c4be37751c
+
+  <details>
+  <summary>Scope and acceptance</summary>
+
+  Record the `cargo audit` result before and after, the `cargo tree -i glib` chain and the upstream versions checked (tauri, tauri-runtime-wry, wry, tao, muda, gtk, webkit2gtk). If a compatible upgrade exists, apply it with regenerated Cargo.lock, flatpak sources and master-spec entry. If not, document the blocker in the PDLC Security tooling row and the audit notes and seed the revisit item.
+  </details>
+
 
 - ✅ **Always publish an installable Android test APK without real signing secrets**: When the four Android signing secrets are absent, the release job generates a throw-away keystore inside the job and publishes the APK as `leotheca-<tag>-android-TEST-ephemeral-key.apk`; a properly signed build keeps `leotheca-<tag>-android.apk`. The debug-key refusal stays.
   <!-- agent-state: {"schema":1,"id":"rm-e6d0cfb114e580b9","state":"done","touch":[".github/workflows/release.yml","CHANGELOG.md","README.md","SECURITY.md","documentation","master-spec.md","packaging/STATUS.md","scripts/verifyApkNotDebugSigned.test.js","skills/pdlc-playbook.md"],"resources":["android-release-signing"],"note":"Landed PR 127 (69e4c87) and fix PR 128 (5e023b7): throw-away-key test APK; Release run 42479977703 green; local Gradle build and apksigner check verified.","completed_at":"2026-11-08T12:33:00Z","completed_by":"claude-code-apkalways-20261108T113657Z-b04e1245","branch":"agent/rm-e6d0cfb114e580b9/d03d73aca6d4"} -->

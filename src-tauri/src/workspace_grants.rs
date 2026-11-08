@@ -24,6 +24,27 @@ use std::sync::Mutex;
 pub const GRANTS_FILE_NAME: &str = "workspace-grants.json";
 const GRANTS_VERSION: u32 = 1;
 
+/// True when the final component of `path` names the registry file or any
+/// spelling of it that shares its prefix (its own `.tmp`, a trailing dot or
+/// an alternate data stream on Windows, any letter case on a
+/// case-insensitive volume).
+///
+/// On Windows and macOS the app config and app data directories are the
+/// same folder, so the registry sits inside the directory the unscoped
+/// path gate allows; and a granted workspace may even be an ancestor of it.
+/// Every gate a webview-supplied path passes through therefore refuses these
+/// names, which keeps the registry readable and writable by native code
+/// only (Tier 2 audit 2026-11-08, finding F2).
+pub fn is_grant_store_name(path: &Path) -> bool {
+    path.file_name()
+        .map(|name| {
+            name.to_string_lossy()
+                .to_ascii_lowercase()
+                .starts_with(GRANTS_FILE_NAME)
+        })
+        .unwrap_or(false)
+}
+
 #[derive(Serialize, Deserialize)]
 struct GrantsFile {
     version: u32,

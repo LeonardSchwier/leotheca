@@ -8,9 +8,6 @@
       "core:default",
       "core:path:default",
       "dialog:default",
-      "fs:default",
-      "fs:allow-read-text-file",
-      "fs:allow-write-text-file",
       "deep-link:default",
       "clipboard-manager:allow-write-text"
     ]

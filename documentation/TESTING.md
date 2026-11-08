@@ -100,7 +100,7 @@ Beyond automated tests, visual verification is a standing practice:
 
 ### README screenshots
 
-The screenshots in the [README](../README.md#-screenshots) come from `tests/e2e/screenshots.mjs`. It builds the frontend, serves it with `vite preview`, loads a small workspace of original sample notes through the same in-page bridge mock the E2E suite uses, and writes the split view, graph view and settings in light (`assets/screenshots/<name>.png`) and dark (`<name>-dark.png`). It fails if any request leaves the origin or the console logs an error, and runs `optipng` when installed. Regenerate them after a visible UI change:
+The screenshots in the [README](../README.md#-screenshots) come from `tests/e2e/screenshots.mjs`. It builds the frontend, serves it with `vite preview`, loads a small workspace of original sample notes through the same in-page bridge mock the E2E suite uses, and writes the split view, command palette, graph view and settings in light (`documentation/screenshots/<name>.png`) and dark (`<name>-dark.png`). It fails if any request leaves the origin or the console logs an error, and runs `optipng` when installed. Regenerate them after a visible UI change:
 
 ```bash
 cd tests/e2e

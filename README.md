@@ -2,16 +2,13 @@
 
 # Leotheca
 
-**In short:** Leotheca is a free and open source markdown viewer and editor for a local folder of plain text notes, built for Linux, macOS, Windows and Android. It needs no account, has no telemetry and no sync service of its own, and makes no network requests of its own (see [how that is enforced](#why-this-exists)).
-It is also a worked example of delivering software with autonomous coding agents under strict, partly machine-enforced controls: see [`documentation/AGENTIC_PDLC.md`](documentation/AGENTIC_PDLC.md).
-Install it from the [rolling release](#-install) or build it from source ([`CONTRIBUTING.md`](CONTRIBUTING.md)).
+**In short:** Leotheca is a free and open source markdown viewer and editor for a local folder of plain text notes, for Linux, macOS, Windows and Android. It is offline and private by design: **no camera, no microphone, no network**, no account, no telemetry and no sync service of its own ([how that is enforced](#why-this-exists)).
+It is also a worked example of how a strong, agent-run project is built: see [why this repository is built this way](#why-this-repository-is-built-this-way).
+Only a rolling dev build exists, no versioned release ([status](#status)). Build from source with [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 [![License: MIT](https://img.shields.io/github/license/LeonardSchwier/leotheca)](LICENSE)
 [![CI](https://github.com/LeonardSchwier/leotheca/actions/workflows/ci.yml/badge.svg)](https://github.com/LeonardSchwier/leotheca/actions/workflows/ci.yml)
 ![Platforms](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows%20%7C%20Android-informational)
-
-> [!IMPORTANT]
-> **Reference implementation of an agentic PDLC.** Besides being a note app, this repository is a worked example of delivering software with autonomous coding agents under strict, partly machine-enforced controls: an ownership ledger, spec-first delivery, tests-first fixes, hooks, CI and independent review. See [`documentation/AGENTIC_PDLC.md`](documentation/AGENTIC_PDLC.md) for the stage-by-stage description, the agents involved, the enforcing files, and the known gaps.
 
 ## Why this exists
 
@@ -49,19 +46,50 @@ This list is a summary, not a full inventory. [`ROADMAP.md`](ROADMAP.md) tracks 
 
 ## 📸 Screenshots
 
-Generated from the current app by [`tests/e2e/screenshots.mjs`](tests/e2e/screenshots.mjs), using original sample notes. Your browser or GitHub picks the light or dark variant to match your theme.
+Generated from the built app by [`tests/e2e/screenshots.mjs`](tests/e2e/screenshots.mjs) with the end-to-end native-bridge mock and fictional sample notes (a garden notebook); the script fails if any request leaves the origin. Your browser or GitHub picks the light or dark variant to match your theme. To regenerate, run `node screenshots.mjs` from `tests/e2e` (see [`documentation/TESTING.md`](documentation/TESTING.md#readme-screenshots)).
 
-<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="assets/screenshots/split-view-dark.png"><img src="assets/screenshots/split-view.png" alt="Leotheca's split view: a note called Welcome with its markdown source on the left and the rendered preview on the right, with resolved wikilinks and highlighted text, next to the file tree" width="100%"></picture></p>
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="documentation/screenshots/split-view-dark.png"><img src="documentation/screenshots/split-view.png" alt="Leotheca's split view: a note called Welcome with its markdown source on the left and the rendered preview on the right, next to the file tree" width="100%"></picture></p>
 
 Split view: markdown source and rendered preview side by side, with `[[wikilinks]]` resolved and `==highlights==` rendered.
 
-<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="assets/screenshots/graph-view-dark.png"><img src="assets/screenshots/graph-view.png" alt="Leotheca's graph view: six notes drawn as labelled dots, connected by lines for the wikilinks between them" width="100%"></picture></p>
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="documentation/screenshots/command-palette-dark.png"><img src="documentation/screenshots/command-palette.png" alt="Leotheca's command palette open over a note, listing commands such as New note, Open Task Hub and Open Settings" width="100%"></picture></p>
 
-The graph view, showing how notes connect to each other via wikilinks.
+Command palette (Ctrl+K): every action by name.
 
-<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="assets/screenshots/settings-dark.png"><img src="assets/screenshots/settings.png" alt="Leotheca's settings dialog open on the General page, showing the root folder, accent color choices, delete behavior and other options, with Appearance, Shortcuts and Health pages listed on the left" width="100%"></picture></p>
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="documentation/screenshots/graph-view-dark.png"><img src="documentation/screenshots/graph-view.png" alt="Leotheca's graph view: six notes drawn as labelled dots, connected by lines for the wikilinks between them" width="100%"></picture></p>
+
+Graph view: how notes connect through wikilinks.
+
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="documentation/screenshots/settings-dark.png"><img src="documentation/screenshots/settings.png" alt="Leotheca's settings dialog open on the General page, with Appearance, Shortcuts and Health pages listed on the left" width="100%"></picture></p>
 
 Settings: root folder, accent color, delete behavior, appearance, shortcuts and a health page.
+
+## Status
+
+What is true today, checked against the repository and its CI on 2026-11-08 (each row names where to verify it).
+
+| Area                                                                                    | State                                                                                                                      | Verify                                                                                                                        |
+| --------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Rolling dev build (AppImage, Flatpak bundle, Android debug APK, macOS DMG, Windows MSI) | Released: one `dev-build` release, marked Latest, rebuilt from `main` after CI passes                                      | [Releases](https://github.com/LeonardSchwier/leotheca/releases/tag/dev-build), [`release.yml`](.github/workflows/release.yml) |
+| Versioned release (a `v*` tag)                                                          | None published                                                                                                             | `gh release list` shows only `dev-build`                                                                                      |
+| Linux AppImage                                                                          | Built and smoke-launched in CI                                                                                             | [`documentation/ARCHITECTURE.md`](documentation/ARCHITECTURE.md)                                                              |
+| Flatpak, macOS and Windows artifacts                                                    | Built in CI, not launched there; macOS and Windows are unsigned                                                            | [`.github/workflows/`](.github/workflows/)                                                                                    |
+| Android                                                                                 | Debug-signed APK only, API 29 and up, built in CI; several Android features still wait for on-device verification          | [`ROADMAP.md`](ROADMAP.md) blocked items                                                                                      |
+| Flathub, F-Droid, Homebrew                                                              | Not submitted                                                                                                              | [`flatpak/`](flatpak/), [`packaging/`](packaging/)                                                                            |
+| Offline guarantee                                                                       | Enforced by a Content-Security-Policy test, e2e request blocking and no `INTERNET` permission on Android                   | [`src/offline.test.ts`](src/offline.test.ts)                                                                                  |
+| Static and supply-chain checks                                                          | CodeQL, Semgrep, gitleaks and a weekly `npm audit` workflow exist and their latest runs succeeded                          | [`.github/workflows/`](.github/workflows/)                                                                                    |
+| Pull-request delivery                                                                   | In use: agents open pull requests and merge only after the required checks                                                 | [`documentation/BRANCH_MODEL.md`](documentation/BRANCH_MODEL.md)                                                              |
+| Server-enforced protection of `main` (ruleset and merge queue)                          | Not enabled yet: it is an owner step, so today the local pre-push hook and the written rules are what refuse a direct push | BRANCH_MODEL phase 3, `gh api repos/LeonardSchwier/leotheca/branches/main --jq .protected` prints `false`                     |
+
+## Why this repository is built this way
+
+Agents write most of the code here, so the process is stricter than a human team's and is checked by tools instead of trust.
+
+- [`documentation/AGENTIC_PDLC.md`](documentation/AGENTIC_PDLC.md) describes the whole lifecycle. Spec first, because a written spec with acceptance criteria and recorded rulings gives review something agreed to check the code against. Evidence trailers, because the commit-msg hook and the pull request template refuse a change that lacks the trailers its paths require (co-author, legal check, review), so "done" is checkable. Automatic reflection, because `scripts/check-rules.mjs reflection` fails an archived spec without a line on what the item taught the process, so the rules improve themselves.
+- [`documentation/BRANCH_MODEL.md`](documentation/BRANCH_MODEL.md) describes delivery. Protected `main` with pull-request delivery, because a rule a server enforces does not depend on every clone being healthy (the server side is not on yet, see [Status](#status)). A separate ledger branch for claims and heartbeats, because ownership traffic stays out of the code history and a lost session can be recovered from plain commits.
+- [`CONSTITUTION.md`](CONSTITUTION.md) is the one binding policy, with security tooling (CodeQL, Semgrep, gitleaks, dependency audit) in CI, because controls that cannot be talked out of a decision are the only ones that hold when no human reviews each change.
+
+All documents are indexed in [`documentation/README.md`](documentation/README.md).
 
 ## 📥 Install
 
@@ -107,6 +135,7 @@ Full setup instructions (system dependencies per platform, running tests, the An
 ## 📚 More
 
 - [`PHILOSOPHY.md`](PHILOSOPHY.md), the three principles behind this project
+- [`documentation/README.md`](documentation/README.md), the index of all technical documents
 - [`documentation/ARCHITECTURE.md`](documentation/ARCHITECTURE.md), the solution architecture: how the two platform shells and the shared frontend fit together
 - [`documentation/TESTING.md`](documentation/TESTING.md), the testing strategy: unit tests, E2E tests, CI, and UI verification
 - [`src/offline.test.ts`](src/offline.test.ts), the automated offline-isolation test: it asserts that the Content-Security-Policy allows no external origin

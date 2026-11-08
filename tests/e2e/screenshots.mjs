@@ -13,10 +13,9 @@
  *
  *   node screenshots.mjs
  *
- * Output: assets/screenshots/{split-view,graph-view,settings}.png (light) and
- * {split-view,graph-view,settings}-dark.png, optimised with optipng when it
- * is installed. The light files keep their historic names because the Flatpak
- * metainfo links split-view.png. Needs Node 22.18 or newer: it imports the
+ * Output: documentation/screenshots/{split-view,command-palette,graph-view,
+ * settings}.png (light) and the same names with a -dark suffix, optimised with
+ * optipng when it is installed. The Flatpak metainfo links three of them. Needs Node 22.18 or newer: it imports the
  * TypeScript bridge mock directly.
  */
 /* global console, fetch, setTimeout, window */
@@ -29,7 +28,7 @@ import { bridgeMockInPage } from "./support/bridgeMock.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, "..", "..");
-const outDir = join(repoRoot, "assets", "screenshots");
+const outDir = join(repoRoot, "documentation", "screenshots");
 const PORT = 4174;
 const ORIGIN = `http://127.0.0.1:${PORT}`;
 const ROOT = "/sample/notes";
@@ -129,6 +128,8 @@ async function waitForServer() {
   }
   throw new Error(`preview server did not start on ${ORIGIN}`);
 }
+
+const SHOTS = ["split-view", "command-palette", "graph-view", "settings"];
 
 const fileName = (name, theme) =>
   theme === "dark" ? `${name}-dark.png` : `${name}.png`;
@@ -230,6 +231,14 @@ async function main() {
       await page.waitForTimeout(500);
       await shot("split-view");
 
+      await page.keyboard.press("Control+k");
+      const palette = page.getByPlaceholder("Type a command...");
+      await palette.waitFor();
+      await page.waitForTimeout(500);
+      await shot("command-palette");
+      await page.keyboard.press("Escape");
+      await palette.waitFor({ state: "hidden" });
+
       await nav.getByRole("button", { name: "Graph view" }).click();
       await page.waitForTimeout(2500); // let the force layout settle
       await shot("graph-view");
@@ -253,7 +262,7 @@ async function main() {
     console.warn("optipng not installed: PNGs left unoptimised");
   } else {
     for (const theme of ["light", "dark"])
-      for (const name of ["split-view", "graph-view", "settings"])
+      for (const name of SHOTS)
         spawnSync(
           "optipng",
           [

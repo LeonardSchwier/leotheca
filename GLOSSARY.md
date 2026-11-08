@@ -4,31 +4,32 @@ The shared vocabulary of Leotheca. Read it at session start (`AGENTS.md`). Use t
 
 ## Product
 
-| Term                     | Meaning                                                                                                                           | Source                                 |
-| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
-| Workspace                | One user-selected folder; the UI sometimes says vault.                                                                            | `master-spec.md` section 3             |
-| Profile                  | A catalog entry in the global config that points at a workspace.                                                                  | `master-spec.md` section 3             |
-| Workspace session        | The monotonic counter `workspaceSession` that tells workspace openings apart.                                                     | `master-spec.md` section 3             |
-| Workspace transition     | The staged switch from one workspace to another.                                                                                  | `src/workspace/workspaceTransition.ts` |
-| Grant                    | Permission to use a folder: on desktop a root in the native workspace grant registry, on Android a persistable SAF tree URI.      | `master-spec.md` section 7.1           |
-| Workspace grant registry | `workspace-grants.json` in the app data dir, filled only by the native `pick_workspace_folder` command or a one-time seed.        | `src-tauri/src/workspace_grants.rs`    |
-| Synthetic root           | The constant path `/workspace` that stands for the granted SAF tree on Android.                                                   | `master-spec.md` section 3             |
-| Containment              | The check that a path stays inside the allowed root after symlinks are resolved.                                                  | `master-spec.md` section 3             |
-| Bridge                   | The storage and native layer behind `workspace/tauriBridge.ts`, with a desktop (Tauri) and an Android (Capacitor) implementation. | `master-spec.md` section 5             |
-| Note                     | A Markdown file, normally `.md`.                                                                                                  | `master-spec.md` section 3             |
-| Wikilink                 | The link form `[[target#fragment\|label]]`.                                                                                       | `master-spec.md` section 3             |
-| Embed                    | The form `![[target]]`, expanded in preview.                                                                                      | `master-spec.md` section 3             |
-| Block id                 | The marker `^id` that names a block.                                                                                              | `master-spec.md` section 3             |
-| Link index               | In-memory metadata built by reading notes: backlinks, names, aliases, tags, tasks.                                                | `master-spec.md` section 3             |
-| Save coordinator         | The debounced, revision-ordered note writer.                                                                                      | `master-spec.md` section 3             |
-| Tab kind                 | One of `text`, `image`, `canvas`, `ink` or `pdf`.                                                                                 | `master-spec.md` section 3             |
-| Editor group             | The `primary` or `secondary` split pane.                                                                                          | `master-spec.md` section 3             |
-| Capture                  | Text or attachments sent into a note through the capture sheet, a deep link or an Android share; the mode is append, new or date. | `master-spec.md` FR-CAP                |
-| Pending capture          | A capture that could not be committed and waits in the queue stored under the `localStorage` key `leotheca-pending-captures`.     | `master-spec.md` section 6.14          |
-| Bookmark                 | An entry in `.leotheca/bookmarks.json`, either a file or a saved search.                                                          | `master-spec.md` section 6.5           |
-| Collection               | A smart collection: a saved query with a view and a sort, stored in `.leotheca/collections.json`.                                 | `master-spec.md` section 6.6           |
-| Trash                    | The folder `<workspace>/.trash/`, which mirrors the original relative path.                                                       | `master-spec.md` section 6.10          |
-| Automation URL           | A `leotheca://` link such as `read-current-note`, `open-favorites` or `open-note`.                                                | `master-spec.md` section 7.5           |
+| Term                     | Meaning                                                                                                                                   | Source                                 |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
+| Workspace                | One user-selected folder; the UI sometimes says vault.                                                                                    | `master-spec.md` section 3             |
+| Profile                  | A catalog entry in the global config that points at a workspace.                                                                          | `master-spec.md` section 3             |
+| Workspace session        | The monotonic counter `workspaceSession` that tells workspace openings apart.                                                             | `master-spec.md` section 3             |
+| Workspace transition     | The staged switch from one workspace to another.                                                                                          | `src/workspace/workspaceTransition.ts` |
+| Grant                    | Permission to use a folder: on desktop a root in the native workspace grant registry, on Android a persistable SAF tree URI.              | `master-spec.md` section 7.1           |
+| Workspace grant registry | `workspace-grants.json` in the app data dir, filled only by the native `pick_workspace_folder` command or a one-time seed.                | `src-tauri/src/workspace_grants.rs`    |
+| Active workspace root    | The one granted root held by the native `ActiveWorkspaceRoot` state; the scoped file commands accept only a `workspace_root` equal to it. | `src-tauri/src/commands.rs`            |
+| Synthetic root           | The constant path `/workspace` that stands for the granted SAF tree on Android.                                                           | `master-spec.md` section 3             |
+| Containment              | The check that a path stays inside the allowed root after symlinks are resolved.                                                          | `master-spec.md` section 3             |
+| Bridge                   | The storage and native layer behind `workspace/tauriBridge.ts`, with a desktop (Tauri) and an Android (Capacitor) implementation.         | `master-spec.md` section 5             |
+| Note                     | A Markdown file, normally `.md`.                                                                                                          | `master-spec.md` section 3             |
+| Wikilink                 | The link form `[[target#fragment\|label]]`.                                                                                               | `master-spec.md` section 3             |
+| Embed                    | The form `![[target]]`, expanded in preview.                                                                                              | `master-spec.md` section 3             |
+| Block id                 | The marker `^id` that names a block.                                                                                                      | `master-spec.md` section 3             |
+| Link index               | In-memory metadata built by reading notes: backlinks, names, aliases, tags, tasks.                                                        | `master-spec.md` section 3             |
+| Save coordinator         | The debounced, revision-ordered note writer.                                                                                              | `master-spec.md` section 3             |
+| Tab kind                 | One of `text`, `image`, `canvas`, `ink` or `pdf`.                                                                                         | `master-spec.md` section 3             |
+| Editor group             | The `primary` or `secondary` split pane.                                                                                                  | `master-spec.md` section 3             |
+| Capture                  | Text or attachments sent into a note through the capture sheet, a deep link or an Android share; the mode is append, new or date.         | `master-spec.md` FR-CAP                |
+| Pending capture          | A capture that could not be committed and waits in the queue stored under the `localStorage` key `leotheca-pending-captures`.             | `master-spec.md` section 6.14          |
+| Bookmark                 | An entry in `.leotheca/bookmarks.json`, either a file or a saved search.                                                                  | `master-spec.md` section 6.5           |
+| Collection               | A smart collection: a saved query with a view and a sort, stored in `.leotheca/collections.json`.                                         | `master-spec.md` section 6.6           |
+| Trash                    | The folder `<workspace>/.trash/`, which mirrors the original relative path.                                                               | `master-spec.md` section 6.10          |
+| Automation URL           | A `leotheca://` link such as `read-current-note`, `open-favorites` or `open-note`.                                                        | `master-spec.md` section 7.5           |
 
 ## Delivery process
 

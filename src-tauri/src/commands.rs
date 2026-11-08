@@ -963,7 +963,7 @@ pub async fn pick_workspace_folder(
     Ok(Some(granted.to_string_lossy().into_owned()))
 }
 
-fn active_workspace_root_snapshot(state: &ActiveWorkspaceRoot) -> Option<PathBuf> {
+pub(crate) fn active_workspace_root_snapshot(state: &ActiveWorkspaceRoot) -> Option<PathBuf> {
     state.0.lock().ok().and_then(|guard| guard.clone())
 }
 
@@ -1133,6 +1133,35 @@ fn write_file_atomically(target: &Path, bytes: &[u8]) -> Result<(), String> {
     })
 }
 
+/// Server-side binding for the workspace-scoped commands (audit 2026-11-08,
+/// finding F1, master-spec KG-001). Each of them receives `workspace_root`
+/// from the webview, so a compromised webview could name any directory.
+/// The root is accepted only when it resolves to the same folder as the
+/// native `ActiveWorkspaceRoot`, which `set_active_workspace_root` fills
+/// from the grant registry alone. Both sides are canonicalized, so a
+/// trailing separator, a symlink or a `..` spelling of the active root still
+/// passes while any other folder, or no open workspace, is refused before
+/// any filesystem access.
+pub(crate) fn require_active_workspace_root(
+    workspace_root: &str,
+    active_workspace_root: Option<&Path>,
+) -> Result<(), String> {
+    let Some(active) = active_workspace_root else {
+        return Err("no workspace is open".to_string());
+    };
+    let requested = fs::canonicalize(workspace_root)
+        .map_err(|e| format!("workspace root \"{workspace_root}\" is not accessible: {e}"))?;
+    let active = fs::canonicalize(active)
+        .map_err(|e| format!("the active workspace root is not accessible: {e}"))?;
+    if requested == active {
+        Ok(())
+    } else {
+        Err(format!(
+            "\"{workspace_root}\" is not the active workspace root"
+        ))
+    }
+}
+
 /// Writes `contents` to a workspace-relative path, after verifying with
 /// `resolve_within_workspace` that it cannot escape `workspace_root`. This
 /// is the workspace-scoped counterpart to `write_text_file` below, which
@@ -1143,6 +1172,19 @@ fn write_file_atomically(target: &Path, bytes: &[u8]) -> Result<(), String> {
 /// get instead of the historical none-at-all (2026-09-22 security review).
 #[tauri::command]
 pub fn write_workspace_text_file(
+    workspace_root: String,
+    relative_path: String,
+    contents: String,
+    active_root: tauri::State<'_, ActiveWorkspaceRoot>,
+) -> Result<(), String> {
+    require_active_workspace_root(
+        &workspace_root,
+        active_workspace_root_snapshot(&active_root).as_deref(),
+    )?;
+    write_workspace_text_file_core(workspace_root, relative_path, contents)
+}
+
+fn write_workspace_text_file_core(
     workspace_root: String,
     relative_path: String,
     contents: String,
@@ -1162,6 +1204,19 @@ pub fn write_workspace_binary_file(
     workspace_root: String,
     relative_path: String,
     data: Vec<u8>,
+    active_root: tauri::State<'_, ActiveWorkspaceRoot>,
+) -> Result<(), String> {
+    require_active_workspace_root(
+        &workspace_root,
+        active_workspace_root_snapshot(&active_root).as_deref(),
+    )?;
+    write_workspace_binary_file_core(workspace_root, relative_path, data)
+}
+
+fn write_workspace_binary_file_core(
+    workspace_root: String,
+    relative_path: String,
+    data: Vec<u8>,
 ) -> Result<(), String> {
     let target = resolve_within_workspace(&workspace_root, &relative_path)?;
     if let Some(parent) = target.parent() {
@@ -1174,7 +1229,19 @@ pub fn write_workspace_binary_file(
 /// directories), after verifying containment. Counterpart to `create_dir`
 /// below.
 #[tauri::command]
-pub fn create_workspace_dir(workspace_root: String, relative_path: String) -> Result<(), String> {
+pub fn create_workspace_dir(
+    workspace_root: String,
+    relative_path: String,
+    active_root: tauri::State<'_, ActiveWorkspaceRoot>,
+) -> Result<(), String> {
+    require_active_workspace_root(
+        &workspace_root,
+        active_workspace_root_snapshot(&active_root).as_deref(),
+    )?;
+    create_workspace_dir_core(workspace_root, relative_path)
+}
+
+fn create_workspace_dir_core(workspace_root: String, relative_path: String) -> Result<(), String> {
     let target = resolve_within_workspace(&workspace_root, &relative_path)?;
     fs::create_dir_all(&target).map_err(|e| e.to_string())
 }
@@ -1184,6 +1251,19 @@ pub fn create_workspace_dir(workspace_root: String, relative_path: String) -> Re
 /// with `resolve_within_workspace`. Counterpart to `rename_path` below.
 #[tauri::command]
 pub fn rename_workspace_path(
+    workspace_root: String,
+    from: String,
+    to: String,
+    active_root: tauri::State<'_, ActiveWorkspaceRoot>,
+) -> Result<(), String> {
+    require_active_workspace_root(
+        &workspace_root,
+        active_workspace_root_snapshot(&active_root).as_deref(),
+    )?;
+    rename_workspace_path_core(workspace_root, from, to)
+}
+
+fn rename_workspace_path_core(
     workspace_root: String,
     from: String,
     to: String,
@@ -1212,6 +1292,18 @@ fn delete_path(target: &Path) -> Result<(), String> {
 /// containment. Counterpart to `delete_path_permanent` below.
 #[tauri::command]
 pub fn delete_workspace_path_permanent(
+    workspace_root: String,
+    relative_path: String,
+    active_root: tauri::State<'_, ActiveWorkspaceRoot>,
+) -> Result<(), String> {
+    require_active_workspace_root(
+        &workspace_root,
+        active_workspace_root_snapshot(&active_root).as_deref(),
+    )?;
+    delete_workspace_path_permanent_core(workspace_root, relative_path)
+}
+
+fn delete_workspace_path_permanent_core(
     workspace_root: String,
     relative_path: String,
 ) -> Result<(), String> {
@@ -1379,7 +1471,19 @@ pub fn rename_path(
 /// and symlink check (audit follow-up F-004) before touching the
 /// filesystem, rather than trusting the lexical prefix match alone.
 #[tauri::command]
-pub fn trash_path(workspace_root: String, path: String) -> Result<(), String> {
+pub fn trash_path(
+    workspace_root: String,
+    path: String,
+    active_root: tauri::State<'_, ActiveWorkspaceRoot>,
+) -> Result<(), String> {
+    require_active_workspace_root(
+        &workspace_root,
+        active_workspace_root_snapshot(&active_root).as_deref(),
+    )?;
+    trash_path_core(workspace_root, path)
+}
+
+fn trash_path_core(workspace_root: String, path: String) -> Result<(), String> {
     let root = Path::new(&workspace_root);
     let target = Path::new(&path);
     let relative = target.strip_prefix(root).map_err(|e| e.to_string())?;
@@ -2249,7 +2353,7 @@ mod tests {
         let target = root.join("notes").join("draft.md");
         File::create(&target).unwrap();
 
-        trash_path(
+        trash_path_core(
             root.to_string_lossy().to_string(),
             target.to_string_lossy().to_string(),
         )
@@ -2293,7 +2397,7 @@ mod tests {
         File::create(root.join(".trash").join("dup.md")).unwrap();
         File::create(root.join("dup.md")).unwrap();
 
-        trash_path(
+        trash_path_core(
             root.to_string_lossy().to_string(),
             root.join("dup.md").to_string_lossy().to_string(),
         )
@@ -3022,7 +3126,7 @@ mod tests {
     #[test]
     fn write_workspace_text_file_writes_within_the_workspace_and_creates_missing_directories() {
         let root = make_workspace("write-ok");
-        write_workspace_text_file(
+        write_workspace_text_file_core(
             root.to_string_lossy().to_string(),
             "notes/new/hello.md".to_string(),
             "# Hello".to_string(),
@@ -3038,7 +3142,7 @@ mod tests {
     #[test]
     fn write_workspace_text_file_rejects_traversal_and_writes_nothing() {
         let root = make_workspace("write-traversal");
-        let result = write_workspace_text_file(
+        let result = write_workspace_text_file_core(
             root.to_string_lossy().to_string(),
             "../escape.md".to_string(),
             "malicious".to_string(),
@@ -3055,7 +3159,7 @@ mod tests {
     #[test]
     fn write_workspace_binary_file_rejects_an_absolute_path() {
         let root = make_workspace("write-binary-absolute");
-        let result = write_workspace_binary_file(
+        let result = write_workspace_binary_file_core(
             root.to_string_lossy().to_string(),
             "/tmp/should-not-be-written.bin".to_string(),
             vec![1, 2, 3],
@@ -3068,7 +3172,7 @@ mod tests {
     #[test]
     fn create_workspace_dir_creates_nested_directories_within_the_workspace() {
         let root = make_workspace("create-dir-ok");
-        create_workspace_dir(root.to_string_lossy().to_string(), "a/b/c".to_string()).unwrap();
+        create_workspace_dir_core(root.to_string_lossy().to_string(), "a/b/c".to_string()).unwrap();
         assert!(root.join("a/b/c").is_dir());
         fs::remove_dir_all(&root).unwrap();
     }
@@ -3077,7 +3181,7 @@ mod tests {
     fn create_workspace_dir_rejects_traversal() {
         let root = make_workspace("create-dir-traversal");
         let result =
-            create_workspace_dir(root.to_string_lossy().to_string(), "../evil".to_string());
+            create_workspace_dir_core(root.to_string_lossy().to_string(), "../evil".to_string());
         assert!(result.is_err());
         assert!(!root.parent().unwrap().join("evil").exists());
         fs::remove_dir_all(&root).unwrap();
@@ -3087,7 +3191,7 @@ mod tests {
     fn rename_workspace_path_moves_a_file_within_the_workspace() {
         let root = make_workspace("rename-ok");
         fs::write(root.join("old.md"), "content").unwrap();
-        rename_workspace_path(
+        rename_workspace_path_core(
             root.to_string_lossy().to_string(),
             "old.md".to_string(),
             "renamed/new.md".to_string(),
@@ -3105,7 +3209,7 @@ mod tests {
     fn rename_workspace_path_rejects_a_destination_that_escapes_the_workspace() {
         let root = make_workspace("rename-traversal");
         fs::write(root.join("old.md"), "content").unwrap();
-        let result = rename_workspace_path(
+        let result = rename_workspace_path_core(
             root.to_string_lossy().to_string(),
             "old.md".to_string(),
             "../escaped.md".to_string(),
@@ -3123,8 +3227,11 @@ mod tests {
     fn delete_workspace_path_permanent_removes_a_contained_file() {
         let root = make_workspace("delete-ok");
         fs::write(root.join("gone.md"), "bye").unwrap();
-        delete_workspace_path_permanent(root.to_string_lossy().to_string(), "gone.md".to_string())
-            .unwrap();
+        delete_workspace_path_permanent_core(
+            root.to_string_lossy().to_string(),
+            "gone.md".to_string(),
+        )
+        .unwrap();
         assert!(!root.join("gone.md").exists());
         fs::remove_dir_all(&root).unwrap();
     }
@@ -3138,7 +3245,8 @@ mod tests {
         ));
         fs::write(&sibling, "do not delete me").unwrap();
         let relative = format!("../{}", sibling.file_name().unwrap().to_string_lossy());
-        let result = delete_workspace_path_permanent(root.to_string_lossy().to_string(), relative);
+        let result =
+            delete_workspace_path_permanent_core(root.to_string_lossy().to_string(), relative);
         assert!(result.is_err());
         assert!(
             sibling.exists(),
@@ -3160,7 +3268,7 @@ mod tests {
         let link = root.join("note.md");
         std::os::unix::fs::symlink(&outside_file, &link).unwrap();
 
-        let result = trash_path(
+        let result = trash_path_core(
             root.to_string_lossy().to_string(),
             link.to_string_lossy().to_string(),
         );
@@ -3178,7 +3286,7 @@ mod tests {
     fn trash_path_still_moves_an_ordinary_contained_file() {
         let root = make_workspace("trash-ok");
         fs::write(root.join("note.md"), "content").unwrap();
-        trash_path(
+        trash_path_core(
             root.to_string_lossy().to_string(),
             root.join("note.md").to_string_lossy().to_string(),
         )
@@ -3186,5 +3294,253 @@ mod tests {
         assert!(!root.join("note.md").exists());
         assert!(root.join(".trash/note.md").exists());
         fs::remove_dir_all(&root).unwrap();
+    }
+}
+
+/// A mock app whose native `ActiveWorkspaceRoot` already holds `active`, the
+/// state `set_active_workspace_root` leaves after a grant-checked activation.
+#[cfg(test)]
+pub(crate) fn mock_app_with_active_root(
+    active: Option<&Path>,
+) -> tauri::App<tauri::test::MockRuntime> {
+    let app = tauri::test::mock_builder()
+        .manage(ActiveWorkspaceRoot::default())
+        .build(tauri::generate_context!())
+        .expect("failed to build mock app");
+    *app.state::<ActiveWorkspaceRoot>().0.lock().unwrap() = active.map(Path::to_path_buf);
+    app
+}
+
+/// Audit 2026-11-08 finding F1 (KG-001): every command that takes a
+/// webview-supplied `workspace_root` must refuse a root that is not the
+/// native active workspace root, and must not touch the disk when it does.
+#[cfg(test)]
+mod active_root_binding_tests {
+    use super::*;
+
+    fn dir(name: &str) -> PathBuf {
+        let root =
+            std::env::temp_dir().join(format!("leotheca-test-f1-{name}-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        root
+    }
+
+    fn s(path: &Path) -> String {
+        path.to_string_lossy().to_string()
+    }
+
+    /// Two folders: `active` is the open workspace, `other` is a folder the
+    /// webview names instead (a sibling, standing for any directory).
+    fn two_roots(name: &str) -> (PathBuf, PathBuf) {
+        (
+            dir(&format!("{name}-active")),
+            dir(&format!("{name}-other")),
+        )
+    }
+
+    fn cleanup(roots: &[&PathBuf]) {
+        for root in roots {
+            let _ = fs::remove_dir_all(root);
+        }
+    }
+
+    #[test]
+    fn write_workspace_text_file_refuses_a_root_that_is_not_active() {
+        let (active, other) = two_roots("write-text");
+        let app = mock_app_with_active_root(Some(&active));
+        let result = write_workspace_text_file(
+            s(&other),
+            "x.md".to_string(),
+            "evil".to_string(),
+            app.state::<ActiveWorkspaceRoot>(),
+        );
+        assert!(result.is_err(), "{result:?}");
+        assert!(!other.join("x.md").exists());
+        cleanup(&[&active, &other]);
+    }
+
+    #[test]
+    fn write_workspace_binary_file_refuses_a_root_that_is_not_active() {
+        let (active, other) = two_roots("write-bin");
+        let app = mock_app_with_active_root(Some(&active));
+        let result = write_workspace_binary_file(
+            s(&other),
+            "x.bin".to_string(),
+            vec![1, 2, 3],
+            app.state::<ActiveWorkspaceRoot>(),
+        );
+        assert!(result.is_err(), "{result:?}");
+        assert!(!other.join("x.bin").exists());
+        cleanup(&[&active, &other]);
+    }
+
+    #[test]
+    fn create_workspace_dir_refuses_a_root_that_is_not_active() {
+        let (active, other) = two_roots("mkdir");
+        let app = mock_app_with_active_root(Some(&active));
+        let result = create_workspace_dir(
+            s(&other),
+            "made".to_string(),
+            app.state::<ActiveWorkspaceRoot>(),
+        );
+        assert!(result.is_err(), "{result:?}");
+        assert!(!other.join("made").exists());
+        cleanup(&[&active, &other]);
+    }
+
+    #[test]
+    fn rename_workspace_path_refuses_a_root_that_is_not_active() {
+        let (active, other) = two_roots("rename");
+        fs::write(other.join("a.md"), "keep").unwrap();
+        let app = mock_app_with_active_root(Some(&active));
+        let result = rename_workspace_path(
+            s(&other),
+            "a.md".to_string(),
+            "b.md".to_string(),
+            app.state::<ActiveWorkspaceRoot>(),
+        );
+        assert!(result.is_err(), "{result:?}");
+        assert!(other.join("a.md").exists());
+        assert!(!other.join("b.md").exists());
+        cleanup(&[&active, &other]);
+    }
+
+    #[test]
+    fn delete_workspace_path_permanent_refuses_a_root_that_is_not_active() {
+        let (active, other) = two_roots("delete");
+        fs::write(other.join("keep.md"), "keep").unwrap();
+        let app = mock_app_with_active_root(Some(&active));
+        let result = delete_workspace_path_permanent(
+            s(&other),
+            "keep.md".to_string(),
+            app.state::<ActiveWorkspaceRoot>(),
+        );
+        assert!(result.is_err(), "{result:?}");
+        assert!(other.join("keep.md").exists());
+        cleanup(&[&active, &other]);
+    }
+
+    #[test]
+    fn trash_path_refuses_a_root_that_is_not_active() {
+        let (active, other) = two_roots("trash");
+        fs::write(other.join("note.md"), "keep").unwrap();
+        let app = mock_app_with_active_root(Some(&active));
+        let result = trash_path(
+            s(&other),
+            s(&other.join("note.md")),
+            app.state::<ActiveWorkspaceRoot>(),
+        );
+        assert!(result.is_err(), "{result:?}");
+        assert!(other.join("note.md").exists());
+        assert!(!other.join(".trash").exists());
+        cleanup(&[&active, &other]);
+    }
+
+    #[test]
+    fn no_scoped_command_works_while_no_workspace_is_active() {
+        let root = dir("none-active");
+        fs::write(root.join("a.md"), "keep").unwrap();
+        let app = mock_app_with_active_root(None);
+        let state = || app.state::<ActiveWorkspaceRoot>();
+        assert!(write_workspace_text_file(s(&root), "x.md".into(), "t".into(), state()).is_err());
+        assert!(write_workspace_binary_file(s(&root), "x.bin".into(), vec![1], state()).is_err());
+        assert!(create_workspace_dir(s(&root), "d".into(), state()).is_err());
+        assert!(rename_workspace_path(s(&root), "a.md".into(), "b.md".into(), state()).is_err());
+        assert!(delete_workspace_path_permanent(s(&root), "a.md".into(), state()).is_err());
+        assert!(trash_path(s(&root), s(&root.join("a.md")), state()).is_err());
+        assert!(crate::workspace_mutations::create_workspace_text_file_new(
+            s(&root),
+            "n.md".into(),
+            "t".into(),
+            state()
+        )
+        .is_err());
+        assert!(
+            crate::workspace_mutations::create_workspace_binary_file_new(
+                s(&root),
+                "n.bin".into(),
+                vec![1],
+                state()
+            )
+            .is_err()
+        );
+        assert!(crate::workspace_mutations::create_workspace_dir_new(
+            s(&root),
+            "nd".into(),
+            state()
+        )
+        .is_err());
+        assert!(
+            crate::workspace_mutations::rename_workspace_path_no_replace(
+                s(&root),
+                "a.md".into(),
+                "c.md".into(),
+                state()
+            )
+            .is_err()
+        );
+        for name in [
+            "x.md", "x.bin", "d", "b.md", "n.md", "n.bin", "nd", "c.md", ".trash",
+        ] {
+            assert!(!root.join(name).exists(), "{name} was created");
+        }
+        assert!(root.join("a.md").exists());
+        cleanup(&[&root]);
+    }
+
+    #[test]
+    fn an_equivalent_spelling_of_the_active_root_is_accepted() {
+        let root = dir("spelling");
+        fs::create_dir_all(root.join("sub")).unwrap();
+        let app = mock_app_with_active_root(Some(&root));
+        for (i, spelling) in [
+            format!("{}/", root.display()),
+            format!("{}/sub/..", root.display()),
+            format!("{}/./", root.display()),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            write_workspace_text_file(
+                spelling,
+                format!("ok{i}.md"),
+                "fine".to_string(),
+                app.state::<ActiveWorkspaceRoot>(),
+            )
+            .unwrap();
+            assert!(root.join(format!("ok{i}.md")).exists());
+        }
+        #[cfg(unix)]
+        {
+            let link = std::env::temp_dir().join(format!(
+                "leotheca-test-f1-spelling-link-{}",
+                std::process::id()
+            ));
+            let _ = fs::remove_file(&link);
+            std::os::unix::fs::symlink(&root, &link).unwrap();
+            write_workspace_text_file(
+                s(&link),
+                "via-link.md".to_string(),
+                "fine".to_string(),
+                app.state::<ActiveWorkspaceRoot>(),
+            )
+            .unwrap();
+            assert!(root.join("via-link.md").exists());
+            fs::remove_file(&link).unwrap();
+        }
+        cleanup(&[&root]);
+    }
+
+    #[test]
+    fn the_guard_refuses_a_missing_root_and_a_parent_of_the_active_root() {
+        let (active, other) = two_roots("guard");
+        let parent = std::env::temp_dir();
+        assert!(require_active_workspace_root(&s(&other), Some(&active)).is_err());
+        assert!(require_active_workspace_root(&s(&parent), Some(&active)).is_err());
+        assert!(require_active_workspace_root(&s(&active.join("missing")), Some(&active)).is_err());
+        assert!(require_active_workspace_root(&s(&active), None).is_err());
+        assert!(require_active_workspace_root(&s(&active), Some(&active)).is_ok());
+        cleanup(&[&active, &other]);
     }
 }

@@ -1,0 +1,59 @@
+name: Android lint
+
+# Android Lint (`./gradlew lint`) over the app module: manifest, exported
+# component, permission, API level and resource findings. Not a required merge
+# check until the first reports are triaged and the baseline is reviewed: the
+# lint rule set changes with the Android Gradle Plugin version, so a new rule
+# must not block unrelated pull requests. The HTML and XML reports are uploaded
+# as an artifact on every run. Reviewed leftovers live in
+# android/app/lint-baseline.xml; the reason for each group is in the master
+# spec change log. A run that finds anything new fails.
+
+on:
+  pull_request:
+    paths:
+      - "android/**"
+      - "capacitor.config.ts"
+      - ".github/workflows/android-lint.yml"
+  push:
+    branches: [main]
+    paths:
+      - "android/**"
+  schedule:
+    - cron: "47 5 * * 3"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - run: npm ci
+      - run: npx vite build
+      - run: npx cap sync android
+      - name: Android lint
+        working-directory: android
+        run: ./gradlew lint
+      - name: Upload lint reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-lint-reports
+          path: |
+            android/app/build/reports/lint-results*
+            android/app/lint-baseline.xml
+          retention-days: 14

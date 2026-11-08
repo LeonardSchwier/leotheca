@@ -20,7 +20,8 @@ import unittest
 def _escape_html(text: str) -> str:
     return (text.replace("&", "&amp;")
                .replace("<", "&lt;")
-               .replace(">", "&gt;"))
+               .replace(">", "&gt;")
+               .replace('"', "&quot;"))
 
 
 def _replace_regex(pattern: str, replacement: str, text: str,
@@ -220,6 +221,15 @@ class TestLinks(unittest.TestCase):
     def test_link_with_spaces(self):
         result = markdown_to_html("[See docs](https://example.com/docs v2)")
         self.assertIn("https://example.com/docs v2", result)
+
+    def test_quote_in_href_cannot_break_out_of_attribute(self):
+        result = markdown_to_html('[x](https://a.test/" onmouseover="alert(1))')
+        self.assertIn('href="https://a.test/&quot; onmouseover=&quot;alert(1"', result)
+        self.assertNotIn('" onmouseover="', result)
+
+    def test_quote_in_link_label_is_escaped(self):
+        result = markdown_to_html('[say "hi"](https://a.test)')
+        self.assertIn(">say &quot;hi&quot;</a>", result)
 
 
 class TestLists(unittest.TestCase):

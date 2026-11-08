@@ -30,8 +30,8 @@ Items with an owner. An expired lease means the item can be recovered.
 
 - ⬜ **Update the PDLC end-to-end row after tests/ui retirement**: The row still names `tests/ui` as an open leftover and the typing freeze as unexplained. `tests/ui` is deleted (PR 107), the freeze is characterised as a Chromium style and layout loop with no app cause (PR 104), and each e2e run now gets its own preview port (PR 95). Correct the row and the roadmap pointer.
 - 🚧 **Run a deeper second Tier 2 audit on the uncovered areas**: The first Tier 2 audit (2026-11-08) was condensed and left out the PDF viewer, canvas, ink, frontmatter handling, the Android plugin Java and the packaging scripts, and ran no verifier wave or coverage critic. Run the security-audit skill again focused on those areas with the verifier wave, keep the report outside the repository, seed one item per confirmed finding of medium or higher, and update the PDLC Security tooling row.
-  <!-- agent-state: {"schema":1,"id":"rm-1154fe029f40163d","state":"claimed","touch":["documentation/AGENTIC_PDLC.md"],"resources":["security-audit"],"owner":"claude-code-tier2b-20261108T014325Z-5a0d195a","token":"079fcaa8c7a098953f58bdcae2c1abf1","branch":"agent/rm-1154fe029f40163d/079fcaa8c7a0","claimed_at":"2026-11-08T01:43:45Z","heartbeat_at":"2026-11-08T02:08:23Z","lease_until":"2026-11-08T03:38:23Z"} -->
-  Agent: claude-code-tier2b-20261108T014325Z-5a0d195a | item: rm-1154fe029f40163d | lease until: 2026-11-08T03:38:23Z
+  <!-- agent-state: {"schema":1,"id":"rm-1154fe029f40163d","state":"claimed","touch":["CHANGELOG.md","documentation/AGENTIC_PDLC.md","master-spec.md","spec","src/capture/captureTemplate.test.ts","src/capture/captureTemplate.ts"],"resources":[],"owner":"claude-code-pdlc-20261106T231246Z-fcf4c9d1","token":"5a965927fb6d340f8704318f03afab55","branch":"agent/rm-1154fe029f40163d/5a965927fb6d","claimed_at":"2026-11-08T07:42:43Z","heartbeat_at":"2026-11-08T07:42:43Z","lease_until":"2026-11-08T09:12:43Z"} -->
+  Agent: claude-code-pdlc-20261106T231246Z-fcf4c9d1 | item: rm-1154fe029f40163d | lease until: 2026-11-08T09:12:43Z
 
 
 ### Blocked

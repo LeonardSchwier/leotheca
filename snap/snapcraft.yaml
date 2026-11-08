@@ -30,6 +30,10 @@ parts:
     plugin: nil
     source: .
     build-attributes: [no-patchelf, no-parallel]
+    # The Rust toolchain comes from the rustup snap in the Snap Store. rustup
+    # verifies the toolchain it downloads against the signed channel manifest;
+    # nothing is piped into a shell. This snap is never built by CI.
+    build-snaps: [rustup]
     override-build: |
       # Install Rust toolchain
       rustup toolchain install stable --profile minimal

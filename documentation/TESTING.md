@@ -30,51 +30,40 @@ npx vitest run src/markdown/  # specific module
 
 ## E2E Tests (Playwright)
 
-**27 tests covering the full app in a headless Chromium.** Runs the actual Vite dev server with a Tauri mock injected.
+**A smoke suite of user journeys in headless Chromium** (`tests/e2e`, TypeScript Playwright Test). It drives the production bundle (`vite build` then `vite preview`) with the native side replaced by an in-page bridge mock (`tests/e2e/support/bridgeMock.ts`), so it exercises what ships, including the strict CSP. It is the required `e2e` job in CI and runs in the pre-push gate through `npm run test:e2e` when a Playwright browser is installed.
 
 ```bash
-# Prerequisites
-npm ci
-# Dev server must be running:
-node --max-old-space-size=1024 node_modules/vite/bin/vite.js --port 5173 --host 127.0.0.1
+# Once
+npm ci && npm --prefix tests/e2e ci && npm --prefix tests/e2e run install:browsers
 
-# Run tests
-python3 tests/ui/leotheca_e2e_test.py --url http://127.0.0.1:5173
+# Every run
+npm run test:e2e
 ```
 
 ### What it covers
 
-| Area               | Tests                                                                                      |
-| ------------------ | ------------------------------------------------------------------------------------------ |
-| App boot           | Container loads, no Tauri errors, content rendered, sidebar visible, not on onboarding     |
-| File tree          | All 5 mock files visible, click opens file                                                 |
-| Search             | Full-text, `tag:`, `path:`, negation (`-term`), `OR`, empty state, clear                   |
-| Markdown rendering | H1/H2/H3, bold, italic, inline code, blockquote, task checkboxes, table, KaTeX math, links |
-| Settings           | Theme toggle, font size, workspace stats                                                   |
-| Console            | No unhandled errors                                                                        |
+| Area               | Journeys                                                                                                  |
+| ------------------ | --------------------------------------------------------------------------------------------------------- |
+| App boot           | Boots into the saved workspace and lists its notes; primary navigation switches sidebar views             |
+| Notes              | Open into a tab, create, autosave to the native file, rename, move to the workspace trash                 |
+| Search             | Full-text, `tag:`, `path:`, negation (`-term`), `OR`, empty state, clear; a result opens its note         |
+| Markdown rendering | Headings, bold, italic, highlight, inline code, block quotes, task boxes, tables, KaTeX, links, wikilinks |
+| View modes         | Source, split and preview; Mermaid diagrams follow the theme and zoom                                     |
+| Export             | Export note to PDF opens the print dialog on a paginated document                                         |
+| Settings           | Saved theme applies at boot and a change is persisted; the workspace root and its statistics              |
+| Console            | The fixture fails any test that logs a console error, an unhandled rejection or an off-origin request     |
 
 ### How it works
 
-1. **Tauri Mock** (`tests/ui/tauriMock.js`) intercepts `window.__TAURI__` and serves a fixed workspace of 5 markdown files with realistic content (headings, code blocks, KaTeX, tables, tasks, wikilinks).
-2. **Playwright** launches headless Chromium (resolved via `which chromium` or `LEOTHECA_E2E_CHROMIUM`), injects the mock before page load, then drives the real app.
-3. **Screenshots** are captured for each pass/fail test into `tests/ui/screenshots/` (git-ignored). A JSON report (`e2e_report.json`) summarizes results.
-
-### Artifacts
-
-```
-tests/ui/screenshots/
-├── 01_initial_load.png       # App after load
-├── 02_final_state.png        # After all tests
-├── FAIL_*.png                # Auto-captured on test failure
-├── e2e_report.json           # Structured results (timestamp, pass rate, errors)
-└── console_log.txt           # Browser console output
-```
+1. **Bridge mock** (`tests/e2e/support/bridgeMock.ts`) replaces `window.__TAURI_INTERNALS__.invoke` with a Map-backed file system and records every native call, so a test can assert what the native side received. Fixtures are in `tests/e2e/support/workspace.ts`; a test can add notes with `test.use({ bridge: { files } })`.
+2. **Playwright** starts one preview server per run. The port comes from `E2E_PORT`; without it a port is derived from the process id, so several checkouts can run the suite at the same time. Only an explicit `E2E_PORT` reuses an already running server.
+3. **Artifacts** (`tests/e2e/playwright-report`, `tests/e2e/test-results`) are git-ignored and skipped by ESLint. CI uploads the trace of a failure.
 
 ### Known limitations
 
 - KaTeX rendering is verified by class presence, not visual output.
-- Theme toggle test falls back to `localStorage` when no toggle button is found.
-- Search operators that depend on the Rust backend (e.g. fuzzy matching) are not tested — the mock provides exact-match search.
+- Search runs against the bridge mock's index, so the Rust ranking is not tested here.
+- After an edit, further key presses in the editor can hang headless Chromium; see `spec/completed/find-the-cause-of-the-editor-typing-freeze-in-headless-chromium.md`. The autosave test inserts text in one input event.
 
 ## CI (GitHub Actions)
 
@@ -95,7 +84,7 @@ Badge: [![CI](https://github.com/LeonardSchwier/leotheca/actions/workflows/ci.ym
 Beyond automated tests, visual verification is a standing practice:
 
 - **Screenshots:** UI changes are meant to be checked with a Chromium screenshot (Playwright, headless). Dark and light modes are both captured. Screenshots are compared against the previous state before and after a change.
-- **Video capture:** For animation or interaction sequences that a still image can't convey, Playwright can record the browser session to `.webm`, convertible to `.mp4` with `ffmpeg`. `tests/ui/record_demo.py` is an older recorder for this (dev server on port 5173, its own mock, not run in CI); there is no demo video in the repository.
+- **Video capture:** For animation or interaction sequences that a still image can't convey, Playwright can record the browser session to `.webm`, convertible to `.mp4` with `ffmpeg`. There is no demo video in the repository.
 - **Dev server workflow:** The Vite dev server is restarted before every screenshot session to avoid stale HMR state. The port (5173) is verified free before starting.
 
 ### README screenshots
@@ -116,7 +105,7 @@ Create `<ComponentName>.test.tsx` next to the component. Use `@testing-library/p
 
 ### New E2E test
 
-Add a test block in `tests/ui/leotheca_e2e_test.py`. The `T(name, fn)` helper handles pass/fail logging and screenshot capture automatically. Use the mock's file set for fixtures — don't add files to the mock unless the test specifically needs them.
+Add a test to the matching file in `tests/e2e/tests/` (`*.e2e.ts`). Import `test` and `expect` from `../support/fixtures.js`, which provide the `app` handle (page plus bridge mock) and fail the test on console errors. Use the shared fixture notes; add a note for one test with `test.use({ bridge: { files: { ...NOTE_FILES, "name.md": "..." } } })`.
 
 ### New CI job
 

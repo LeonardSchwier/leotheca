@@ -37,10 +37,6 @@ Thumbs.db
 # Claude Code local session/tool state, not part of the project
 /.claude/
 
-# E2E test artifacts
-tests/ui/__pycache__/
-tests/ui/screenshots/
-
 # Release artifacts and machine-local leftovers that must never be tracked
 # (a 100 MB AppImage once was; src/tidyRepoHygiene.test.ts enforces the size cap)
 *.AppImage

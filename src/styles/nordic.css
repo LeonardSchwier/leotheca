@@ -1,0 +1,90 @@
+/* Minimalistic Nordic chrome. Leoforma's Nordic palette (selected by
+   data-palette="nordic" on the root element, see index.html) supplies the
+   colors and the soft shadows; this file only quiets the app's own chrome on
+   top of it: fewer borders, flat controls, lighter icon strokes and calmer
+   type. Every rule sits under the palette guard, so removing the attribute
+   restores the Folio look, and nothing here changes behavior or layout
+   metrics that a journey depends on.
+
+   Imported after App.css so equal-weight selectors resolve here. Leoforma
+   follow-up: a quiet button and segmented-control variant and an icon stroke
+   token would make most of this file unnecessary. */
+
+:root[data-palette="nordic"] {
+  /* Calm typography: slightly looser reading rhythm, medium instead of
+     semibold for headings and titles. */
+  --nordic-heading-weight: 500;
+  --nordic-icon-stroke: 1.5;
+}
+
+/* Icons: lighter strokes. A CSS stroke-width wins over the width attribute
+   Leoforma sets on the svg element; shapes with their own width keep it. */
+:root[data-palette="nordic"] .ds-icon {
+  stroke-width: var(--nordic-icon-stroke);
+}
+
+/* Hairlines out where tone already separates the regions. The sunken rail and
+   the raised header carry the boundary without a line. */
+:root[data-palette="nordic"] .toolbar {
+  border-bottom-color: transparent;
+}
+:root[data-palette="nordic"] .activity-rail {
+  border-right-color: transparent;
+}
+:root[data-palette="nordic"] .tab {
+  border-right-color: transparent;
+}
+:root[data-palette="nordic"] .app-title {
+  font-weight: var(--nordic-heading-weight);
+  letter-spacing: 0.01em;
+}
+
+/* Header and sidebar buttons go flat: no box until hovered or active. Their
+   glyphs identify them; controls in dialogs and forms keep their strong
+   border, which is the 3:1 boundary that identifies a control there. */
+:root[data-palette="nordic"] .toolbar button:not(.active),
+:root[data-palette="nordic"] .sidebar-toolbar button:not(.active) {
+  background: transparent;
+  border-color: transparent;
+}
+:root[data-palette="nordic"] .toolbar button:not(.active):hover,
+:root[data-palette="nordic"] .sidebar-toolbar button:not(.active):hover {
+  background: var(--ds-color-hover);
+}
+:root[data-palette="nordic"] .document-header .icon-button:not(.active) {
+  border-color: transparent;
+}
+
+/* The view-mode switch sits on a quiet sunken track instead of an outlined
+   box; the selected option reads as a raised chip. */
+:root[data-palette="nordic"] .ds-segmented {
+  border-color: transparent;
+  background: var(--ds-color-sunken);
+  padding: 2px;
+  gap: 2px;
+}
+:root[data-palette="nordic"] .ds-segmented-option {
+  border-right-color: transparent;
+  border-radius: var(--ds-radius-sm);
+}
+:root[data-palette="nordic"] .ds-segmented-option[aria-checked="true"] {
+  background: var(--ds-color-raised);
+  box-shadow: var(--ds-shadow-low);
+  font-weight: var(--ds-font-weight-medium);
+}
+
+/* Preview prose: lighter headings and a little more air between blocks. */
+:root[data-palette="nordic"] .markdown-preview h1,
+:root[data-palette="nordic"] .markdown-preview h2,
+:root[data-palette="nordic"] .markdown-preview h3 {
+  font-weight: var(--nordic-heading-weight);
+}
+:root[data-palette="nordic"] .markdown-preview {
+  line-height: var(--ds-line-height-reading);
+}
+
+/* Floating surfaces: the palette's low shadow replaces the outline. */
+:root[data-palette="nordic"] .context-menu,
+:root[data-palette="nordic"] .modal {
+  border-color: transparent;
+}

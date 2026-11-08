@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Changed
+
+- **Minimalistic Nordic look**: Leotheca now uses a calm Scandinavian theme by default. The light mode is frost white with soft greys and one muted fog-blue accent, the dark mode is a polar night companion. The chrome is quieter: no hairlines under the header, tabs and activity rail, flat header buttons, a borderless view switch, lighter icon strokes and lighter headings. Text contrast stays at WCAG AA, checked by a test. The default accent is now named Fog instead of Warm; your saved choice is kept. The README screenshots show the new look.
+
 ### Maintenance
 
 - **Android builds are no longer signed with the public debug key**: The release workflow used to publish an APK signed with the debug keystore that is committed to this repository, so anyone could build a look-alike that Android accepts as an update. The workflow now signs with a maintainer-held key from repository secrets, or publishes no Android file at all and says why in the log and the release notes. A last check in the publish job fails if any APK carries the debug certificate. Until the maintainer adds the key, the latest release has no Android APK; anyone who installed an earlier dev-build APK should uninstall it once before installing a signed build.

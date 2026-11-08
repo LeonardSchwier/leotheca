@@ -62,9 +62,9 @@ Items nobody owns. Take the first one that fits.
   <summary>Scope and constraints</summary>
   Owner request (2026-10-31): the current look is busy and busy-looking; the goal is a calm, minimal, Scandinavian feel. Constrain to theming (CSS variables, icon weights, border/elevation tokens); no behavioral changes. Keep all existing accessibility contrasts within WCAG AA, honor the existing dark-mode mechanism, and keep the Markdown editor/preview readable. Verification must include visual regression checks for both light and dark modes on desktop and Android.
   </details>
-- ⬜ **Master specification for spec-driven rebuilds**: Write master-spec.md, a full specification of the application's current behavior sufficient to rebuild it, and add a constitution rule plus a CI check so every implementation push to main updates it.
-  <!-- agent-state: {"schema":1,"id":"rm-e0a353c57cfd59e2","state":"open","touch":[".github/workflows/agent-policy.yml","master-spec.md","scripts/check_master_spec.py","scripts/test_check_master_spec.py","skills/master-spec-maintenance.md","spec/master"],"resources":["master-spec"],"note":"Landed 2ddb675 (master-spec.md, checker, CI job, skill). Remaining: constitution rule + playbook link, blocked by live claim on CONSTITUTION.md; see handoff.","released_at":"2026-11-06T23:29:31Z"} -->
-  Agent: unclaimed | item: rm-e0a353c57cfd59e2
+- 🚧 **Master specification for spec-driven rebuilds**: Write master-spec.md, a full specification of the application's current behavior sufficient to rebuild it, and add a constitution rule plus a CI check so every implementation push to main updates it.
+  <!-- agent-state: {"schema":1,"id":"rm-e0a353c57cfd59e2","state":"claimed","touch":[],"resources":["master-spec-closure"],"note":"Landed 2ddb675 (master-spec.md, checker, CI job, skill). Remaining: constitution rule + playbook link, blocked by live claim on CONSTITUTION.md; see handoff.","owner":"claude-code-pdlc-20261106T231246Z-fcf4c9d1","token":"d35b493ce1a81d771ea8999032e47a1a","branch":"agent/rm-e0a353c57cfd59e2/d35b493ce1a8","claimed_at":"2026-11-08T01:43:12Z","heartbeat_at":"2026-11-08T01:43:12Z","lease_until":"2026-11-08T03:13:12Z"} -->
+  Agent: claude-code-pdlc-20261106T231246Z-fcf4c9d1 | item: rm-e0a353c57cfd59e2 | lease until: 2026-11-08T03:13:12Z
 
 ### Blocked
 

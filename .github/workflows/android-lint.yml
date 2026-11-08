@@ -6,8 +6,8 @@ name: Android lint
 # lint rule set changes with the Android Gradle Plugin version, so a new rule
 # must not block unrelated pull requests. The HTML and XML reports are uploaded
 # as an artifact on every run. Reviewed leftovers live in
-# android/app/lint-baseline.xml with the reason in this repository's roadmap
-# handoff and the master spec change log.
+# android/app/lint-baseline.xml; the reason for each group is in the master
+# spec change log. A run that finds anything new fails.
 
 on:
   pull_request:
@@ -53,5 +53,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: android-lint-reports
-          path: android/app/build/reports/lint-results*
+          path: |
+            android/app/build/reports/lint-results*
+            android/app/lint-baseline.xml
           retention-days: 14

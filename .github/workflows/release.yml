@@ -400,8 +400,8 @@ jobs:
           apksigner="$(ls -d "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -n 1)"
           apk=android/app/build/outputs/apk/release/app-release.apk
           test -f "$apk"
-          debug_sha="$(keytool -list -v -keystore android/debug.keystore -storepass android | sed -n 's/^ *SHA256: *//p' | head -n 1)"
-          test -n "$debug_sha"
+          debug_sha="$(keytool -list -v -keystore android/debug.keystore -storepass android | sed -n 's/^[[:space:]]*SHA256:[[:space:]]*//p' | head -n 1)"
+          test -n "$debug_sha" || { echo "::error::Could not read the debug certificate SHA-256 from android/debug.keystore, so a debug-signed APK could not be recognised."; exit 1; }
           "$apksigner" verify --print-certs "$apk" | tee "$RUNNER_TEMP/apk-certs.txt"
           node scripts/verifyApkNotDebugSigned.mjs --debug-sha256 "$debug_sha" < "$RUNNER_TEMP/apk-certs.txt"
       - uses: actions/upload-artifact@v4
@@ -467,8 +467,8 @@ jobs:
         # Last gate before release. Whatever APK sits in the downloaded
         # artifacts, from whichever job, must carry a non-debug signature.
         run: |
-          debug_sha="$(keytool -list -v -keystore android/debug.keystore -storepass android | sed -n 's/^ *SHA256: *//p' | head -n 1)"
-          test -n "$debug_sha"
+          debug_sha="$(keytool -list -v -keystore android/debug.keystore -storepass android | sed -n 's/^[[:space:]]*SHA256:[[:space:]]*//p' | head -n 1)"
+          test -n "$debug_sha" || { echo "::error::Could not read the debug certificate SHA-256 from android/debug.keystore, so a debug-signed APK could not be recognised."; exit 1; }
           apksigner="$(ls -d "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -n 1)"
           found=0
           while IFS= read -r apk; do

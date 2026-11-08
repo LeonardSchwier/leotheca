@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Changed
+
+- **Minimalistic Nordic look**: Leotheca now uses a calm Scandinavian theme by default. The light mode is frost white with soft greys and one muted fog-blue accent, the dark mode is a polar night companion. The chrome is quieter: no hairlines under the header, tabs and activity rail, flat header buttons, a borderless view switch, lighter icon strokes and lighter headings. Text contrast stays at WCAG AA, checked by a test. The default accent is now named Fog instead of Warm; your saved choice is kept. The README screenshots show the new look.
+
 ### Maintenance
 
 - **Legacy UI test script retired**: The old Python Playwright script in `tests/ui` is gone. Every test in it is covered by a journey in the TypeScript end-to-end suite (`tests/e2e`), which runs in CI, or was dropped because it asserted nothing. A new journey checks nested headings, inline code and block quotes. A failed local end-to-end run no longer makes ESLint report thousands of errors from the HTML report.

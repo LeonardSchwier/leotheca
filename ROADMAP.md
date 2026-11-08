@@ -52,9 +52,6 @@ Items with an owner. An expired lease means the item can be recovered.
   <!-- agent-state: {"schema":1,"id":"rm-144bb82db634e10d","state":"claimed","touch":[".github/workflows/audit.yml",".github/workflows/ci.yml",".github/workflows/gitleaks.yml","CHANGELOG.md","master-spec.md","scripts/retry.sh","scripts/retry.test.js"],"resources":["ci-tooling-downloads"],"note":"Reclaiming with enlarged scope (gitleaks and audit workflows)","owner":"claude-code-ciresil-20261108T115221Z-b1c976d7-b","token":"557b67c5013f0118d14f4d4cf6f0d73a","branch":"agent/rm-144bb82db634e10d/557b67c5013f","claimed_at":"2026-11-08T12:18:39Z","heartbeat_at":"2026-11-08T12:23:43Z","lease_until":"2026-11-08T13:53:43Z"} -->
   Agent: claude-code-ciresil-20261108T115221Z-b1c976d7-b | item: rm-144bb82db634e10d | lease until: 2026-11-08T13:53:43Z
 
-- 🚧 **Always publish an installable Android test APK without real signing secrets**: When the four Android signing secrets are absent, the release job generates a throw-away keystore inside the job and publishes the APK as `leotheca-<tag>-android-TEST-ephemeral-key.apk`; a properly signed build keeps `leotheca-<tag>-android.apk`. The debug-key refusal stays.
-  <!-- agent-state: {"schema":1,"id":"rm-e6d0cfb114e580b9","state":"claimed","touch":[".github/workflows/release.yml","CHANGELOG.md","README.md","SECURITY.md","documentation","master-spec.md","packaging/STATUS.md","scripts/verifyApkNotDebugSigned.test.js","skills/pdlc-playbook.md"],"resources":["android-release-signing"],"owner":"claude-code-apkalways-20261108T113657Z-b04e1245","token":"d03d73aca6d44a7b80e8028284c6bc81","branch":"agent/rm-e6d0cfb114e580b9/d03d73aca6d4","claimed_at":"2026-11-08T11:37:03Z","heartbeat_at":"2026-11-08T11:41:40Z","lease_until":"2026-11-08T13:11:40Z"} -->
-  Agent: claude-code-apkalways-20261108T113657Z-b04e1245 | item: rm-e6d0cfb114e580b9 | lease until: 2026-11-08T13:11:40Z
 
 
 
@@ -81,6 +78,11 @@ Items that wait for access or a decision outside the repository.
 - ⏸ **Compatibility layer**: Load community extension manifests; gated on maintainer approval of the third-party-code security model.
 
 ## Implemented
+
+- ✅ **Always publish an installable Android test APK without real signing secrets**: When the four Android signing secrets are absent, the release job generates a throw-away keystore inside the job and publishes the APK as `leotheca-<tag>-android-TEST-ephemeral-key.apk`; a properly signed build keeps `leotheca-<tag>-android.apk`. The debug-key refusal stays.
+  <!-- agent-state: {"schema":1,"id":"rm-e6d0cfb114e580b9","state":"done","touch":[".github/workflows/release.yml","CHANGELOG.md","README.md","SECURITY.md","documentation","master-spec.md","packaging/STATUS.md","scripts/verifyApkNotDebugSigned.test.js","skills/pdlc-playbook.md"],"resources":["android-release-signing"],"note":"Landed PR 127 (69e4c87) and fix PR 128 (5e023b7): throw-away-key test APK; Release run 42479977703 green; local Gradle build and apksigner check verified.","completed_at":"2026-11-08T12:33:00Z","completed_by":"claude-code-apkalways-20261108T113657Z-b04e1245","branch":"agent/rm-e6d0cfb114e580b9/d03d73aca6d4"} -->
+  Agent: completed by claude-code-apkalways-20261108T113657Z-b04e1245 | item: rm-e6d0cfb114e580b9
+
 
 - ✅ **Pin the rustup installer in the snap build**: After the Node.js archive was pinned by SHA-256 (PR 121), the same build script still installs Rust through an unverified `rustup` download piped into the shell. Verify the installer or a pinned toolchain archive by hash, or use the packaged Rust toolchain; the snap cannot be built here, so state that clearly.
   <!-- agent-state: {"schema":1,"id":"rm-569261b25b0a4b29","state":"done","touch":["snap/snapcraft.yaml"],"resources":[],"note":"Merged as PR 122 (077872c): the draft snap declares build-snaps rustup, with a test that fails without it; the roadmap premise (unverified rustup download piped to a shell) was not true; the snap is not built by CI and was not built here; hosted CI pending for post-merge runs, ids in handoff","completed_at":"2026-11-08T11:17:27Z","completed_by":"claude-code-pdlc-20261106T231246Z-fcf4c9d1","branch":"agent/rm-569261b25b0a4b29/dee0575abd8f"} -->

@@ -36,7 +36,8 @@ Run it hourly from a scheduled session, with this prompt: "Read AGENTS.md and sk
    A repair that needs more than one session is released with a handoff naming the failing check, so the next pass starts from it.
 
 3. Sync the roadmap snapshot. When `ROADMAP.md` on the ledger branch differs from main, branch from main, copy the ledger branch's `ROADMAP.md` over it, and deliver that single file through `pull-request-delivery.md` with title `chore(agents): sync roadmap snapshot`. Skip it when the files are equal.
-4. Record the pass in no file. The pull request history and the ledger are the record. If nothing needed doing, stop.
+4. Weekly: when the newest `architecture-survey` handoff is older than 7 days (or none exists), run one pass of `skills/architecture-survey.md` after the steps above. It seeds cited roadmap items and changes no code.
+5. Record the pass in no file. The pull request history and the ledger are the record. If nothing needed doing, stop.
 
 ## Limits
 

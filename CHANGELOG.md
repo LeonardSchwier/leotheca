@@ -4,6 +4,7 @@
 
 ### Maintenance
 
+- **End-to-end runs no longer share a server port**: The Playwright suite serves the build on a port of its own per run (or the one in `E2E_PORT`), so several checkouts can run the pre-push gate at the same time without testing each other's build.
 - **Voice dictation and microphone access removed**: Leotheca now uses neither the camera nor the microphone, because that access can invade privacy. The optional speech-to-text dictation (editor button, Quick Capture voice note, desktop whisper commands, Android recognizer) and the Android `RECORD_AUDIO` and `MODIFY_AUDIO_SETTINGS` permissions are gone, along with the unused native whisper build code. An old "Speech-to-text dictation" setting in a settings file is ignored and dropped. The README and the product rules now state the stance: no camera, no microphone, no network.
 - **Capture no longer stalls on long runs of blank lines**: Trailing blank lines are removed in linear time. A note ending in tens of thousands of newlines followed by text used to freeze the capture sheet for seconds. Static security analysis (ESLint security rules, Semgrep, CodeQL) now runs on the sources.
 - **Android share hardening**: Sharing into Leotheca now accepts only another app's content URI; file URIs and the app's own provider are rejected, and the unused FileProvider was removed.

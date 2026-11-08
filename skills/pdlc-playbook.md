@@ -61,7 +61,8 @@ Create `SPEC_FILE` with these headings, one to five lines each:
 3. **Context**: files read, callers, data flow, platform boundaries, crash-freedom answers that apply.
 4. **Plan**: tiny tasks, each with exact paths and the test that proves it.
 5. **Out of scope**: what you deliberately do not do.
-6. **Rulings**, **Design system**, **Evidence**: filled by stages 3, 4, 6.
+6. **Rulings**, **Glossary**, **Design system**, **Evidence**: filled by stages 3, 4, 6.
+7. A closing line `Glossary: <terms added or sharpened in GLOSSARY.md | none>`, filled by stage 3.
 
 ### 3. Grill (the LLM judge decides)
 
@@ -74,7 +75,7 @@ Interrogate the spec before building. Ask only questions whose answer would chan
 - What is the smallest slice that is still a real feature?
 - What would we regret in a month, and how expensive is undoing it?
 
-Record each ruling in the spec as `Q -> Decision | Why | Cost if wrong`. The judge has the final call, including "do not implement" or "implement a smaller slice": then update the roadmap through the helper (split, block or release with the ruling). Rulings, not stalls: never wait for a person. Stop and block only for something irreversible, security-sensitive beyond granted permissions, outside your worktree, or a plan that cannot work.
+Record each ruling in the spec as `Q -> Decision | Why | Cost if wrong`. Read `GLOSSARY.md` first and use its words. If the spec introduces or sharpens a domain or process term, add one verifiable line for it to `GLOSSARY.md` in the same branch and name the term in the spec's `Glossary:` line; otherwise write `Glossary: none`. `scripts/check-rules.mjs glossary` rejects an archived spec without that line. The judge has the final call, including "do not implement" or "implement a smaller slice": then update the roadmap through the helper (split, block or release with the ruling). Rulings, not stalls: never wait for a person. Stop and block only for something irreversible, security-sensitive beyond granted permissions, outside your worktree, or a plan that cannot work.
 
 ### 4. Design-system check
 

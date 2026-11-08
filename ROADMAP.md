@@ -57,16 +57,6 @@ Items nobody owns. Take the first one that fits.
   <!-- agent-state: {"schema":1,"id":"rm-166ef9a028950ee5","state":"claimed","touch":["src/settings/WorkspaceSwitcher.test.tsx"],"resources":[],"owner":"claude-code-reviewaxes-20261107T225137Z","token":"554d67236af235fde0491fc03a3be5dc","branch":"agent/rm-166ef9a028950ee5/554d67236af2","claimed_at":"2026-11-07T23:12:09Z","heartbeat_at":"2026-11-07T23:12:09Z","lease_until":"2026-11-08T00:42:09Z"} -->
   Agent: claude-code-reviewaxes-20261107T225137Z | item: rm-166ef9a028950ee5 | lease until: 2026-11-08T00:42:09Z
 
-- 🚧 **Adopt a shared glossary that the PDLC maintains by itself**: Idea from the public MIT-licensed `mattpocock/skills` repository (ubiquitous language, ADRs inline), made automatic.
-  <!-- agent-state: {"schema":1,"id":"rm-cd6c1e964400b173","state":"claimed","touch":[".github/workflows/rules.yml","AGENTS.md","CHANGELOG.md","GLOSSARY.md","documentation/AGENTIC_PDLC.md","hooks/README.md","hooks/pre-push","master-spec.md","scripts/check-rules.mjs","scripts/check-rules.test.js","skills/pdlc-playbook.md","spec/adopt-a-shared-glossary-that-the-pdlc-maintains-by-itself.md"],"resources":[],"owner":"claude-code-glossary-20261107T225141Z-a2f6c986","token":"69807f906e53f548b2f08a2e682217e4","branch":"agent/rm-cd6c1e964400b173/69807f906e53","claimed_at":"2026-11-07T23:29:49Z","heartbeat_at":"2026-11-08T00:15:37Z","lease_until":"2026-11-08T01:45:37Z"} -->
-  Agent: claude-code-glossary-20261107T225141Z-a2f6c986 | item: rm-cd6c1e964400b173 | lease until: 2026-11-08T01:45:37Z
-
-  <details>
-  <summary>Scope and detail</summary>
-
-  Add `GLOSSARY.md` (domain terms of Leotheca: workspace, note, capture, grant, ledger, lease and so on, one line each), read at startup by AGENTS.md, extended by the grill stage when a spec introduces or sharpens a term (`Glossary:` line in the spec, `none` allowed), and checked mechanically: a newly archived spec without a `Glossary:` line fails like the `Reflection:` check. Credit the source in documentation/AGENTIC_PDLC.md.
-
-  </details>
 - ⬜ **Lint the shape of skills and agent entry files**: Idea from `mattpocock/skills` (`writing-for-agents`), made automatic. Add a check that every `skills/*.md` has frontmatter with name and description, stays under a line limit that a 27B local model can follow, and that `AGENTS.md` and the constitution stay short with links for detail; fix the files that exceed it by splitting. Document the rule in skills/README.md.
 - ⬜ **Run a scheduled architecture survey that seeds roadmap items**: Idea from `mattpocock/skills` (`improve-codebase-architecture`, `codebase-design`), made automatic. Add a maintenance skill that surveys the code for shallow modules and duplicated seams, writes its candidates as cited roadmap seeds (never a human questionnaire), and runs from the integrator or maintenance pass about weekly. Record the vocabulary (deep module, seam) in the glossary.
 - 🚧 **Run Android lint in CI**: `./gradlew lint` is not wired. Add it to the android job (or its own workflow), read the first report, fix or baseline each finding with a reason, and keep it non-required until triaged.
@@ -107,6 +97,18 @@ Items that wait for access or a decision outside the repository.
 - ⏸ **Compatibility layer**: Load community extension manifests; gated on maintainer approval of the third-party-code security model.
 
 ## Implemented
+
+- ✅ **Adopt a shared glossary that the PDLC maintains by itself**: Idea from the public MIT-licensed `mattpocock/skills` repository (ubiquitous language, ADRs inline), made automatic.
+  <!-- agent-state: {"schema":1,"id":"rm-cd6c1e964400b173","state":"done","touch":[".github/workflows/rules.yml","AGENTS.md","CHANGELOG.md","GLOSSARY.md","documentation/AGENTIC_PDLC.md","hooks/README.md","hooks/pre-push","master-spec.md","scripts/check-rules.mjs","scripts/check-rules.test.js","skills/pdlc-playbook.md","spec/adopt-a-shared-glossary-that-the-pdlc-maintains-by-itself.md"],"resources":[],"note":"PR 94 merged as a253d29e2a75615ef91d4e84cdc474a5118bb7f3; GLOSSARY.md, glossary check with unit tests (44 pass), 24 PR checks green; self-review","completed_at":"2026-11-08T00:22:32Z","completed_by":"claude-code-glossary-20261107T225141Z-a2f6c986","branch":"agent/rm-cd6c1e964400b173/69807f906e53"} -->
+  Agent: completed by claude-code-glossary-20261107T225141Z-a2f6c986 | item: rm-cd6c1e964400b173
+
+  <details>
+  <summary>Scope and detail</summary>
+
+  Add `GLOSSARY.md` (domain terms of Leotheca: workspace, note, capture, grant, ledger, lease and so on, one line each), read at startup by AGENTS.md, extended by the grill stage when a spec introduces or sharpens a term (`Glossary:` line in the spec, `none` allowed), and checked mechanically: a newly archived spec without a `Glossary:` line fails like the `Reflection:` check. Credit the source in documentation/AGENTIC_PDLC.md.
+
+  </details>
+
 
 - ✅ **Add scripts/deliver-pr.sh to merge a pull request safely**: Twice a command chain continued after a failed `gh pr merge` and recorded a false finish. Add a script that waits for the required checks (tolerating the stuck cargo-audit job state), merges with the PR title and body file, retries once on "Base branch was modified", verifies the PR state is MERGED, and prints the merge SHA and the post-merge run ids, exiting non-zero otherwise. Test its pure parts and point `skills/pull-request-delivery.md` at it.
   <!-- agent-state: {"schema":1,"id":"rm-c3e388ced6dcf6b9","state":"done","touch":["scripts/deliver-pr.sh","scripts/deliverPr.test.js"],"resources":[],"note":"Merged as PR 93 (a26469c): scripts/deliver-pr.sh merges only after the checks and prints MERGED only when the PR really merged, six stub tests; delivered with the script itself; hosted CI pending for post-merge runs, ids in handoff","completed_at":"2026-11-07T23:44:03Z","completed_by":"claude-code-pdlc-20261106T231246Z-fcf4c9d1","branch":"agent/rm-c3e388ced6dcf6b9/dfd7f62361e1"} -->

@@ -41,3 +41,5 @@ Glossary: none
 | keytool command of the workflow works                                       | ran the same `keytool -genkeypair ... -storepass:file` locally                                          | keystore created |
 | workflow YAML and shell                                                     | `python3 yaml.safe_load`, `node scripts/check-rules.mjs workflows`, `bash -n` on each changed run block | ok               |
 | Gradle build and hosted steps                                               | not run: no Android SDK here; the first Release run on main is the real test                            | deferred         |
+
+Reflection: the entry-format and lease helpers worked; the spec gate needs a Reflection line and the commit needs Legal-Check and Review trailers, which I only learned from the pre-push hook -> none: the hook states exactly what is missing.

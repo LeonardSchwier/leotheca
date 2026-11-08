@@ -6,6 +6,7 @@ use std::path::{Component, Path, PathBuf};
 use crate::commands::{
     active_workspace_root_snapshot, require_active_workspace_root, ActiveWorkspaceRoot,
 };
+use crate::workspace_grants::is_grant_store_name;
 
 const ALREADY_EXISTS: &str = "already_exists";
 const INVALID_NAME: &str = "invalid_name";
@@ -41,6 +42,12 @@ fn require_active_root(
 
 fn validate_relative_path(relative_path: &str) -> Result<&Path, String> {
     let relative = Path::new(relative_path);
+    if is_grant_store_name(relative) {
+        return Err(mutation_error(
+            OUTSIDE_WORKSPACE,
+            "that file is reserved for the application",
+        ));
+    }
     if relative.as_os_str().is_empty() {
         return Err(mutation_error(
             INVALID_NAME,
@@ -92,6 +99,20 @@ fn nearest_existing_ancestor(path: &Path) -> (PathBuf, PathBuf) {
 /// older overwrite commands remain in commands.rs because saves of an already
 /// open note are intentional replacements rather than creates.
 fn resolve_within_workspace(workspace_root: &str, relative_path: &str) -> Result<PathBuf, String> {
+    let resolved = resolve_within_workspace_unchecked(workspace_root, relative_path)?;
+    if is_grant_store_name(&resolved) {
+        return Err(mutation_error(
+            OUTSIDE_WORKSPACE,
+            "that file is reserved for the application",
+        ));
+    }
+    Ok(resolved)
+}
+
+fn resolve_within_workspace_unchecked(
+    workspace_root: &str,
+    relative_path: &str,
+) -> Result<PathBuf, String> {
     let relative = validate_relative_path(relative_path)?;
     let root = Path::new(workspace_root);
     let canonical_root = fs::canonicalize(root).map_err(map_io_error)?;
@@ -531,5 +552,27 @@ mod active_root_binding_tests {
         assert_eq!(fs::read_to_string(active.join("n.md")).unwrap(), "fine");
         let _ = fs::remove_dir_all(active);
         let _ = fs::remove_dir_all(other);
+    }
+}
+
+/// Audit 2026-11-08 finding F2: the scoped no-replace commands refuse the
+/// workspace grant registry's file name inside any workspace.
+#[cfg(test)]
+mod grant_store_protection_tests {
+    use super::*;
+    use crate::workspace_grants::GRANTS_FILE_NAME;
+
+    #[test]
+    fn the_scoped_gate_refuses_the_registry_name() {
+        let root =
+            std::env::temp_dir().join(format!("leotheca-test-f2-mut-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        let root_string = root.to_string_lossy().to_string();
+        let error = resolve_within_workspace(&root_string, GRANTS_FILE_NAME).unwrap_err();
+        assert!(error.starts_with("outside_workspace:"), "{error}");
+        assert!(resolve_within_workspace(&root_string, "sub/WORKSPACE-GRANTS.json").is_err());
+        assert!(resolve_within_workspace(&root_string, "note.md").is_ok());
+        let _ = fs::remove_dir_all(root);
     }
 }

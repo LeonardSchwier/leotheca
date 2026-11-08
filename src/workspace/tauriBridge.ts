@@ -318,3 +318,5 @@ export const updateFavoritesWidget = impl.updateFavoritesWidget;
 export type { ExternalMarkdownFile } from "./tauriBridgeImpl";
 export const takePendingExternalFile = impl.takePendingExternalFile;
 export const onExternalFileOpen = impl.onExternalFileOpen;
+export const takePendingQuickCapture = impl.takePendingQuickCapture;
+export const onQuickCaptureLaunch = impl.onQuickCaptureLaunch;

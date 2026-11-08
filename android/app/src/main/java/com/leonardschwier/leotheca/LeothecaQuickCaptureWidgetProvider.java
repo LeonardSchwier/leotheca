@@ -17,7 +17,7 @@ public class LeothecaQuickCaptureWidgetProvider extends AppWidgetProvider {
     public void onUpdate(Context context, AppWidgetManager manager, int[] ids) {
         for (int id : ids) {
             RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.leotheca_widget_quick_capture);
-            views.setOnClickPendingIntent(R.id.widget_quick_capture, action(context, "leotheca://capture"));
+            views.setOnClickPendingIntent(R.id.widget_quick_capture, action(context, QuickCaptureLaunch.CAPTURE_URL));
             manager.updateAppWidget(id, views);
         }
     }

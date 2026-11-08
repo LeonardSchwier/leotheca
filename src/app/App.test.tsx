@@ -10,6 +10,7 @@ import {
 import { effect, signal } from "@preact/signals";
 import { DEFAULT_WORKSPACE_SETTINGS } from "../settings/workspaceSettings";
 import { scanTasks, type TaskRecord } from "../markdown/tasks";
+import { captureSheetOpen } from "./CaptureSheet";
 import {
   pendingCapturesStore,
   addPendingCapture,
@@ -70,6 +71,8 @@ const {
   writeTextFile,
   takePendingExternalFile,
   externalFileOpenListeners,
+  takePendingQuickCapture,
+  quickCaptureLaunchListeners,
 } = vi.hoisted(() => ({
   readTextFile: vi.fn<(path: string) => Promise<string>>(() =>
     Promise.resolve(""),
@@ -84,6 +87,8 @@ const {
     path: string;
     content: string;
   }) => void)[],
+  takePendingQuickCapture: vi.fn<() => Promise<boolean>>(async () => false),
+  quickCaptureLaunchListeners: [] as (() => void)[],
 }));
 
 vi.mock("../workspace/tauriBridge", () => ({
@@ -104,6 +109,11 @@ vi.mock("../workspace/tauriBridge", () => ({
   setStatusBarAppearance: vi.fn(),
   updateFavoritesWidget: vi.fn(async () => {}),
   takePendingExternalFile,
+  takePendingQuickCapture,
+  onQuickCaptureLaunch: vi.fn((listener: () => void) => {
+    quickCaptureLaunchListeners.push(listener);
+    return () => {};
+  }),
   onExternalFileOpen: vi.fn(
     (listener: (file: { path: string; content: string }) => void) => {
       externalFileOpenListeners.push(listener);
@@ -300,6 +310,10 @@ afterEach(() => {
   externalFileOpenListeners.length = 0;
   takePendingExternalFile.mockReset();
   takePendingExternalFile.mockResolvedValue(null);
+  quickCaptureLaunchListeners.length = 0;
+  takePendingQuickCapture.mockReset();
+  takePendingQuickCapture.mockResolvedValue(false);
+  captureSheetOpen.value = false;
   addWorkspaceFromPathSpy.mockClear();
   externalFileOpenEnabled.value = true;
   pendingCapturesStore.value = [];
@@ -1405,6 +1419,109 @@ describe("App: new-note automation command (Android home-screen widget cold star
     });
 
     expect(createNoteQuick).not.toHaveBeenCalled();
+  });
+});
+
+describe("App: Quick Capture launched from the OS (rm-9a637eae859ce76e)", () => {
+  it("opens the capture sheet once settings finish loading when a leotheca://capture widget tap raced ahead of them", async () => {
+    initSettings.mockReturnValueOnce(new Promise<void>(() => {}));
+    render(<App />);
+
+    await act(async () => {
+      openUrlListeners.at(-1)?.(["leotheca://capture"]);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    // Held, not queued and not opened, while settings are loading.
+    expect(captureSheetOpen.value).toBe(false);
+    expect(pendingCapturesStore.value).toHaveLength(0);
+
+    await act(async () => {
+      workspacePath.value = "/vault";
+      settingsLoaded.value = true;
+      for (let i = 0; i < 8; i++) await Promise.resolve();
+      // the capture branch lazy-imports its modules
+      await new Promise((r) => setTimeout(r, 30));
+    });
+
+    expect(captureSheetOpen.value).toBe(true);
+    expect(pendingCapturesStore.value).toHaveLength(0);
+    expect(writeTextFile).not.toHaveBeenCalled();
+  });
+
+  it("still queues a deep-link capture when settings loaded and no workspace exists", async () => {
+    initSettings.mockReturnValueOnce(new Promise<void>(() => {}));
+    render(<App />);
+
+    await act(async () => {
+      openUrlListeners.at(-1)?.(["leotheca://capture?text=hello"]);
+      await Promise.resolve();
+    });
+    await act(async () => {
+      settingsLoaded.value = true;
+      for (let i = 0; i < 8; i++) await Promise.resolve();
+      // the capture branch lazy-imports its modules
+      await new Promise((r) => setTimeout(r, 30));
+    });
+
+    expect(captureSheetOpen.value).toBe(false);
+    expect(pendingCapturesStore.value).toHaveLength(1);
+  });
+
+  it("opens the capture sheet for a desktop cold start with --capture once the workspace is restored", async () => {
+    takePendingQuickCapture.mockResolvedValueOnce(true);
+    initSettings.mockReturnValueOnce(new Promise<void>(() => {}));
+    render(<App />);
+    await act(async () => {
+      for (let i = 0; i < 4; i++) await Promise.resolve();
+    });
+    expect(captureSheetOpen.value).toBe(false);
+
+    await act(async () => {
+      workspacePath.value = "/vault";
+      settingsLoaded.value = true;
+      for (let i = 0; i < 8; i++) await Promise.resolve();
+    });
+
+    expect(captureSheetOpen.value).toBe(true);
+    expect(writeTextFile).not.toHaveBeenCalled();
+  });
+
+  it("opens the capture sheet when a running instance receives the relaunch event", async () => {
+    workspacePath.value = "/vault";
+    settingsLoaded.value = true;
+    render(<App />);
+
+    await act(async () => {
+      quickCaptureLaunchListeners.at(-1)?.();
+      for (let i = 0; i < 6; i++) await Promise.resolve();
+    });
+
+    expect(captureSheetOpen.value).toBe(true);
+  });
+
+  it("does nothing, and queues nothing, when the launch finds no workspace", async () => {
+    settingsLoaded.value = true;
+    workspacePath.value = null;
+    render(<App />);
+
+    await act(async () => {
+      quickCaptureLaunchListeners.at(-1)?.();
+      for (let i = 0; i < 6; i++) await Promise.resolve();
+    });
+
+    expect(captureSheetOpen.value).toBe(false);
+    expect(pendingCapturesStore.value).toHaveLength(0);
+  });
+
+  it("does not react when nothing launched it", async () => {
+    workspacePath.value = "/vault";
+    settingsLoaded.value = true;
+    render(<App />);
+    await act(async () => {
+      for (let i = 0; i < 6; i++) await Promise.resolve();
+    });
+    expect(captureSheetOpen.value).toBe(false);
   });
 });
 

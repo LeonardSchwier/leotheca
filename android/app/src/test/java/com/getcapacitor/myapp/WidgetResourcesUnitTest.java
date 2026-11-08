@@ -161,7 +161,7 @@ public class WidgetResourcesUnitTest {
 
         assertTrue(provider.contains("R.layout.leotheca_widget_quick_capture"));
         assertTrue(provider.contains("R.id.widget_quick_capture"));
-        assertTrue(provider.contains("leotheca://capture"));
+        assertTrue(provider.contains("QuickCaptureLaunch.CAPTURE_URL"));
         assertFalse(provider.contains("leotheca://new-note"));
         assertFalse(provider.contains("open-favorites"));
     }
@@ -480,5 +480,39 @@ public class WidgetResourcesUnitTest {
         // The provider refreshes every placed instance after the plugin writes.
         assertTrue(plugin.contains("refreshViewNoteWidgets"));
         assertTrue(plugin.contains("notifyAppWidgetViewDataChanged"));
+    }
+
+    // Static launcher shortcut for Quick Capture (rm-9a637eae859ce76e). It fires the same
+    // deep link as the widget, scoped to this app, and needs no permission. How it looks
+    // and behaves on a real launcher is UNVERIFIED (device-only).
+    @Test
+    public void launcherShortcutOpensTheCaptureDeepLinkInsideThisApp() throws IOException {
+        String shortcuts = source("res/xml/shortcuts.xml");
+        String manifest = source("AndroidManifest.xml");
+        String strings = source("res/values/strings.xml");
+
+        assertTrue(shortcuts.contains("android:shortcutId=\"quick_capture\""));
+        assertTrue(shortcuts.contains("android:action=\"android.intent.action.VIEW\""));
+        assertTrue(shortcuts.contains("android:data=\"leotheca://capture\""));
+        assertTrue(shortcuts.contains("android:targetPackage=\"com.leonardschwier.leotheca\""));
+        assertTrue(shortcuts.contains("android:targetClass=\"com.leonardschwier.leotheca.MainActivity\""));
+        assertTrue(shortcuts.contains("@string/shortcut_quick_capture_short"));
+        assertTrue(strings.contains("name=\"shortcut_quick_capture_short\""));
+        assertTrue(strings.contains("name=\"shortcut_quick_capture_long\""));
+        assertTrue(manifest.contains("android.app.shortcuts"));
+        assertTrue(manifest.contains("@xml/shortcuts"));
+    }
+
+    @Test
+    public void shortcutAndWidgetUseTheSameUrlAndNoNewPermissionIsRequested() throws IOException {
+        String shortcuts = source("res/xml/shortcuts.xml");
+        String manifest = source("AndroidManifest.xml");
+
+        String launch = source("java/com/leonardschwier/leotheca/QuickCaptureLaunch.java");
+        assertTrue(launch.contains("CAPTURE_URL = \"leotheca://capture\""));
+        assertTrue(shortcuts.contains("android:data=\"leotheca://capture\""));
+        assertFalse(manifest.contains("android.permission.CAMERA"));
+        assertFalse(manifest.contains("android.permission.RECORD_AUDIO"));
+        assertFalse(manifest.contains("android.permission.INTERNET"));
     }
 }

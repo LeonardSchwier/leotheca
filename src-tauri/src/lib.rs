@@ -2,6 +2,7 @@ mod commands;
 mod default_handler;
 mod external_open;
 mod markdown_import;
+mod quick_capture_launch;
 mod workspace_grants;
 mod workspace_mutations;
 
@@ -19,6 +20,18 @@ use tauri::Emitter;
 /// allow.
 fn emit_open_external_file(app: &tauri::AppHandle, file: ExternalMarkdownFile) {
     let _ = app.emit("open-external-file", file);
+}
+
+/// Best-effort: bring the existing window forward so a Quick Capture relaunch
+/// is visible. Every failure (no window, focus refused) is ignored.
+#[cfg(desktop)]
+fn raise_main_window(app: &tauri::AppHandle) {
+    use tauri::Manager;
+    if let Some(window) = app.webview_windows().into_values().next() {
+        let _ = window.unminimize();
+        let _ = window.show();
+        let _ = window.set_focus();
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -58,6 +71,10 @@ pub fn run() {
             {
                 emit_open_external_file(app, file);
             }
+            if quick_capture_launch::requests_quick_capture(relaunch_args) {
+                raise_main_window(app);
+                let _ = app.emit(quick_capture_launch::QUICK_CAPTURE_EVENT, ());
+            }
         }));
     }
 
@@ -84,6 +101,10 @@ pub fn run() {
     let initial_pending_open_file = external_open::extract_markdown_path(&cold_start_args)
         .and_then(external_open::read_markdown_file);
     builder = builder.manage(PendingOpenFile::new(initial_pending_open_file));
+    // Same cold-start buffering for `leotheca --capture`.
+    builder = builder.manage(quick_capture_launch::PendingQuickCapture::new(
+        quick_capture_launch::requests_quick_capture(&cold_start_args),
+    ));
 
     // Native registry of granted workspace folders (workspace_grants.rs),
     // loaded from <app_data_dir>/workspace-grants.json and seeded once from
@@ -138,6 +159,7 @@ pub fn run() {
             markdown_import::import_markdown_vault,
             markdown_import::cancel_markdown_import,
             external_open::take_pending_open_file,
+            quick_capture_launch::take_pending_quick_capture,
             external_open::pick_and_read_external_markdown_file,
             // OS "Open with" / default `.md` handler contract (ROADMAP.md's
             // "Set the app as the default handler for `.md` files"): pure,

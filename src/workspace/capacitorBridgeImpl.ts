@@ -980,3 +980,15 @@ export async function takePendingExternalFile(): Promise<{
 export function onExternalFileOpen(): () => void {
   return () => {};
 }
+
+/** No-op on Android: the `--capture` flag is a desktop launch path. The
+ * Android widget and launcher shortcut use the `leotheca://capture` deep
+ * link instead. */
+export async function takePendingQuickCapture(): Promise<boolean> {
+  return false;
+}
+
+/** No-op on Android; see takePendingQuickCapture above. */
+export function onQuickCaptureLaunch(): () => void {
+  return () => {};
+}

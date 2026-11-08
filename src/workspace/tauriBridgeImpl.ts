@@ -433,6 +433,29 @@ export function onExternalFileOpen(
   };
 }
 
+/** Cold-start half of Quick Capture from the OS: true once, on the first call
+ * after a fresh process was launched with `--capture` (`lib.rs` buffers the
+ * flag; the Rust side takes it, so it can never fire twice). */
+export async function takePendingQuickCapture(): Promise<boolean> {
+  return invoke<boolean>("take_pending_quick_capture");
+}
+
+/** Live half: an already-running instance's relaunch with `--capture` is
+ * intercepted by single-instance and emitted as `quick-capture-launch`.
+ * Returns an unlisten function, like onExternalFileOpen. */
+export function onQuickCaptureLaunch(callback: () => void): () => void {
+  let unlisten: (() => void) | null = null;
+  let cancelled = false;
+  void listen("quick-capture-launch", () => callback()).then((fn) => {
+    if (cancelled) fn();
+    else unlisten = fn;
+  });
+  return () => {
+    cancelled = true;
+    unlisten?.();
+  };
+}
+
 /** In-app half of ROADMAP.md's "Open files from outside the vault from
  * within an open app" (desktop parity, 2026-09-15
  * competitor scan). The OS-level half -- Markdown as a registered file

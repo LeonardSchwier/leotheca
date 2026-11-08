@@ -27,7 +27,9 @@ Items with an owner. An expired lease means the item can be recovered.
 
 ### Available
 
-- ⬜ **Always publish an installable Android test APK without real signing secrets**: When the four Android signing secrets are absent, the release job generates a throw-away keystore inside the job and publishes the APK as `leotheca-<tag>-android-TEST-ephemeral-key.apk`; a properly signed build keeps `leotheca-<tag>-android.apk`. The debug-key refusal stays.
+- 🚧 **Always publish an installable Android test APK without real signing secrets**: When the four Android signing secrets are absent, the release job generates a throw-away keystore inside the job and publishes the APK as `leotheca-<tag>-android-TEST-ephemeral-key.apk`; a properly signed build keeps `leotheca-<tag>-android.apk`. The debug-key refusal stays.
+  <!-- agent-state: {"schema":1,"id":"rm-e6d0cfb114e580b9","state":"claimed","touch":[".github/workflows/release.yml","CHANGELOG.md","README.md","SECURITY.md","documentation","master-spec.md","packaging/STATUS.md","scripts/verifyApkNotDebugSigned.test.js","skills/pdlc-playbook.md"],"resources":["android-release-signing"],"owner":"claude-code-apkalways-20261108T113657Z-b04e1245","token":"d03d73aca6d44a7b80e8028284c6bc81","branch":"agent/rm-e6d0cfb114e580b9/d03d73aca6d4","claimed_at":"2026-11-08T11:37:03Z","heartbeat_at":"2026-11-08T11:37:03Z","lease_until":"2026-11-08T13:07:03Z"} -->
+  Agent: claude-code-apkalways-20261108T113657Z-b04e1245 | item: rm-e6d0cfb114e580b9 | lease until: 2026-11-08T13:07:03Z
 
 
 

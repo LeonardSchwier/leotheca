@@ -18,7 +18,6 @@ tauri = { version = "2", features = ["protocol-asset"] }
 # Flatpak sandboxes cannot use the GTK file chooser directly. The portal
 # backend preserves user-selected workspace access without broad host access.
 tauri-plugin-dialog = { version = "2", default-features = false, features = ["xdg-portal"] }
-tauri-plugin-fs = "2"
 tauri-plugin-deep-link = "2"
 tauri-plugin-clipboard-manager = "2"
 tauri-plugin-global-shortcut = "2"

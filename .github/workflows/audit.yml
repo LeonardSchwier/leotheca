@@ -52,7 +52,7 @@ jobs:
       - name: Install cargo-audit (pinned release binary, checksum verified)
         run: |
           asset="cargo-audit-x86_64-unknown-linux-musl-v${CARGO_AUDIT_VERSION}.tgz"
-          curl -fsSL -o "$RUNNER_TEMP/$asset" \
+          scripts/retry.sh curl -fsSL -o "$RUNNER_TEMP/$asset" \
             "https://github.com/rustsec/rustsec/releases/download/cargo-audit%2Fv${CARGO_AUDIT_VERSION}/$asset"
           echo "$CARGO_AUDIT_SHA256  $RUNNER_TEMP/$asset" | sha256sum -c -
           tar -xzf "$RUNNER_TEMP/$asset" -C "$RUNNER_TEMP"

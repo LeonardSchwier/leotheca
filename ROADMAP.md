@@ -28,7 +28,9 @@ Items with an owner. An expired lease means the item can be recovered.
 ### Available
 
 
-- ⬜ **Update the PDLC end-to-end row after tests/ui retirement**: The row still names `tests/ui` as an open leftover and the typing freeze as unexplained. `tests/ui` is deleted (PR 107), the freeze is characterised as a Chromium style and layout loop with no app cause (PR 104), and each e2e run now gets its own preview port (PR 95). Correct the row and the roadmap pointer.
+- 🚧 **Update the PDLC end-to-end row after tests/ui retirement**: The row still names `tests/ui` as an open leftover and the typing freeze as unexplained. `tests/ui` is deleted (PR 107), the freeze is characterised as a Chromium style and layout loop with no app cause (PR 104), and each e2e run now gets its own preview port (PR 95). Correct the row and the roadmap pointer.
+  <!-- agent-state: {"schema":1,"id":"rm-d48ddf605a4a7b14","state":"claimed","touch":[],"resources":["pdlc-e2e-row"],"owner":"claude-code-pdlc-20261106T231246Z-fcf4c9d1","token":"0ba66a1a1dedead66d953c8e2e0e65ce","branch":"agent/rm-d48ddf605a4a7b14/0ba66a1a1ded","claimed_at":"2026-11-08T07:54:41Z","heartbeat_at":"2026-11-08T07:54:41Z","lease_until":"2026-11-08T09:24:41Z"} -->
+  Agent: claude-code-pdlc-20261106T231246Z-fcf4c9d1 | item: rm-d48ddf605a4a7b14 | lease until: 2026-11-08T09:24:41Z
 
 
 ### Blocked

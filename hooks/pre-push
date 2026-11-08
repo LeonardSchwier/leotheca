@@ -64,6 +64,7 @@ while read -r local_ref local_sha remote_ref remote_sha; do
   node scripts/check-rules.mjs deps "$base" "$local_sha" || failed=1
   node scripts/check-rules.mjs trailers "$base" "$local_sha" || failed=1
   node scripts/check-rules.mjs reflection "$base" "$local_sha" || failed=1
+  node scripts/check-rules.mjs glossary "$base" "$local_sha" || failed=1
 
   # The ledger branch is main plus roadmap and handoff files. Merging main into it
   # (needed before a finish) must not look like an application change, so judge

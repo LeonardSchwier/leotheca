@@ -132,6 +132,10 @@ Agentic controls make judgments. Non-agentic controls cannot be argued with. Qua
 | **Here**         | the standing mission is a crash-free `main`. Idle capacity runs crash-hunting passes on the highest-risk paths; each proven defect lands with its regression test, and each review records what it did not examine. Handoffs are committed files in `.agents/handoffs/`, so a lost session is recoverable, and recurring failures are written back into the skills. Every item ends with a stage 8 reflection line, which a push check requires before a spec is archived, and agents may change the process itself when an item shows a rule is wrong. |
 | **Enforced by**  | [`skills/maintenance-review.md`](../skills/maintenance-review.md), [`skills/autonomous-roadmap-delivery.md`](../skills/autonomous-roadmap-delivery.md), `scripts/check-rules.mjs reflection`.                                                                                                                                                                                                                                                                                                                                                           |
 
+### Ideas adopted from public work
+
+The shared glossary (`GLOSSARY.md`, read at startup and extended by the grill stage, with `scripts/check-rules.mjs glossary` failing an archived spec that lacks a `Glossary:` line) takes its idea from the `grill-with-docs` and `domain-modeling` skills in the public `mattpocock/skills` repository (MIT licence). Only the idea is used; no text or code was copied.
+
 ## 6. Why it holds with many agents at once
 
 1. **One writer per resource.** Claims name files and shared contracts; overlap is rejected by the helper.

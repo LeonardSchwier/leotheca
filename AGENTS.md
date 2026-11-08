@@ -2,7 +2,7 @@
 
 # Start here, every agent
 
-Read `CONSTITUTION.md` in full. Load its top variables, then its configured product rules. These instructions apply to every provider/model and local/cloud run. `CLAUDE.md` points here; runners that do not automatically load repository instructions must explicitly read this file in their startup prompt.
+Read `CONSTITUTION.md` in full. Load its top variables, then its configured product rules. Read `GLOSSARY.md` and use its terms. These instructions apply to every provider/model and local/cloud run. `CLAUDE.md` points here; runners that do not automatically load repository instructions must explicitly read this file in their startup prompt.
 
 You have standing authorization to finish repository work. Code reaches main only through a pull request that you open and that the merge queue merges after the required checks pass (`skills/pull-request-delivery.md`). Never push to main. Do not wait for human review. Stay within product rules and actual tool permissions.
 

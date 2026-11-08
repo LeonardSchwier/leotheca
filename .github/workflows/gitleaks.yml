@@ -32,7 +32,7 @@ jobs:
       - name: Install gitleaks (pinned release binary, checksum verified)
         run: |
           asset="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
-          curl -fsSL -o "$RUNNER_TEMP/$asset" \
+          scripts/retry.sh curl -fsSL -o "$RUNNER_TEMP/$asset" \
             "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/$asset"
           echo "$GITLEAKS_SHA256  $RUNNER_TEMP/$asset" | sha256sum -c -
           tar -xzf "$RUNNER_TEMP/$asset" -C "$RUNNER_TEMP" gitleaks

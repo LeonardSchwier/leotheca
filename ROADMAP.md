@@ -38,6 +38,7 @@ Items with an owner. An expired lease means the item can be recovered.
   </details>
 
 - ⬜ **Revisit glib when tauri ships gtk-rs 0.20**: As of 2026-11-08 every Linux path in the Tauri stack (tauri 2.12.5, tauri-runtime-wry 2.12.3, wry 0.57.1, tao 0.37.2, muda 0.21.2) still requires gtk ^0.18 and webkit2gtk 2.0.x, which pin glib 0.18.5 (RUSTSEC-2024-0429). Repeat the check and upgrade when one of them moves to a patched glib.
+- ⬜ **Upgrade the lint stack to clear the remaining dev-dependency advisories**: `npm audit` reports 10 moderate dev-only findings (eslint, @eslint/js, @eslint/config-array, typescript-eslint, minimatch) for GHSA-g3hv-75wg-m249 (minimatch >= 7.0.0, < 11.0.1). The newest eslint, @eslint/config-array and typescript-estree still depend on minimatch ^10, so no major upgrade fixes it; a root `overrides` entry for minimatch ^11.0.5 does, if the whole lint still passes. Apply it, regenerate the Flatpak node sources, and update the advisory notes.
 
   <details>
   <summary>The exact check to repeat</summary>

@@ -3,6 +3,10 @@ use std::fs::{self, OpenOptions};
 use std::io::{self, Write};
 use std::path::{Component, Path, PathBuf};
 
+use crate::commands::{
+    active_workspace_root_snapshot, require_active_workspace_root, ActiveWorkspaceRoot,
+};
+
 const ALREADY_EXISTS: &str = "already_exists";
 const INVALID_NAME: &str = "invalid_name";
 const OUTSIDE_WORKSPACE: &str = "outside_workspace";
@@ -20,6 +24,19 @@ fn map_io_error(error: io::Error) -> String {
         _ => IO_FAILURE,
     };
     mutation_error(code, error.to_string())
+}
+
+/// The audit's F1 binding for these commands (master-spec KG-001): the
+/// webview-supplied `workspace_root` must be the native active root.
+fn require_active_root(
+    workspace_root: &str,
+    active: &tauri::State<'_, ActiveWorkspaceRoot>,
+) -> Result<(), String> {
+    require_active_workspace_root(
+        workspace_root,
+        active_workspace_root_snapshot(active).as_deref(),
+    )
+    .map_err(|message| mutation_error(OUTSIDE_WORKSPACE, message))
 }
 
 fn validate_relative_path(relative_path: &str) -> Result<&Path, String> {
@@ -136,6 +153,16 @@ pub fn create_workspace_text_file_new(
     workspace_root: String,
     relative_path: String,
     contents: String,
+    active_root: tauri::State<'_, ActiveWorkspaceRoot>,
+) -> Result<(), String> {
+    require_active_root(&workspace_root, &active_root)?;
+    create_workspace_text_file_new_core(workspace_root, relative_path, contents)
+}
+
+fn create_workspace_text_file_new_core(
+    workspace_root: String,
+    relative_path: String,
+    contents: String,
 ) -> Result<(), String> {
     let target = resolve_within_workspace(&workspace_root, &relative_path)?;
     create_file_new(&target, contents.as_bytes())
@@ -146,6 +173,16 @@ pub fn create_workspace_binary_file_new(
     workspace_root: String,
     relative_path: String,
     data: Vec<u8>,
+    active_root: tauri::State<'_, ActiveWorkspaceRoot>,
+) -> Result<(), String> {
+    require_active_root(&workspace_root, &active_root)?;
+    create_workspace_binary_file_new_core(workspace_root, relative_path, data)
+}
+
+fn create_workspace_binary_file_new_core(
+    workspace_root: String,
+    relative_path: String,
+    data: Vec<u8>,
 ) -> Result<(), String> {
     let target = resolve_within_workspace(&workspace_root, &relative_path)?;
     create_file_new(&target, &data)
@@ -153,6 +190,15 @@ pub fn create_workspace_binary_file_new(
 
 #[tauri::command]
 pub fn create_workspace_dir_new(
+    workspace_root: String,
+    relative_path: String,
+    active_root: tauri::State<'_, ActiveWorkspaceRoot>,
+) -> Result<(), String> {
+    require_active_root(&workspace_root, &active_root)?;
+    create_workspace_dir_new_core(workspace_root, relative_path)
+}
+
+fn create_workspace_dir_new_core(
     workspace_root: String,
     relative_path: String,
 ) -> Result<(), String> {
@@ -257,6 +303,16 @@ pub fn rename_workspace_path_no_replace(
     workspace_root: String,
     from: String,
     to: String,
+    active_root: tauri::State<'_, ActiveWorkspaceRoot>,
+) -> Result<(), String> {
+    require_active_root(&workspace_root, &active_root)?;
+    rename_workspace_path_no_replace_core(workspace_root, from, to)
+}
+
+fn rename_workspace_path_no_replace_core(
+    workspace_root: String,
+    from: String,
+    to: String,
 ) -> Result<(), String> {
     let from_target = resolve_within_workspace(&workspace_root, &from)?;
     let to_target = resolve_within_workspace(&workspace_root, &to)?;
@@ -285,7 +341,7 @@ mod tests {
         let root = workspace("create-collision");
         fs::write(root.join("note.md"), "original").unwrap();
 
-        let error = create_workspace_text_file_new(
+        let error = create_workspace_text_file_new_core(
             root.to_string_lossy().to_string(),
             "note.md".to_string(),
             "replacement".to_string(),
@@ -305,7 +361,7 @@ mod tests {
         let root = workspace("binary-collision");
         fs::write(root.join("image.png"), [1, 2, 3]).unwrap();
 
-        let error = create_workspace_binary_file_new(
+        let error = create_workspace_binary_file_new_core(
             root.to_string_lossy().to_string(),
             "image.png".to_string(),
             vec![9, 9],
@@ -321,9 +377,11 @@ mod tests {
     fn create_directory_new_reports_collision() {
         let root = workspace("dir-collision");
         fs::create_dir(root.join("existing")).unwrap();
-        let error =
-            create_workspace_dir_new(root.to_string_lossy().to_string(), "existing".to_string())
-                .unwrap_err();
+        let error = create_workspace_dir_new_core(
+            root.to_string_lossy().to_string(),
+            "existing".to_string(),
+        )
+        .unwrap_err();
         assert!(error.starts_with("already_exists:"), "{error}");
         fs::remove_dir_all(root).unwrap();
     }
@@ -334,7 +392,7 @@ mod tests {
         fs::write(root.join("from.md"), "source").unwrap();
         fs::write(root.join("to.md"), "destination").unwrap();
 
-        let error = rename_workspace_path_no_replace(
+        let error = rename_workspace_path_no_replace_core(
             root.to_string_lossy().to_string(),
             "from.md".to_string(),
             "to.md".to_string(),
@@ -353,7 +411,7 @@ mod tests {
     #[test]
     fn mutation_commands_reject_workspace_escape() {
         let root = workspace("escape");
-        let error = create_workspace_text_file_new(
+        let error = create_workspace_text_file_new_core(
             root.to_string_lossy().to_string(),
             "../escape.md".to_string(),
             "no".to_string(),
@@ -361,5 +419,117 @@ mod tests {
         .unwrap_err();
         assert!(error.starts_with("outside_workspace:"), "{error}");
         fs::remove_dir_all(root).unwrap();
+    }
+}
+
+/// Audit 2026-11-08 finding F1 (KG-001) for the no-replace commands: a
+/// `workspace_root` that is not the native active root is refused with the
+/// `outside_workspace` code before the disk is touched.
+#[cfg(test)]
+mod active_root_binding_tests {
+    use super::*;
+    use crate::commands::mock_app_with_active_root;
+    use tauri::Manager;
+
+    fn two_roots(name: &str) -> (PathBuf, PathBuf) {
+        let make = |side: &str| {
+            let root = std::env::temp_dir().join(format!(
+                "leotheca-test-f1-mut-{name}-{side}-{}",
+                std::process::id()
+            ));
+            let _ = fs::remove_dir_all(&root);
+            fs::create_dir_all(&root).unwrap();
+            root
+        };
+        (make("active"), make("other"))
+    }
+
+    fn s(path: &Path) -> String {
+        path.to_string_lossy().to_string()
+    }
+
+    #[test]
+    fn create_workspace_text_file_new_refuses_a_root_that_is_not_active() {
+        let (active, other) = two_roots("text");
+        let app = mock_app_with_active_root(Some(&active));
+        let error = create_workspace_text_file_new(
+            s(&other),
+            "n.md".to_string(),
+            "evil".to_string(),
+            app.state::<ActiveWorkspaceRoot>(),
+        )
+        .unwrap_err();
+        assert!(error.starts_with("outside_workspace:"), "{error}");
+        assert!(!other.join("n.md").exists());
+        let _ = fs::remove_dir_all(active);
+        let _ = fs::remove_dir_all(other);
+    }
+
+    #[test]
+    fn create_workspace_binary_file_new_refuses_a_root_that_is_not_active() {
+        let (active, other) = two_roots("bin");
+        let app = mock_app_with_active_root(Some(&active));
+        let error = create_workspace_binary_file_new(
+            s(&other),
+            "n.bin".to_string(),
+            vec![1],
+            app.state::<ActiveWorkspaceRoot>(),
+        )
+        .unwrap_err();
+        assert!(error.starts_with("outside_workspace:"), "{error}");
+        assert!(!other.join("n.bin").exists());
+        let _ = fs::remove_dir_all(active);
+        let _ = fs::remove_dir_all(other);
+    }
+
+    #[test]
+    fn create_workspace_dir_new_refuses_a_root_that_is_not_active() {
+        let (active, other) = two_roots("dir");
+        let app = mock_app_with_active_root(Some(&active));
+        let error = create_workspace_dir_new(
+            s(&other),
+            "made".to_string(),
+            app.state::<ActiveWorkspaceRoot>(),
+        )
+        .unwrap_err();
+        assert!(error.starts_with("outside_workspace:"), "{error}");
+        assert!(!other.join("made").exists());
+        let _ = fs::remove_dir_all(active);
+        let _ = fs::remove_dir_all(other);
+    }
+
+    #[test]
+    fn rename_workspace_path_no_replace_refuses_a_root_that_is_not_active() {
+        let (active, other) = two_roots("rename");
+        fs::write(other.join("a.md"), "keep").unwrap();
+        let app = mock_app_with_active_root(Some(&active));
+        let error = rename_workspace_path_no_replace(
+            s(&other),
+            "a.md".to_string(),
+            "b.md".to_string(),
+            app.state::<ActiveWorkspaceRoot>(),
+        )
+        .unwrap_err();
+        assert!(error.starts_with("outside_workspace:"), "{error}");
+        assert!(other.join("a.md").exists());
+        assert!(!other.join("b.md").exists());
+        let _ = fs::remove_dir_all(active);
+        let _ = fs::remove_dir_all(other);
+    }
+
+    #[test]
+    fn the_active_root_still_creates_a_new_file() {
+        let (active, other) = two_roots("accept");
+        let app = mock_app_with_active_root(Some(&active));
+        create_workspace_text_file_new(
+            s(&active),
+            "n.md".to_string(),
+            "fine".to_string(),
+            app.state::<ActiveWorkspaceRoot>(),
+        )
+        .unwrap();
+        assert_eq!(fs::read_to_string(active.join("n.md")).unwrap(), "fine");
+        let _ = fs::remove_dir_all(active);
+        let _ = fs::remove_dir_all(other);
     }
 }

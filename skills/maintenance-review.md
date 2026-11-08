@@ -24,6 +24,10 @@ Use when Open items are all implemented, live-claimed, or externally blocked. Co
 
 **This is the standing crash-free obligation, not a fallback.** When the roadmap is quiet, the default work is making the app less crash-prone — see `skills/crash-freedom.md`. A crash-hunt pass outranks low-risk polish and cosmetic feature work: the owner expects "keep it crash-free," so idle budget goes to the highest-risk area you can trace, not to the longest feature list. Combine a historic review (what could have broken) with a forward hunt (what could break now), and ship each fix with a regression test.
 
+## Weekly architecture survey
+
+When the newest `architecture-survey` handoff is older than 7 days (or none exists), run one pass of `skills/architecture-survey.md` before picking a review scope. It only seeds cited roadmap items and changes no code.
+
 ## Pick an unreviewed scope
 
 1. Refresh main and the ledger. Read past review handoffs so workers do not repeatedly inspect the same commits/area. Prefer a recently changed high-risk area, then move backward through history.

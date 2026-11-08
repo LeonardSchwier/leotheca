@@ -60,6 +60,8 @@ jobs:
         run: node scripts/check-rules.mjs trailers "${{ steps.range.outputs.base }}" "${{ steps.range.outputs.head }}"
       - name: Archived specs carry a Reflection line
         run: node scripts/check-rules.mjs reflection "${{ steps.range.outputs.base }}" "${{ steps.range.outputs.head }}"
+      - name: Archived specs carry a Glossary line
+        run: node scripts/check-rules.mjs glossary "${{ steps.range.outputs.base }}" "${{ steps.range.outputs.head }}"
       - name: No em dashes, competitor names or secret-shaped tokens in added lines
         run: |
           base="${{ steps.range.outputs.base }}"

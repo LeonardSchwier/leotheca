@@ -1,5 +1,8 @@
 // @vitest-environment node
 import { execFileSync, spawnSync } from "node:child_process";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { URL } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
@@ -37,8 +40,82 @@ describe("parseCertificates", () => {
 });
 
 describe("findDebugSigningProblems", () => {
+  it("reads the output format of newer build-tools (V2 Signer: ...)", () => {
+    const out = (digest, dn) =>
+      `V2 Signer: certificate DN: ${dn}\nV2 Signer: certificate SHA-256 digest: ${digest}\nV2 Signer: certificate SHA-1 digest: 00\n`;
+    expect(
+      findDebugSigningProblems(out("bb".repeat(32), "CN=Leotheca TEST"), [
+        DEBUG,
+      ]),
+    ).toEqual([]);
+    expect(
+      findDebugSigningProblems(out(DEBUG_PLAIN, "CN=Android Debug"), [DEBUG])
+        .length,
+    ).toBeGreaterThan(0);
+  });
   it("passes a release certificate", () => {
     expect(findDebugSigningProblems(printed(RELEASE), [DEBUG])).toEqual([]);
+  });
+  it("passes the throw-away certificate of the Android test build", () => {
+    const dn = "CN=Leotheca TEST ephemeral key, O=not a release key";
+    expect(
+      findDebugSigningProblems(printed("bb".repeat(32), dn), [DEBUG]),
+    ).toEqual([]);
+  });
+  it("passes a key freshly generated the way the workflow does it", () => {
+    let dir;
+    let listing;
+    try {
+      dir = mkdtempSync(join(tmpdir(), "ephemeral-key-"));
+      const store = join(dir, "t.keystore");
+      execFileSync(
+        "keytool",
+        [
+          "-genkeypair",
+          "-keystore",
+          store,
+          "-storetype",
+          "PKCS12",
+          "-storepass",
+          "ephemeral-test-pass",
+          "-alias",
+          "leotheca-test",
+          "-keyalg",
+          "RSA",
+          "-keysize",
+          "2048",
+          "-validity",
+          "1",
+          "-dname",
+          "CN=Leotheca TEST ephemeral key, O=not a release key",
+        ],
+        { stdio: "ignore" },
+      );
+      listing = execFileSync(
+        "keytool",
+        [
+          "-list",
+          "-v",
+          "-keystore",
+          store,
+          "-storepass",
+          "ephemeral-test-pass",
+        ],
+        { encoding: "utf8" },
+      );
+    } catch {
+      return; // keytool is not installed on this runner
+    } finally {
+      if (dir) rmSync(dir, { recursive: true, force: true });
+    }
+    const digest = /SHA256:\s*(\S+)/.exec(listing)[1];
+    expect(normalizeSha256(digest)).not.toBe(DEBUG_PLAIN);
+    expect(
+      findDebugSigningProblems(
+        printed(digest, "CN=Leotheca TEST ephemeral key, O=not a release key"),
+        [DEBUG],
+      ),
+    ).toEqual([]);
   });
   it("fails the committed debug certificate in any digest spelling", () => {
     expect(

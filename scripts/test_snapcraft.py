@@ -26,6 +26,10 @@ class TestSnapcraft(unittest.TestCase):
         self.assertIn("sha256sum -c", self.text)
         self.assertGreaterEqual(len(re.findall(r"\b[0-9a-f]{64}\b", self.text)), 2)
 
+    def test_rust_comes_from_the_rustup_snap(self):
+        # override-build calls `rustup`; without build-snaps the builder has none.
+        self.assertRegex(self.text, r"build-snaps:\s*\[\s*rustup\s*\]")
+
 
 if __name__ == "__main__":
     unittest.main()

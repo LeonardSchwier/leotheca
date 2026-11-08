@@ -1,6 +1,6 @@
 # Agentic PDLC: how Leotheca is delivered
 
-Leotheca is built and maintained by autonomous coding agents under a written, partly machine-enforced product development lifecycle (PDLC). This document describes that lifecycle stage by stage: what a conventional team does, what this repository does instead, and which file or workflow enforces it. It describes only mechanisms that exist on `main`. Section 8 lists what is missing or unproven.
+Leotheca is a reference implementation of an agentic PDLC (product development lifecycle; this also covers what is called agentic engineering, agentic SDLC and vibe coding, here done with written specs, enforced controls and evidence). It is built and maintained by autonomous coding agents under a written, partly machine-enforced lifecycle. This document describes that lifecycle stage by stage: what a conventional team does, what this repository does instead, and which file or workflow enforces it. It describes only mechanisms that exist on `main`. Section 8 lists what is missing or unproven.
 
 ## 1. Summary
 

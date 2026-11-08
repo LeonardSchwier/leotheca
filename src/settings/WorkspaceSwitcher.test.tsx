@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 import {
   cleanup,
   fireEvent,
@@ -65,6 +65,12 @@ const PROFILE_ANDROID: WorkspaceProfile = {
   token: "content://secret/tree",
   lastOpenedAt: 0,
 };
+
+// Preact schedules an after-paint timer (about 100 ms) that calls
+// cancelAnimationFrame; let it fire before the jsdom environment is torn down.
+afterAll(async () => {
+  await new Promise((resolve) => setTimeout(resolve, 150));
+});
 
 afterEach(() => {
   cleanup();

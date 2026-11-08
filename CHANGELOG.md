@@ -8,6 +8,7 @@
 
 ### Maintenance
 
+- **Snap draft: no network plug, pinned Node.js**: `snap/snapcraft.yaml` no longer asks for the `network` plug (the app is offline by design) and installs Node.js 22.23.2 from a SHA-256-verified archive instead of piping the nvm install script into bash. The snap is a draft that no CI job builds, and this change was not built.
 - **Quick Look preview escapes quotes in links**: The source of the macOS Quick Look generator (not built or shipped by any workflow yet) now writes a double quote in a link target or label as `&quot;`, so a crafted link can no longer end the `href` attribute.
 - **Android builds are no longer signed with the public debug key**: The release workflow used to publish an APK signed with the debug keystore that is committed to this repository, so anyone could build a look-alike that Android accepts as an update. The workflow now signs with a maintainer-held key from repository secrets, or publishes no Android file at all and says why in the log and the release notes. A last check in the publish job fails if any APK carries the debug certificate. Until the maintainer adds the key, the latest release has no Android APK; anyone who installed an earlier dev-build APK should uninstall it once before installing a signed build.
 - **Capture templates keep shared titles and links on one line**: A title or link with line breaks, as another app can send through Share, can no longer start a new line (a new property) in a template's frontmatter.

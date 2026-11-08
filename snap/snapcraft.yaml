@@ -16,7 +16,6 @@ apps:
     command: usr/bin/leotheca
     plugs:
       - home
-      - network
       - desktop
       - x11
       - wayland
@@ -36,14 +35,29 @@ parts:
       rustup toolchain install stable --profile minimal
       rustup default stable
 
-      # Install Node.js
-      export NVM_DIR="$SNAPCRAFT_PART_SRC/node"
-      mkdir -p "$NVM_DIR"
-      curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
-      export NVM_DIR="$HOME/.nvm"
-      [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-      nvm install 20
-      nvm use 20
+      # Install Node.js from a pinned release archive, verified by SHA-256
+      # (same release and hashes as packaging/f-droid; no piped installer).
+      NODE_VERSION=v22.23.2
+      case "$(dpkg --print-architecture)" in
+        amd64)
+          NODE_ARCH=x64
+          NODE_SHA256=d60acfe00a2932254bb0ad20e01b0d74397a0875595de719654b214f4b03f307
+          ;;
+        arm64)
+          NODE_ARCH=arm64
+          NODE_SHA256=fff4078c5def658577f92c88db7db3bc0072924bfb93fe52c1e744a54e94abb8
+          ;;
+        *)
+          echo "unsupported architecture for the pinned Node.js archive" >&2
+          exit 1
+          ;;
+      esac
+      NODE_TARBALL="node-$NODE_VERSION-linux-$NODE_ARCH.tar.xz"
+      curl -fsSLo "/tmp/$NODE_TARBALL" "https://nodejs.org/download/release/$NODE_VERSION/$NODE_TARBALL"
+      echo "$NODE_SHA256  /tmp/$NODE_TARBALL" | sha256sum -c -
+      mkdir -p "$SNAPCRAFT_PART_BUILD/node"
+      tar -xJf "/tmp/$NODE_TARBALL" -C "$SNAPCRAFT_PART_BUILD/node" --strip-components=1
+      export PATH="$SNAPCRAFT_PART_BUILD/node/bin:$PATH"
 
       # Build Tauri app
       cd src-tauri

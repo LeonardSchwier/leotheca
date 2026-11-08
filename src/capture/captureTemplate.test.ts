@@ -79,6 +79,33 @@ describe("renderCaptureTemplate", () => {
   });
 });
 
+describe("renderCaptureTemplate line breaks in shared values", () => {
+  // A share sender controls the subject and URL, so a line break in either
+  // must not start a new line (a new YAML key) in the template's frontmatter.
+  it("keeps a multi-line title on one line", () => {
+    const out = renderCaptureTemplate(
+      "---\ntitle: {{title}}\n---\n{{content}}",
+      {
+        content: "body",
+        title: "Hi\ntags: [injected]\r\nx: y",
+      },
+    );
+    expect(out.split("\n")[1]).toBe("title: Hi tags: [injected] x: y");
+    expect(out.split("\n")).toHaveLength(4);
+  });
+
+  it("keeps a multi-line url on one line", () => {
+    const out = renderCaptureTemplate(
+      "---\nsource: {{url}}\n---\n{{content}}",
+      {
+        content: "body",
+        url: "https://x.test\nowner: me",
+      },
+    );
+    expect(out.split("\n")[1]).toBe("source: https://x.test owner: me");
+  });
+});
+
 describe("isCaptureTemplatePathAllowed", () => {
   it("allows direct children of the templates folder only", () => {
     expect(

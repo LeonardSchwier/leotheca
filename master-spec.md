@@ -936,7 +936,7 @@ Only numbers that exist in code, configuration or an observed run appear here. N
 | `npm run dev` | Vite on port 1420 per `devUrl` |
 | `npm run build` | `tsc --noEmit` then `vite build` into `dist/` |
 | `npm test` | Vitest |
-| `npm run test:e2e` | Playwright smoke suite in `tests/e2e` against the production bundle; run by the pre-push gate when a browser is installed |
+| `npm run test:e2e` | Playwright smoke suite in `tests/e2e` against the production bundle; run by the pre-push gate when a browser is installed. Each run serves the bundle on its own port (`4200 + pid % 2000`); `E2E_PORT` pins it and is the only case that reuses a running server |
 | `npm run lint` | ESLint |
 | `npm run check-version` | `VERSION`, `package.json`, `Cargo.toml`, Android and other metadata agree |
 | `npm run ci`, `ci:quick`, `ci:frontend`, `ci:backend` | `scripts/ci-local.sh` |
@@ -1134,6 +1134,7 @@ Newest first. Each entry is `YYYY-MM-DD: what changed in behavior, contracts, fo
 - 2026-11-07: Process: `rules.yml` and the pre-push hook run `check-rules.mjs reflection`, which fails a push that archives a spec under `spec/completed/` without a `Reflection:` line. No application behavior changed.
 - 2026-11-07: Dependencies: `tokio` 1.53.1 to 1.54.1 (RUSTSEC-2026-0386, unsound) in `src-tauri/Cargo.lock`; `flatpak/cargo-sources.json` regenerated. No application behavior changed; 134 Rust tests pass.
 - 2026-11-07: Process: the root `package.json` gains `test:e2e` (`npm --prefix tests/e2e test`), so the pre-push gate runs the Playwright smoke suite when a browser is installed. No application behavior changed.
+- 2026-11-08: Process: the Playwright e2e config takes its preview-server port from `E2E_PORT`, or derives one per run from the process id, and reuses a running server only when `E2E_PORT` is set, so concurrent pre-push gates no longer collide. No application behavior changed.
 - 2026-11-07: Security tooling: `eslint-plugin-security` joins `npm run lint` (new dev dependency, shipped code only) and the `codeql` and `semgrep` workflows are added. One real defect was fixed: stripping trailing newlines from capture content used a backtracking regex that needed about 8 seconds for 60,000 newlines followed by text; `src/lib/trimTrailingNewlines.ts` does it in linear time. No other behavior changed.
 - 2026-11-07: Process: `.github/pull_request_template.md` (Summary, Evidence, Merge danger, evidence trailers) replaces the checklist template, `skills/pull-request-delivery.md` has the agent fill it into its `--body-file`, and `rules.yml` gains a `pr-body` job (`check-rules.mjs prbody`, body read from `PR_BODY`) that fails a pull request without the three headings. No application behavior changed.
 - 2026-11-08: Documentation: the README screenshots move from `assets/screenshots` to `documentation/screenshots` (new: command palette) and the Flatpak metainfo screenshot URLs follow. No application behavior changed.

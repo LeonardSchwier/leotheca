@@ -13,6 +13,7 @@ import {
   requiredTrailers,
   trailerProblems,
   reflectionProblems,
+  glossaryProblems,
   parsePackageDeps,
   parseCargoDeps,
   changedDeps,
@@ -389,5 +390,31 @@ describe("agent identity warning", () => {
         "Leonard <leonard@users.noreply.github.com> 1 +0000",
       ),
     ).toBeNull();
+  });
+});
+
+describe("glossary line on archived specs", () => {
+  it("accepts added terms or none", () => {
+    for (const line of ["Glossary: none", "Glossary: grant, containment"]) {
+      expect(
+        glossaryProblems([
+          { path: "spec/completed/a.md", content: `Evidence\n\n${line}\n` },
+        ]),
+      ).toEqual([]);
+    }
+  });
+  it("reports a spec without one or with an empty one", () => {
+    for (const body of ["# Spec\n\n## Evidence\nok\n", "Glossary:\n"]) {
+      const problems = glossaryProblems([
+        { path: "spec/completed/b.md", content: body },
+      ]);
+      expect(problems).toHaveLength(1);
+      expect(problems[0]).toContain("spec/completed/b.md");
+    }
+  });
+  it("ignores files outside spec/completed", () => {
+    expect(
+      glossaryProblems([{ path: "spec/open.md", content: "no glossary" }]),
+    ).toEqual([]);
   });
 });

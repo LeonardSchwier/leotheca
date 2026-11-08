@@ -32,9 +32,6 @@ Items with an owner. An expired lease means the item can be recovered.
 
 Items nobody owns. Take the first one that fits.
 
-- 🚧 **Record the Tier 2 audit in the AGENTIC_PDLC Security tooling row**: The first Tier 2 security audit ran on 2026-11-08 (4 confirmed: 1 medium, 3 low; 3 needs_validation; partial coverage). Update the "Security tooling" row of documentation/AGENTIC_PDLC.md, which still says a full Tier 2 audit has not been run, narrowly. It was claimed by another item when the audit finished.
-  <!-- agent-state: {"schema":1,"id":"rm-ad825e12b769cf7b","state":"claimed","touch":[".agents/handoffs","documentation/AGENTIC_PDLC.md"],"resources":[],"owner":"claude-code-tier2-20261107T233428Z-e9c4ddbf","token":"e97c87f8bd13e3f409bcc64e017029fb","branch":"agent/rm-ad825e12b769cf7b/e97c87f8bd13","claimed_at":"2026-11-08T00:45:36Z","heartbeat_at":"2026-11-08T00:45:36Z","lease_until":"2026-11-08T02:15:36Z"} -->
-  Agent: claude-code-tier2-20261107T233428Z-e9c4ddbf | item: rm-ad825e12b769cf7b | lease until: 2026-11-08T02:15:36Z
 - 🚧 **Bind the workspace-scoped file commands to the active workspace root**: Tier 2 audit 2026-11-08 finding F1 (needs_validation, medium-class). Six `*_workspace_*` commands and `trash_path` (src-tauri/src/commands.rs:1144-1230, 1381) trust the webview-supplied `workspace_root` and never compare it to `ActiveWorkspaceRoot`; their unscoped siblings do.
   <!-- agent-state: {"schema":1,"id":"rm-a614ed941ef6abd9","state":"claimed","touch":["CHANGELOG.md","GLOSSARY.md","master-spec.md","spec/bind-the-workspace-scoped-file-commands-to-the-active-workspace-root.md","spec/completed/bind-the-workspace-scoped-file-commands-to-the-active-workspace-root.md","src-tauri/src/commands.rs","src-tauri/src/workspace_mutations.rs"],"resources":["workspace-lifecycle","workspace-root-grant"],"owner":"claude-code-fsbind-20261108T004435Z-abd339b3","token":"5c9710c3fc4cb5fb30e9aa55c826fbbf","branch":"agent/rm-a614ed941ef6abd9/5c9710c3fc4c","claimed_at":"2026-11-08T00:46:37Z","heartbeat_at":"2026-11-08T00:58:46Z","lease_until":"2026-11-08T02:28:46Z"} -->
   Agent: claude-code-fsbind-20261108T004435Z-abd339b3 | item: rm-a614ed941ef6abd9 | lease until: 2026-11-08T02:28:46Z
@@ -94,6 +91,11 @@ Items that wait for access or a decision outside the repository.
 - ⏸ **Compatibility layer**: Load community extension manifests; gated on maintainer approval of the third-party-code security model.
 
 ## Implemented
+
+- ✅ **Record the Tier 2 audit in the AGENTIC_PDLC Security tooling row**: The first Tier 2 security audit ran on 2026-11-08 (4 confirmed: 1 medium, 3 low; 3 needs_validation; partial coverage). Update the "Security tooling" row of documentation/AGENTIC_PDLC.md, which still says a full Tier 2 audit has not been run, narrowly. It was claimed by another item when the audit finished.
+  <!-- agent-state: {"schema":1,"id":"rm-ad825e12b769cf7b","state":"done","touch":[".agents/handoffs","documentation/AGENTIC_PDLC.md"],"resources":[],"note":"PR 100 merged as 810e1167bba55b08fe2783245fa62a47fd302e21; Security tooling row updated with Tier 2 counts.","completed_at":"2026-11-08T01:02:10Z","completed_by":"claude-code-tier2-20261107T233428Z-e9c4ddbf","branch":"agent/rm-ad825e12b769cf7b/e97c87f8bd13"} -->
+  Agent: completed by claude-code-tier2-20261107T233428Z-e9c4ddbf | item: rm-ad825e12b769cf7b
+
 
 - ✅ **Give each e2e run its own server port**: `tests/e2e/playwright.config.ts` uses fixed port 4173 and reuses any server there outside CI, so concurrent pre-push gates collide or test another agent's build. Take the port from `E2E_PORT`, default to a free port per run, reuse a server only when `E2E_PORT` is set, and document it.
   <!-- agent-state: {"schema":1,"id":"rm-914c68299db1713f","state":"done","touch":["CHANGELOG.md","master-spec.md","spec/completed/give-each-e2e-run-its-own-server-port.md","spec/give-each-e2e-run-its-own-server-port.md","tests/e2e/playwright.config.ts"],"resources":[],"note":"Landed 223b5d0 via PR 95. Local: e2e 16 passed, tsc 0, eslint 0 errors, vitest 3284 passed, build ok; PR checks green. Post-merge runs in the handoff.","completed_at":"2026-11-08T00:54:42Z","completed_by":"claude-code-e2eclean-20261107T223758Z-6b5b6046","branch":"agent/rm-914c68299db1713f/4ed2d5abcf9d"} -->

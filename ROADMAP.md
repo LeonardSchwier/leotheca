@@ -32,7 +32,9 @@ Items with an owner. An expired lease means the item can be recovered.
 
 Items nobody owns. Take the first one that fits.
 
-- ⬜ **Record the Tier 2 audit in the AGENTIC_PDLC Security tooling row**: The first Tier 2 security audit ran on 2026-11-08 (4 confirmed: 1 medium, 3 low; 3 needs_validation; partial coverage). Update the "Security tooling" row of documentation/AGENTIC_PDLC.md, which still says a full Tier 2 audit has not been run, narrowly. It was claimed by another item when the audit finished.
+- 🚧 **Record the Tier 2 audit in the AGENTIC_PDLC Security tooling row**: The first Tier 2 security audit ran on 2026-11-08 (4 confirmed: 1 medium, 3 low; 3 needs_validation; partial coverage). Update the "Security tooling" row of documentation/AGENTIC_PDLC.md, which still says a full Tier 2 audit has not been run, narrowly. It was claimed by another item when the audit finished.
+  <!-- agent-state: {"schema":1,"id":"rm-ad825e12b769cf7b","state":"claimed","touch":[".agents/handoffs","documentation/AGENTIC_PDLC.md"],"resources":[],"owner":"claude-code-tier2-20261107T233428Z-e9c4ddbf","token":"e97c87f8bd13e3f409bcc64e017029fb","branch":"agent/rm-ad825e12b769cf7b/e97c87f8bd13","claimed_at":"2026-11-08T00:45:36Z","heartbeat_at":"2026-11-08T00:45:36Z","lease_until":"2026-11-08T02:15:36Z"} -->
+  Agent: claude-code-tier2-20261107T233428Z-e9c4ddbf | item: rm-ad825e12b769cf7b | lease until: 2026-11-08T02:15:36Z
 - ⬜ **Bind the workspace-scoped file commands to the active workspace root**: Tier 2 audit 2026-11-08 finding F1 (needs_validation, medium-class). Six `*_workspace_*` commands and `trash_path` (src-tauri/src/commands.rs:1144-1230, 1381) trust the webview-supplied `workspace_root` and never compare it to `ActiveWorkspaceRoot`; their unscoped siblings do.
   <details>
   <summary>Validation plan</summary>

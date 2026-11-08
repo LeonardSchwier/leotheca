@@ -27,7 +27,9 @@ Items with an owner. An expired lease means the item can be recovered.
 
 ### Available
 
-- ⬜ **Resolve the glib advisory in the Rust dependency tree**: `cargo audit` reports RUSTSEC-2024-0429 (unsound `glib::VariantStrIter`, glib 0.18.5, fixed in glib >= 0.20) and Dependabot's security update for the cargo `glib` crate in `src-tauri` fails. Find which crates pull glib and whether a newer tauri, wry, tao or gtk-rs release lifts it; apply a compatible bump (with the paired JS packages) or document precisely what blocks it.
+- 🚧 **Resolve the glib advisory in the Rust dependency tree**: `cargo audit` reports RUSTSEC-2024-0429 (unsound `glib::VariantStrIter`, glib 0.18.5, fixed in glib >= 0.20) and Dependabot's security update for the cargo `glib` crate in `src-tauri` fails. Find which crates pull glib and whether a newer tauri, wry, tao or gtk-rs release lifts it; apply a compatible bump (with the paired JS packages) or document precisely what blocks it.
+  <!-- agent-state: {"schema":1,"id":"rm-0df1e4c4be37751c","state":"claimed","touch":[".agents/handoffs","CHANGELOG.md","master-spec.md","skills/security-and-static-analysis.md"],"resources":[],"owner":"claude-code-glib-20261108T122245Z-651b41e0","token":"4133db95210957e903ddb0831a010531","branch":"agent/rm-0df1e4c4be37751c/4133db952109","claimed_at":"2026-11-08T12:23:37Z","heartbeat_at":"2026-11-08T12:23:37Z","lease_until":"2026-11-08T13:53:37Z"} -->
+  Agent: claude-code-glib-20261108T122245Z-651b41e0 | item: rm-0df1e4c4be37751c | lease until: 2026-11-08T13:53:37Z
 
   <details>
   <summary>Scope and acceptance</summary>

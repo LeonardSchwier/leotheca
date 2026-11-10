@@ -510,6 +510,7 @@ The URL parser is not the security boundary. The native gate on the eventual rea
 | FR-FS-011 | Directory walks MUST stop descending at depth 40 on every platform. | Given a deeper tree, When walked, Then walking terminates without error. | `src-tauri/src/commands.rs` |
 | FR-FS-012 | A template picker MUST create a new note from a .md file in templatesFolder when templates are enabled. | Given a template, When selected, Then a new note with its content opens. | `src/workspace/TemplatePicker.test.tsx` |
 | FR-FS-013 | Native atomic overwrite's temp-file name MUST be unique per call within a process, not just per millisecond and PID, so two writes to the same target started close together never share a temp file. | Given many threads atomically-writing the same target at once, When all complete, Then every call succeeds and the final content is exactly one caller's complete payload. | `src-tauri/src/commands.rs` |
+| FR-FS-014 | When a quick-create command (Ctrl+N, the palette's New note, New canvas and New drawing, the `new-note` automation command) cannot create its file, it MUST tell the user with `Couldn't create the new <kind>: <reason>`; when the file was created but cannot be opened it MUST say `Created "<name>" but couldn't open it: <reason>`; neither MAY leave an unhandled promise rejection. | Given the create call rejects with `disk full`, When Ctrl+N is pressed, Then an alert shows `Couldn't create the new note: disk full` and no rejection is unhandled. | `src/app/quickCreate.test.ts`, `src/app/App.test.tsx` |
 
 ### Editor and saving (FR-EDIT)
 
@@ -1168,4 +1169,5 @@ Newest first. Each entry is `YYYY-MM-DD: what changed in behavior, contracts, fo
 - 2026-11-08: Documentation: the PDLC Security tooling row records the open `glib` advisory (RUSTSEC-2024-0429) and why it waits on gtk-rs 0.20 in Tauri; no code changed.
 - 2026-11-08: CI: the release workflow's `linux`, `windows` and `android` jobs cache the Tauri bundling tools and the Gradle wrapper distribution and run `tauri build` and a `./gradlew --version` warm-up through `scripts/retry.sh`; `documentation/TESTING.md` documents the caches and the retry rule. No application behavior changed.
 - 2026-11-08: Docs: the npm audit notes in `skills/security-and-static-analysis.md` and `documentation/AGENTIC_PDLC.md` now say that `npm audit` reports 0 after the `minimatch` override, replacing the accepted dev-only risk text. No application behavior changed.
+- 2026-11-10: Quick-create commands (Ctrl+N, palette New note, New canvas, New drawing, the `new-note` automation command) report a failed create or open to the user instead of ending as an unhandled promise rejection (FR-FS-014, `src/app/quickCreate.ts`); no format or bridge contract changed.
 <!-- change-log:end -->

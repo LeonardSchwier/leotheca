@@ -98,6 +98,7 @@ const {
   createNote,
   createNoteQuick,
   createCanvasQuick,
+  createInkQuick,
   createFolder,
   createNoteFromTemplate,
   listTemplates,
@@ -448,6 +449,82 @@ describe("createCanvasQuick", () => {
       "Untitled canvas 2.canvas",
     ]);
   });
+});
+
+describe("a quick create whose file is on disk", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    listDir.mockReset();
+    writeWorkspaceTextFile.mockReset();
+    writeWorkspaceTextFile.mockResolvedValue();
+  });
+
+  // The command callers tell the user "Couldn't create ..." when this rejects
+  // (src/app/quickCreate.ts), which invites a duplicate. Once the write has
+  // succeeded the file exists, so a failing tree refresh (the workspace was
+  // switched or closed meanwhile, or the folder vanished) must not reach them.
+  const creators = [
+    {
+      kind: "note",
+      create: () => createNoteQuick("/workspace"),
+      name: "Untitled.md",
+    },
+    {
+      kind: "canvas",
+      create: () => createCanvasQuick("/workspace"),
+      name: "Untitled canvas.canvas",
+    },
+    {
+      kind: "drawing",
+      create: () => createInkQuick("/workspace"),
+      name: "Untitled drawing.ink",
+    },
+  ];
+
+  it.each(creators)(
+    "resolves a new $kind when only the tree refresh after the write fails",
+    async ({ create, name }) => {
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      try {
+        listDir
+          .mockResolvedValueOnce([])
+          .mockRejectedValueOnce(new Error("listing failed"));
+
+        await expect(create()).resolves.toEqual({
+          path: `/workspace/${name}`,
+          name,
+        });
+        expect(writeWorkspaceTextFile).toHaveBeenCalledTimes(1);
+        // Swallowed, but not silently: a programming error stays visible.
+        expect(warn).toHaveBeenCalledTimes(1);
+      } finally {
+        warn.mockRestore();
+      }
+    },
+  );
+
+  it.each(creators)(
+    "still rejects a new $kind when the write itself fails",
+    async ({ create }) => {
+      listDir.mockResolvedValue([]);
+      writeWorkspaceTextFile.mockRejectedValueOnce(
+        new Error("io_failure: No space left on device (os error 28)"),
+      );
+
+      await expect(create()).rejects.toThrow("No space left on device");
+      expect(listDir).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it.each(creators)(
+    "still rejects a new $kind when the listing before the write fails",
+    async ({ create }) => {
+      listDir.mockRejectedValueOnce(new Error("listing failed"));
+
+      await expect(create()).rejects.toThrow("listing failed");
+      expect(writeWorkspaceTextFile).not.toHaveBeenCalled();
+    },
+  );
 });
 
 describe("createFolder", () => {

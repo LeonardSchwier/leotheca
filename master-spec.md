@@ -1010,7 +1010,7 @@ Generated from section 8 by `python3 scripts/check_master_spec.py --update-trace
 | Prefix | Area | Requirements | With a linked test | NONE | Test files |
 | --- | --- | --- | --- | --- | --- |
 | FR-WS | Workspaces and profiles | 13 | 13 | 0 | `src-tauri/src/commands.rs`, `src-tauri/src/workspace_grants.rs`, `src/settings/WelcomeDialog.test.tsx`, `src/settings/store.test.ts`, `src/settings/workspaceProfiles.test.ts`, `src/settings/workspaceTransition.test.ts`, `src/workspace/tauriBridge.test.ts`, `src/workspace/tauriBridgeImpl.test.ts`, `src/workspace/workspaceTransition.test.ts`, `src/workspace/workspaceTransitionRecovery.test.ts` |
-| FR-FS | File tree and file operations | 13 | 13 | 0 | `src-tauri/src/commands.rs`, `src/workspace/FileContextMenu.test.tsx`, `src/workspace/TemplatePicker.test.tsx`, `src/workspace/fileOpenAuthority.test.ts`, `src/workspace/fileTreeStore.test.ts`, `src/workspace/types.test.ts` |
+| FR-FS | File tree and file operations | 14 | 14 | 0 | `src-tauri/src/commands.rs`, `src/app/App.test.tsx`, `src/app/quickCreate.test.ts`, `src/workspace/FileContextMenu.test.tsx`, `src/workspace/TemplatePicker.test.tsx`, `src/workspace/fileOpenAuthority.test.ts`, `src/workspace/fileTreeStore.test.ts`, `src/workspace/types.test.ts` |
 | FR-EDIT | Editor and saving | 17 | 17 | 0 | `src/app/fontSizeControls.test.ts`, `src/editor/attachments.test.ts`, `src/editor/frontmatterEdits.test.ts`, `src/editor/livePreview.test.ts`, `src/editor/slashCommands.test.ts`, `src/editor/snippets.test.ts`, `src/editor/textDiff.test.ts`, `src/editor/textDirection.test.ts`, `src/markdown/highlight.test.ts`, `src/markdown/tableCommands.test.ts`, `src/settings/workspaceSettings.test.ts`, `src/workspace/saveCoordinator.test.ts`, `src/workspace/tauriBridge.test.ts` |
 | FR-VIEW | Markdown preview | 10 | 10 | 0 | `src/editor/MarkdownPreview.concurrency.test.tsx`, `src/editor/MarkdownPreview.test.tsx`, `src/markdown/mermaid.test.ts`, `src/markdown/mermaidFigure.test.ts`, `src/markdown/mermaidSanitize.test.ts`, `src/offline.test.ts`, `src/styles/mermaid.test.ts` |
 | FR-LINK | Wikilinks, headings and blocks | 13 | 13 | 0 | `src/editor/MarkdownPreview.test.tsx`, `src/editor/blockLinkActions.test.ts`, `src/linking/BacklinksPanel.test.tsx`, `src/linking/frontmatter.test.ts`, `src/linking/store.test.ts`, `src/linking/wikiResolver.test.ts`, `src/linking/wikiSyntax.test.ts`, `src/markdown/blocks.test.ts`, `src/markdown/headings.test.ts` |
@@ -1039,7 +1039,7 @@ Generated from section 8 by `python3 scripts/check_master_spec.py --update-trace
 | FR-WID | Android widgets | 3 | 3 | 0 | `android/app/src/test/java/com/getcapacitor/myapp/WidgetResourcesUnitTest.java`, `android/app/src/test/java/com/leonardschwier/leotheca/NewNoteColdStartTrackerTest.java`, `src/workspace/fileTreeStore.test.ts` |
 | FR-CLIP | Web clipper extension | 3 | 3 | 0 | `extensions/web-clipper/clipperCore.test.js`, `extensions/web-clipper/messaging.test.js` |
 | FR-UI | Shell, UI primitives and accessibility | 12 | 10 | 2 | `src/app/App.test.tsx`, `src/app/CommandPalette.test.tsx`, `src/app/EmptyEditorState.test.tsx`, `src/app/layout/DocumentHeader.test.tsx`, `src/app/layout/adaptiveLayout.test.ts`, `src/app/useResizableSidebar.test.ts`, `src/fuzzyMatch.test.ts`, `src/ui/overlayBackButton.sheet.test.tsx`, `src/ui/overlayBackButton.test.ts`, `src/workspace/FileTree.test.tsx` |
-| **Total** | | **201** | **193** | **8** | |
+| **Total** | | **202** | **194** | **8** | |
 <!-- traceability:end -->
 
 ## 15. Coverage gaps

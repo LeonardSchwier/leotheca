@@ -27,7 +27,9 @@ Items with an owner. An expired lease means the item can be recovered.
 
 ### Available
 
-- ⬜ **Report failures of the quick new note, canvas and drawing commands**: Ctrl+N and the palette entries New note, New canvas and New drawing run `void createXQuick(dir).then(open)` with no rejection handler, and the `new-note` automation command awaits the same call uncaught. A read-only folder, a full disk or a vanished directory shows nothing on screen and ends as an unhandled rejection; a `new-note` URL also loses the text it carried.
+- 🚧 **Report failures of the quick new note, canvas and drawing commands**: Ctrl+N and the palette entries New note, New canvas and New drawing run `void createXQuick(dir).then(open)` with no rejection handler, and the `new-note` automation command awaits the same call uncaught. A read-only folder, a full disk or a vanished directory shows nothing on screen and ends as an unhandled rejection; a `new-note` URL also loses the text it carried.
+  <!-- agent-state: {"schema":1,"id":"rm-ca75588cd818c9d0","state":"claimed","touch":["CHANGELOG.md","master-spec.md","spec/report-failures-of-the-quick-new-note-canvas-and-drawing-commands.md","src/app/App.test.tsx","src/app/App.tsx","src/app/quickCreate.test.ts","src/app/quickCreate.ts"],"resources":["quick-create-commands"],"owner":"claude-code-daily-20261110T030626Z-6ea0d62d","token":"66455460ce74c918f7fa70512ed888b9","branch":"agent/rm-ca75588cd818c9d0/66455460ce74","claimed_at":"2026-11-10T03:09:30Z","heartbeat_at":"2026-11-10T03:09:30Z","lease_until":"2026-11-10T04:39:30Z"} -->
+  Agent: claude-code-daily-20261110T030626Z-6ea0d62d | item: rm-ca75588cd818c9d0 | lease until: 2026-11-10T04:39:30Z
 
   <details>
   <summary>Review scope, acceptance criteria and verification</summary>

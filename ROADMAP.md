@@ -103,6 +103,8 @@ Items that wait for access or a decision outside the repository.
 - ⏸ **Android home-screen widgets**: Recent-notes widget has a full-workspace re-walk performance issue and colliding labels; "favorites" hamburger bug under investigation. Blocked: investigation in progress.
 - ⏸ **Compatibility layer**: Load community extension manifests; gated on maintainer approval of the third-party-code security model.
 
+- ⬜ **Application localization (UI strings in multiple languages)**: Market Solution #3 3.203.0 (Nov 2, 2026) introduced localization with multi-language UI support (Desktop + Mobile). Leotheca's UI strings are currently hardcoded in English across desktop and Android. Adding offline i18n for the user-facing chrome (settings, menus, dialogs) using standard translation files in the user's workspace or bundled, with language selection and an off-by-default fallback, is a plain-file, offline extension of existing UI with no new convention. (Competitor scan, Market Solution #3 changelog 3.203.0, 2026-11-02)
+
 ## Implemented
 
 - ✅ **Record the merge_group triggers in the master specification**: CI, Rules and Agent policy now also run on `merge_group`, and Agent policy runs on every pull request. The master-spec CI rule requires the CI table and change log to say so.

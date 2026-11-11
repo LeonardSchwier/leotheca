@@ -38,6 +38,15 @@ Items with an owner. An expired lease means the item can be recovered.
 
   </details>
 
+- ⬜ **Renormalize android/gradlew.bat so a fresh checkout is clean**: A fresh clone lists `android/gradlew.bat` as modified, and `scripts/agent_ledger.py` refuses every claim, renewal and finish in a dirty control checkout, so each new worker has to hide the file by hand. Renormalize the blob so `git status` is clean after checkout, and add a check that catches a line-ending-only difference.
+
+  <details>
+  <summary>Root cause and scope</summary>
+
+  The blob is stored with CRLF line endings (`git ls-files --eol` prints `i/crlf w/crlf attr/text eol=crlf`) while `.gitattributes` sets `*.bat text eol=crlf`, so git compares the LF-normalized working file with the CRLF blob and reports a whole-file change. The workaround used so far is `git update-index --assume-unchanged android/gradlew.bat` in the control worktree. Fix: `git add --renormalize android/gradlew.bat` and commit; the Windows batch file keeps CRLF in the working tree. Add a verification that no tracked file reports a line-ending-only difference in a fresh clone. Found while finishing rm-ca75588cd818c9d0 on 2026-11-11.
+
+  </details>
+
 - ⏸ **Revisit glib when tauri ships gtk-rs 0.20**: As of 2026-11-08 every Linux path in the Tauri stack (tauri 2.12.5, tauri-runtime-wry 2.12.3, wry 0.57.1, tao 0.37.2, muda 0.21.2) still requires gtk ^0.18 and webkit2gtk 2.0.x, which pin glib 0.18.5 (RUSTSEC-2024-0429). Repeat the check and upgrade when one of them moves to a patched glib.
   <!-- agent-state: {"schema":1,"id":"rm-794c96d2125dfc85","state":"blocked","touch":["CHANGELOG.md","documentation/AGENTIC_PDLC.md","master-spec.md"],"resources":[],"note":"PDLC Security tooling row landed (PR 132, merged 9f3c3079be04759c4bf6730b9fc2955ecf983654). Waiting for upstream: retry about 2026-12-08 by repeating the check in the item (crates.io dependency lists of tauri, tauri-runtime-wry, wry, tao, muda for gtk/glib above 0.18).","blocked_at":"2026-11-08T12:45:11Z","retry_at":"2026-11-08T13:45:11Z"} -->
   Agent: unclaimed | item: rm-794c96d2125dfc85 | retry after: 2026-11-08T13:45:11Z

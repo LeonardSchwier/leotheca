@@ -38,9 +38,9 @@ Items with an owner. An expired lease means the item can be recovered.
 
   </details>
 
-- 🚧 **Renormalize android/gradlew.bat so a fresh checkout is clean**: A fresh clone lists `android/gradlew.bat` as modified, and `scripts/agent_ledger.py` refuses every claim, renewal and finish in a dirty control checkout, so each new worker has to hide the file by hand. Renormalize the blob so `git status` is clean after checkout, and add a check that catches a line-ending-only difference.
-  <!-- agent-state: {"schema":1,"id":"rm-5f667522fc52b46b","state":"claimed","touch":["CHANGELOG.md","android/gradlew.bat","documentation/TESTING.md","master-spec.md","scripts/lineEndings.js","scripts/lineEndings.test.js","spec/completed/renormalize-android-gradlew-bat-so-a-fresh-checkout-is-clean.md","spec/renormalize-android-gradlew-bat-so-a-fresh-checkout-is-clean.md"],"resources":["line-endings"],"owner":"claude-code-daily-20261112T032625Z-aa6fd969","token":"c4ca89c985448e6f6f9584c5c656f33a","branch":"agent/rm-5f667522fc52b46b/c4ca89c98544","claimed_at":"2026-11-12T03:26:50Z","heartbeat_at":"2026-11-12T04:15:08Z","lease_until":"2026-11-12T05:45:08Z"} -->
-  Agent: claude-code-daily-20261112T032625Z-aa6fd969 | item: rm-5f667522fc52b46b | lease until: 2026-11-12T05:45:08Z
+- ⏸ **Renormalize android/gradlew.bat so a fresh checkout is clean**: A fresh clone lists `android/gradlew.bat` as modified, and `scripts/agent_ledger.py` refuses every claim, renewal and finish in a dirty control checkout, so each new worker has to hide the file by hand. Renormalize the blob so `git status` is clean after checkout, and add a check that catches a line-ending-only difference.
+  <!-- agent-state: {"schema":1,"id":"rm-5f667522fc52b46b","state":"blocked","touch":["CHANGELOG.md","android/gradlew.bat","documentation/TESTING.md","master-spec.md","scripts/lineEndings.js","scripts/lineEndings.test.js","spec/completed/renormalize-android-gradlew-bat-so-a-fresh-checkout-is-clean.md","spec/renormalize-android-gradlew-bat-so-a-fresh-checkout-is-clean.md"],"resources":["line-endings"],"note":"PR 136 (head 0013f33, main 48c0c51 plus seven commits) is green and mergeable: all required checks and every other check on 0013f33 succeeded (28 reported, 3 skipped by design); the first doc-only head cab9bac had one red frontend run, caused by the unrelated 10 s timeout of the ephemeral-key keytool test in verifyApkNotDebugSigned.test.js, and the next push passed. Local gate green (tsc, eslint 0 errors, vitest 185 files / 3343 tests, e2e 17). Independent reviews: standards opus 2 rounds, spec sonnet 4 of 4, merge judge sonnet MERGE with no Critical, High or Important findings. Merge not performed: the session permission classifier refused a squash merge of PR 135 in this session (Merge Without Review) and I did not retry or merge through another route. Retry condition: PR 136 is merged by the owner or by a session whose permissions allow the merge; then reclaim and run finish with the merge SHA. Handoff: .agents/handoffs/rm-5f667522fc52b46b.md","blocked_at":"2026-11-12T04:27:02Z","retry_at":"2026-11-12T05:27:02Z"} -->
+  Agent: unclaimed | item: rm-5f667522fc52b46b | retry after: 2026-11-12T05:27:02Z
 
   <details>
   <summary>Root cause and scope</summary>
@@ -59,6 +59,15 @@ Items with an owner. An expired lease means the item can be recovered.
 
 
 
+
+- ⬜ **Stop the ephemeral-key signing test timing out on loaded runners**: The case "passes a key freshly generated the way the workflow does it" in `scripts/verifyApkNotDebugSigned.test.js` runs `keytool -genkeypair` under vitest's default 10 s timeout and failed a hosted `frontend` job once. Give that case an explicit timeout sized for a cold JVM and keep its assertions unchanged.
+
+  <details>
+  <summary>Evidence and scope</summary>
+
+  On 2026-11-12 the `frontend` job failed on a documentation-only commit with `Test timed out in 10000ms` (run 43152937278, job 130966161993); the previous and the next head of the same pull request passed, so the cause is runner load, not the change. Only this test file changes; no assertion is weakened. Found while delivering rm-5f667522fc52b46b.
+
+  </details>
 
 ### Blocked
 

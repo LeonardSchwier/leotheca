@@ -97,6 +97,10 @@ Beyond automated tests, visual verification is a standing practice:
 - **Video capture:** For animation or interaction sequences that a still image can't convey, Playwright can record the browser session to `.webm`, convertible to `.mp4` with `ffmpeg`. There is no demo video in the repository.
 - **Dev server workflow:** The Vite dev server is restarted before every screenshot session to avoid stale HMR state. The port (5173) is verified free before starting.
 
+### Line endings of tracked files
+
+`.gitattributes` asks for LF in the repository and CRLF in the working tree for Windows batch files (`*.bat text eol=crlf`). A text file whose stored copy has CRLF never matches what git computes from the working file, so every fresh clone lists it as modified, and `scripts/agent_ledger.py` refuses to claim, renew or finish in a dirty checkout. `scripts/lineEndings.test.js` reads `git ls-files --eol` and fails with the file name when one is stored that way; the repair is `git add --renormalize <path>` and a commit, and the file keeps its working-tree ending.
+
 ### README screenshots
 
 The screenshots in the [README](../README.md#-screenshots) come from `tests/e2e/screenshots.mjs`. It builds the frontend, serves it with `vite preview`, loads a small workspace of original sample notes through the same in-page bridge mock the E2E suite uses, and writes the split view, command palette, graph view and settings in light (`documentation/screenshots/<name>.png`) and dark (`<name>-dark.png`). It fails if any request leaves the origin or the console logs an error, and runs `optipng` when installed. Regenerate them after a visible UI change:

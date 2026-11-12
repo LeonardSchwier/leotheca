@@ -39,8 +39,8 @@ Items with an owner. An expired lease means the item can be recovered.
   </details>
 
 - 🚧 **Renormalize android/gradlew.bat so a fresh checkout is clean**: A fresh clone lists `android/gradlew.bat` as modified, and `scripts/agent_ledger.py` refuses every claim, renewal and finish in a dirty control checkout, so each new worker has to hide the file by hand. Renormalize the blob so `git status` is clean after checkout, and add a check that catches a line-ending-only difference.
-  <!-- agent-state: {"schema":1,"id":"rm-5f667522fc52b46b","state":"claimed","touch":["CHANGELOG.md","android/gradlew.bat","documentation/TESTING.md","master-spec.md","scripts/lineEndings.js","scripts/lineEndings.test.js","spec/completed/renormalize-android-gradlew-bat-so-a-fresh-checkout-is-clean.md","spec/renormalize-android-gradlew-bat-so-a-fresh-checkout-is-clean.md"],"resources":["line-endings"],"owner":"claude-code-daily-20261112T032625Z-aa6fd969","token":"c4ca89c985448e6f6f9584c5c656f33a","branch":"agent/rm-5f667522fc52b46b/c4ca89c98544","claimed_at":"2026-11-12T03:26:50Z","heartbeat_at":"2026-11-12T03:48:56Z","lease_until":"2026-11-12T05:18:56Z"} -->
-  Agent: claude-code-daily-20261112T032625Z-aa6fd969 | item: rm-5f667522fc52b46b | lease until: 2026-11-12T05:18:56Z
+  <!-- agent-state: {"schema":1,"id":"rm-5f667522fc52b46b","state":"claimed","touch":["CHANGELOG.md","android/gradlew.bat","documentation/TESTING.md","master-spec.md","scripts/lineEndings.js","scripts/lineEndings.test.js","spec/completed/renormalize-android-gradlew-bat-so-a-fresh-checkout-is-clean.md","spec/renormalize-android-gradlew-bat-so-a-fresh-checkout-is-clean.md"],"resources":["line-endings"],"owner":"claude-code-daily-20261112T032625Z-aa6fd969","token":"c4ca89c985448e6f6f9584c5c656f33a","branch":"agent/rm-5f667522fc52b46b/c4ca89c98544","claimed_at":"2026-11-12T03:26:50Z","heartbeat_at":"2026-11-12T03:58:19Z","lease_until":"2026-11-12T05:28:19Z"} -->
+  Agent: claude-code-daily-20261112T032625Z-aa6fd969 | item: rm-5f667522fc52b46b | lease until: 2026-11-12T05:28:19Z
 
   <details>
   <summary>Root cause and scope</summary>

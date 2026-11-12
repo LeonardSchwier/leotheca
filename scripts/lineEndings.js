@@ -1,10 +1,12 @@
 // Finds tracked files whose stored copy has CRLF line endings although the
 // repository's attributes ask for LF in the index (`* text=auto eol=lf` in
 // .gitattributes). With an explicit `text` attribute git converts the working
-// file to LF before it compares, so a CRLF blob never matches: every fresh
-// clone lists the file as modified, and scripts/agent_ledger.py refuses to
-// claim, renew or finish in a dirty checkout. `git ls-files --eol` prints the
-// stored ending in its `i/` column and the attributes after `attr/`.
+// file to LF before it compares, so a CRLF blob never matches: git lists the
+// file as modified whenever it re-reads it (a fresh clone does, when the
+// checkout and the index share a timestamp, and so does any touch of the
+// file), and scripts/agent_ledger.py refuses to claim, renew or finish in a
+// dirty checkout. `git ls-files --eol` prints the stored ending in its `i/`
+// column and the attributes after `attr/`.
 //
 // The repair is `git add --renormalize <path>` and a commit. A file that must
 // keep CRLF on disk, like a Windows batch file, has `eol=crlf` in

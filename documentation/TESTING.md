@@ -99,7 +99,7 @@ Beyond automated tests, visual verification is a standing practice:
 
 ### Line endings of tracked files
 
-`.gitattributes` asks for LF in the repository and CRLF in the working tree for Windows batch files (`*.bat text eol=crlf`). A text file whose stored copy has CRLF never matches what git computes from the working file, so git lists it as modified whenever it re-reads the file (in a fresh clone when the checkout and the index share a timestamp, and after any touch of the file), and `scripts/agent_ledger.py` refuses to claim, renew or finish in a dirty checkout. `scripts/lineEndings.test.js` reads `git ls-files --eol` and fails with the file name when one is stored that way; the repair is `git add --renormalize <path>` and a commit, and the file keeps its working-tree ending.
+`.gitattributes` asks for LF in the repository and CRLF in the working tree for Windows batch files (`*.bat text eol=crlf`). A file with an explicit `text` or `eol` attribute whose stored copy has CRLF never matches what git computes from the working file, so git lists it as modified whenever it re-reads the file (in a fresh clone when the checkout and the index share a timestamp, and after any touch of the file), and `scripts/agent_ledger.py` refuses to claim, renew or finish in a dirty checkout. `scripts/lineEndings.test.js` reads `git ls-files --eol` and fails with the file name when one is stored that way; the repair is `git add --renormalize <path>` and a commit, and the file keeps its working-tree ending.
 
 ### README screenshots
 

@@ -13,9 +13,10 @@ import { URL, fileURLToPath } from "node:url";
 import { phantomLineEndingFiles } from "./lineEndings.js";
 import { makeTempRepo } from "./testGit.js";
 
-// A tracked text file whose stored copy has CRLF line endings never matches
-// what git computes from the working file, so a fresh clone reports it as
-// modified and scripts/agent_ledger.py refuses to claim, renew or finish in it.
+// A tracked file with an explicit `text` attribute whose stored copy has CRLF
+// line endings never matches what git computes from the working file, so git
+// reports it as modified whenever it re-reads the file, and
+// scripts/agent_ledger.py refuses to claim, renew or finish in it.
 // `git ls-files --eol` shows the stored ending in its `i/` column.
 
 const entry = (index, attr, path) =>

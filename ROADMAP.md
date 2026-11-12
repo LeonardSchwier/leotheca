@@ -51,6 +51,7 @@ Items with an owner. An expired lease means the item can be recovered.
   <!-- agent-state: {"schema":1,"id":"rm-794c96d2125dfc85","state":"blocked","touch":["CHANGELOG.md","documentation/AGENTIC_PDLC.md","master-spec.md"],"resources":[],"note":"PDLC Security tooling row landed (PR 132, merged 9f3c3079be04759c4bf6730b9fc2955ecf983654). Waiting for upstream: retry about 2026-12-08 by repeating the check in the item (crates.io dependency lists of tauri, tauri-runtime-wry, wry, tao, muda for gtk/glib above 0.18).","blocked_at":"2026-11-08T12:45:11Z","retry_at":"2026-11-08T13:45:11Z"} -->
   Agent: unclaimed | item: rm-794c96d2125dfc85 | retry after: 2026-11-08T13:45:11Z
 
+- ⬜ **Add UI localization with support for multiple languages**: Market Solution #3 (web and mobile packages, release v3.203.0/v3.59.0, 2026-11-02) introduced localization so its interface can be used in languages other than English. Leotheca's UI has no translation layer yet; adopting a mature, offline i18n library with bundled plain-text locale files adds this with no network dependency, account, or new proprietary convention. (Competitor scan, Market Solution #3 release v3.203.0, 2026-11-02)
 
 
 

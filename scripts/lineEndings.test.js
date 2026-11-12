@@ -1,7 +1,13 @@
 // @vitest-environment node
 import { afterAll, describe, expect, it } from "vitest";
 import { execFileSync } from "node:child_process";
-import { readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  readFileSync,
+  rmSync,
+  utimesSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import { URL, fileURLToPath } from "node:url";
 import { phantomLineEndingFiles } from "./lineEndings.js";
@@ -67,24 +73,10 @@ describe("phantomLineEndingFiles", () => {
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 
-function insideGitWorkTree() {
-  try {
-    return (
-      execFileSync("git", ["rev-parse", "--is-inside-work-tree"], {
-        cwd: root,
-        encoding: "utf8",
-        stdio: ["ignore", "pipe", "ignore"],
-      }).trim() === "true"
-    );
-  } catch {
-    return false;
-  }
-}
-
 describe("this repository", () => {
-  // Skipped only outside a git work tree (a source archive); a clone, a CI
-  // checkout and a git hook all run it.
-  it.skipIf(!insideGitWorkTree())(
+  // Skipped only when the tree has no .git entry (a source archive); a clone,
+  // a worktree, a CI checkout and a git hook all run it.
+  it.skipIf(!existsSync(join(root, ".git")))(
     "stores no text file with CRLF line endings",
     () => {
       const listing = execFileSync("git", ["ls-files", "--eol", "-z"], {
@@ -105,7 +97,7 @@ describe("the symptom the check stands for", () => {
     for (const dir of cleanup) rmSync(dir, { recursive: true, force: true });
   });
 
-  it("a CRLF index copy makes a fresh clone dirty, and renormalizing cleans it", () => {
+  it("a CRLF index copy makes git report the file as modified, and renormalizing cleans it", () => {
     const { dir, git } = makeTempRepo("line-endings-");
     cleanup.push(dir);
     const batch = "@echo off\r\necho hi\r\n";
@@ -118,9 +110,19 @@ describe("the symptom the check stands for", () => {
     git("commit", "-q", "-m", "store a CRLF batch file");
 
     const listing = (repo) => git("-C", repo, "ls-files", "--eol", "-z");
+    // Right after a clone git trusts the stat data it just recorded and may not
+    // read the file at all (the CRLF blob and the CRLF file have the same
+    // size), so whether a stale blob shows up would depend on timestamps. A
+    // changed modification time makes git compare the content, as it does after
+    // any later touch of the file.
+    const touch = (repo) => {
+      const later = new Date(Date.now() + 10_000);
+      utimesSync(join(repo, "run.bat"), later, later);
+    };
     const dirtyClone = `${dir}-dirty`;
     cleanup.push(dirtyClone);
     git("clone", "-q", dir, dirtyClone);
+    touch(dirtyClone);
     expect(git("-C", dirtyClone, "status", "--porcelain")).toBe("M run.bat");
     expect(phantomLineEndingFiles(listing(dirtyClone))).toEqual(["run.bat"]);
 
@@ -130,6 +132,7 @@ describe("the symptom the check stands for", () => {
     const cleanClone = `${dir}-clean`;
     cleanup.push(cleanClone);
     git("clone", "-q", dir, cleanClone);
+    touch(cleanClone);
     expect(git("-C", cleanClone, "status", "--porcelain")).toBe("");
     expect(phantomLineEndingFiles(listing(cleanClone))).toEqual([]);
     expect(readFileSync(join(cleanClone, "run.bat"), "utf8")).toBe(batch);

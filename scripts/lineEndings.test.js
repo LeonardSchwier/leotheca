@@ -10,7 +10,7 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 import { URL, fileURLToPath } from "node:url";
-import { phantomLineEndingFiles } from "./lineEndings.js";
+import { eolRecords, phantomLineEndingFiles } from "./lineEndings.js";
 import { makeTempRepo } from "./testGit.js";
 
 // A tracked file with an explicit `text` attribute whose stored copy has CRLF
@@ -19,8 +19,8 @@ import { makeTempRepo } from "./testGit.js";
 // scripts/agent_ledger.py refuses to claim, renew or finish in it.
 // `git ls-files --eol` shows the stored ending in its `i/` column.
 
-const entry = (index, attr, path) =>
-  `i/${index}  w/crlf  attr/${attr.padEnd(17)}\t${path}`;
+const entry = (index, attr, path, worktree = "crlf") =>
+  `i/${index.padEnd(5)} w/${worktree.padEnd(5)} attr/${attr.padEnd(17)}\t${path}`;
 
 describe("phantomLineEndingFiles", () => {
   it("names a CRLF index copy that the attributes ask to store as LF", () => {
@@ -70,6 +70,47 @@ describe("phantomLineEndingFiles", () => {
     expect(phantomLineEndingFiles("")).toEqual([]);
     expect(phantomLineEndingFiles("\n")).toEqual([]);
   });
+
+  it("still names a CRLF index copy when the working file is missing", () => {
+    // A deleted file, or one outside a sparse checkout, has an empty `w/`
+    // column; git prints `w/` followed by spaces.
+    const out = [
+      entry("crlf", "text eol=crlf", "android/gradlew.bat", ""),
+      entry("lf", "text eol=crlf", "present.bat", ""),
+    ].join("\n");
+    expect(phantomLineEndingFiles(out)).toEqual(["android/gradlew.bat"]);
+  });
+
+  it("fails loudly on a listing it cannot read instead of reporting nothing", () => {
+    // A changed `git ls-files --eol` format must not turn the check into a
+    // pass that inspects nothing.
+    expect(() => phantomLineEndingFiles("100644 abc 0\tfile.txt\n")).toThrow(
+      /unrecognised/i,
+    );
+    expect(() => phantomLineEndingFiles("not a listing")).toThrow(
+      /unrecognised/i,
+    );
+  });
+
+  it("skips a submodule line (empty index column) without failing", () => {
+    const out = `i/      w/      attr/                 \tvendor/sub\n${entry("crlf", "text eol=crlf", "a.bat")}`;
+    expect(phantomLineEndingFiles(out)).toEqual(["a.bat"]);
+  });
+});
+
+describe("eolRecords", () => {
+  it("returns every parsed record with its columns", () => {
+    expect(
+      eolRecords(entry("lf", "text=auto eol=lf", "src/main.ts", "lf")),
+    ).toEqual([
+      {
+        index: "lf",
+        worktree: "lf",
+        attr: "text=auto eol=lf",
+        path: "src/main.ts",
+      },
+    ]);
+  });
 });
 
 const root = fileURLToPath(new URL("..", import.meta.url));
@@ -88,6 +129,24 @@ describe("this repository", () => {
       // Repair with `git add --renormalize <path>` and commit it. The file
       // keeps its working-tree ending (`eol=crlf` for a Windows batch file).
       expect(phantomLineEndingFiles(listing)).toEqual([]);
+    },
+  );
+
+  // A check that parses nothing would pass for every tree. This file's own
+  // line proves the installed git still prints the format the parser reads.
+  it.skipIf(!existsSync(join(root, ".git")))(
+    "reads its own line from the real `git ls-files --eol` output",
+    () => {
+      const listing = execFileSync("git", ["ls-files", "--eol", "-z"], {
+        cwd: root,
+        encoding: "utf8",
+        maxBuffer: 64 * 1024 * 1024,
+      });
+      const own = eolRecords(listing).find(
+        (record) => record.path === "scripts/lineEndings.js",
+      );
+      expect(own).toBeDefined();
+      expect(own.index).toBe("lf");
     },
   );
 });

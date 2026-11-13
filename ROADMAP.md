@@ -50,7 +50,9 @@ Items with an owner. An expired lease means the item can be recovered.
 
   </details>
 
-- ⬜ **Add a branch-hygiene rule to the constitution**: Finished work branches stay on the remote and in local clones because no rule says when a branch is no longer needed or who closes it. Add a short rule that defines a finished branch, makes the item owner delete it (remote and local) and prune its worktree, and lists the branches nobody deletes.
+- 🚧 **Add a branch-hygiene rule to the constitution**: Finished work branches stay on the remote and in local clones because no rule says when a branch is no longer needed or who closes it. Add a short rule that defines a finished branch, makes the item owner delete it (remote and local) and prune its worktree, and lists the branches nobody deletes.
+  <!-- agent-state: {"schema":1,"id":"rm-dc00fcf174bc25d4","state":"claimed","touch":[".agents/handoffs","CHANGELOG.md","CONSTITUTION.md","scripts/guard-command.mjs","scripts/guard-command.test.js","skills/pull-request-delivery.md","skills/roadmap-workflow.md","spec/add-a-branch-hygiene-rule-to-the-constitution.md","spec/completed/add-a-branch-hygiene-rule-to-the-constitution.md"],"resources":["branch-hygiene"],"owner":"claude-code-20261113T212225Z-de495abf","token":"162c2d6a05ca77c92a6ab478b681b6ca","branch":"agent/rm-dc00fcf174bc25d4/162c2d6a05ca","claimed_at":"2026-11-13T21:23:14Z","heartbeat_at":"2026-11-13T21:23:14Z","lease_until":"2026-11-13T22:53:14Z"} -->
+  Agent: claude-code-20261113T212225Z-de495abf | item: rm-dc00fcf174bc25d4 | lease until: 2026-11-13T22:53:14Z
 
 ### Blocked
 

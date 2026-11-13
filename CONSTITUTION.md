@@ -64,7 +64,7 @@ The 2026-09-06 owner instruction supersedes all earlier rules requiring a human 
 5. Renew the remote lease every `heartbeat_minutes` while making progress, including during tests and CI diagnosis. Renew synchronously at tool boundaries. A detached heartbeat that keeps renewing after its agent dies is forbidden.
 6. After `lease_until + clock_skew_minutes`, another worker may reclaim. The old worker must stop on wake-up, refresh main, and acquire a new claim before making more changes. Branch existence, unrelated commits, author identity, and queued CI do not extend a lease.
 7. Before every implementation publication, fetch main, merge it into your candidate, confirm the token still belongs to you and has enough time left, inspect the merged diff, and retest affected behavior. A stale token is a lost claim, even if the code is excellent.
-8. Never force-push, rewrite published history, bypass hooks/protection, delete another agent's work, or use whole-file `ours`/`theirs` to discard changes. `hooks/` and `.github/workflows/rules.yml` enforce this mechanically where a tool can see it (map and bypass policy in `hooks/README.md`); the rule binds even where they cannot. Remote rejection means refresh and decide again, not force.
+8. Never force-push, rewrite published history, bypass hooks/protection, delete another agent's work (a branch that is no longer needed is not work, see "Branch hygiene"), or use whole-file `ours`/`theirs` to discard changes. `hooks/` and `.github/workflows/rules.yml` enforce this mechanically where a tool can see it (map and bypass policy in `hooks/README.md`); the rule binds even where they cannot. Remote rejection means refresh and decide again, not force.
 
 The helper validates local ledger transitions. The runbook's fresh-base commit and normal push make those transitions exclusive on the remote. This is a cooperative protocol, not a server-side security boundary: all participating runners must follow it.
 
@@ -150,6 +150,16 @@ Diagnose blockers before deferring. Install declared dependencies where permitte
 Use one committed file per task in `handoff_dir`, with the format in `skills/autonomous-roadmap-delivery.md`. Record task/token, acceptance criteria, checkpoint and landed SHAs, tests/review evidence, failures, next command, and retry condition. Never include secrets or machine-only absolute paths. Private logs, a local stash, and unpushed commits are not handoffs.
 
 Reserve budget for a checkpoint and lease release. Publish incomplete code only to its unique work branch; push the handoff and release on the ledger branch; stop honestly. Do not rush unverified code into a pull request as tokens run low. If the worker dies without doing this, lease expiry makes its task eligible for another worker, which may start again from current main.
+
+## Branch hygiene
+
+Close a work branch when it is no longer needed. A branch is no longer needed when one of these is true:
+
+1. It is merged into main: `git merge-base --is-ancestor <branch> origin/main` succeeds.
+2. All its patches are in main: `git cherry origin/main <branch>` prints no `+` line, or every file it changed is the same as on main.
+3. Its item is `✅` and landed from a different branch, or no live claim and no open pull request names it.
+
+The owner of an item closes its work branch after the pull request merges, or when the item is finished or abandoned: delete it on the remote and locally, and prune its worktree (`git worktree remove`, then `git worktree prune`). GitHub deletes the branch of a merged pull request by itself (`delete_branch_on_merge`). Never delete main, the ledger branch, a branch with an open pull request, or a branch named by a live (unexpired) claim. Before you delete a branch with commits that are not in main, record its name and tip SHA in the item's handoff or a cleanup note, so it can be restored. This refines invariant 8: a branch whose work is in main, or whose item is done, is no longer "work". `scripts/guard-command.mjs` still blocks branch deletion, because it cannot see claims or pull requests.
 
 ## Portable maintenance
 

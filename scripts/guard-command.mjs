@@ -28,7 +28,7 @@ const RULES = [
   ],
   [
     /\bgit\b[^;&|]*\bpush\b[^;&|]*(?:--delete\b|\s:\S+)/,
-    "Do not delete remote refs. Leaving a harmless branch is preferable.",
+    "Remote branch deletion is guarded: this check cannot see claims or open pull requests. Follow CONSTITUTION.md, Branch hygiene; a merged pull request's branch is deleted by GitHub.",
   ],
   [
     /\bgit\b[^;&|]*\b(?:commit|push|merge|am|cherry-pick|rebase)\b[^;&|]*(?:--no-verify\b|--no-gpg-sign\b|\s-n\b)/,
@@ -48,7 +48,7 @@ const RULES = [
   ],
   [
     /\bgit\b[^;&|]*\b(?:branch\s+-D|stash\s+(?:drop|clear))\b/,
-    "Do not delete branches or stashes that may hold another session's work.",
+    "Do not force-delete branches or drop stashes that may hold another session's work. A finished branch is closed per CONSTITUTION.md, Branch hygiene; `git branch -d` removes a merged one.",
   ],
 ];
 

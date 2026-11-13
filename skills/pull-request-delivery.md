@@ -38,7 +38,7 @@ Variables: read CONSTITUTION.md (remote, main_branch).
 
 6. Keep renewing the lease while the PR waits. Read the failed log of any red check, quote the real error, fix it on the branch and push again. A conflict after a queue entry is repaired the same way: merge main into the branch, retest, push.
 7. When the PR is merged, record the merge commit SHA in the handoff, then finish the item on the ledger branch. Finished means merged. Runs that start on main after the merge (Release, Dependabot) are inspected and their ids appended to the handoff; a red one is a main regression and takes priority.
-8. Delete only your own work branch, after the merge. Leave other agents' branches alone.
+8. After the merge, close your work branch and its worktree per the constitution's "Branch hygiene" (GitHub deletes the remote branch of a merged pull request). Leave branches with an open pull request or a live claim alone.
 
 ## If the owner is gone
 

@@ -46,4 +46,14 @@ describe("guardCommand", () => {
   it("names the safe alternative", () => {
     expect(guardCommand("git push -f", cwd)).toMatch(/Never force-push/);
   });
+
+  it("points branch deletion to the Branch hygiene rule", () => {
+    for (const c of [
+      "git push origin --delete agent/x",
+      "git push origin :agent/x",
+      "git branch -D agent/x",
+    ])
+      expect(guardCommand(c, cwd)).toMatch(/Branch hygiene/);
+    expect(blocked("git branch -d agent/x")).toBe(false);
+  });
 });

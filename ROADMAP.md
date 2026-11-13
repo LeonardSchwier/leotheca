@@ -50,6 +50,8 @@ Items with an owner. An expired lease means the item can be recovered.
 
   </details>
 
+- ⬜ **Add a branch-hygiene rule to the constitution**: Finished work branches stay on the remote and in local clones because no rule says when a branch is no longer needed or who closes it. Add a short rule that defines a finished branch, makes the item owner delete it (remote and local) and prune its worktree, and lists the branches nobody deletes.
+
 ### Blocked
 
 Items that wait for access or a decision outside the repository.

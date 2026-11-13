@@ -40,16 +40,6 @@ Items with an owner. An expired lease means the item can be recovered.
 
 
 
-- 🚧 **Stop the ephemeral-key signing test timing out on loaded runners**: The case "passes a key freshly generated the way the workflow does it" in `scripts/verifyApkNotDebugSigned.test.js` runs `keytool -genkeypair` under vitest's default 10 s timeout and failed a hosted `frontend` job once. Give that case an explicit timeout sized for a cold JVM and keep its assertions unchanged.
-  <!-- agent-state: {"schema":1,"id":"rm-23995b77e2a11856","state":"claimed","touch":["CHANGELOG.md","scripts/verifyApkNotDebugSigned.test.js","spec/completed/stop-the-ephemeral-key-signing-test-timing-out-on-loaded-runners.md","spec/stop-the-ephemeral-key-signing-test-timing-out-on-loaded-runners.md"],"resources":[],"owner":"claude-code-daily-20261113T031857Z-b0fd9c9a","token":"d7e6303a8faa7f6478d62712af82b73d","branch":"agent/rm-23995b77e2a11856/d7e6303a8faa","claimed_at":"2026-11-13T03:48:46Z","heartbeat_at":"2026-11-13T04:14:17Z","lease_until":"2026-11-13T05:44:17Z"} -->
-  Agent: claude-code-daily-20261113T031857Z-b0fd9c9a | item: rm-23995b77e2a11856 | lease until: 2026-11-13T05:44:17Z
-
-  <details>
-  <summary>Evidence and scope</summary>
-
-  On 2026-11-12 the `frontend` job failed on a documentation-only commit with `Test timed out in 10000ms` (run 43152937278, job 130966161993); the previous and the next head of the same pull request passed, so the cause is runner load, not the change. Only this test file changes; no assertion is weakened. Found while delivering rm-5f667522fc52b46b.
-
-  </details>
 
 - ⬜ **Fail the keytool signing cases on a keytool error instead of passing**: Two cases in `scripts/verifyApkNotDebugSigned.test.js` (the freshly generated key and the committed debug keystore) wrap `keytool` in `try { ... } catch { return; }`, so every error, a broken JDK, bad arguments or a killed process, is reported as a pass. Only a missing executable (`ENOENT`) should skip a case; every other error should fail it.
 
@@ -81,6 +71,18 @@ Items that wait for access or a decision outside the repository.
 - ⏸ **Compatibility layer**: Load community extension manifests; gated on maintainer approval of the third-party-code security model.
 
 ## Implemented
+
+- ✅ **Stop the ephemeral-key signing test timing out on loaded runners**: The case "passes a key freshly generated the way the workflow does it" in `scripts/verifyApkNotDebugSigned.test.js` runs `keytool -genkeypair` under vitest's default 10 s timeout and failed a hosted `frontend` job once. Give that case an explicit timeout sized for a cold JVM and keep its assertions unchanged.
+  <!-- agent-state: {"schema":1,"id":"rm-23995b77e2a11856","state":"done","touch":["CHANGELOG.md","scripts/verifyApkNotDebugSigned.test.js","spec/completed/stop-the-ephemeral-key-signing-test-timing-out-on-loaded-runners.md","spec/stop-the-ephemeral-key-signing-test-timing-out-on-loaded-runners.md"],"resources":[],"note":"Landed 3d68735f61232c3a57cb9e2073ff9a407d922b9a via PR 139 (squash merge in this session): the case 'passes a key freshly generated the way the workflow does it' in scripts/verifyApkNotDebugSigned.test.js now declares 60000 ms as its own timeout (global testTimeout and case body unchanged). Reproduced the hosted failure first with a sleeping keytool stand-in (1 failed, 23191 ms, Test timed out in 10000ms), then passed with the change (23.17 s). Local gate on the reviewed head: tsc, eslint 0 errors, vitest 186 files / 3368 tests, e2e 17. Judges: standards opus, spec sonnet, merge judge opus on the final diff 2026-11-13: MERGE OK, no Critical or High (one Minor fixed in bd8d392). CI runs 43364180129 (pull_request) and 43364173512 (push) on head bd8d392, all required checks green; hosted CI pending for the runs that start on main for the merge commit, run ids go in the handoff. Follow-up seeded: fail the keytool signing cases on a keytool error instead of passing.","completed_at":"2026-11-13T04:23:14Z","completed_by":"claude-code-daily-20261113T031857Z-b0fd9c9a","branch":"agent/rm-23995b77e2a11856/d7e6303a8faa"} -->
+  Agent: completed by claude-code-daily-20261113T031857Z-b0fd9c9a | item: rm-23995b77e2a11856
+
+  <details>
+  <summary>Evidence and scope</summary>
+
+  On 2026-11-12 the `frontend` job failed on a documentation-only commit with `Test timed out in 10000ms` (run 43152937278, job 130966161993); the previous and the next head of the same pull request passed, so the cause is runner load, not the change. Only this test file changes; no assertion is weakened. Found while delivering rm-5f667522fc52b46b.
+
+  </details>
+
 
 - ✅ **Report failures of the quick new note, canvas and drawing commands**: Ctrl+N and the palette entries New note, New canvas and New drawing run `void createXQuick(dir).then(open)` with no rejection handler, and the `new-note` automation command awaits the same call uncaught. A read-only folder, a full disk or a vanished directory shows nothing on screen and ends as an unhandled rejection; a `new-note` URL also loses the text it carried.
   <!-- agent-state: {"schema":1,"id":"rm-ca75588cd818c9d0","state":"done","touch":["CHANGELOG.md","master-spec.md","spec/completed/report-failures-of-the-quick-new-note-canvas-and-drawing-commands.md","spec/report-failures-of-the-quick-new-note-canvas-and-drawing-commands.md","src/app/App.test.tsx","src/app/App.tsx","src/app/quickCreate.test.ts","src/app/quickCreate.ts","src/workspace/fileTreeStore.test.ts","src/workspace/fileTreeStore.ts"],"resources":["quick-create-commands"],"note":"Landed a3030b175854770541d924d1cafc24018a75ebf3 via PR 135 (squash merge in this session): createAndOpen reports a failed quick create or open with an alert and never rejects, create*Quick no longer reports a failed tree refresh as a failed create. Local gate on the PR head fcf096d: tsc, eslint 0 errors, vitest 185 files / 3355 tests, build, e2e 17. Judges opus and sonnet read the final diff on 2026-11-13: MERGE, no Critical, High or Important. CI 42952597894 (PR 135 head fcf096d, all required checks green); hosted CI pending for the runs that start on main for the merge commit, run ids go in the handoff.","completed_at":"2026-11-13T03:48:17Z","completed_by":"claude-code-daily-20261113T031857Z-b0fd9c9a","branch":"agent/rm-ca75588cd818c9d0/a31b7838050c"} -->

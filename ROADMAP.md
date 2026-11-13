@@ -51,6 +51,15 @@ Items with an owner. An expired lease means the item can be recovered.
 
   </details>
 
+- ⬜ **Fail the keytool signing cases on a keytool error instead of passing**: Two cases in `scripts/verifyApkNotDebugSigned.test.js` (the freshly generated key and the committed debug keystore) wrap `keytool` in `try { ... } catch { return; }`, so every error, a broken JDK, bad arguments or a killed process, is reported as a pass. Only a missing executable (`ENOENT`) should skip a case; every other error should fail it.
+
+  <details>
+  <summary>Evidence and scope</summary>
+
+  Found by the standards review of rm-23995b77e2a11856 (2026-11-13): `execFileSync` throws on a non-zero exit and on a kill, and both land in the bare `catch` at lines 112 and 175, which then returns before any assertion runs. The hosted runners have a JDK, so there the cases must run; a silent skip there would hide a regression of the signing check. Change only the two `catch` blocks to rethrow unless `error.code === "ENOENT"`, keep every assertion, and add a test that a failing `keytool` stand-in fails the case (for example by exporting the helper that runs `keytool` and testing it with a stand-in on `PATH`). A hung `keytool` is out of scope: a synchronous call cannot be interrupted by the test timeout.
+
+  </details>
+
 ### Blocked
 
 Items that wait for access or a decision outside the repository.

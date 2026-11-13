@@ -41,8 +41,8 @@ Items with an owner. An expired lease means the item can be recovered.
 
 
 - 🚧 **Stop the ephemeral-key signing test timing out on loaded runners**: The case "passes a key freshly generated the way the workflow does it" in `scripts/verifyApkNotDebugSigned.test.js` runs `keytool -genkeypair` under vitest's default 10 s timeout and failed a hosted `frontend` job once. Give that case an explicit timeout sized for a cold JVM and keep its assertions unchanged.
-  <!-- agent-state: {"schema":1,"id":"rm-23995b77e2a11856","state":"claimed","touch":["CHANGELOG.md","scripts/verifyApkNotDebugSigned.test.js","spec/completed/stop-the-ephemeral-key-signing-test-timing-out-on-loaded-runners.md","spec/stop-the-ephemeral-key-signing-test-timing-out-on-loaded-runners.md"],"resources":[],"owner":"claude-code-daily-20261113T031857Z-b0fd9c9a","token":"d7e6303a8faa7f6478d62712af82b73d","branch":"agent/rm-23995b77e2a11856/d7e6303a8faa","claimed_at":"2026-11-13T03:48:46Z","heartbeat_at":"2026-11-13T03:48:46Z","lease_until":"2026-11-13T05:18:46Z"} -->
-  Agent: claude-code-daily-20261113T031857Z-b0fd9c9a | item: rm-23995b77e2a11856 | lease until: 2026-11-13T05:18:46Z
+  <!-- agent-state: {"schema":1,"id":"rm-23995b77e2a11856","state":"claimed","touch":["CHANGELOG.md","scripts/verifyApkNotDebugSigned.test.js","spec/completed/stop-the-ephemeral-key-signing-test-timing-out-on-loaded-runners.md","spec/stop-the-ephemeral-key-signing-test-timing-out-on-loaded-runners.md"],"resources":[],"owner":"claude-code-daily-20261113T031857Z-b0fd9c9a","token":"d7e6303a8faa7f6478d62712af82b73d","branch":"agent/rm-23995b77e2a11856/d7e6303a8faa","claimed_at":"2026-11-13T03:48:46Z","heartbeat_at":"2026-11-13T03:54:05Z","lease_until":"2026-11-13T05:24:05Z"} -->
+  Agent: claude-code-daily-20261113T031857Z-b0fd9c9a | item: rm-23995b77e2a11856 | lease until: 2026-11-13T05:24:05Z
 
   <details>
   <summary>Evidence and scope</summary>

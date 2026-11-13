@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   act,
   cleanup,
@@ -122,8 +122,18 @@ vi.mock("../workspace/tauriBridge", () => ({
   ),
 }));
 
-const { renameEntry, createNoteQuick, deleteEntry } = vi.hoisted(() => ({
+const {
+  renameEntry,
+  createNoteQuick,
+  createCanvasQuick,
+  createInkQuick,
+  deleteEntry,
+} = vi.hoisted(() => ({
   renameEntry: vi.fn<(oldPath: string, newName: string) => Promise<string>>(),
+  createCanvasQuick:
+    vi.fn<(dirPath: string) => Promise<{ path: string; name: string }>>(),
+  createInkQuick:
+    vi.fn<(dirPath: string) => Promise<{ path: string; name: string }>>(),
   createNoteQuick:
     vi.fn<
       (
@@ -139,6 +149,8 @@ const { renameEntry, createNoteQuick, deleteEntry } = vi.hoisted(() => ({
 vi.mock("../workspace/fileTreeStore", () => ({
   renameEntry,
   createNoteQuick,
+  createCanvasQuick,
+  createInkQuick,
   createNoteFromTemplate: vi.fn(),
   listTemplates: vi.fn(async () => []),
   runSearch: vi.fn(),
@@ -305,6 +317,8 @@ afterEach(() => {
   writeClipboardText.mockClear();
   renameEntry.mockReset();
   createNoteQuick.mockReset();
+  createCanvasQuick.mockReset();
+  createInkQuick.mockReset();
   initSettings.mockReset();
   openUrlListeners.length = 0;
   externalFileOpenListeners.length = 0;
@@ -3002,5 +3016,145 @@ describe("App: read-current-note automation command (leotheca://read-current-not
     });
 
     expect(writeClipboardText).not.toHaveBeenCalled();
+  });
+});
+
+describe("App: a failing quick new note, canvas or drawing is reported, not left as an unhandled rejection", () => {
+  const unhandled = vi.fn();
+  let alertSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    unhandled.mockClear();
+    process.on("unhandledRejection", unhandled);
+    alertSpy = vi.spyOn(window, "alert").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    process.off("unhandledRejection", unhandled);
+    alertSpy.mockRestore();
+  });
+
+  const flush = () =>
+    act(async () => {
+      for (let i = 0; i < 6; i++) await new Promise((r) => setTimeout(r, 0));
+    });
+
+  const runPaletteCommand = async (
+    getByPlaceholderText: (t: string) => HTMLElement,
+    getByText: (t: string) => HTMLElement,
+    query: string,
+    label: string,
+  ) => {
+    await act(async () => {
+      fireEvent.click(
+        document.querySelector('[aria-label="Command palette"]')!,
+      );
+      await Promise.resolve();
+    });
+    fireEvent.input(getByPlaceholderText("Type a command..."), {
+      target: { value: query },
+    });
+    await act(async () => {
+      fireEvent.click(getByText(label));
+      await Promise.resolve();
+    });
+    await flush();
+  };
+
+  it("Ctrl+N tells the user when the note cannot be created", async () => {
+    workspacePath.value = "/vault";
+    createNoteQuick.mockRejectedValue(new Error("EACCES: permission denied"));
+    render(<App />);
+
+    fireEvent.keyDown(window, { key: "n", ctrlKey: true });
+    await flush();
+
+    expect(alertSpy).toHaveBeenCalledTimes(1);
+    expect(alertSpy).toHaveBeenCalledWith(
+      "Couldn't create the new note: EACCES: permission denied",
+    );
+    expect(unhandled).not.toHaveBeenCalled();
+  });
+
+  it("Ctrl+N tells the user when the created note cannot be opened", async () => {
+    workspacePath.value = "/vault";
+    createNoteQuick.mockResolvedValue({
+      path: "/vault/Untitled.md",
+      name: "Untitled.md",
+    });
+    readTextFile.mockRejectedValueOnce(new Error("file vanished"));
+    render(<App />);
+
+    fireEvent.keyDown(window, { key: "n", ctrlKey: true });
+    await flush();
+
+    expect(alertSpy).toHaveBeenCalledWith(
+      'Created "Untitled.md" but couldn\'t open it: file vanished',
+    );
+    expect(unhandled).not.toHaveBeenCalled();
+  });
+
+  it("the palette's New note, New canvas and New drawing each report their own failure", async () => {
+    workspacePath.value = "/vault";
+    workspaceSettings.value = {
+      ...DEFAULT_WORKSPACE_SETTINGS,
+      canvasEnabled: true,
+    };
+    createNoteQuick.mockRejectedValue(new Error("disk full"));
+    createCanvasQuick.mockRejectedValue(new Error("folder is read-only"));
+    createInkQuick.mockRejectedValue(new Error("directory removed"));
+    const { getByPlaceholderText, getByText } = render(<App />);
+
+    await runPaletteCommand(
+      getByPlaceholderText,
+      getByText,
+      "New note",
+      "New note",
+    );
+    expect(alertSpy).toHaveBeenLastCalledWith(
+      "Couldn't create the new note: disk full",
+    );
+
+    await runPaletteCommand(
+      getByPlaceholderText,
+      getByText,
+      "New canvas",
+      "New canvas",
+    );
+    expect(alertSpy).toHaveBeenLastCalledWith(
+      "Couldn't create the new canvas: folder is read-only",
+    );
+
+    await runPaletteCommand(
+      getByPlaceholderText,
+      getByText,
+      "New drawing",
+      "New drawing",
+    );
+    expect(alertSpy).toHaveBeenLastCalledWith(
+      "Couldn't create the new drawing: directory removed",
+    );
+    expect(alertSpy).toHaveBeenCalledTimes(3);
+    expect(unhandled).not.toHaveBeenCalled();
+  });
+
+  it("the new-note automation command reports a failure instead of dropping its text silently", async () => {
+    workspacePath.value = "/vault";
+    settingsLoaded.value = true;
+    createNoteQuick.mockRejectedValue(new Error("disk full"));
+    render(<App />);
+
+    await act(async () => {
+      openUrlListeners.at(-1)?.([
+        "leotheca://new-note?content=remember%20this",
+      ]);
+    });
+    await flush();
+
+    expect(createNoteQuick).toHaveBeenCalledWith("/vault", "remember this");
+    expect(alertSpy).toHaveBeenCalledWith(
+      "Couldn't create the new note: disk full",
+    );
+    expect(unhandled).not.toHaveBeenCalled();
   });
 });

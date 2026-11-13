@@ -28,6 +28,10 @@ npx vitest run src/markdown/  # specific module
 
 **Config:** `vitest.config.ts` (jsdom environment, `@testing-library/preact`).
 
+### Line endings of tracked files
+
+`.gitattributes` asks for LF in the repository and CRLF in the working tree for Windows batch files (`*.bat text eol=crlf`). A file with an explicit `text` or `eol` attribute whose stored copy has CRLF never matches what git computes from the working file, so git lists it as modified whenever it re-reads the file (in a fresh clone when the checkout and the index share a timestamp, and after any touch of the file), and `scripts/agent_ledger.py` refuses to claim, renew or finish in a dirty checkout. `scripts/lineEndings.test.js` reads `git ls-files --eol` and fails with the file name when one is stored that way; the repair is `git add --renormalize <path>` and a commit, and the file keeps its working-tree ending. A clone that already lists `android/gradlew.bat` as modified runs `git add --renormalize android/gradlew.bat` once before it pulls the commit that repaired it: a pull aborts over the local modification, and restoring the file does not help because the stored copy is the problem.
+
 ## E2E Tests (Playwright)
 
 **A smoke suite of user journeys in headless Chromium** (`tests/e2e`, TypeScript Playwright Test). It drives the production bundle (`vite build` then `vite preview`) with the native side replaced by an in-page bridge mock (`tests/e2e/support/bridgeMock.ts`), so it exercises what ships, including the strict CSP. It is the required `e2e` job in CI and runs in the pre-push gate through `npm run test:e2e` when a Playwright browser is installed.

@@ -486,6 +486,19 @@ async function createAutoNamedTextFile(
   }
 }
 
+/** Refreshes the tree after a quick create has written its file. The file is
+ * already on disk by then, so a refresh that fails (the workspace was switched
+ * or closed meanwhile, or the folder vanished) must not turn the command into a
+ * failed create: the caller would tell the user "couldn't create" and invite a
+ * duplicate. The next listing of the folder shows the new file. */
+async function refreshAfterCreate(dirPath: string): Promise<void> {
+  try {
+    await loadChildren(dirPath);
+  } catch (e) {
+    console.warn("[refreshAfterCreate] tree refresh failed:", e);
+  }
+}
+
 /** Creates a new, open-format canvas file without requiring a naming dialog. */
 export async function createCanvasQuick(
   dirPath: string,
@@ -500,7 +513,7 @@ export async function createCanvasQuick(
     uniqueCanvasName,
     JSON.stringify({ nodes: [], edges: [] }, null, 2),
   );
-  await loadChildren(dirPath);
+  await refreshAfterCreate(dirPath);
   return created;
 }
 
@@ -526,7 +539,7 @@ export async function createInkQuick(
       2,
     ),
   );
-  await loadChildren(dirPath);
+  await refreshAfterCreate(dirPath);
   return created;
 }
 
@@ -553,7 +566,7 @@ export async function createNoteQuick(
     (names) => uniqueNoteName(names, "Untitled"),
     content,
   );
-  await loadChildren(dirPath);
+  await refreshAfterCreate(dirPath);
   await syncRecentNotesWidget(root);
   return created;
 }

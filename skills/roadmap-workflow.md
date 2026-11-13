@@ -166,7 +166,7 @@ The helper moves the whole item under `## Implemented` with `✅`. Update its ha
 
 For external blockers or deferred checks, use `block --id ... --token ... --note "..."` instead. It releases ownership and sets a retry time. Include the concrete retry condition in the note/handoff. Use `release` for resumable unfinished work with no external blocker. Both require fresh remote ownership; never release someone else's token. After pushing, confirm the resulting blocked/open state by task ID with `list`, not by checking the now-released token.
 
-Retain useful remote checkpoints. Delete only your own branch after confirming its commits are already on main and no pending handoff needs it. Leaving a harmless checkpoint branch is preferable to deleting unfinished work. Fetch main and select the next item.
+Close your work branch and its worktree as the constitution's "Branch hygiene" says: after the merge, or when you abandon the item, and only after its name and tip SHA are in the handoff if it holds commits that are not on main. Leaving a checkpoint branch is preferable to deleting unfinished work that someone may still need. Fetch main and select the next item.
 
 ## 7. Recover legacy claims and dead sessions
 
@@ -180,7 +180,7 @@ python3 "$REPO_ROOT/scripts/agent_ledger.py" --root "$CONTROL_DIR" observe \
 
 This gives one finite legacy grace window, not ownership for you. Do not repeat observation to extend it. If new evidence reveals wider touch paths/resources, run `observe` again in a fresh transaction with that evidence: it adds scope and updates the note while preserving the original deadline. It never narrows prior scope. If this exposes overlap with your active claim, `check` rejects publication; checkpoint, release/replan, and continue elsewhere until scope is free. After expiry plus skew, claim normally. Recent branch commits do not renew a structured lease; a live upgraded owner must claim/renew through the new protocol.
 
-For an expired structured claim, inspect its handoff and main first, then `claim` normally with a new agent/token. No remote branch is required. A missing checkpoint permits starting from current main. A checkpoint is optional input, not trusted finished work: review it and cherry-pick only useful changes onto your new branch after acquiring ownership. Never delete the predecessor's branch or merge their old claim metadata.
+For an expired structured claim, inspect its handoff and main first, then `claim` normally with a new agent/token. No remote branch is required. A missing checkpoint permits starting from current main. A checkpoint is optional input, not trusted finished work: review it and cherry-pick only useful changes onto your new branch after acquiring ownership. Do not delete the predecessor's branch while you recover the item, and never merge their old claim metadata.
 
 If your old session resumes after a takeover, preserve its local changes, stop publication, and choose other work. Do not restore the old token or unconditionally finish the old item.
 

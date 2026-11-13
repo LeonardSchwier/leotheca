@@ -47,6 +47,7 @@
 
 ### Bug Fixes
 
+- **Quick new note, canvas and drawing report failures** - Ctrl+N and the New note, New canvas and New drawing commands (and a `leotheca://new-note` link) did nothing visible when the folder was read-only, the disk was full or the new file could not be opened, and logged an unhandled promise rejection; a `new-note` link dropped the text it carried without a word. They now show a message, and say when the file was created but could not be opened.
 - **Atomic file writes under concurrent saves** - two writes to the same note landing in the same millisecond on one process (an autosave racing an explicit save, or two capture commits in a row) could silently swap which write's content actually landed while reporting a spurious failure for the other; fixed by giving every atomic write's temp file a unique, monotonically increasing name.
 - **Android folder picker** — New workspaces are now named after the real folder instead of the literal "Workspace".
 - **Recent-notes widget** — Fixed label collisions for same-named notes in different folders.

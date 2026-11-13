@@ -203,6 +203,7 @@ import { useRenamePreview } from "../refactor/useRenamePreview";
 import { RenamePreviewDialog } from "../refactor/RenamePreviewDialog";
 import { TemplatePicker } from "../workspace/TemplatePicker";
 import { parseAutomationUrl } from "./automationCommands";
+import { createAndOpen } from "./quickCreate";
 import { useResizableSidebar } from "./useResizableSidebar";
 import "./resizable-sidebar.css";
 import { GraphView } from "../graph/GraphView";
@@ -270,6 +271,12 @@ const inspectorTab = signal<InspectorTab>("properties");
 const rtlWorkspaceEnabled = computed(
   () => workspaceSettings.value.rtlWorkspaceEnabled,
 );
+
+/** How App-level commands tell the user something failed: the same native
+ * alert its other commands use (for example the PDF export). */
+function reportToUser(message: string): void {
+  window.alert(message);
+}
 
 function toggleSidebarPanel(panel: typeof bookmarksOpen): void {
   const next = !panel.value;
@@ -764,11 +771,12 @@ export function App() {
         await waitForSettingsLoaded();
         if (!workspacePath.value) return;
         const targetDir = selectedDir.value ?? workspacePath.value;
-        const { path, name } = await createNoteQuick(
-          targetDir,
-          command.content,
+        await createAndOpen(
+          "note",
+          () => createNoteQuick(targetDir, command.content),
+          handleOpenFile,
+          reportToUser,
         );
-        await handleOpenFile(path, name);
         return;
       }
     },
@@ -997,8 +1005,11 @@ export function App() {
           void updateWorkspaceSettings({ uiZoom: next });
       } else if (key === "n" && rootPath) {
         e.preventDefault();
-        void createNoteQuick(selectedDir.value ?? rootPath).then(
-          ({ path, name }) => handleOpenFile(path, name),
+        void createAndOpen(
+          "note",
+          () => createNoteQuick(selectedDir.value ?? rootPath),
+          handleOpenFile,
+          reportToUser,
         );
       } else if (key === "k") {
         e.preventDefault();
@@ -1264,8 +1275,11 @@ export function App() {
         id: "new-note",
         label: "New note",
         run: () =>
-          void createNoteQuick(selectedDir.value ?? rootPath).then(
-            ({ path, name }) => handleOpenFile(path, name),
+          void createAndOpen(
+            "note",
+            () => createNoteQuick(selectedDir.value ?? rootPath),
+            handleOpenFile,
+            reportToUser,
           ),
       });
       if (workspaceSettings.value.canvasEnabled) {
@@ -1273,8 +1287,11 @@ export function App() {
           id: "new-canvas",
           label: "New canvas",
           run: () =>
-            void createCanvasQuick(selectedDir.value ?? rootPath).then(
-              ({ path, name }) => handleOpenFile(path, name),
+            void createAndOpen(
+              "canvas",
+              () => createCanvasQuick(selectedDir.value ?? rootPath),
+              handleOpenFile,
+              reportToUser,
             ),
         });
       }
@@ -1282,8 +1299,11 @@ export function App() {
         id: "new-drawing",
         label: "New drawing",
         run: () =>
-          void createInkQuick(selectedDir.value ?? rootPath).then(
-            ({ path, name }) => handleOpenFile(path, name),
+          void createAndOpen(
+            "drawing",
+            () => createInkQuick(selectedDir.value ?? rootPath),
+            handleOpenFile,
+            reportToUser,
           ),
       });
       list.push({

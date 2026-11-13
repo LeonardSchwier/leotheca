@@ -62,6 +62,12 @@ describe("findDebugSigningProblems", () => {
       findDebugSigningProblems(printed("bb".repeat(32), dn), [DEBUG]),
     ).toEqual([]);
   });
+  // keytool starts twice here. A cold JVM on a loaded runner needed more than
+  // the suite's 10 s limit once (the frontend job ran 185 files in parallel).
+  // Both calls are synchronous, so vitest reports the timeout only after they
+  // return; a ceiling well above any plausible cold start removes the false
+  // failure, and only this case gets it so a hang elsewhere still fails fast.
+  // The literal 60_000 keeps prettier from re-indenting the whole case body.
   it("passes a key freshly generated the way the workflow does it", () => {
     let dir;
     let listing;
@@ -116,7 +122,7 @@ describe("findDebugSigningProblems", () => {
         [DEBUG],
       ),
     ).toEqual([]);
-  });
+  }, 60_000);
   it("fails the committed debug certificate in any digest spelling", () => {
     expect(
       findDebugSigningProblems(printed(DEBUG_PLAIN), [DEBUG]),

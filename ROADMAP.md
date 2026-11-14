@@ -104,6 +104,7 @@ Items that wait for access or a decision outside the repository.
 - ⏸ **Compatibility layer**: Load community extension manifests; gated on maintainer approval of the third-party-code security model.
 
 - ⬜ **Application localization (UI strings in multiple languages)**: Market Solution #3 3.203.0 (Nov 2, 2026) introduced localization with multi-language UI support (Desktop + Mobile). Leotheca's UI strings are currently hardcoded in English across desktop and Android. Adding offline i18n for the user-facing chrome (settings, menus, dialogs) using standard translation files in the user's workspace or bundled, with language selection and an off-by-default fallback, is a plain-file, offline extension of existing UI with no new convention. (Competitor scan, Market Solution #3 changelog 3.203.0, 2026-11-02)
+- ⬜ **In-app Web viewer for external links**: Market Solution #2 1.15.1 Desktop/Mobile (Nov 3, 2026) added a Web viewer core plugin that opens external links in an in-app browser panel instead of handing off to the system browser. Leotheca currently opens external links in the default browser (or blocks them in the webview CSP); a togglable in-app panel that renders fetched HTML locally (with the same CSP/script restrictions already applied) is a plain-file, offline, opt-in extension with no proprietary convention. (Competitor scan, Market Solution #2 changelog 1.15.1 Desktop + Mobile, 2026-11-03)
 
 ## Implemented
 

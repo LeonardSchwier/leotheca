@@ -41,7 +41,9 @@ Items with an owner. An expired lease means the item can be recovered.
 
 
 
-- ⬜ **Fail the keytool signing cases on a keytool error instead of passing**: Two cases in `scripts/verifyApkNotDebugSigned.test.js` (the freshly generated key and the committed debug keystore) wrap `keytool` in `try { ... } catch { return; }`, so every error, a broken JDK, bad arguments or a killed process, is reported as a pass. Only a missing executable (`ENOENT`) should skip a case; every other error should fail it.
+- 🚧 **Fail the keytool signing cases on a keytool error instead of passing**: Two cases in `scripts/verifyApkNotDebugSigned.test.js` (the freshly generated key and the committed debug keystore) wrap `keytool` in `try { ... } catch { return; }`, so every error, a broken JDK, bad arguments or a killed process, is reported as a pass. Only a missing executable (`ENOENT`) should skip a case; every other error should fail it.
+  <!-- agent-state: {"schema":1,"id":"rm-5021528c532ab214","state":"claimed","touch":["CHANGELOG.md","scripts/verifyApkNotDebugSigned.mjs","scripts/verifyApkNotDebugSigned.test.js","spec/completed/fail-the-keytool-signing-cases-on-a-keytool-error-instead-of-passing.md","spec/fail-the-keytool-signing-cases-on-a-keytool-error-instead-of-passing.md"],"resources":[],"owner":"claude-code-daily-20261115T031148Z-6d57f9dd","token":"0b9828c317d628ac643503b77b2a2c2c","branch":"agent/rm-5021528c532ab214/0b9828c317d6","claimed_at":"2026-11-15T03:11:48Z","heartbeat_at":"2026-11-15T03:11:48Z","lease_until":"2026-11-15T04:41:48Z"} -->
+  Agent: claude-code-daily-20261115T031148Z-6d57f9dd | item: rm-5021528c532ab214 | lease until: 2026-11-15T04:41:48Z
 
   <details>
   <summary>Evidence and scope</summary>

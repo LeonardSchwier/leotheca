@@ -41,16 +41,6 @@ Items with an owner. An expired lease means the item can be recovered.
 
 
 
-- 🚧 **Fail the keytool signing cases on a keytool error instead of passing**: Two cases in `scripts/verifyApkNotDebugSigned.test.js` (the freshly generated key and the committed debug keystore) wrap `keytool` in `try { ... } catch { return; }`, so every error, a broken JDK, bad arguments or a killed process, is reported as a pass. Only a missing executable (`ENOENT`) should skip a case; every other error should fail it.
-  <!-- agent-state: {"schema":1,"id":"rm-5021528c532ab214","state":"claimed","touch":["CHANGELOG.md","scripts/verifyApkNotDebugSigned.mjs","scripts/verifyApkNotDebugSigned.test.js","spec/completed/fail-the-keytool-signing-cases-on-a-keytool-error-instead-of-passing.md","spec/fail-the-keytool-signing-cases-on-a-keytool-error-instead-of-passing.md"],"resources":[],"owner":"claude-code-daily-20261115T031148Z-6d57f9dd","token":"0b9828c317d628ac643503b77b2a2c2c","branch":"agent/rm-5021528c532ab214/0b9828c317d6","claimed_at":"2026-11-15T03:11:48Z","heartbeat_at":"2026-11-15T03:29:08Z","lease_until":"2026-11-15T04:59:08Z"} -->
-  Agent: claude-code-daily-20261115T031148Z-6d57f9dd | item: rm-5021528c532ab214 | lease until: 2026-11-15T04:59:08Z
-
-  <details>
-  <summary>Evidence and scope</summary>
-
-  Found by the standards review of rm-23995b77e2a11856 (2026-11-13): `execFileSync` throws on a non-zero exit and on a kill, and both land in the bare `catch` at lines 112 and 175, which then returns before any assertion runs. The hosted runners have a JDK, so there the cases must run; a silent skip there would hide a regression of the signing check. Change only the two `catch` blocks to rethrow unless `error.code === "ENOENT"`, keep every assertion, and add a test that a failing `keytool` stand-in fails the case (for example by exporting the helper that runs `keytool` and testing it with a stand-in on `PATH`). A hung `keytool` is out of scope: a synchronous call cannot be interrupted by the test timeout.
-
-  </details>
 
 
 ### Blocked
@@ -74,6 +64,18 @@ Items that wait for access or a decision outside the repository.
 - ⏸ **Compatibility layer**: Load community extension manifests; gated on maintainer approval of the third-party-code security model.
 
 ## Implemented
+
+- ✅ **Fail the keytool signing cases on a keytool error instead of passing**: Two cases in `scripts/verifyApkNotDebugSigned.test.js` (the freshly generated key and the committed debug keystore) wrap `keytool` in `try { ... } catch { return; }`, so every error, a broken JDK, bad arguments or a killed process, is reported as a pass. Only a missing executable (`ENOENT`) should skip a case; every other error should fail it.
+  <!-- agent-state: {"schema":1,"id":"rm-5021528c532ab214","state":"done","touch":["CHANGELOG.md","scripts/verifyApkNotDebugSigned.mjs","scripts/verifyApkNotDebugSigned.test.js","spec/completed/fail-the-keytool-signing-cases-on-a-keytool-error-instead-of-passing.md","spec/fail-the-keytool-signing-cases-on-a-keytool-error-instead-of-passing.md"],"resources":[],"note":"Landed 2038f51337a21b913c454366953fdadd41636108 via PR 142 (squash merge in this session): the two keytool cases in scripts/verifyApkNotDebugSigned.test.js go through a helper that returns null only for ENOENT (reported as skipped via context.skip) and rethrows every other error, so a failing keytool fails the case instead of passing; assertions, finally cleanup and the 60000 ms timeout unchanged; 6 new helper tests with stand-in keytool programs. Reproduced first: a stand-in keytool that exits 3 left 13 of 13 passing on the unchanged file, 2 failed of 19 after. Local gate on PR head 9de31876: tsc, eslint 0 errors, vitest 186 files / 3375 tests, build, policy 24 OK, e2e 17. Judges 2026-11-15: standards opus, spec sonnet, merge opus on the final diff: MERGE OK, no Critical or High. CI run 43672483456 (pull_request) and 43672456612 (push) on head 9de31876, all required checks green; hosted CI for the runs that start on main for the merge commit is listed in the handoff.","completed_at":"2026-11-15T03:36:30Z","completed_by":"claude-code-daily-20261115T031148Z-6d57f9dd","branch":"agent/rm-5021528c532ab214/0b9828c317d6"} -->
+  Agent: completed by claude-code-daily-20261115T031148Z-6d57f9dd | item: rm-5021528c532ab214
+
+  <details>
+  <summary>Evidence and scope</summary>
+
+  Found by the standards review of rm-23995b77e2a11856 (2026-11-13): `execFileSync` throws on a non-zero exit and on a kill, and both land in the bare `catch` at lines 112 and 175, which then returns before any assertion runs. The hosted runners have a JDK, so there the cases must run; a silent skip there would hide a regression of the signing check. Change only the two `catch` blocks to rethrow unless `error.code === "ENOENT"`, keep every assertion, and add a test that a failing `keytool` stand-in fails the case (for example by exporting the helper that runs `keytool` and testing it with a stand-in on `PATH`). A hung `keytool` is out of scope: a synchronous call cannot be interrupted by the test timeout.
+
+  </details>
+
 
 - ✅ **Add a branch-hygiene rule to the constitution**: Finished work branches stay on the remote and in local clones because no rule says when a branch is no longer needed or who closes it. Add a short rule that defines a finished branch, makes the item owner delete it (remote and local) and prune its worktree, and lists the branches nobody deletes.
   <!-- agent-state: {"schema":1,"id":"rm-dc00fcf174bc25d4","state":"done","touch":[".agents/handoffs","CHANGELOG.md","CONSTITUTION.md","scripts/guard-command.mjs","scripts/guard-command.test.js","skills/pull-request-delivery.md","skills/roadmap-workflow.md","spec/add-a-branch-hygiene-rule-to-the-constitution.md","spec/completed/add-a-branch-hygiene-rule-to-the-constitution.md"],"resources":["branch-hygiene"],"note":"Merged as PR 140 (2b38b8f): CONSTITUTION.md Branch hygiene section and invariant 8 pointer, roadmap-workflow and pull-request-delivery point to it, guard-command.mjs keeps blocking branch deletion with messages naming the rule plus a test. Local: verify-fast (tsc, eslint, vitest 186 files / 3369 tests) ok, e2e 17 passed. PR checks green (CI push run 43511394762, Rules 43511431065, Agent policy 43511431103); hosted CI pending for the runs that start on main, ids go in the handoff.","completed_at":"2026-11-13T21:38:37Z","completed_by":"claude-code-20261113T212225Z-de495abf","branch":"agent/rm-dc00fcf174bc25d4/162c2d6a05ca"} -->

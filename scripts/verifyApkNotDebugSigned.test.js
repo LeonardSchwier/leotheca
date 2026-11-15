@@ -1,10 +1,10 @@
 // @vitest-environment node
 import { execFileSync, spawnSync } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { URL } from "node:url";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   findDebugSigningProblems,
   normalizeSha256,
@@ -17,6 +17,20 @@ const DEBUG_PLAIN = DEBUG.replace(/:/g, "").toLowerCase();
 const RELEASE = "aa".repeat(32);
 const printed = (digest, dn = "CN=Leotheca Release, O=Leonard Schwier") =>
   `Signer #1 certificate DN: ${dn}\nSigner #1 certificate SHA-256 digest: ${digest}\nSigner #1 certificate SHA-1 digest: 00\n`;
+
+// Runs keytool. Returns null when the executable does not exist, so the caller
+// can skip the case, and { stdout } otherwise (execFileSync itself returns
+// null when stdio is "ignore", which must not read as "not installed"). Every
+// other failure, a non-zero exit, a kill, a keystore it cannot read, bad
+// arguments, a JDK that does not start, propagates and fails the case.
+function keytool(args, options) {
+  try {
+    return { stdout: execFileSync("keytool", args, options) };
+  } catch (error) {
+    if (error?.code === "ENOENT") return null;
+    throw error;
+  }
+}
 
 describe("normalizeSha256", () => {
   it("accepts colon, upper-case and plain forms", () => {
@@ -68,14 +82,13 @@ describe("findDebugSigningProblems", () => {
   // return; a ceiling well above any plausible cold start removes the false
   // failure, and only this case gets it so a hang elsewhere still fails fast.
   // The literal 60_000 keeps prettier from re-indenting the whole case body.
-  it("passes a key freshly generated the way the workflow does it", () => {
+  it("passes a key freshly generated the way the workflow does it", (context) => {
     let dir;
     let listing;
     try {
       dir = mkdtempSync(join(tmpdir(), "ephemeral-key-"));
       const store = join(dir, "t.keystore");
-      execFileSync(
-        "keytool",
+      const generated = keytool(
         [
           "-genkeypair",
           "-keystore",
@@ -97,8 +110,10 @@ describe("findDebugSigningProblems", () => {
         ],
         { stdio: "ignore" },
       );
-      listing = execFileSync(
-        "keytool",
+      // No keytool on this runner: report a skip, not a pass. Any other
+      // failure of the two calls has already thrown out of the case.
+      if (!generated) return context.skip();
+      listing = keytool(
         [
           "-list",
           "-v",
@@ -108,9 +123,7 @@ describe("findDebugSigningProblems", () => {
           "ephemeral-test-pass",
         ],
         { encoding: "utf8" },
-      );
-    } catch {
-      return; // keytool is not installed on this runner
+      ).stdout;
     } finally {
       if (dir) rmSync(dir, { recursive: true, force: true });
     }
@@ -146,6 +159,74 @@ describe("findDebugSigningProblems", () => {
   });
 });
 
+describe("keytool helper", () => {
+  // The stand-ins sit in a temporary directory that is the only entry of the
+  // PATH given to the helper, so the result does not depend on a JDK being
+  // installed on the machine that runs the suite.
+  let dir;
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), "keytool-standin-"));
+  });
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
+  const options = (extra = {}) => ({
+    env: { PATH: dir },
+    stdio: "pipe",
+    encoding: "utf8",
+    ...extra,
+  });
+  const standIn = (script, mode = 0o755) => {
+    const file = join(dir, "keytool");
+    writeFileSync(file, script);
+    chmodSync(file, mode);
+  };
+  const thrown = (run) => {
+    try {
+      run();
+    } catch (error) {
+      return error;
+    }
+    throw new Error("expected the helper to throw");
+  };
+
+  it("reports a missing executable as null so the case can be skipped", () => {
+    expect(keytool(["-list"], options())).toBeNull();
+  });
+
+  describe.skipIf(process.platform === "win32")(
+    "with a stand-in keytool",
+    () => {
+      it("returns the output and passes the arguments through", () => {
+        standIn('#!/bin/sh\necho "args: $*"\n');
+        expect(keytool(["-list", "-v"], options())).toEqual({
+          stdout: "args: -list -v\n",
+        });
+      });
+      it("does not mistake a success without captured output for a missing executable", () => {
+        standIn("#!/bin/sh\nexit 0\n");
+        expect(keytool(["-list"], options({ stdio: "ignore" }))).not.toBeNull();
+      });
+      it("throws when keytool exits with an error", () => {
+        standIn('#!/bin/sh\necho "broken JDK" >&2\nexit 3\n');
+        const error = thrown(() => keytool(["-list"], options()));
+        expect(error.status).toBe(3);
+        expect(String(error.stderr)).toContain("broken JDK");
+      });
+      it("throws when keytool is killed", () => {
+        standIn("#!/bin/sh\nkill -9 $$\n");
+        const error = thrown(() => keytool(["-list"], options()));
+        expect(error.signal).toBe("SIGKILL");
+      });
+      it("throws when keytool exists but cannot be executed", () => {
+        standIn("#!/bin/sh\nexit 0\n", 0o644);
+        const error = thrown(() => keytool(["-list"], options()));
+        expect(error.code).toBe("EACCES");
+      });
+    },
+  );
+});
+
 describe("command line", () => {
   const script = new URL("./verifyApkNotDebugSigned.mjs", import.meta.url)
     .pathname;
@@ -157,24 +238,21 @@ describe("command line", () => {
     expect(bad.status).toBe(1);
     expect(bad.stderr).toContain("debug certificate");
   });
-  it("matches the digest keytool reports for the committed debug keystore", () => {
-    let listing;
-    try {
-      listing = execFileSync(
-        "keytool",
-        [
-          "-list",
-          "-v",
-          "-keystore",
-          new URL("../android/debug.keystore", import.meta.url).pathname,
-          "-storepass",
-          "android",
-        ],
-        { encoding: "utf8" },
-      );
-    } catch {
-      return; // keytool is not installed on this runner
-    }
+  it("matches the digest keytool reports for the committed debug keystore", (context) => {
+    const result = keytool(
+      [
+        "-list",
+        "-v",
+        "-keystore",
+        new URL("../android/debug.keystore", import.meta.url).pathname,
+        "-storepass",
+        "android",
+      ],
+      { encoding: "utf8" },
+    );
+    // No keytool on this runner: report a skip, not a pass.
+    if (!result) return context.skip();
+    const listing = result.stdout;
     expect(normalizeSha256(/SHA256:\s*(\S+)/.exec(listing)[1])).toBe(
       DEBUG_PLAIN,
     );

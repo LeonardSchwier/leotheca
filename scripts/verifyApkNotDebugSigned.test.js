@@ -22,7 +22,9 @@ const printed = (digest, dn = "CN=Leotheca Release, O=Leonard Schwier") =>
 // can skip the case, and { stdout } otherwise (execFileSync itself returns
 // null when stdio is "ignore", which must not read as "not installed"). Every
 // other failure, a non-zero exit, a kill, a keystore it cannot read, bad
-// arguments, a JDK that does not start, propagates and fails the case.
+// arguments, a JDK that fails while running, propagates and fails the case.
+// ENOENT also covers a keytool link that points nowhere and a launcher whose
+// interpreter is missing: those read as "not installed" and skip the case.
 function keytool(args, options) {
   try {
     return { stdout: execFileSync("keytool", args, options) };
@@ -205,7 +207,9 @@ describe("keytool helper", () => {
       });
       it("does not mistake a success without captured output for a missing executable", () => {
         standIn("#!/bin/sh\nexit 0\n");
-        expect(keytool(["-list"], options({ stdio: "ignore" }))).not.toBeNull();
+        expect(keytool(["-list"], options({ stdio: "ignore" }))).toEqual({
+          stdout: null,
+        });
       });
       it("throws when keytool exits with an error", () => {
         standIn('#!/bin/sh\necho "broken JDK" >&2\nexit 3\n');

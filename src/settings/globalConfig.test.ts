@@ -23,6 +23,7 @@ vi.mock("../workspace/tauriBridge", () => ({
 const DEFAULTS: GlobalConfigV2 = {
   version: 2,
   theme: "system",
+  language: "system",
   activeWorkspaceId: null,
   workspaceProfiles: [],
   lastWorkspacePath: null,
@@ -51,6 +52,7 @@ describe("loadGlobalConfig", () => {
     const saved: GlobalConfigV2 = {
       version: 2,
       theme: "light",
+      language: "en",
       activeWorkspaceId: "profile-1",
       workspaceProfiles: [
         {
@@ -113,6 +115,35 @@ describe("decodeGlobalConfig", () => {
     expect(corrupt).toBe(true);
   });
 
+  it("defaults language to system when absent, and keeps a stored language", () => {
+    const missing = decodeGlobalConfig(JSON.stringify({ theme: "dark" }));
+    expect(missing.config.language).toBe("system");
+    expect(missing.corrupt).toBe(false);
+    for (const language of ["system", "en", "de"] as const) {
+      const stored = decodeGlobalConfig(JSON.stringify({ language }));
+      expect(stored.config.language).toBe(language);
+      expect(stored.corrupt).toBe(false);
+    }
+  });
+
+  it("treats a wrong-typed language as corrupt and falls back to system", () => {
+    for (const language of [42, null, {}, ["de"], true]) {
+      const { config, corrupt } = decodeGlobalConfig(
+        JSON.stringify({ language }),
+      );
+      expect(config.language).toBe("system");
+      expect(corrupt).toBe(true);
+    }
+  });
+
+  it("falls back to system for a language this build does not know, without calling the file corrupt", () => {
+    const { config, corrupt } = decodeGlobalConfig(
+      JSON.stringify({ language: "fr" }),
+    );
+    expect(config.language).toBe("system");
+    expect(corrupt).toBe(false);
+  });
+
   it("rejects a wrong-typed lastWorkspacePath", () => {
     const { config, corrupt } = decodeGlobalConfig(
       JSON.stringify({ lastWorkspacePath: 42 }),
@@ -161,6 +192,7 @@ describe("decodeGlobalConfig", () => {
     const saved: GlobalConfigV2 = {
       version: 2,
       theme: "dark",
+      language: "de",
       activeWorkspaceId: "p1",
       workspaceProfiles: [
         {

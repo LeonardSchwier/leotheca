@@ -9,13 +9,16 @@ import {
   WorkspaceRelinkConflictError,
 } from "./store";
 import { workspaceIconGlyph } from "./WorkspaceSwitcher";
+import { t } from "../i18n";
 
 function reportRelinkFailure(error: unknown): void {
   if (error instanceof WorkspaceRelinkConflictError) {
-    window.alert(error.message);
+    window.alert(
+      t("welcome.relinkConflict", { name: error.conflictingProfileName }),
+    );
     return;
   }
-  window.alert("Could not relink workspace. Try again.");
+  window.alert(t("welcome.relinkFailed"));
 }
 
 /** F20 Phase 2b-iii-a, spec sections 9.4/17.2/17.3: the app's only "no
@@ -72,8 +75,7 @@ export function WelcomeDialog() {
       // feedback: a tap that visibly does nothing. Only fill in a generic
       // fallback when nothing more specific was already published.
       if (!workspaceSelectionError.value) {
-        workspaceSelectionError.value =
-          "Could not open that folder. Try again or choose another folder.";
+        workspaceSelectionError.value = t("welcome.couldNotOpenFolder");
       }
     } finally {
       setLoading(false);
@@ -107,18 +109,15 @@ export function WelcomeDialog() {
     return (
       <div class="modal-overlay">
         <div class="modal welcome-dialog">
-          <h2>Welcome to Leotheca</h2>
-          <p>
-            Choose a folder on disk to use as your root workspace. You can
-            change it later from Settings.
-          </p>
+          <h2>{t("welcome.title")}</h2>
+          <p>{t("welcome.chooseFolderHint")}</p>
           {workspaceSelectionError.value && (
             <p role="alert" class="settings-error">
               {workspaceSelectionError.value}
             </p>
           )}
           <button onClick={handleChoose} disabled={loading}>
-            {loading ? "Opening folder picker…" : "Choose Folder"}
+            {loading ? t("welcome.openingPicker") : t("welcome.chooseFolder")}
           </button>
         </div>
       </div>
@@ -130,11 +129,8 @@ export function WelcomeDialog() {
       <div class="modal welcome-dialog workspace-launcher">
         {activeProfile ? (
           <>
-            <h2>Couldn't open "{activeProfile.name}"</h2>
-            <p>
-              This workspace's folder may have moved, or access may have been
-              revoked.
-            </p>
+            <h2>{t("welcome.failedTitle", { name: activeProfile.name })}</h2>
+            <p>{t("welcome.failedBody")}</p>
             {workspaceSelectionError.value && (
               <p role="alert" class="settings-error">
                 {workspaceSelectionError.value}
@@ -145,19 +141,21 @@ export function WelcomeDialog() {
                 onClick={() => void handleActivate(activeProfile.id)}
                 disabled={activatingId === activeProfile.id}
               >
-                {activatingId === activeProfile.id ? "Retrying…" : "Retry"}
+                {activatingId === activeProfile.id
+                  ? t("welcome.retrying")
+                  : t("welcome.retry")}
               </button>
               <button
                 onClick={() => void handleRelink(activeProfile.id)}
                 disabled={relinking}
               >
-                {relinking ? "Relinking…" : "Relink folder"}
+                {relinking ? t("welcome.relinking") : t("welcome.relink")}
               </button>
             </div>
           </>
         ) : (
           <>
-            <h2>Open a workspace</h2>
+            <h2>{t("welcome.openWorkspace")}</h2>
             {workspaceSelectionError.value && (
               <p role="alert" class="settings-error">
                 {workspaceSelectionError.value}
@@ -169,13 +167,13 @@ export function WelcomeDialog() {
           <>
             <p class="workspace-launcher-label">
               {activeProfile
-                ? "Or open a different workspace"
-                : "Recent workspaces"}
+                ? t("welcome.orOpenDifferent")
+                : t("welcome.recentWorkspaces")}
             </p>
             <div
               class="workspace-launcher-list"
               role="list"
-              aria-label="Recent workspaces"
+              aria-label={t("welcome.recentWorkspaces")}
             >
               {otherProfiles.map((profile) => (
                 <div
@@ -201,7 +199,7 @@ export function WelcomeDialog() {
           </>
         )}
         <button onClick={handleChoose} disabled={loading}>
-          {loading ? "Opening folder picker…" : "Add workspace"}
+          {loading ? t("welcome.openingPicker") : t("welcome.addWorkspace")}
         </button>
       </div>
     </div>

@@ -11,6 +11,7 @@ import {
   settingsPanelOpen,
   setExternalFileOpenEnabled,
   setTheme,
+  setLanguage,
   repairWorkspaceSettingsFile,
   retryWorkspaceSettingsSave,
   theme,
@@ -23,6 +24,14 @@ import {
   workspaceSettings,
 } from "./store";
 import type { ThemePreference } from "./globalConfig";
+import {
+  catalogs,
+  LANGUAGE_NAMES,
+  LANGUAGE_PREFERENCES,
+  languagePreference,
+  t,
+  type LanguagePreference,
+} from "../i18n";
 import {
   clamp,
   MAX_FONT_SIZE,
@@ -50,6 +59,24 @@ const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
   { value: "system", label: "Follow System" },
   { value: "light", label: "Light" },
   { value: "dark", label: "Dark" },
+];
+
+/** A language is named in itself, so it is the same text whatever the
+ * interface language is; only "Follow System" is translated. */
+function languageOptionLabel(value: LanguagePreference): string {
+  return value === "system"
+    ? t("settings.language.followSystem")
+    : LANGUAGE_NAMES[value];
+}
+
+// Searching "Sprache" must find the row even while the interface is English,
+// and "language" while it is German: someone who landed in the wrong
+// language has to be able to find this setting.
+const LANGUAGE_ROW_SEARCH_TERMS: string[] = [
+  ...Object.values(catalogs).map(
+    (catalog) => catalog["settings.language.label"],
+  ),
+  ...Object.values(LANGUAGE_NAMES),
 ];
 
 const VIEW_MODE_OPTIONS: { value: ViewMode; label: string }[] = [
@@ -348,6 +375,7 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
     "Rename, identify, add, and forget known workspaces without deleting their files",
   );
   const showTheme = matches("Theme");
+  const showLanguage = matches(...LANGUAGE_ROW_SEARCH_TERMS);
   const showFontSize = matches("Font size");
   const showZoom = matches(
     "Zoom",
@@ -416,6 +444,7 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
   const profilesVisible = showWorkspaceProfiles;
   const appearanceVisible =
     showTheme ||
+    showLanguage ||
     Boolean(
       workspacePath.value &&
       (showFontSize ||
@@ -1426,6 +1455,27 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                           onClick={() => setTheme(option.value)}
                         >
                           {option.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {showLanguage && (
+                  <div class="settings-row">
+                    <div class="settings-label">
+                      {t("settings.language.label")}
+                    </div>
+                    <div class="settings-switch">
+                      {LANGUAGE_PREFERENCES.map((value) => (
+                        <button
+                          key={value}
+                          class={
+                            languagePreference.value === value ? "active" : ""
+                          }
+                          onClick={() => void setLanguage(value)}
+                        >
+                          {languageOptionLabel(value)}
                         </button>
                       ))}
                     </div>

@@ -18,6 +18,7 @@ vi.mock("./store", () => ({
   settingsPanelOpen: signal(true),
   setExternalFileOpenEnabled: vi.fn(),
   setTheme: vi.fn(),
+  setLanguage: vi.fn(),
   repairWorkspaceSettingsFile: vi.fn(),
   retryWorkspaceSettingsSave: vi.fn(),
   theme: signal<ThemePreference>("system"),
@@ -83,6 +84,7 @@ import {
   settingsPanelOpen,
   setExternalFileOpenEnabled,
   setTheme,
+  setLanguage,
   repairWorkspaceSettingsFile,
   retryWorkspaceSettingsSave,
   theme,
@@ -94,6 +96,7 @@ import {
   workspaceSettingsSaving,
   workspaceSettings,
 } from "./store";
+import { languagePreference } from "../i18n";
 
 afterEach(() => {
   cleanup();
@@ -101,10 +104,12 @@ afterEach(() => {
   workspacePath.value = null;
   workspaceSettings.value = DEFAULT_WORKSPACE_SETTINGS;
   theme.value = "system";
+  languagePreference.value = "system";
   appVersion.value = "";
   viewMode.value = "source";
   externalFileOpenEnabled.value = true;
   vi.mocked(setTheme).mockReset();
+  vi.mocked(setLanguage).mockReset();
   vi.mocked(setExternalFileOpenEnabled).mockReset();
   vi.mocked(addWorkspaceFromPicker).mockReset();
   vi.mocked(updateWorkspaceSettings).mockReset();
@@ -259,9 +264,55 @@ describe("SettingsPanel", () => {
       <SettingsPanel onOpenFile={vi.fn()} />,
     );
     openCategory(getByRole, "Appearance");
-    expect(getByText("Follow System").className).toContain("active");
-    fireEvent.click(getByText("Dark"));
+    // The Language row also has a "Follow System" option, so look inside the
+    // Theme row.
+    const row = getByText("Theme").closest(".settings-row") as HTMLElement;
+    expect(within(row).getByText("Follow System").className).toContain(
+      "active",
+    );
+    fireEvent.click(within(row).getByText("Dark"));
     expect(setTheme).toHaveBeenCalledWith("dark");
+  });
+
+  it("language switch names each language in itself and calls setLanguage with the clicked option", () => {
+    const { getByText, getByRole } = render(
+      <SettingsPanel onOpenFile={vi.fn()} />,
+    );
+    openCategory(getByRole, "Appearance");
+    expect(getByText("Language")).toBeTruthy();
+    const row = getByText("Language").closest(".settings-row") as HTMLElement;
+    expect(within(row).getByText("Follow System").className).toContain(
+      "active",
+    );
+    fireEvent.click(within(row).getByText("Deutsch"));
+    expect(setLanguage).toHaveBeenCalledWith("de");
+    fireEvent.click(within(row).getByText("English"));
+    expect(setLanguage).toHaveBeenCalledWith("en");
+  });
+
+  it("marks the chosen language active and shows the row in German when German is chosen", () => {
+    languagePreference.value = "de";
+    const { getByText, getByRole } = render(
+      <SettingsPanel onOpenFile={vi.fn()} />,
+    );
+    openCategory(getByRole, "Appearance");
+    const row = getByText("Sprache").closest(".settings-row") as HTMLElement;
+    expect(within(row).getByText("Deutsch").className).toContain("active");
+    expect(within(row).getByText("English").className).not.toContain("active");
+    // The system option is translated; the language names are not.
+    expect(within(row).getByText("System folgen")).toBeTruthy();
+  });
+
+  it("finds the language row by its name in either language", () => {
+    for (const query of ["language", "Sprache", "deutsch", "english"]) {
+      const { getByLabelText, getByText, unmount } = render(
+        <SettingsPanel onOpenFile={vi.fn()} />,
+      );
+      const search = getByLabelText("Search settings") as HTMLInputElement;
+      fireEvent.input(search, { target: { value: query } });
+      expect(getByText("Deutsch")).toBeTruthy();
+      unmount();
+    }
   });
 
   it("clamps an out-of-range font size before saving it", () => {

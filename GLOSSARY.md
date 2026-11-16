@@ -30,6 +30,7 @@ The shared vocabulary of Leotheca. Read it at session start (`AGENTS.md`). Use t
 | Collection               | A smart collection: a saved query with a view and a sort, stored in `.leotheca/collections.json`.                                         | `master-spec.md` section 6.6           |
 | Trash                    | The folder `<workspace>/.trash/`, which mirrors the original relative path.                                                               | `master-spec.md` section 6.10          |
 | Automation URL           | A `leotheca://` link such as `read-current-note`, `open-favorites` or `open-note`.                                                        | `master-spec.md` section 7.5           |
+| Locale                   | The language of the interface strings, chosen by the Language setting; `system` resolves from the device.                                 | `src/i18n/index.ts`                    |
 
 ## Delivery process
 

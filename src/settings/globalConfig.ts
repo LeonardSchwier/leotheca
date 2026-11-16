@@ -1,3 +1,4 @@
+import { isLanguagePreference, type LanguagePreference } from "../i18n";
 import {
   anyCorrupt,
   decodeBoolean,
@@ -69,6 +70,10 @@ export interface WorkspaceProfile {
 export interface GlobalConfigV2 {
   version: 2;
   theme: ThemePreference;
+  /** The interface language: `system` follows the device, otherwise a
+   * catalog language. App-level, not per workspace: the Welcome dialog shows
+   * before any workspace is open. */
+  language: LanguagePreference;
   activeWorkspaceId: string | null;
   workspaceProfiles: WorkspaceProfile[];
 
@@ -94,11 +99,25 @@ export interface GlobalConfigV2 {
 const DEFAULT_GLOBAL_CONFIG: GlobalConfigV2 = {
   version: 2,
   theme: "system",
+  language: "system",
   activeWorkspaceId: null,
   workspaceProfiles: [],
   lastWorkspacePath: null,
   externalFileOpenEnabled: true,
 };
+
+/** A string this build has no catalog for (a language a newer app wrote) is
+ * not corruption: it is a harmless preference, and calling it corrupt would
+ * block every later config write. It reads as `system`. Only a value of the
+ * wrong type is corrupt. */
+function decodeLanguage(raw: unknown): {
+  value: LanguagePreference;
+  corrupt: boolean;
+} {
+  if (raw === undefined) return { value: "system", corrupt: false };
+  if (typeof raw !== "string") return { value: "system", corrupt: true };
+  return { value: isLanguagePreference(raw) ? raw : "system", corrupt: false };
+}
 
 async function globalConfigPath(): Promise<string> {
   return getAppConfigFilePath("config.json");
@@ -210,6 +229,7 @@ export function decodeGlobalConfig(raw: string): {
     THEME_PREFERENCES,
     DEFAULT_GLOBAL_CONFIG.theme,
   );
+  const language = decodeLanguage(record.language);
   const workspaceTokenCorrupt =
     record.workspaceToken !== undefined &&
     typeof record.workspaceToken !== "string";
@@ -265,6 +285,7 @@ export function decodeGlobalConfig(raw: string): {
     ...record,
     version: 2,
     theme: theme.value,
+    language: language.value,
     activeWorkspaceId: resolvedActiveWorkspaceId,
     workspaceProfiles,
     lastWorkspacePath: lastWorkspacePath.value,
@@ -278,6 +299,7 @@ export function decodeGlobalConfig(raw: string): {
       anyCorrupt(
         lastWorkspacePath,
         theme,
+        language,
         activeWorkspaceId,
         externalFileOpenEnabled,
       ) ||

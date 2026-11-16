@@ -11,9 +11,9 @@ Roadmap item `rm-1b35b6a35c2046a8`, "Add UI localization with support for multip
 3. `GlobalConfigV2` has a `language` field of `"system" | "en" | "de"`. A missing field decodes to `"system"` without being corrupt. A present value of the wrong type (number, object, null) decodes to `"system"` and is corrupt. A present string that is not a supported language (for example `"fr"` written by a newer app) decodes to `"system"` and is not corrupt.
 4. `language` is written by `readCurrentGlobalConfig` and read by `initSettings`. `setLanguage(next)` updates the signal, persists the config, and is blocked from writing while `globalConfigCorrupted` is set, exactly as `setTheme` is.
 5. `"system"` resolves from `navigator.languages` by the primary subtag (`de`, `de-AT`, `de_CH` resolve to German; everything else to English). `<html lang>` follows the active locale.
-6. `WelcomeDialog` renders its text through `t()` in all three cases (no profiles, failed active profile, profiles without an active one), including the relink and error alerts. With German active, no English UI string remains in the dialog.
+6. `WelcomeDialog` renders its text through `t()` in all three cases (no profiles, failed active profile, profiles without an active one), including the relink and error alerts. With German active, no English UI string remains in the dialog except text the store publishes through `workspaceSelectionError`, which stays as the store wrote it until the store is migrated.
 7. Settings, Appearance section, shows a Language row with the options "Follow System", "English", "Deutsch". Each option label is shown in its own language and never translated. The row is found by the settings search for "Language" and for "Sprache".
-8. English output of every migrated string is byte-identical to today's text, so the existing English tests keep passing unchanged.
+8. English output of every migrated string is byte-identical to today's text, so the existing English tests keep passing with their assertions unchanged. One existing query is narrowed to its own row: the Theme test looks up "Follow System" inside the Theme row, because the Language row adds a second button with that label.
 9. `tsc`, `eslint`, `prettier --check`, the unit tests and the build pass.
 
 ## Context
@@ -22,7 +22,7 @@ Roadmap item `rm-1b35b6a35c2046a8`, "Add UI localization with support for multip
 - The language is an app-level setting, not a workspace setting. It is needed before any workspace is open (the Welcome dialog is that surface), so it lives next to `theme` in `config.json` in the app config folder, never in `.leotheca/settings.json`.
 - Data flow: `config.json` -> `loadGlobalConfig` -> `initSettings` -> `languagePreference` signal -> `activeLocale` computed -> `t()` reads it, so every component that calls `t()` re-renders on a change.
 - Platform: the same code runs on desktop and Android. `navigator.languages` exists in both webviews and in jsdom. No bridge command is added. No network, no font, no new dependency.
-- Crash-freedom: an unknown key at run time returns the key itself in development builds and English in release (never throws); a catalog is plain data; a corrupt `language` never blocks startup (it falls back to `"system"` and the existing corrupt-file protection keeps the file bytes).
+- Crash-freedom: a key unknown to every catalog returns the key itself (never throws), and a key missing only from the active catalog returns the English text; a catalog is plain data; a corrupt `language` never blocks startup (it falls back to `"system"` and the existing corrupt-file protection keeps the file bytes).
 - Text rights: German strings are written fresh for this slice as short interface labels; nothing is copied from another product or from a translation corpus.
 
 ## Plan
@@ -37,7 +37,7 @@ Roadmap item `rm-1b35b6a35c2046a8`, "Add UI localization with support for multip
 
 ## Out of scope
 
-- Migrating strings other than the Welcome dialog and the new Language row (editor, sidebar, dialogs, menus, Settings labels). The roadmap item is split into one follow-up per surface group.
+- Migrating strings other than the Welcome dialog and the new Language row (editor, sidebar, dialogs, menus, Settings labels, and the error texts the settings store publishes). The roadmap item is split into one follow-up per surface group.
 - Plural rules, date, number and list formatting (`Intl` is used where text is formatted today and stays unchanged).
 - Right-to-left layout for the UI chrome (the workspace RTL setting concerns note text only).
 - Native Android and Tauri menu strings, the Flatpak and store metadata.
@@ -64,6 +64,25 @@ Roadmap item `rm-1b35b6a35c2046a8`, "Add UI localization with support for multip
 
 ## Evidence
 
-(filled at stage 6)
+Local gate on this tree before the push (hosted checks are on the pull request): `tsc -p tsconfig.json --noEmit` 0; `npm run lint` 0 errors (3 existing warnings); `npm run check-version` ok; `vitest run` 187 files, 3408 tests passed; `npm run build` ok; Playwright e2e (built bundle, preinstalled Chromium 1243) 18 passed, including the new German journey.
+
+| Claim                                          | Evidence (command or trace)                                                                                                                                                                             | Result                             |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| 1 `t` fallback and one-pass interpolation      | `src/i18n/i18n.test.ts`: "interpolate" (3 cases), "falls back to English for a key missing from the active catalog, and never throws"                                                                   | pass; seen failing before the code |
+| 2 catalogs have the same keys and placeholders | `src/i18n/i18n.test.ts` "catalogs" (4 cases); `de.ts` typed `Record<MessageKey, string>`                                                                                                                | pass                               |
+| 3 `language` decode                            | `src/settings/globalConfig.test.ts`: missing or valid, wrong type (42, null, {}, array, true) corrupt, "fr" not corrupt                                                                                 | pass; seen failing before the code |
+| 4 store wiring and corrupt-file write block    | `src/settings/store.test.ts` "setLanguage" (5 cases)                                                                                                                                                    | pass; seen failing before the code |
+| 5 system resolution and `<html lang>`          | `src/i18n/i18n.test.ts` "resolveLocale"; `store.test.ts` "sets the document language"; e2e "choosing German switches the language"                                                                      | pass                               |
+| 6 Welcome dialog fully translated              | `src/settings/WelcomeDialog.test.tsx` "WelcomeDialog: German" (7 cases, including the relink conflict alert, the busy labels and a sweep that no English catalog text is on screen in the three states) | pass; seen failing before the code |
+| 7 Language row and search                      | `src/settings/SettingsPanelCurrentTests.tsx` three Language cases (search by "language", "Sprache", "deutsch", "english"); e2e settings journey                                                         | pass; seen failing before the code |
+| 8 English text unchanged                       | All existing English WelcomeDialog tests unchanged and passing; one Theme query narrowed to its own row (assertions the same)                                                                           | pass                               |
+| review: standards                              | Fresh agent (Opus), 1 round: 0 Critical, 0 Important, 4 Minor (search by language name and an unawaited store write fixed; the rest recorded below)                                                     | closed                             |
+| review: spec                                   | Fresh agent (Fable), 1 round: criteria 1 to 5, 7 and 8 met; criterion 6 partly (English relink conflict alert, thin German tests), fixed with a catalog key and three new tests, then re-run            | closed                             |
+| e2e smoke / security                           | e2e 18 passed locally. Security: no IPC, bridge, capability, dependency or secret-bearing change, so the static-analysis gate has no new surface; ESLint security rules ran inside `npm run lint`       | pass                               |
+| Legal/text check                               | `skills/text-rights-and-legal-check.md` on the 10 changed text surfaces (two catalogs, the dialog, the Settings row, spec, glossary, changelog, decisions, architecture, master spec)                   | 10 verified, 0 fixed, 0 open       |
+
+Recorded Minor findings, not changed: a store error published in the old language keeps that language if the language changes while it shows (the dialog cannot change language while open today); an unknown language string from a newer build is replaced by `system` on the next config write (ruling above; master spec 6.4 says so).
 
 Glossary: Locale (the language of the interface strings, chosen by the Language setting; `"system"` resolves from the device)
+
+Reflection: A new Settings row that repeats the label of an existing option ("Follow System") broke an unrelated existing test query, and only the full unit run showed it; the playbook already requires the full suite before the push -> none: the rule held, and the narrowed query is stated in the pull request.

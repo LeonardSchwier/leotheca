@@ -35,6 +35,33 @@ test.describe("theme", () => {
   });
 });
 
+test("choosing German switches the language, sets the document language and is persisted", async ({
+  app,
+}) => {
+  const { page } = app;
+  await page.goto("/");
+  await expect(page.locator("html")).toHaveAttribute("lang", "en");
+
+  await openSettings(page);
+  await page.getByRole("button", { name: "Appearance", exact: true }).click();
+  await page.getByRole("button", { name: "Deutsch", exact: true }).click();
+
+  await expect(page.locator("html")).toHaveAttribute("lang", "de");
+  // The row is now labelled in German, and the language names stay as they were.
+  await expect(page.getByText("Sprache", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "System folgen", exact: true }),
+  ).toBeVisible();
+  await expect
+    .poll(
+      async () =>
+        JSON.parse((await app.file(`${CONFIG_DIR}/config.json`)) ?? "{}")
+          .language,
+      { message: "language written to the native config file" },
+    )
+    .toBe("de");
+});
+
 test("settings opens on the workspace root and asks the native side for statistics", async ({
   app,
 }) => {

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+
+- **Interface language (first slice)**: Settings, Appearance has a new Language row with "Follow System", "English" and "Deutsch". The choice is saved in the app configuration, applies at once and also sets the document language. The first-run and workspace-recovery dialog is available in German; the rest of the interface stays in English until it moves over in later steps. Behind it is a small typed translation layer (`src/i18n/`) that falls back to English for any missing text and never expands a workspace name that happens to contain braces.
+
 ### Changed
 
 - **Minimalistic Nordic look**: Leotheca now uses a calm Scandinavian theme by default. The light mode is frost white with soft greys and one muted fog-blue accent, the dark mode is a polar night companion. The chrome is quieter: no hairlines under the header, tabs and activity rail, flat header buttons, a borderless view switch, lighter icon strokes and lighter headings. Text contrast stays at WCAG AA, checked by a test. The default accent is now named Fog instead of Warm; your saved choice is kept. The README screenshots show the new look.

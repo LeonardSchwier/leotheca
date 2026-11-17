@@ -27,6 +27,14 @@ Items with an owner. An expired lease means the item can be recovered.
 
 ### Available
 
+- ⬜ **Translate the settings panel and the sidebar into the interface languages**: The first localization slice (rm-1b35b6a35c2046a8) translated only the Welcome dialog and the Language row. Move the Settings panel labels, section names and search terms, and the sidebar and tab bar text, onto `t()` with German entries; English output stays byte-identical, and the catalog parity tests cover the new keys.
+
+- ⬜ **Translate the editor, dialogs, menus, command palette and published error texts**: After the settings and sidebar slice, move the remaining surfaces onto `t()` one surface group per session, including the text the settings store publishes through `workspaceSelectionError`, which the Welcome dialog still shows in English. Plural rules and date or number formatting stay out until a catalog needs them.
+
+- ⬜ **Keep unknown fields of the app-level config.json across writes**: `readCurrentGlobalConfig` rebuilds the whole object, so a field written by a newer build (an unsupported `language` value is the first case) is dropped on the next write. Carry unknown top-level fields through decode and write with a round-trip test, and name in `skills/persistence-implementation.md` where a deliberate exception is recorded.
+
+- ⬜ **Expose the selected option of the Settings button groups to assistive technology**: The Theme and Language rows mark the chosen option only with an `active` class, so a screen reader cannot tell which one is selected. Add `aria-pressed` (or a radio group) to both rows, with a test per row that reads the accessible state.
+
 
 
 - ⏸ **Revisit glib when tauri ships gtk-rs 0.20**: As of 2026-11-08 every Linux path in the Tauri stack (tauri 2.12.5, tauri-runtime-wry 2.12.3, wry 0.57.1, tao 0.37.2, muda 0.21.2) still requires gtk ^0.18 and webkit2gtk 2.0.x, which pin glib 0.18.5 (RUSTSEC-2024-0429). Repeat the check and upgrade when one of them moves to a patched glib.

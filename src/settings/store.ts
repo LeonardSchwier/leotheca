@@ -10,6 +10,11 @@ import {
   setStatusBarAppearance,
 } from "../workspace/tauriBridge";
 import {
+  activeLocale,
+  languagePreference,
+  type LanguagePreference,
+} from "../i18n";
+import {
   loadGlobalConfig,
   saveGlobalConfig,
   type GlobalConfigV2,
@@ -332,6 +337,15 @@ if (typeof document !== "undefined") {
   });
 }
 
+// The document language follows the interface language, so screen readers
+// pick the right voice, hyphenation works and the browser offers the right
+// spell-check dictionary for the interface.
+if (typeof document !== "undefined") {
+  effect(() => {
+    document.documentElement.lang = activeLocale.value;
+  });
+}
+
 // "system" theme also needs to react to the OS scheme changing while the
 // app is open, not just to our own theme signal changing.
 if (typeof window !== "undefined") {
@@ -359,6 +373,7 @@ function readCurrentGlobalConfig(): GlobalConfigV2 {
   return {
     version: 2,
     theme: theme.value,
+    language: languagePreference.value,
     activeWorkspaceId: activeWorkspaceId.value,
     workspaceProfiles: workspaceProfiles.value,
     lastWorkspacePath: active?.path ?? null,
@@ -429,6 +444,7 @@ export async function initSettings(): Promise<void> {
   const { config: global, corrupt: globalCorrupt } = await loadGlobalConfig();
   globalConfigCorrupted.value = globalCorrupt;
   theme.value = global.theme;
+  languagePreference.value = global.language;
   externalFileOpenEnabled.value = global.externalFileOpenEnabled;
   workspaceProfiles.value = sortWorkspaceProfiles(global.workspaceProfiles);
   activeWorkspaceId.value = global.activeWorkspaceId;
@@ -710,6 +726,11 @@ export async function setWorkspacePath(
 
 export async function setTheme(next: ThemePreference): Promise<void> {
   theme.value = next;
+  await persistGlobalConfig();
+}
+
+export async function setLanguage(next: LanguagePreference): Promise<void> {
+  languagePreference.value = next;
   await persistGlobalConfig();
 }
 

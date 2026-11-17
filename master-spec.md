@@ -264,11 +264,14 @@ An invalid `editorLayout` on a non-legacy file falls back to the default layout 
 ### 6.4 Global config: `config.json`
 
 ```ts
-{ version: 2, theme: "system"|"light"|"dark", activeWorkspaceId: string|null,
+{ version: 2, theme: "system"|"light"|"dark", language: "system"|"en"|"de" /* default "system" */,
+  activeWorkspaceId: string|null,
   workspaceProfiles: Profile[], lastWorkspacePath: string|null,
   workspaceToken?: string, externalFileOpenEnabled: boolean /* default true */ }
 Profile = { id, name, icon, path, token?, lastOpenedAt }
 ```
+
+`language` is the interface language. A missing value is `"system"`. A value of the wrong type decodes to `"system"` and sets corrupt. A string this build has no catalog for (written by a newer app) also decodes to `"system"` but does not set corrupt, so it never blocks later config writes; the next config write stores `"system"` in its place, so a newer build's choice is not kept by this build.
 
 Icons shown are `folder`, `book`, `journal`, `briefcase`, `school`, `code`, `home`, `archive`. An unknown icon string is preserved and displayed as `folder`.
 
@@ -750,6 +753,16 @@ The URL parser is not the security boundary. The native gate on the eventual rea
 | FR-THEME-003 | Custom CSS MUST be read only from inside the workspace and injected as one style element, default off. | Given an escaping path, When applied, Then it returns false. See KG-004: the shipped argument order defeats the feature. | `src/settings/customCss.test.ts` |
 | FR-THEME-004 | The zoom key mapping MUST accept both = and + for zoom in, - for out, 0 for reset, and Ctrl+wheel MUST zoom. | Given key =, When mapped, Then zoom-in. | `src/app/zoomControls.test.ts` |
 
+### Interface language (FR-I18N)
+
+| ID | Requirement | Acceptance | Test |
+| --- | --- | --- | --- |
+| FR-I18N-001 | The interface language MUST be system, English or German in global config. `system` follows the first device language (`navigator.languages`) whose primary subtag has a catalog, else English; the root element's `lang` MUST follow the active language. | Given system and a German device, When applied, Then `lang` is `de`; given an unknown stored string, When decoded, Then `system` without corrupt. | `src/i18n/i18n.test.ts`, `src/settings/globalConfig.test.ts`, `src/settings/store.test.ts` |
+| FR-I18N-002 | Text MUST come from typed catalogs through `t(key, params)`. A key missing from the active catalog MUST fall back to English (a name every object inherits, such as `constructor`, is not a key), and `{name}` placeholders MUST be replaced in one pass so a parameter value is never expanded again. Every catalog MUST have the keys and placeholders of the English one. | Given a workspace named `{name}`, When shown in a message, Then the braces stay literal. | `src/i18n/i18n.test.ts` |
+| FR-I18N-003 | The first-run and workspace-recovery dialog MUST be fully translated, and Settings, Appearance MUST offer a Language row with options named in their own language ("Follow System" translated, "English" and "Deutsch" not), found by the settings search in either language. | Given German, When the dialog opens, Then no English interface text remains except an error the settings store publishes through `workspaceSelectionError`. | `src/settings/WelcomeDialog.test.tsx`, `src/settings/SettingsPanelCurrentTests.tsx`, `tests/e2e/tests/settings.e2e.ts` |
+
+Other surfaces still show English text and move over in later slices.
+
 ### Print and export (FR-EXP)
 
 | ID | Requirement | Acceptance | Test |
@@ -981,7 +994,7 @@ Only numbers that exist in code, configuration or an observed run appear here. N
 | Rust | `#[cfg(test)]` modules | 94 `#[test]` attributes (counted, not run in this pass) |
 | Java | `android/app/src/test` | 3 files, run by `./gradlew testDebugUnitTest` in CI |
 | Python policy | `scripts/test_*.py` | Run by `agent-policy.yml` |
-| End to end | `tests/e2e` | Playwright smoke suite, 17 journeys (boot, navigation, rendering, view modes, search, note create/edit/rename/delete, settings/theme) against the built frontend with an in-page stateful bridge mock; a test fails on console errors, off-site requests or unmocked native commands; required CI job `e2e` uploads traces on failure |
+| End to end | `tests/e2e` | Playwright smoke suite, 18 journeys (boot, navigation, rendering, view modes, search, note create/edit/rename/delete, settings/theme/language) against the built frontend with an in-page stateful bridge mock; a test fails on console errors, off-site requests or unmocked native commands; required CI job `e2e` uploads traces on failure |
 | Smoke | `ci.yml` | AppImage launch for 15 s under xvfb, APK install on an API 35 emulator |
 
 Vitest uses jsdom. DOMPurify requires it: happy-dom strips all tags. `src/test/setup-jsdom.ts` provides DOM polyfills. Bridge tests use faithful fakes at the boundary (`capacitorMutationContract.test.ts`, `tauriBridge.test.ts`). A bug fix MUST include a regression test shown to fail without the fix.
@@ -1031,6 +1044,7 @@ Generated from section 8 by `python3 scripts/check_master_spec.py --update-trace
 | FR-TAB | Tabs and split groups | 7 | 7 | 0 | `src/editorGroups/SecondaryEditorPane.test.tsx`, `src/settings/workspaceSettings.test.ts`, `src/workspace/documentGroups.test.ts`, `src/workspace/store.test.ts` |
 | FR-SET | Settings persistence | 10 | 9 | 1 | `src/settings/VaultStatsPanel.test.tsx`, `src/settings/defaultHandler.test.ts`, `src/settings/globalConfig.test.ts`, `src/settings/store.test.ts`, `src/settings/workspaceSettings.test.ts` |
 | FR-THEME | Themes and appearance | 4 | 4 | 0 | `src/app/zoomControls.test.ts`, `src/settings/customCss.test.ts`, `src/settings/store.test.ts`, `src/settings/workspaceSettings.test.ts` |
+| FR-I18N | Interface language | 3 | 3 | 0 | `src/i18n/i18n.test.ts`, `src/settings/SettingsPanelCurrentTests.tsx`, `src/settings/WelcomeDialog.test.tsx`, `src/settings/globalConfig.test.ts`, `src/settings/store.test.ts`, `tests/e2e/tests/settings.e2e.ts` |
 | FR-EXP | Print and export | 6 | 6 | 0 | `src/export/exportNoteHtml.test.ts`, `src/export/pdfExport.test.ts`, `src/export/printNote.test.ts`, `src/workspace/tauriBridgeImpl.test.ts` |
 | FR-EXT | External file open | 3 | 3 | 0 | `src-tauri/src/external_open.rs`, `src/app/ExternalFileView.test.tsx`, `src/settings/globalConfig.test.ts` |
 | FR-IMPORT | Markdown vault import | 6 | 6 | 0 | `src-tauri/src/markdown_import.rs`, `src/markdownImport/importStore.test.tsx`, `src/markdownImport/markdownImport.test.ts` |
@@ -1039,7 +1053,7 @@ Generated from section 8 by `python3 scripts/check_master_spec.py --update-trace
 | FR-WID | Android widgets | 3 | 3 | 0 | `android/app/src/test/java/com/getcapacitor/myapp/WidgetResourcesUnitTest.java`, `android/app/src/test/java/com/leonardschwier/leotheca/NewNoteColdStartTrackerTest.java`, `src/workspace/fileTreeStore.test.ts` |
 | FR-CLIP | Web clipper extension | 3 | 3 | 0 | `extensions/web-clipper/clipperCore.test.js`, `extensions/web-clipper/messaging.test.js` |
 | FR-UI | Shell, UI primitives and accessibility | 12 | 10 | 2 | `src/app/App.test.tsx`, `src/app/CommandPalette.test.tsx`, `src/app/EmptyEditorState.test.tsx`, `src/app/layout/DocumentHeader.test.tsx`, `src/app/layout/adaptiveLayout.test.ts`, `src/app/useResizableSidebar.test.ts`, `src/fuzzyMatch.test.ts`, `src/ui/overlayBackButton.sheet.test.tsx`, `src/ui/overlayBackButton.test.ts`, `src/workspace/FileTree.test.tsx` |
-| **Total** | | **202** | **194** | **8** | |
+| **Total** | | **205** | **197** | **8** | |
 <!-- traceability:end -->
 
 ## 15. Coverage gaps
@@ -1099,6 +1113,7 @@ These are current behavior, recorded honestly. None was fixed by the change that
 Newest first. Each entry is `YYYY-MM-DD: what changed in behavior, contracts, formats, build or release`. See `skills/master-spec-maintenance.md`.
 
 <!-- change-log:start -->
+- 2026-11-16: Interface language: a new global setting `language` (`system`, `en`, `de`; default `system`) in `config.json`, a Language row in Settings, Appearance, and a typed translation layer in `src/i18n/` (`t(key, params)`, English fallback, one-pass `{name}` interpolation). The first-run and workspace-recovery dialog is translated into German; all other surfaces stay English until later slices. The root element's `lang` follows the active language. A language string this build does not know decodes to `system` and does not mark the file corrupt. No bridge command or workspace file changed.
 - 2026-11-08: Quick Capture can be launched from the OS. A `leotheca://capture` link that raced ahead of settings loading on a cold Android start now waits and opens the capture sheet instead of queueing a pending capture. New desktop flag `leotheca --capture` (cold start buffered in `PendingQuickCapture`, command `take_pending_quick_capture`; running instance via single-instance, event `quick-capture-launch`, window raised). New Android static launcher shortcut `res/xml/shortcuts.xml` and pure `QuickCaptureLaunch`. No new permission. Widget placement, shortcut appearance and real cold-start timing are UNVERIFIED (no device); a native pre-WebView inbox append is not built.
 - 2026-11-08: Appearance: the default look is now the minimalistic Nordic theme. The root element carries `data-palette="nordic"` (`index.html`), which selects Leoforma's Nordic palette (frost white and soft greys with a fog-blue accent in light, polar night in dark); `src/styles/nordic.css`, imported after `App.css` and scoped to that attribute, quiets the chrome (no toolbar, rail or tab hairlines, flat header buttons, a borderless segmented control, lighter icon strokes, lighter headings). Removing the attribute restores the Folio look. The stored accent value `warm` is unchanged and now resolves to the palette accent; its label reads "Fog". Contrast of both modes is held at WCAG AA by `src/styles/nordic.test.ts`. No data, setting or command changed.
 - 2026-11-08: Capture: `renderCaptureTemplate` collapses line breaks in the title and URL to one space before substituting them, so a shared subject or link cannot start a new frontmatter key in a template.

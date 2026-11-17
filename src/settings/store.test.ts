@@ -80,6 +80,7 @@ const {
   repairGlobalConfigFile,
   repairWorkspaceSettingsFile,
   setExternalFileOpenEnabled,
+  setLanguage,
   setTheme,
   setWorkspacePath,
   settingsLoaded,
@@ -103,6 +104,7 @@ const {
   pinTab,
 } = await import("../workspace/store");
 const { DEFAULT_WORKSPACE_SETTINGS } = await import("./workspaceSettings");
+const { activeLocale, languagePreference } = await import("../i18n");
 
 function writesTo(path: string): unknown[] {
   return writeWorkspaceTextFile.mock.calls
@@ -482,6 +484,76 @@ describe("setExternalFileOpenEnabled", () => {
     await initSettings();
 
     expect(externalFileOpenEnabled.value).toBe(false);
+  });
+});
+
+describe("setLanguage", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    globalConfigCorrupted.value = false;
+    languagePreference.value = "system";
+  });
+
+  it("defaults to system and persists an explicit change", async () => {
+    expect(languagePreference.value).toBe("system");
+
+    await setLanguage("de");
+    await flushSettingsWrites();
+
+    expect(languagePreference.value).toBe("de");
+    expect(globalConfigWrites().at(-1)).toMatchObject({ language: "de" });
+  });
+
+  it("hydrates from a loaded config on initSettings", async () => {
+    readTextFile.mockImplementation(async (path) => {
+      if (path === "/config/config.json") {
+        return JSON.stringify({ version: 2, language: "de" });
+      }
+      throw new Error("not found");
+    });
+
+    await initSettings();
+
+    expect(languagePreference.value).toBe("de");
+  });
+
+  it("keeps a language this build does not know as system and leaves the file writable", async () => {
+    readTextFile.mockImplementation(async (path) => {
+      if (path === "/config/config.json") {
+        return JSON.stringify({ version: 2, language: "fr" });
+      }
+      throw new Error("not found");
+    });
+
+    await initSettings();
+
+    expect(languagePreference.value).toBe("system");
+    expect(globalConfigCorrupted.value).toBe(false);
+  });
+
+  it("does not overwrite a corrupt config.json, like every other global setting", async () => {
+    readTextFile.mockImplementation(async (path) => {
+      if (path === "/config/config.json") return "{ not valid json";
+      throw new Error("not found");
+    });
+
+    await initSettings();
+    await setLanguage("de");
+    await flushSettingsWrites();
+
+    expect(languagePreference.value).toBe("de");
+    expect(globalConfigWrites()).toEqual([]);
+  });
+
+  it("sets the document language to the active locale and follows changes", async () => {
+    await setLanguage("de");
+    await flushSettingsWrites();
+    expect(activeLocale.value).toBe("de");
+    expect(document.documentElement.lang).toBe("de");
+
+    await setLanguage("en");
+    await flushSettingsWrites();
+    expect(document.documentElement.lang).toBe("en");
   });
 });
 

@@ -34,6 +34,10 @@ describe("interpolate", () => {
     expect(interpolate("{a} and {b}", { a: "{b}", b: "x" })).toBe("{b} and x");
   });
 
+  it("inserts a value literally, even one that looks like a replacement pattern", () => {
+    expect(interpolate("Open {n}", { n: "$& $1 $$" })).toBe("Open $& $1 $$");
+  });
+
   it("keeps a placeholder with no matching parameter as written", () => {
     expect(interpolate("Hi {who}", {})).toBe("Hi {who}");
     expect(interpolate("Hi {toString}", {})).toBe("Hi {toString}");
@@ -101,6 +105,12 @@ describe("t", () => {
     }
     // A key unknown to every catalog returns the key itself.
     expect(t("no.such.key" as never)).toBe("no.such.key");
+    // Names every object inherits are not keys: they must not return a
+    // function, and must not break interpolation.
+    for (const inherited of ["constructor", "toString", "__proto__"]) {
+      expect(t(inherited as never)).toBe(inherited);
+      expect(t(inherited as never, { name: "x" })).toBe(inherited);
+    }
   });
 });
 

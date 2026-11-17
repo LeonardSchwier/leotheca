@@ -315,6 +315,15 @@ describe("SettingsPanel", () => {
     }
   });
 
+  it("hides the language row when the search matches nothing of it", () => {
+    const { getByLabelText, queryByText } = render(
+      <SettingsPanel onOpenFile={vi.fn()} />,
+    );
+    const search = getByLabelText("Search settings") as HTMLInputElement;
+    fireEvent.input(search, { target: { value: "zzzz" } });
+    expect(queryByText("Deutsch")).toBeNull();
+  });
+
   it("clamps an out-of-range font size before saving it", () => {
     workspacePath.value = "/vault";
     const { container, getByRole } = render(

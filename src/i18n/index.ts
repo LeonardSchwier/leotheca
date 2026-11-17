@@ -70,6 +70,17 @@ export function interpolate(
   );
 }
 
+/** The text a catalog holds for `key`, never one inherited from `Object`
+ * (`constructor`, `__proto__`, `toString`). */
+function own(
+  catalog: Readonly<Record<string, string>>,
+  key: string,
+): string | undefined {
+  return Object.prototype.hasOwnProperty.call(catalog, key)
+    ? catalog[key]
+    : undefined;
+}
+
 /** The text for `key` in the active language. A key missing from that catalog
  * falls back to English, and a key unknown to every catalog returns itself, so
  * a gap shows up on screen instead of throwing. Reading `activeLocale` here
@@ -78,7 +89,7 @@ export function t(
   key: MessageKey,
   params?: Readonly<Record<string, string | number>>,
 ): string {
-  const text = catalogs[activeLocale.value][key] ?? en[key] ?? key;
+  const text = own(catalogs[activeLocale.value], key) ?? own(en, key) ?? key;
   return interpolate(text, params);
 }
 

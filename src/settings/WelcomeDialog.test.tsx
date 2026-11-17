@@ -326,10 +326,12 @@ describe("WelcomeDialog: German", () => {
       for (const text of english) {
         expect(shown, text).not.toContain(text);
       }
-      expect(
-        container.querySelector("[aria-label]")?.getAttribute("aria-label") ??
-          "",
-      ).not.toBe("Recent workspaces");
+      const labels = Array.from(container.querySelectorAll("[aria-label]")).map(
+        (element) => element.getAttribute("aria-label") ?? "",
+      );
+      // The profile list carries a label; with no profiles there is none.
+      if (profiles.length > 0) expect(labels.length).toBeGreaterThan(0);
+      for (const label of labels) expect(label).not.toBe("Recent workspaces");
       unmount();
     }
   });

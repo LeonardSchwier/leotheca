@@ -1701,7 +1701,7 @@ describe("app-level config.json fields this build does not know", () => {
     expect(last).toMatchObject(FUTURE);
   });
 
-  it("never lets one override a field this build owns", async () => {
+  it("writes this build's own state for the fields it owns, whatever the file held", async () => {
     serveConfig(
       JSON.stringify({
         version: 2,

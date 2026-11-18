@@ -40,6 +40,10 @@ Items with an owner. An expired lease means the item can be recovered.
 
 
 
+- ⬜ **Treat a settings or bookmarks file that exists but cannot be read as unreadable, not missing**: `loadWorkspaceSettings` and the bookmarks loader read every `readTextFile` error as "no file yet", so an existing `settings.json` or `bookmarks.json` that cannot be read (permission, I/O, encoding) is replaced with defaults by the next write. Share the missing-file classifier of `globalConfig.ts`, flag corrupt, keep the bytes, add a test per loader.
+
+- ⬜ **Tell the user at startup when the app configuration or a workspace settings file was left untouched**: The recovery warning for `config.json` (`globalConfigCorrupted`) and for `settings.json` shows only inside the Settings panel. Until the user opens it, theme, language and profile changes stay in memory and are lost at exit. Show one non-blocking notice at startup that points to Settings, reusing an existing toast or status mechanism, with a test.
+
 - ⏸ **Revisit glib when tauri ships gtk-rs 0.20**: As of 2026-11-08 every Linux path in the Tauri stack (tauri 2.12.5, tauri-runtime-wry 2.12.3, wry 0.57.1, tao 0.37.2, muda 0.21.2) still requires gtk ^0.18 and webkit2gtk 2.0.x, which pin glib 0.18.5 (RUSTSEC-2024-0429). Repeat the check and upgrade when one of them moves to a patched glib.
   <!-- agent-state: {"schema":1,"id":"rm-794c96d2125dfc85","state":"blocked","touch":["CHANGELOG.md","documentation/AGENTIC_PDLC.md","master-spec.md"],"resources":[],"note":"PDLC Security tooling row landed (PR 132, merged 9f3c3079be04759c4bf6730b9fc2955ecf983654). Waiting for upstream: retry about 2026-12-08 by repeating the check in the item (crates.io dependency lists of tauri, tauri-runtime-wry, wry, tao, muda for gtk/glib above 0.18).","blocked_at":"2026-11-08T12:45:11Z","retry_at":"2026-11-08T13:45:11Z"} -->
   Agent: unclaimed | item: rm-794c96d2125dfc85 | retry after: 2026-11-08T13:45:11Z

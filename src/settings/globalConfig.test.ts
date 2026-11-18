@@ -753,7 +753,7 @@ describe("decodeGlobalConfig: a file written by a newer build", () => {
     expect(none.config.workspaceProfiles).toHaveLength(1);
   });
 
-  it("does not take a string or a non-finite version for a newer one", () => {
+  it("does not take a string or a null version for a newer one", () => {
     expect(
       decodeGlobalConfig(JSON.stringify({ version: "3", theme: "dark" }))
         .corrupt,

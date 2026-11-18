@@ -85,6 +85,7 @@ const {
   setTheme,
   setWorkspacePath,
   setWorkspaceProfileIcon,
+  theme,
   settingsLoaded,
   updateWorkspaceSettings,
   workspacePath,
@@ -492,6 +493,14 @@ describe("an app-level config.json this build cannot read or understand", () => 
     pickWorkspaceFolder.mockResolvedValueOnce({ path: "/Users/erika/other" });
     await addWorkspaceFromPicker();
     await flushSettingsWrites();
+    // The changes did happen in memory, so "nothing was written" below is
+    // about the file and not about edits that silently did nothing.
+    expect(theme.value).toBe("dark");
+    expect(languagePreference.value).toBe("de");
+    expect(externalFileOpenEnabled.value).toBe(false);
+    expect(workspaceProfiles.value.map((p) => p.path)).toContain(
+      "/Users/erika/other",
+    );
   }
 
   it("never writes over a file that exists but cannot be read", async () => {

@@ -388,3 +388,137 @@ describe("decodeGlobalConfig", () => {
     });
   });
 });
+
+describe("fields a newer build wrote (preserved for the next write)", () => {
+  it("keeps every top-level field this build does not model, verbatim", () => {
+    const future = {
+      sidebarDensity: "compact",
+      experimental: { flags: [1, 2, { deep: true }], note: null },
+      retries: 3,
+      disabled: false,
+      zero: 0,
+      blank: "",
+      nothing: null,
+    };
+    const { preserved, corrupt } = decodeGlobalConfig(
+      JSON.stringify({
+        version: 2,
+        theme: "dark",
+        language: "de",
+        activeWorkspaceId: null,
+        workspaceProfiles: [],
+        lastWorkspacePath: null,
+        workspaceToken: "token",
+        externalFileOpenEnabled: false,
+        ...future,
+      }),
+    );
+    expect(corrupt).toBe(false);
+    expect(preserved.fields).toEqual(future);
+  });
+
+  it("never lists a field this build models, so it cannot override one", () => {
+    const { preserved } = decodeGlobalConfig(
+      JSON.stringify({
+        version: 2,
+        theme: "light",
+        language: "en",
+        activeWorkspaceId: "p1",
+        workspaceProfiles: [],
+        lastWorkspacePath: "/stale",
+        workspaceToken: "t",
+        externalFileOpenEnabled: true,
+        futureOnly: 1,
+      }),
+    );
+    expect(Object.keys(preserved.fields)).toEqual(["futureOnly"]);
+  });
+
+  it("is empty when there is nothing to keep, for bad input and for a missing file", async () => {
+    expect(
+      decodeGlobalConfig(JSON.stringify({ theme: "dark" })).preserved,
+    ).toEqual({ fields: {} });
+    expect(decodeGlobalConfig("{ not valid json").preserved).toEqual({
+      fields: {},
+    });
+    expect(decodeGlobalConfig("[1, 2]").preserved).toEqual({ fields: {} });
+    readTextFile.mockRejectedValueOnce(new Error("not found"));
+    expect((await loadGlobalConfig()).preserved).toEqual({ fields: {} });
+  });
+
+  it("hands every caller its own empty record, so one cannot change another's", async () => {
+    readTextFile.mockRejectedValueOnce(new Error("not found"));
+    const first = await loadGlobalConfig();
+    first.preserved.fields.leaked = true;
+    readTextFile.mockRejectedValueOnce(new Error("not found"));
+    const second = await loadGlobalConfig();
+    expect(second.preserved.fields).toEqual({});
+    expect(decodeGlobalConfig("{ not valid json").preserved.fields).toEqual({});
+  });
+
+  it("keeps the unknown fields of a file that is otherwise corrupt", () => {
+    const { preserved, corrupt } = decodeGlobalConfig(
+      JSON.stringify({ theme: "rainbow", futureOnly: { a: 1 } }),
+    );
+    expect(corrupt).toBe(true);
+    expect(preserved.fields).toEqual({ futureOnly: { a: 1 } });
+  });
+
+  it("returns what loadGlobalConfig read from disk", async () => {
+    readTextFile.mockResolvedValueOnce(
+      JSON.stringify({ version: 2, futureOnly: [true] }),
+    );
+    expect((await loadGlobalConfig()).preserved.fields).toEqual({
+      futureOnly: [true],
+    });
+  });
+
+  it("keeps a key named __proto__ as a plain own property without touching the prototype", () => {
+    const { preserved } = decodeGlobalConfig(
+      '{"version":2,"__proto__":{"polluted":true},"futureOnly":1}',
+    );
+    expect(Object.getPrototypeOf(preserved.fields)).toBe(Object.prototype);
+    expect(
+      Object.prototype.hasOwnProperty.call(preserved.fields, "__proto__"),
+    ).toBe(true);
+    expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+    expect(preserved.fields.futureOnly).toBe(1);
+  });
+
+  describe("an interface language this build has no catalog for", () => {
+    it("is kept as the raw string while the decoded language reads as system", () => {
+      const { config, preserved, corrupt } = decodeGlobalConfig(
+        JSON.stringify({ version: 2, language: "fr" }),
+      );
+      expect(config.language).toBe("system");
+      expect(preserved.language).toBe("fr");
+      expect(corrupt).toBe(false);
+    });
+
+    it("is not recorded for a language this build supports, a missing one or a wrong type", () => {
+      for (const language of ["system", "en", "de"]) {
+        expect(
+          decodeGlobalConfig(JSON.stringify({ language })).preserved.language,
+        ).toBeUndefined();
+      }
+      expect(
+        decodeGlobalConfig(JSON.stringify({ theme: "dark" })).preserved
+          .language,
+      ).toBeUndefined();
+      for (const language of [42, null, {}, ["fr"], true]) {
+        const { preserved, corrupt } = decodeGlobalConfig(
+          JSON.stringify({ language }),
+        );
+        expect(preserved.language).toBeUndefined();
+        expect(corrupt).toBe(true);
+      }
+    });
+
+    it("is never part of the unknown fields", () => {
+      const { preserved } = decodeGlobalConfig(
+        JSON.stringify({ language: "fr", futureOnly: 1 }),
+      );
+      expect(preserved.fields).toEqual({ futureOnly: 1 });
+    });
+  });
+});

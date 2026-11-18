@@ -74,6 +74,7 @@ const {
   externalFileOpenEnabled,
   forgetWorkspaceProfile,
   relinkWorkspaceProfile,
+  renameWorkspaceProfile,
   restoreLastOpenTabs,
   initSettings,
   globalConfigCorrupted,
@@ -83,6 +84,7 @@ const {
   setLanguage,
   setTheme,
   setWorkspacePath,
+  setWorkspaceProfileIcon,
   settingsLoaded,
   updateWorkspaceSettings,
   workspacePath,
@@ -113,8 +115,10 @@ function writesTo(path: string): unknown[] {
 }
 
 interface GlobalConfigWrite {
+  [extra: string]: unknown;
   version: 2;
   theme: string;
+  language?: string;
   activeWorkspaceId: string | null;
   workspaceProfiles: Array<{
     id: string;
@@ -1543,5 +1547,327 @@ describe("workspaceSettingsSaving (2026-09-04)", () => {
 
     await second;
     expect(workspaceSettingsSaving.value).toBe(false);
+  });
+});
+
+describe("app-level config.json fields this build does not know", () => {
+  const FUTURE = {
+    sidebarDensity: "compact",
+    experimental: { flags: [1, 2, { deep: true }], note: null },
+  };
+  const PROFILE_A = {
+    id: "p1",
+    name: "Vault",
+    icon: "folder",
+    path: "/vaultA",
+    lastOpenedAt: 1,
+  };
+  const PROFILE_B = {
+    id: "p2",
+    name: "Other",
+    icon: "folder",
+    path: "/vaultB",
+    lastOpenedAt: 0,
+  };
+
+  function serveConfig(file: string): void {
+    readTextFile.mockImplementation(async (path) => {
+      if (path === "/config/config.json") return file;
+      if (path === "/vaultA/.leotheca/settings.json")
+        return JSON.stringify(DEFAULT_WORKSPACE_SETTINGS);
+      throw new Error("not found");
+    });
+  }
+
+  function serveMissingConfig(): void {
+    readTextFile.mockImplementation(async () => {
+      throw new Error("not found");
+    });
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    closeAllTabs();
+    workspacePath.value = null;
+    workspaceProfiles.value = [];
+    activeWorkspaceId.value = null;
+    globalConfigCorrupted.value = false;
+    languagePreference.value = "system";
+    settingsLoaded.value = true;
+    pickWorkspaceFolder.mockResolvedValue(null);
+    isNativePlatform.mockReturnValue(false);
+  });
+
+  it("writes them back unchanged next to a changed theme", async () => {
+    serveConfig(JSON.stringify({ version: 2, theme: "light", ...FUTURE }));
+
+    await initSettings();
+    await setTheme("dark");
+    await flushSettingsWrites();
+
+    expect(globalConfigWrites().at(-1)).toMatchObject({
+      theme: "dark",
+      ...FUTURE,
+    });
+  });
+
+  it("writes them back with every other global setting change", async () => {
+    serveConfig(
+      JSON.stringify({
+        version: 2,
+        activeWorkspaceId: "p1",
+        workspaceProfiles: [PROFILE_A, PROFILE_B],
+        lastWorkspacePath: "/vaultA",
+        ...FUTURE,
+      }),
+    );
+    await initSettings();
+    const changes: Array<[string, () => Promise<unknown>]> = [
+      ["setLanguage", () => setLanguage("de")],
+      ["setExternalFileOpenEnabled", () => setExternalFileOpenEnabled(false)],
+      ["renameWorkspaceProfile", () => renameWorkspaceProfile("p2", "Renamed")],
+      ["setWorkspaceProfileIcon", () => setWorkspaceProfileIcon("p2", "book")],
+      [
+        "relinkWorkspaceProfile",
+        async () => {
+          pickWorkspaceFolder.mockResolvedValue({ path: "/vaultMoved" });
+          await relinkWorkspaceProfile("p2");
+        },
+      ],
+      ["activateWorkspaceProfile", () => activateWorkspaceProfile("p2")],
+      ["forgetWorkspaceProfile", () => forgetWorkspaceProfile("p1")],
+    ];
+
+    for (const [name, change] of changes) {
+      const before = globalConfigWrites().length;
+      await change();
+      await flushSettingsWrites();
+      const writes = globalConfigWrites();
+      expect(writes.length, name).toBeGreaterThan(before);
+      expect(writes.at(-1), name).toMatchObject(FUTURE);
+    }
+  });
+
+  it("writes them back with the recency update at startup", async () => {
+    serveConfig(
+      JSON.stringify({
+        version: 2,
+        activeWorkspaceId: "p1",
+        workspaceProfiles: [PROFILE_A],
+        lastWorkspacePath: "/vaultA",
+        ...FUTURE,
+      }),
+    );
+    settingsLoaded.value = false;
+
+    await initSettings();
+    await flushSettingsWrites();
+
+    const last = globalConfigWrites().at(-1);
+    expect(last?.activeWorkspaceId).toBe("p1");
+    expect(last).toMatchObject(FUTURE);
+  });
+
+  it("writes them back when the open workspace is forgotten", async () => {
+    serveConfig(
+      JSON.stringify({
+        version: 2,
+        activeWorkspaceId: "p1",
+        workspaceProfiles: [PROFILE_A],
+        lastWorkspacePath: "/vaultA",
+        ...FUTURE,
+      }),
+    );
+    await initSettings();
+    expect(workspacePath.value).toBe("/vaultA");
+
+    await forgetWorkspaceProfile("p1");
+    await flushSettingsWrites();
+
+    const last = globalConfigWrites().at(-1);
+    expect(last?.activeWorkspaceId).toBeNull();
+    expect(last).toMatchObject(FUTURE);
+  });
+
+  it("writes them back with a newly added workspace", async () => {
+    serveConfig(JSON.stringify({ version: 2, ...FUTURE }));
+
+    await initSettings();
+    await addWorkspaceFromPath("/vaultNew");
+    await flushSettingsWrites();
+
+    const last = globalConfigWrites().at(-1);
+    expect(last?.workspaceProfiles).toHaveLength(1);
+    expect(last).toMatchObject(FUTURE);
+  });
+
+  it("writes this build's own state for the fields it owns, whatever the file held", async () => {
+    serveConfig(
+      JSON.stringify({
+        version: 2,
+        theme: "light",
+        workspaceProfiles: [],
+        lastWorkspacePath: "/stale",
+        ...FUTURE,
+      }),
+    );
+
+    await initSettings();
+    await setTheme("dark");
+    await flushSettingsWrites();
+
+    const last = globalConfigWrites().at(-1);
+    expect(last).toMatchObject({
+      version: 2,
+      theme: "dark",
+      activeWorkspaceId: null,
+      lastWorkspacePath: null,
+      ...FUTURE,
+    });
+  });
+
+  it("keeps a key named __proto__ as plain data and leaves the prototype alone", async () => {
+    serveConfig('{"version":2,"__proto__":{"polluted":true},"futureOnly":1}');
+
+    await initSettings();
+    await setTheme("dark");
+    await flushSettingsWrites();
+
+    const raw = writeTextFile.mock.calls.at(-1)?.[1] as string;
+    const written = JSON.parse(raw) as Record<string, unknown>;
+    expect(Object.prototype.hasOwnProperty.call(written, "__proto__")).toBe(
+      true,
+    );
+    expect(written.__proto__).toEqual({ polluted: true });
+    expect(written.futureOnly).toBe(1);
+    expect(written.theme).toBe("dark");
+    expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+  });
+
+  it("keeps them through the explicit repair of a file that is otherwise corrupt", async () => {
+    serveConfig(JSON.stringify({ theme: "rainbow", ...FUTURE }));
+
+    await initSettings();
+    await setTheme("dark");
+    await flushSettingsWrites();
+    expect(globalConfigCorrupted.value).toBe(true);
+    expect(globalConfigWrites()).toEqual([]);
+
+    await repairGlobalConfigFile();
+
+    expect(globalConfigWrites()).toHaveLength(1);
+    expect(globalConfigWrites()[0]).toMatchObject({ theme: "dark", ...FUTURE });
+  });
+
+  describe("a new load replaces what the previous one kept", () => {
+    it("drops them when the next file has none", async () => {
+      serveConfig(JSON.stringify({ version: 2, ...FUTURE }));
+      await initSettings();
+      serveConfig(JSON.stringify({ version: 2, theme: "light" }));
+      await initSettings();
+
+      await setTheme("dark");
+      await flushSettingsWrites();
+
+      const last = globalConfigWrites().at(-1);
+      expect(last?.theme).toBe("dark");
+      expect(last).toBeDefined();
+      expect(last).not.toHaveProperty("sidebarDensity");
+      expect(last).not.toHaveProperty("experimental");
+    });
+
+    it("drops them on a first launch without a config file", async () => {
+      serveConfig(JSON.stringify({ version: 2, ...FUTURE }));
+      await initSettings();
+      serveMissingConfig();
+      await initSettings();
+
+      await setTheme("dark");
+      await flushSettingsWrites();
+
+      const last = globalConfigWrites().at(-1);
+      expect(last?.theme).toBe("dark");
+      expect(last).toBeDefined();
+      expect(last).not.toHaveProperty("sidebarDensity");
+    });
+
+    it("does not carry them into the repair of an unreadable file", async () => {
+      serveConfig(JSON.stringify({ version: 2, ...FUTURE }));
+      await initSettings();
+      serveConfig("{ not valid json");
+      await initSettings();
+
+      await repairGlobalConfigFile();
+
+      const last = globalConfigWrites().at(-1);
+      expect(last?.version).toBe(2);
+      expect(last).toBeDefined();
+      expect(last).not.toHaveProperty("sidebarDensity");
+    });
+
+    it("drops a kept language the same way", async () => {
+      serveConfig(JSON.stringify({ version: 2, language: "fr" }));
+      await initSettings();
+      serveConfig(JSON.stringify({ version: 2 }));
+      await initSettings();
+
+      await setTheme("dark");
+      await flushSettingsWrites();
+
+      expect(globalConfigWrites().at(-1)?.language).toBe("system");
+    });
+  });
+
+  describe("an interface language this build has no catalog for", () => {
+    beforeEach(async () => {
+      serveConfig(JSON.stringify({ version: 2, language: "fr", ...FUTURE }));
+      await initSettings();
+    });
+
+    it("shows as system but is written back as it was found", async () => {
+      expect(languagePreference.value).toBe("system");
+
+      await setTheme("dark");
+      await setExternalFileOpenEnabled(false);
+      await flushSettingsWrites();
+
+      const writes = globalConfigWrites();
+      expect(writes).toHaveLength(2);
+      for (const write of writes) {
+        expect(write).toMatchObject({ language: "fr", ...FUTURE });
+      }
+    });
+
+    it("is replaced for good by an explicit language choice", async () => {
+      await setLanguage("de");
+      await setTheme("dark");
+      await flushSettingsWrites();
+
+      const writes = globalConfigWrites();
+      expect(writes.map((w) => w.language)).toEqual(["de", "de"]);
+    });
+
+    it("is replaced by an explicit choice of the system language too", async () => {
+      await setLanguage("system");
+      await setTheme("dark");
+      await flushSettingsWrites();
+
+      const writes = globalConfigWrites();
+      expect(writes.map((w) => w.language)).toEqual(["system", "system"]);
+    });
+
+    it("is gone from memory when the write of an explicit choice fails, and the next write stores the choice", async () => {
+      writeTextFile.mockRejectedValueOnce(new Error("disk full"));
+      await expect(setLanguage("de")).rejects.toThrow("disk full");
+      expect(languagePreference.value).toBe("de");
+
+      await setTheme("dark");
+      await flushSettingsWrites();
+
+      expect(globalConfigWrites().at(-1)).toMatchObject({
+        language: "de",
+        ...FUTURE,
+      });
+    });
   });
 });

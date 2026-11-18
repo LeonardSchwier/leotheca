@@ -42,7 +42,7 @@ A missing file can use defaults. Corrupt or unsupported future data is different
 
 Partial-entry recovery is appropriate only when each retained entry is independently valid and no discarded data is irreplaceable without an explicit recovery path. A derivable index cache may be dropped and rebuilt; user-authored settings/notes need preservation.
 
-Migrate only known formats. Preserve supported unknown fields when the contract promises forward compatibility. Use actual runtime validation; casting parsed JSON to a type does not validate it. Avoid boolean coercions and numeric coercions that silently accept malformed external input.
+Migrate only known formats. Preserve supported unknown fields when the contract promises forward compatibility: a writer that rebuilds the file from in-memory state must carry the fields it did not model (and a value it cannot show, such as a newer build's language) back out, with a test that reads a file, changes one setting and compares the written file. A deliberate exception, a value the build drops or replaces on purpose such as a removed feature's setting, is recorded as a dated line in `documentation/DECISIONS.md` (the rule departed from, the reason and the cost) and in that file's section of `master-spec.md` (the key, and a requirement row with its covering test); lift it the same way. A key that is not recorded in both places is carried through. Use actual runtime validation; casting parsed JSON to a type does not validate it. Avoid boolean coercions and numeric coercions that silently accept malformed external input.
 
 ## Wire and protect the lifecycle
 

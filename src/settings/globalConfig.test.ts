@@ -522,3 +522,211 @@ describe("fields a newer build wrote (preserved for the next write)", () => {
     });
   });
 });
+
+describe("loadGlobalConfig: a file that is missing versus a file that cannot be read", () => {
+  const MISSING = [
+    [
+      "a Rust io error on Linux and macOS",
+      "No such file or directory (os error 2)",
+    ],
+    [
+      "a Rust io error on a localized Windows",
+      "Das System kann die angegebene Datei nicht finden. (os error 2)",
+    ],
+    [
+      "a Rust io error for a missing folder on Windows",
+      "Das System kann den angegebenen Pfad nicht finden. (os error 3)",
+    ],
+    [
+      "a Windows message in English",
+      "The system cannot find the file specified.",
+    ],
+    ["the Capacitor plugin on Android", "File does not exist"],
+    ["a generic not found", "not found"],
+  ] as const;
+
+  it.each(MISSING)("reads %s as a first launch", async (_label, message) => {
+    readTextFile.mockRejectedValueOnce(message);
+    const first = await loadGlobalConfig();
+    expect(first.corrupt).toBe(false);
+    expect(first.config).toEqual(DEFAULTS);
+    readTextFile.mockRejectedValueOnce(new Error(message));
+    expect((await loadGlobalConfig()).corrupt).toBe(false);
+  });
+
+  it("reads an ENOENT error code as a first launch", async () => {
+    readTextFile.mockRejectedValueOnce(
+      Object.assign(new Error("open failed"), { code: "ENOENT" }),
+    );
+    expect((await loadGlobalConfig()).corrupt).toBe(false);
+  });
+
+  const UNREADABLE = [
+    ["a permission error", "Permission denied (os error 13)"],
+    ["an I/O error", "Input/output error (os error 5)"],
+    ["a file that is not UTF-8", "stream did not contain valid UTF-8"],
+    ["a path that is not allowed", "path is outside the allowed directories"],
+    ["a locked file", "The process cannot access the file (os error 32)"],
+  ] as const;
+
+  it.each(UNREADABLE)(
+    "keeps the file and flags it when the read fails with %s",
+    async (_label, message) => {
+      readTextFile.mockRejectedValueOnce(message);
+      const asString = await loadGlobalConfig();
+      expect(asString.corrupt).toBe(true);
+      expect(asString.config).toEqual(DEFAULTS);
+      expect(asString.preserved).toEqual({ fields: {} });
+      readTextFile.mockRejectedValueOnce(new Error(message));
+      expect((await loadGlobalConfig()).corrupt).toBe(true);
+    },
+  );
+
+  it("flags the file when the config path cannot be resolved", async () => {
+    getAppConfigFilePath.mockRejectedValueOnce(new Error("no app data dir"));
+    const result = await loadGlobalConfig();
+    expect(result.corrupt).toBe(true);
+    expect(result.config).toEqual(DEFAULTS);
+  });
+
+  const odd: [string, unknown][] = [
+    ["undefined", undefined],
+    ["null", null],
+    ["a number", 42],
+    ["an empty object", {}],
+    ["an object whose message is not text", { message: 7 }],
+    ["an object that cannot become text", Object.create(null)],
+    [
+      "an object whose message getter throws",
+      {
+        get message(): string {
+          throw new Error("boom");
+        },
+      },
+    ],
+    [
+      "an object whose code getter throws",
+      {
+        get code(): string {
+          throw new Error("boom");
+        },
+      },
+    ],
+    [
+      "an object whose conversion to text throws",
+      {
+        toString() {
+          throw new Error("boom");
+        },
+      },
+    ],
+  ];
+
+  it.each(odd)(
+    "does not throw for a rejection with %s and keeps the file",
+    async (_label, value) => {
+      readTextFile.mockRejectedValueOnce(value);
+      const result = await loadGlobalConfig();
+      expect(result.corrupt).toBe(true);
+      expect(result.config).toEqual(DEFAULTS);
+    },
+  );
+
+  it("hands every caller its own empty record when the file is unreadable", async () => {
+    readTextFile.mockRejectedValueOnce("Permission denied (os error 13)");
+    const first = await loadGlobalConfig();
+    first.preserved.fields.leaked = true;
+    readTextFile.mockRejectedValueOnce("Permission denied (os error 13)");
+    expect((await loadGlobalConfig()).preserved.fields).toEqual({});
+  });
+});
+
+describe("decodeGlobalConfig: a file written by a newer build", () => {
+  const catalog = {
+    version: 3,
+    theme: "dark",
+    language: "de",
+    activeWorkspaceId: "p1",
+    workspaceProfiles: [
+      {
+        id: "p1",
+        name: "Notes",
+        icon: "book",
+        path: "/home/erika/notes",
+        lastOpenedAt: 1700000000000,
+      },
+      {
+        id: "p2",
+        name: "Work",
+        icon: "briefcase",
+        path: "/home/erika/work",
+        lastOpenedAt: 1700000001000,
+      },
+    ],
+    lastWorkspacePath: "/home/erika/notes",
+    externalFileOpenEnabled: false,
+    futureOnly: { a: 1 },
+  };
+
+  it("is unreadable, with this build's defaults and nothing to adopt", () => {
+    const result = decodeGlobalConfig(JSON.stringify(catalog));
+    expect(result.corrupt).toBe(true);
+    expect(result.config).toEqual(DEFAULTS);
+    expect(result.preserved).toEqual({ fields: {} });
+  });
+
+  it("does not migrate the legacy path of a newer file into a profile", () => {
+    const { config } = decodeGlobalConfig(
+      JSON.stringify({ version: 3, lastWorkspacePath: "/home/erika/notes" }),
+    );
+    expect(config.workspaceProfiles).toEqual([]);
+    expect(config.activeWorkspaceId).toBeNull();
+    expect(config.lastWorkspacePath).toBeNull();
+  });
+
+  it.each([3, 4, 2.5, 1e9, Number.MAX_SAFE_INTEGER])(
+    "treats version %s as newer",
+    (version) => {
+      expect(
+        decodeGlobalConfig(JSON.stringify({ version, theme: "dark" })).corrupt,
+      ).toBe(true);
+    },
+  );
+
+  it("treats a newer version without any catalog as newer too", () => {
+    const result = decodeGlobalConfig(JSON.stringify({ version: 3 }));
+    expect(result.corrupt).toBe(true);
+    expect(result.config).toEqual(DEFAULTS);
+  });
+
+  it("still reads versions 2, 1 and a missing version as before", () => {
+    const v2 = decodeGlobalConfig(
+      JSON.stringify({ ...catalog, version: 2, futureOnly: undefined }),
+    );
+    expect(v2.corrupt).toBe(false);
+    expect(v2.config.workspaceProfiles).toHaveLength(2);
+    expect(v2.config.theme).toBe("dark");
+
+    const v1 = decodeGlobalConfig(
+      JSON.stringify({ version: 1, lastWorkspacePath: "/home/erika/notes" }),
+    );
+    expect(v1.corrupt).toBe(false);
+    expect(v1.config.workspaceProfiles).toHaveLength(1);
+
+    const none = decodeGlobalConfig(
+      JSON.stringify({ lastWorkspacePath: "/home/erika/notes" }),
+    );
+    expect(none.corrupt).toBe(false);
+    expect(none.config.workspaceProfiles).toHaveLength(1);
+  });
+
+  it("does not take a string or a non-finite version for a newer one", () => {
+    expect(
+      decodeGlobalConfig(JSON.stringify({ version: "3", theme: "dark" }))
+        .corrupt,
+    ).toBe(false);
+    expect(
+      decodeGlobalConfig('{"version": null, "theme": "dark"}').corrupt,
+    ).toBe(false);
+  });
+});

@@ -16,6 +16,10 @@ import {
 /** The tiny OS-level pointer that lets the app reopen the same workspace on
  * next launch. Everything else about a workspace lives inside that
  * workspace's own folder (see workspaceSettings.ts), not here. */
+/** The newest `version` this build can read. A file above it was written by a
+ * newer build and is left alone (see `decodeGlobalConfig`). */
+const NEWEST_READABLE_VERSION = 2;
+
 export type ThemePreference = "system" | "light" | "dark";
 const THEME_PREFERENCES: readonly ThemePreference[] = [
   "system",
@@ -258,6 +262,10 @@ function decodeWorkspaceProfiles(raw: unknown): {
  * explicit user edit unrelated to opening a workspace at all, whenever
  * that edit's own write happens to occur).
  *
+ * A `version` above 2 (a newer build wrote the file) is unreadable here:
+ * defaults, `corrupt`, nothing preserved and nothing migrated, so the bytes
+ * stay on disk until the user rewrites them.
+ *
  * `preserved` is what the writer must put back (see `PreservedGlobalConfig`).
  * `config` is this build's own view of the file (an unsupported `language`
  * is already `system` there), so callers write `preserved` back and do not
@@ -286,6 +294,19 @@ export function decodeGlobalConfig(raw: string): {
     };
   }
   const record = parsed;
+  // A file written by a newer build. Its fields may mean something else, and
+  // without the v2 catalog marker below it would be read as a v1 file and
+  // replaced by one migrated profile on the next write. Unreadable instead.
+  if (
+    typeof record.version === "number" &&
+    record.version > NEWEST_READABLE_VERSION
+  ) {
+    return {
+      config: DEFAULT_GLOBAL_CONFIG,
+      corrupt: true,
+      preserved: emptyPreserved(),
+    };
+  }
 
   const lastWorkspacePath = decodeNullableString(
     record.lastWorkspacePath,
@@ -393,16 +414,60 @@ export interface GlobalConfigLoadResult {
   preserved: PreservedGlobalConfig;
 }
 
+/** What a rejected read of a file that is not there says. The desktop shell
+ * returns the Rust `io::Error` text, whose `(os error 2)` or `(os error 3)`
+ * suffix is the same on every OS and in every UI language; the Android plugin
+ * says `File does not exist`; a Node-style error carries `code: "ENOENT"`. */
+const MISSING_FILE_TEXT: readonly RegExp[] = [
+  /\(os error (?:2|3)\)/,
+  /no such file or directory/i,
+  /cannot find the (?:file|path)/i,
+  /does not exist/i,
+  /\bnot found\b/i,
+];
+
+function rejectionText(error: unknown): string | null {
+  if (typeof error === "string") return error;
+  if (typeof error === "object" && error !== null) {
+    const { message } = error as { message?: unknown };
+    return typeof message === "string" ? message : null;
+  }
+  return null;
+}
+
+/** True only when `error` says the file is missing. Anything else, including a
+ * rejection of a shape nobody expected, is "cannot be read": the file is kept.
+ * Reading the value never throws (a hostile getter counts as unreadable). */
+function isMissingFileError(error: unknown): boolean {
+  try {
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      (error as { code?: unknown }).code === "ENOENT"
+    ) {
+      return true;
+    }
+    const text = rejectionText(error);
+    return (
+      text !== null && MISSING_FILE_TEXT.some((pattern) => pattern.test(text))
+    );
+  } catch {
+    return false;
+  }
+}
+
 export async function loadGlobalConfig(): Promise<GlobalConfigLoadResult> {
   let raw: string;
   try {
     raw = await readTextFile(await globalConfigPath());
-  } catch {
+  } catch (error) {
     // A first launch has no config file yet, which is not corruption and
-    // should not show a recovery warning.
+    // should not show a recovery warning. Any other failure (permission,
+    // I/O, encoding, an unresolved path) leaves a file that may well exist:
+    // flag it so no ordinary write replaces it with defaults.
     return {
       config: DEFAULT_GLOBAL_CONFIG,
-      corrupt: false,
+      corrupt: !isMissingFileError(error),
       preserved: emptyPreserved(),
     };
   }

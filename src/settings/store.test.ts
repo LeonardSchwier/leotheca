@@ -458,6 +458,149 @@ describe("global configuration corruption recovery", () => {
   });
 });
 
+describe("an app-level config.json this build cannot read or understand", () => {
+  const profile = {
+    id: "p1",
+    name: "Notes",
+    icon: "book",
+    path: "/Users/erika/notes",
+    lastOpenedAt: 1700000000000,
+  };
+  const newerFile = JSON.stringify({
+    version: 3,
+    theme: "dark",
+    activeWorkspaceId: "p1",
+    workspaceProfiles: [profile],
+    lastWorkspacePath: "/Users/erika/notes",
+    futureOnly: { a: 1 },
+  });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    globalConfigCorrupted.value = false;
+    workspaceProfiles.value = [];
+    activeWorkspaceId.value = null;
+    pickWorkspaceFolder.mockResolvedValue(null);
+  });
+
+  async function changeEverything(): Promise<void> {
+    await setTheme("dark");
+    await setLanguage("de");
+    await setExternalFileOpenEnabled(false);
+    pickWorkspaceFolder.mockResolvedValueOnce({ path: "/Users/erika/other" });
+    await addWorkspaceFromPicker();
+    await flushSettingsWrites();
+  }
+
+  it("never writes over a file that exists but cannot be read", async () => {
+    readTextFile.mockImplementation(async (path) => {
+      if (path === "/config/config.json")
+        throw "Permission denied (os error 13)";
+      throw new Error("not found");
+    });
+
+    await initSettings();
+    expect(globalConfigCorrupted.value).toBe(true);
+    await changeEverything();
+
+    expect(globalConfigWrites()).toEqual([]);
+  });
+
+  it("rewrites that file only after the explicit repair", async () => {
+    readTextFile.mockImplementation(async (path) => {
+      if (path === "/config/config.json")
+        throw new Error("Input/output error (os error 5)");
+      throw new Error("not found");
+    });
+
+    await initSettings();
+    await changeEverything();
+    expect(globalConfigWrites()).toEqual([]);
+
+    await repairGlobalConfigFile();
+    await flushSettingsWrites();
+
+    expect(globalConfigCorrupted.value).toBe(false);
+    expect(globalConfigWrites()).toHaveLength(1);
+    expect(globalConfigWrites()[0]).toMatchObject({
+      version: 2,
+      theme: "dark",
+    });
+  });
+
+  it("still starts a first launch, with an OS missing-file message, and writes", async () => {
+    readTextFile.mockImplementation(async () => {
+      throw "No such file or directory (os error 2)";
+    });
+
+    await initSettings();
+    expect(globalConfigCorrupted.value).toBe(false);
+    await setTheme("dark");
+    await flushSettingsWrites();
+
+    expect(globalConfigWrites().at(-1)).toMatchObject({
+      version: 2,
+      theme: "dark",
+    });
+  });
+
+  it("never writes over a file a newer build wrote, and shows defaults", async () => {
+    readTextFile.mockImplementation(async (path) => {
+      if (path === "/config/config.json") return newerFile;
+      throw new Error("not found");
+    });
+
+    await initSettings();
+
+    expect(globalConfigCorrupted.value).toBe(true);
+    expect(workspaceProfiles.value).toEqual([]);
+    expect(activeWorkspaceId.value).toBeNull();
+    expect(restoreWorkspaceAccess).not.toHaveBeenCalled();
+
+    await changeEverything();
+    expect(globalConfigWrites()).toEqual([]);
+  });
+
+  it("replaces the newer file only after the explicit repair, with this build's own state", async () => {
+    readTextFile.mockImplementation(async (path) => {
+      if (path === "/config/config.json") return newerFile;
+      throw new Error("not found");
+    });
+
+    await initSettings();
+    await repairGlobalConfigFile();
+    await flushSettingsWrites();
+
+    expect(globalConfigWrites()).toHaveLength(1);
+    expect(globalConfigWrites()[0]).toMatchObject({
+      version: 2,
+      theme: "system",
+      workspaceProfiles: [],
+      lastWorkspacePath: null,
+    });
+  });
+
+  it("reads the same file with version 2 as before and writes it back", async () => {
+    readTextFile.mockImplementation(async (path) => {
+      if (path === "/config/config.json")
+        return newerFile.replace('"version":3', '"version":2');
+      throw new Error("not found");
+    });
+
+    await initSettings();
+
+    expect(globalConfigCorrupted.value).toBe(false);
+    expect(workspaceProfiles.value.map((p) => p.id)).toEqual(["p1"]);
+    await setTheme("light");
+    await flushSettingsWrites();
+    expect(globalConfigWrites().at(-1)).toMatchObject({
+      version: 2,
+      theme: "light",
+      futureOnly: { a: 1 },
+    });
+  });
+});
+
 describe("setExternalFileOpenEnabled", () => {
   beforeEach(() => {
     vi.clearAllMocks();

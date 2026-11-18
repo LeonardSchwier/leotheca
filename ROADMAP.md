@@ -37,6 +37,8 @@ Items with an owner. An expired lease means the item can be recovered.
 
 - ⬜ **Expose the selected option of the Settings button groups to assistive technology**: The Theme and Language rows mark the chosen option only with an `active` class, so a screen reader cannot tell which one is selected. Add `aria-pressed` (or a radio group) to both rows, with a test per row that reads the accessible state.
 
+- ⬜ **Do not replace an app-level config.json this build cannot read or understand**: `loadGlobalConfig` treats any read error as a missing file, so the next settings write replaces an existing `config.json` with defaults, and a file with `version` above 2 and no v2 catalog marker is read as a v1 file, so the next write swaps its catalog for one migrated profile. Treat both as unreadable: keep the bytes, show the existing recovery warning, and add a test for each.
+
 
 
 - ⏸ **Revisit glib when tauri ships gtk-rs 0.20**: As of 2026-11-08 every Linux path in the Tauri stack (tauri 2.12.5, tauri-runtime-wry 2.12.3, wry 0.57.1, tao 0.37.2, muda 0.21.2) still requires gtk ^0.18 and webkit2gtk 2.0.x, which pin glib 0.18.5 (RUSTSEC-2024-0429). Repeat the check and upgrade when one of them moves to a patched glib.

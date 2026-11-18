@@ -13,13 +13,13 @@ import {
   writeTextFile,
 } from "../workspace/tauriBridge";
 
-/** The tiny OS-level pointer that lets the app reopen the same workspace on
- * next launch. Everything else about a workspace lives inside that
- * workspace's own folder (see workspaceSettings.ts), not here. */
 /** The newest `version` this build can read. A file above it was written by a
  * newer build and is left alone (see `decodeGlobalConfig`). */
 const NEWEST_READABLE_VERSION = 2;
 
+/** The tiny OS-level pointer that lets the app reopen the same workspace on
+ * next launch. Everything else about a workspace lives inside that
+ * workspace's own folder (see workspaceSettings.ts), not here. */
 export type ThemePreference = "system" | "light" | "dark";
 const THEME_PREFERENCES: readonly ThemePreference[] = [
   "system",
@@ -263,8 +263,9 @@ function decodeWorkspaceProfiles(raw: unknown): {
  * that edit's own write happens to occur).
  *
  * A `version` above 2 (a newer build wrote the file) is unreadable here:
- * defaults, `corrupt`, nothing preserved and nothing migrated, so the bytes
- * stay on disk until the user rewrites them.
+ * defaults and `corrupt`, nothing migrated, so the bytes stay on disk until
+ * the user rewrites them. Like any corrupt file that still parses, it keeps
+ * its unknown top-level keys for that explicit rewrite.
  *
  * `preserved` is what the writer must put back (see `PreservedGlobalConfig`).
  * `config` is this build's own view of the file (an unsupported `language`
@@ -304,7 +305,7 @@ export function decodeGlobalConfig(raw: string): {
     return {
       config: DEFAULT_GLOBAL_CONFIG,
       corrupt: true,
-      preserved: emptyPreserved(),
+      preserved: collectPreserved(record),
     };
   }
 
@@ -417,13 +418,16 @@ export interface GlobalConfigLoadResult {
 /** What a rejected read of a file that is not there says. The desktop shell
  * returns the Rust `io::Error` text, whose `(os error 2)` or `(os error 3)`
  * suffix is the same on every OS and in every UI language; the Android plugin
- * says `File does not exist`; a Node-style error carries `code: "ENOENT"`. */
+ * says `'readFile' failed because file at '...' does not exist.`; a
+ * Node-style error carries `code: "ENOENT"`. A bare `not found` is deliberately
+ * not accepted: Windows says `The network path was not found. (os error 53)` for
+ * an unreachable share, and reading that as a first launch would bring the
+ * original defect back. */
 const MISSING_FILE_TEXT: readonly RegExp[] = [
   /\(os error (?:2|3)\)/,
   /no such file or directory/i,
   /cannot find the (?:file|path)/i,
   /does not exist/i,
-  /\bnot found\b/i,
 ];
 
 function rejectionText(error: unknown): string | null {

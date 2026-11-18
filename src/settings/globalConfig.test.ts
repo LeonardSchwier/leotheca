@@ -32,7 +32,9 @@ const DEFAULTS: GlobalConfigV2 = {
 
 describe("loadGlobalConfig", () => {
   it("falls back to defaults when the config file doesn't exist yet", async () => {
-    readTextFile.mockRejectedValueOnce(new Error("not found"));
+    readTextFile.mockRejectedValueOnce(
+      new Error("No such file or directory (os error 2)"),
+    );
     const { config, corrupt } = await loadGlobalConfig();
     expect(config).toEqual(DEFAULTS);
     expect(corrupt).toBe(false);
@@ -442,15 +444,21 @@ describe("fields a newer build wrote (preserved for the next write)", () => {
       fields: {},
     });
     expect(decodeGlobalConfig("[1, 2]").preserved).toEqual({ fields: {} });
-    readTextFile.mockRejectedValueOnce(new Error("not found"));
+    readTextFile.mockRejectedValueOnce(
+      new Error("No such file or directory (os error 2)"),
+    );
     expect((await loadGlobalConfig()).preserved).toEqual({ fields: {} });
   });
 
   it("hands every caller its own empty record, so one cannot change another's", async () => {
-    readTextFile.mockRejectedValueOnce(new Error("not found"));
+    readTextFile.mockRejectedValueOnce(
+      new Error("No such file or directory (os error 2)"),
+    );
     const first = await loadGlobalConfig();
     first.preserved.fields.leaked = true;
-    readTextFile.mockRejectedValueOnce(new Error("not found"));
+    readTextFile.mockRejectedValueOnce(
+      new Error("No such file or directory (os error 2)"),
+    );
     const second = await loadGlobalConfig();
     expect(second.preserved.fields).toEqual({});
     expect(decodeGlobalConfig("{ not valid json").preserved.fields).toEqual({});
@@ -541,8 +549,15 @@ describe("loadGlobalConfig: a file that is missing versus a file that cannot be 
       "a Windows message in English",
       "The system cannot find the file specified.",
     ],
-    ["the Capacitor plugin on Android", "File does not exist"],
-    ["a generic not found", "not found"],
+    [
+      "a Windows message for a folder in English",
+      "The system cannot find the path specified.",
+    ],
+    ["a Rust io error without its suffix", "No such file or directory"],
+    [
+      "the Capacitor plugin on Android",
+      "'readFile' failed because file at '/data/user/0/app/files/config.json' does not exist.",
+    ],
   ] as const;
 
   it.each(MISSING)("reads %s as a first launch", async (_label, message) => {
@@ -567,6 +582,11 @@ describe("loadGlobalConfig: a file that is missing versus a file that cannot be 
     ["a file that is not UTF-8", "stream did not contain valid UTF-8"],
     ["a path that is not allowed", "path is outside the allowed directories"],
     ["a locked file", "The process cannot access the file (os error 32)"],
+    [
+      "an unreachable network share",
+      "The network path was not found. (os error 53)",
+    ],
+    ["a bare not found", "not found"],
   ] as const;
 
   it.each(UNREADABLE)(
@@ -613,10 +633,10 @@ describe("loadGlobalConfig: a file that is missing versus a file that cannot be 
       },
     ],
     [
-      "an object whose conversion to text throws",
+      "an object whose text says the file is missing, never turned into text",
       {
         toString() {
-          throw new Error("boom");
+          return "No such file or directory (os error 2)";
         },
       },
     ],
@@ -672,7 +692,20 @@ describe("decodeGlobalConfig: a file written by a newer build", () => {
     const result = decodeGlobalConfig(JSON.stringify(catalog));
     expect(result.corrupt).toBe(true);
     expect(result.config).toEqual(DEFAULTS);
-    expect(result.preserved).toEqual({ fields: {} });
+  });
+
+  it("keeps its unknown keys for the explicit rewrite, like any corrupt file that parses", () => {
+    const result = decodeGlobalConfig(
+      JSON.stringify({ ...catalog, language: "fr" }),
+    );
+    expect(result.preserved).toEqual({
+      fields: { futureOnly: { a: 1 } },
+      language: "fr",
+    });
+  });
+
+  it("reads a version too large for a number as newer too", () => {
+    expect(decodeGlobalConfig('{"version": 1e999}').corrupt).toBe(true);
   });
 
   it("does not migrate the legacy path of a newer file into a profile", () => {

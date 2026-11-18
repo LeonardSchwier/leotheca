@@ -22,7 +22,7 @@ const {
     () => Promise<{ path: string; token?: string; name?: string } | null>
   >(async () => null),
   readTextFile: vi.fn<(path: string) => Promise<string>>(async () => {
-    throw new Error("not found");
+    throw new Error("No such file or directory (os error 2)");
   }),
   // Still real and still needed here: globalConfig.ts (not workspace-scoped)
   // writes through this one, unchanged by audit follow-up F-004.
@@ -230,7 +230,8 @@ describe("editor-layout persistence", () => {
     vi.clearAllMocks();
     workspacePath.value = "/workspaceA";
     readTextFile.mockImplementation(async (path) => {
-      if (path === "/workspaceA/missing.md") throw new Error("not found");
+      if (path === "/workspaceA/missing.md")
+        throw new Error("No such file or directory (os error 2)");
       return "note";
     });
     workspaceSettings.value = {
@@ -298,7 +299,7 @@ describe("editor-layout persistence", () => {
       }
       if (path === "/workspaceA/active.md") return "active note";
       if (path === "/workspaceA/pinned.md") return "pinned note";
-      throw new Error("not found");
+      throw new Error("No such file or directory (os error 2)");
     });
 
     await initSettings();
@@ -350,8 +351,9 @@ describe("editor-layout persistence", () => {
         });
       }
       if (path === "/workspaceA/active.md") return "active note";
-      if (path === "/workspaceA/deleted.md") throw new Error("not found");
-      throw new Error("not found");
+      if (path === "/workspaceA/deleted.md")
+        throw new Error("No such file or directory (os error 2)");
+      throw new Error("No such file or directory (os error 2)");
     });
 
     await initSettings();
@@ -388,7 +390,7 @@ describe("settings hydration", () => {
         });
       }
       if (path === "/workspaceA/note.md") return "saved note";
-      throw new Error("not found");
+      throw new Error("No such file or directory (os error 2)");
     });
 
     await initSettings();
@@ -411,7 +413,7 @@ describe("global configuration corruption recovery", () => {
   it("keeps malformed config.json on disk through ordinary settings changes", async () => {
     readTextFile.mockImplementation(async (path) => {
       if (path === "/config/config.json") return "{ not valid json";
-      throw new Error("not found");
+      throw new Error("No such file or directory (os error 2)");
     });
 
     await initSettings();
@@ -425,7 +427,7 @@ describe("global configuration corruption recovery", () => {
   it("rewrites config.json only after explicit repair and then resumes persistence", async () => {
     readTextFile.mockImplementation(async (path) => {
       if (path === "/config/config.json") return "{ not valid json";
-      throw new Error("not found");
+      throw new Error("No such file or directory (os error 2)");
     });
 
     await initSettings();
@@ -447,7 +449,7 @@ describe("global configuration corruption recovery", () => {
   it("keeps the recovery warning active if its rewrite fails", async () => {
     readTextFile.mockImplementation(async (path) => {
       if (path === "/config/config.json") return "{ not valid json";
-      throw new Error("not found");
+      throw new Error("No such file or directory (os error 2)");
     });
     writeTextFile.mockRejectedValueOnce(new Error("disk full"));
 
@@ -496,7 +498,7 @@ describe("an app-level config.json this build cannot read or understand", () => 
     readTextFile.mockImplementation(async (path) => {
       if (path === "/config/config.json")
         throw "Permission denied (os error 13)";
-      throw new Error("not found");
+      throw new Error("No such file or directory (os error 2)");
     });
 
     await initSettings();
@@ -510,7 +512,7 @@ describe("an app-level config.json this build cannot read or understand", () => 
     readTextFile.mockImplementation(async (path) => {
       if (path === "/config/config.json")
         throw new Error("Input/output error (os error 5)");
-      throw new Error("not found");
+      throw new Error("No such file or directory (os error 2)");
     });
 
     await initSettings();
@@ -547,7 +549,7 @@ describe("an app-level config.json this build cannot read or understand", () => 
   it("never writes over a file a newer build wrote, and shows defaults", async () => {
     readTextFile.mockImplementation(async (path) => {
       if (path === "/config/config.json") return newerFile;
-      throw new Error("not found");
+      throw new Error("No such file or directory (os error 2)");
     });
 
     await initSettings();
@@ -564,7 +566,7 @@ describe("an app-level config.json this build cannot read or understand", () => 
   it("replaces the newer file only after the explicit repair, with this build's own state", async () => {
     readTextFile.mockImplementation(async (path) => {
       if (path === "/config/config.json") return newerFile;
-      throw new Error("not found");
+      throw new Error("No such file or directory (os error 2)");
     });
 
     await initSettings();
@@ -577,14 +579,36 @@ describe("an app-level config.json this build cannot read or understand", () => 
       theme: "system",
       workspaceProfiles: [],
       lastWorkspacePath: null,
+      futureOnly: { a: 1 },
     });
+  });
+
+  it("does not write when the profiles are edited while the file is flagged", async () => {
+    readTextFile.mockImplementation(async (path) => {
+      if (path === "/config/config.json") return newerFile;
+      throw new Error("No such file or directory (os error 2)");
+    });
+    await initSettings();
+    workspaceProfiles.value = [
+      profile as (typeof workspaceProfiles.value)[number],
+    ];
+
+    await renameWorkspaceProfile("p1", "Renamed");
+    expect(workspaceProfiles.value[0]?.name).toBe("Renamed");
+    await setWorkspaceProfileIcon("p1", "code");
+    expect(workspaceProfiles.value[0]?.icon).toBe("code");
+    await forgetWorkspaceProfile("p1");
+    expect(workspaceProfiles.value).toEqual([]);
+    await flushSettingsWrites();
+
+    expect(globalConfigWrites()).toEqual([]);
   });
 
   it("reads the same file with version 2 as before and writes it back", async () => {
     readTextFile.mockImplementation(async (path) => {
       if (path === "/config/config.json")
         return newerFile.replace('"version":3', '"version":2');
-      throw new Error("not found");
+      throw new Error("No such file or directory (os error 2)");
     });
 
     await initSettings();
@@ -625,7 +649,7 @@ describe("setExternalFileOpenEnabled", () => {
       if (path === "/config/config.json") {
         return JSON.stringify({ version: 2, externalFileOpenEnabled: false });
       }
-      throw new Error("not found");
+      throw new Error("No such file or directory (os error 2)");
     });
 
     await initSettings();
@@ -656,7 +680,7 @@ describe("setLanguage", () => {
       if (path === "/config/config.json") {
         return JSON.stringify({ version: 2, language: "de" });
       }
-      throw new Error("not found");
+      throw new Error("No such file or directory (os error 2)");
     });
 
     await initSettings();
@@ -669,7 +693,7 @@ describe("setLanguage", () => {
       if (path === "/config/config.json") {
         return JSON.stringify({ version: 2, language: "fr" });
       }
-      throw new Error("not found");
+      throw new Error("No such file or directory (os error 2)");
     });
 
     await initSettings();
@@ -681,7 +705,7 @@ describe("setLanguage", () => {
   it("does not overwrite a corrupt config.json, like every other global setting", async () => {
     readTextFile.mockImplementation(async (path) => {
       if (path === "/config/config.json") return "{ not valid json";
-      throw new Error("not found");
+      throw new Error("No such file or directory (os error 2)");
     });
 
     await initSettings();
@@ -1062,7 +1086,7 @@ describe("F20 Phase 1: workspace profile catalog", () => {
         }
         if (path === "/vaultA/.leotheca/settings.json")
           return JSON.stringify(DEFAULT_WORKSPACE_SETTINGS);
-        throw new Error("not found");
+        throw new Error("No such file or directory (os error 2)");
       });
       settingsLoaded.value = false;
 
@@ -1091,7 +1115,7 @@ describe("F20 Phase 1: workspace profile catalog", () => {
             ],
           });
         }
-        throw new Error("not found");
+        throw new Error("No such file or directory (os error 2)");
       });
       restoreWorkspaceAccess.mockRejectedValueOnce(new Error("gone"));
       settingsLoaded.value = false;
@@ -1114,7 +1138,7 @@ describe("F20 Phase 1: workspace profile catalog", () => {
         }
         if (path === "/legacyVault/.leotheca/settings.json")
           return JSON.stringify(DEFAULT_WORKSPACE_SETTINGS);
-        throw new Error("not found");
+        throw new Error("No such file or directory (os error 2)");
       });
       settingsLoaded.value = false;
 
@@ -1377,7 +1401,8 @@ describe("restoreLastOpenTabs", () => {
 
   it("restores text, image, and canvas tabs with a valid active fallback", async () => {
     readTextFile.mockImplementation(async (path) => {
-      if (path === "/workspaceA/missing.md") throw new Error("not found");
+      if (path === "/workspaceA/missing.md")
+        throw new Error("No such file or directory (os error 2)");
       return `contents of ${path}`;
     });
     workspaceSettings.value = {
@@ -1409,7 +1434,8 @@ describe("restoreLastOpenTabs", () => {
 
   it("uses the saved active path when it restored and null when no path restored", async () => {
     readTextFile.mockImplementation(async (path) => {
-      if (path.endsWith("missing.md")) throw new Error("not found");
+      if (path.endsWith("missing.md"))
+        throw new Error("No such file or directory (os error 2)");
       return "note";
     });
     workspaceSettings.value = {
@@ -1445,7 +1471,7 @@ describe("tab operations that change both openTabs and activeTabPath", () => {
     // to load as an ordinary, non-corrupt default, not whatever the
     // previous block's readTextFile mock happened to return.
     readTextFile.mockImplementation(async () => {
-      throw new Error("not found");
+      throw new Error("No such file or directory (os error 2)");
     });
   });
 
@@ -1510,7 +1536,7 @@ describe("workspace settings corruption recovery", () => {
     readTextFile.mockImplementation(async (path: string) => {
       if (path === "/workspaceA/.leotheca/settings.json")
         return "{ not valid json";
-      throw new Error("not found");
+      throw new Error("No such file or directory (os error 2)");
     });
 
     await setWorkspacePath("/workspaceA");
@@ -1525,7 +1551,7 @@ describe("workspace settings corruption recovery", () => {
       if (path === "/workspaceA/.leotheca/settings.json") {
         return JSON.stringify(DEFAULT_WORKSPACE_SETTINGS);
       }
-      throw new Error("not found");
+      throw new Error("No such file or directory (os error 2)");
     });
 
     await setWorkspacePath("/workspaceA");
@@ -1538,7 +1564,7 @@ describe("workspace settings corruption recovery", () => {
     readTextFile.mockImplementation(async (path: string) => {
       if (path === "/workspaceA/.leotheca/settings.json")
         return "{ not valid json";
-      throw new Error("not found");
+      throw new Error("No such file or directory (os error 2)");
     });
 
     await setWorkspacePath("/workspaceA");
@@ -1560,7 +1586,7 @@ describe("workspace settings corruption recovery", () => {
       if (path === "/workspaceA/.leotheca/settings.json") {
         return JSON.stringify(DEFAULT_WORKSPACE_SETTINGS);
       }
-      throw new Error("not found");
+      throw new Error("No such file or directory (os error 2)");
     });
 
     await setWorkspacePath("/workspaceA");
@@ -1576,7 +1602,7 @@ describe("workspace settings corruption recovery", () => {
     readTextFile.mockImplementation(async (path: string) => {
       if (path === "/workspaceA/.leotheca/settings.json")
         return "{ not valid json";
-      throw new Error("not found");
+      throw new Error("No such file or directory (os error 2)");
     });
 
     await setWorkspacePath("/workspaceA");
@@ -1607,7 +1633,7 @@ describe("workspace settings corruption recovery", () => {
     readTextFile.mockImplementation(async (path: string) => {
       if (path === "/workspaceA/.leotheca/settings.json")
         return "{ not valid json";
-      throw new Error("not found");
+      throw new Error("No such file or directory (os error 2)");
     });
 
     await setWorkspacePath("/workspaceA");
@@ -1639,7 +1665,7 @@ describe("workspaceSettingsSaving (2026-09-04)", () => {
     // test last customized it and mark this workspace corrupted before this
     // block's own tests ever run, exactly the leak this restores against.
     readTextFile.mockImplementation(async () => {
-      throw new Error("not found");
+      throw new Error("No such file or directory (os error 2)");
     });
     workspaceSettingsCorrupted.value = false;
   });
@@ -1718,13 +1744,13 @@ describe("app-level config.json fields this build does not know", () => {
       if (path === "/config/config.json") return file;
       if (path === "/vaultA/.leotheca/settings.json")
         return JSON.stringify(DEFAULT_WORKSPACE_SETTINGS);
-      throw new Error("not found");
+      throw new Error("No such file or directory (os error 2)");
     });
   }
 
   function serveMissingConfig(): void {
     readTextFile.mockImplementation(async () => {
-      throw new Error("not found");
+      throw new Error("No such file or directory (os error 2)");
     });
   }
 

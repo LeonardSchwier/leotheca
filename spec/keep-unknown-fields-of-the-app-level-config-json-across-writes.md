@@ -1,0 +1,62 @@
+# Keep unknown fields of the app-level config.json across writes
+
+## Item
+
+rm-f5426fa313a00e81, "Keep unknown fields of the app-level config.json across writes". Every write of the app-level `config.json` carries along the top-level fields this build does not model, and an unsupported `language` string, exactly as they were read. Today `readCurrentGlobalConfig` in `src/settings/store.ts` rebuilds the whole file from the build's own signals, so a field written by a newer build is lost on the next theme change, recency update or profile edit.
+
+## Acceptance
+
+1. `decodeGlobalConfig(raw)` returns, besides `config` and `corrupt`, a `preserved` value: `preserved.fields` holds every top-level key that is not one of the eight keys this build models (`version`, `theme`, `language`, `activeWorkspaceId`, `workspaceProfiles`, `lastWorkspacePath`, `workspaceToken`, `externalFileOpenEnabled`), each value verbatim (nested objects and arrays included); it is `{}` when there is none, for unparseable bytes and for a missing file. `preserved.language` holds the raw `language` string only when it is a string this build has no catalog for; it is absent for a missing, valid or wrong-typed value.
+2. After `initSettings()` read a file with unknown fields, every later global-config write (theme, language, external-file-open, profile activation, add, rename, forget, relink and the recency write on startup) writes those fields back with the same names and values, next to the updated modeled fields.
+3. An unsupported `language` string (`"fr"`) is written back verbatim by any write that does not change the language, while the UI keeps showing `system`. `setLanguage("de")` writes `"de"` and the preserved string is gone for good (a later theme change still writes `"de"`); `setLanguage("system")` writes `"system"`: an explicit choice replaces it.
+4. An unknown field can never change a modeled field: the written modeled fields are the build's own state even when the file also held a field of another name.
+5. A key named `__proto__` in the file survives as an ordinary own property of the written object and does not touch `Object.prototype`.
+6. A corrupt file that still parses (a wrong-typed `theme` next to unknown fields) keeps its unknown fields through the explicit repair write. Unparseable bytes still produce no write until the repair (unchanged), and the repair writes no unknown fields because none could be read.
+7. A new `initSettings()` replaces what the previous load preserved: a first launch (no file), a file without unknown fields or an unreadable file leaves nothing of an earlier load in later writes.
+8. `master-spec.md` section 6.4 and its change log describe this, and `CHANGELOG.md` has a user-facing line. `skills/persistence-implementation.md` names where a deliberate exception is recorded.
+
+## Context
+
+Read: `src/settings/globalConfig.ts` (`decodeGlobalConfig` already spreads `...record`, so the decoded `config` object does carry unknown keys, but `language` is replaced by `system` and the store never keeps the object), `src/settings/store.ts` (`initSettings` copies the modeled fields into signals and drops the rest; `readCurrentGlobalConfig` builds the written object from the signals; `saveGlobalConfigOrdered` reads the config when a queued write starts; `setLanguage`; `repairGlobalConfigFile`), `src/settings/globalConfig.test.ts`, `src/settings/store.test.ts`, `master-spec.md` section 6.4, `skills/persistence-implementation.md`. Callers of the writer: only `store.ts` writes `config.json` (`rg saveGlobalConfig src`); the Android `MainActivity` and the Rust grant-registry seed only read it.
+
+Data flow: file -> `loadGlobalConfig` -> `decodeGlobalConfig` -> signals (modeled fields) plus a module variable `preservedGlobalConfig` (new) -> `readCurrentGlobalConfig` spreads `preservedGlobalConfig.fields` first and the modeled fields after them -> `JSON.stringify` -> `writeTextFile`.
+
+Crash-freedom answers: no new `await` or listener, so no new unhandled rejection or lifecycle path; the variable is replaced by each `initSettings()` (acceptance 7) and read synchronously inside the serialized write turn, like the signals. Boundary inputs: unknown values are JSON from `JSON.parse`, never mutated or evaluated; `Object.fromEntries` and object spread create own data properties, so `__proto__` cannot reach the prototype (acceptance 5). Concurrency: a queued write samples `preservedGlobalConfig` when its turn starts, the same rule as for the signals, and `setLanguage` clears the preserved language synchronously before it queues its write. Platform no-op: none. Recovery: a failed write leaves the file as it was and the variable as it was, except that `setLanguage` has already dropped the preserved language (the explicit choice is held by the signal and the next write stores it, like every other setting here); a corrupt file is still only rewritten by the explicit repair.
+
+## Plan
+
+1. Tests first: `src/settings/globalConfig.test.ts` (decode: `preserved` fields and language, `__proto__`, missing and malformed input) and `src/settings/store.test.ts` (startup to write: unknown fields through setTheme, setLanguage and a profile edit, the language rules, repair, replacement by a second `initSettings`). Run them and watch them fail on the unchanged source.
+2. `src/settings/globalConfig.ts`: the list of modeled keys, the `PreservedGlobalConfig` type, `preserved` on the decode result and on `GlobalConfigLoadResult`.
+3. `src/settings/store.ts`: the module variable, set in `initSettings` (reset when the file is missing), spread in `readCurrentGlobalConfig`, language rule there, cleared by `setLanguage`.
+4. `master-spec.md` 6.4 and change log, `CHANGELOG.md`, `skills/persistence-implementation.md`.
+5. Verify (`skills/verification-suite.md`), mutation checks (remove the spread, remove the language rule), two review passes, pull request.
+
+## Out of scope
+
+- A `version` newer than 2: this build still writes `version: 2` (a schema policy decision, not a field-preservation one).
+- A read error on an existing `config.json` (not "file missing") is still read as a first launch, so the next write replaces the file with defaults. That is a separate defect in `loadGlobalConfig`, recorded in the reflection.
+- Unknown fields inside `workspaceProfiles` records are already preserved by `decodeWorkspaceProfile` (trailing spread); the other settings files (`workspaceSettings.json`, bookmarks, collections) have their own contracts.
+- No UI change.
+
+## Rulings
+
+- Where does the store keep what it preserves? -> one module variable `preservedGlobalConfig` in `src/settings/store.ts`, set by `initSettings`, not a signal | it is never rendered or subscribed to, a signal would invite effects on it and a second source of truth next to the file; the existing `lastPersistedTabsKey` is the same kind of plain module state | Cost if wrong: turn it into a signal; the three readers are in one file.
+- Keep the whole decoded `config` object and write `{ ...config, ...modeled }`, or keep only the unknown part? -> only the unknown part (`preserved.fields`), computed once at decode | the whole object would also carry the modeled fields as they were read, and a stale modeled value could win over a signal by a later edit of the write order; a set of keys that excludes the eight modeled ones cannot collide with them (acceptance 4) | Cost if wrong: an unknown field that a later build starts to model is written once from the old copy; the modeled value from the signals wins because it is spread last.
+- Is an unsupported `language` string an unknown field or a modeled one? -> modeled for display (it reads as `system`), preserved for writing | the roadmap names it as the first case; the master spec used to say the next write stores `system` in its place, which silently discards a newer build's choice | Cost if wrong: a user who never picks a language keeps a string this build cannot show; harmless, and picking a language replaces it.
+- When does the preserved language stop applying? -> on `setLanguage(anything)`, including `system` | an explicit choice in this build is newer than the file; keeping `fr` after the user clicked `System` would ignore what they just did | Cost if wrong: a newer build's language is lost after an explicit choice, which is what the user asked for.
+- What if the file holds both a modeled field with a wrong type and unknown fields? -> the file stays corrupt (unchanged), nothing writes it until the explicit repair, and the repair keeps the unknown fields | a corrupt file must stay recoverable; dropping readable data at repair would be a second loss | Cost if wrong: none beyond the existing repair contract.
+- Cap the size or depth of preserved values? -> no | the file is local, small and written by this app family; a cap would turn "keep everything" into "keep some", and `JSON.parse` already bounds depth by the engine | Cost if wrong: a huge hostile file is read and written back as it is today by the OS; the app never evaluates the values.
+- Treat a read failure like a missing file? -> unchanged here | changing `loadGlobalConfig` error handling alters the first-launch and recovery UX and needs its own spec; recorded as a follow-up in the reflection | Cost if wrong: a transient read error on an existing file can still replace it with defaults on the next write.
+- Anything against the product rules? -> no | no network, telemetry, AI, camera or microphone; no competitor names; offline and plain-file behaviour unchanged.
+
+## Glossary
+
+Glossary: none
+
+## Design system
+
+No UI surface.
+
+## Evidence
+
+Filled at archive time.

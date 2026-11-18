@@ -106,10 +106,63 @@ const DEFAULT_GLOBAL_CONFIG: GlobalConfigV2 = {
   externalFileOpenEnabled: true,
 };
 
+/** Every top-level key this build reads and writes itself. Typed against
+ * `GlobalConfigV2`, so a field added there without being listed here does not
+ * compile; the rest of the file belongs to another build. */
+const MODELED_KEY_FLAGS: Record<keyof GlobalConfigV2, true> = {
+  version: true,
+  theme: true,
+  language: true,
+  activeWorkspaceId: true,
+  workspaceProfiles: true,
+  lastWorkspacePath: true,
+  workspaceToken: true,
+  externalFileOpenEnabled: true,
+};
+const MODELED_KEYS: ReadonlySet<string> = new Set(
+  Object.keys(MODELED_KEY_FLAGS),
+);
+
+/** What a read of `config.json` found that this build cannot model but must
+ * not lose when it writes the file back (a newer build's settings).
+ *
+ * - `fields`: every top-level key outside `MODELED_KEYS`, value verbatim. It
+ *   holds none of the keys this build owns, so spreading it first lets the
+ *   build's own state win.
+ * - `language`: the raw `language` string when it names a language this build
+ *   has no catalog for. The decoded `config.language` reads `system` for it;
+ *   this keeps the original so a write that does not change the language puts
+ *   it back. Absent for a missing, supported or wrong-typed value. */
+export interface PreservedGlobalConfig {
+  fields: Record<string, unknown>;
+  language?: string;
+}
+
+/** A fresh record on every call, so no caller can change another's. */
+function emptyPreserved(): PreservedGlobalConfig {
+  return { fields: {} };
+}
+
+/** Built with `Object.fromEntries`, which defines own data properties, so a
+ * key named `__proto__` in the file stays plain data and never reaches the
+ * prototype. Values are never copied, inspected or evaluated. */
+function collectPreserved(
+  record: Record<string, unknown>,
+): PreservedGlobalConfig {
+  const fields = Object.fromEntries(
+    Object.entries(record).filter(([key]) => !MODELED_KEYS.has(key)),
+  );
+  const language = record.language;
+  return typeof language === "string" && !isLanguagePreference(language)
+    ? { fields, language }
+    : { fields };
+}
+
 /** A string this build has no catalog for (a language a newer app wrote) is
  * not corruption: it is a harmless preference, and calling it corrupt would
- * block every later config write. It reads as `system`. Only a value of the
- * wrong type is corrupt. */
+ * block every later config write. It reads as `system` (the raw string is
+ * kept in `PreservedGlobalConfig.language` for the next write). Only a value
+ * of the wrong type is corrupt. */
 function decodeLanguage(raw: unknown): {
   value: LanguagePreference;
   corrupt: boolean;
@@ -204,19 +257,33 @@ function decodeWorkspaceProfiles(raw: unknown): {
  * own "persist only after... opened successfully" rule (or, for an
  * explicit user edit unrelated to opening a workspace at all, whenever
  * that edit's own write happens to occur).
+ *
+ * `preserved` is what the writer must put back (see `PreservedGlobalConfig`).
+ * `config` is this build's own view of the file (an unsupported `language`
+ * is already `system` there), so callers write `preserved` back and do not
+ * rely on whatever else the decoded object happens to carry.
  */
 export function decodeGlobalConfig(raw: string): {
   config: GlobalConfigV2;
   corrupt: boolean;
+  preserved: PreservedGlobalConfig;
 } {
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
   } catch {
-    return { config: DEFAULT_GLOBAL_CONFIG, corrupt: true };
+    return {
+      config: DEFAULT_GLOBAL_CONFIG,
+      corrupt: true,
+      preserved: emptyPreserved(),
+    };
   }
   if (!isPlainObject(parsed)) {
-    return { config: DEFAULT_GLOBAL_CONFIG, corrupt: true };
+    return {
+      config: DEFAULT_GLOBAL_CONFIG,
+      corrupt: true,
+      preserved: emptyPreserved(),
+    };
   }
   const record = parsed;
 
@@ -295,6 +362,7 @@ export function decodeGlobalConfig(raw: string): {
 
   return {
     config,
+    preserved: collectPreserved(record),
     corrupt:
       anyCorrupt(
         lastWorkspacePath,
@@ -308,12 +376,21 @@ export function decodeGlobalConfig(raw: string): {
   };
 }
 
+/** What goes to disk: the modeled fields as this build holds them, except that
+ * `language` may be a string only a newer build can show (see
+ * `PreservedGlobalConfig`). The writer also carries the preserved top-level
+ * keys, which this type does not name. */
+export type GlobalConfigFile = Omit<GlobalConfigV2, "language"> & {
+  language: string;
+};
+
 /** The decoded global configuration together with whether its on-disk source
  * could be read fully as written. Callers use `corrupt` to preserve the
  * original bytes until the user explicitly chooses to rewrite the file. */
 export interface GlobalConfigLoadResult {
   config: GlobalConfigV2;
   corrupt: boolean;
+  preserved: PreservedGlobalConfig;
 }
 
 export async function loadGlobalConfig(): Promise<GlobalConfigLoadResult> {
@@ -323,12 +400,18 @@ export async function loadGlobalConfig(): Promise<GlobalConfigLoadResult> {
   } catch {
     // A first launch has no config file yet, which is not corruption and
     // should not show a recovery warning.
-    return { config: DEFAULT_GLOBAL_CONFIG, corrupt: false };
+    return {
+      config: DEFAULT_GLOBAL_CONFIG,
+      corrupt: false,
+      preserved: emptyPreserved(),
+    };
   }
   return decodeGlobalConfig(raw);
 }
 
-export async function saveGlobalConfig(config: GlobalConfigV2): Promise<void> {
+export async function saveGlobalConfig(
+  config: GlobalConfigFile,
+): Promise<void> {
   await writeTextFile(
     await globalConfigPath(),
     JSON.stringify(config, null, 2),

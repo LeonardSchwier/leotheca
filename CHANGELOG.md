@@ -8,6 +8,7 @@
 
 ### Changed
 
+- **Settings from a newer version are no longer lost**: Leotheca now keeps the settings in its app configuration file that it does not know yet, together with an interface language it has no translation for, and writes them back unchanged whenever it saves a setting, switches or edits a workspace profile, or you rewrite the file after a recovery warning. Before, opening the app with an older version and changing the theme, say, silently removed everything a newer version had stored there. Choosing a language in the older version still replaces the stored one.
 - **Minimalistic Nordic look**: Leotheca now uses a calm Scandinavian theme by default. The light mode is frost white with soft greys and one muted fog-blue accent, the dark mode is a polar night companion. The chrome is quieter: no hairlines under the header, tabs and activity rail, flat header buttons, a borderless view switch, lighter icon strokes and lighter headings. Text contrast stays at WCAG AA, checked by a test. The default accent is now named Fog instead of Warm; your saved choice is kept. The README screenshots show the new look.
 
 ### Maintenance

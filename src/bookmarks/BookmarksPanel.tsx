@@ -1,5 +1,10 @@
-import { useState } from "preact/hooks";
-import { bookmarks, removeBookmark } from "./store";
+import { useEffect, useState } from "preact/hooks";
+import {
+  bookmarks,
+  bookmarksCorrupted,
+  removeBookmark,
+  repairBookmarksFile,
+} from "./store";
 import type { Bookmark } from "./types";
 import { EmptyState, Icon } from "@leonardschwier/leoforma";
 import "./bookmarks.css";
@@ -54,15 +59,68 @@ export function BookmarksPanel({
   // error instead of leaving a rejected promise unhandled and the click
   // silently doing nothing.
   const [openErrorId, setOpenErrorId] = useState<string | null>(null);
+  const [rewriteFailed, setRewriteFailed] = useState(false);
+  const [rewriting, setRewriting] = useState(false);
+  const unreadable = bookmarksCorrupted.value;
+
+  // A failed rewrite belongs to the file it was tried on. Once the flag is
+  // gone (another workspace was opened, or the rewrite worked), the next
+  // unreadable file starts without it.
+  useEffect(() => {
+    if (!unreadable) setRewriteFailed(false);
+  }, [unreadable]);
+
+  async function handleRewrite() {
+    if (rewriting) return;
+    setRewriting(true);
+    setRewriteFailed(false);
+    try {
+      await repairBookmarksFile();
+    } catch {
+      setRewriteFailed(true);
+    } finally {
+      setRewriting(false);
+    }
+  }
+
+  // A bookmarks file that exists but could not be read is left on disk, so an
+  // empty list here does not mean "no bookmarks", and anything added now is
+  // not saved. Shown with or without entries: the user can add some before
+  // seeing why nothing was kept.
+  const unreadableNotice = unreadable ? (
+    <div class="bookmarks-corrupt">
+      <p role="alert">
+        The bookmarks file could not be read. It is left as it is on disk, so
+        bookmarks you add now are not saved until you rewrite it.
+      </p>
+      {rewriteFailed && (
+        <p role="alert">
+          The bookmarks file could not be rewritten. Check that the folder is
+          writable and try again.
+        </p>
+      )}
+      <button
+        type="button"
+        class="bookmarks-corrupt-action"
+        disabled={rewriting}
+        onClick={() => void handleRewrite()}
+      >
+        Rewrite bookmarks file
+      </button>
+    </div>
+  ) : null;
 
   if (bookmarks.value.length === 0)
     return (
-      <EmptyState
-        size="sm"
-        icon={<Icon name="bookmark" size={20} />}
-        title="No bookmarks yet."
-        description="Bookmark a note or saved search to find it here."
-      />
+      <>
+        {unreadableNotice}
+        <EmptyState
+          size="sm"
+          icon={<Icon name="bookmark" size={20} />}
+          title="No bookmarks yet."
+          description="Bookmark a note or saved search to find it here."
+        />
+      </>
     );
 
   async function handleOpenFileBookmark(
@@ -77,50 +135,53 @@ export function BookmarksPanel({
   }
 
   return (
-    <ul class="bookmarks-list" aria-label="Bookmarks">
-      {bookmarks.value.map((bookmark) => (
-        <li key={bookmark.id} class="bookmarks-item-row">
-          <div class="bookmarks-item">
-            <button
-              class="file-tree-item bookmarks-open"
-              onClick={() => {
-                if (bookmark.kind === "file")
-                  void handleOpenFileBookmark(bookmark);
-                else onRunSearch(bookmark.query);
-              }}
-            >
-              <span>{bookmark.label}</span>
-              <span class="bookmarks-kind">
-                {bookmark.kind === "file" ? "File" : "Search"}
-              </span>
-            </button>
-            {bookmark.kind === "file" && onRevealInSidebar && (
+    <>
+      {unreadableNotice}
+      <ul class="bookmarks-list" aria-label="Bookmarks">
+        {bookmarks.value.map((bookmark) => (
+          <li key={bookmark.id} class="bookmarks-item-row">
+            <div class="bookmarks-item">
               <button
-                class="icon-button bookmarks-reveal"
-                title={`Show "${bookmark.label}" in the sidebar tree`}
-                aria-label={`Show "${bookmark.label}" in the sidebar tree`}
-                onClick={() => void onRevealInSidebar(bookmark.path)}
+                class="file-tree-item bookmarks-open"
+                onClick={() => {
+                  if (bookmark.kind === "file")
+                    void handleOpenFileBookmark(bookmark);
+                  else onRunSearch(bookmark.query);
+                }}
               >
-                <RevealInSidebarIcon />
+                <span>{bookmark.label}</span>
+                <span class="bookmarks-kind">
+                  {bookmark.kind === "file" ? "File" : "Search"}
+                </span>
               </button>
+              {bookmark.kind === "file" && onRevealInSidebar && (
+                <button
+                  class="icon-button bookmarks-reveal"
+                  title={`Show "${bookmark.label}" in the sidebar tree`}
+                  aria-label={`Show "${bookmark.label}" in the sidebar tree`}
+                  onClick={() => void onRevealInSidebar(bookmark.path)}
+                >
+                  <RevealInSidebarIcon />
+                </button>
+              )}
+              <button
+                class="icon-button bookmarks-remove"
+                title={`Remove ${bookmark.label}`}
+                aria-label={`Remove ${bookmark.label}`}
+                onClick={() => void removeBookmark(bookmark.id)}
+              >
+                ×
+              </button>
+            </div>
+            {openErrorId === bookmark.id && (
+              <p class="bookmarks-error-message" role="alert">
+                Couldn't open "{bookmark.label}": it may have been moved,
+                renamed, or deleted.
+              </p>
             )}
-            <button
-              class="icon-button bookmarks-remove"
-              title={`Remove ${bookmark.label}`}
-              aria-label={`Remove ${bookmark.label}`}
-              onClick={() => void removeBookmark(bookmark.id)}
-            >
-              ×
-            </button>
-          </div>
-          {openErrorId === bookmark.id && (
-            <p class="bookmarks-error-message" role="alert">
-              Couldn't open "{bookmark.label}": it may have been moved, renamed,
-              or deleted.
-            </p>
-          )}
-        </li>
-      ))}
-    </ul>
+          </li>
+        ))}
+      </ul>
+    </>
   );
 }

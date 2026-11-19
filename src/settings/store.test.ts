@@ -22,7 +22,7 @@ const {
     () => Promise<{ path: string; token?: string; name?: string } | null>
   >(async () => null),
   readTextFile: vi.fn<(path: string) => Promise<string>>(async () => {
-    throw new Error("not found");
+    throw new Error("No such file or directory (os error 2)");
   }),
   // Still real and still needed here: globalConfig.ts (not workspace-scoped)
   // writes through this one, unchanged by audit follow-up F-004.
@@ -74,14 +74,18 @@ const {
   externalFileOpenEnabled,
   forgetWorkspaceProfile,
   relinkWorkspaceProfile,
+  renameWorkspaceProfile,
   restoreLastOpenTabs,
   initSettings,
   globalConfigCorrupted,
   repairGlobalConfigFile,
   repairWorkspaceSettingsFile,
   setExternalFileOpenEnabled,
+  setLanguage,
   setTheme,
   setWorkspacePath,
+  setWorkspaceProfileIcon,
+  theme,
   settingsLoaded,
   updateWorkspaceSettings,
   workspacePath,
@@ -103,6 +107,7 @@ const {
   pinTab,
 } = await import("../workspace/store");
 const { DEFAULT_WORKSPACE_SETTINGS } = await import("./workspaceSettings");
+const { activeLocale, languagePreference } = await import("../i18n");
 
 function writesTo(path: string): unknown[] {
   return writeWorkspaceTextFile.mock.calls
@@ -111,8 +116,10 @@ function writesTo(path: string): unknown[] {
 }
 
 interface GlobalConfigWrite {
+  [extra: string]: unknown;
   version: 2;
   theme: string;
+  language?: string;
   activeWorkspaceId: string | null;
   workspaceProfiles: Array<{
     id: string;
@@ -224,7 +231,8 @@ describe("editor-layout persistence", () => {
     vi.clearAllMocks();
     workspacePath.value = "/workspaceA";
     readTextFile.mockImplementation(async (path) => {
-      if (path === "/workspaceA/missing.md") throw new Error("not found");
+      if (path === "/workspaceA/missing.md")
+        throw new Error("No such file or directory (os error 2)");
       return "note";
     });
     workspaceSettings.value = {
@@ -292,7 +300,7 @@ describe("editor-layout persistence", () => {
       }
       if (path === "/workspaceA/active.md") return "active note";
       if (path === "/workspaceA/pinned.md") return "pinned note";
-      throw new Error("not found");
+      throw new Error("No such file or directory (os error 2)");
     });
 
     await initSettings();
@@ -344,8 +352,9 @@ describe("editor-layout persistence", () => {
         });
       }
       if (path === "/workspaceA/active.md") return "active note";
-      if (path === "/workspaceA/deleted.md") throw new Error("not found");
-      throw new Error("not found");
+      if (path === "/workspaceA/deleted.md")
+        throw new Error("No such file or directory (os error 2)");
+      throw new Error("No such file or directory (os error 2)");
     });
 
     await initSettings();
@@ -382,7 +391,7 @@ describe("settings hydration", () => {
         });
       }
       if (path === "/workspaceA/note.md") return "saved note";
-      throw new Error("not found");
+      throw new Error("No such file or directory (os error 2)");
     });
 
     await initSettings();
@@ -405,7 +414,7 @@ describe("global configuration corruption recovery", () => {
   it("keeps malformed config.json on disk through ordinary settings changes", async () => {
     readTextFile.mockImplementation(async (path) => {
       if (path === "/config/config.json") return "{ not valid json";
-      throw new Error("not found");
+      throw new Error("No such file or directory (os error 2)");
     });
 
     await initSettings();
@@ -419,7 +428,7 @@ describe("global configuration corruption recovery", () => {
   it("rewrites config.json only after explicit repair and then resumes persistence", async () => {
     readTextFile.mockImplementation(async (path) => {
       if (path === "/config/config.json") return "{ not valid json";
-      throw new Error("not found");
+      throw new Error("No such file or directory (os error 2)");
     });
 
     await initSettings();
@@ -441,7 +450,7 @@ describe("global configuration corruption recovery", () => {
   it("keeps the recovery warning active if its rewrite fails", async () => {
     readTextFile.mockImplementation(async (path) => {
       if (path === "/config/config.json") return "{ not valid json";
-      throw new Error("not found");
+      throw new Error("No such file or directory (os error 2)");
     });
     writeTextFile.mockRejectedValueOnce(new Error("disk full"));
 
@@ -449,6 +458,179 @@ describe("global configuration corruption recovery", () => {
     await expect(repairGlobalConfigFile()).rejects.toThrow("disk full");
 
     expect(globalConfigCorrupted.value).toBe(true);
+  });
+});
+
+describe("an app-level config.json this build cannot read or understand", () => {
+  const profile = {
+    id: "p1",
+    name: "Notes",
+    icon: "book",
+    path: "/Users/erika/notes",
+    lastOpenedAt: 1700000000000,
+  };
+  const newerFile = JSON.stringify({
+    version: 3,
+    theme: "dark",
+    activeWorkspaceId: "p1",
+    workspaceProfiles: [profile],
+    lastWorkspacePath: "/Users/erika/notes",
+    futureOnly: { a: 1 },
+  });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    globalConfigCorrupted.value = false;
+    workspaceProfiles.value = [];
+    activeWorkspaceId.value = null;
+    pickWorkspaceFolder.mockResolvedValue(null);
+  });
+
+  async function changeEverything(): Promise<void> {
+    await setTheme("dark");
+    await setLanguage("de");
+    await setExternalFileOpenEnabled(false);
+    pickWorkspaceFolder.mockResolvedValueOnce({ path: "/Users/erika/other" });
+    await addWorkspaceFromPicker();
+    await flushSettingsWrites();
+    // The changes did happen in memory, so "nothing was written" below is
+    // about the file and not about edits that silently did nothing.
+    expect(theme.value).toBe("dark");
+    expect(languagePreference.value).toBe("de");
+    expect(externalFileOpenEnabled.value).toBe(false);
+    expect(workspaceProfiles.value.map((p) => p.path)).toContain(
+      "/Users/erika/other",
+    );
+  }
+
+  it("never writes over a file that exists but cannot be read", async () => {
+    readTextFile.mockImplementation(async (path) => {
+      if (path === "/config/config.json")
+        throw "Permission denied (os error 13)";
+      throw new Error("No such file or directory (os error 2)");
+    });
+
+    await initSettings();
+    expect(globalConfigCorrupted.value).toBe(true);
+    await changeEverything();
+
+    expect(globalConfigWrites()).toEqual([]);
+  });
+
+  it("rewrites that file only after the explicit repair", async () => {
+    readTextFile.mockImplementation(async (path) => {
+      if (path === "/config/config.json")
+        throw new Error("Input/output error (os error 5)");
+      throw new Error("No such file or directory (os error 2)");
+    });
+
+    await initSettings();
+    await changeEverything();
+    expect(globalConfigWrites()).toEqual([]);
+
+    await repairGlobalConfigFile();
+    await flushSettingsWrites();
+
+    expect(globalConfigCorrupted.value).toBe(false);
+    expect(globalConfigWrites()).toHaveLength(1);
+    expect(globalConfigWrites()[0]).toMatchObject({
+      version: 2,
+      theme: "dark",
+    });
+  });
+
+  it("still starts a first launch, with an OS missing-file message, and writes", async () => {
+    readTextFile.mockImplementation(async () => {
+      throw "No such file or directory (os error 2)";
+    });
+
+    await initSettings();
+    expect(globalConfigCorrupted.value).toBe(false);
+    await setTheme("dark");
+    await flushSettingsWrites();
+
+    expect(globalConfigWrites().at(-1)).toMatchObject({
+      version: 2,
+      theme: "dark",
+    });
+  });
+
+  it("never writes over a file a newer build wrote, and shows defaults", async () => {
+    readTextFile.mockImplementation(async (path) => {
+      if (path === "/config/config.json") return newerFile;
+      throw new Error("No such file or directory (os error 2)");
+    });
+
+    await initSettings();
+
+    expect(globalConfigCorrupted.value).toBe(true);
+    expect(workspaceProfiles.value).toEqual([]);
+    expect(activeWorkspaceId.value).toBeNull();
+    expect(restoreWorkspaceAccess).not.toHaveBeenCalled();
+
+    await changeEverything();
+    expect(globalConfigWrites()).toEqual([]);
+  });
+
+  it("replaces the newer file only after the explicit repair, with this build's own state", async () => {
+    readTextFile.mockImplementation(async (path) => {
+      if (path === "/config/config.json") return newerFile;
+      throw new Error("No such file or directory (os error 2)");
+    });
+
+    await initSettings();
+    await repairGlobalConfigFile();
+    await flushSettingsWrites();
+
+    expect(globalConfigWrites()).toHaveLength(1);
+    expect(globalConfigWrites()[0]).toMatchObject({
+      version: 2,
+      theme: "system",
+      workspaceProfiles: [],
+      lastWorkspacePath: null,
+      futureOnly: { a: 1 },
+    });
+  });
+
+  it("does not write when the profiles are edited while the file is flagged", async () => {
+    readTextFile.mockImplementation(async (path) => {
+      if (path === "/config/config.json") return newerFile;
+      throw new Error("No such file or directory (os error 2)");
+    });
+    await initSettings();
+    workspaceProfiles.value = [
+      profile as (typeof workspaceProfiles.value)[number],
+    ];
+
+    await renameWorkspaceProfile("p1", "Renamed");
+    expect(workspaceProfiles.value[0]?.name).toBe("Renamed");
+    await setWorkspaceProfileIcon("p1", "code");
+    expect(workspaceProfiles.value[0]?.icon).toBe("code");
+    await forgetWorkspaceProfile("p1");
+    expect(workspaceProfiles.value).toEqual([]);
+    await flushSettingsWrites();
+
+    expect(globalConfigWrites()).toEqual([]);
+  });
+
+  it("reads the same file with version 2 as before and writes it back", async () => {
+    readTextFile.mockImplementation(async (path) => {
+      if (path === "/config/config.json")
+        return newerFile.replace('"version":3', '"version":2');
+      throw new Error("No such file or directory (os error 2)");
+    });
+
+    await initSettings();
+
+    expect(globalConfigCorrupted.value).toBe(false);
+    expect(workspaceProfiles.value.map((p) => p.id)).toEqual(["p1"]);
+    await setTheme("light");
+    await flushSettingsWrites();
+    expect(globalConfigWrites().at(-1)).toMatchObject({
+      version: 2,
+      theme: "light",
+      futureOnly: { a: 1 },
+    });
   });
 });
 
@@ -476,12 +658,82 @@ describe("setExternalFileOpenEnabled", () => {
       if (path === "/config/config.json") {
         return JSON.stringify({ version: 2, externalFileOpenEnabled: false });
       }
-      throw new Error("not found");
+      throw new Error("No such file or directory (os error 2)");
     });
 
     await initSettings();
 
     expect(externalFileOpenEnabled.value).toBe(false);
+  });
+});
+
+describe("setLanguage", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    globalConfigCorrupted.value = false;
+    languagePreference.value = "system";
+  });
+
+  it("defaults to system and persists an explicit change", async () => {
+    expect(languagePreference.value).toBe("system");
+
+    await setLanguage("de");
+    await flushSettingsWrites();
+
+    expect(languagePreference.value).toBe("de");
+    expect(globalConfigWrites().at(-1)).toMatchObject({ language: "de" });
+  });
+
+  it("hydrates from a loaded config on initSettings", async () => {
+    readTextFile.mockImplementation(async (path) => {
+      if (path === "/config/config.json") {
+        return JSON.stringify({ version: 2, language: "de" });
+      }
+      throw new Error("No such file or directory (os error 2)");
+    });
+
+    await initSettings();
+
+    expect(languagePreference.value).toBe("de");
+  });
+
+  it("keeps a language this build does not know as system and leaves the file writable", async () => {
+    readTextFile.mockImplementation(async (path) => {
+      if (path === "/config/config.json") {
+        return JSON.stringify({ version: 2, language: "fr" });
+      }
+      throw new Error("No such file or directory (os error 2)");
+    });
+
+    await initSettings();
+
+    expect(languagePreference.value).toBe("system");
+    expect(globalConfigCorrupted.value).toBe(false);
+  });
+
+  it("does not overwrite a corrupt config.json, like every other global setting", async () => {
+    readTextFile.mockImplementation(async (path) => {
+      if (path === "/config/config.json") return "{ not valid json";
+      throw new Error("No such file or directory (os error 2)");
+    });
+
+    await initSettings();
+    await setLanguage("de");
+    await flushSettingsWrites();
+
+    expect(languagePreference.value).toBe("de");
+    expect(globalConfigWrites()).toEqual([]);
+  });
+
+  it("sets the document language to the active locale and follows changes", async () => {
+    await setLanguage("de");
+    await flushSettingsWrites();
+    expect(activeLocale.value).toBe("de");
+    expect(document.documentElement.lang).toBe("de");
+
+    await setLanguage("en");
+    await flushSettingsWrites();
+    expect(document.documentElement.lang).toBe("en");
   });
 });
 
@@ -843,7 +1095,7 @@ describe("F20 Phase 1: workspace profile catalog", () => {
         }
         if (path === "/vaultA/.leotheca/settings.json")
           return JSON.stringify(DEFAULT_WORKSPACE_SETTINGS);
-        throw new Error("not found");
+        throw new Error("No such file or directory (os error 2)");
       });
       settingsLoaded.value = false;
 
@@ -872,7 +1124,7 @@ describe("F20 Phase 1: workspace profile catalog", () => {
             ],
           });
         }
-        throw new Error("not found");
+        throw new Error("No such file or directory (os error 2)");
       });
       restoreWorkspaceAccess.mockRejectedValueOnce(new Error("gone"));
       settingsLoaded.value = false;
@@ -895,7 +1147,7 @@ describe("F20 Phase 1: workspace profile catalog", () => {
         }
         if (path === "/legacyVault/.leotheca/settings.json")
           return JSON.stringify(DEFAULT_WORKSPACE_SETTINGS);
-        throw new Error("not found");
+        throw new Error("No such file or directory (os error 2)");
       });
       settingsLoaded.value = false;
 
@@ -1158,7 +1410,8 @@ describe("restoreLastOpenTabs", () => {
 
   it("restores text, image, and canvas tabs with a valid active fallback", async () => {
     readTextFile.mockImplementation(async (path) => {
-      if (path === "/workspaceA/missing.md") throw new Error("not found");
+      if (path === "/workspaceA/missing.md")
+        throw new Error("No such file or directory (os error 2)");
       return `contents of ${path}`;
     });
     workspaceSettings.value = {
@@ -1190,7 +1443,8 @@ describe("restoreLastOpenTabs", () => {
 
   it("uses the saved active path when it restored and null when no path restored", async () => {
     readTextFile.mockImplementation(async (path) => {
-      if (path.endsWith("missing.md")) throw new Error("not found");
+      if (path.endsWith("missing.md"))
+        throw new Error("No such file or directory (os error 2)");
       return "note";
     });
     workspaceSettings.value = {
@@ -1226,7 +1480,7 @@ describe("tab operations that change both openTabs and activeTabPath", () => {
     // to load as an ordinary, non-corrupt default, not whatever the
     // previous block's readTextFile mock happened to return.
     readTextFile.mockImplementation(async () => {
-      throw new Error("not found");
+      throw new Error("No such file or directory (os error 2)");
     });
   });
 
@@ -1291,7 +1545,7 @@ describe("workspace settings corruption recovery", () => {
     readTextFile.mockImplementation(async (path: string) => {
       if (path === "/workspaceA/.leotheca/settings.json")
         return "{ not valid json";
-      throw new Error("not found");
+      throw new Error("No such file or directory (os error 2)");
     });
 
     await setWorkspacePath("/workspaceA");
@@ -1306,7 +1560,7 @@ describe("workspace settings corruption recovery", () => {
       if (path === "/workspaceA/.leotheca/settings.json") {
         return JSON.stringify(DEFAULT_WORKSPACE_SETTINGS);
       }
-      throw new Error("not found");
+      throw new Error("No such file or directory (os error 2)");
     });
 
     await setWorkspacePath("/workspaceA");
@@ -1319,7 +1573,7 @@ describe("workspace settings corruption recovery", () => {
     readTextFile.mockImplementation(async (path: string) => {
       if (path === "/workspaceA/.leotheca/settings.json")
         return "{ not valid json";
-      throw new Error("not found");
+      throw new Error("No such file or directory (os error 2)");
     });
 
     await setWorkspacePath("/workspaceA");
@@ -1341,7 +1595,7 @@ describe("workspace settings corruption recovery", () => {
       if (path === "/workspaceA/.leotheca/settings.json") {
         return JSON.stringify(DEFAULT_WORKSPACE_SETTINGS);
       }
-      throw new Error("not found");
+      throw new Error("No such file or directory (os error 2)");
     });
 
     await setWorkspacePath("/workspaceA");
@@ -1357,7 +1611,7 @@ describe("workspace settings corruption recovery", () => {
     readTextFile.mockImplementation(async (path: string) => {
       if (path === "/workspaceA/.leotheca/settings.json")
         return "{ not valid json";
-      throw new Error("not found");
+      throw new Error("No such file or directory (os error 2)");
     });
 
     await setWorkspacePath("/workspaceA");
@@ -1388,7 +1642,7 @@ describe("workspace settings corruption recovery", () => {
     readTextFile.mockImplementation(async (path: string) => {
       if (path === "/workspaceA/.leotheca/settings.json")
         return "{ not valid json";
-      throw new Error("not found");
+      throw new Error("No such file or directory (os error 2)");
     });
 
     await setWorkspacePath("/workspaceA");
@@ -1410,6 +1664,117 @@ describe("workspace settings corruption recovery", () => {
   });
 });
 
+// A settings.json that exists but cannot be read (permission, I/O, encoding)
+// is not "no file yet": the defaults shown for it must not be written over it.
+describe("a workspace settings.json that cannot be read", () => {
+  const SETTINGS = "/workspaceA/.leotheca/settings.json";
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    workspaceSettingsCorrupted.value = false;
+  });
+
+  function rejectSettingsWith(error: unknown): void {
+    readTextFile.mockImplementation(async (path: string) => {
+      if (path === SETTINGS) throw error;
+      throw new Error("No such file or directory (os error 2)");
+    });
+  }
+
+  it("is kept on disk by every ordinary write when a workspace is opened", async () => {
+    rejectSettingsWith("Permission denied (os error 13)");
+
+    await setWorkspacePath("/workspaceA");
+    await flushSettingsWrites();
+    expect(workspaceSettingsCorrupted.value).toBe(true);
+
+    await updateWorkspaceSettings({
+      lastActivePath: "/workspaceA/note.md",
+      fontSize: 18,
+    });
+    await flushSettingsWrites();
+
+    expect(writesTo(SETTINGS)).toEqual([]);
+    // The session stays usable in memory.
+    expect(workspaceSettings.value.fontSize).toBe(18);
+  });
+
+  it("is kept on disk when it is the workspace opened at startup", async () => {
+    const profile = {
+      id: "p1",
+      name: "Notes",
+      icon: "book",
+      path: "/workspaceA",
+      lastOpenedAt: 1700000000000,
+    };
+    readTextFile.mockImplementation(async (path: string) => {
+      if (path === "/config/config.json")
+        return JSON.stringify({
+          version: 2,
+          theme: "system",
+          activeWorkspaceId: "p1",
+          workspaceProfiles: [profile],
+          lastWorkspacePath: null,
+        });
+      if (path === SETTINGS) throw new Error("Input/output error (os error 5)");
+      throw new Error("No such file or directory (os error 2)");
+    });
+
+    await initSettings();
+    await flushSettingsWrites();
+    expect(workspacePath.value).toBe("/workspaceA");
+    expect(workspaceSettingsCorrupted.value).toBe(true);
+
+    await updateWorkspaceSettings({ fontSize: 20 });
+    await flushSettingsWrites();
+
+    expect(writesTo(SETTINGS)).toEqual([]);
+  });
+
+  it("is replaced only by the explicit repair, after which writes resume", async () => {
+    rejectSettingsWith(new Error("stream did not contain valid UTF-8"));
+
+    await setWorkspacePath("/workspaceA");
+    await flushSettingsWrites();
+    await updateWorkspaceSettings({ fontSize: 22 });
+    await flushSettingsWrites();
+    expect(writesTo(SETTINGS)).toEqual([]);
+
+    await repairWorkspaceSettingsFile();
+    await flushSettingsWrites();
+
+    expect(workspaceSettingsCorrupted.value).toBe(false);
+    expect((writesTo(SETTINGS).at(-1) as { fontSize: number }).fontSize).toBe(
+      22,
+    );
+  });
+
+  it.each([
+    ["the desktop shell", "No such file or directory (os error 2)"],
+    ["the Android workspace bridge", '"settings.json" was not found.'],
+    [
+      "the Android workspace bridge, no .leotheca folder",
+      '".leotheca" was not found.',
+    ],
+  ])(
+    "is a first use, with no warning and an ordinary write, when %s says it is missing",
+    async (_label, message) => {
+      rejectSettingsWith(new Error(message));
+
+      await setWorkspacePath("/workspaceA");
+      await flushSettingsWrites();
+      expect(workspaceSettingsCorrupted.value).toBe(false);
+
+      await updateWorkspaceSettings({ fontSize: 19 });
+      await flushSettingsWrites();
+
+      expect((writesTo(SETTINGS).at(-1) as { fontSize: number }).fontSize).toBe(
+        19,
+      );
+    },
+  );
+});
+
 describe("workspaceSettingsSaving (2026-09-04)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -1420,7 +1785,7 @@ describe("workspaceSettingsSaving (2026-09-04)", () => {
     // test last customized it and mark this workspace corrupted before this
     // block's own tests ever run, exactly the leak this restores against.
     readTextFile.mockImplementation(async () => {
-      throw new Error("not found");
+      throw new Error("No such file or directory (os error 2)");
     });
     workspaceSettingsCorrupted.value = false;
   });
@@ -1471,5 +1836,327 @@ describe("workspaceSettingsSaving (2026-09-04)", () => {
 
     await second;
     expect(workspaceSettingsSaving.value).toBe(false);
+  });
+});
+
+describe("app-level config.json fields this build does not know", () => {
+  const FUTURE = {
+    sidebarDensity: "compact",
+    experimental: { flags: [1, 2, { deep: true }], note: null },
+  };
+  const PROFILE_A = {
+    id: "p1",
+    name: "Vault",
+    icon: "folder",
+    path: "/vaultA",
+    lastOpenedAt: 1,
+  };
+  const PROFILE_B = {
+    id: "p2",
+    name: "Other",
+    icon: "folder",
+    path: "/vaultB",
+    lastOpenedAt: 0,
+  };
+
+  function serveConfig(file: string): void {
+    readTextFile.mockImplementation(async (path) => {
+      if (path === "/config/config.json") return file;
+      if (path === "/vaultA/.leotheca/settings.json")
+        return JSON.stringify(DEFAULT_WORKSPACE_SETTINGS);
+      throw new Error("No such file or directory (os error 2)");
+    });
+  }
+
+  function serveMissingConfig(): void {
+    readTextFile.mockImplementation(async () => {
+      throw new Error("No such file or directory (os error 2)");
+    });
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    closeAllTabs();
+    workspacePath.value = null;
+    workspaceProfiles.value = [];
+    activeWorkspaceId.value = null;
+    globalConfigCorrupted.value = false;
+    languagePreference.value = "system";
+    settingsLoaded.value = true;
+    pickWorkspaceFolder.mockResolvedValue(null);
+    isNativePlatform.mockReturnValue(false);
+  });
+
+  it("writes them back unchanged next to a changed theme", async () => {
+    serveConfig(JSON.stringify({ version: 2, theme: "light", ...FUTURE }));
+
+    await initSettings();
+    await setTheme("dark");
+    await flushSettingsWrites();
+
+    expect(globalConfigWrites().at(-1)).toMatchObject({
+      theme: "dark",
+      ...FUTURE,
+    });
+  });
+
+  it("writes them back with every other global setting change", async () => {
+    serveConfig(
+      JSON.stringify({
+        version: 2,
+        activeWorkspaceId: "p1",
+        workspaceProfiles: [PROFILE_A, PROFILE_B],
+        lastWorkspacePath: "/vaultA",
+        ...FUTURE,
+      }),
+    );
+    await initSettings();
+    const changes: Array<[string, () => Promise<unknown>]> = [
+      ["setLanguage", () => setLanguage("de")],
+      ["setExternalFileOpenEnabled", () => setExternalFileOpenEnabled(false)],
+      ["renameWorkspaceProfile", () => renameWorkspaceProfile("p2", "Renamed")],
+      ["setWorkspaceProfileIcon", () => setWorkspaceProfileIcon("p2", "book")],
+      [
+        "relinkWorkspaceProfile",
+        async () => {
+          pickWorkspaceFolder.mockResolvedValue({ path: "/vaultMoved" });
+          await relinkWorkspaceProfile("p2");
+        },
+      ],
+      ["activateWorkspaceProfile", () => activateWorkspaceProfile("p2")],
+      ["forgetWorkspaceProfile", () => forgetWorkspaceProfile("p1")],
+    ];
+
+    for (const [name, change] of changes) {
+      const before = globalConfigWrites().length;
+      await change();
+      await flushSettingsWrites();
+      const writes = globalConfigWrites();
+      expect(writes.length, name).toBeGreaterThan(before);
+      expect(writes.at(-1), name).toMatchObject(FUTURE);
+    }
+  });
+
+  it("writes them back with the recency update at startup", async () => {
+    serveConfig(
+      JSON.stringify({
+        version: 2,
+        activeWorkspaceId: "p1",
+        workspaceProfiles: [PROFILE_A],
+        lastWorkspacePath: "/vaultA",
+        ...FUTURE,
+      }),
+    );
+    settingsLoaded.value = false;
+
+    await initSettings();
+    await flushSettingsWrites();
+
+    const last = globalConfigWrites().at(-1);
+    expect(last?.activeWorkspaceId).toBe("p1");
+    expect(last).toMatchObject(FUTURE);
+  });
+
+  it("writes them back when the open workspace is forgotten", async () => {
+    serveConfig(
+      JSON.stringify({
+        version: 2,
+        activeWorkspaceId: "p1",
+        workspaceProfiles: [PROFILE_A],
+        lastWorkspacePath: "/vaultA",
+        ...FUTURE,
+      }),
+    );
+    await initSettings();
+    expect(workspacePath.value).toBe("/vaultA");
+
+    await forgetWorkspaceProfile("p1");
+    await flushSettingsWrites();
+
+    const last = globalConfigWrites().at(-1);
+    expect(last?.activeWorkspaceId).toBeNull();
+    expect(last).toMatchObject(FUTURE);
+  });
+
+  it("writes them back with a newly added workspace", async () => {
+    serveConfig(JSON.stringify({ version: 2, ...FUTURE }));
+
+    await initSettings();
+    await addWorkspaceFromPath("/vaultNew");
+    await flushSettingsWrites();
+
+    const last = globalConfigWrites().at(-1);
+    expect(last?.workspaceProfiles).toHaveLength(1);
+    expect(last).toMatchObject(FUTURE);
+  });
+
+  it("writes this build's own state for the fields it owns, whatever the file held", async () => {
+    serveConfig(
+      JSON.stringify({
+        version: 2,
+        theme: "light",
+        workspaceProfiles: [],
+        lastWorkspacePath: "/stale",
+        ...FUTURE,
+      }),
+    );
+
+    await initSettings();
+    await setTheme("dark");
+    await flushSettingsWrites();
+
+    const last = globalConfigWrites().at(-1);
+    expect(last).toMatchObject({
+      version: 2,
+      theme: "dark",
+      activeWorkspaceId: null,
+      lastWorkspacePath: null,
+      ...FUTURE,
+    });
+  });
+
+  it("keeps a key named __proto__ as plain data and leaves the prototype alone", async () => {
+    serveConfig('{"version":2,"__proto__":{"polluted":true},"futureOnly":1}');
+
+    await initSettings();
+    await setTheme("dark");
+    await flushSettingsWrites();
+
+    const raw = writeTextFile.mock.calls.at(-1)?.[1] as string;
+    const written = JSON.parse(raw) as Record<string, unknown>;
+    expect(Object.prototype.hasOwnProperty.call(written, "__proto__")).toBe(
+      true,
+    );
+    expect(written.__proto__).toEqual({ polluted: true });
+    expect(written.futureOnly).toBe(1);
+    expect(written.theme).toBe("dark");
+    expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+  });
+
+  it("keeps them through the explicit repair of a file that is otherwise corrupt", async () => {
+    serveConfig(JSON.stringify({ theme: "rainbow", ...FUTURE }));
+
+    await initSettings();
+    await setTheme("dark");
+    await flushSettingsWrites();
+    expect(globalConfigCorrupted.value).toBe(true);
+    expect(globalConfigWrites()).toEqual([]);
+
+    await repairGlobalConfigFile();
+
+    expect(globalConfigWrites()).toHaveLength(1);
+    expect(globalConfigWrites()[0]).toMatchObject({ theme: "dark", ...FUTURE });
+  });
+
+  describe("a new load replaces what the previous one kept", () => {
+    it("drops them when the next file has none", async () => {
+      serveConfig(JSON.stringify({ version: 2, ...FUTURE }));
+      await initSettings();
+      serveConfig(JSON.stringify({ version: 2, theme: "light" }));
+      await initSettings();
+
+      await setTheme("dark");
+      await flushSettingsWrites();
+
+      const last = globalConfigWrites().at(-1);
+      expect(last?.theme).toBe("dark");
+      expect(last).toBeDefined();
+      expect(last).not.toHaveProperty("sidebarDensity");
+      expect(last).not.toHaveProperty("experimental");
+    });
+
+    it("drops them on a first launch without a config file", async () => {
+      serveConfig(JSON.stringify({ version: 2, ...FUTURE }));
+      await initSettings();
+      serveMissingConfig();
+      await initSettings();
+
+      await setTheme("dark");
+      await flushSettingsWrites();
+
+      const last = globalConfigWrites().at(-1);
+      expect(last?.theme).toBe("dark");
+      expect(last).toBeDefined();
+      expect(last).not.toHaveProperty("sidebarDensity");
+    });
+
+    it("does not carry them into the repair of an unreadable file", async () => {
+      serveConfig(JSON.stringify({ version: 2, ...FUTURE }));
+      await initSettings();
+      serveConfig("{ not valid json");
+      await initSettings();
+
+      await repairGlobalConfigFile();
+
+      const last = globalConfigWrites().at(-1);
+      expect(last?.version).toBe(2);
+      expect(last).toBeDefined();
+      expect(last).not.toHaveProperty("sidebarDensity");
+    });
+
+    it("drops a kept language the same way", async () => {
+      serveConfig(JSON.stringify({ version: 2, language: "fr" }));
+      await initSettings();
+      serveConfig(JSON.stringify({ version: 2 }));
+      await initSettings();
+
+      await setTheme("dark");
+      await flushSettingsWrites();
+
+      expect(globalConfigWrites().at(-1)?.language).toBe("system");
+    });
+  });
+
+  describe("an interface language this build has no catalog for", () => {
+    beforeEach(async () => {
+      serveConfig(JSON.stringify({ version: 2, language: "fr", ...FUTURE }));
+      await initSettings();
+    });
+
+    it("shows as system but is written back as it was found", async () => {
+      expect(languagePreference.value).toBe("system");
+
+      await setTheme("dark");
+      await setExternalFileOpenEnabled(false);
+      await flushSettingsWrites();
+
+      const writes = globalConfigWrites();
+      expect(writes).toHaveLength(2);
+      for (const write of writes) {
+        expect(write).toMatchObject({ language: "fr", ...FUTURE });
+      }
+    });
+
+    it("is replaced for good by an explicit language choice", async () => {
+      await setLanguage("de");
+      await setTheme("dark");
+      await flushSettingsWrites();
+
+      const writes = globalConfigWrites();
+      expect(writes.map((w) => w.language)).toEqual(["de", "de"]);
+    });
+
+    it("is replaced by an explicit choice of the system language too", async () => {
+      await setLanguage("system");
+      await setTheme("dark");
+      await flushSettingsWrites();
+
+      const writes = globalConfigWrites();
+      expect(writes.map((w) => w.language)).toEqual(["system", "system"]);
+    });
+
+    it("is gone from memory when the write of an explicit choice fails, and the next write stores the choice", async () => {
+      writeTextFile.mockRejectedValueOnce(new Error("disk full"));
+      await expect(setLanguage("de")).rejects.toThrow("disk full");
+      expect(languagePreference.value).toBe("de");
+
+      await setTheme("dark");
+      await flushSettingsWrites();
+
+      expect(globalConfigWrites().at(-1)).toMatchObject({
+        language: "de",
+        ...FUTURE,
+      });
+    });
   });
 });

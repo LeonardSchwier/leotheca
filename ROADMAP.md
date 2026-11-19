@@ -43,6 +43,24 @@ Items with an owner. An expired lease means the item can be recovered.
 
 - ⬜ **Tell the user at startup when the app configuration or a workspace settings file was left untouched**: The recovery warning for `config.json` (`globalConfigCorrupted`) and for `settings.json` shows only inside the Settings panel. Until the user opens it, theme, language and profile changes stay in memory and are lost at exit. Show one non-blocking notice at startup that points to Settings, reusing an existing toast or status mechanism, with a test.
 
+- ⬜ **Load the bookmarks when a workspace opens and stop App's render-body effects from re-reading files**: `App()` calls `effect()` in its body for the bookmarks and collections loads, so every render adds another effect that reads the file again. With the Bookmarks panel and a note open the bookmarks are read in a loop (master-spec KG-013), and they load only when the panel opens, so the toolbar button shows the wrong state and an add can duplicate a bookmark.
+
+  <details>
+  <summary>Why and scope</summary>
+
+  Found in the final review of rm-d50b47543a854f1a, which made the store safe (an add reads the file first and a write runs only while the list holds the workspace's file) but did not touch `App.tsx`. Use one effect keyed on the workspace (`useSignalEffect` or `useEffect`), load the bookmarks when a workspace opens, and let the Android widget list fill before the panel is opened. Also drain `bookmarksWriteTail` in the workspace transition so a write queued behind a running one is not skipped at a switch, and show a message outside the panel when an add meets an unreadable file (KG-014; the startup-notice item above is the natural home for the message). The collections load has the same render-body `effect()`.
+
+  </details>
+
+- ⬜ **Treat a collections file that exists but cannot be read as unreadable, not missing**: `loadCollections` reads every `readTextFile` error as "no file yet" and `saveCollections` clears the corruption flag, so an unreadable `.leotheca/collections.json` is replaced by the next create, edit or delete. Use `isMissingFileError`, keep the bytes, flag it and add a test per case.
+
+  <details>
+  <summary>Why and scope</summary>
+
+  The same rule as rm-d50b47543a854f1a applied to settings.json and bookmarks.json (spec/completed/treat-a-settings-or-bookmarks-file-that-exists-but-cannot-be-read-as-unreadable-not-missing.md): only a read error that says the file is missing, by the classifier of `src/settings/globalConfig.ts` (the Android text included), is a first use. Add a writer guard like `bookmarksCorrupted` and a notice with an explicit rewrite in the Collections panel. `collectionsFileCorrupt` today only warns and is cleared by any save.
+
+  </details>
+
 - ⬜ **Let the ledger helper correct the evidence note of a finished item**: `agent_ledger.py` records the note at `finish` and cannot change it later, so a note without a hosted run id or `hosted CI pending` fails the Agent policy check and the weekly audit for good. Add a helper command that replaces the note of a done item, with tests.
 
   <details>

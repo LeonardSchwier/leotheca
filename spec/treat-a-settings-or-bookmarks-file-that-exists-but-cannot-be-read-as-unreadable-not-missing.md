@@ -39,7 +39,8 @@ Crash-freedom answers: the classifier already reads the rejection defensively (t
 - The wording of the settings warning ("Settings file had invalid data" is loose for an unreadable file): the settings panel text is being moved onto `t()` by the open translation items, so it is not touched here, as in the previous item.
 - A native "does this file exist" command: the classifier fails toward keeping the file.
 - Retrying a failed read.
-- Loading the bookmarks when a workspace opens, not only when the panel opens (App.tsx), which would also make the toolbar's bookmark button show the right state and keep the Android widget list filled before the panel was ever opened: seeded. This change makes the add safe without it.
+- The `effect()` that App.tsx creates in its body for the bookmarks load, which a review run showed to re-read the file in a loop while the panel and a note are open (master-spec KG-013), and loading the bookmarks when a workspace opens instead of when the panel opens, which would also fix the toolbar button's state and the Android widget list before the panel was ever opened: seeded. `App.tsx` is not in this claim, and this change makes an add safe without it: the add loads the file first, and under the loop it is dropped rather than written over the saved bookmarks.
+- Draining the bookmarks write queue before a workspace switch, and any message outside the panel when an add meets an unreadable file (master-spec KG-014): seeded; the open item about telling the user at startup is the natural home for the second.
 - Making a bookmark add fail loudly while the list is frozen: the session stays usable (the settings store does the same), the panel says it is not saved.
 
 ## Rulings

@@ -1664,6 +1664,117 @@ describe("workspace settings corruption recovery", () => {
   });
 });
 
+// A settings.json that exists but cannot be read (permission, I/O, encoding)
+// is not "no file yet": the defaults shown for it must not be written over it.
+describe("a workspace settings.json that cannot be read", () => {
+  const SETTINGS = "/workspaceA/.leotheca/settings.json";
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    workspaceSettingsCorrupted.value = false;
+  });
+
+  function rejectSettingsWith(error: unknown): void {
+    readTextFile.mockImplementation(async (path: string) => {
+      if (path === SETTINGS) throw error;
+      throw new Error("No such file or directory (os error 2)");
+    });
+  }
+
+  it("is kept on disk by every ordinary write when a workspace is opened", async () => {
+    rejectSettingsWith("Permission denied (os error 13)");
+
+    await setWorkspacePath("/workspaceA");
+    await flushSettingsWrites();
+    expect(workspaceSettingsCorrupted.value).toBe(true);
+
+    await updateWorkspaceSettings({
+      lastActivePath: "/workspaceA/note.md",
+      fontSize: 18,
+    });
+    await flushSettingsWrites();
+
+    expect(writesTo(SETTINGS)).toEqual([]);
+    // The session stays usable in memory.
+    expect(workspaceSettings.value.fontSize).toBe(18);
+  });
+
+  it("is kept on disk when it is the workspace opened at startup", async () => {
+    const profile = {
+      id: "p1",
+      name: "Notes",
+      icon: "book",
+      path: "/workspaceA",
+      lastOpenedAt: 1700000000000,
+    };
+    readTextFile.mockImplementation(async (path: string) => {
+      if (path === "/config/config.json")
+        return JSON.stringify({
+          version: 2,
+          theme: "system",
+          activeWorkspaceId: "p1",
+          workspaceProfiles: [profile],
+          lastWorkspacePath: null,
+        });
+      if (path === SETTINGS) throw new Error("Input/output error (os error 5)");
+      throw new Error("No such file or directory (os error 2)");
+    });
+
+    await initSettings();
+    await flushSettingsWrites();
+    expect(workspacePath.value).toBe("/workspaceA");
+    expect(workspaceSettingsCorrupted.value).toBe(true);
+
+    await updateWorkspaceSettings({ fontSize: 20 });
+    await flushSettingsWrites();
+
+    expect(writesTo(SETTINGS)).toEqual([]);
+  });
+
+  it("is replaced only by the explicit repair, after which writes resume", async () => {
+    rejectSettingsWith(new Error("stream did not contain valid UTF-8"));
+
+    await setWorkspacePath("/workspaceA");
+    await flushSettingsWrites();
+    await updateWorkspaceSettings({ fontSize: 22 });
+    await flushSettingsWrites();
+    expect(writesTo(SETTINGS)).toEqual([]);
+
+    await repairWorkspaceSettingsFile();
+    await flushSettingsWrites();
+
+    expect(workspaceSettingsCorrupted.value).toBe(false);
+    expect((writesTo(SETTINGS).at(-1) as { fontSize: number }).fontSize).toBe(
+      22,
+    );
+  });
+
+  it.each([
+    ["the desktop shell", "No such file or directory (os error 2)"],
+    ["the Android workspace bridge", '"settings.json" was not found.'],
+    [
+      "the Android workspace bridge, no .leotheca folder",
+      '".leotheca" was not found.',
+    ],
+  ])(
+    "is a first use, with no warning and an ordinary write, when %s says it is missing",
+    async (_label, message) => {
+      rejectSettingsWith(new Error(message));
+
+      await setWorkspacePath("/workspaceA");
+      await flushSettingsWrites();
+      expect(workspaceSettingsCorrupted.value).toBe(false);
+
+      await updateWorkspaceSettings({ fontSize: 19 });
+      await flushSettingsWrites();
+
+      expect((writesTo(SETTINGS).at(-1) as { fontSize: number }).fontSize).toBe(
+        19,
+      );
+    },
+  );
+});
+
 describe("workspaceSettingsSaving (2026-09-04)", () => {
   beforeEach(() => {
     vi.clearAllMocks();

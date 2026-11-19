@@ -240,7 +240,7 @@ UTF-8, pretty-printed with 2 spaces. `version` is 1 by default, or 2 once a lega
 
 **Corrupt-data rules.**
 
-- Missing file: defaults, not corrupt.
+- Missing file: defaults, not corrupt. Only a read error that says the file is missing is this case: the Rust `(os error 2)` and `(os error 3)`, `No such file or directory`, `cannot find the file or path`, `does not exist`, the code `ENOENT`, and the Android workspace bridge's `"<name>" was not found.` (the whole message, quoted name first; the classifier is the one of 6.4). A file that exists but cannot be read (permission, I/O or encoding error, an unresolved path, `The network path was not found` for an unreachable share, a bare `not found`, a rejection of an unknown shape) is defaults, corrupt.
 - Invalid JSON or a non-object root: defaults, corrupt.
 - A missing key is not corruption. A present key of the wrong shape uses the default for that key and sets corrupt.
 - While corrupt, the file MUST NOT be replaced until the user chooses **Rewrite settings file**.
@@ -290,6 +290,8 @@ An unversioned JSON array:
 ```
 
 Paths are workspace-absolute in the platform's own form. Invalid entries are dropped in memory and set corrupt; invalid JSON or a non-array root yields an empty list and corrupt.
+
+**A file that cannot be read.** A file that exists but cannot be read (a read error that does not say the file is missing, by the classifier of 6.4), and a file that is not a JSON array (invalid JSON, an empty file, `null` or an object as the root), is shown as an empty list and flags the workspace's bookmarks as unreadable. While that flag is set, adding or removing a bookmark changes the list in memory and writes nothing, so the file's bytes stay on disk; the bookmarks panel says the file could not be read and that nothing added now is saved, and offers **Rewrite bookmarks file**, which writes the list as shown and clears the flag only after the write succeeded. Every load of a workspace and every workspace reset clears the flag first. A missing file is a first use with no warning, and an array with some invalid entries is not unreadable: its valid entries show and the invalid ones are dropped. A queued write is skipped when, at its turn, the workspace is no longer the one it was queued for or the flag is set.
 
 ### 6.6 Collections: `.leotheca/collections.json`
 
@@ -620,6 +622,7 @@ The URL parser is not the security boundary. The native gate on the eventual rea
 | FR-BOOK-001 | Bookmarks MUST be file or search entries stored as a JSON array in .leotheca/bookmarks.json. | Given a file bookmark, When saved, Then the array holds kind, id, label and path. | `src/bookmarks/store.test.ts` |
 | FR-BOOK-002 | Invalid entries MUST be dropped in memory and the file flagged corrupt. | Given one bad entry, When decoded, Then valid ones remain and corrupt is true. | `src/bookmarks/store.test.ts` |
 | FR-BOOK-003 | A superseded load MUST NOT publish after a workspace switch. | Given two loads, When the older finishes last, Then newer data stays. | `src/bookmarks/store.test.ts` |
+| FR-BOOK-004 | A bookmarks file that exists but cannot be read, or is not a JSON array, MUST be left on disk by every add and remove and flagged to the user, who can rewrite it explicitly; a missing file MUST be a first use, and a write queued for another workspace MUST NOT run. | Given a read that fails with `Permission denied (os error 13)`, When a bookmark is added, Then nothing is written and the panel offers **Rewrite bookmarks file**. | `src/bookmarks/store.test.ts`, `src/bookmarks/BookmarksPanel.test.tsx` |
 
 ### Smart collections (FR-COLL)
 
@@ -749,6 +752,7 @@ The URL parser is not the security boundary. The native gate on the eventual rea
 | FR-SET-010 | The default-handler section MUST give per-platform steps from a pure contract. | Given a platform, When queried, Then the steps match the Rust contract. | `src/settings/defaultHandler.test.ts` |
 | FR-SET-011 | Every top-level key of the global config that this build does not model, and a `language` string it has no catalog for, MUST be written back unchanged by every later write of the file; a choice made in the app MUST replace that language, and a modeled field MUST always take this build's own value. | Given a file with a key `futureOnly` and `language` `fr`, When the theme changes, Then the written file still holds both and the new theme. | `src/settings/globalConfig.test.ts`, `src/settings/store.test.ts` |
 | FR-SET-012 | A global config file that exists but cannot be read, and one whose `version` is above 2, MUST be left on disk by every ordinary write and set corrupt; only a read error that says the file is missing MUST be a first launch without a warning. | Given a read that fails with `Permission denied (os error 13)`, or a file with `version` 3 and a catalog, When the theme changes, Then `config.json` is not written and the recovery warning is set. | `src/settings/globalConfig.test.ts`, `src/settings/store.test.ts` |
+| FR-SET-013 | A workspace `settings.json` that exists but cannot be read MUST be left on disk by every ordinary write and set corrupt; only a read error that says the file is missing, including the Android workspace bridge's `"<name>" was not found.`, MUST be a first use without a warning. | Given a read that fails with `Permission denied (os error 13)`, When a setting changes, Then `settings.json` is not written and the recovery warning is set; given `"settings.json" was not found.`, Then the change is written. | `src/settings/workspaceSettings.test.ts`, `src/settings/store.test.ts`, `src/settings/globalConfig.test.ts` |
 
 ### Themes and appearance (FR-THEME)
 
@@ -1037,7 +1041,7 @@ Generated from section 8 by `python3 scripts/check_master_spec.py --update-trace
 | FR-TAG | Tags | 3 | 3 | 0 | `src/app/layout/ActivityRail.test.tsx`, `src/tags/tags.test.ts` |
 | FR-TASK | Task hub | 4 | 4 | 0 | `src/markdown/tasks.test.ts`, `src/tasks/taskMutation.test.ts`, `src/tasks/taskQuery.test.ts` |
 | FR-OUTLINE | Outline and breadcrumbs | 5 | 5 | 0 | `src/outline/HeadingLinkActions.test.tsx`, `src/outline/OutlinePanel.test.tsx`, `src/outline/outlineVirtualization.test.ts`, `src/outline/splitAuthority.test.ts` |
-| FR-BOOK | Bookmarks | 3 | 3 | 0 | `src/bookmarks/store.test.ts` |
+| FR-BOOK | Bookmarks | 4 | 4 | 0 | `src/bookmarks/BookmarksPanel.test.tsx`, `src/bookmarks/store.test.ts` |
 | FR-COLL | Smart collections | 9 | 9 | 0 | `src/collections/collectionDecode.test.ts`, `src/collections/collectionQuery.test.ts`, `src/collections/collectionTypesInference.test.ts`, `src/collections/filterRows.test.ts`, `src/collections/groupOrder.test.ts`, `src/settings/workspaceSettings.test.ts` |
 | FR-CAP | Quick capture | 14 | 11 | 3 | `android/app/src/test/java/com/getcapacitor/myapp/WidgetResourcesUnitTest.java`, `android/app/src/test/java/com/leonardschwier/leotheca/QuickCaptureLaunchTest.java`, `src-tauri/src/quick_capture_launch.rs`, `src/app/App.test.tsx`, `src/app/CaptureSheet.test.tsx`, `src/capture/PendingCapturesPanel.test.tsx`, `src/capture/androidShareBridge.test.ts`, `src/capture/captureCommit.test.ts`, `src/capture/captureDestinations.test.ts`, `src/capture/captureTemplate.test.ts`, `src/capture/pendingCaptures.test.ts` |
 | FR-AUTO | Automation URLs | 6 | 6 | 0 | `src/app/automationCommands.test.ts`, `src/capture/headingInsertCommit.test.ts`, `src/headingInsert.test.ts` |
@@ -1048,7 +1052,7 @@ Generated from section 8 by `python3 scripts/check_master_spec.py --update-trace
 | FR-INK | Ink drawing | 4 | 4 | 0 | `src/ink/InkView.test.tsx`, `src/ink/inkDocument.test.ts`, `src/ink/inkEditing.test.ts`, `src/ink/strokeProcessing.test.ts` |
 | FR-PDF | PDF viewer and annotation | 4 | 4 | 0 | `src/pdf/PdfViewer.test.tsx`, `src/pdf/pdfAnnotations.test.ts` |
 | FR-TAB | Tabs and split groups | 7 | 7 | 0 | `src/editorGroups/SecondaryEditorPane.test.tsx`, `src/settings/workspaceSettings.test.ts`, `src/workspace/documentGroups.test.ts`, `src/workspace/store.test.ts` |
-| FR-SET | Settings persistence | 12 | 11 | 1 | `src/settings/VaultStatsPanel.test.tsx`, `src/settings/defaultHandler.test.ts`, `src/settings/globalConfig.test.ts`, `src/settings/store.test.ts`, `src/settings/workspaceSettings.test.ts` |
+| FR-SET | Settings persistence | 13 | 12 | 1 | `src/settings/VaultStatsPanel.test.tsx`, `src/settings/defaultHandler.test.ts`, `src/settings/globalConfig.test.ts`, `src/settings/store.test.ts`, `src/settings/workspaceSettings.test.ts` |
 | FR-THEME | Themes and appearance | 4 | 4 | 0 | `src/app/zoomControls.test.ts`, `src/settings/customCss.test.ts`, `src/settings/store.test.ts`, `src/settings/workspaceSettings.test.ts` |
 | FR-I18N | Interface language | 3 | 3 | 0 | `src/i18n/i18n.test.ts`, `src/settings/SettingsPanelCurrentTests.tsx`, `src/settings/WelcomeDialog.test.tsx`, `src/settings/globalConfig.test.ts`, `src/settings/store.test.ts`, `tests/e2e/tests/settings.e2e.ts` |
 | FR-EXP | Print and export | 6 | 6 | 0 | `src/export/exportNoteHtml.test.ts`, `src/export/pdfExport.test.ts`, `src/export/printNote.test.ts`, `src/workspace/tauriBridgeImpl.test.ts` |
@@ -1059,7 +1063,7 @@ Generated from section 8 by `python3 scripts/check_master_spec.py --update-trace
 | FR-WID | Android widgets | 3 | 3 | 0 | `android/app/src/test/java/com/getcapacitor/myapp/WidgetResourcesUnitTest.java`, `android/app/src/test/java/com/leonardschwier/leotheca/NewNoteColdStartTrackerTest.java`, `src/workspace/fileTreeStore.test.ts` |
 | FR-CLIP | Web clipper extension | 3 | 3 | 0 | `extensions/web-clipper/clipperCore.test.js`, `extensions/web-clipper/messaging.test.js` |
 | FR-UI | Shell, UI primitives and accessibility | 12 | 10 | 2 | `src/app/App.test.tsx`, `src/app/CommandPalette.test.tsx`, `src/app/EmptyEditorState.test.tsx`, `src/app/layout/DocumentHeader.test.tsx`, `src/app/layout/adaptiveLayout.test.ts`, `src/app/useResizableSidebar.test.ts`, `src/fuzzyMatch.test.ts`, `src/ui/overlayBackButton.sheet.test.tsx`, `src/ui/overlayBackButton.test.ts`, `src/workspace/FileTree.test.tsx` |
-| **Total** | | **207** | **199** | **8** | |
+| **Total** | | **209** | **201** | **8** | |
 <!-- traceability:end -->
 
 ## 15. Coverage gaps
@@ -1194,4 +1198,5 @@ Newest first. Each entry is `YYYY-MM-DD: what changed in behavior, contracts, fo
 - 2026-11-10: Quick-create commands (Ctrl+N, palette New note, New canvas, New drawing, the `new-note` automation command) report a failed create or open to the user instead of ending as an unhandled promise rejection (FR-FS-014, `src/app/quickCreate.ts`); a tree refresh that fails after the new file was written no longer counts as a failed create (`src/workspace/fileTreeStore.ts`); no format or bridge contract changed.
 - 2026-11-12: Tooling: `android/gradlew.bat` is stored with LF line endings; its CRLF copy made git list it as modified whenever it re-read the file (in a fresh clone and after any touch), which stopped the ledger helper. `.gitattributes` still gives Windows batch files CRLF in the working tree, and `scripts/lineEndings.test.js` (with `scripts/lineEndings.js`) fails when a tracked text file has CRLF in the index. No application behavior changed.
 - 2026-11-18: Settings (app configuration): a `config.json` that exists but cannot be read (permission, I/O or encoding error, an unresolved path) and one written by a newer build (`version` above 2) are no longer replaced by defaults or by one migrated profile on the next settings write. Both are flagged corrupt, so the existing warning shows and only **Rewrite app configuration** writes the file; only a read error that says the file is missing is a first launch (FR-SET-012, `src/settings/globalConfig.ts`).
+- 2026-11-19: Settings and bookmarks: a workspace `settings.json` or `bookmarks.json` that exists but cannot be read (permission, I/O or encoding error), and a `bookmarks.json` that is not a JSON array, are no longer replaced by defaults or an empty list on the next write. Settings use the existing corrupt flag and **Rewrite settings file**; bookmarks get an unreadable flag, a notice in the bookmarks panel and **Rewrite bookmarks file**. Only a read error that says the file is missing, including the Android workspace bridge's `"<name>" was not found.`, is a first use; a bookmarks write queued for another workspace is skipped (FR-SET-013, FR-BOOK-004, `src/settings/workspaceSettings.ts`, `src/bookmarks/store.ts`).
 <!-- change-log:end -->

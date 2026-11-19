@@ -2,18 +2,24 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render } from "@testing-library/preact";
 
-const { readTextFile, writeTextFile } = vi.hoisted(() => ({
-  readTextFile: vi.fn<(path: string) => Promise<string>>(async () => {
-    throw new Error("not found");
+const { readTextFile, writeTextFile, writeWorkspaceTextFile } = vi.hoisted(
+  () => ({
+    readTextFile: vi.fn<(path: string) => Promise<string>>(async () => {
+      throw new Error("No such file or directory (os error 2)");
+    }),
+    writeTextFile: vi.fn<(path: string, contents: string) => Promise<void>>(
+      async () => {},
+    ),
+    writeWorkspaceTextFile: vi.fn<
+      (root: string, relativePath: string, contents: string) => Promise<void>
+    >(async () => {}),
   }),
-  writeTextFile: vi.fn<(path: string, contents: string) => Promise<void>>(
-    async () => {},
-  ),
-}));
+);
 
 vi.mock("../workspace/tauriBridge", () => ({
   readTextFile,
   writeTextFile,
+  writeWorkspaceTextFile,
   getAppVersion: vi.fn(async () => "1.0"),
   listDir: vi.fn(async () => []),
   restoreWorkspaceAccess: vi.fn(async () => {}),
@@ -33,12 +39,17 @@ window.matchMedia = vi.fn().mockImplementation((query: string) => ({
 })) as unknown as typeof window.matchMedia;
 
 const { BookmarksPanel } = await import("./BookmarksPanel");
-const { bookmarks } = await import("./store");
+const { bookmarks, bookmarksCorrupted, loadBookmarks } =
+  await import("./store");
+const { workspacePath } = await import("../settings/store");
 
 afterEach(() => {
   cleanup();
   bookmarks.value = [];
+  bookmarksCorrupted.value = false;
+  workspacePath.value = null;
   writeTextFile.mockClear();
+  writeWorkspaceTextFile.mockClear();
 });
 
 describe("BookmarksPanel", () => {
@@ -206,5 +217,142 @@ describe("BookmarksPanel", () => {
     );
     expect(onRevealInSidebar).toHaveBeenCalledTimes(1);
     expect(onRevealInSidebar).toHaveBeenCalledWith("/vault/a/b/deep.md");
+  });
+});
+
+// A bookmarks.json that exists but could not be read is left on disk. The
+// panel must say so, because an empty list here would otherwise read as "no
+// bookmarks yet", and whatever is added now is not saved.
+describe("BookmarksPanel: a bookmarks file that could not be read", () => {
+  async function loadUnreadable() {
+    workspacePath.value = "/vault";
+    readTextFile.mockRejectedValueOnce(
+      new Error("Permission denied (os error 13)"),
+    );
+    await loadBookmarks("/vault");
+    expect(bookmarksCorrupted.value).toBe(true);
+  }
+
+  it("says nothing while the file is fine", () => {
+    const { queryByRole, queryByText } = render(
+      <BookmarksPanel onOpenFile={vi.fn()} onRunSearch={vi.fn()} />,
+    );
+    expect(queryByRole("alert")).toBeNull();
+    expect(queryByText("Rewrite bookmarks file")).toBeNull();
+  });
+
+  it("explains it, and offers the rewrite, instead of only the empty-list placeholder", async () => {
+    await loadUnreadable();
+    const { getByRole, getByText } = render(
+      <BookmarksPanel onOpenFile={vi.fn()} onRunSearch={vi.fn()} />,
+    );
+    expect(getByRole("alert").textContent).toMatch(/could not be read/);
+    expect(getByRole("alert").textContent).toMatch(/not saved/);
+    expect(getByText("Rewrite bookmarks file")).toBeTruthy();
+    // The placeholder is still there: the list is empty.
+    expect(getByText("No bookmarks yet.")).toBeTruthy();
+  });
+
+  it("shows the same notice above a list the user has started in this session", async () => {
+    await loadUnreadable();
+    bookmarks.value = [
+      { id: "1", kind: "search", label: "TODOs", query: "TODO" },
+    ];
+    const { getByRole, getByText } = render(
+      <BookmarksPanel onOpenFile={vi.fn()} onRunSearch={vi.fn()} />,
+    );
+    expect(getByRole("alert").textContent).toMatch(/could not be read/);
+    expect(getByText("TODOs")).toBeTruthy();
+    expect(getByRole("list", { name: "Bookmarks" })).toBeTruthy();
+  });
+
+  it("rewrites the file with the list on screen and then removes the notice", async () => {
+    await loadUnreadable();
+    bookmarks.value = [
+      { id: "1", kind: "search", label: "TODOs", query: "TODO" },
+    ];
+    const { getByText, queryByRole } = render(
+      <BookmarksPanel onOpenFile={vi.fn()} onRunSearch={vi.fn()} />,
+    );
+    expect(writeWorkspaceTextFile).not.toHaveBeenCalled();
+
+    fireEvent.click(getByText("Rewrite bookmarks file"));
+    await vi.waitFor(() => expect(queryByRole("alert")).toBeNull());
+
+    expect(writeWorkspaceTextFile).toHaveBeenCalledTimes(1);
+    const [root, relativePath, contents] = writeWorkspaceTextFile.mock.calls[0];
+    expect(root).toBe("/vault");
+    expect(relativePath).toBe(".leotheca/bookmarks.json");
+    expect(JSON.parse(contents)).toEqual(bookmarks.value);
+  });
+
+  it("keeps the notice and says so when the rewrite fails", async () => {
+    await loadUnreadable();
+    writeWorkspaceTextFile.mockRejectedValueOnce(new Error("disk full"));
+    const { getByText, findByText } = render(
+      <BookmarksPanel onOpenFile={vi.fn()} onRunSearch={vi.fn()} />,
+    );
+
+    fireEvent.click(getByText("Rewrite bookmarks file"));
+    expect(await findByText(/could not be rewritten/)).toBeTruthy();
+    expect(getByText(/could not be read/)).toBeTruthy();
+    expect(getByText("Rewrite bookmarks file")).toBeTruthy();
+    expect(bookmarksCorrupted.value).toBe(true);
+  });
+
+  it("clears an earlier failure when the rewrite is tried again and works", async () => {
+    await loadUnreadable();
+    writeWorkspaceTextFile.mockRejectedValueOnce(new Error("disk full"));
+    const { getByText, findByText, queryByRole } = render(
+      <BookmarksPanel onOpenFile={vi.fn()} onRunSearch={vi.fn()} />,
+    );
+    fireEvent.click(getByText("Rewrite bookmarks file"));
+    await findByText(/could not be rewritten/);
+
+    fireEvent.click(getByText("Rewrite bookmarks file"));
+    await vi.waitFor(() => expect(queryByRole("alert")).toBeNull());
+    expect(bookmarksCorrupted.value).toBe(false);
+  });
+  it("hides the failure while the next attempt runs, and shows it again if that fails too", async () => {
+    await loadUnreadable();
+    writeWorkspaceTextFile.mockRejectedValueOnce(new Error("disk full"));
+    const { getByText, findByText, queryByText } = render(
+      <BookmarksPanel onOpenFile={vi.fn()} onRunSearch={vi.fn()} />,
+    );
+    fireEvent.click(getByText("Rewrite bookmarks file"));
+    await findByText(/could not be rewritten/);
+
+    let failSecond!: (reason: unknown) => void;
+    writeWorkspaceTextFile.mockReturnValueOnce(
+      new Promise<void>((_resolve, reject) => (failSecond = reject)),
+    );
+    fireEvent.click(getByText("Rewrite bookmarks file"));
+    await vi.waitFor(() =>
+      expect(queryByText(/could not be rewritten/)).toBeNull(),
+    );
+
+    failSecond(new Error("disk full"));
+    expect(await findByText(/could not be rewritten/)).toBeTruthy();
+  });
+
+  it("does not show an old failure for the next workspace's unreadable file", async () => {
+    await loadUnreadable();
+    writeWorkspaceTextFile.mockRejectedValueOnce(new Error("disk full"));
+    const { getByText, findByText, queryByText } = render(
+      <BookmarksPanel onOpenFile={vi.fn()} onRunSearch={vi.fn()} />,
+    );
+    fireEvent.click(getByText("Rewrite bookmarks file"));
+    await findByText(/could not be rewritten/);
+
+    // Another workspace is opened: the flag goes away, then comes back for a
+    // file there that cannot be read either.
+    await loadBookmarks("/vault-b");
+    await vi.waitFor(() => expect(queryByText(/could not be read/)).toBeNull());
+    readTextFile.mockRejectedValueOnce(
+      new Error("Permission denied (os error 13)"),
+    );
+    await loadBookmarks("/vault-b");
+    expect(await findByText(/could not be read/)).toBeTruthy();
+    expect(queryByText(/could not be rewritten/)).toBeNull();
   });
 });

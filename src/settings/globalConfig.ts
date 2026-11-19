@@ -428,6 +428,13 @@ const MISSING_FILE_TEXT: readonly RegExp[] = [
   /no such file or directory/i,
   /cannot find the (?:file|path)/i,
   /does not exist/i,
+  // The Android workspace bridge (`resolveUri` in capacitorBridgeImpl.ts)
+  // names the first path part its folder listing does not have, in exactly
+  // this shape, for a file or for the `.leotheca` folder. The whole message
+  // is matched, and it must start with the quote: a sentence that only
+  // contains "was not found" (Windows' `The network path was not found.`)
+  // stays unreadable.
+  /^".+" was not found\.$/,
 ];
 
 function rejectionText(error: unknown): string | null {
@@ -442,7 +449,7 @@ function rejectionText(error: unknown): string | null {
 /** True only when `error` says the file is missing. Anything else, including a
  * rejection of a shape nobody expected, is "cannot be read": the file is kept.
  * Reading the value never throws (a hostile getter counts as unreadable). */
-function isMissingFileError(error: unknown): boolean {
+export function isMissingFileError(error: unknown): boolean {
   try {
     if (
       typeof error === "object" &&

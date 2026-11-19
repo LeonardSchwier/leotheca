@@ -1,0 +1,69 @@
+# Treat a settings or bookmarks file that exists but cannot be read as unreadable, not missing
+
+## Item
+
+rm-d50b47543a854f1a, "Treat a settings or bookmarks file that exists but cannot be read as unreadable, not missing". `loadWorkspaceSettings` (`src/settings/workspaceSettings.ts`) and `loadBookmarks` (`src/bookmarks/store.ts`) read every `readTextFile` rejection as "no file yet". A `.leotheca/settings.json` or `.leotheca/bookmarks.json` that exists but cannot be read (permission, I/O error, invalid UTF-8) is therefore shown as defaults or an empty list, and the next ordinary write (a tab switch, a bookmark add) replaces the user's file with them. Both loaders now treat a rejection as a first use only when it says the file is missing, using the classifier the app-level `config.json` already has; every other failure keeps the bytes and shows the existing recovery path. The bookmarks loader also stops discarding the corrupt result for a file that is not a JSON array.
+
+## Acceptance
+
+1. `loadWorkspaceSettings(root)` resolves `{ settings: defaults, corrupt: false }` only when the read was rejected with text that says the file is missing: the Rust `(os error 2)` or `(os error 3)`, `No such file or directory`, `cannot find the file` or `cannot find the path`, `does not exist`, an `ENOENT` code, or the Android workspace text `"<name>" was not found.` (`capacitorBridgeImpl.resolveUri`). Every other rejection (`Permission denied (os error 13)`, an I/O error, `stream did not contain valid UTF-8`, a bare `not found`, `The network path was not found. (os error 53)`, a rejection that is not an `Error`) resolves `{ settings: defaults, corrupt: true }` and does not throw.
+2. After the store reads such a result (`initSettings` and a workspace switch), `workspaceSettingsCorrupted` is true and no ordinary workspace-settings write (a setting change, the tab restore bookkeeping) calls `writeTextFile` for `settings.json`; **Rewrite settings file** (`repairWorkspaceSettingsFile`) writes the in-memory settings and clears the flag, as it does for a malformed file today. A real missing-file message still ends in an ordinary first-use write.
+3. `loadBookmarks(root)` leaves the list empty and sets the new signal `bookmarksCorrupted` to true when the read is rejected with anything but a missing-file text, and when the file's text is not valid JSON or its root is not an array. A missing file, a readable array (including `[]`) and an array with some invalid entries keep today's behavior (the valid entries show, the invalid are dropped, no flag).
+4. While `bookmarksCorrupted` is true, adding or removing a bookmark updates the list in memory but writes nothing, so the file's bytes stay on disk. `repairBookmarksFile()` writes the current list and clears the flag only after the write succeeded; a rejected write keeps the flag and the rejection reaches the caller.
+5. `resetBookmarks()` and every `loadBookmarks` call clear the flag before the new read, and a load that was superseded by a newer one never sets it. A queued write skips itself when the workspace changed after it was queued (so a pending write of workspace A never writes workspace B's list into A's file) and when the flag is set at its turn.
+6. `BookmarksPanel` shows, while the flag is set and whether or not the list is empty, a `role="alert"` notice that says the bookmarks file could not be read, that nothing added now is saved, and a **Rewrite bookmarks file** button. A failed rewrite shows a second alert; a successful one removes the notice.
+7. The classifier `isMissingFileError` is exported from `src/settings/globalConfig.ts` and used by all three loaders. It accepts the Android text only in the exact shape `"<name>" was not found.` and still rejects `The network path was not found. (os error 53)` and a bare `not found`.
+8. `master-spec.md` sections 6.4 and 6.5 and a requirement row `FR-SET-013` and `FR-BOOK-004`, the change log, and `CHANGELOG.md` describe this.
+
+## Context
+
+Read: `src/settings/globalConfig.ts` (`MISSING_FILE_TEXT`, private `isMissingFileError`, `loadGlobalConfig`), `src/settings/workspaceSettings.ts` (`loadWorkspaceSettings` catches everything and returns `corrupt: false`), `src/settings/store.ts` (`initSettings` and `switchWorkspace` copy `corrupt` into `workspaceSettingsCorrupted`; `updateWorkspaceSettings` returns before queueing a write while it is set; only `repairWorkspaceSettingsFile` writes through it), `src/settings/SettingsPanel.tsx` (the warning with **Rewrite settings file**), `src/bookmarks/store.ts` (`loadBookmarks` catches everything, discards `decodeBookmarks(raw).corrupt`; `saveBookmarks` has no guard and reads `bookmarks.value` at the turn of the write but uses the `root` captured when it was queued), `src/bookmarks/BookmarksPanel.tsx`, `src/workspace/capacitorBridgeImpl.ts` (`resolveUri` throws `"<name>" was not found.` for a missing workspace file or for a missing `.leotheca` folder; the plugin's own read errors are other text), `src-tauri/src/commands.rs` (`read_text_file` returns the `io::Error` text; the containment guard runs before the read and accepts a not yet existing target inside the active root), the previous item `spec/completed/do-not-replace-an-app-level-config-json-this-build-cannot-read-or-understand.md`, and the workspace opening order (`restoreWorkspaceAccess` runs before `loadWorkspaceSettings` on the startup path and in `connectIncoming`, so the active native root is set when the file is read and a first use is not reported as "outside the workspace").
+
+Data flow: file -> `readTextFile` (a string from Tauri, an `Error` from Capacitor) -> `isMissingFileError` -> `{ corrupt }` or the bookmarks flag -> `workspaceSettingsCorrupted` / `bookmarksCorrupted` -> the write guard of each store.
+
+Crash-freedom answers: the classifier already reads the rejection defensively (type checks, a hostile getter counts as unreadable), so no loader can throw from it. No new listener or timer. Boundary inputs: an empty or whitespace-only bookmarks file is not valid JSON and is flagged (a missing or empty-array file is not); `null` root is not an array and is flagged. Concurrency: the flag belongs to the workspace that is current; `loadSequence` already orders loads, the new flag is set and cleared under the same checks, and a queued bookmarks write now checks root and flag at its turn. Platform no-op: none (bridge calls only). Recovery: the unreadable file is untouched; a transient error clears with the next open of the workspace, a permanent one with the explicit rewrite.
+
+## Plan
+
+1. Tests first, watched failing on the unchanged source: `src/settings/globalConfig.test.ts` (the classifier is exported; the Android text is missing; the other texts stay as they were), `src/settings/workspaceSettings.test.ts` (acceptance 1; the old "not found" fixture becomes a realistic one), `src/settings/store.test.ts` (acceptance 2 through `initSettings` and a switch), `src/bookmarks/store.test.ts` (acceptance 3 to 5), `src/bookmarks/BookmarksPanel.test.tsx` (acceptance 6), and `src/workspace/workspaceTransition.test.ts` for the fixtures that say a plain `not found`.
+2. `src/settings/globalConfig.ts`: export the classifier and add the Android pattern. `src/settings/workspaceSettings.ts`: the loader returns `corrupt: !isMissingFileError(error)`.
+3. `src/bookmarks/store.ts`: `bookmarksCorrupted`, the loader, `decodeBookmarks` reports `unreadable`, the write guard, `repairBookmarksFile`; `BookmarksPanel.tsx` and `bookmarks.css`: the notice.
+4. `master-spec.md`, `CHANGELOG.md`.
+5. Verify (`skills/verification-suite.md`), mutation checks (classifier always missing or always unreadable, Android pattern dropped or widened to a bare `not found`, loader ignoring the flag, write guard removed, root check removed, flag not cleared on load or reset), two review passes, pull request.
+
+## Out of scope
+
+- `.leotheca/collections.json` has the same "any read error is an empty file" rule (`src/collections/collectionStore.ts`, `loadCollections`) and a save that clears its corruption flag. It is not named by the roadmap item; it is seeded as a follow-up instead of widening this claim.
+- Entries of `bookmarks.json` that are invalid inside a readable array stay dropped on the next write, as audit follow-up F-008 decided (the other bookmarks in the file are good data and there is no way to recover an entry without an id).
+- Showing the problem at startup, outside the Settings panel and the bookmarks panel: the open item "Tell the user at startup when the app configuration or a workspace settings file was left untouched" owns that, and it should cover `bookmarksCorrupted` too.
+- The wording of the settings warning ("Settings file had invalid data" is loose for an unreadable file): the settings panel text is being moved onto `t()` by the open translation items, so it is not touched here, as in the previous item.
+- A native "does this file exist" command: the classifier fails toward keeping the file.
+- Retrying a failed read.
+- Making a bookmark add fail loudly while the list is frozen: the session stays usable (the settings store does the same), the panel says it is not saved.
+
+## Rulings
+
+- One shared classifier, or a copy per loader? -> one: `isMissingFileError` is exported from `globalConfig.ts` | the roadmap item asks for it, the three platforms' missing-file texts then live in one list with one set of tests | Cost if wrong: an import from `workspaceSettings.ts` and `bookmarks/store.ts` into `globalConfig.ts` (no cycle: it imports neither); a later move to its own file is a rename.
+- Accept the Android text `"<name>" was not found.`? -> yes, anchored and quoted | verified in `capacitorBridgeImpl.ts`: `resolveUri` throws exactly this for a workspace path that is not in its parent's listing, which is every first use of a workspace on Android (`.leotheca` or `settings.json` is not there). Sharing the classifier unchanged would show the recovery warning on every new Android workspace and block its settings writes. The pattern starts with a quote, so Windows' `The network path was not found. (os error 53)` and a bare `not found` stay unreadable | Cost if wrong: a bridge that rewords the message shows the warning once on a first use; one click on **Rewrite settings file** clears it, nothing is lost. Not testable on a device here: the existing bridge test pins the message, and a new classifier test pins the shape.
+- Which way does an unknown rejection fall? -> unreadable | a false "unreadable" costs one click, a false "missing" replaces the user's file | Cost if wrong: see above.
+- Does the bookmarks fix cover a file that is not valid JSON? -> yes | it is the same loss through the same write (`decodeBookmarks` already reports `corrupt` and the loader threw it away), it is three lines, and the roadmap wording "cannot be read" covers a file this build cannot make sense of. An array with some invalid entries is left as F-008 decided | Cost if wrong: a user with a hand-edited, broken `bookmarks.json` sees the notice instead of an empty list and a silent overwrite.
+- What does the session do with a frozen list? -> adds and removes change the in-memory list, nothing is written, the notice says so | the same rule as `updateWorkspaceSettings` while corrupted; refusing the add would need every caller (palette command, capture sheet) to show an error | Cost if wrong: a bookmark added in a frozen session is gone after the next open; the notice told the user.
+- Does the explicit rewrite ask for confirmation? -> no | the settings and app-config rewrites do not, the button names what it does, and the list on screen is exactly what is written | Cost if wrong: a click replaces a file the user could have repaired by hand; the notice says the file is kept until then.
+- Clear the flag before or after the rewrite succeeded? -> after | clearing it first (as `repairWorkspaceSettingsFile` does) leaves a failed rewrite looking healthy, and the next write would then try again silently | Cost if wrong: none; the settings function is not changed here.
+- Why the write guard also checks the root? -> a queued write captured `root` when it was queued but reads the list when its turn comes; a workspace switch in between resets the list to empty and the write put `[]` into the old workspace's file. The new flag would have the same stale-target problem. Skipping a write whose workspace is no longer current loses at most the last add of a workspace the user just left, and never overwrites a file with another workspace's state | Cost if wrong: the last bookmark change made right before a workspace switch is not saved.
+- Reword the settings warning or add a startup notice? -> no | see out of scope | Cost if wrong: loose wording for a rare cause; the other open items own it.
+- Anything against the product rules? -> no | no network, telemetry, AI, camera or microphone; no competitor names; plain files stay the source of truth and a file that cannot be read is no longer replaced.
+
+## Glossary
+
+Glossary: none
+
+## Design system
+
+One user-visible element, the notice in the bookmarks panel. Reuse: the panel's existing text style and color token (`--color-danger`, the same declaration `.bookmarks-error-message` uses) and the shared `button` styling of the sidebar; the layout of the settings recovery row (text first, one button). Leoforma has no banner or alert component, and the settings panel's warning is plain markup with the same `role="alert"`, so none is added. Add: a `.bookmarks-corrupt` class in `src/bookmarks/bookmarks.css` for spacing only. No new token. Light and dark themes use the existing tokens; the button is a native button (keyboard and screen-reader behavior as every other button of the panel).
+
+## Evidence
+
+(filled at verify and archive)
+
+Reflection: (filled at archive)

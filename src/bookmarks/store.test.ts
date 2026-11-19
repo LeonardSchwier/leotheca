@@ -55,11 +55,20 @@ function lastWrite():
   return { root: call[0], relativePath: call[1], content: JSON.parse(call[2]) };
 }
 
+// Opens a workspace the way the app does: the previous one is reset, and the
+// bookmarks file is read (here: it does not exist yet). Changes are only
+// written once the list holds the file's content.
+async function openWorkspace(root = "/workspace"): Promise<void> {
+  vi.clearAllMocks();
+  workspacePath.value = root;
+  resetBookmarks();
+  await loadBookmarks(root);
+  vi.clearAllMocks();
+}
+
 describe("bookmarks store", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    workspacePath.value = "/workspace";
-    bookmarks.value = [];
+  beforeEach(async () => {
+    await openWorkspace();
   });
 
   it("loadBookmarks falls back to an empty list when no bookmarks file exists yet", async () => {
@@ -245,11 +254,8 @@ describe("bookmarks store: a file that is missing versus a file that cannot be r
     { id: "1", kind: "file" as const, label: "Note", path: "/workspace/n.md" },
   ];
 
-  beforeEach(() => {
-    vi.clearAllMocks();
-    workspacePath.value = "/workspace";
-    resetBookmarks();
-    bookmarksCorrupted.value = false;
+  beforeEach(async () => {
+    await openWorkspace();
   });
 
   it.each([
@@ -475,28 +481,10 @@ describe("bookmarks store: a file that is missing versus a file that cannot be r
     });
   });
 
-  describe("a write queued before the workspace changed", () => {
-    it("is skipped, so it never puts the new workspace's list into the old workspace's file", async () => {
-      let finishFirst!: () => void;
-      writeWorkspaceTextFile.mockImplementationOnce(
-        () => new Promise<void>((resolve) => (finishFirst = resolve)),
-      );
-      const first = addFileBookmark("/workspace/a.md", "A");
-      await Promise.resolve();
-      await Promise.resolve();
-      const second = addFileBookmark("/workspace/b.md", "B"); // queued behind the first
-
-      // The user switches workspace before the queued write gets its turn.
-      workspacePath.value = "/workspace-b";
-      resetBookmarks();
-      finishFirst();
-      await first;
-      await second;
-
-      expect(writeWorkspaceTextFile).toHaveBeenCalledTimes(1);
-    });
-
-    it("is skipped when the flag was set for the current workspace in the meantime", async () => {
+  // A write runs only while the list holds this workspace's file. Otherwise
+  // it would put an empty or another workspace's list over the file.
+  describe("a write whose turn comes while the list is not the file's content", () => {
+    async function queuedBehindABlockedWrite() {
       let finishFirst!: () => void;
       writeWorkspaceTextFile.mockImplementationOnce(
         () => new Promise<void>((resolve) => (finishFirst = resolve)),
@@ -505,6 +493,41 @@ describe("bookmarks store: a file that is missing versus a file that cannot be r
       await Promise.resolve();
       await Promise.resolve();
       const second = addFileBookmark("/workspace/b.md", "B");
+      return { finishFirst, first, second };
+    }
+
+    it("is skipped after a workspace reset, which runs before the next workspace is published", async () => {
+      const { finishFirst, first, second } = await queuedBehindABlockedWrite();
+
+      // The transition resets the bookmarks first; `workspacePath` still names
+      // the old workspace until the new one is published.
+      resetBookmarks();
+      finishFirst();
+      await first;
+      await second;
+
+      expect(writeWorkspaceTextFile).toHaveBeenCalledTimes(1);
+    });
+
+    it("is skipped while the list is being loaded again", async () => {
+      const { finishFirst, first, second } = await queuedBehindABlockedWrite();
+
+      let finishRead!: (value: string) => void;
+      readTextFile.mockReturnValueOnce(
+        new Promise((resolve) => (finishRead = resolve)),
+      );
+      const reload = loadBookmarks("/workspace");
+      finishFirst();
+      await first;
+      await second;
+      expect(writeWorkspaceTextFile).toHaveBeenCalledTimes(1);
+
+      finishRead("[]");
+      await reload;
+    });
+
+    it("is skipped when the file was flagged unreadable in the meantime", async () => {
+      const { finishFirst, first, second } = await queuedBehindABlockedWrite();
 
       bookmarksCorrupted.value = true;
       finishFirst();
@@ -514,6 +537,77 @@ describe("bookmarks store: a file that is missing versus a file that cannot be r
       expect(writeWorkspaceTextFile).toHaveBeenCalledTimes(1);
     });
   });
+
+  // The panel loads the file when it opens; the toolbar button and the palette
+  // add a bookmark without it. Applied to the empty list of an unloaded
+  // workspace, an add used to write one bookmark over all the others.
+  describe("a change made before the bookmarks of the workspace were loaded", () => {
+    const saved = [
+      { id: "1", kind: "file" as const, label: "One", path: "/workspace/1.md" },
+      { id: "2", kind: "file" as const, label: "Two", path: "/workspace/2.md" },
+    ];
+
+    beforeEach(() => {
+      // Opened, but the panel was never shown: nothing has read the file.
+      resetBookmarks();
+    });
+
+    it("reads the file first, so an add keeps the bookmarks already saved", async () => {
+      readTextFile.mockResolvedValueOnce(JSON.stringify(saved));
+      await addFileBookmark("/workspace/3.md", "Three");
+
+      expect(writeWorkspaceTextFile).toHaveBeenCalledTimes(1);
+      expect(lastWrite()?.content).toEqual([
+        ...saved,
+        expect.objectContaining({ label: "Three", path: "/workspace/3.md" }),
+      ]);
+      expect(bookmarks.value).toHaveLength(3);
+    });
+
+    it("does the same for a search bookmark and for a remove", async () => {
+      readTextFile.mockResolvedValueOnce(JSON.stringify(saved));
+      await addSearchBookmark("todo", "Todos");
+      expect(lastWrite()?.content).toHaveLength(3);
+
+      resetBookmarks();
+      readTextFile.mockResolvedValueOnce(JSON.stringify(saved));
+      await removeBookmark("1");
+      expect(lastWrite()?.content).toEqual([saved[1]]);
+    });
+
+    it("writes nothing when the file it has to read first cannot be read", async () => {
+      readTextFile.mockRejectedValueOnce(
+        new Error("Permission denied (os error 13)"),
+      );
+      await addFileBookmark("/workspace/3.md", "Three");
+
+      expect(bookmarksCorrupted.value).toBe(true);
+      expect(writeWorkspaceTextFile).not.toHaveBeenCalled();
+    });
+
+    it("does not read the file again when the list is loaded already", async () => {
+      await loadBookmarks("/workspace");
+      readTextFile.mockClear();
+      await addFileBookmark("/workspace/3.md", "Three");
+      expect(readTextFile).not.toHaveBeenCalled();
+    });
+
+    it("drops the change when another workspace was opened while the file was read", async () => {
+      let finishRead!: (value: string) => void;
+      readTextFile.mockReturnValueOnce(
+        new Promise((resolve) => (finishRead = resolve)),
+      );
+      const add = addFileBookmark("/workspace/3.md", "Three");
+
+      workspacePath.value = "/workspace-b";
+      resetBookmarks();
+      finishRead(JSON.stringify(saved));
+      await add;
+
+      expect(bookmarks.value).toEqual([]);
+      expect(writeWorkspaceTextFile).not.toHaveBeenCalled();
+    });
+  });
 });
 
 describe("bookmarks store: Android favorites-list widget sync", () => {
@@ -521,10 +615,8 @@ describe("bookmarks store: Android favorites-list widget sync", () => {
     return updateFavoritesWidget.mock.calls.at(-1)?.[0];
   }
 
-  beforeEach(() => {
-    vi.clearAllMocks();
-    workspacePath.value = "/workspace";
-    bookmarks.value = [];
+  beforeEach(async () => {
+    await openWorkspace();
   });
 
   it("syncs a loaded file bookmark to the widget, excluding search bookmarks", async () => {

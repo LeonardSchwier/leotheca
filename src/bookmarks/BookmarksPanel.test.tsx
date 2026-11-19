@@ -355,4 +355,22 @@ describe("BookmarksPanel: a bookmarks file that could not be read", () => {
     expect(await findByText(/could not be read/)).toBeTruthy();
     expect(queryByText(/could not be rewritten/)).toBeNull();
   });
+  it("is busy while the rewrite runs, so a second click does not start another write", async () => {
+    await loadUnreadable();
+    let finishWrite!: () => void;
+    writeWorkspaceTextFile.mockReturnValueOnce(
+      new Promise<void>((resolve) => (finishWrite = resolve)),
+    );
+    const { getByText, queryByRole } = render(
+      <BookmarksPanel onOpenFile={vi.fn()} onRunSearch={vi.fn()} />,
+    );
+    const button = getByText("Rewrite bookmarks file") as HTMLButtonElement;
+    fireEvent.click(button);
+    await vi.waitFor(() => expect(button.disabled).toBe(true));
+    fireEvent.click(button);
+
+    finishWrite();
+    await vi.waitFor(() => expect(queryByRole("alert")).toBeNull());
+    expect(writeWorkspaceTextFile).toHaveBeenCalledTimes(1);
+  });
 });

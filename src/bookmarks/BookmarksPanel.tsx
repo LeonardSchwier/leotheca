@@ -60,6 +60,7 @@ export function BookmarksPanel({
   // silently doing nothing.
   const [openErrorId, setOpenErrorId] = useState<string | null>(null);
   const [rewriteFailed, setRewriteFailed] = useState(false);
+  const [rewriting, setRewriting] = useState(false);
   const unreadable = bookmarksCorrupted.value;
 
   // A failed rewrite belongs to the file it was tried on. Once the flag is
@@ -70,11 +71,15 @@ export function BookmarksPanel({
   }, [unreadable]);
 
   async function handleRewrite() {
+    if (rewriting) return;
+    setRewriting(true);
     setRewriteFailed(false);
     try {
       await repairBookmarksFile();
     } catch {
       setRewriteFailed(true);
+    } finally {
+      setRewriting(false);
     }
   }
 
@@ -97,6 +102,7 @@ export function BookmarksPanel({
       <button
         type="button"
         class="bookmarks-corrupt-action"
+        disabled={rewriting}
         onClick={() => void handleRewrite()}
       >
         Rewrite bookmarks file

@@ -17,7 +17,8 @@ import {
 import {
   loadGlobalConfig,
   saveGlobalConfig,
-  type GlobalConfigV2,
+  type GlobalConfigFile,
+  type PreservedGlobalConfig,
   type ThemePreference,
   type WorkspaceIcon,
   type WorkspaceProfile,
@@ -366,14 +367,27 @@ if (typeof window !== "undefined") {
 let globalConfigWriteTail: Promise<void> = Promise.resolve();
 type GlobalConfigWriteFailureHandler = (error: unknown) => void;
 
-function readCurrentGlobalConfig(): GlobalConfigV2 {
+// What the last `initSettings` found in config.json that this build does not
+// model (a newer build's settings, an interface language it has no catalog
+// for). Plain module state like `lastPersistedTabsKey`, never rendered. A
+// queued write reads it when its turn starts, like the signals. Each
+// `initSettings` replaces it, and `setLanguage` clears the language part
+// synchronously, before its own write is queued.
+let preservedGlobalConfig: PreservedGlobalConfig = { fields: {} };
+
+function readCurrentGlobalConfig(): GlobalConfigFile {
   const active = activeWorkspaceId.value
     ? workspaceProfiles.value.find((p) => p.id === activeWorkspaceId.value)
     : undefined;
   return {
     version: 2,
+    // Spread before the fields below: a key this build owns is never in
+    // `fields`, and the build's own state wins over anything the file held.
+    ...preservedGlobalConfig.fields,
     theme: theme.value,
-    language: languagePreference.value,
+    // An unsupported language reads as `system` in the UI; the string a newer
+    // build chose goes back to disk until the user picks a language here.
+    language: preservedGlobalConfig.language ?? languagePreference.value,
     activeWorkspaceId: activeWorkspaceId.value,
     workspaceProfiles: workspaceProfiles.value,
     lastWorkspacePath: active?.path ?? null,
@@ -383,7 +397,7 @@ function readCurrentGlobalConfig(): GlobalConfigV2 {
 }
 
 function saveGlobalConfigOrdered(
-  readConfig: () => GlobalConfigV2,
+  readConfig: () => GlobalConfigFile,
   onFailure?: GlobalConfigWriteFailureHandler,
 ): Promise<void> {
   const write = globalConfigWriteTail.then(async () => {
@@ -441,7 +455,12 @@ function markProfileOpened(profile: WorkspaceProfile): void {
 
 export async function initSettings(): Promise<void> {
   appVersion.value = await getAppVersion();
-  const { config: global, corrupt: globalCorrupt } = await loadGlobalConfig();
+  const {
+    config: global,
+    corrupt: globalCorrupt,
+    preserved,
+  } = await loadGlobalConfig();
+  preservedGlobalConfig = preserved;
   globalConfigCorrupted.value = globalCorrupt;
   theme.value = global.theme;
   languagePreference.value = global.language;
@@ -730,6 +749,8 @@ export async function setTheme(next: ThemePreference): Promise<void> {
 }
 
 export async function setLanguage(next: LanguagePreference): Promise<void> {
+  // An explicit choice, `system` included, is newer than the file's string.
+  preservedGlobalConfig = { fields: preservedGlobalConfig.fields };
   languagePreference.value = next;
   await persistGlobalConfig();
 }

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   decodeGlobalConfig,
+  isMissingFileError,
   loadGlobalConfig,
   saveGlobalConfig,
   type GlobalConfigV2,
@@ -32,7 +33,9 @@ const DEFAULTS: GlobalConfigV2 = {
 
 describe("loadGlobalConfig", () => {
   it("falls back to defaults when the config file doesn't exist yet", async () => {
-    readTextFile.mockRejectedValueOnce(new Error("not found"));
+    readTextFile.mockRejectedValueOnce(
+      new Error("No such file or directory (os error 2)"),
+    );
     const { config, corrupt } = await loadGlobalConfig();
     expect(config).toEqual(DEFAULTS);
     expect(corrupt).toBe(false);
@@ -386,5 +389,419 @@ describe("decodeGlobalConfig", () => {
       expect(config.workspaceProfiles).toHaveLength(1);
       expect(config.workspaceProfiles[0].path).toBe("/vault");
     });
+  });
+});
+
+describe("fields a newer build wrote (preserved for the next write)", () => {
+  it("keeps every top-level field this build does not model, verbatim", () => {
+    const future = {
+      sidebarDensity: "compact",
+      experimental: { flags: [1, 2, { deep: true }], note: null },
+      retries: 3,
+      disabled: false,
+      zero: 0,
+      blank: "",
+      nothing: null,
+    };
+    const { preserved, corrupt } = decodeGlobalConfig(
+      JSON.stringify({
+        version: 2,
+        theme: "dark",
+        language: "de",
+        activeWorkspaceId: null,
+        workspaceProfiles: [],
+        lastWorkspacePath: null,
+        workspaceToken: "token",
+        externalFileOpenEnabled: false,
+        ...future,
+      }),
+    );
+    expect(corrupt).toBe(false);
+    expect(preserved.fields).toEqual(future);
+  });
+
+  it("never lists a field this build models, so it cannot override one", () => {
+    const { preserved } = decodeGlobalConfig(
+      JSON.stringify({
+        version: 2,
+        theme: "light",
+        language: "en",
+        activeWorkspaceId: "p1",
+        workspaceProfiles: [],
+        lastWorkspacePath: "/stale",
+        workspaceToken: "t",
+        externalFileOpenEnabled: true,
+        futureOnly: 1,
+      }),
+    );
+    expect(Object.keys(preserved.fields)).toEqual(["futureOnly"]);
+  });
+
+  it("is empty when there is nothing to keep, for bad input and for a missing file", async () => {
+    expect(
+      decodeGlobalConfig(JSON.stringify({ theme: "dark" })).preserved,
+    ).toEqual({ fields: {} });
+    expect(decodeGlobalConfig("{ not valid json").preserved).toEqual({
+      fields: {},
+    });
+    expect(decodeGlobalConfig("[1, 2]").preserved).toEqual({ fields: {} });
+    readTextFile.mockRejectedValueOnce(
+      new Error("No such file or directory (os error 2)"),
+    );
+    expect((await loadGlobalConfig()).preserved).toEqual({ fields: {} });
+  });
+
+  it("hands every caller its own empty record, so one cannot change another's", async () => {
+    readTextFile.mockRejectedValueOnce(
+      new Error("No such file or directory (os error 2)"),
+    );
+    const first = await loadGlobalConfig();
+    first.preserved.fields.leaked = true;
+    readTextFile.mockRejectedValueOnce(
+      new Error("No such file or directory (os error 2)"),
+    );
+    const second = await loadGlobalConfig();
+    expect(second.preserved.fields).toEqual({});
+    expect(decodeGlobalConfig("{ not valid json").preserved.fields).toEqual({});
+  });
+
+  it("keeps the unknown fields of a file that is otherwise corrupt", () => {
+    const { preserved, corrupt } = decodeGlobalConfig(
+      JSON.stringify({ theme: "rainbow", futureOnly: { a: 1 } }),
+    );
+    expect(corrupt).toBe(true);
+    expect(preserved.fields).toEqual({ futureOnly: { a: 1 } });
+  });
+
+  it("returns what loadGlobalConfig read from disk", async () => {
+    readTextFile.mockResolvedValueOnce(
+      JSON.stringify({ version: 2, futureOnly: [true] }),
+    );
+    expect((await loadGlobalConfig()).preserved.fields).toEqual({
+      futureOnly: [true],
+    });
+  });
+
+  it("keeps a key named __proto__ as a plain own property without touching the prototype", () => {
+    const { preserved } = decodeGlobalConfig(
+      '{"version":2,"__proto__":{"polluted":true},"futureOnly":1}',
+    );
+    expect(Object.getPrototypeOf(preserved.fields)).toBe(Object.prototype);
+    expect(
+      Object.prototype.hasOwnProperty.call(preserved.fields, "__proto__"),
+    ).toBe(true);
+    expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+    expect(preserved.fields.futureOnly).toBe(1);
+  });
+
+  describe("an interface language this build has no catalog for", () => {
+    it("is kept as the raw string while the decoded language reads as system", () => {
+      const { config, preserved, corrupt } = decodeGlobalConfig(
+        JSON.stringify({ version: 2, language: "fr" }),
+      );
+      expect(config.language).toBe("system");
+      expect(preserved.language).toBe("fr");
+      expect(corrupt).toBe(false);
+    });
+
+    it("is not recorded for a language this build supports, a missing one or a wrong type", () => {
+      for (const language of ["system", "en", "de"]) {
+        expect(
+          decodeGlobalConfig(JSON.stringify({ language })).preserved.language,
+        ).toBeUndefined();
+      }
+      expect(
+        decodeGlobalConfig(JSON.stringify({ theme: "dark" })).preserved
+          .language,
+      ).toBeUndefined();
+      for (const language of [42, null, {}, ["fr"], true]) {
+        const { preserved, corrupt } = decodeGlobalConfig(
+          JSON.stringify({ language }),
+        );
+        expect(preserved.language).toBeUndefined();
+        expect(corrupt).toBe(true);
+      }
+    });
+
+    it("is never part of the unknown fields", () => {
+      const { preserved } = decodeGlobalConfig(
+        JSON.stringify({ language: "fr", futureOnly: 1 }),
+      );
+      expect(preserved.fields).toEqual({ futureOnly: 1 });
+    });
+  });
+});
+
+describe("loadGlobalConfig: a file that is missing versus a file that cannot be read", () => {
+  const MISSING = [
+    [
+      "a Rust io error on Linux and macOS",
+      "No such file or directory (os error 2)",
+    ],
+    [
+      "a Rust io error on a localized Windows",
+      "Das System kann die angegebene Datei nicht finden. (os error 2)",
+    ],
+    [
+      "a Rust io error for a missing folder on Windows",
+      "Das System kann den angegebenen Pfad nicht finden. (os error 3)",
+    ],
+    [
+      "a Windows message in English",
+      "The system cannot find the file specified.",
+    ],
+    [
+      "a Windows message for a folder in English",
+      "The system cannot find the path specified.",
+    ],
+    ["a Rust io error without its suffix", "No such file or directory"],
+    [
+      "the Capacitor plugin on Android",
+      "'readFile' failed because file at '/data/user/0/app/files/config.json' does not exist.",
+    ],
+    [
+      "the Android workspace bridge for a file that is not in its folder",
+      '"settings.json" was not found.',
+    ],
+    [
+      "the Android workspace bridge for a missing .leotheca folder",
+      '".leotheca" was not found.',
+    ],
+  ] as const;
+
+  it.each(MISSING)("reads %s as a first launch", async (_label, message) => {
+    readTextFile.mockRejectedValueOnce(message);
+    const first = await loadGlobalConfig();
+    expect(first.corrupt).toBe(false);
+    expect(first.config).toEqual(DEFAULTS);
+    readTextFile.mockRejectedValueOnce(new Error(message));
+    expect((await loadGlobalConfig()).corrupt).toBe(false);
+  });
+
+  it("reads an ENOENT error code as a first launch", async () => {
+    readTextFile.mockRejectedValueOnce(
+      Object.assign(new Error("open failed"), { code: "ENOENT" }),
+    );
+    expect((await loadGlobalConfig()).corrupt).toBe(false);
+  });
+
+  const UNREADABLE = [
+    ["a permission error", "Permission denied (os error 13)"],
+    ["an I/O error", "Input/output error (os error 5)"],
+    ["a file that is not UTF-8", "stream did not contain valid UTF-8"],
+    ["a path that is not allowed", "path is outside the allowed directories"],
+    ["a locked file", "The process cannot access the file (os error 32)"],
+    [
+      "an unreachable network share",
+      "The network path was not found. (os error 53)",
+    ],
+    ["a bare not found", "not found"],
+    [
+      "a quoted name that is not the whole message",
+      'The share "docs" was not found. (os error 53)',
+    ],
+    ["a not found sentence with no quoted name", "File was not found."],
+  ] as const;
+
+  it.each(UNREADABLE)(
+    "keeps the file and flags it when the read fails with %s",
+    async (_label, message) => {
+      readTextFile.mockRejectedValueOnce(message);
+      const asString = await loadGlobalConfig();
+      expect(asString.corrupt).toBe(true);
+      expect(asString.config).toEqual(DEFAULTS);
+      expect(asString.preserved).toEqual({ fields: {} });
+      readTextFile.mockRejectedValueOnce(new Error(message));
+      expect((await loadGlobalConfig()).corrupt).toBe(true);
+    },
+  );
+
+  it("flags the file when the config path cannot be resolved", async () => {
+    getAppConfigFilePath.mockRejectedValueOnce(new Error("no app data dir"));
+    const result = await loadGlobalConfig();
+    expect(result.corrupt).toBe(true);
+    expect(result.config).toEqual(DEFAULTS);
+  });
+
+  const odd: [string, unknown][] = [
+    ["undefined", undefined],
+    ["null", null],
+    ["a number", 42],
+    ["an empty object", {}],
+    ["an object whose message is not text", { message: 7 }],
+    ["an object that cannot become text", Object.create(null)],
+    [
+      "an object whose message getter throws",
+      {
+        get message(): string {
+          throw new Error("boom");
+        },
+      },
+    ],
+    [
+      "an object whose code getter throws",
+      {
+        get code(): string {
+          throw new Error("boom");
+        },
+      },
+    ],
+    [
+      "an object whose text says the file is missing, never turned into text",
+      {
+        toString() {
+          return "No such file or directory (os error 2)";
+        },
+      },
+    ],
+  ];
+
+  it.each(odd)(
+    "does not throw for a rejection with %s and keeps the file",
+    async (_label, value) => {
+      readTextFile.mockRejectedValueOnce(value);
+      const result = await loadGlobalConfig();
+      expect(result.corrupt).toBe(true);
+      expect(result.config).toEqual(DEFAULTS);
+    },
+  );
+
+  it("hands every caller its own empty record when the file is unreadable", async () => {
+    readTextFile.mockRejectedValueOnce("Permission denied (os error 13)");
+    const first = await loadGlobalConfig();
+    first.preserved.fields.leaked = true;
+    readTextFile.mockRejectedValueOnce("Permission denied (os error 13)");
+    expect((await loadGlobalConfig()).preserved.fields).toEqual({});
+  });
+});
+
+describe("decodeGlobalConfig: a file written by a newer build", () => {
+  const catalog = {
+    version: 3,
+    theme: "dark",
+    language: "de",
+    activeWorkspaceId: "p1",
+    workspaceProfiles: [
+      {
+        id: "p1",
+        name: "Notes",
+        icon: "book",
+        path: "/home/erika/notes",
+        lastOpenedAt: 1700000000000,
+      },
+      {
+        id: "p2",
+        name: "Work",
+        icon: "briefcase",
+        path: "/home/erika/work",
+        lastOpenedAt: 1700000001000,
+      },
+    ],
+    lastWorkspacePath: "/home/erika/notes",
+    externalFileOpenEnabled: false,
+    futureOnly: { a: 1 },
+  };
+
+  it("is unreadable, with this build's defaults and nothing to adopt", () => {
+    const result = decodeGlobalConfig(JSON.stringify(catalog));
+    expect(result.corrupt).toBe(true);
+    expect(result.config).toEqual(DEFAULTS);
+  });
+
+  it("keeps its unknown keys for the explicit rewrite, like any corrupt file that parses", () => {
+    const result = decodeGlobalConfig(
+      JSON.stringify({ ...catalog, language: "fr" }),
+    );
+    expect(result.preserved).toEqual({
+      fields: { futureOnly: { a: 1 } },
+      language: "fr",
+    });
+  });
+
+  it("reads a version too large for a number as newer too", () => {
+    expect(decodeGlobalConfig('{"version": 1e999}').corrupt).toBe(true);
+  });
+
+  it("does not migrate the legacy path of a newer file into a profile", () => {
+    const { config } = decodeGlobalConfig(
+      JSON.stringify({ version: 3, lastWorkspacePath: "/home/erika/notes" }),
+    );
+    expect(config.workspaceProfiles).toEqual([]);
+    expect(config.activeWorkspaceId).toBeNull();
+    expect(config.lastWorkspacePath).toBeNull();
+  });
+
+  it.each([3, 4, 2.5, 1e9, Number.MAX_SAFE_INTEGER])(
+    "treats version %s as newer",
+    (version) => {
+      expect(
+        decodeGlobalConfig(JSON.stringify({ version, theme: "dark" })).corrupt,
+      ).toBe(true);
+    },
+  );
+
+  it("treats a newer version without any catalog as newer too", () => {
+    const result = decodeGlobalConfig(JSON.stringify({ version: 3 }));
+    expect(result.corrupt).toBe(true);
+    expect(result.config).toEqual(DEFAULTS);
+  });
+
+  it("still reads versions 2, 1 and a missing version as before", () => {
+    const v2 = decodeGlobalConfig(
+      JSON.stringify({ ...catalog, version: 2, futureOnly: undefined }),
+    );
+    expect(v2.corrupt).toBe(false);
+    expect(v2.config.workspaceProfiles).toHaveLength(2);
+    expect(v2.config.theme).toBe("dark");
+
+    const v1 = decodeGlobalConfig(
+      JSON.stringify({ version: 1, lastWorkspacePath: "/home/erika/notes" }),
+    );
+    expect(v1.corrupt).toBe(false);
+    expect(v1.config.workspaceProfiles).toHaveLength(1);
+
+    const none = decodeGlobalConfig(
+      JSON.stringify({ lastWorkspacePath: "/home/erika/notes" }),
+    );
+    expect(none.corrupt).toBe(false);
+    expect(none.config.workspaceProfiles).toHaveLength(1);
+  });
+
+  it("does not take a string or a null version for a newer one", () => {
+    expect(
+      decodeGlobalConfig(JSON.stringify({ version: "3", theme: "dark" }))
+        .corrupt,
+    ).toBe(false);
+    expect(
+      decodeGlobalConfig('{"version": null, "theme": "dark"}').corrupt,
+    ).toBe(false);
+  });
+});
+
+describe("isMissingFileError", () => {
+  it("is shared: the per-workspace settings and the bookmarks loaders ask the same question", () => {
+    expect(isMissingFileError("No such file or directory (os error 2)")).toBe(
+      true,
+    );
+    expect(
+      isMissingFileError(new Error('"bookmarks.json" was not found.')),
+    ).toBe(true);
+    expect(
+      isMissingFileError(Object.assign(new Error("x"), { code: "ENOENT" })),
+    ).toBe(true);
+  });
+
+  it("says no to everything that does not name a missing file", () => {
+    for (const value of [
+      "Permission denied (os error 13)",
+      "The network path was not found. (os error 53)",
+      "not found",
+      undefined,
+      null,
+      42,
+      {},
+    ]) {
+      expect(isMissingFileError(value)).toBe(false);
+    }
   });
 });

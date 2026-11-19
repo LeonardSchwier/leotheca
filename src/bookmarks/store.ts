@@ -4,6 +4,7 @@
  * `loadBookmarks(workspacePath)` whenever the active workspace changes.
  */
 import { effect, signal } from "@preact/signals";
+import { isMissingFileError } from "../settings/globalConfig";
 import { workspacePath } from "../settings/store";
 import {
   readTextFile,
@@ -34,25 +35,43 @@ function isValidBookmark(entry: unknown): entry is Bookmark {
  * bookmark missing its own id, so there is nothing to preserve for that
  * one entry either, unlike a rejected settings *value* which still has
  * an obvious safe default to fall back to. Exported so its fixtures can
- * exercise it directly, without a native file read in the way. */
+ * exercise it directly, without a native file read in the way.
+ *
+ * `unreadable` is the stronger case of `corrupt`: the text is not a JSON array
+ * at all, so there is nothing to keep of it and an empty list stands in for it.
+ * The loader keeps such a file on disk (see `bookmarksCorrupted`); a file with
+ * only some invalid entries is not unreadable, its valid entries are shown. */
 export function decodeBookmarks(raw: string): {
   bookmarks: Bookmark[];
   corrupt: boolean;
+  unreadable: boolean;
 } {
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
   } catch {
-    return { bookmarks: EMPTY_BOOKMARKS, corrupt: true };
+    return { bookmarks: EMPTY_BOOKMARKS, corrupt: true, unreadable: true };
   }
   if (!Array.isArray(parsed)) {
-    return { bookmarks: EMPTY_BOOKMARKS, corrupt: true };
+    return { bookmarks: EMPTY_BOOKMARKS, corrupt: true, unreadable: true };
   }
   const kept = parsed.filter(isValidBookmark);
-  return { bookmarks: kept, corrupt: kept.length !== parsed.length };
+  return {
+    bookmarks: kept,
+    corrupt: kept.length !== parsed.length,
+    unreadable: false,
+  };
 }
 
 export const bookmarks = signal<Bookmark[]>(EMPTY_BOOKMARKS);
+
+/** True when this workspace's bookmarks.json exists but could not be read
+ * (permission, I/O or encoding error) or is not a JSON array. The list is then
+ * empty, and no ordinary add or remove writes the file: the empty list shown
+ * for it must not replace the user's bytes. Only `repairBookmarksFile`, which
+ * the panel offers, writes through the flag. A missing file is not this: that
+ * is a first use. Cleared by every load and by `resetBookmarks`. */
+export const bookmarksCorrupted = signal(false);
 
 // A home-screen widget's practical list length: enough to be useful,
 // bounded so a very large bookmark list doesn't bloat the native
@@ -97,16 +116,32 @@ function bookmarksPath(rootPath: string): string {
 // actually run always persists whatever is genuinely current at that time.
 let bookmarksWriteTail: Promise<void> = Promise.resolve();
 
-function saveBookmarks(): Promise<void> {
+// The workspace whose bookmarks.json `bookmarks` currently holds, once a load
+// of it has finished; null before that, while a load is running, and after a
+// workspace reset. The list is only a faithful copy of the file in this state,
+// so it is the only state a write may run in: before the first load the list
+// is empty whatever the file holds (the bookmarks are loaded when the panel
+// opens, and the toolbar button adds without it), and during a reload it is
+// empty too. Writing then would replace the file with a partial list.
+let loadedRoot: string | null = null;
+
+function saveBookmarks(throughCorrupted = false): Promise<void> {
   const root = workspacePath.value;
   if (!root) return Promise.resolve();
-  const write = bookmarksWriteTail.then(() =>
-    writeWorkspaceTextFile(
+  const write = bookmarksWriteTail.then(() => {
+    // Checked at this write's own turn, not when it was queued: the list read
+    // below is whatever is current then. A workspace reset or a reload since
+    // (loadedRoot is no longer this root) would write an empty or another
+    // workspace's list into this file, and a file flagged in the meantime
+    // must be left alone.
+    if (loadedRoot !== root) return;
+    if (bookmarksCorrupted.value && !throughCorrupted) return;
+    return writeWorkspaceTextFile(
       root,
       ".leotheca/bookmarks.json",
       JSON.stringify(bookmarks.value, null, 2),
-    ),
-  );
+    );
+  });
   // Keep the tail settled even on failure, so one rejected write doesn't
   // permanently wedge every later one behind it.
   bookmarksWriteTail = write.then(
@@ -127,7 +162,9 @@ let loadSequence = 0;
  * bookmarks disappear before the incoming workspace is published. */
 export function resetBookmarks(): void {
   loadSequence += 1;
+  loadedRoot = null;
   bookmarks.value = EMPTY_BOOKMARKS;
+  bookmarksCorrupted.value = false;
 }
 workspaceTransitions.registerReset(resetBookmarks);
 
@@ -136,16 +173,60 @@ export async function loadBookmarks(rootPath: string): Promise<void> {
   // Cleared synchronously, before the read even starts: without this, the
   // previous workspace's bookmarks stay on screen for the moment it takes
   // this to resolve, which reads as "these are workspace B's bookmarks"
-  // when they're actually still workspace A's.
+  // when they're actually still workspace A's. The same goes for its warning.
+  loadedRoot = null;
   bookmarks.value = EMPTY_BOOKMARKS;
+  bookmarksCorrupted.value = false;
+  let raw: string;
   try {
-    const raw = await readTextFile(bookmarksPath(rootPath));
+    raw = await readTextFile(bookmarksPath(rootPath));
+  } catch (error) {
     if (sequence !== loadSequence) return;
-    bookmarks.value = decodeBookmarks(raw).bookmarks;
-  } catch {
-    if (sequence !== loadSequence) return;
-    bookmarks.value = EMPTY_BOOKMARKS;
+    // No file yet is a first use. Any other failure leaves a file that may
+    // well exist; the empty list shown for it must not replace it.
+    bookmarksCorrupted.value = !isMissingFileError(error);
+    loadedRoot = rootPath;
+    return;
   }
+  if (sequence !== loadSequence) return;
+  const decoded = decodeBookmarks(raw);
+  bookmarks.value = decoded.bookmarks;
+  bookmarksCorrupted.value = decoded.unreadable;
+  loadedRoot = rootPath;
+}
+
+/** Makes sure `bookmarks` holds the current workspace's file before a change
+ * is applied to it. The panel loads the file when it opens, but the toolbar
+ * button and the palette add a bookmark without it; applied to an empty list,
+ * that add would write one bookmark over all the others. Without a workspace
+ * there is no file, and the change stays in memory. Resolves false when the
+ * workspace changed while the file was being read: the change is dropped
+ * rather than applied to another workspace's list. Synchronous in the usual
+ * case, a list that is loaded already, so a change shows up at once. */
+function listIsLoaded(): boolean {
+  const root = workspacePath.value;
+  return !root || loadedRoot === root;
+}
+
+async function loadCurrentWorkspace(): Promise<boolean> {
+  const root = workspacePath.value;
+  if (!root) return true;
+  await loadBookmarks(root);
+  return loadedRoot === root && workspacePath.value === root;
+}
+
+/** The explicit recovery for a bookmarks.json that could not be read: writes
+ * the list as it is now over the file and, only once that succeeded, clears the
+ * flag. A rejected write keeps the flag and reaches the caller. Never called
+ * by a load or an ordinary mutation, so the user can still repair the file by
+ * hand before choosing this. */
+export async function repairBookmarksFile(): Promise<void> {
+  if (!bookmarksCorrupted.value) return;
+  const sequence = loadSequence;
+  await saveBookmarks(true);
+  // Another workspace may have been opened while the write ran; the flag then
+  // describes that workspace's file, not the one just rewritten.
+  if (sequence === loadSequence) bookmarksCorrupted.value = false;
 }
 
 function newId(): string {
@@ -156,6 +237,7 @@ export async function addFileBookmark(
   path: string,
   label: string,
 ): Promise<void> {
+  if (!listIsLoaded() && !(await loadCurrentWorkspace())) return;
   const next = {
     id: newId(),
     kind: "file" as const,
@@ -170,6 +252,7 @@ export async function addSearchBookmark(
   query: string,
   label: string,
 ): Promise<void> {
+  if (!listIsLoaded() && !(await loadCurrentWorkspace())) return;
   const next = {
     id: newId(),
     kind: "search" as const,
@@ -181,6 +264,7 @@ export async function addSearchBookmark(
 }
 
 export async function removeBookmark(id: string): Promise<void> {
+  if (!listIsLoaded() && !(await loadCurrentWorkspace())) return;
   bookmarks.value = bookmarks.value.filter((bookmark) => bookmark.id !== id);
   await saveBookmarks();
 }

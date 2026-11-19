@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   decodeGlobalConfig,
+  isMissingFileError,
   loadGlobalConfig,
   saveGlobalConfig,
   type GlobalConfigV2,
@@ -558,6 +559,14 @@ describe("loadGlobalConfig: a file that is missing versus a file that cannot be 
       "the Capacitor plugin on Android",
       "'readFile' failed because file at '/data/user/0/app/files/config.json' does not exist.",
     ],
+    [
+      "the Android workspace bridge for a file that is not in its folder",
+      '"settings.json" was not found.',
+    ],
+    [
+      "the Android workspace bridge for a missing .leotheca folder",
+      '".leotheca" was not found.',
+    ],
   ] as const;
 
   it.each(MISSING)("reads %s as a first launch", async (_label, message) => {
@@ -587,6 +596,11 @@ describe("loadGlobalConfig: a file that is missing versus a file that cannot be 
       "The network path was not found. (os error 53)",
     ],
     ["a bare not found", "not found"],
+    [
+      "a quoted name that is not the whole message",
+      'The share "docs" was not found. (os error 53)',
+    ],
+    ["a not found sentence with no quoted name", "File was not found."],
   ] as const;
 
   it.each(UNREADABLE)(
@@ -761,5 +775,33 @@ describe("decodeGlobalConfig: a file written by a newer build", () => {
     expect(
       decodeGlobalConfig('{"version": null, "theme": "dark"}').corrupt,
     ).toBe(false);
+  });
+});
+
+describe("isMissingFileError", () => {
+  it("is shared: the per-workspace settings and the bookmarks loaders ask the same question", () => {
+    expect(isMissingFileError("No such file or directory (os error 2)")).toBe(
+      true,
+    );
+    expect(
+      isMissingFileError(new Error('"bookmarks.json" was not found.')),
+    ).toBe(true);
+    expect(
+      isMissingFileError(Object.assign(new Error("x"), { code: "ENOENT" })),
+    ).toBe(true);
+  });
+
+  it("says no to everything that does not name a missing file", () => {
+    for (const value of [
+      "Permission denied (os error 13)",
+      "The network path was not found. (os error 53)",
+      "not found",
+      undefined,
+      null,
+      42,
+      {},
+    ]) {
+      expect(isMissingFileError(value)).toBe(false);
+    }
   });
 });

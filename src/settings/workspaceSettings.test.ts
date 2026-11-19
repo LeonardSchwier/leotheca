@@ -108,11 +108,80 @@ describe("DEFAULT_WORKSPACE_SETTINGS", () => {
 
 describe("loadWorkspaceSettings", () => {
   it("falls back to defaults, not corrupt, when the settings file doesn't exist yet", async () => {
-    readTextFile.mockRejectedValueOnce(new Error("not found"));
+    readTextFile.mockRejectedValueOnce(
+      new Error("No such file or directory (os error 2)"),
+    );
     const { settings, corrupt } = await loadWorkspaceSettings(ROOT);
     expect(settings).toEqual(DEFAULT_WORKSPACE_SETTINGS);
     expect(corrupt).toBe(false);
   });
+
+  // A first use of a workspace has no `.leotheca/settings.json` (and often no
+  // `.leotheca` folder). Each platform words that its own way; none of them is
+  // a reason to warn.
+  it.each([
+    [
+      "a Rust io error on Linux and macOS",
+      "No such file or directory (os error 2)",
+    ],
+    [
+      "a Rust io error for a missing folder on Windows",
+      "Das System kann den angegebenen Pfad nicht finden. (os error 3)",
+    ],
+    [
+      "the Capacitor plugin on Android",
+      "'readFile' failed because file at '/x/settings.json' does not exist.",
+    ],
+    ["the Android workspace bridge, file", '"settings.json" was not found.'],
+    ["the Android workspace bridge, folder", '".leotheca" was not found.'],
+  ])("reads %s as a first use, with no warning", async (_label, message) => {
+    readTextFile.mockRejectedValueOnce(new Error(message));
+    const asError = await loadWorkspaceSettings(ROOT);
+    expect(asError.corrupt).toBe(false);
+    expect(asError.settings).toEqual(DEFAULT_WORKSPACE_SETTINGS);
+    readTextFile.mockRejectedValueOnce(message);
+    expect((await loadWorkspaceSettings(ROOT)).corrupt).toBe(false);
+  });
+
+  // A settings.json that is there but cannot be read must not be shown as "no
+  // file yet": the store would then write the defaults over it on the next tab
+  // switch. It comes back as defaults flagged corrupt, so the store keeps the
+  // bytes until the user chooses to rewrite the file.
+  it.each([
+    ["a permission error", "Permission denied (os error 13)"],
+    ["an I/O error", "Input/output error (os error 5)"],
+    ["a file that is not UTF-8", "stream did not contain valid UTF-8"],
+    ["a locked file", "The process cannot access the file (os error 32)"],
+    [
+      "an unreachable network share",
+      "The network path was not found. (os error 53)",
+    ],
+    ["a bare not found", "not found"],
+  ])(
+    "keeps the file and flags it when the read fails with %s",
+    async (_label, message) => {
+      readTextFile.mockRejectedValueOnce(new Error(message));
+      const asError = await loadWorkspaceSettings(ROOT);
+      expect(asError.corrupt).toBe(true);
+      expect(asError.settings).toEqual(DEFAULT_WORKSPACE_SETTINGS);
+      readTextFile.mockRejectedValueOnce(message);
+      expect((await loadWorkspaceSettings(ROOT)).corrupt).toBe(true);
+    },
+  );
+
+  it.each([
+    ["undefined", undefined],
+    ["null", null],
+    ["an object without a message", {}],
+  ])(
+    "does not throw for a rejection with %s and keeps the file",
+    async (_label, value) => {
+      readTextFile.mockRejectedValueOnce(value);
+      const result = await loadWorkspaceSettings(ROOT);
+      expect(result.corrupt).toBe(true);
+      expect(result.settings).toEqual(DEFAULT_WORKSPACE_SETTINGS);
+    },
+  );
 
   it("fills in fields missing from an older settings file with today's defaults, not corrupt", async () => {
     // A settings.json written before uiZoom/lastOpenPaths existed, the

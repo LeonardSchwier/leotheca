@@ -9,6 +9,7 @@ import {
   decodeString,
   decodeStringArray,
 } from "./decode";
+import { isMissingFileError } from "./globalConfig";
 import { isPathWithinWorkspace } from "../workspace/paths";
 import { readTextFile, writeWorkspaceTextFile } from "../workspace/tauriBridge";
 import { createPrimaryEditorLayout } from "../workspace/documentGroups";
@@ -970,11 +971,17 @@ export async function loadWorkspaceSettings(
   let raw: string;
   try {
     raw = await readTextFile(workspaceSettingsPath(workspacePath));
-  } catch {
-    // No file yet (first time this workspace has been opened) or it's
-    // unreadable for a reason unrelated to its contents: an ordinary,
-    // expected case, not corruption.
-    return { settings: DEFAULT_WORKSPACE_SETTINGS, corrupt: false };
+  } catch (error) {
+    // No file yet (the first time this workspace is opened) is ordinary: no
+    // warning, and the first write creates the file. Any other failure
+    // (permission, I/O, encoding, an unresolved path) leaves a file that may
+    // well exist, and the defaults shown here must not replace it on the next
+    // tab switch or setting change: flag it, so the store keeps the bytes
+    // until the user chooses to rewrite the file.
+    return {
+      settings: DEFAULT_WORKSPACE_SETTINGS,
+      corrupt: !isMissingFileError(error),
+    };
   }
   return decodeWorkspaceSettings(raw, workspacePath);
 }

@@ -26,11 +26,13 @@ import {
 import type { ThemePreference } from "./globalConfig";
 import {
   catalogs,
+  interpolate,
   LANGUAGE_NAMES,
   LANGUAGE_PREFERENCES,
   languagePreference,
   t,
   type LanguagePreference,
+  type MessageKey,
 } from "../i18n";
 import {
   clamp,
@@ -55,10 +57,10 @@ import { KEYBOARD_SHORTCUTS } from "../app/shortcuts";
 import { rebuildLinkIndex } from "../linking/store";
 import { DiagnosticsPanel } from "../diagnostics/DiagnosticsPanel";
 
-const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
-  { value: "system", label: "Follow System" },
-  { value: "light", label: "Light" },
-  { value: "dark", label: "Dark" },
+const THEME_OPTIONS: { value: ThemePreference; label: MessageKey }[] = [
+  { value: "system", label: "settings.theme.followSystem" },
+  { value: "light", label: "settings.theme.light" },
+  { value: "dark", label: "settings.theme.dark" },
 ];
 
 /** A language is named in itself, so it is the same text whatever the
@@ -79,74 +81,76 @@ const LANGUAGE_ROW_SEARCH_TERMS: string[] = [
   ...Object.values(LANGUAGE_NAMES),
 ];
 
-const VIEW_MODE_OPTIONS: { value: ViewMode; label: string }[] = [
-  { value: "source", label: "Source" },
-  { value: "split", label: "Split" },
-  { value: "preview", label: "Preview" },
+const VIEW_MODE_OPTIONS: { value: ViewMode; label: MessageKey }[] = [
+  { value: "source", label: "settings.viewMode.source" },
+  { value: "split", label: "settings.viewMode.split" },
+  { value: "preview", label: "settings.viewMode.preview" },
 ];
 
-const DELETE_BEHAVIOR_OPTIONS: { value: DeleteBehavior; label: string }[] = [
-  { value: "project-trash", label: "Project Trash" },
-  { value: "permanent", label: "Permanent" },
+const DELETE_BEHAVIOR_OPTIONS: { value: DeleteBehavior; label: MessageKey }[] =
+  [
+    { value: "project-trash", label: "settings.deleteBehavior.projectTrash" },
+    { value: "permanent", label: "settings.deleteBehavior.permanent" },
+  ];
+
+const FRONTMATTER_ALIASES_OPTIONS: { value: boolean; label: MessageKey }[] = [
+  { value: true, label: "settings.option.on" },
+  { value: false, label: "settings.option.off" },
 ];
 
-const FRONTMATTER_ALIASES_OPTIONS: { value: boolean; label: string }[] = [
-  { value: true, label: "On" },
-  { value: false, label: "Off" },
+const HEADING_LINKS_OPTIONS: { value: boolean; label: MessageKey }[] = [
+  { value: true, label: "settings.option.on" },
+  { value: false, label: "settings.option.off" },
 ];
 
-const HEADING_LINKS_OPTIONS: { value: boolean; label: string }[] = [
-  { value: true, label: "On" },
-  { value: false, label: "Off" },
+const MARKDOWN_IMPORT_OPTIONS: { value: boolean; label: MessageKey }[] = [
+  { value: true, label: "settings.option.on" },
+  { value: false, label: "settings.option.off" },
 ];
 
-const MARKDOWN_IMPORT_OPTIONS: { value: boolean; label: string }[] = [
-  { value: true, label: "On" },
-  { value: false, label: "Off" },
+const MATH_RENDERING_OPTIONS: { value: boolean; label: MessageKey }[] = [
+  { value: true, label: "settings.option.on" },
+  { value: false, label: "settings.option.off" },
 ];
 
-const MATH_RENDERING_OPTIONS: { value: boolean; label: string }[] = [
-  { value: true, label: "On" },
-  { value: false, label: "Off" },
+const PASTE_IMAGES_OPTIONS: { value: boolean; label: MessageKey }[] = [
+  { value: true, label: "settings.option.on" },
+  { value: false, label: "settings.option.off" },
+];
+const CANVAS_OPTIONS: { value: boolean; label: MessageKey }[] = [
+  { value: true, label: "settings.option.on" },
+  { value: false, label: "settings.option.off" },
 ];
 
-const PASTE_IMAGES_OPTIONS: { value: boolean; label: string }[] = [
-  { value: true, label: "On" },
-  { value: false, label: "Off" },
-];
-const CANVAS_OPTIONS: { value: boolean; label: string }[] = [
-  { value: true, label: "On" },
-  { value: false, label: "Off" },
+const FRONTMATTER_PROPERTIES_OPTIONS: { value: boolean; label: MessageKey }[] =
+  [
+    { value: true, label: "settings.option.on" },
+    { value: false, label: "settings.option.off" },
+  ];
+
+const TAGS_OPTIONS: { value: boolean; label: MessageKey }[] = [
+  { value: true, label: "settings.option.on" },
+  { value: false, label: "settings.option.off" },
 ];
 
-const FRONTMATTER_PROPERTIES_OPTIONS: { value: boolean; label: string }[] = [
-  { value: true, label: "On" },
-  { value: false, label: "Off" },
+const TEMPLATES_OPTIONS: { value: boolean; label: MessageKey }[] = [
+  { value: true, label: "settings.option.on" },
+  { value: false, label: "settings.option.off" },
 ];
-
-const TAGS_OPTIONS: { value: boolean; label: string }[] = [
-  { value: true, label: "On" },
-  { value: false, label: "Off" },
+const OPTIONAL_FEATURE_OPTIONS: { value: boolean; label: MessageKey }[] = [
+  { value: true, label: "settings.option.on" },
+  { value: false, label: "settings.option.off" },
 ];
-
-const TEMPLATES_OPTIONS: { value: boolean; label: string }[] = [
-  { value: true, label: "On" },
-  { value: false, label: "Off" },
+const ACCENT_OPTIONS: { value: AccentColor; label: MessageKey }[] = [
+  { value: "warm", label: "settings.accentColor.warm" },
+  { value: "ocean", label: "settings.accentColor.ocean" },
+  { value: "forest", label: "settings.accentColor.forest" },
+  { value: "plum", label: "settings.accentColor.plum" },
 ];
-const OPTIONAL_FEATURE_OPTIONS: { value: boolean; label: string }[] = [
-  { value: true, label: "On" },
-  { value: false, label: "Off" },
-];
-const ACCENT_OPTIONS: { value: AccentColor; label: string }[] = [
-  { value: "warm", label: "Fog" },
-  { value: "ocean", label: "Ocean" },
-  { value: "forest", label: "Forest" },
-  { value: "plum", label: "Plum" },
-];
-const READING_FONT_OPTIONS: { value: ReadingFont; label: string }[] = [
-  { value: "sans", label: "Sans" },
-  { value: "serif", label: "Serif" },
-  { value: "mono", label: "Mono" },
+const READING_FONT_OPTIONS: { value: ReadingFont; label: MessageKey }[] = [
+  { value: "sans", label: "settings.readingFont.sans" },
+  { value: "serif", label: "settings.readingFont.serif" },
+  { value: "mono", label: "settings.readingFont.mono" },
 ];
 
 /**
@@ -163,6 +167,30 @@ export function matchesSettingsSearch(
   const q = query.trim().toLowerCase();
   if (!q) return true;
   return texts.some((text) => text.toLowerCase().includes(q));
+}
+
+/** A message key, or a key and its parameters, that a settings row can be
+ * found by. */
+export type SettingsSearchTerm =
+  MessageKey | readonly [MessageKey, Readonly<Record<string, string | number>>];
+
+/**
+ * `matchesSettingsSearch` over message keys: each term is tested in the
+ * active language and in English, so a German user finds a row by either
+ * name. In English both are the same text, so English behaves exactly as a
+ * search over the literal strings did.
+ */
+export function matchesSettingsSearchTerms(
+  query: string,
+  ...terms: SettingsSearchTerm[]
+): boolean {
+  const texts = new Set<string>();
+  for (const term of terms) {
+    const [key, params] = typeof term === "string" ? [term] : term;
+    texts.add(t(key, params));
+    texts.add(interpolate(catalogs.en[key], params));
+  }
+  return matchesSettingsSearch(query, ...texts);
 }
 
 interface SettingsPanelProps {
@@ -246,13 +274,15 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
       );
     } catch (e) {
       window.alert(
-        `Couldn't export settings: ${e instanceof Error ? e.message : String(e)}`,
+        t("settings.export.failed", {
+          error: e instanceof Error ? e.message : String(e),
+        }),
       );
     }
   };
 
-  const matches = (...texts: string[]) =>
-    matchesSettingsSearch(searchQuery, ...texts);
+  const matches = (...terms: SettingsSearchTerm[]) =>
+    matchesSettingsSearchTerms(searchQuery, ...terms);
 
   const handleChangeFolder = async () => {
     setFolderPickerLoading(true);
@@ -271,134 +301,125 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
   // are transient status, not an "option" to find, and hiding an active
   // error because it doesn't match the search text would be a real UX
   // regression, not a filtering convenience.
-  const showRootFolder = matches("Root folder", "Change Folder");
+  const showRootFolder = matches(
+    "settings.rootFolder.label",
+    "settings.rootFolder.change",
+  );
   const showExternalFileOpen = matches(
-    "Open Markdown files from outside your workspace",
-    "Register Leotheca as an Open with option for .md files from your file manager",
+    "settings.externalFileOpen.label",
+    "settings.externalFileOpen.search",
   );
   const showAccentThemes = matches(
-    "Accent themes",
-    "Use this workspace's restrained accent color",
+    "settings.accentThemes.label",
+    "settings.accentThemes.hint",
   );
   const showAccentColor = matches(
-    "Accent color",
-    "Changes highlights without replacing the light or dark palette",
+    "settings.accentColor.label",
+    "settings.accentColor.hint",
   );
   const showReadingFont = matches(
-    "Reading font",
-    "Font used for rendered Markdown preview text",
+    "settings.readingFont.label",
+    "settings.readingFont.search",
   );
   const showEditorSnippets = matches(
-    "Editor snippets",
-    "Type ;trigger then Tab to expand a local writing shortcut",
+    "settings.snippets.label",
+    "settings.snippets.hint",
   );
   const showSnippetDefinitions = matches(
-    "Snippet definitions",
-    "One per line: trigger, a tab, then replacement text",
+    "settings.snippetDefinitions.label",
+    "settings.snippetDefinitions.hint",
   );
-  const showCanvas = matches(
-    "Canvas",
-    "Allow creation and viewing of local canvas files",
-  );
+  const showCanvas = matches("settings.canvas.label", "settings.canvas.hint");
   const showDeleteBehavior = matches(
-    "Delete behavior",
-    "Where deleted notes and folders go",
+    "settings.deleteBehavior.label",
+    "settings.deleteBehavior.hint",
   );
   const showFrontmatterAliases = matches(
-    "Frontmatter aliases",
-    "Resolve [[wikilinks]], autocomplete, and backlinks by a note's aliases: frontmatter field too, not just its file name",
+    "settings.frontmatterAliases.label",
+    "settings.frontmatterAliases.hint",
   );
   const showHeadingLinks = matches(
-    "Heading links",
-    "Resolve [[Note#Heading]] and [[#Heading]] links to a specific heading, with Preview click navigation to it. Off, [[wikilinks]] parse exactly as before this feature existed",
+    "settings.headingLinks.label",
+    "settings.headingLinks.hint",
   );
   const showMarkdownImport =
     !Capacitor.isNativePlatform() &&
-    matches(
-      "Markdown vault import",
-      "Offer the Import Markdown vault command, which copies a chosen folder of notes into this workspace without changing the source",
-    );
+    matches("settings.markdownImport.label", "settings.markdownImport.search");
   const showMathRendering = matches(
-    "Math rendering",
-    "Render $inline$ and $$block$$ LaTeX math in Preview, via KaTeX",
+    "settings.mathRendering.label",
+    "settings.mathRendering.hint",
   );
   const showMermaidRendering = matches(
-    "Mermaid diagrams",
-    "Render ```mermaid``` code blocks as diagrams in Preview",
+    "settings.mermaid.label",
+    "settings.mermaid.hint",
   );
   const showPasteImages = matches(
-    "Paste images as attachments",
-    "Pasting or dropping an image into a note saves it as a file and inserts a link to it",
+    "settings.pasteImages.label",
+    "settings.pasteImages.hint",
   );
   const showAttachmentsFolder = matches(
-    "Attachments folder",
-    "Where a pasted/dropped image is saved; empty means next to the note that embeds it",
+    "settings.attachmentsFolder.label",
+    "settings.attachmentsFolder.hint",
   );
   const showCaptureInboxFolder = matches(
-    "Capture inbox folder",
-    "Where quick capture notes are saved, relative to the workspace root",
+    "settings.captureInboxFolder.label",
+    "settings.captureInboxFolder.hint",
   );
   const showCaptureInboxNote = matches(
-    "Capture inbox note",
-    "Path to the inbox note for append mode, relative to the workspace root",
+    "settings.captureInboxNote.label",
+    "settings.captureInboxNote.hint",
   );
   const showCaptureDatePattern = matches(
-    "Capture date pattern",
-    'Date-pattern destination for new captures (e.g., "Daily/{{date:YYYY-MM-DD}}.md")',
+    "settings.captureDatePattern.label",
+    "settings.captureDatePattern.search",
   );
   const showFrontmatterProperties = matches(
-    "Frontmatter properties panel",
-    "Show a note's frontmatter fields above the editor as editable rows",
+    "settings.frontmatterProperties.label",
+    "settings.frontmatterProperties.hint",
   );
-  const showTags = matches(
-    "Tags",
-    "Recognize #tag syntax and a note's tags: frontmatter field in the Tags panel",
-  );
+  const showTags = matches("settings.tags.label", "settings.tags.hint");
   const showTemplates = matches(
-    "Templates",
-    'Offer a "New note from template" command that starts a note from a file in the templates folder',
+    "settings.templates.label",
+    "settings.templates.hint",
   );
   const showTemplatesFolder = matches(
-    "Templates folder",
-    "Where template notes live, relative to the workspace root",
+    "settings.templatesFolder.label",
+    "settings.templatesFolder.hint",
   );
   const showCollections = matches(
-    "Collections",
-    "Group notes by a saved search or a manual list, off by default",
+    "settings.collections.label",
+    "settings.collections.search",
   );
   const showSpellchecking = matches(
-    "Spellchecking",
-    "Flag misspelled words in the editor using a local dictionary; off by default",
+    "settings.spellcheck.label",
+    "settings.spellcheck.search",
   );
   const showWorkspaceProfiles = matches(
-    "Workspace profiles",
-    "Rename, identify, add, and forget known workspaces without deleting their files",
+    "profiles.title",
+    "settings.profiles.search",
   );
-  const showTheme = matches("Theme");
-  const showLanguage = matches(...LANGUAGE_ROW_SEARCH_TERMS);
-  const showFontSize = matches("Font size");
-  const showZoom = matches(
-    "Zoom",
-    "Scales the whole app; use Ctrl+Plus, Ctrl+Minus, or Ctrl+0",
+  const showTheme = matches("settings.theme.label");
+  const showLanguage = matchesSettingsSearch(
+    searchQuery,
+    ...LANGUAGE_ROW_SEARCH_TERMS,
   );
+  const showFontSize = matches("settings.fontSize.label");
+  const showZoom = matches("settings.zoom.label", "settings.zoom.hint");
   const showDefaultViewMode = matches(
-    "Default view mode",
-    "Applied when this workspace is opened",
+    "settings.viewMode.label",
+    "settings.viewMode.hint",
   );
-  const showRtlWorkspace = matches(
-    "RTL workspace layout",
-    "Mirror sidebar position, toolbar and tab order",
-  );
-  const showVersion = matches("Version");
-  const showLicenseRow = matches("License");
+  const showRtlWorkspace = matches("settings.rtl.label", "settings.rtl.search");
+  const showVersion = matches("settings.version.label");
+  const showLicenseRow = matches("settings.license.label");
   const showHealth = matches(
-    "Health",
-    "Link Diagnostics",
-    "broken or ambiguous links",
+    "settings.category.health",
+    "settings.health.searchDiagnostics",
+    "settings.health.searchBrokenLinks",
   );
 
   const filteredShortcuts = KEYBOARD_SHORTCUTS.filter((shortcut) =>
-    matches(shortcut.description, shortcut.keys),
+    matchesSettingsSearch(searchQuery, shortcut.description, shortcut.keys),
   );
 
   const showExternalFileOpenRow =
@@ -475,16 +496,36 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
 
   const categories: {
     id: SettingsCategory;
-    label: string;
+    label: MessageKey;
     visible: boolean;
   }[] = [
-    { id: "general", label: "General", visible: generalVisible },
-    { id: "profiles", label: "Workspace Profiles", visible: profilesVisible },
-    { id: "features", label: "Features", visible: featureSelectionVisible },
-    { id: "appearance", label: "Appearance", visible: appearanceVisible },
-    { id: "shortcuts", label: "Shortcuts", visible: shortcutsVisible },
-    { id: "health", label: "Health", visible: healthVisible },
-    { id: "about", label: "About", visible: aboutVisible },
+    {
+      id: "general",
+      label: "settings.category.general",
+      visible: generalVisible,
+    },
+    {
+      id: "profiles",
+      label: "settings.category.profiles",
+      visible: profilesVisible,
+    },
+    {
+      id: "features",
+      label: "settings.category.features",
+      visible: featureSelectionVisible,
+    },
+    {
+      id: "appearance",
+      label: "settings.category.appearance",
+      visible: appearanceVisible,
+    },
+    {
+      id: "shortcuts",
+      label: "settings.category.shortcuts",
+      visible: shortcutsVisible,
+    },
+    { id: "health", label: "settings.category.health", visible: healthVisible },
+    { id: "about", label: "settings.category.about", visible: aboutVisible },
   ];
 
   // A live search already bypasses category selection (inActiveCategory
@@ -505,15 +546,15 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
     >
       <div class="modal settings-panel" onClick={(e) => e.stopPropagation()}>
         <div class="modal-header">
-          <h2>Settings</h2>
+          <h2>{t("settings.title")}</h2>
           {workspaceSettingsSaving.value && (
             <span class="settings-saving-indicator" role="status">
-              Saving…
+              {t("settings.saving")}
             </span>
           )}
           <button
             class="modal-close"
-            aria-label="Close settings"
+            aria-label={t("settings.close")}
             onClick={() => (settingsPanelOpen.value = false)}
           >
             x
@@ -524,8 +565,8 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
           <input
             type="text"
             class="settings-search-input"
-            placeholder="Search settings…"
-            aria-label="Search settings"
+            placeholder={t("settings.search.placeholder")}
+            aria-label={t("settings.search.label")}
             value={searchQuery}
             onInput={(e) =>
               setSearchQuery((e.target as HTMLInputElement).value)
@@ -535,14 +576,14 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
 
         {nothingMatches && (
           <p class="empty-hint">
-            No settings match &quot;{searchQuery.trim()}&quot;.
+            {t("settings.search.noMatches", { query: searchQuery.trim() })}
           </p>
         )}
 
         <div
           class={`settings-body ${compactShowingDetail ? "settings-body--compact-detail" : ""}`}
         >
-          <nav class="settings-nav" aria-label="Settings categories">
+          <nav class="settings-nav" aria-label={t("settings.nav.label")}>
             {categories
               .filter((category) => category.visible)
               .map((category) => (
@@ -557,7 +598,7 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                     setCompactDetailOpen(true);
                   }}
                 >
-                  {category.label}
+                  {t(category.label)}
                 </button>
               ))}
           </nav>
@@ -571,17 +612,19 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
               class="settings-compact-back"
               onClick={returnToCompactList}
             >
-              ← Back
+              {t("settings.back")}
             </button>
             {generalVisible && inActiveCategory("general") && (
               <section class="settings-section">
-                <h3>General</h3>
+                <h3>{t("settings.category.general")}</h3>
                 {showRootFolder && (
                   <div class="settings-row">
                     <div>
-                      <div class="settings-label">Root folder</div>
+                      <div class="settings-label">
+                        {t("settings.rootFolder.label")}
+                      </div>
                       <div class="settings-value">
-                        {workspacePath.value ?? "Not set"}
+                        {workspacePath.value ?? t("settings.rootFolder.notSet")}
                       </div>
                     </div>
                     <button
@@ -589,8 +632,8 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                       disabled={folderPickerLoading}
                     >
                       {folderPickerLoading
-                        ? "Opening folder picker…"
-                        : "Change Folder"}
+                        ? t("settings.rootFolder.opening")
+                        : t("settings.rootFolder.change")}
                     </button>
                   </div>
                 )}
@@ -599,11 +642,10 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                   <div class="settings-row">
                     <div>
                       <div class="settings-label">
-                        Open Markdown files from outside your workspace
+                        {t("settings.externalFileOpen.label")}
                       </div>
                       <div class="settings-hint">
-                        Register Leotheca as an &quot;Open with&quot; option for
-                        .md files in your file manager
+                        {t("settings.externalFileOpen.hint")}
                       </div>
                     </div>
                     <div class="settings-switch">
@@ -619,7 +661,7 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                             void setExternalFileOpenEnabled(option.value)
                           }
                         >
-                          {option.label}
+                          {t(option.label)}
                         </button>
                       ))}
                     </div>
@@ -630,12 +672,12 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                   <div class="settings-row">
                     <div>
                       <div class="settings-label">
-                        Make Leotheca the default app for .md files
+                        {t("settings.defaultHandler.label")}
                       </div>
                       <div class="settings-hint">
                         {defaultHandlerContract.isSettable
-                          ? "Leotheca is already registered as an Open-with editor for .md files on this OS. Set it as the default using the steps for your platform."
-                          : "This OS has no per-file-type default app: pick Leotheca each time you open a .md file."}
+                          ? t("settings.defaultHandler.settable")
+                          : t("settings.defaultHandler.notSettable")}
                       </div>
                       <ol class="settings-ol">
                         {defaultHandlerContract.steps.map((step, i) => (
@@ -657,7 +699,7 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                       {workspaceSettingsSaveError.value}
                     </div>
                     <button onClick={() => void retryWorkspaceSettingsSave()}>
-                      Retry
+                      {t("settings.saveError.retry")}
                     </button>
                   </div>
                 )}
@@ -666,17 +708,14 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                   <div class="settings-row" role="alert">
                     <div>
                       <div class="settings-label">
-                        Settings file had invalid data
+                        {t("settings.corrupted.label")}
                       </div>
                       <div class="settings-hint">
-                        Some values in this workspace's settings.json could not
-                        be read as written, so defaults are being used for those
-                        instead. The original file is left untouched until you
-                        rewrite it here.
+                        {t("settings.corrupted.hint")}
                       </div>
                     </div>
                     <button onClick={() => void repairWorkspaceSettingsFile()}>
-                      Rewrite settings file
+                      {t("settings.corrupted.rewrite")}
                     </button>
                   </div>
                 )}
@@ -685,16 +724,14 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                   <div class="settings-row" role="alert">
                     <div>
                       <div class="settings-label">
-                        App configuration had invalid data
+                        {t("settings.globalCorrupted.label")}
                       </div>
                       <div class="settings-hint">
-                        Some saved app settings or workspace profiles could not
-                        be read as written. The original configuration is left
-                        untouched until you rewrite it here.
+                        {t("settings.globalCorrupted.hint")}
                       </div>
                     </div>
                     <button onClick={() => void repairGlobalConfigFile()}>
-                      Rewrite app configuration
+                      {t("settings.globalCorrupted.rewrite")}
                     </button>
                   </div>
                 )}
@@ -705,10 +742,11 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                       showAccentColor && (
                         <div class="settings-row">
                           <div>
-                            <div class="settings-label">Accent color</div>
+                            <div class="settings-label">
+                              {t("settings.accentColor.label")}
+                            </div>
                             <div class="settings-hint">
-                              Changes highlights without replacing the light or
-                              dark palette
+                              {t("settings.accentColor.hint")}
                             </div>
                           </div>
                           <div class="settings-switch">
@@ -727,7 +765,7 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                                   })
                                 }
                               >
-                                {option.label}
+                                {t(option.label)}
                               </button>
                             ))}
                           </div>
@@ -738,11 +776,10 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                         <div class="settings-row">
                           <div>
                             <div class="settings-label">
-                              Snippet definitions
+                              {t("settings.snippetDefinitions.label")}
                             </div>
                             <div class="settings-hint">
-                              One per line: trigger, a tab, then replacement
-                              text
+                              {t("settings.snippetDefinitions.hint")}
                             </div>
                           </div>
                           <div class="settings-value">
@@ -764,9 +801,11 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                 {workspacePath.value && showDeleteBehavior && (
                   <div class="settings-row">
                     <div>
-                      <div class="settings-label">Delete behavior</div>
+                      <div class="settings-label">
+                        {t("settings.deleteBehavior.label")}
+                      </div>
                       <div class="settings-hint">
-                        Where deleted notes and folders go
+                        {t("settings.deleteBehavior.hint")}
                       </div>
                     </div>
                     <div class="settings-switch">
@@ -785,7 +824,7 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                             })
                           }
                         >
-                          {option.label}
+                          {t(option.label)}
                         </button>
                       ))}
                     </div>
@@ -795,11 +834,11 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                 {workspacePath.value && showFrontmatterAliases && (
                   <div class="settings-row">
                     <div>
-                      <div class="settings-label">Frontmatter aliases</div>
+                      <div class="settings-label">
+                        {t("settings.frontmatterAliases.label")}
+                      </div>
                       <div class="settings-hint">
-                        Resolve [[wikilinks]], autocomplete, and backlinks by a
-                        note's aliases: frontmatter field too, not just its file
-                        name
+                        {t("settings.frontmatterAliases.hint")}
                       </div>
                     </div>
                     <div class="settings-switch">
@@ -823,7 +862,7 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                               );
                           }}
                         >
-                          {option.label}
+                          {t(option.label)}
                         </button>
                       ))}
                     </div>
@@ -833,12 +872,11 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                 {workspacePath.value && showHeadingLinks && (
                   <div class="settings-row">
                     <div>
-                      <div class="settings-label">Heading links</div>
+                      <div class="settings-label">
+                        {t("settings.headingLinks.label")}
+                      </div>
                       <div class="settings-hint">
-                        Resolve [[Note#Heading]] and [[#Heading]] links to a
-                        specific heading, with Preview click navigation to it.
-                        Off, [[wikilinks]] parse exactly as before this feature
-                        existed
+                        {t("settings.headingLinks.hint")}
                       </div>
                     </div>
                     <div class="settings-switch">
@@ -857,7 +895,7 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                             })
                           }
                         >
-                          {option.label}
+                          {t(option.label)}
                         </button>
                       ))}
                     </div>
@@ -867,11 +905,11 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                 {workspacePath.value && showMarkdownImport && (
                   <div class="settings-row">
                     <div>
-                      <div class="settings-label">Markdown vault import</div>
+                      <div class="settings-label">
+                        {t("settings.markdownImport.label")}
+                      </div>
                       <div class="settings-hint">
-                        Offer the Import Markdown vault command, which copies a
-                        chosen folder of notes into this workspace without
-                        changing the source. Desktop only
+                        {t("settings.markdownImport.hint")}
                       </div>
                     </div>
                     <div class="settings-switch">
@@ -890,7 +928,7 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                             })
                           }
                         >
-                          {option.label}
+                          {t(option.label)}
                         </button>
                       ))}
                     </div>
@@ -900,10 +938,11 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                 {workspacePath.value && showMathRendering && (
                   <div class="settings-row">
                     <div>
-                      <div class="settings-label">Math rendering</div>
+                      <div class="settings-label">
+                        {t("settings.mathRendering.label")}
+                      </div>
                       <div class="settings-hint">
-                        Render $inline$ and $$block$$ LaTeX math in Preview, via
-                        KaTeX
+                        {t("settings.mathRendering.hint")}
                       </div>
                     </div>
                     <div class="settings-switch">
@@ -922,7 +961,7 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                             })
                           }
                         >
-                          {option.label}
+                          {t(option.label)}
                         </button>
                       ))}
                     </div>
@@ -932,9 +971,11 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                 {workspacePath.value && showMermaidRendering && (
                   <div class="settings-row">
                     <div>
-                      <div class="settings-label">Mermaid diagrams</div>
+                      <div class="settings-label">
+                        {t("settings.mermaid.label")}
+                      </div>
                       <div class="settings-hint">
-                        Render ```mermaid``` code blocks as diagrams in Preview
+                        {t("settings.mermaid.hint")}
                       </div>
                     </div>
                     <div class="settings-switch">
@@ -953,7 +994,7 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                             })
                           }
                         >
-                          {option.label}
+                          {t(option.label)}
                         </button>
                       ))}
                     </div>
@@ -964,11 +1005,10 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                   <div class="settings-row">
                     <div>
                       <div class="settings-label">
-                        Paste images as attachments
+                        {t("settings.pasteImages.label")}
                       </div>
                       <div class="settings-hint">
-                        Pasting or dropping an image into a note saves it as a
-                        file and inserts a link to it
+                        {t("settings.pasteImages.hint")}
                       </div>
                     </div>
                     <div class="settings-switch">
@@ -987,7 +1027,7 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                             })
                           }
                         >
-                          {option.label}
+                          {t(option.label)}
                         </button>
                       ))}
                     </div>
@@ -997,16 +1037,19 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                 {workspacePath.value && showAttachmentsFolder && (
                   <div class="settings-row">
                     <div>
-                      <div class="settings-label">Attachments folder</div>
+                      <div class="settings-label">
+                        {t("settings.attachmentsFolder.label")}
+                      </div>
                       <div class="settings-hint">
-                        Where a pasted/dropped image is saved; empty means next
-                        to the note that embeds it
+                        {t("settings.attachmentsFolder.hint")}
                       </div>
                     </div>
                     <div class="settings-value">
                       <input
                         type="text"
-                        placeholder="next to the note"
+                        placeholder={t(
+                          "settings.attachmentsFolder.placeholder",
+                        )}
                         value={workspaceSettings.value.attachmentsFolder}
                         onInput={(e) => {
                           void updateWorkspaceSettings({
@@ -1022,16 +1065,19 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                 {workspacePath.value && showCaptureInboxFolder && (
                   <div class="settings-row">
                     <div>
-                      <div class="settings-label">Capture inbox folder</div>
+                      <div class="settings-label">
+                        {t("settings.captureInboxFolder.label")}
+                      </div>
                       <div class="settings-hint">
-                        Where quick capture notes are saved, relative to the
-                        workspace root
+                        {t("settings.captureInboxFolder.hint")}
                       </div>
                     </div>
                     <div class="settings-value">
                       <input
                         type="text"
-                        placeholder="Inbox folder"
+                        placeholder={t(
+                          "settings.captureInboxFolder.placeholder",
+                        )}
                         value={workspaceSettings.value.captureInboxFolder}
                         onInput={(e) => {
                           void updateWorkspaceSettings({
@@ -1047,16 +1093,17 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                 {workspacePath.value && showCaptureInboxNote && (
                   <div class="settings-row">
                     <div>
-                      <div class="settings-label">Capture inbox note</div>
+                      <div class="settings-label">
+                        {t("settings.captureInboxNote.label")}
+                      </div>
                       <div class="settings-hint">
-                        Path to the inbox note for append mode, relative to the
-                        workspace root
+                        {t("settings.captureInboxNote.hint")}
                       </div>
                     </div>
                     <div class="settings-value">
                       <input
                         type="text"
-                        placeholder="Inbox note path"
+                        placeholder={t("settings.captureInboxNote.placeholder")}
                         value={workspaceSettings.value.captureInboxNote}
                         onInput={(e) => {
                           void updateWorkspaceSettings({
@@ -1072,16 +1119,19 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                 {workspacePath.value && showCaptureDatePattern && (
                   <div class="settings-row">
                     <div>
-                      <div class="settings-label">Capture date pattern</div>
+                      <div class="settings-label">
+                        {t("settings.captureDatePattern.label")}
+                      </div>
                       <div class="settings-hint">
-                        Date-pattern destination for new captures (e.g.
-                        Daily/YYYY-MM-DD.md)
+                        {t("settings.captureDatePattern.hint")}
                       </div>
                     </div>
                     <div class="settings-value">
                       <input
                         type="text"
-                        placeholder="e.g. Daily/YYYY-MM-DD.md"
+                        placeholder={t(
+                          "settings.captureDatePattern.placeholder",
+                        )}
                         value={workspaceSettings.value.captureDatePattern}
                         onInput={(e) => {
                           void updateWorkspaceSettings({
@@ -1097,10 +1147,11 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                 {workspacePath.value && (
                   <div class="settings-row">
                     <div>
-                      <div class="settings-label">Custom CSS</div>
+                      <div class="settings-label">
+                        {t("settings.customCss.label")}
+                      </div>
                       <div class="settings-hint">
-                        Enable and point to a CSS file inside the workspace to
-                        override the app's styles (e.g. .leotheca/custom.css)
+                        {t("settings.customCss.hint")}
                       </div>
                     </div>
                     <div class="settings-switch">
@@ -1118,8 +1169,8 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                         }}
                       >
                         {workspaceSettings.value.customCssEnabled
-                          ? "Enabled"
-                          : "Disabled"}
+                          ? t("settings.customCss.enabled")
+                          : t("settings.customCss.disabled")}
                       </button>
                     </div>
                   </div>
@@ -1129,9 +1180,11 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                   workspaceSettings.value.customCssEnabled && (
                     <div class="settings-row">
                       <div>
-                        <div class="settings-label">Custom CSS file path</div>
+                        <div class="settings-label">
+                          {t("settings.customCssPath.label")}
+                        </div>
                         <div class="settings-hint">
-                          Path to the CSS file, relative to the workspace root
+                          {t("settings.customCssPath.hint")}
                         </div>
                       </div>
                       <div class="settings-value">
@@ -1154,11 +1207,10 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                   <div class="settings-row">
                     <div>
                       <div class="settings-label">
-                        Frontmatter properties panel
+                        {t("settings.frontmatterProperties.label")}
                       </div>
                       <div class="settings-hint">
-                        Show a note's frontmatter fields above the editor as
-                        editable rows
+                        {t("settings.frontmatterProperties.hint")}
                       </div>
                     </div>
                     <div class="settings-switch">
@@ -1177,7 +1229,7 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                             })
                           }
                         >
-                          {option.label}
+                          {t(option.label)}
                         </button>
                       ))}
                     </div>
@@ -1186,14 +1238,14 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                 {workspacePath.value && showSpellchecking && (
                   <div class="settings-row">
                     <div>
-                      <div class="settings-label">Spellchecking</div>
+                      <div class="settings-label">
+                        {t("settings.spellcheck.label")}
+                      </div>
                       <div class="settings-hint">
-                        Flag misspelled words in the editor using a local
-                        Hunspell dictionary (
-                        {
-                          "<code>.leotheca/dictionary.aff</code> + <code>.leotheca/dictionary.dic</code>"
-                        }
-                        ); off by default, no network access ever
+                        {t("settings.spellcheck.hint", {
+                          files:
+                            "<code>.leotheca/dictionary.aff</code> + <code>.leotheca/dictionary.dic</code>",
+                        })}
                       </div>
                     </div>
                     <div class="settings-switch">
@@ -1212,7 +1264,7 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                             })
                           }
                         >
-                          {option.label}
+                          {t(option.label)}
                         </button>
                       ))}
                     </div>
@@ -1224,16 +1276,19 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                   showTemplatesFolder && (
                     <div class="settings-row">
                       <div>
-                        <div class="settings-label">Templates folder</div>
+                        <div class="settings-label">
+                          {t("settings.templatesFolder.label")}
+                        </div>
                         <div class="settings-hint">
-                          Where template notes live, relative to the workspace
-                          root
+                          {t("settings.templatesFolder.hint")}
                         </div>
                       </div>
                       <div class="settings-value">
                         <input
                           type="text"
-                          placeholder="Templates"
+                          placeholder={t(
+                            "settings.templatesFolder.placeholder",
+                          )}
                           value={workspaceSettings.value.templatesFolder}
                           onInput={(e) => {
                             void updateWorkspaceSettings({
@@ -1254,13 +1309,15 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
 
             {featureSelectionVisible && inActiveCategory("features") && (
               <section class="settings-section">
-                <h3>Feature selection</h3>
+                <h3>{t("settings.section.features")}</h3>
                 {showAccentThemes && (
                   <div class="settings-row">
                     <div>
-                      <div class="settings-label">Accent themes</div>
+                      <div class="settings-label">
+                        {t("settings.accentThemes.label")}
+                      </div>
                       <div class="settings-hint settings-hint-italic">
-                        Use this workspace's restrained accent color
+                        {t("settings.accentThemes.hint")}
                       </div>
                     </div>
                     <div class="settings-switch">
@@ -1279,7 +1336,7 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                             })
                           }
                         >
-                          {option.label}
+                          {t(option.label)}
                         </button>
                       ))}
                     </div>
@@ -1288,10 +1345,11 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                 {showEditorSnippets && (
                   <div class="settings-row">
                     <div>
-                      <div class="settings-label">Editor snippets</div>
+                      <div class="settings-label">
+                        {t("settings.snippets.label")}
+                      </div>
                       <div class="settings-hint settings-hint-italic">
-                        Type ;trigger then Tab to expand a local writing
-                        shortcut
+                        {t("settings.snippets.hint")}
                       </div>
                     </div>
                     <div class="settings-switch">
@@ -1310,7 +1368,7 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                             })
                           }
                         >
-                          {option.label}
+                          {t(option.label)}
                         </button>
                       ))}
                     </div>
@@ -1319,9 +1377,11 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                 {showCanvas && (
                   <div class="settings-row">
                     <div>
-                      <div class="settings-label">Canvas</div>
+                      <div class="settings-label">
+                        {t("settings.canvas.label")}
+                      </div>
                       <div class="settings-hint settings-hint-italic">
-                        Allow creation and viewing of local canvas files
+                        {t("settings.canvas.hint")}
                       </div>
                     </div>
                     <div class="settings-switch">
@@ -1340,7 +1400,7 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                             })
                           }
                         >
-                          {option.label}
+                          {t(option.label)}
                         </button>
                       ))}
                     </div>
@@ -1349,10 +1409,11 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                 {showTags && (
                   <div class="settings-row">
                     <div>
-                      <div class="settings-label">Tags</div>
+                      <div class="settings-label">
+                        {t("settings.tags.label")}
+                      </div>
                       <div class="settings-hint settings-hint-italic">
-                        Recognize #tag syntax and a note's tags: frontmatter
-                        field in the Tags panel
+                        {t("settings.tags.hint")}
                       </div>
                     </div>
                     <div class="settings-switch">
@@ -1370,7 +1431,7 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                             })
                           }
                         >
-                          {option.label}
+                          {t(option.label)}
                         </button>
                       ))}
                     </div>
@@ -1379,10 +1440,11 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                 {showTemplates && (
                   <div class="settings-row">
                     <div>
-                      <div class="settings-label">Templates</div>
+                      <div class="settings-label">
+                        {t("settings.templates.label")}
+                      </div>
                       <div class="settings-hint settings-hint-italic">
-                        Offer a "New note from template" command that starts a
-                        note from a file in the templates folder
+                        {t("settings.templates.hint")}
                       </div>
                     </div>
                     <div class="settings-switch">
@@ -1401,7 +1463,7 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                             })
                           }
                         >
-                          {option.label}
+                          {t(option.label)}
                         </button>
                       ))}
                     </div>
@@ -1410,10 +1472,11 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                 {showCollections && (
                   <div class="settings-row">
                     <div>
-                      <div class="settings-label">Collections</div>
+                      <div class="settings-label">
+                        {t("settings.collections.label")}
+                      </div>
                       <div class="settings-hint settings-hint-italic">
-                        Group notes by a saved search or a manual list, in their
-                        own panel. Off by default
+                        {t("settings.collections.hint")}
                       </div>
                     </div>
                     <div class="settings-switch">
@@ -1432,7 +1495,7 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                             })
                           }
                         >
-                          {option.label}
+                          {t(option.label)}
                         </button>
                       ))}
                     </div>
@@ -1443,10 +1506,12 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
 
             {appearanceVisible && inActiveCategory("appearance") && (
               <section class="settings-section">
-                <h3>Appearance</h3>
+                <h3>{t("settings.category.appearance")}</h3>
                 {showTheme && (
                   <div class="settings-row">
-                    <div class="settings-label">Theme</div>
+                    <div class="settings-label">
+                      {t("settings.theme.label")}
+                    </div>
                     <div class="settings-switch">
                       {THEME_OPTIONS.map((option) => (
                         <button
@@ -1454,7 +1519,7 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                           class={theme.value === option.value ? "active" : ""}
                           onClick={() => setTheme(option.value)}
                         >
-                          {option.label}
+                          {t(option.label)}
                         </button>
                       ))}
                     </div>
@@ -1486,7 +1551,9 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                   <>
                     {showFontSize && (
                       <div class="settings-row">
-                        <div class="settings-label">Font size</div>
+                        <div class="settings-label">
+                          {t("settings.fontSize.label")}
+                        </div>
                         <div class="settings-value">
                           <input
                             type="number"
@@ -1513,10 +1580,11 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                     {showReadingFont && (
                       <div class="settings-row">
                         <div>
-                          <div class="settings-label">Reading font</div>
+                          <div class="settings-label">
+                            {t("settings.readingFont.label")}
+                          </div>
                           <div class="settings-hint">
-                            Applies to rendered Markdown preview text only;
-                            source editing and code always stay monospaced
+                            {t("settings.readingFont.hint")}
                           </div>
                         </div>
                         <div class="settings-switch">
@@ -1535,7 +1603,7 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                                 })
                               }
                             >
-                              {option.label}
+                              {t(option.label)}
                             </button>
                           ))}
                         </div>
@@ -1544,10 +1612,11 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                     {showZoom && (
                       <div class="settings-row">
                         <div>
-                          <div class="settings-label">Zoom</div>
+                          <div class="settings-label">
+                            {t("settings.zoom.label")}
+                          </div>
                           <div class="settings-hint">
-                            Scales the whole app; use Ctrl+Plus, Ctrl+Minus, or
-                            Ctrl+0
+                            {t("settings.zoom.hint")}
                           </div>
                         </div>
                         <div class="settings-value">
@@ -1574,9 +1643,11 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                     {showDefaultViewMode && (
                       <div class="settings-row">
                         <div>
-                          <div class="settings-label">Default view mode</div>
+                          <div class="settings-label">
+                            {t("settings.viewMode.label")}
+                          </div>
                           <div class="settings-hint">
-                            Applied when this workspace is opened
+                            {t("settings.viewMode.hint")}
                           </div>
                         </div>
                         <div class="settings-switch">
@@ -1595,7 +1666,7 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                                 })
                               }
                             >
-                              {option.label}
+                              {t(option.label)}
                             </button>
                           ))}
                         </div>
@@ -1604,10 +1675,11 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                     {showRtlWorkspace && (
                       <div class="settings-row">
                         <div>
-                          <div class="settings-label">RTL workspace layout</div>
+                          <div class="settings-label">
+                            {t("settings.rtl.label")}
+                          </div>
                           <div class="settings-hint settings-hint-italic">
-                            Mirror sidebar position, toolbar and tab order for
-                            right-to-left workflows
+                            {t("settings.rtl.hint")}
                           </div>
                         </div>
                         <div class="settings-switch">
@@ -1626,7 +1698,7 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                                 })
                               }
                             >
-                              {option.label}
+                              {t(option.label)}
                             </button>
                           ))}
                         </div>
@@ -1645,8 +1717,11 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
             )}
 
             {shortcutsVisible && inActiveCategory("shortcuts") && (
-              <section class="settings-section" aria-label="Keyboard shortcuts">
-                <h3>Keyboard shortcuts</h3>
+              <section
+                class="settings-section"
+                aria-label={t("settings.section.shortcuts")}
+              >
+                <h3>{t("settings.section.shortcuts")}</h3>
                 {filteredShortcuts.map((shortcut) => (
                   <div class="settings-row" key={shortcut.keys}>
                     <div class="settings-label">{shortcut.description}</div>
@@ -1660,18 +1735,20 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
 
             {healthVisible && inActiveCategory("health") && (
               <section class="settings-section">
-                <h3>Health</h3>
+                <h3>{t("settings.category.health")}</h3>
                 <DiagnosticsPanel onOpenFile={handleSelectDiagnostic} />
               </section>
             )}
 
             {aboutVisible && inActiveCategory("about") && (
               <section class="settings-section">
-                <h3>About</h3>
+                <h3>{t("settings.category.about")}</h3>
                 {showVersion && (
                   <div class="settings-row">
                     <div>
-                      <div class="settings-label">Version</div>
+                      <div class="settings-label">
+                        {t("settings.version.label")}
+                      </div>
                       <div class="settings-value">
                         {appVersion.value || "..."}
                       </div>
@@ -1680,15 +1757,19 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
                 )}
                 {showLicenseRow && (
                   <div class="settings-row">
-                    <div class="settings-label">License</div>
+                    <div class="settings-label">
+                      {t("settings.license.label")}
+                    </div>
                     <button onClick={() => setShowLicense(true)}>
-                      View License
+                      {t("settings.license.view")}
                     </button>
                   </div>
                 )}
                 <div class="settings-row">
-                  <div class="settings-label">Export settings</div>
-                  <button onClick={handleExportSettings}>Export as JSON</button>
+                  <div class="settings-label">{t("settings.export.label")}</div>
+                  <button onClick={handleExportSettings}>
+                    {t("settings.export.asJson")}
+                  </button>
                 </div>
               </section>
             )}
@@ -1715,10 +1796,10 @@ export function SettingsPanel({ onOpenFile }: SettingsPanelProps) {
             onClick={(e) => e.stopPropagation()}
           >
             <div class="modal-header">
-              <h2>License</h2>
+              <h2>{t("settings.license.label")}</h2>
               <button
                 class="modal-close"
-                aria-label="Close license viewer"
+                aria-label={t("settings.license.close")}
                 onClick={() => setShowLicense(false)}
               >
                 x

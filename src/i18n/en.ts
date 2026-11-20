@@ -65,6 +65,202 @@ export const en = {
   "tabs.closeTab": "Close",
   "tabs.closeOthers": "Close Others",
   "tabs.closeAllUnpinned": "Close All Unpinned",
+  "settings.title": "Settings",
+  "settings.saving": "Saving…",
+  "settings.close": "Close settings",
+  "settings.search.label": "Search settings",
+  "settings.search.placeholder": "Search settings…",
+  "settings.search.noMatches": 'No settings match "{query}".',
+  "settings.nav.label": "Settings categories",
+  "settings.back": "← Back",
+  "settings.category.general": "General",
+  "settings.category.profiles": "Workspace Profiles",
+  "settings.category.features": "Features",
+  "settings.category.appearance": "Appearance",
+  "settings.category.shortcuts": "Shortcuts",
+  "settings.category.health": "Health",
+  "settings.category.about": "About",
+  "settings.section.features": "Feature selection",
+  "settings.section.shortcuts": "Keyboard shortcuts",
+  "settings.option.on": "On",
+  "settings.option.off": "Off",
+  "settings.export.failed": "Couldn't export settings: {error}",
+  "settings.rootFolder.label": "Root folder",
+  "settings.rootFolder.notSet": "Not set",
+  "settings.rootFolder.opening": "Opening folder picker…",
+  "settings.rootFolder.change": "Change Folder",
+  "settings.externalFileOpen.label":
+    "Open Markdown files from outside your workspace",
+  "settings.externalFileOpen.hint":
+    'Register Leotheca as an "Open with" option for .md files in your file manager',
+  "settings.externalFileOpen.search":
+    "Register Leotheca as an Open with option for .md files from your file manager",
+  "settings.defaultHandler.label":
+    "Make Leotheca the default app for .md files",
+  "settings.defaultHandler.settable":
+    "Leotheca is already registered as an Open-with editor for .md files on this OS. Set it as the default using the steps for your platform.",
+  "settings.defaultHandler.notSettable":
+    "This OS has no per-file-type default app: pick Leotheca each time you open a .md file.",
+  "settings.saveError.retry": "Retry",
+  "settings.corrupted.label": "Settings file had invalid data",
+  "settings.corrupted.hint":
+    "Some values in this workspace's settings.json could not be read as written, so defaults are being used for those instead. The original file is left untouched until you rewrite it here.",
+  "settings.corrupted.rewrite": "Rewrite settings file",
+  "settings.globalCorrupted.label": "App configuration had invalid data",
+  "settings.globalCorrupted.hint":
+    "Some saved app settings or workspace profiles could not be read as written. The original configuration is left untouched until you rewrite it here.",
+  "settings.globalCorrupted.rewrite": "Rewrite app configuration",
+  "settings.accentColor.label": "Accent color",
+  "settings.accentColor.hint":
+    "Changes highlights without replacing the light or dark palette",
+  "settings.accentColor.warm": "Fog",
+  "settings.accentColor.ocean": "Ocean",
+  "settings.accentColor.forest": "Forest",
+  "settings.accentColor.plum": "Plum",
+  "settings.snippetDefinitions.label": "Snippet definitions",
+  "settings.snippetDefinitions.hint":
+    "One per line: trigger, a tab, then replacement text",
+  "settings.deleteBehavior.label": "Delete behavior",
+  "settings.deleteBehavior.hint": "Where deleted notes and folders go",
+  "settings.deleteBehavior.projectTrash": "Project Trash",
+  "settings.deleteBehavior.permanent": "Permanent",
+  "settings.frontmatterAliases.label": "Frontmatter aliases",
+  "settings.frontmatterAliases.hint":
+    "Resolve [[wikilinks]], autocomplete, and backlinks by a note's aliases: frontmatter field too, not just its file name",
+  "settings.headingLinks.label": "Heading links",
+  "settings.headingLinks.hint":
+    "Resolve [[Note#Heading]] and [[#Heading]] links to a specific heading, with Preview click navigation to it. Off, [[wikilinks]] parse exactly as before this feature existed",
+  "settings.markdownImport.label": "Markdown vault import",
+  "settings.markdownImport.hint":
+    "Offer the Import Markdown vault command, which copies a chosen folder of notes into this workspace without changing the source. Desktop only",
+  "settings.markdownImport.search":
+    "Offer the Import Markdown vault command, which copies a chosen folder of notes into this workspace without changing the source",
+  "settings.mathRendering.label": "Math rendering",
+  "settings.mathRendering.hint":
+    "Render $inline$ and $$block$$ LaTeX math in Preview, via KaTeX",
+  "settings.mermaid.label": "Mermaid diagrams",
+  "settings.mermaid.hint":
+    "Render ```mermaid``` code blocks as diagrams in Preview",
+  "settings.pasteImages.label": "Paste images as attachments",
+  "settings.pasteImages.hint":
+    "Pasting or dropping an image into a note saves it as a file and inserts a link to it",
+  "settings.attachmentsFolder.label": "Attachments folder",
+  "settings.attachmentsFolder.hint":
+    "Where a pasted/dropped image is saved; empty means next to the note that embeds it",
+  "settings.attachmentsFolder.placeholder": "next to the note",
+  "settings.captureInboxFolder.label": "Capture inbox folder",
+  "settings.captureInboxFolder.hint":
+    "Where quick capture notes are saved, relative to the workspace root",
+  "settings.captureInboxFolder.placeholder": "Inbox folder",
+  "settings.captureInboxNote.label": "Capture inbox note",
+  "settings.captureInboxNote.hint":
+    "Path to the inbox note for append mode, relative to the workspace root",
+  "settings.captureInboxNote.placeholder": "Inbox note path",
+  "settings.captureDatePattern.label": "Capture date pattern",
+  "settings.captureDatePattern.hint":
+    "Date-pattern destination for new captures (e.g. Daily/YYYY-MM-DD.md)",
+  "settings.captureDatePattern.search":
+    'Date-pattern destination for new captures (e.g., "Daily/{{date:YYYY-MM-DD}}.md")',
+  "settings.captureDatePattern.placeholder": "e.g. Daily/YYYY-MM-DD.md",
+  "settings.customCss.label": "Custom CSS",
+  "settings.customCss.hint":
+    "Enable and point to a CSS file inside the workspace to override the app's styles (e.g. .leotheca/custom.css)",
+  "settings.customCss.enabled": "Enabled",
+  "settings.customCss.disabled": "Disabled",
+  "settings.customCssPath.label": "Custom CSS file path",
+  "settings.customCssPath.hint":
+    "Path to the CSS file, relative to the workspace root",
+  "settings.frontmatterProperties.label": "Frontmatter properties panel",
+  "settings.frontmatterProperties.hint":
+    "Show a note's frontmatter fields above the editor as editable rows",
+  "settings.spellcheck.label": "Spellchecking",
+  "settings.spellcheck.hint":
+    "Flag misspelled words in the editor using a local Hunspell dictionary ({files}); off by default, no network access ever",
+  "settings.spellcheck.search":
+    "Flag misspelled words in the editor using a local dictionary; off by default",
+  "settings.templatesFolder.label": "Templates folder",
+  "settings.templatesFolder.hint":
+    "Where template notes live, relative to the workspace root",
+  "settings.templatesFolder.placeholder": "Templates",
+  "settings.accentThemes.label": "Accent themes",
+  "settings.accentThemes.hint": "Use this workspace's restrained accent color",
+  "settings.snippets.label": "Editor snippets",
+  "settings.snippets.hint":
+    "Type ;trigger then Tab to expand a local writing shortcut",
+  "settings.canvas.label": "Canvas",
+  "settings.canvas.hint": "Allow creation and viewing of local canvas files",
+  "settings.tags.label": "Tags",
+  "settings.tags.hint":
+    "Recognize #tag syntax and a note's tags: frontmatter field in the Tags panel",
+  "settings.templates.label": "Templates",
+  "settings.templates.hint":
+    'Offer a "New note from template" command that starts a note from a file in the templates folder',
+  "settings.collections.label": "Collections",
+  "settings.collections.hint":
+    "Group notes by a saved search or a manual list, in their own panel. Off by default",
+  "settings.collections.search":
+    "Group notes by a saved search or a manual list, off by default",
+  "settings.profiles.search":
+    "Rename, identify, add, and forget known workspaces without deleting their files",
+  "settings.theme.label": "Theme",
+  "settings.theme.followSystem": "Follow System",
+  "settings.theme.light": "Light",
+  "settings.theme.dark": "Dark",
+  "settings.fontSize.label": "Font size",
+  "settings.readingFont.label": "Reading font",
+  "settings.readingFont.hint":
+    "Applies to rendered Markdown preview text only; source editing and code always stay monospaced",
+  "settings.readingFont.search": "Font used for rendered Markdown preview text",
+  "settings.readingFont.sans": "Sans",
+  "settings.readingFont.serif": "Serif",
+  "settings.readingFont.mono": "Mono",
+  "settings.zoom.label": "Zoom",
+  "settings.zoom.hint":
+    "Scales the whole app; use Ctrl+Plus, Ctrl+Minus, or Ctrl+0",
+  "settings.viewMode.label": "Default view mode",
+  "settings.viewMode.hint": "Applied when this workspace is opened",
+  "settings.viewMode.source": "Source",
+  "settings.viewMode.split": "Split",
+  "settings.viewMode.preview": "Preview",
+  "settings.rtl.label": "RTL workspace layout",
+  "settings.rtl.hint":
+    "Mirror sidebar position, toolbar and tab order for right-to-left workflows",
+  "settings.rtl.search": "Mirror sidebar position, toolbar and tab order",
+  "settings.health.searchDiagnostics": "Link Diagnostics",
+  "settings.health.searchBrokenLinks": "broken or ambiguous links",
+  "settings.version.label": "Version",
+  "settings.license.label": "License",
+  "settings.license.view": "View License",
+  "settings.license.close": "Close license viewer",
+  "settings.export.label": "Export settings",
+  "settings.export.asJson": "Export as JSON",
+  "profiles.title": "Workspace profiles",
+  "profiles.hint":
+    "Rename and identify known workspaces. Forgetting a profile never deletes its files.",
+  "profiles.current": "{name} (current)",
+  "profiles.rename": "Rename",
+  "profiles.relink": "Relink",
+  "profiles.iconFor": "Icon for {name}",
+  "profiles.forget": "Forget",
+  "profiles.add": "Add workspace",
+  "profiles.namePrompt": "Workspace profile name",
+  "profiles.invalidName":
+    "Use a name from 1 to 80 characters with no line breaks.",
+  "profiles.renameFailed": "Could not rename workspace profile. Try again.",
+  "profiles.updateFailed": "Could not update workspace profile. Try again.",
+  "profiles.relinkFailed": "Could not relink workspace. Try again.",
+  "profiles.addFailed": "Could not add workspace. Try again.",
+  "vault.title": "Workspace statistics",
+  "vault.loading": "Loading workspace statistics...",
+  "vault.loadFailed": "Could not load workspace statistics: {error}",
+  "vault.folders": "Folders",
+  "vault.notes": "Notes",
+  "vault.images": "Images",
+  "vault.averageLines": "Average lines per note",
+  "vault.oldest": "Oldest note",
+  "vault.newest": "Newest note",
+  "vault.noNotes": "No notes yet",
+  "vault.notAvailable": "Not available on this platform",
 } as const satisfies Record<string, string>;
 
 export type MessageKey = keyof typeof en;

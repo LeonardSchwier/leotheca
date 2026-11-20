@@ -157,6 +157,15 @@ Items that wait for access or a decision outside the repository.
 
   </details>
 
+- ⬜ **Search and link-suggestion diacritic folding: extend to ligatures and special characters (ß→ss, ø→o, ł→l, æ→ae, œ→oe, đ→d, ð→d, ħ→h, ı→i, þ→th)**: Market Solution #2 1.15.1 Desktop (Nov 3, 2026) extended its search and suggestion diacritic folding to include ligatures and special characters used in German, French, Danish, Norwegian, Polish, Croatian, Serbian, Vietnamese, Icelandic, Faroese, Maltese, Turkish and Azerbaijani — so `strasse` finds `Straße` and `lodz` finds `Łódź`. Leotheca's fuzzy matcher already folds basic accents (shipped 2026-10-19); extending that one standard matcher with these additional character mappings is an offline improvement to existing search and link-suggestion with no new convention. (Competitor scan, Market Solution #2 changelog 1.15.1 Desktop, 2026-11-03)
+
+  <details>
+  <summary>Details</summary>
+
+  Leotheca's fuzzyMatch.ts already performs diacritic folding for basic accents (é→e, ü→u, etc.). Extending the same mapping table with the additional characters — ß→ss, æ→ae, œ→oe, ø→o, ł→l, đ→d, ð→d, ħ→h, ı→i, þ→th — is a small offline extension of the existing matcher. No new convention, no proprietary store.
+
+  </details>
+
 ## Implemented
 
 - ✅ **Record the merge_group triggers in the master specification**: CI, Rules and Agent policy now also run on `merge_group`, and Agent policy runs on every pull request. The master-spec CI rule requires the CI table and change log to say so.

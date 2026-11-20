@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render } from "@testing-library/preact";
 import { TabBar } from "./TabBar";
 import type { OpenTab } from "./types";
+import { languagePreference } from "../i18n";
 
 afterEach(() => {
   cleanup();
@@ -339,5 +340,95 @@ describe("TabBar: reordering (F07 Phase 3 follow-up)", () => {
     fireEvent.contextMenu(getByText("b.md"));
     fireEvent.click(getByText("Move right"));
     expect(onMoveRight).toHaveBeenCalledWith("/b.md");
+  });
+});
+
+describe("TabBar: German", () => {
+  afterEach(() => {
+    languagePreference.value = "system";
+  });
+
+  function renderBar(pinnedPaths: string[] = []) {
+    languagePreference.value = "de";
+    return render(
+      <TabBar
+        tabs={[tab("/a.md", "a{x}.md"), tab("/b.md", "b.md")]}
+        pinnedPaths={pinnedPaths}
+        activePath="/a.md"
+        onSelect={noop}
+        onClose={noop}
+        onCloseOthers={noop}
+        onCloseAll={noop}
+        onRename={noop}
+      />,
+    );
+  }
+
+  function menuLabels(container: HTMLElement): string[] {
+    return Array.from(container.querySelectorAll(".context-menu button")).map(
+      (button) => button.textContent ?? "",
+    );
+  }
+
+  it("labels the close button with the tab name, inserted once", () => {
+    const { getByLabelText, queryByLabelText } = renderBar();
+    expect(getByLabelText("a{x}.md schließen")).toBeTruthy();
+    expect(getByLabelText("b.md schließen")).toBeTruthy();
+    expect(queryByLabelText("Close b.md")).toBeNull();
+  });
+
+  it("labels a pinned tab in German", () => {
+    const { getByLabelText, getByText } = renderBar(["/b.md"]);
+    expect(getByLabelText("b.md ist angeheftet")).toBeTruthy();
+    expect(getByText("Angeheftet")).toBeTruthy();
+    expect(getByLabelText("a{x}.md schließen")).toBeTruthy();
+  });
+
+  it("shows the context menu of an unpinned tab in German", () => {
+    const { container } = renderBar();
+    fireEvent.contextMenu(container.querySelector(".tab") as HTMLElement);
+    expect(menuLabels(container)).toEqual([
+      "Umbenennen",
+      "Nach links verschieben",
+      "Nach rechts verschieben",
+      "Anheften",
+      "Schließen",
+      "Andere schließen",
+      "Alle nicht angehefteten schließen",
+    ]);
+  });
+
+  it("shows the context menu of a pinned tab in German", () => {
+    const { container } = renderBar(["/a.md"]);
+    fireEvent.contextMenu(container.querySelector(".tab") as HTMLElement);
+    expect(menuLabels(container)).toEqual([
+      "Umbenennen",
+      "Nach links verschieben",
+      "Nach rechts verschieben",
+      "Anheften aufheben",
+      "Anheften aufheben und schließen",
+      "Andere schließen",
+      "Alle nicht angehefteten schließen",
+    ]);
+  });
+
+  it("keeps the Close Others button disabled when no other unpinned tab exists", () => {
+    languagePreference.value = "de";
+    const { container } = render(
+      <TabBar
+        tabs={[tab("/a.md", "a.md")]}
+        activePath="/a.md"
+        onSelect={noop}
+        onClose={noop}
+        onCloseOthers={noop}
+        onCloseAll={noop}
+        onRename={noop}
+      />,
+    );
+    fireEvent.contextMenu(container.querySelector(".tab") as HTMLElement);
+    const others = Array.from(
+      container.querySelectorAll(".context-menu button"),
+    ).find((button) => button.textContent === "Andere schließen");
+    expect((others as HTMLButtonElement).disabled).toBe(true);
   });
 });

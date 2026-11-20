@@ -23,6 +23,7 @@ import { workspaceSettings } from "../settings/store";
 import { useRenamePreview } from "../refactor/useRenamePreview";
 import { RenamePreviewDialog } from "../refactor/RenamePreviewDialog";
 import { confirmAction } from "../app/confirmDialog";
+import { t } from "../i18n";
 
 const SEARCH_DEBOUNCE_MS = 200;
 
@@ -176,9 +177,9 @@ export function Sidebar({
   const handleDelete = async (entry: FsEntry) => {
     if (workspaceSettings.value.deleteBehavior === "permanent") {
       const confirmed = await confirmAction({
-        title: "Delete permanently",
-        message: `Permanently delete "${entry.name}"? This cannot be undone.`,
-        confirmLabel: "Delete",
+        title: t("sidebar.deletePermanentlyTitle"),
+        message: t("sidebar.deletePermanentlyMessage", { name: entry.name }),
+        confirmLabel: t("sidebar.delete"),
         danger: true,
       });
       if (!confirmed) return;
@@ -205,8 +206,8 @@ export function Sidebar({
       <div class="sidebar-toolbar">
         <button
           class="icon-button"
-          title="New note"
-          aria-label="New note"
+          title={t("sidebar.newNote")}
+          aria-label={t("sidebar.newNote")}
           onClick={() =>
             setCreatePrompt({
               mode: "note",
@@ -218,8 +219,8 @@ export function Sidebar({
         </button>
         <button
           class="icon-button"
-          title="New folder"
-          aria-label="New folder"
+          title={t("sidebar.newFolder")}
+          aria-label={t("sidebar.newFolder")}
           onClick={() =>
             setCreatePrompt({
               mode: "folder",
@@ -233,12 +234,12 @@ export function Sidebar({
           class="icon-button"
           title={
             workspaceSettings.value.sortOrder === "name-asc"
-              ? "Sort: name A→Z (click for Z→A)"
+              ? t("sidebar.sortNameAsc")
               : workspaceSettings.value.sortOrder === "name-desc"
-                ? "Sort: name Z→A (click for newest first)"
-                : "Sort: newest first (click for A→Z)"
+                ? t("sidebar.sortNameDesc")
+                : t("sidebar.sortNewest")
           }
-          aria-label="Toggle sort order"
+          aria-label={t("sidebar.toggleSortOrder")}
           onClick={toggleSortOrder}
         >
           {workspaceSettings.value.sortOrder === "name-asc"
@@ -249,16 +250,13 @@ export function Sidebar({
         </button>
         <button
           class="icon-button"
-          title="Expand all"
-          aria-label="Expand all"
+          title={t("sidebar.expandAll")}
+          aria-label={t("sidebar.expandAll")}
           onClick={handleExpandAll}
           disabled={expandAllLoading}
         >
           {expandAllLoading ? (
-            <span
-              class="expand-all-spinner"
-              title="Expanding all directories..."
-            >
+            <span class="expand-all-spinner" title={t("sidebar.expandingAll")}>
               ⏳
             </span>
           ) : (
@@ -269,8 +267,8 @@ export function Sidebar({
       <div class="sidebar-search">
         <input
           type="text"
-          placeholder="Search notes..."
-          title="tag:name and path:name filter, a leading - negates any term"
+          placeholder={t("sidebar.searchPlaceholder")}
+          title={t("sidebar.searchHelp")}
           value={searchQuery.value}
           onInput={(e) => {
             const value = (e.target as HTMLInputElement).value;
@@ -294,7 +292,7 @@ export function Sidebar({
               if (searchTimer.current) clearTimeout(searchTimer.current);
               clearSearch();
             }}
-            aria-label="Clear search"
+            aria-label={t("sidebar.clearSearch")}
           >
             x
           </button>
@@ -304,12 +302,12 @@ export function Sidebar({
             class="search-sort-toggle"
             title={
               workspaceSettings.value.searchSortMode === "relevance"
-                ? "Sort: relevance (click for name)"
+                ? t("sidebar.searchSortRelevance")
                 : workspaceSettings.value.searchSortMode === "name"
-                  ? "Sort: name A→Z (click for modified)"
-                  : "Sort: newest first (click for relevance)"
+                  ? t("sidebar.searchSortName")
+                  : t("sidebar.searchSortNewest")
             }
-            aria-label="Toggle search sort mode"
+            aria-label={t("sidebar.toggleSearchSort")}
             onClick={() => {
               toggleSearchSortMode();
               if (searchTimer.current) clearTimeout(searchTimer.current);
@@ -326,13 +324,13 @@ export function Sidebar({
       </div>
       {searchInProgress.value && (
         <p class="search-progress" role="status">
-          Searching notes…
+          {t("sidebar.searching")}
         </p>
       )}
       {searchResults.value ? (
         <ul class="search-results">
           {searchResults.value.length === 0 && (
-            <li class="empty-hint">No matches.</li>
+            <li class="empty-hint">{t("sidebar.noMatches")}</li>
           )}
           {searchResults.value.map((entry) => (
             <li key={entry.path}>
@@ -347,8 +345,7 @@ export function Sidebar({
               </button>
               {searchOpenErrorPath === entry.path && (
                 <p class="file-tree-open-error" role="alert">
-                  Couldn't open "{entry.name}": it may have been moved, renamed,
-                  or deleted.
+                  {t("sidebar.openFailed", { name: entry.name })}
                 </p>
               )}
             </li>
@@ -370,9 +367,16 @@ export function Sidebar({
       />
       {createPrompt && (
         <NamePrompt
-          title={createPrompt.mode === "note" ? "New note" : "New folder"}
+          title={
+            createPrompt.mode === "note"
+              ? t("sidebar.newNote")
+              : t("sidebar.newFolder")
+          }
+          submitLabel={t("sidebar.create")}
           placeholder={
-            createPrompt.mode === "note" ? "note-name" : "folder-name"
+            createPrompt.mode === "note"
+              ? t("sidebar.noteNamePlaceholder")
+              : t("sidebar.folderNamePlaceholder")
           }
           error={error}
           onSubmit={handleCreate}
@@ -384,8 +388,8 @@ export function Sidebar({
       )}
       {renamePrompt && !renamePreview.preview && (
         <NamePrompt
-          title="Rename"
-          submitLabel="Rename"
+          title={t("sidebar.rename")}
+          submitLabel={t("sidebar.rename")}
           placeholder={renamePrompt.name}
           initialValue={renamePrompt.name}
           error={error}

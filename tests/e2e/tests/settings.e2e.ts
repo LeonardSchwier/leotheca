@@ -48,9 +48,16 @@ test("choosing German switches the language, sets the document language and is p
 
   await expect(page.locator("html")).toHaveAttribute("lang", "de");
   // The row is now labelled in German, and the language names stay as they were.
+  // The Theme row has a "System folgen" button too, so look inside the Language row.
   await expect(page.getByText("Sprache", { exact: true })).toBeVisible();
+  const languageRow = page
+    .locator(".settings-row")
+    .filter({ has: page.getByText("Sprache", { exact: true }) });
   await expect(
-    page.getByRole("button", { name: "System folgen", exact: true }),
+    languageRow.getByRole("button", { name: "System folgen", exact: true }),
+  ).toBeVisible();
+  await expect(
+    languageRow.getByRole("button", { name: "Deutsch", exact: true }),
   ).toBeVisible();
   await expect
     .poll(

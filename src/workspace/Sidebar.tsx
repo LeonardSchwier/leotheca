@@ -180,6 +180,7 @@ export function Sidebar({
         title: t("sidebar.deletePermanentlyTitle"),
         message: t("sidebar.deletePermanentlyMessage", { name: entry.name }),
         confirmLabel: t("sidebar.delete"),
+        cancelLabel: t("sidebar.cancel"),
         danger: true,
       });
       if (!confirmed) return;

@@ -197,7 +197,32 @@ afterEach(() => {
 });
 
 describe("SettingsPanel: German", () => {
-  it("has German text for every settings key", () => {
+  it("switches a panel that is already open when the language changes", async () => {
+    languagePreference.value = "en";
+    const { container, getByText, queryByText } = renderPanel();
+    const navLabels = () =>
+      Array.from(
+        (
+          container.querySelector(".settings-nav") as HTMLElement
+        ).querySelectorAll("button"),
+      ).map((button) => button.textContent);
+    expect(navLabels()[0]).toBe("General");
+    expect(getByText("Root folder")).toBeTruthy();
+
+    languagePreference.value = "de";
+    await waitFor(() => expect(navLabels()).toEqual(GERMAN_CATEGORIES));
+    expect(getByText("Stammordner")).toBeTruthy();
+    expect(queryByText("Root folder")).toBeNull();
+
+    languagePreference.value = "en";
+    await waitFor(() => expect(navLabels()[0]).toBe("General"));
+  });
+
+  // The sweep compares what is on screen with the English text of the catalog
+  // keys, so it can only find a string that has a key: a literal nobody migrated
+  // is invisible to it. Review and the grep over the migrated files cover that;
+  // the keys with a `{placeholder}` have explicit assertions instead.
+  it("has enough translated settings texts for the English sweep to mean something", () => {
     expect(englishOnly.length).toBeGreaterThan(80);
   });
 
@@ -256,7 +281,7 @@ describe("SettingsPanel: German", () => {
     expect(getByText("App-Konfiguration neu schreiben")).toBeTruthy();
     expect(getByText("Löschverhalten")).toBeTruthy();
     expect(
-      getByText("Wohin gelöschte Notizen und Ordner verschoben werden"),
+      getByText("Wohin gelöschte Notizen und Ordner gelangen"),
     ).toBeTruthy();
     expect(getByText("Endgültig")).toBeTruthy();
     expect(getByText("Papierkorb im Arbeitsbereich")).toBeTruthy();
@@ -370,26 +395,26 @@ describe("SettingsPanel: search in German and English", () => {
       const { getByLabelText, queryByText, unmount } = renderPanel();
       search(getByLabelText, "Einstellungen durchsuchen")(query);
       expect(queryByText("Schriftgröße"), query).toBeTruthy();
-      expect(queryByText("Root folder")).toBeNull();
+      expect(queryByText("Stammordner"), query).toBeNull();
+      expect(queryByText("Akzentfarbe"), query).toBeNull();
       unmount();
     }
   });
 
   it("finds a row by its German hint and by the English search text", () => {
-    for (const query of [
-      "Ändert Hervorhebungen",
-      "Changes highlights",
-      "from your file manager",
-    ]) {
+    const accent = "Akzentfarbe";
+    const external =
+      "Markdown-Dateien von außerhalb deines Arbeitsbereichs öffnen";
+    const cases: [query: string, shown: string, hidden: string][] = [
+      ["Ändert Hervorhebungen", accent, external],
+      ["Changes highlights", accent, external],
+      ["from your file manager", external, accent],
+    ];
+    for (const [query, shown, hidden] of cases) {
       const { getByLabelText, queryByText, unmount } = renderPanel();
       search(getByLabelText, "Einstellungen durchsuchen")(query);
-      expect(
-        queryByText("Akzentfarbe") ??
-          queryByText(
-            "Markdown-Dateien von außerhalb deines Arbeitsbereichs öffnen",
-          ),
-        query,
-      ).toBeTruthy();
+      expect(queryByText(shown), query).toBeTruthy();
+      expect(queryByText(hidden), query).toBeNull();
       unmount();
     }
   });

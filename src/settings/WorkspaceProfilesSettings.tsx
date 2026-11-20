@@ -50,7 +50,9 @@ export function WorkspaceProfilesSettings() {
       await relinkWorkspaceProfile(id);
     } catch (error) {
       if (error instanceof WorkspaceRelinkConflictError) {
-        window.alert(error.message);
+        window.alert(
+          t("welcome.relinkConflict", { name: error.conflictingProfileName }),
+        );
         return;
       }
       reportFailure("profiles.relinkFailed");

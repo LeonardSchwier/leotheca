@@ -26,7 +26,6 @@ import {
 import type { ThemePreference } from "./globalConfig";
 import {
   catalogs,
-  interpolate,
   LANGUAGE_NAMES,
   LANGUAGE_PREFERENCES,
   languagePreference,
@@ -169,10 +168,8 @@ export function matchesSettingsSearch(
   return texts.some((text) => text.toLowerCase().includes(q));
 }
 
-/** A message key, or a key and its parameters, that a settings row can be
- * found by. */
-export type SettingsSearchTerm =
-  MessageKey | readonly [MessageKey, Readonly<Record<string, string | number>>];
+/** A message key whose text a settings row can be found by. */
+export type SettingsSearchTerm = MessageKey;
 
 /**
  * `matchesSettingsSearch` over message keys: each term is tested in the
@@ -185,10 +182,9 @@ export function matchesSettingsSearchTerms(
   ...terms: SettingsSearchTerm[]
 ): boolean {
   const texts = new Set<string>();
-  for (const term of terms) {
-    const [key, params] = typeof term === "string" ? [term] : term;
-    texts.add(t(key, params));
-    texts.add(interpolate(catalogs.en[key], params));
+  for (const key of terms) {
+    texts.add(t(key));
+    texts.add(catalogs.en[key]);
   }
   return matchesSettingsSearch(query, ...texts);
 }

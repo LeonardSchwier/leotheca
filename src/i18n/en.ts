@@ -49,6 +49,7 @@ export const en = {
   "sidebar.deletePermanentlyMessage":
     'Permanently delete "{name}"? This cannot be undone.',
   "sidebar.delete": "Delete",
+  "sidebar.cancel": "Cancel",
   "sidebar.create": "Create",
   "sidebar.rename": "Rename",
   "sidebar.noteNamePlaceholder": "note-name",

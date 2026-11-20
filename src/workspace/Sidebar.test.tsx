@@ -479,7 +479,7 @@ describe("Sidebar: German", () => {
     return englishOnly.filter((text) => seen.has(text));
   }
 
-  it("has German text for every sidebar key", () => {
+  it("has enough translated sidebar texts for the English sweep to mean something", () => {
     expect(englishOnly.length).toBeGreaterThan(15);
   });
 
@@ -534,7 +534,7 @@ describe("Sidebar: German", () => {
         renderSidebar();
       const input = getByPlaceholderText("Notizen durchsuchen…");
       expect(input.getAttribute("title")).toBe(
-        "tag:name und path:name filtern, ein vorangestelltes - verneint einen Begriff",
+        "tag:name und path:name filtern, ein vorangestelltes - verneint jeden Begriff",
       );
       getByLabelText("Suche leeren");
       expect(
@@ -594,6 +594,7 @@ describe("Sidebar: German", () => {
       "„note.md“ endgültig löschen? Das lässt sich nicht rückgängig machen.",
     );
     expect(getByRole("button", { name: "Löschen" })).toBeTruthy();
+    expect(getByRole("button", { name: "Abbrechen" })).toBeTruthy();
     expect(deleteEntry).not.toHaveBeenCalled();
 
     fireEvent.click(getByRole("button", { name: "Löschen" }));

@@ -37,7 +37,7 @@ export const de: Record<MessageKey, string> = {
   "sidebar.expandingAll": "Alle Ordner werden aufgeklappt…",
   "sidebar.searchPlaceholder": "Notizen durchsuchen…",
   "sidebar.searchHelp":
-    "tag:name und path:name filtern, ein vorangestelltes - verneint einen Begriff",
+    "tag:name und path:name filtern, ein vorangestelltes - verneint jeden Begriff",
   "sidebar.clearSearch": "Suche leeren",
   "sidebar.toggleSearchSort": "Suchsortierung umschalten",
   "sidebar.searchSortRelevance": "Sortierung: Relevanz (Klick für Name)",
@@ -51,6 +51,7 @@ export const de: Record<MessageKey, string> = {
   "sidebar.deletePermanentlyMessage":
     "„{name}“ endgültig löschen? Das lässt sich nicht rückgängig machen.",
   "sidebar.delete": "Löschen",
+  "sidebar.cancel": "Abbrechen",
   "sidebar.create": "Erstellen",
   "sidebar.rename": "Umbenennen",
   "sidebar.noteNamePlaceholder": "notizname",
@@ -125,8 +126,7 @@ export const de: Record<MessageKey, string> = {
   "settings.snippetDefinitions.hint":
     "Einer pro Zeile: Kürzel, ein Tabulator, dann der Ersatztext",
   "settings.deleteBehavior.label": "Löschverhalten",
-  "settings.deleteBehavior.hint":
-    "Wohin gelöschte Notizen und Ordner verschoben werden",
+  "settings.deleteBehavior.hint": "Wohin gelöschte Notizen und Ordner gelangen",
   "settings.deleteBehavior.projectTrash": "Papierkorb im Arbeitsbereich",
   "settings.deleteBehavior.permanent": "Endgültig",
   "settings.frontmatterAliases.label": "Frontmatter-Aliasse",

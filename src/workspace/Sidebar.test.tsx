@@ -3,6 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { signal } from "@preact/signals";
 import { cleanup, fireEvent, render, waitFor } from "@testing-library/preact";
 import type { FsEntry } from "./types";
+import { languagePreference } from "../i18n";
+import { de } from "../i18n/de";
+import { en } from "../i18n/en";
 
 // vi.mock factories run lazily (after this file's own top-level imports
 // and consts are initialized), so plain module-scope consts like these
@@ -406,5 +409,220 @@ describe("Sidebar search result silently failing to open (maintenance review)", 
     fireEvent.click(getByText("note.md"));
     await waitFor(() => expect(onOpenFile).toHaveBeenCalledTimes(2));
     expect(queryByRole("alert")).toBeNull();
+  });
+});
+
+describe("Sidebar: German", () => {
+  const flushPendingAutosave = vi.fn(async () => {});
+  const renderSidebar = () =>
+    render(
+      <>
+        <Sidebar
+          rootPath="/workspace"
+          onOpenFile={vi.fn()}
+          flushPendingAutosave={flushPendingAutosave}
+        />
+        <ConfirmDialogHost />
+      </>,
+    );
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    languagePreference.value = "de";
+    searchQuery.value = "";
+    searchResults.value = null;
+    searchInProgress.value = false;
+    contextMenuTarget.value = null;
+    workspaceSettings.value = {
+      ...DEFAULT_WORKSPACE_SETTINGS,
+      deleteBehavior: "project-trash",
+      sortOrder: "name-asc",
+    };
+  });
+
+  afterEach(() => {
+    cleanup();
+    languagePreference.value = "system";
+    searchQuery.value = "";
+    searchResults.value = null;
+    searchInProgress.value = false;
+    contextMenuTarget.value = null;
+    confirmRequest.value = null;
+    workspaceSettings.value = {
+      ...DEFAULT_WORKSPACE_SETTINGS,
+      deleteBehavior: "project-trash",
+      sortOrder: "name-asc",
+    };
+  });
+
+  // The English text of every sidebar key that has no placeholder and reads
+  // differently in German: none of it may be left on screen.
+  const englishOnly = Object.keys(en)
+    .filter((key) => key.startsWith("sidebar."))
+    .map((key) => key as keyof typeof en)
+    .filter((key) => !en[key].includes("{") && en[key] !== de[key])
+    .map((key) => en[key]);
+
+  function leakedEnglish(container: Element): string[] {
+    const seen = new Set<string>();
+    for (const element of container.querySelectorAll("*")) {
+      for (const attribute of ["aria-label", "title", "placeholder"]) {
+        const value = element.getAttribute(attribute);
+        if (value) seen.add(value);
+      }
+      for (const node of element.childNodes) {
+        if (node.nodeType === 3 && node.textContent?.trim()) {
+          seen.add(node.textContent.trim());
+        }
+      }
+    }
+    return englishOnly.filter((text) => seen.has(text));
+  }
+
+  it("has enough translated sidebar texts for the English sweep to mean something", () => {
+    expect(englishOnly.length).toBeGreaterThan(15);
+  });
+
+  it("shows the toolbar in German", () => {
+    const { getByLabelText, queryByLabelText, container } = renderSidebar();
+    expect(getByLabelText("Neue Notiz").getAttribute("title")).toBe(
+      "Neue Notiz",
+    );
+    expect(getByLabelText("Neuer Ordner").getAttribute("title")).toBe(
+      "Neuer Ordner",
+    );
+    expect(getByLabelText("Alle aufklappen").getAttribute("title")).toBe(
+      "Alle aufklappen",
+    );
+    expect(queryByLabelText("New note")).toBeNull();
+    expect(queryByLabelText("Expand all")).toBeNull();
+    expect(leakedEnglish(container)).toEqual([]);
+  });
+
+  it("describes the next sort order of the file tree in German", () => {
+    const expected: Record<string, string> = {
+      "name-asc": "Sortierung: Name A→Z (Klick für Z→A)",
+      "name-desc": "Sortierung: Name Z→A (Klick für neueste zuerst)",
+      "modified-desc": "Sortierung: neueste zuerst (Klick für A→Z)",
+    };
+    for (const [sortOrder, title] of Object.entries(expected)) {
+      workspaceSettings.value = {
+        ...DEFAULT_WORKSPACE_SETTINGS,
+        sortOrder: sortOrder as "name-asc",
+      };
+      const { getByLabelText, unmount } = renderSidebar();
+      expect(
+        getByLabelText("Sortierung umschalten").getAttribute("title"),
+      ).toBe(title);
+      unmount();
+    }
+  });
+
+  it("shows the search field, the clear button and the search sort toggle in German", () => {
+    searchQuery.value = "milch";
+    const expected: Record<string, string> = {
+      relevance: "Sortierung: Relevanz (Klick für Name)",
+      name: "Sortierung: Name A→Z (Klick für zuletzt geändert)",
+      modified: "Sortierung: neueste zuerst (Klick für Relevanz)",
+    };
+    for (const [mode, title] of Object.entries(expected)) {
+      workspaceSettings.value = {
+        ...DEFAULT_WORKSPACE_SETTINGS,
+        searchSortMode: mode as "relevance",
+      };
+      const { getByLabelText, getByPlaceholderText, container, unmount } =
+        renderSidebar();
+      const input = getByPlaceholderText("Notizen durchsuchen…");
+      expect(input.getAttribute("title")).toBe(
+        "tag:name und path:name filtern, ein vorangestelltes - verneint jeden Begriff",
+      );
+      getByLabelText("Suche leeren");
+      expect(
+        getByLabelText("Suchsortierung umschalten").getAttribute("title"),
+      ).toBe(title);
+      expect(leakedEnglish(container)).toEqual([]);
+      unmount();
+    }
+  });
+
+  it("shows the search progress, the empty result and the open error in German", async () => {
+    searchInProgress.value = true;
+    searchResults.value = [];
+    const first = renderSidebar();
+    expect(first.getByRole("status").textContent).toBe(
+      "Notizen werden durchsucht…",
+    );
+    expect(first.getByText("Keine Treffer.")).toBeTruthy();
+    expect(leakedEnglish(first.container)).toEqual([]);
+    first.unmount();
+
+    searchInProgress.value = false;
+    const odd: FsEntry = {
+      name: "a{x}.md",
+      path: "/workspace/a{x}.md",
+      isDir: false,
+    };
+    searchResults.value = [odd];
+    const onOpenFile = vi.fn().mockRejectedValue(new Error("gone"));
+    const second = render(
+      <Sidebar
+        rootPath="/workspace"
+        onOpenFile={onOpenFile}
+        flushPendingAutosave={flushPendingAutosave}
+      />,
+    );
+    fireEvent.click(second.getByText("a{x}.md"));
+    const alert = await second.findByRole("alert");
+    expect(alert.textContent).toBe(
+      "„a{x}.md“ konnte nicht geöffnet werden: Möglicherweise wurde die Notiz verschoben, umbenannt oder gelöscht.",
+    );
+  });
+
+  it("asks for the permanent delete in German and names the entry once", async () => {
+    workspaceSettings.value = {
+      ...DEFAULT_WORKSPACE_SETTINGS,
+      deleteBehavior: "permanent",
+      sortOrder: "name-asc",
+    };
+    contextMenuTarget.value = note;
+    const { getByText, getByRole } = renderSidebar();
+
+    fireEvent.click(getByText("Delete"));
+    const dialog = getByRole("alertdialog");
+    expect(dialog.textContent).toContain("Endgültig löschen");
+    expect(dialog.textContent).toContain(
+      "„note.md“ endgültig löschen? Das lässt sich nicht rückgängig machen.",
+    );
+    expect(getByRole("button", { name: "Löschen" })).toBeTruthy();
+    expect(getByRole("button", { name: "Abbrechen" })).toBeTruthy();
+    expect(deleteEntry).not.toHaveBeenCalled();
+
+    fireEvent.click(getByRole("button", { name: "Löschen" }));
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(deleteEntry).toHaveBeenCalledWith(
+      "/workspace",
+      "/workspace/note.md",
+    );
+  });
+
+  it("titles the create and rename prompts in German", () => {
+    const first = renderSidebar();
+    fireEvent.click(first.getByLabelText("Neue Notiz"));
+    expect(first.getByRole("heading", { name: "Neue Notiz" })).toBeTruthy();
+    expect(first.getByPlaceholderText("notizname")).toBeTruthy();
+    expect(first.getByRole("button", { name: "Erstellen" })).toBeTruthy();
+    first.unmount();
+
+    const second = renderSidebar();
+    fireEvent.click(second.getByLabelText("Neuer Ordner"));
+    expect(second.getByRole("heading", { name: "Neuer Ordner" })).toBeTruthy();
+    expect(second.getByPlaceholderText("ordnername")).toBeTruthy();
+    second.unmount();
+
+    contextMenuTarget.value = note;
+    const third = renderSidebar();
+    fireEvent.click(third.getByText("Rename"));
+    expect(third.getByRole("heading", { name: "Umbenennen" })).toBeTruthy();
+    expect(third.getByRole("button", { name: "Umbenennen" })).toBeTruthy();
   });
 });

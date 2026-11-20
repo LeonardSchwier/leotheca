@@ -4,6 +4,7 @@
 
 ### Added
 
+- **Interface language: Settings, sidebar and tabs**: With German chosen, the Settings panel (category list, section names, every setting and its explanation, the Workspace profiles and workspace statistics parts), the sidebar (toolbar buttons, search field, sort hints, the new note, new folder, rename and permanent-delete prompts) and the tab bar (close buttons, the pinned label and the tab menu) now speak German. English stays exactly as it was. The settings search finds a setting by its name in either language, so a German reader can still type an English term from the documentation. Still English, and following in later steps: the editor, the other dialogs and menus (including the Cancel button of the name prompts), the command palette, the list of Health findings, the shortcut names, the steps under "Open with", the workspace icon names and the error text that the settings store reports.
 - **Interface language (first slice)**: Settings, Appearance has a new Language row with "Follow System", "English" and "Deutsch". The choice is saved in the app configuration, applies at once and also sets the document language. The first-run and workspace-recovery dialog is available in German; the rest of the interface stays in English until it moves over in later steps. Behind it is a small typed translation layer (`src/i18n/`) that falls back to English for any missing text and never expands a workspace name that happens to contain braces.
 
 ### Changed

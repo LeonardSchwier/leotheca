@@ -295,7 +295,8 @@ describe("SettingsPanel", () => {
     const { getByText, getByRole } = render(
       <SettingsPanel onOpenFile={vi.fn()} />,
     );
-    openCategory(getByRole, "Appearance");
+    // The category navigation is German too now.
+    openCategory(getByRole, "Darstellung");
     const row = getByText("Sprache").closest(".settings-row") as HTMLElement;
     expect(within(row).getByText("Deutsch").className).toContain("active");
     expect(within(row).getByText("English").className).not.toContain("active");

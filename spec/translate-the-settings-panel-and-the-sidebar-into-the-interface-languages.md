@@ -51,3 +51,7 @@ Roadmap item `rm-2c7a98e6b5428986`, "Translate the settings panel and the sideba
 ## Design system
 
 - No new component, token or style. Only the text inside existing `settings-row`, `settings-switch`, sidebar and tab bar elements changes. German strings are longer than English ones; the existing rows already wrap, and no fixed-width label is introduced. Nothing is added to or changed in Leoforma.
+
+## Evidence
+
+Legal/text check (`skills/text-rights-and-legal-check.md`) on the changed text surfaces: 6 verified (the two catalogs `en.ts` and `de.ts`, `CHANGELOG.md`, `documentation/ARCHITECTURE.md`, `master-spec.md`, this spec), 0 fixed, 0 open. The German strings are short original interface text written for this app, nothing copied from another product; no competitor or product name was added (the pre-commit hook and `src/tidyRepoHygiene.test.ts` pass); the claims in the new texts (a local dictionary, no network access) repeat what the English text and the code already state.

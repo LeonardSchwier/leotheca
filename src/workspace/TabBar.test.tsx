@@ -364,7 +364,7 @@ describe("TabBar: German", () => {
     );
   }
 
-  function menuLabels(container: HTMLElement): string[] {
+  function menuLabels(container: Element): string[] {
     return Array.from(container.querySelectorAll(".context-menu button")).map(
       (button) => button.textContent ?? "",
     );

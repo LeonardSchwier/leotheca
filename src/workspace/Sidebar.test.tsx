@@ -463,7 +463,7 @@ describe("Sidebar: German", () => {
     .filter((key) => !en[key].includes("{") && en[key] !== de[key])
     .map((key) => en[key]);
 
-  function leakedEnglish(container: HTMLElement): string[] {
+  function leakedEnglish(container: Element): string[] {
     const seen = new Set<string>();
     for (const element of container.querySelectorAll("*")) {
       for (const attribute of ["aria-label", "title", "placeholder"]) {

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "preact/hooks";
+import { t } from "../i18n";
 
 export interface WorkspaceStats {
   folderCount: number;
@@ -23,7 +24,7 @@ interface VaultStatsPanelProps {
 // even with hundreds of real notes present, see ROADMAP.md).
 function formatDate(timestamp: number | null, noteCount: number): string {
   if (timestamp === null)
-    return noteCount === 0 ? "No notes yet" : "Not available on this platform";
+    return noteCount === 0 ? t("vault.noNotes") : t("vault.notAvailable");
   return new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(
     new Date(timestamp * 1000),
   );
@@ -60,38 +61,36 @@ export function VaultStatsPanel({ rootPath, loadStats }: VaultStatsPanelProps) {
 
   if (!loadStats) return null;
   if (error)
-    return (
-      <p class="empty-hint">Could not load workspace statistics: {error}</p>
-    );
-  if (!stats) return <p class="empty-hint">Loading workspace statistics...</p>;
+    return <p class="empty-hint">{t("vault.loadFailed", { error })}</p>;
+  if (!stats) return <p class="empty-hint">{t("vault.loading")}</p>;
 
   return (
-    <section class="settings-section" aria-label="Workspace statistics">
-      <h3>Workspace statistics</h3>
+    <section class="settings-section" aria-label={t("vault.title")}>
+      <h3>{t("vault.title")}</h3>
       <div class="settings-row">
-        <div class="settings-label">Folders</div>
+        <div class="settings-label">{t("vault.folders")}</div>
         <div class="settings-value">{stats.folderCount}</div>
       </div>
       <div class="settings-row">
-        <div class="settings-label">Notes</div>
+        <div class="settings-label">{t("vault.notes")}</div>
         <div class="settings-value">{stats.noteCount}</div>
       </div>
       <div class="settings-row">
-        <div class="settings-label">Images</div>
+        <div class="settings-label">{t("vault.images")}</div>
         <div class="settings-value">{stats.imageCount}</div>
       </div>
       <div class="settings-row">
-        <div class="settings-label">Average lines per note</div>
+        <div class="settings-label">{t("vault.averageLines")}</div>
         <div class="settings-value">{stats.averageLinesPerNote.toFixed(1)}</div>
       </div>
       <div class="settings-row">
-        <div class="settings-label">Oldest note</div>
+        <div class="settings-label">{t("vault.oldest")}</div>
         <div class="settings-value">
           {formatDate(stats.oldestNoteDate, stats.noteCount)}
         </div>
       </div>
       <div class="settings-row">
-        <div class="settings-label">Newest note</div>
+        <div class="settings-label">{t("vault.newest")}</div>
         <div class="settings-value">
           {formatDate(stats.newestNoteDate, stats.noteCount)}
         </div>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "preact/hooks";
+import { t } from "../i18n";
 import type { OpenTab } from "./types";
 
 interface TabBarProps {
@@ -123,8 +124,11 @@ export function TabBar({
               {tab.dirty ? " •" : ""}
             </span>
             {pinned && (
-              <span class="tab-pin" aria-label={`${tab.name} is pinned`}>
-                Pinned
+              <span
+                class="tab-pin"
+                aria-label={t("tabs.pinnedLabel", { name: tab.name })}
+              >
+                {t("tabs.pinned")}
               </span>
             )}
             {!pinned && (
@@ -134,7 +138,7 @@ export function TabBar({
                   e.stopPropagation();
                   onClose(tab.path);
                 }}
-                aria-label={`Close ${tab.name}`}
+                aria-label={t("tabs.close", { name: tab.name })}
               >
                 x
               </button>
@@ -149,25 +153,35 @@ export function TabBar({
         >
           <button
             onClick={() => {
-              const tab = tabs.find((t) => t.path === menu.path);
+              const tab = tabs.find(
+                (candidate) => candidate.path === menu.path,
+              );
               if (tab) onRename(tab.path, tab.name);
             }}
           >
-            Rename
+            {t("tabs.rename")}
           </button>
-          <button onClick={() => onMoveLeft(menu.path)}>Move left</button>
-          <button onClick={() => onMoveRight(menu.path)}>Move right</button>
+          <button onClick={() => onMoveLeft(menu.path)}>
+            {t("tabs.moveLeft")}
+          </button>
+          <button onClick={() => onMoveRight(menu.path)}>
+            {t("tabs.moveRight")}
+          </button>
           {pinnedPaths.includes(menu.path) ? (
             <>
-              <button onClick={() => onUnpin(menu.path)}>Unpin</button>
+              <button onClick={() => onUnpin(menu.path)}>
+                {t("tabs.unpin")}
+              </button>
               <button onClick={() => onUnpinAndClose(menu.path)}>
-                Unpin and close
+                {t("tabs.unpinAndClose")}
               </button>
             </>
           ) : (
             <>
-              <button onClick={() => onPin(menu.path)}>Pin</button>
-              <button onClick={() => onClose(menu.path)}>Close</button>
+              <button onClick={() => onPin(menu.path)}>{t("tabs.pin")}</button>
+              <button onClick={() => onClose(menu.path)}>
+                {t("tabs.closeTab")}
+              </button>
             </>
           )}
           <button
@@ -179,9 +193,9 @@ export function TabBar({
               )
             }
           >
-            Close Others
+            {t("tabs.closeOthers")}
           </button>
-          <button onClick={onCloseAll}>Close All Unpinned</button>
+          <button onClick={onCloseAll}>{t("tabs.closeAllUnpinned")}</button>
         </div>
       )}
     </div>

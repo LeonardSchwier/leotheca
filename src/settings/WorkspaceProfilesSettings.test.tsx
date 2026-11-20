@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render } from "@testing-library/preact";
 import { signal } from "@preact/signals";
 import type { WorkspaceProfile } from "./globalConfig";
+import { languagePreference } from "../i18n";
 
 const {
   MockWorkspaceForgetUnsavedWorkError,
@@ -62,6 +63,7 @@ const ANDROID: WorkspaceProfile = {
 
 afterEach(() => {
   cleanup();
+  languagePreference.value = "system";
   workspaceProfiles.value = [];
   activeWorkspaceId.value = null;
   confirmRequest.value = null;
@@ -262,6 +264,25 @@ describe("WorkspaceProfilesSettings", () => {
 
     expect(alert).toHaveBeenCalledWith(
       'This folder is already used by workspace "Phone".',
+    );
+  });
+
+  it("shows the relink conflict alert in German with the conflicting profile's name", async () => {
+    languagePreference.value = "de";
+    workspaceProfiles.value = [DESKTOP, ANDROID];
+    activeWorkspaceId.value = "desktop";
+    const alert = vi.spyOn(window, "alert").mockImplementation(() => {});
+    vi.mocked(relinkWorkspaceProfile).mockRejectedValueOnce(
+      new MockWorkspaceRelinkConflictError("Telefon {x}"),
+    );
+
+    const { getAllByText } = render(<WorkspaceProfilesSettings />);
+    fireEvent.click(getAllByText("Neu verknüpfen")[1]);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(alert).toHaveBeenCalledWith(
+      "Dieser Ordner wird bereits vom Arbeitsbereich „Telefon {x}“ verwendet.",
     );
   });
 

@@ -9,17 +9,16 @@ import {
   workspaceProfiles,
 } from "./store";
 import { displayWorkspaceIcon } from "./workspaceProfiles";
+import { t, type MessageKey } from "../i18n";
 import {
   forgetWithUnsavedWorkConfirmation,
   workspaceIconGlyph,
 } from "./WorkspaceSwitcher";
 
-function reportProfileWriteFailure(action: string): void {
-  window.alert(`Could not ${action} workspace profile. Try again.`);
-}
-
-function reportWorkspaceActionFailure(action: string): void {
-  window.alert(`Could not ${action} workspace. Try again.`);
+/** One whole sentence per failed action, so a translation never has to
+ * build a sentence around an English verb. */
+function reportFailure(message: MessageKey): void {
+  window.alert(t(message));
 }
 
 /** F20 Phase 2a/2b-i/2b-ii settings management surface. The typed
@@ -28,14 +27,13 @@ function reportWorkspaceActionFailure(action: string): void {
  * Phase 2b-iii work (see ROADMAP.md). */
 export function WorkspaceProfilesSettings() {
   const rename = async (id: string, currentName: string) => {
-    const next = window.prompt("Workspace profile name", currentName);
+    const next = window.prompt(t("profiles.namePrompt"), currentName);
     if (next === null) return;
     try {
       const accepted = await renameWorkspaceProfile(id, next);
-      if (!accepted)
-        window.alert("Use a name from 1 to 80 characters with no line breaks.");
+      if (!accepted) window.alert(t("profiles.invalidName"));
     } catch {
-      reportProfileWriteFailure("rename");
+      reportFailure("profiles.renameFailed");
     }
   };
 
@@ -43,7 +41,7 @@ export function WorkspaceProfilesSettings() {
     try {
       await setWorkspaceProfileIcon(id, icon);
     } catch {
-      reportProfileWriteFailure("update");
+      reportFailure("profiles.updateFailed");
     }
   };
 
@@ -52,10 +50,12 @@ export function WorkspaceProfilesSettings() {
       await relinkWorkspaceProfile(id);
     } catch (error) {
       if (error instanceof WorkspaceRelinkConflictError) {
-        window.alert(error.message);
+        window.alert(
+          t("welcome.relinkConflict", { name: error.conflictingProfileName }),
+        );
         return;
       }
-      reportWorkspaceActionFailure("relink");
+      reportFailure("profiles.relinkFailed");
     }
   };
 
@@ -63,7 +63,7 @@ export function WorkspaceProfilesSettings() {
     try {
       await addWorkspaceFromPicker();
     } catch {
-      reportWorkspaceActionFailure("add");
+      reportFailure("profiles.addFailed");
     }
   };
 
@@ -72,11 +72,8 @@ export function WorkspaceProfilesSettings() {
       class="settings-section"
       aria-labelledby="workspace-profiles-heading"
     >
-      <h3 id="workspace-profiles-heading">Workspace profiles</h3>
-      <p class="settings-hint">
-        Rename and identify known workspaces. Forgetting a profile never deletes
-        its files.
-      </p>
+      <h3 id="workspace-profiles-heading">{t("profiles.title")}</h3>
+      <p class="settings-hint">{t("profiles.hint")}</p>
       {workspaceProfiles.value.map((profile) => {
         const isActive = profile.id === activeWorkspaceId.value;
         return (
@@ -84,8 +81,9 @@ export function WorkspaceProfilesSettings() {
             <span aria-hidden="true">{workspaceIconGlyph(profile.icon)}</span>
             <div>
               <div class="settings-label">
-                {profile.name}
-                {isActive ? " (current)" : ""}
+                {isActive
+                  ? t("profiles.current", { name: profile.name })
+                  : profile.name}
               </div>
               {!profile.token && (
                 <div class="settings-hint">{profile.path}</div>
@@ -95,15 +93,17 @@ export function WorkspaceProfilesSettings() {
               type="button"
               onClick={() => void rename(profile.id, profile.name)}
             >
-              Rename
+              {t("profiles.rename")}
             </button>
             <button type="button" onClick={() => void relink(profile.id)}>
-              Relink
+              {t("profiles.relink")}
             </button>
             <label>
-              <span class="sr-only">Icon for {profile.name}</span>
+              <span class="sr-only">
+                {t("profiles.iconFor", { name: profile.name })}
+              </span>
               <select
-                aria-label={`Icon for ${profile.name}`}
+                aria-label={t("profiles.iconFor", { name: profile.name })}
                 value={displayWorkspaceIcon(profile.icon)}
                 onChange={(event) =>
                   void setIcon(
@@ -123,13 +123,13 @@ export function WorkspaceProfilesSettings() {
               type="button"
               onClick={() => void forgetWithUnsavedWorkConfirmation(profile.id)}
             >
-              Forget
+              {t("profiles.forget")}
             </button>
           </div>
         );
       })}
       <button type="button" onClick={() => void add()}>
-        Add workspace
+        {t("profiles.add")}
       </button>
     </section>
   );

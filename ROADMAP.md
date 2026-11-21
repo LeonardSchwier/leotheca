@@ -57,7 +57,9 @@ Items with an owner. An expired lease means the item can be recovered.
 
   </details>
 
-- ⬜ **Treat a collections file that exists but cannot be read as unreadable, not missing**: `loadCollections` reads every `readTextFile` error as "no file yet" and `saveCollections` clears the corruption flag, so an unreadable `.leotheca/collections.json` is replaced by the next create, edit or delete. Use `isMissingFileError`, keep the bytes, flag it and add a test per case.
+- 🚧 **Treat a collections file that exists but cannot be read as unreadable, not missing**: `loadCollections` reads every `readTextFile` error as "no file yet" and `saveCollections` clears the corruption flag, so an unreadable `.leotheca/collections.json` is replaced by the next create, edit or delete. Use `isMissingFileError`, keep the bytes, flag it and add a test per case.
+  <!-- agent-state: {"schema":1,"id":"rm-5d246ae4cc9f10d3","state":"claimed","touch":["CHANGELOG.md","master-spec.md","spec","src/collections","test/collections"],"resources":[],"owner":"claude-code-daily-20261121T015740Z-24cd5bde","token":"2d3e690d44ccd46fbb3706615721dac5","branch":"agent/rm-5d246ae4cc9f10d3/2d3e690d44cc","claimed_at":"2026-11-21T01:57:45Z","heartbeat_at":"2026-11-21T01:57:45Z","lease_until":"2026-11-21T03:27:45Z"} -->
+  Agent: claude-code-daily-20261121T015740Z-24cd5bde | item: rm-5d246ae4cc9f10d3 | lease until: 2026-11-21T03:27:45Z
 
   <details>
   <summary>Why and scope</summary>

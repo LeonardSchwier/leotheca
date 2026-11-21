@@ -103,6 +103,60 @@ Items that wait for access or a decision outside the repository.
 - ⏸ **Android home-screen widgets**: Recent-notes widget has a full-workspace re-walk performance issue and colliding labels; "favorites" hamburger bug under investigation. Blocked: investigation in progress.
 - ⏸ **Compatibility layer**: Load community extension manifests; gated on maintainer approval of the third-party-code security model.
 
+- ⬜ **Application localization (UI strings in multiple languages)**: Market Solution #3 3.203.0 (Nov 2, 2026) introduced multi-language UI support. Leotheca's UI strings are hardcoded in English. Adding offline i18n for settings, menus, and dialogs using standard translation files is a plain-file, offline extension with no new convention. (Competitor scan, Market Solution #3 changelog 3.203.0, 2026-11-02)
+
+  <details>
+  <summary>Details</summary>
+
+  Desktop + Mobile. Leotheca's UI strings are currently hardcoded in English across desktop and Android. Adding offline i18n for the user-facing chrome (settings, menus, dialogs) using standard translation files in the user's workspace or bundled, with language selection and an off-by-default fallback, is a plain-file, offline extension of existing UI with no new convention.
+
+  </details>
+
+- ⬜ **In-app Web viewer for external links**: Market Solution #2 1.15.1 (Nov 3, 2026) added a Web viewer that opens external links in an in-app browser panel. Leotheca currently hands off to the system browser. A togglable in-app panel that renders fetched HTML locally is an offline, opt-in extension with no proprietary convention. (Competitor scan, Market Solution #2 changelog 1.15.1 Desktop + Mobile, 2026-11-03)
+
+  <details>
+  <summary>Details</summary>
+
+  Desktop + Mobile. Leotheca currently opens external links in the default browser (or blocks them in the webview CSP). A togglable in-app panel that renders fetched HTML locally (with the same CSP/script restrictions already applied) is a plain-file, offline, opt-in extension with no proprietary convention.
+
+  </details>
+
+- ⬜ **Full-text search: subsequence/fuzzy matching and relevance ranking**: Market Solution #2 1.15.1 Desktop (Nov 3, 2026) added a "Relevance" sort. Leotheca's note-content search is a plain substring match; the quick-switcher already does word-start subsequence matching. Extending note-content search with the same fuzzy/relevance ranking is an offline improvement with no new convention. (Competitor scan, Market Solution #2 changelog 1.15.1 Desktop, 2026-11-03)
+
+  <details>
+  <summary>Details</summary>
+
+  Leotheca's note-content search (searchQuery.ts) is a plain substring match — a typo or mistyped query returns nothing — while the quick-switcher/link-suggester (fuzzyMatch.ts) already does word-start subsequence matching with diacritic folding. Extending the note-content search path with the same fuzzy/relevance ranking is an offline improvement to an existing feature with no new convention and no proprietary store.
+
+  </details>
+
+- ⬜ **Home-screen widgets: pick a vault and note from a list**: Market Solution #2 1.15.1 Mobile (Nov 12, 2026) lets widgets choose a vault and note from a list instead of typing. Leotheca's widget family already reads plain markdown files locally. Replacing the "type the note name" step with a small picker is an offline, plain-file extension of existing widget UX. (Competitor scan, Market Solution #2 changelog 1.15.1 Mobile, 2026-11-12)
+
+  <details>
+  <summary>Details</summary>
+
+  Leotheca's existing widget family (New note, Favorites, Recent notes, Quick Capture, View note) already reads plain markdown files locally. Replacing the "type the note name" step with a small picker that lists the vault's notes is an offline, plain-file extension of the existing widget UX with no new convention and no proprietary store.
+
+  </details>
+
+- ⬜ **New-note home-screen widget: create a uniquely-named note per tap**: Market Solution #2 1.15.1 Mobile (Nov 12, 2026) lets its New note widget create a uniquely-named note on each tap. Leotheca's New note widget creates a timestamped note; making each tap produce a fresh note with a distinct filename is a plain-file, offline extension. (Competitor scan, Market Solution #2 changelog 1.15.1 Mobile, 2026-11-12)
+
+  <details>
+  <summary>Details</summary>
+
+  Previously the widget could open an existing note or append. Leotheca's New note widget creates a note with a timestamped name; making each tap produce a fresh note with a distinct auto-generated filename (e.g. appending a counter or timestamp) is a plain-file, offline extension of the existing widget with no new convention.
+
+  </details>
+
+- ⬜ **Voice capture: insert a new line when the speaker pauses (2 s)**: Market Solution #2 1.15.1 Mobile (Nov 12, 2026) starts a new line when the speaker pauses for 2 s. Leotheca's local STT voice capture transcribes into the active note; adding a pause-detector is an offline, plain-file extension of the existing capture pipeline. (Competitor scan, Market Solution #2 changelog 1.15.1 Mobile, 2026-11-12)
+
+  <details>
+  <summary>Details</summary>
+
+  Leotheca's existing local STT voice capture (Settings, off by default) transcribes speech into the active note. Adding a pause-detector that inserts a newline after ~2 s of silence is an offline, plain-file extension of the existing capture pipeline with no new convention and no proprietary store.
+
+  </details>
+
 ## Implemented
 
 - ✅ **Record the merge_group triggers in the master specification**: CI, Rules and Agent policy now also run on `merge_group`, and Agent policy runs on every pull request. The master-spec CI rule requires the CI table and change log to say so.
